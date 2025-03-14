@@ -200,19 +200,38 @@ Main tables:
 
 ```
 language_learning_tool/
-├── app.py                  # Main Flask application file
-├── main.py                 # Command line interface
-├── config/                 # Configuration
-│   └── settings.py         # Application settings
-├── src/                    # Source code
-│   ├── db/                 # Database operations
-│   ├── nlp/                # Natural language processing
-│   ├── web/                # Scraping and web components
-│   ├── audio/              # Audio file management
-│   └── user/               # User management
-├── static/                 # Static files
-│   └── media/              # Audio files
-└── templates/              # HTML templates for web interface
+├── app.py                    # Main Flask application file
+├── main.py                   # Command line interface
+├── config/                   # Configuration
+│   └── settings.py           # Application settings
+├── src/                      # Source code
+│   ├── db/                   # Database operations
+│   │   ├── models.py         # Table and model definitions
+│   │   └── repository.py     # Functions for working with the database
+│   ├── nlp/                  # Natural language processing
+│   │   ├── setup.py          # Configuring NLTK
+│   │   └── processor.py      # Text and word processing
+│   ├── web/                  # Scraping and web components
+│   │   ├── portal.py        
+│   │   └── scraper.py        # Functions for retrieving data from web pages
+│   ├── audio/                # Audio file management
+│   │   ├── forvo_api.py      # Настройка NLTK
+│   │   ├── forvo_download.py # Настройка NLTK
+│   │   └── manager.py        # Управление аудиофайлами
+│   ├── utils/
+│   │   └── helpers.py        # Auxiliary functions
+│   └── user/                 # User management
+│       ├── __init__.py
+│       ├── models.py         # Table and model definitions
+│       └── repository.py     # Functions for working with the database
+└── templates/                # HTML templates for web interface
+   ├── base.html              # The base template (already fixed with the copyright year)
+   ├── index.html             # Homepage
+   ├── login.html             # Login page (now separate)
+   ├── register.html          # Registration page (now separate)
+   ├── dashboard.html         # User dashboard
+   ├── words_list.html        # Words listing page
+   └── word_detail.html       # Word detail page
 ```
 
 ## ⚙️ Configuration
