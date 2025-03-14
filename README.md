@@ -44,8 +44,9 @@ create Anki flashcards for memorization.
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/your-account/language-learning-tool.git
-cd language-learning-tool
+git clone https://github.com/nekto007/language_learning_tool.git
+
+cd language_learning_tool
 ```
 
 ### Create a Virtual Environment
@@ -117,10 +118,9 @@ Main sections:
 Each word has one of the following statuses:
 
 - **New (0)** - unprocessed word
-- **Known (1)** - already familiar word
-- **Queued (2)** - prepared for learning
-- **Active (3)** - word in the learning process
-- **Learned (4)** - fully learned word
+- **Queued (1)** - prepared for learning
+- **Active (2)** - word in the learning process
+- **Learned (3)** - fully learned word
 
 ### Book/Source Management
 
