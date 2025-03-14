@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if book_title %}
+        Words from "{{ book_title }}" | Language Learning Tool
+    {% elif status is not none %}
+        {{ status_labels[status] }} Words | Language Learning Tool
+    {% else %}
+        All Words | Language Learning Tool
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                {% if book_title %}
+                    Words from "{{ book_title }}"
+                {% elif status is not none %}
+                    {{ status_labels[status] }} Words
+                {% else %}
+                    All Words
+                {% endif %}
+            </h1>
+
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <!-- Filters and settings -->
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-md-6">
+                        <form action="{{ url_for('words_list') }}" method="get" class="mb-3">
+                            <div class="input-group">
+                                <input type="text" name="search" id="searchInput" class="form-control"
+                                       placeholder="Search words..." value="{{ search_query }}">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="bi bi-search"></i> Find
+                                </button>
+                                {% if search_query %}
+                                    <a href="{{ url_for('words_list', status=status, book_id=book_id, letter=letter, page=1, show_all=show_all) }}"
+                                       class="btn btn-outline-secondary">
+                                        <i class="bi bi-x"></i> Reset
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                            <!-- Preserve other filter parameters -->
+                            {% if status is not none %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+                            {% if book_id %}<input type="hidden" name="book_id" value="{{ book_id }}">{% endif %}
+                            {% if letter %}<input type="hidden" name="letter" value="{{ letter }}">{% endif %}
+                            {% if show_all %}<input type="hidden" name="show_all" value="{{ show_all }}">{% endif %}
+                            <input type="hidden" name="page" value="1">
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="btn-group float-end">
+                            <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                Bulk Actions
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><h6 class="dropdown-header">Mark selected as:</h6></li>
+                                {% for status_id, label in status_labels.items() %}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="batchUpdateStatus({{ status_id }})">
+                                        {{ label }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="createAnkiCards()">
+                                        Create Anki Cards
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status filter -->
+                <div class="mt-3">
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link {% if status is none %}active{% endif %}"
+                               href="{{ url_for('words_list', book_id=book_id, letter=letter) }}">
+                                All Words
+                            </a>
+                        </li>
+                        {% for status_id, label in status_labels.items() %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if status == status_id %}active{% endif %}"
+                               href="{{ url_for('words_list', status=status_id, book_id=book_id, letter=letter) }}">
+                                {{ label }}
+                                <span class="badge {% if status_id == 0 %}bg-secondary{% elif status_id == 1 %}bg-success{% elif status_id == 2 %}bg-info{% elif status_id == 3 %}bg-primary{% elif status_id == 4 %}bg-warning{% endif %} rounded-pill">
+                                    {% if stats and stats[status_id] %}{{ stats[status_id] }}{% else %}0{% endif %}
+                                </span>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="mt-2 mb-2 d-flex justify-content-end">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="showAllToggle" {% if show_all %}checked{% endif %}>
+                        <label class="form-check-label" for="showAllToggle">
+                            Show words without translation
+                        </label>
+                    </div>
+                </div>
+                <!-- Alphabetical filter -->
+                <div class="mt-3">
+                    <nav aria-label="Alphabetical navigation">
+                        <ul class="pagination pagination-sm justify-content-center flex-wrap">
+                            <li class="page-item {% if letter is none %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('words_list', book_id=book_id, status=status, page=1) }}">All</a>
+                            </li>
+                            {% for char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                                <li class="page-item {% if letter == char %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('words_list', book_id=book_id, status=status, letter=char, page=1) }}">{{ char }}</a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="card-body">
+                {% if words %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="wordsTable">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th>English</th>
+                                <th>Russian</th>
+                                <th>Pronunciation</th>
+                                <th>Status</th>
+                                {% if book_id %}
+                                <th>Frequency</th>
+                                {% endif %}
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for word in words %}
+                                {% if word.russian_word %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input word-checkbox" data-word-id="{{ word.id }}">
+                                    </td>
+                                    <td><a href="{{ url_for('word_detail', word_id=word.id) }}">{{ word.english_word }}</a></td>
+                                    <td>{{ word.russian_word }}</td>
+                                    <td>
+                                        {% if word.get_download == 1 %}
+                                            <span class="badge bg-success"><i class="bi bi-volume-up"></i> Available</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-volume-mute"></i> None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ word.status|status_badge|safe }}</td>
+                                    {% if book_id %}
+                                    <td>{{ word.frequency }}</td>
+                                    {% endif %}
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                Change Status
+                                            </button>
+                                            <ul class="dropdown-menu status-dropdown">
+                                                {% for status_id, label in status_labels.items() %}
+                                                <li>
+                                                    <a class="dropdown-item {% if word.status == status_id %}active{% endif %}"
+                                                       href="#"
+                                                       onclick="updateWordStatus({{ word.id }}, {{ status_id }})">
+                                                        {{ label }}
+                                                    </a>
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if search_query %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    {% if total_words > 0 %}
+                        Found {{ total_words }} words matching the query "<strong>{{ search_query }}</strong>"
+                    {% else %}
+                        No results found for query "<strong>{{ search_query }}</strong>"
+                    {% endif %}
+                </div>
+                {% endif %}
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('words_list', page=page-1, book_id=book_id, status=status, letter=letter) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                                <li class="page-item {% if p == page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('words_list', page=p, book_id=book_id, status=status, letter=letter) }}">{{ p }}</a>
+                                </li>
+                            {% elif p == page - 3 or p == page + 3 %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">...</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('words_list', page=page+1, book_id=book_id, status=status, letter=letter) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                {% endif %}
+
+                <div class="d-flex justify-content-between mt-3">
+                    <div>
+                        <span class="badge bg-secondary" id="selectedCount">0 selected</span>
+                    </div>
+                    <div>
+                        <span class="badge bg-primary" id="totalCount">Showing {{ words|length }} of {{ total_words }} words</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No words found.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal window for Anki card export -->
+<div class="modal fade" id="ankiExportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Anki Cards</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <form id="ankiExportForm">
+                            <div class="mb-3">
+                                <label for="deckName" class="form-label">Deck name:</label>
+                                <input type="text" class="form-control" id="deckName" value="English Words">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Card format:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="cardFormat" id="formatBasic" value="basic" checked>
+                                    <label class="form-check-label" for="formatBasic">
+                                        Basic (English → Russian)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="includePronunciation" checked>
+                                    <label class="form-check-label" for="includePronunciation">
+                                        Include pronunciation
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="includeExamples" checked>
+                                    <label class="form-check-label" for="includeExamples">
+                                        Include examples
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="updateStatus">
+                                    <label class="form-check-label" for="updateStatus">
+                                        Change status to "Active" (3)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" id="selectedWordsCount">Selected words: 0</label>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6>Card preview:</h6>
+
+                        <div class="card mb-3">
+                            <div class="card-header">Front side</div>
+                            <div class="card-body">
+                                <div style="font-family: Arial, sans-serif; font-size: 20px; text-align: center; color: #333;">
+                                    <div style="font-size: 24px; margin-bottom: 10px; color: #000;">
+                                        <strong>example</strong>
+                                    </div>
+
+                                    <div style="margin: 15px 0;">
+                                        <small><em>[sound file]</em></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">Back side</div>
+                            <div class="card-body">
+                                <div style="font-family: Arial, sans-serif; font-size: 20px; text-align: center; color: #333;">
+                                    <div style="font-size: 24px; margin-bottom: 10px; color: #000;">
+                                        <strong>example</strong>
+                                    </div>
+
+                                    <div style="margin: 15px 0;">
+                                        <small><em>[sound file]</em></small>
+                                    </div>
+
+                                    <hr>
+
+                                    <div style="margin: 15px 0;">
+                                        <span style="color: #e60000; font-weight: bold; font-size: 22px;">example</span>
+                                    </div>
+
+                                    <div style="margin-top: 20px; font-style: italic; color: #666; font-size: 18px; line-height: 1.4; text-align: left; padding: 0 10px;">
+                                        <em>This is an example sentence. / This is an example sentence translation.</em>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="exportAnkiBtn">Export</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        /*
+        // Word filtering
+        const wordFilter = document.getElementById('wordFilter');
+        const wordsTable = document.getElementById('wordsTable');
+        const tableRows = wordsTable?.querySelectorAll('tbody tr');
+
+        if (wordFilter && tableRows) {
+            wordFilter.addEventListener('keyup', function() {
+                const filterText = this.value.toLowerCase();
+
+                tableRows.forEach(row => {
+                    const englishWord = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const russianWord = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+
+                    if (englishWord.includes(filterText) || russianWord.includes(filterText)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+        */
+        // Auto-focus on search field when page loads,
+        // but only if it already has text
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput && searchInput.value) {
+                searchInput.focus();
+                // Place cursor at the end of text
+                const length = searchInput.value.length;
+                searchInput.setSelectionRange(length, length);
+            }
+        });
+
+        // Search improvement: search on Enter key press
+        document.getElementById('searchInput')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.closest('form').submit();
+            }
+        });
+        // Select all checkbox
+        const selectAll = document.getElementById('selectAll');
+        const wordCheckboxes = document.querySelectorAll('.word-checkbox');
+        const selectedCountElement = document.getElementById('selectedCount');
+
+        if (selectAll && wordCheckboxes.length > 0) {
+            selectAll.addEventListener('change', function() {
+                const isChecked = this.checked;
+
+                wordCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+
+                updateSelectedCount();
+            });
+
+            wordCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateSelectedCount();
+
+                    // Update "select all" checkbox
+                    const allChecked = Array.from(wordCheckboxes).every(cb => cb.checked);
+                    const anyChecked = Array.from(wordCheckboxes).some(cb => cb.checked);
+
+                    selectAll.checked = allChecked;
+                    selectAll.indeterminate = anyChecked && !allChecked;
+                });
+            });
+        }
+
+        function updateSelectedCount() {
+            if (selectedCountElement) {
+                const selectedCount = document.querySelectorAll('.word-checkbox:checked').length;
+                selectedCountElement.textContent = `${selectedCount} selected`;
+            }
+        }
+
+        // Handlers for toggling settings and updating preview in modal window
+        const checkboxes = document.querySelectorAll('#includePronunciation, #includeExamples');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updatePreview);
+        });
+
+        function updatePreview() {
+            const includePronunciation = document.getElementById('includePronunciation').checked;
+            const includeExamples = document.getElementById('includeExamples').checked;
+
+            // Update preview according to settings
+            const pronunciationEl = document.querySelectorAll('.card-body small');
+            pronunciationEl.forEach(el => {
+                el.style.display = includePronunciation ? '' : 'none';
+            });
+
+            const exampleEl = document.querySelector('.card-body em:last-child').parentNode;
+            exampleEl.style.display = includeExamples ? '' : 'none';
+        }
+    });
+
+    // Function for creating Anki cards
+    function createAnkiCards() {
+        const selectedCheckboxes = document.querySelectorAll('.word-checkbox:checked');
+
+        if (selectedCheckboxes.length === 0) {
+            alert('Please select at least one word to create cards.');
+            return;
+        }
+
+        // Update information about number of selected words
+        document.getElementById('selectedWordsCount').textContent = `Selected words: ${selectedCheckboxes.length}`;
+
+        // Show modal window
+        const ankiModal = new bootstrap.Modal(document.getElementById('ankiExportModal'));
+        ankiModal.show();
+
+        // Handler for export button
+        document.getElementById('exportAnkiBtn').onclick = function() {
+            // Display loading indicator
+            const exportBtn = document.getElementById('exportAnkiBtn');
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating deck...';
+            exportBtn.disabled = true;
+
+            // Collect IDs of selected words
+            const wordIds = Array.from(selectedCheckboxes).map(checkbox =>
+                parseInt(checkbox.getAttribute('data-word-id'))
+            );
+
+            // Collect export settings
+            const exportSettings = {
+                deckName: document.getElementById('deckName').value,
+                cardFormat: document.querySelector('input[name="cardFormat"]:checked').value,
+                includePronunciation: document.getElementById('includePronunciation').checked,
+                includeExamples: document.getElementById('includeExamples').checked,
+                updateStatus: document.getElementById('updateStatus').checked,
+                wordIds: wordIds
+            };
+
+            // Send request to server
+            fetch('/api/export-anki', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(exportSettings)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server error during export');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${exportSettings.deckName}.apkg`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                // Restore button
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+
+                // Close modal window
+                ankiModal.hide();
+
+                // If status update is needed, reload the page
+                if (exportSettings.updateStatus) {
+                    location.reload();
+                } else {
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                        <strong>Done!</strong> Anki deck created successfully.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.querySelector('.container').prepend(alertDiv);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while exporting Anki cards: ' + error.message);
+
+                // Restore button
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            });
+        };
+    }
+
+    // Batch update status
+    function batchUpdateStatus(status) {
+        const selectedCheckboxes = document.querySelectorAll('.word-checkbox:checked');
+
+        if (selectedCheckboxes.length === 0) {
+            alert('Please select at least one word.');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to mark ${selectedCheckboxes.length} words as "${status_labels[status]}"?`)) {
+            return;
+        }
+
+        const wordIds = Array.from(selectedCheckboxes).map(checkbox =>
+            parseInt(checkbox.getAttribute('data-word-id'))
+        );
+
+        fetch('/api/batch-update-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                word_ids: wordIds,
+                status: status
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Updated ${data.updated_count} of ${data.total_count} words.`);
+                location.reload();
+            } else {
+                alert('Failed to update status: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating status.');
+        });
+    }
+
+    // Status labels for JavaScript
+    const status_labels = {
+        {% for status_id, label in status_labels.items() %}
+        {{ status_id }}: "{{ label }}",
+        {% endfor %}
+    };
+</script>
+{% endblock %}
