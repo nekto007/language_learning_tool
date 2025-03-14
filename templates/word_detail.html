@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{{ word.english_word }} | Language Learning Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ word.english_word }}</h1>
+
+            <div>
+                <a href="{{ request.referrer or url_for('words_list') }}" class="btn btn-outline-secondary">Back</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Word Details</h5>
+                        <span class="badge {% if word.status == 0 %}bg-secondary{% elif word.status == 1 %}bg-success{% elif word.status == 2 %}bg-info{% elif word.status == 3 %}bg-primary{% elif word.status == 4 %}bg-warning{% endif %}">
+                            {{ status_labels[word.status] }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">English:</div>
+                            <div class="col-md-9">{{ word.english_word }}</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Russian:</div>
+                            <div class="col-md-9">{{ word.russian_word or 'Not available' }}</div>
+                        </div>
+
+                        {% if word.level %}
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Level:</div>
+                            <div class="col-md-9">{{ word.level }}</div>
+                        </div>
+                        {% endif %}
+
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">In Brown Corpus:</div>
+                            <div class="col-md-9">
+                                {% if word.brown == 1 %}
+                                <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Pronunciation:</div>
+                            <div class="col-md-9">
+                                {% if word.get_download == 1 %}
+                                <audio controls>
+                                    <!-- Update this path to match your setup -->
+                                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
+                                {% else %}
+                                <span class="badge bg-danger">Not available</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if word.sentences %}
+                        <div class="row">
+                            <div class="col-md-3 fw-bold">Example:</div>
+                            <div class="col-md-9">{{ word.sentences|safe }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if books %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Books containing this word</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Book</th>
+                                        <th>Frequency</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for book in books %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('words_list', book_id=book.id) }}">{{ book.title }}</a>
+                                        </td>
+                                        <td>{{ book.frequency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Change Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            {% for status_id, label in status_labels.items() %}
+                            <button
+                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if word.status == status_id %}active{% endif %}"
+                                onclick="updateWordStatus({{ word.id }}, {{ status_id }})"
+                            >
+                                {{ label }}
+                                {% if word.status == status_id %}
+                                <span class="badge bg-primary rounded-pill">Current</span>
+                                {% endif %}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">External Resources</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="https://dictionary.cambridge.org/dictionary/english/{{ word.english_word|urlencode }}"
+                               class="btn btn-outline-primary"
+                               target="_blank">
+                                Cambridge Dictionary
+                            </a>
+                            <a href="https://www.oxfordlearnersdictionaries.com/definition/english/{{ word.english_word|urlencode }}"
+                               class="btn btn-outline-primary"
+                               target="_blank">
+                                Oxford Dictionary
+                            </a>
+                            <a href="https://context.reverso.net/translation/english-russian/{{ word.english_word|urlencode }}"
+                               class="btn btn-outline-primary"
+                               target="_blank">
+                                Reverso Context
+                            </a>
+                            <a href="https://forvo.com/word/{{ word.english_word|urlencode }}/#en"
+                               class="btn btn-outline-primary"
+                               target="_blank">
+                                Forvo Pronunciation
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
