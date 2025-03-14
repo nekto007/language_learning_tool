@@ -1,5 +1,5 @@
 """
-Репозиторий для работы с базой данных SQLite.
+Repository for working with SQLite database.
 """
 import logging
 import sqlite3
@@ -12,23 +12,23 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseRepository:
-    """Репозиторий для работы с базой данных."""
+    """Repository for working with the database."""
 
     def __init__(self, db_path: str = DB_FILE):
         """
-        Инициализирует репозиторий.
+        Initializes the repository.
 
         Args:
-            db_path (str, optional): Путь к файлу базы данных.
+            db_path (str, optional): Path to the database file.
         """
         self.db_path = db_path
 
     def get_connection(self) -> sqlite3.Connection:
         """
-        Получает соединение с базой данных.
+        Gets a connection to the database.
 
         Returns:
-            sqlite3.Connection: Объект соединения.
+            sqlite3.Connection: Connection object.
         """
         return sqlite3.connect(self.db_path)
 
@@ -36,15 +36,15 @@ class DatabaseRepository:
             self, query: str, parameters: Tuple = (), fetch: bool = False
     ) -> Optional[List[Tuple]]:
         """
-        Выполняет SQL-запрос.
+        Executes an SQL query.
 
         Args:
-            query (str): SQL-запрос.
-            parameters (Tuple, optional): Параметры запроса.
-            fetch (bool, optional): Флаг возврата результатов. По умолчанию False.
+            query (str): SQL query.
+            parameters (Tuple, optional): Query parameters.
+            fetch (bool, optional): Flag to return results. Defaults to False.
 
         Returns:
-            Optional[List[Tuple]]: Результаты запроса или None.
+            Optional[List[Tuple]]: Query results or None.
         """
         try:
             with self.get_connection() as conn:
@@ -60,20 +60,20 @@ class DatabaseRepository:
 
     def insert_or_update_book(self, book: Book) -> int:
         """
-        Вставляет или обновляет книгу в базе данных.
+        Inserts or updates a book in the database.
 
         Args:
-            book (Book): Объект книги.
+            book (Book): Book object.
 
         Returns:
-            int: ID вставленной книги.
+            int: ID of the inserted book.
         """
         query = """
             INSERT OR IGNORE INTO book (title) VALUES (?)
         """
         self.execute_query(query, (book.title,))
 
-        # Получение ID книги
+        # Get book ID
         query = "SELECT id FROM book WHERE title = ?"
         result = self.execute_query(query, (book.title,), fetch=True)
 
@@ -83,22 +83,22 @@ class DatabaseRepository:
 
     def insert_or_update_word(self, word: Word) -> int:
         """
-        Вставляет или обновляет слово в базе данных.
+        Inserts or updates a word in the database.
 
         Args:
-            word (Word): Объект слова.
+            word (Word): Word object.
 
         Returns:
-            int: ID вставленного слова.
+            int: ID of the inserted word.
         """
-        # Проверка существования слова
+        # Check if word exists
         check_query = "SELECT id FROM collections_word WHERE english_word = ?"
         result = self.execute_query(check_query, (word.english_word,), fetch=True)
 
         if result and result[0]:
             word_id = result[0][0]
 
-            # Обновление слова
+            # Update word
             update_query = """
                 UPDATE collections_word
                 SET listening = COALESCE(?, listening),
@@ -122,7 +122,7 @@ class DatabaseRepository:
                 ),
             )
         else:
-            # Вставка нового слова
+            # Insert new word
             insert_query = """
                 INSERT INTO collections_word
                 (english_word, listening, russian_word, sentences, level, brown, get_download)
@@ -141,7 +141,7 @@ class DatabaseRepository:
                 ),
             )
 
-            # Получение ID нового слова
+            # Get ID of the new word
             result = self.execute_query(
                 "SELECT id FROM collections_word WHERE english_word = ?",
                 (word.english_word,),
@@ -153,12 +153,12 @@ class DatabaseRepository:
 
     def link_word_to_book(self, word_id: int, book_id: int, frequency: int) -> None:
         """
-        Связывает слово с книгой.
+        Links a word to a book.
 
         Args:
-            word_id (int): ID слова.
-            book_id (int): ID книги.
-            frequency (int): Частота появления слова в книге.
+            word_id (int): Word ID.
+            book_id (int): Book ID.
+            frequency (int): Frequency of the word in the book.
         """
         query = """
             INSERT OR REPLACE INTO word_book_link
@@ -169,22 +169,22 @@ class DatabaseRepository:
 
     def insert_or_update_phrasal_verb(self, verb: PhrasalVerb) -> int:
         """
-        Вставляет или обновляет фразовый глагол в базе данных.
+        Inserts or updates a phrasal verb in the database.
 
         Args:
-            verb (PhrasalVerb): Объект фразового глагола.
+            verb (PhrasalVerb): Phrasal verb object.
 
         Returns:
-            int: ID вставленного фразового глагола.
+            int: ID of the inserted phrasal verb.
         """
-        # Проверка существования фразового глагола
+        # Check if phrasal verb exists
         check_query = "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?"
         result = self.execute_query(check_query, (verb.phrasal_verb,), fetch=True)
 
         if result and result[0]:
             verb_id = result[0][0]
 
-            # Обновление фразового глагола
+            # Update phrasal verb
             update_query = """
                 UPDATE phrasal_verb
                 SET russian_translate = COALESCE(?, russian_translate),
@@ -208,7 +208,7 @@ class DatabaseRepository:
                 ),
             )
         else:
-            # Вставка нового фразового глагола
+            # Insert new phrasal verb
             insert_query = """
                 INSERT INTO phrasal_verb
                 (phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download)
@@ -227,7 +227,7 @@ class DatabaseRepository:
                 ),
             )
 
-            # Получение ID нового фразового глагола
+            # Get ID of the new phrasal verb
             result = self.execute_query(
                 "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?",
                 (verb.phrasal_verb,),
@@ -239,13 +239,13 @@ class DatabaseRepository:
 
     def get_word_by_english(self, english_word: str) -> Optional[Word]:
         """
-        Получает слово по английскому слову.
+        Gets a word by its English word.
 
         Args:
-            english_word (str): Английское слово.
+            english_word (str): English word.
 
         Returns:
-            Optional[Word]: Объект слова или None.
+            Optional[Word]: Word object or None.
         """
         query = "SELECT * FROM collections_word WHERE english_word = ?"
         result = self.execute_query(query, (english_word,), fetch=True)
@@ -253,7 +253,7 @@ class DatabaseRepository:
         if not result:
             return None
 
-        # Преобразование строки результата в словарь
+        # Convert result row to dictionary
         columns = [
             'id', 'english_word', 'russian_word', 'listening',
             'sentences', 'level', 'brown', 'get_download'
@@ -264,16 +264,16 @@ class DatabaseRepository:
 
     def get_words_by_filter(self, **filters) -> List[Word]:
         """
-        Получает слова по фильтрам.
+        Gets words by filters.
 
         Args:
-            **filters: Фильтры в формате ключ=значение.
+            **filters: Filters in key=value format.
 
         Returns:
-            List[Word]: Список объектов Word.
+            List[Word]: List of Word objects.
         """
-        # Построение запроса с фильтрами
-        query = "SELECT * FROM collections_word WHERE 1=1"
+        # Build query with filters
+        query = "SELECT * FROM collections_word"
         params = []
 
         for key, value in filters.items():
@@ -286,7 +286,7 @@ class DatabaseRepository:
         if not result:
             return []
 
-        # Преобразование результатов в объекты Word
+        # Convert results to Word objects
         columns = [
             'id', 'english_word', 'russian_word', 'listening',
             'sentences', 'level', 'brown', 'get_download'
@@ -301,13 +301,13 @@ class DatabaseRepository:
 
     def get_words_by_book(self, book_id: int) -> List[Dict[str, Any]]:
         """
-        Получает слова по ID книги с информацией о частоте.
+        Gets words by book ID with frequency information.
 
         Args:
-            book_id (int): ID книги.
+            book_id (int): Book ID.
 
         Returns:
-            List[Dict[str, Any]]: Список словарей с информацией о словах.
+            List[Dict[str, Any]]: List of dictionaries with word information.
         """
         query = """
             SELECT cw.*, wbl.frequency
@@ -321,7 +321,7 @@ class DatabaseRepository:
         if not result:
             return []
 
-        # Преобразование результатов в словари
+        # Convert results to dictionaries
         columns = [
             'id', 'english_word', 'russian_word', 'listening',
             'sentences', 'level', 'brown', 'get_download', 'frequency'
@@ -331,19 +331,19 @@ class DatabaseRepository:
 
     def update_download_status(self, table_name: str, column_name: str, media_folder: str) -> int:
         """
-        Обновляет статус загрузки на основе наличия файлов в папке.
+        Updates download status based on file presence in folder.
 
         Args:
-            table_name (str): Имя таблицы.
-            column_name (str): Имя столбца с именем слова/фразы.
-            media_folder (str): Путь к папке с медиафайлами.
+            table_name (str): Table name.
+            column_name (str): Column name with word/phrase name.
+            media_folder (str): Path to media files folder.
 
         Returns:
-            int: Количество обновленных записей.
+            int: Number of updated records.
         """
         import os
 
-        # Получение списка слов/фраз, для которых не загружены файлы
+        # Get list of words/phrases for which files are not downloaded
         query = f"SELECT {column_name} FROM {table_name} WHERE get_download = 0"
         result = self.execute_query(query, fetch=True)
 
@@ -353,14 +353,14 @@ class DatabaseRepository:
         words = [row[0] for row in result]
         updated_count = 0
 
-        # Проверка наличия файлов и обновление статуса
+        # Check file presence and update status
         for word in words:
             word_modified = word.replace(" ", "_").lower()
             file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
 
             status = 1 if os.path.isfile(file_path) else 0
 
-            # Обновление статуса в базе данных
+            # Update status in database
             update_query = f"UPDATE {table_name} SET get_download = ? WHERE {column_name} = ?"
             self.execute_query(update_query, (status, word))
 
@@ -371,14 +371,14 @@ class DatabaseRepository:
 
     def process_translate_file(self, translate_file: str, table_name: str = "collections_word") -> int:
         """
-        Обрабатывает файл с переводами и обновляет базу данных.
+        Processes translation file and updates the database.
 
         Args:
-            translate_file (str): Путь к файлу с переводами.
-            table_name (str, optional): Имя таблицы. По умолчанию "collections_word".
+            translate_file (str): Path to translation file.
+            table_name (str, optional): Table name. Defaults to "collections_word".
 
         Returns:
-            int: Количество обработанных записей.
+            int: Number of processed records.
         """
         import os
 
@@ -400,11 +400,11 @@ class DatabaseRepository:
                     if len(parts) == 5:
                         english_word, russian_translate, english_sentence, russian_sentence, level = parts
 
-                        # Формирование пути к аудиофайлу
+                        # Form path to audio file
                         sound_file = english_word.replace(" ", "_").lower()
                         listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
 
-                        # Обновление информации в базе данных
+                        # Update information in database
                         update_query = f"""
                             UPDATE {table_name}
                             SET russian_word = ?,
@@ -435,13 +435,13 @@ class DatabaseRepository:
 
     def process_phrasal_verb_file(self, phrasal_verb_file: str) -> int:
         """
-        Обрабатывает файл с фразовыми глаголами и обновляет базу данных.
+        Processes phrasal verb file and updates the database.
 
         Args:
-            phrasal_verb_file (str): Путь к файлу с фразовыми глаголами.
+            phrasal_verb_file (str): Path to phrasal verb file.
 
         Returns:
-            int: Количество обработанных записей.
+            int: Number of processed records.
         """
         import os
 
@@ -463,10 +463,10 @@ class DatabaseRepository:
                     if len(parts) == 5:
                         phrasal_verb, russian_translate, using, english_sentence, russian_sentence = parts
 
-                        # Получение базового глагола (первое слово)
+                        # Get base verb (first word)
                         english_word = phrasal_verb.split(" ")[0]
 
-                        # Получение ID базового глагола
+                        # Get base verb ID
                         query = "SELECT id FROM collections_word WHERE english_word = ?"
                         result = self.execute_query(query, (english_word,), fetch=True)
 
@@ -476,11 +476,11 @@ class DatabaseRepository:
 
                         word_id = result[0][0]
 
-                        # Формирование пути к аудиофайлу
+                        # Form path to audio file
                         sound_file = phrasal_verb.lower().replace(" ", "_")
                         listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
 
-                        # Вставка фразового глагола
+                        # Insert phrasal verb
                         insert_query = """
                             INSERT OR IGNORE INTO phrasal_verb
                             (phrasal_verb, russian_translate, "using", sentence, word_id, listening)
@@ -509,21 +509,21 @@ class DatabaseRepository:
 
     def update_schema_if_needed(self) -> None:
         """
-        Проверяет и обновляет схему базы данных при необходимости.
+        Checks and updates database schema if needed.
         """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
 
-                # Проверка версии схемы
+                # Check schema version
                 cursor.execute("PRAGMA user_version")
                 # current_version = cursor.fetchone()[0]
 
-                # Проверка наличия нового поля learning_status
+                # Check for new learning_status field
                 cursor.execute("PRAGMA table_info(collections_word)")
                 columns = [column[1] for column in cursor.fetchall()]
 
-                # Если поле learning_status отсутствует, добавляем его
+                # If learning_status field is missing, add it
                 if "learning_status" not in columns:
                     logger.info("Updating database schema: adding learning_status column")
                     cursor.execute("ALTER TABLE collections_word ADD COLUMN learning_status INTEGER DEFAULT 0")
@@ -539,14 +539,14 @@ class DatabaseRepository:
 
     def update_word_status(self, word_id: int, status: int) -> bool:
         """
-        Обновляет статус изучения слова.
+        Updates word learning status.
 
         Args:
-            word_id (int): ID слова.
-            status (int): Новый статус изучения.
+            word_id (int): Word ID.
+            status (int): New learning status.
 
         Returns:
-            bool: True в случае успеха, иначе False.
+            bool: True on success, False otherwise.
         """
         query = """
             UPDATE collections_word
@@ -563,14 +563,14 @@ class DatabaseRepository:
 
     def update_word_status_by_english(self, english_word: str, status: int) -> bool:
         """
-        Обновляет статус изучения слова по его английскому значению.
+        Updates word learning status by its English value.
 
         Args:
-            english_word (str): Английское слово.
-            status (int): Новый статус изучения.
+            english_word (str): English word.
+            status (int): New learning status.
 
         Returns:
-            bool: True в случае успеха, иначе False.
+            bool: True on success, False otherwise.
         """
         query = """
             UPDATE collections_word
@@ -587,13 +587,13 @@ class DatabaseRepository:
 
     def get_words_by_status(self, status: int) -> List[Word]:
         """
-        Получает слова по статусу изучения.
+        Gets words by learning status.
 
         Args:
-            status (int): Статус изучения.
+            status (int): Learning status.
 
         Returns:
-            List[Word]: Список объектов Word.
+            List[Word]: List of Word objects.
         """
         query = "SELECT * FROM collections_word WHERE learning_status = ?"
         result = self.execute_query(query, (status,), fetch=True)
@@ -601,7 +601,7 @@ class DatabaseRepository:
         if not result:
             return []
 
-        # Преобразование результатов в объекты Word
+        # Convert results to Word objects
         columns = [
             'id', 'english_word', 'russian_word', 'listening',
             'sentences', 'level', 'brown', 'get_download', 'learning_status'
@@ -609,9 +609,9 @@ class DatabaseRepository:
 
         words = []
         for row in result:
-            # Обработка случая, когда в результате отсутствует столбец learning_status
+            # Handle case when learning_status column is missing in result
             if len(row) == 8:
-                row = row + (0,)  # Добавляем значение по умолчанию для learning_status
+                row = row + (0,)  # Add default value for learning_status
 
             data = dict(zip(columns, row))
             words.append(Word.from_dict(data))
@@ -620,14 +620,14 @@ class DatabaseRepository:
 
     def batch_update_word_status(self, english_words: List[str], status: int) -> int:
         """
-        Массово обновляет статус изучения для списка слов.
+        Batch updates learning status for a list of words.
 
         Args:
-            english_words (List[str]): Список английских слов.
-            status (int): Новый статус изучения.
+            english_words (List[str]): List of English words.
+            status (int): New learning status.
 
         Returns:
-            int: Количество обновленных слов.
+            int: Number of updated words.
         """
         if not english_words:
             return 0
@@ -637,7 +637,7 @@ class DatabaseRepository:
                 cursor = conn.cursor()
                 updated_count = 0
 
-                # Обновление статуса для каждого слова
+                # Update status for each word
                 for word in english_words:
                     cursor.execute(
                         "UPDATE collections_word SET learning_status = ? WHERE english_word = ?",
@@ -655,15 +655,15 @@ class DatabaseRepository:
 
     def update_book_stats(self, book_id: int, total_words: int, unique_words: int) -> bool:
         """
-        Обновляет статистику книги.
+        Updates book statistics.
 
         Args:
-            book_id (int): ID книги.
-            total_words (int): Общее количество слов.
-            unique_words (int): Количество уникальных слов.
+            book_id (int): Book ID.
+            total_words (int): Total word count.
+            unique_words (int): Unique word count.
 
         Returns:
-            bool: True в случае успеха, иначе False.
+            bool: True on success, False otherwise.
         """
         query = """
             UPDATE book
@@ -680,13 +680,13 @@ class DatabaseRepository:
 
     def get_book_by_id(self, book_id: int) -> Optional[Book]:
         """
-        Получает книгу по ID.
+        Gets a book by ID.
 
         Args:
-            book_id (int): ID книги.
+            book_id (int): Book ID.
 
         Returns:
-            Optional[Book]: Объект книги или None, если книга не найдена.
+            Optional[Book]: Book object or None if book not found.
         """
         query = "SELECT * FROM book WHERE id = ?"
         result = self.execute_query(query, (book_id,), fetch=True)
@@ -694,7 +694,7 @@ class DatabaseRepository:
         if not result:
             return None
 
-        # Преобразование строки результата в словарь
+        # Convert result row to dictionary
         columns = [
             'id', 'title', 'total_words', 'unique_words', 'scrape_date'
         ]
@@ -704,10 +704,10 @@ class DatabaseRepository:
 
     def get_books_with_stats(self) -> List[Dict[str, Any]]:
         """
-        Получает список всех книг с их статистикой.
+        Gets a list of all books with their statistics.
 
         Returns:
-            List[Dict[str, Any]]: Список словарей с данными книг.
+            List[Dict[str, Any]]: List of dictionaries with book data.
         """
         query = """
             SELECT b.id, b.title, b.total_words, b.unique_words, b.scrape_date,
@@ -723,7 +723,7 @@ class DatabaseRepository:
         if not result:
             return []
 
-        # Преобразование результатов в словари
+        # Convert results to dictionaries
         books = []
         for row in result:
             book = {
