@@ -17,7 +17,7 @@ services:
       - app_network
 
   nginx:
-    image: nginx:1.21
+    image: nginx:1.27
     container_name: language_learning_tool_nginx
     ports:
       - "80:80"
