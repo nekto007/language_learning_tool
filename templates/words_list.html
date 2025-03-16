@@ -42,7 +42,7 @@
                                     <i class="bi bi-search"></i> Find
                                 </button>
                                 {% if search_query %}
-                                    <a href="{{ url_for('words_list', status=status, book_id=book_id, letter=letter, page=1, show_all=show_all) }}"
+                                    <a href="{{ url_for('words_list', status=status, book_id=book_id, page=1, show_all=show_all) }}"
                                        class="btn btn-outline-secondary">
                                         <i class="bi bi-x"></i> Reset
                                     </a>
@@ -52,7 +52,7 @@
                             <!-- Preserve other filter parameters -->
                             {% if status is not none %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
                             {% if book_id %}<input type="hidden" name="book_id" value="{{ book_id }}">{% endif %}
-                            {% if letter %}<input type="hidden" name="letter" value="{{ letter }}">{% endif %}
+
                             {% if show_all %}<input type="hidden" name="show_all" value="{{ show_all }}">{% endif %}
                             <input type="hidden" name="page" value="1">
                         </form>
@@ -150,7 +150,7 @@
                         </thead>
                         <tbody>
                             {% for word in words %}
-                                {% if word.russian_word %}
+                                {% if word.russian_word or search_query or show_all %}
                                 <tr>
                                     <td>
                                         <input type="checkbox" class="form-check-input word-checkbox" data-word-id="{{ word.id }}">
@@ -404,6 +404,15 @@
                 this.closest('form').submit();
             }
         });
+
+        // Toggle for showing all words
+        document.getElementById('showAllToggle')?.addEventListener('change', function() {
+            const url = new URL(window.location.href);
+            url.searchParams.set('show_all', this.checked ? 1 : 0);
+            url.searchParams.set('page', 1); // Reset to first page
+            window.location.href = url.toString();
+        });
+
         // Select all checkbox
         const selectAll = document.getElementById('selectAll');
         const wordCheckboxes = document.querySelectorAll('.word-checkbox');

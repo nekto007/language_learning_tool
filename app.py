@@ -5,11 +5,12 @@ import logging
 import os
 import sqlite3
 from functools import wraps
-from admin import init_admin, make_user_admin
+
 from flask import (
     Flask, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for,
 )
 
+from admin import init_admin, make_user_admin
 from config.settings import DB_FILE
 from src.db.models import Word
 from src.db.repository import DatabaseRepository
@@ -218,134 +219,96 @@ def words_list():
         conn.row_factory = sqlite3.Row  # Enable dictionary access
         cursor = conn.cursor()
 
+        # НАЧАЛО ИЗМЕНЕНИЙ: Полностью переработанная логика формирования запроса
+
+        # Базовые запросы
         if book_id:
-            # Get book title
+            # Получаем название книги если указан book_id
             cursor.execute("SELECT title FROM book WHERE id = ?", (book_id,))
             book_result = cursor.fetchone()
             if book_result:
                 book_title = book_result['title']
 
-            # Basic query for counting and retrieving words by book
-            count_query = """
-                SELECT COUNT(*)
-                FROM collections_word cw
-                JOIN word_book_link wbl ON cw.id = wbl.word_id
-                LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
-                WHERE wbl.book_id = ?
-            """
-
-            query = """
+            base_query = """
                 SELECT cw.*, COALESCE(uws.status, 0) as status, wbl.frequency
                 FROM collections_word cw
                 JOIN word_book_link wbl ON cw.id = wbl.word_id
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
                 WHERE wbl.book_id = ?
             """
-            params = [user_id, book_id]
-            count_params = [user_id, book_id]
-
-            # Add a filter to display only words with Russian translations,
-            # if no show_all parameter is specified
-            if not show_all:
-                query += " AND cw.russian_word IS NOT NULL AND cw.russian_word != ''"
-                count_query += " AND cw.russian_word IS NOT NULL AND cw.russian_word != ''"
-
-            # Add a status filter
-            if status is not None:
-                query += " AND COALESCE(uws.status, 0) = ?"
-                count_query += " AND COALESCE(uws.status, 0) = ?"
-                params.append(status)
-                count_params.append(status)
-
-            # Add a filter on the first letter
-            if letter:
-                query += " AND cw.english_word LIKE ?"
-                count_query += " AND cw.english_word LIKE ?"
-                params.append(f"{letter}%")
-                count_params.append(f"{letter}%")
-
-            # Add a search filter
-            if search_query:
-                query += " AND (cw.english_word LIKE ? OR cw.russian_word LIKE ?)"
-                count_query += " AND (cw.english_word LIKE ? OR cw.russian_word LIKE ?)"
-                search_param = f"%{search_query}%"
-                params.extend([search_param, search_param])
-                count_params.extend([search_param, search_param])
-
-            # Get the total number of words for pagination
-            cursor.execute(count_query, count_params)
-            total_words = cursor.fetchone()[0]
-
-            # Add sorting and pagination
-            query += " ORDER BY wbl.frequency DESC LIMIT ? OFFSET ?"
-            params.append(per_page)
-            params.append((page - 1) * per_page)
-
-            # Execute the query
-            cursor.execute(query, params)
-            words = [dict(row) for row in cursor.fetchall()]
-
-        else:
-            # Get all words with filters
-            count_query = """
+            base_count_query = """
                 SELECT COUNT(*)
                 FROM collections_word cw
+                JOIN word_book_link wbl ON cw.id = wbl.word_id
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
+                WHERE wbl.book_id = ?
             """
-
-            query = """
+            base_params = [user_id, book_id]
+            order_by = " ORDER BY wbl.frequency DESC"
+        else:
+            base_query = """
                 SELECT cw.*, COALESCE(uws.status, 0) as status
                 FROM collections_word cw
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
+                WHERE 1=1  
             """
-            params = [user_id]
-            count_params = [user_id]
-
-            # Add a filter to display only words with Russian translations,
-            # if no show_all parameter is specified
-            if not show_all:
-                query += " AND cw.russian_word IS NOT NULL AND cw.russian_word != ''"
-                count_query += " AND cw.russian_word IS NOT NULL AND cw.russian_word != ''"
-
-            # Add a status filter
+            base_count_query = """
+                SELECT COUNT(*)
+                FROM collections_word cw
+                LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
+                WHERE 1=1
+            """
+            base_params = [user_id]
             if status is not None:
-                query += " AND COALESCE(uws.status, 0) = ?"
-                count_query += " AND COALESCE(uws.status, 0) = ?"
-                params.append(status)
-                count_params.append(status)
-
-            # Add a filter on the first letter
-            if letter:
-                query += " AND cw.english_word LIKE ?"
-                count_query += " AND cw.english_word LIKE ?"
-                params.append(f"{letter}%")
-                count_params.append(f"{letter}%")
-
-            # Add a search filter
-            if search_query:
-                query += " AND (cw.english_word LIKE ? OR cw.russian_word LIKE ?)"
-                count_query += " AND (cw.english_word LIKE ? OR cw.russian_word LIKE ?)"
-                search_param = f"%{search_query}%"
-                params.extend([search_param, search_param])
-                count_params.extend([search_param, search_param])
-
-            # Get the total number of words for pagination
-            cursor.execute(count_query, count_params)
-            total_words = cursor.fetchone()[0]
-
-            # Add sorting and pagination
-            if status is not None:
-                query += " ORDER BY cw.english_word"
+                order_by = " ORDER BY cw.english_word"
             else:
-                query += " ORDER BY COALESCE(uws.status, 0), cw.english_word"
+                order_by = " ORDER BY COALESCE(uws.status, 0), cw.english_word"
 
-            query += " LIMIT ? OFFSET ?"
-            params.append(per_page)
-            params.append((page - 1) * per_page)
+        # Собираем условия и параметры для запроса
+        conditions = []
+        params = list(base_params)  # Создаем копию базовых параметров
 
-            # Execute the query
-            cursor.execute(query, params)
-            words = [dict(row) for row in cursor.fetchall()]
+        # Фильтр для отображения слов только с русским переводом
+        if not show_all:
+            conditions.append("cw.russian_word IS NOT NULL AND cw.russian_word != ''")
+
+        # Фильтр по статусу
+        if status is not None:
+            conditions.append("COALESCE(uws.status, 0) = ?")
+            params.append(status)
+
+        # Приоритет поиска над фильтром по букве
+        if search_query:
+            conditions.append("(cw.english_word LIKE ? OR cw.russian_word LIKE ?)")
+            search_param = f"%{search_query}%"
+            params.extend([search_param, search_param])
+        elif letter:  # Используем фильтр по букве только если нет поискового запроса
+            conditions.append("LOWER(cw.english_word) LIKE ?")
+            params.append(f"{letter.lower()}%")
+
+        # Составляем финальный запрос с условиями
+        query = base_query
+        count_query = base_count_query
+
+        if conditions:
+            condition_str = " AND " + " AND ".join(conditions)
+            query += condition_str
+            count_query += condition_str
+
+        # Получаем общее количество слов для пагинации
+        cursor.execute(count_query, params)
+        total_words = cursor.fetchone()[0]
+
+        # Добавляем сортировку и пагинацию
+        query += order_by + " LIMIT ? OFFSET ?"
+        params.append(per_page)
+        params.append((page - 1) * per_page)
+
+        # Выполняем запрос
+        cursor.execute(query, params)
+        words = [dict(row) for row in cursor.fetchall()]
+
+        # КОНЕЦ ИЗМЕНЕНИЙ
 
     except sqlite3.Error as e:
         flash(f"Database error: {e}", "danger")
@@ -354,7 +317,7 @@ def words_list():
         conn.close()
 
     # Calculate total pages
-    total_pages = (total_words + per_page - 1) // per_page
+    total_pages = (total_words + per_page - 1) // per_page if total_words > 0 else 1
 
     return render_template(
         'words_list.html',
@@ -642,7 +605,6 @@ def export_anki():
                 context_html = ''
                 if include_examples and word['sentences']:
                     context_html = word['sentences']
-                print(context_html)
 
                 # Create note with new field names
                 note = genanki.Note(
