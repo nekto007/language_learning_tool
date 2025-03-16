@@ -207,35 +207,25 @@ class UserRepository:
             return None
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
-        """
-        Get a user by ID.
-
-        Args:
-            user_id (int): User ID
-
-        Returns:
-            Optional[User]: User object if found, None otherwise.
-        """
+        """Получает пользователя по ID."""
         try:
-            query = "SELECT id, username, password_hash, email, created_at, last_login FROM users WHERE id = ?"
-            result = self.execute_query(query, (user_id,), fetch=True)
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT id, username, email, created_at, last_login, is_admin FROM users WHERE id = ?",
+                    (user_id,)
+                )
+                user_data = cursor.fetchone()
 
-            if not result:
+                if user_data:
+                    user_dict = dict(user_data)
+                    user_dict['is_admin'] = bool(user_dict.get('is_admin', 0))  # Преобразуем в boolean
+                    return User.from_dict(user_dict)
+
                 return None
-
-            user_data = result[0]
-
-            return User(
-                username=user_data['username'],
-                password_hash=user_data['password_hash'],
-                email=user_data['email'],
-                created_at=user_data['created_at'],
-                last_login=user_data['last_login'],
-                user_id=user_data['id'],
-            )
-
         except sqlite3.Error as e:
-            logger.error(f"Error getting user by ID: {e}")
+            logger.error(f"Database error in get_user_by_id: {e}")
             return None
 
     def set_word_status(self, user_id: int, word_id: int, status: int) -> bool:

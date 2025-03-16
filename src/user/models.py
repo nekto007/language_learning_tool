@@ -185,6 +185,7 @@ class User:
             created_at: Optional[datetime] = None,
             last_login: Optional[datetime] = None,
             user_id: Optional[int] = None,
+            is_admin: bool = False,
     ):
         """
         Инициализация объекта User.
@@ -205,6 +206,7 @@ class User:
         self.email = email
         self.created_at = created_at
         self.last_login = last_login
+        self.is_admin = is_admin
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'User':
@@ -225,6 +227,7 @@ class User:
             created_at=data.get('created_at'),
             last_login=data.get('last_login'),
             user_id=data.get('id'),
+            is_admin=bool(data.get('is_admin', 0)),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -248,6 +251,8 @@ class User:
             result['created_at'] = self.created_at
         if self.last_login is not None:
             result['last_login'] = self.last_login
+        if hasattr(self, 'is_admin'):
+            result['is_admin'] = self.is_admin
 
         return result
 

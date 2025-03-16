@@ -1,0 +1,89 @@
+{% extends 'admin/master.html' %}
+
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <h1>Административная панель Language Learning Tool</h1>
+      <p class="lead">
+        Добро пожаловать в административную панель!
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-3">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Пользователи</h3>
+        </div>
+        <div class="panel-body">
+          <p>Управление учетными записями пользователей.</p>
+          <a href="{{ url_for('user.index_view') }}" class="btn btn-primary">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Слова</h3>
+        </div>
+        <div class="panel-body">
+          <p>Просмотр и управление словарем.</p>
+          <a href="{{ url_for('word.index_view') }}" class="btn btn-primary">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Книги</h3>
+        </div>
+        <div class="panel-body">
+          <p>Управление источниками слов.</p>
+          <a href="{{ url_for('book.index_view') }}" class="btn btn-primary">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Статусы изучения</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Статистика</h3>
+        </div>
+        <div class="panel-body">
+          <p>Общая информация о системе:</p>
+          <ul>
+            <li><strong>Всего пользователей:</strong> <span id="total-users">Загрузка...</span></li>
+            <li><strong>Всего слов:</strong> <span id="total-words">Загрузка...</span></li>
+            <li><strong>Всего книг:</strong> <span id="total-books">Загрузка...</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Простая функция для загрузки статистики
+  // В реальном приложении вам понадобится создать API-эндпоинт
+  document.addEventListener('DOMContentLoaded', function() {
+    // Это просто заглушка, в реальном приложении нужно загружать данные с сервера
+    document.getElementById('total-users').textContent = 'Недоступно';
+    document.getElementById('total-words').textContent = 'Недоступно';
+    document.getElementById('total-books').textContent = 'Недоступно';
+  });
+</script>
+{% endblock %}

@@ -8,3 +8,6 @@ genanki~=0.13.1
 selenium~=4.29.0
 coverage~=7.6.12
 pytest~=8.3.5
+Flask-Admin~=1.6.1
+SQLAlchemy==1.4.46
+Flask-SQLAlchemy==3.0.3

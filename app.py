@@ -5,7 +5,7 @@ import logging
 import os
 import sqlite3
 from functools import wraps
-
+from admin import init_admin, make_user_admin
 from flask import (
     Flask, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for,
 )
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+admin, admin_db = init_admin(app, DB_FILE)
 app.secret_key = os.environ.get("SECRET_KEY", "development_secret_key")
 
 # Initialize repositories
@@ -54,7 +55,34 @@ def load_logged_in_user():
     if user_id is None:
         g.user = None
     else:
-        g.user = user_repo.get_user_by_id(user_id)
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # Получаем базовую информацию о пользователе
+            user = user_repo.get_user_by_id(user_id)
+
+            if user:
+                # Дополнительно проверяем is_admin
+                cursor.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,))
+                admin_data = cursor.fetchone()
+
+                if admin_data and 'is_admin' in admin_data.keys():
+                    # Устанавливаем флаг администратора
+                    user.is_admin = bool(admin_data['is_admin'])
+                else:
+                    user.is_admin = False
+
+                g.user = user
+            else:
+                g.user = None
+
+        except sqlite3.Error as e:
+            logger.error(f"Database error in load_logged_in_user: {e}")
+            g.user = None
+        finally:
+            conn.close()
 
 
 @app.route('/')
@@ -653,6 +681,24 @@ def export_anki():
     except Exception as e:
         logger.error(f"Error in export_anki: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/setup-admin/<username>/<secret_key>')
+def setup_admin(username, secret_key):
+    """Assigns user as administrator(secret key required)."""
+    # Compare to the secret key set in environment variables or settings
+    actual_secret = os.environ.get("ADMIN_SETUP_KEY", "change_this_to_secure_key")
+
+    if secret_key != actual_secret:
+        flash('Invalid secret key.', 'danger')
+        return redirect(url_for('index'))
+
+    if make_user_admin(DB_FILE, username):
+        flash(f'User {username} has been made an administrator.', 'success')
+    else:
+        flash(f'Failed to assign user {username} as administrator.', 'danger')
+
+    return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
