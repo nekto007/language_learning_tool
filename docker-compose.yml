@@ -1,20 +1,24 @@
----
+version: '3.8'
+
 services:
   web:
     build: .
     restart: always
+    container_name: language_learning_tool_web
+    ports:
+      - "5001:5000"  # Изменено с 5000 на 5001 для внешнего порта
     volumes:
       - ./data:/app/data
       - ./media:/app/media
+      - ./static:/app/static
     env_file:
       - .env
-    depends_on:
-      - nginx
     networks:
       - app_network
 
   nginx:
     image: nginx:1.21
+    container_name: language_learning_tool_nginx
     ports:
       - "80:80"
       - "443:443"
@@ -23,6 +27,8 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl
       - ./static:/var/www/html/static
       - ./media:/var/www/html/media
+    depends_on:
+      - web
     networks:
       - app_network
 
