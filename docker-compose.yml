@@ -1,0 +1,30 @@
+---
+services:
+  web:
+    build: .
+    restart: always
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+    env_file:
+      - .env
+    depends_on:
+      - nginx
+    networks:
+      - app_network
+
+  nginx:
+    image: nginx:1.21
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./static:/var/www/html/static
+      - ./media:/var/www/html/media
+    networks:
+      - app_network
+
+networks:
+  app_network:
