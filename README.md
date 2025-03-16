@@ -243,6 +243,152 @@ Main settings are in the `config/settings.py` file:
 - Scraping settings
 - NLTK parameters
 
+## 🐳 Docker Installation
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+# Update packages
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+# Install Docker if not installed
+```bash
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - -
+sudo add-apt-repository “deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable”
+sudo apt update
+sudo apt install -y docker-ce
+```
+
+# Install Docker Compose
+```bash
+sudo curl -L “https://github.com/docker/compose/releases/download/v2.12.2/docker-compose-$(uname -s)-$(uname -m)” -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+```
+
+# Add the current user to the docker group to run without sudo
+```bash
+sudo usermod -aG docker $USER
+```
+
+# Reboot the session for the changes to take effect
+```bash
+newgrp docker
+```
+
+### Quick Start with Docker
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/nekto007/language_learning_tool.git
+cd language_learning_tool
+```
+
+1. **Create environment file**
+
+Create a .env file with environment variables:
+
+```bash
+cat > .env << 'EOF'
+# Flask application settings
+FLASK_APP=app.py
+FLASK_ENV=production
+FLASK_DEBUG=0
+SECRET_KEY=change_this_to_a_long_random_string
+
+# Path settings
+DATABASE_PATH=/app/data/language_learning.db
+MEDIA_PATH=/app/media
+
+# API settings for word pronunciation (if used)
+FORVO_API_KEY=your_forvo_api_key
+
+# Other settings
+ALLOWED_HOSTS=localhost,127.0.0.1,example.com
+EOF
+```
+
+2. **Build and run with Docker Compose**
+
+```bash
+docker-compose up -d
+```
+
+3. **Access the application**
+
+- Web Interface: http://127.0.0.1
+- Direct access to Flask: http://127.0.0.1:5001
+
+### Using Command Line Tools Inside Docker
+
+You can run the command line tools inside the Docker container:
+
+```bash
+# Scrape text from a webpage
+docker-compose exec web python main.py scrape https://example.com/text --pages 10 --book "Book Title"
+
+# Update book statistics
+docker-compose exec web python main.py update-book-stats
+
+# Update word status
+docker-compose exec web python main.py update-status --status 1 --file known_words.txt
+
+# Download pronunciations
+docker-compose exec web python main.py download-pronunciations --pattern "a%" --update-status
+```
+
+### Production Deployment
+
+For production deployment:
+
+1. **Update Nginx configuration** with your domain:
+   - Edit `nginx/conf.d/app.conf` and replace `server_name 127.0.0.1;` with your domain
+   - Uncomment and configure HTTPS section if needed
+
+2. **Set up SSL certificates** for HTTPS:
+   - Place your SSL certificates in the `nginx/ssl` directory
+   - Configure the HTTPS section in Nginx configuration
+
+3. **Update environment variables** for production:
+   - Set a strong random SECRET_KEY
+   - Set FLASK_ENV=production
+
+### Managing Containers
+
+```bash
+# Start containers
+docker-compose up -d
+
+# Stop containers
+docker-compose down
+
+# View logs
+docker-compose logs
+
+# Follow logs in real-time
+docker-compose logs -f
+
+# Restart containers
+docker-compose restart
+```
+
+### Database Management
+
+The SQLite database is stored outside the container in the `data` directory, making it persistent and easily backed up.
+
+```bash
+# Create backup
+cp data/language_learning.db data/language_learning_backup_$(date +%Y%m%d).db
+
+# Restore from backup
+cp data/language_learning_backup_20250316.db data/language_learning.db
+```
+
 ## 👨‍💻 Development
 
 ### Running Tests
