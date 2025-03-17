@@ -2,161 +2,254 @@
 
 {% block title %}{{ word.english_word }} | Language Learning Tool{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/word-detail.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>{{ word.english_word }}</h1>
-
-            <div>
-                <a href="{{ request.referrer or url_for('words_list') }}" class="btn btn-outline-secondary">Back</a>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Word Details</h5>
-                        <span class="badge {% if word.status == 0 %}bg-secondary{% elif word.status == 1 %}bg-success{% elif word.status == 2 %}bg-info{% elif word.status == 3 %}bg-primary{% elif word.status == 4 %}bg-warning{% endif %}">
-                            {{ status_labels[word.status] }}
-                        </span>
-                    </div>
-                    <div class="card-body">
-                        <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">English:</div>
-                            <div class="col-md-9">{{ word.english_word }}</div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">Russian:</div>
-                            <div class="col-md-9">{{ word.russian_word or 'Not available' }}</div>
-                        </div>
-
-                        {% if word.level %}
-                        <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">Level:</div>
-                            <div class="col-md-9">{{ word.level }}</div>
-                        </div>
-                        {% endif %}
-
-                        <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">In Brown Corpus:</div>
-                            <div class="col-md-9">
-                                {% if word.brown == 1 %}
-                                <span class="badge bg-success">Yes</span>
-                                {% else %}
-                                <span class="badge bg-secondary">No</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">Pronunciation:</div>
-                            <div class="col-md-9">
-                                {% if word.get_download == 1 %}
-                                <audio controls>
-                                    <!-- Update this path to match your setup -->
-                                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
-                                    Your browser does not support the audio element.
-                                </audio>
-                                {% else %}
-                                <span class="badge bg-danger">Not available</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% if word.sentences %}
-                        <div class="row">
-                            <div class="col-md-3 fw-bold">Example:</div>
-                            <div class="col-md-9">{{ word.sentences|safe }}</div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                {% if books %}
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Books containing this word</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Book</th>
-                                        <th>Frequency</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for book in books %}
-                                    <tr>
-                                        <td>
-                                            <a href="{{ url_for('words_list', book_id=book.id) }}">{{ book.title }}</a>
-                                        </td>
-                                        <td>{{ book.frequency }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            <div class="col-md-4">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Change Status</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group">
-                            {% for status_id, label in status_labels.items() %}
-                            <button
-                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if word.status == status_id %}active{% endif %}"
-                                onclick="updateWordStatus({{ word.id }}, {{ status_id }})"
-                            >
-                                {{ label }}
-                                {% if word.status == status_id %}
-                                <span class="badge bg-primary rounded-pill">Current</span>
-                                {% endif %}
-                            </button>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">External Resources</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <a href="https://dictionary.cambridge.org/dictionary/english/{{ word.english_word|urlencode }}"
-                               class="btn btn-outline-primary"
-                               target="_blank">
-                                Cambridge Dictionary
-                            </a>
-                            <a href="https://www.oxfordlearnersdictionaries.com/definition/english/{{ word.english_word|urlencode }}"
-                               class="btn btn-outline-primary"
-                               target="_blank">
-                                Oxford Dictionary
-                            </a>
-                            <a href="https://context.reverso.net/translation/english-russian/{{ word.english_word|urlencode }}"
-                               class="btn btn-outline-primary"
-                               target="_blank">
-                                Reverso Context
-                            </a>
-                            <a href="https://forvo.com/word/{{ word.english_word|urlencode }}/#en"
-                               class="btn btn-outline-primary"
-                               target="_blank">
-                                Forvo Pronunciation
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="word-detail-container">
+  <!-- Word Header -->
+  <div class="word-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center">
+        <h1 class="word-title mb-0">{{ word.english_word }}</h1>
+        <span class="status-badge status-{{ word.status }} ms-3">
+          {{ status_labels[word.status] }}
+        </span>
+      </div>
+      <a href="{{ request.referrer or url_for('words_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back
+      </a>
     </div>
+
+    {% if word.get_download == 1 %}
+    <div class="pronunciation-player mt-3">
+      <button class="btn btn-sm btn-icon me-2 play-pronunciation" title="Play pronunciation">
+        <i class="bi bi-volume-up"></i>
+      </button>
+      <audio id="pronunciationAudio">
+        <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
+      </audio>
+      {% if word.russian_word %}
+      <span class="word-translation">{{ word.russian_word }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+      <!-- Word Details Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          <h2 class="card-title h5 mb-0"><i class="bi bi-info-circle me-2"></i>Word Details</h2>
+        </div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <div class="detail-label">English</div>
+              <div class="detail-value">{{ word.english_word }}</div>
+            </div>
+
+            <div class="detail-item">
+              <div class="detail-label">Translation</div>
+              <div class="detail-value">{{ word.russian_word or 'Not available' }}</div>
+            </div>
+
+            {% if word.level %}
+            <div class="detail-item">
+              <div class="detail-label">Level</div>
+              <div class="detail-value">
+                <span class="badge bg-info">{{ word.level }}</span>
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="detail-item">
+              <div class="detail-label">In Brown Corpus</div>
+              <div class="detail-value">
+                {% if word.brown == 1 %}
+                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Yes</span>
+                {% else %}
+                <span class="badge bg-secondary"><i class="bi bi-x me-1"></i>No</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="detail-item">
+              <div class="detail-label">Pronunciation</div>
+              <div class="detail-value">
+                {% if word.get_download == 1 %}
+                <div class="audio-player">
+                  <audio controls class="w-100">
+                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+                {% else %}
+                <span class="badge bg-danger"><i class="bi bi-volume-mute me-1"></i>Not available</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {% if word.sentences %}
+          <div class="mt-4">
+            <h3 class="h6 mb-3">Example Sentences</h3>
+            <div class="example-sentences">
+              {{ word.sentences|safe }}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Books Card -->
+      {% if books %}
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          <h2 class="card-title h5 mb-0"><i class="bi bi-book me-2"></i>Books containing this word</h2>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover books-table">
+              <thead>
+                <tr>
+                  <th>Book</th>
+                  <th>Frequency</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for book in books %}
+                <tr>
+                  <td class="book-title">{{ book.title }}</td>
+                  <td>
+                    <span class="frequency-badge">{{ book.frequency }}</span>
+                  </td>
+                  <td>
+                    <a href="{{ url_for('words_list', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">
+                      <i class="bi bi-eye me-1"></i>View Words
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-lg-4">
+      <!-- Status Change Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header">
+          <h2 class="card-title h5 mb-0"><i class="bi bi-arrow-repeat me-2"></i>Change Status</h2>
+        </div>
+        <div class="card-body p-0">
+          <div class="status-list">
+            {% for status_id, label in status_labels.items() %}
+            <button
+              class="status-item status-item-{{ status_id }} {% if word.status == status_id %}active{% endif %}"
+              onclick="updateWordStatus({{ word.id }}, {{ status_id }})"
+            >
+              <div class="status-icon">
+                {% if status_id == 0 %}
+                <i class="bi bi-plus-circle"></i>
+                {% elif status_id == 1 %}
+                <i class="bi bi-check-circle"></i>
+                {% elif status_id == 2 %}
+                <i class="bi bi-clock"></i>
+                {% elif status_id == 3 %}
+                <i class="bi bi-star"></i>
+                {% elif status_id == 4 %}
+                <i class="bi bi-mortarboard"></i>
+                {% endif %}
+              </div>
+              <div class="status-content">
+                <span class="status-label">{{ label }}</span>
+                {% if word.status == status_id %}
+                <span class="current-badge">Current</span>
+                {% endif %}
+              </div>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- External Resources Card -->
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h2 class="card-title h5 mb-0"><i class="bi bi-link-45deg me-2"></i>External Resources</h2>
+        </div>
+        <div class="card-body">
+          <div class="external-resources">
+            <a href="https://dictionary.cambridge.org/dictionary/english/{{ word.english_word|urlencode }}"
+               class="resource-link"
+               target="_blank">
+              <div class="resource-icon">
+                <i class="bi bi-book"></i>
+              </div>
+              <div class="resource-text">Cambridge Dictionary</div>
+            </a>
+
+            <a href="https://www.oxfordlearnersdictionaries.com/definition/english/{{ word.english_word|urlencode }}"
+               class="resource-link"
+               target="_blank">
+              <div class="resource-icon">
+                <i class="bi bi-journal-text"></i>
+              </div>
+              <div class="resource-text">Oxford Dictionary</div>
+            </a>
+
+            <a href="https://context.reverso.net/translation/english-russian/{{ word.english_word|urlencode }}"
+               class="resource-link"
+               target="_blank">
+              <div class="resource-icon">
+                <i class="bi bi-translate"></i>
+              </div>
+              <div class="resource-text">Reverso Context</div>
+            </a>
+
+            <a href="https://forvo.com/word/{{ word.english_word|urlencode }}/#en"
+               class="resource-link"
+               target="_blank">
+              <div class="resource-icon">
+                <i class="bi bi-volume-up"></i>
+              </div>
+              <div class="resource-text">Forvo Pronunciation</div>
+            </a>
+
+            <a href="https://www.wordreference.com/en/translation.asp?tranword={{ word.english_word|urlencode }}"
+               class="resource-link"
+               target="_blank">
+              <div class="resource-icon">
+                <i class="bi bi-globe"></i>
+              </div>
+              <div class="resource-text">WordReference</div>
+            </a>
+
+            <a href="https://en.wiktionary.org/wiki/{{ word.english_word|urlencode }}"
+               class="resource-link"
+               target="_blank">
+              <div class="resource-icon">
+                <i class="bi bi-wikipedia"></i>
+              </div>
+              <div class="resource-text">Wiktionary</div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/word-detail.js') }}"></script>
 {% endblock %}
