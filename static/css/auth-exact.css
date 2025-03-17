@@ -1,0 +1,320 @@
+/**
+ * Authentication Pages Styles - Exact Match (Centered)
+ */
+
+/* Variables */
+:root {
+  --bg-color: #1e2124;
+  --header-bg: #5a5ffb;
+  --text-color: #ffffff;
+  --input-bg: #252a30;
+  --input-active-bg: #b5a84a;  /* Gold/yellow for active inputs */
+  --link-color: #5a5ffb;
+  --button-bg: #5a5ffb;
+  --button-hover-bg: #4b50e6;
+  --divider-color: #3a3f45;
+  --checkbox-border: #5a5ffb;
+  --footer-color: #6c757d;
+}
+
+/* Base Styles */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+}
+
+/* Page Layout */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 2rem;
+}
+
+/* App Logo and Title */
+.app-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.app-logo i {
+  font-size: 1.5rem;
+  margin-right: 0.5rem;
+  color: var(--text-color);
+}
+
+.app-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
+  color: var(--text-color);
+}
+
+/* Form Title */
+.form-title {
+  font-size: 1.75rem;
+  font-weight: 500;
+  margin: 0 0 1.5rem 0;
+  color: var(--text-color);
+  text-align: center;
+}
+
+/* Form Styles */
+.auth-form {
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.form-field {
+  margin-bottom: 1.25rem;
+}
+
+.form-field label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+}
+
+/* Input Styles */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.auth-form input[type="text"],
+.auth-form input[type="password"],
+.auth-form input[type="email"] {
+  width: 100%;
+  background-color: var(--input-bg);
+  border: none;
+  color: var(--text-color);
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Focus and filled states */
+.auth-form input:focus,
+.auth-form input:not(:placeholder-shown) {
+  background-color: var(--input-active-bg);
+  outline: none;
+}
+
+/* Toggle password button */
+.toggle-password {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 0;
+  font-size: 1rem;
+}
+
+/* Forgot password link */
+.forgot-link-wrapper {
+  text-align: right;
+  margin-top: 0.5rem;
+}
+
+.forgot-link {
+  color: var(--link-color);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+/* Password strength indicator */
+.password-strength {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-color);
+}
+
+/* Checkbox styles */
+.checkbox-field {
+  margin-top: 1rem;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-left: 1.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 18px;
+  width: 18px;
+  background-color: transparent;
+  border: 2px solid var(--checkbox-border);
+  border-radius: 3px;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+  background-color: var(--button-bg);
+  border-color: var(--button-bg);
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.checkbox-container .checkmark:after {
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Terms links */
+.terms-link {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.terms-link:hover {
+  text-decoration: underline;
+}
+
+/* Submit button */
+.submit-button {
+  width: 100%;
+  background-color: var(--button-bg);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.submit-button i {
+  margin-right: 0.5rem;
+}
+
+.submit-button:hover {
+  background-color: var(--button-hover-bg);
+}
+
+/* Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.divider span {
+  padding: 0 0.75rem;
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+/* Alternative action */
+.alt-action {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.alt-action a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.alt-action a:hover {
+  text-decoration: underline;
+}
+
+/* Footer */
+.auth-footer {
+  margin-top: auto;
+  text-align: center;
+  padding: 1rem 0;
+  color: var(--footer-color);
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .auth-page {
+    padding: 0 1rem;
+  }
+
+  .form-title {
+    font-size: 1.5rem;
+  }
+
+  .auth-form input[type="text"],
+  .auth-form input[type="password"],
+  .auth-form input[type="email"] {
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+  }
+}

@@ -2,32 +2,69 @@
 
 {% block title %}Login | Language Learning Tool{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth-exact.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h4 class="card-title mb-0">Login</h4>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </div>
-                </form>
-                <div class="mt-3 text-center">
-                    <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
-                </div>
-            </div>
+<div class="auth-page">
+  <!-- App Logo and Title -->
+  <div class="app-logo">
+    <i class="bi bi-translate"></i>
+    <h1 class="app-title">Language Learning Tool</h1>
+  </div>
+
+  <!-- Login Form -->
+  <div class="auth-form">
+    <h2 class="form-title">Sign In</h2>
+
+    <form method="post">
+      <div class="form-field">
+        <label for="username">Username</label>
+        <div class="input-wrapper">
+          <i class="bi bi-person input-icon"></i>
+          <input type="text" id="username" name="username" placeholder=" " required>
         </div>
+      </div>
+
+      <div class="form-field">
+        <label for="password">Password</label>
+        <div class="input-wrapper">
+          <i class="bi bi-lock input-icon"></i>
+          <input type="password" id="password" name="password" placeholder=" " required>
+          <button type="button" class="toggle-password" tabindex="-1">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <div class="forgot-link-wrapper">
+          <a href="#" class="forgot-link">Forgot password?</a>
+        </div>
+      </div>
+
+      <div class="form-field checkbox-field">
+        <label class="checkbox-container">
+          <input type="checkbox" id="remember" name="remember">
+          <span class="checkmark"></span>
+          Remember me
+        </label>
+      </div>
+
+      <button type="submit" class="submit-button">
+        <i class="bi bi-box-arrow-in-right"></i> Sign In
+      </button>
+    </form>
+
+    <div class="divider">
+      <span>or</span>
     </div>
+
+    <div class="alt-action">
+      <p>Don't have an account? <a href="{{ url_for('register') }}">Create Account</a></p>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/auth-exact.js') }}"></script>
 {% endblock %}
