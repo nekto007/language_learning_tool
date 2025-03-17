@@ -1,0 +1,326 @@
+/**
+ * Words List Page Specific Styling
+ */
+
+/* Search Container */
+.search-container {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  color: var(--text-muted);
+}
+
+.search-container .form-control {
+  padding-left: 35px;
+  height: 42px;
+}
+
+/* Status Tabs */
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
+  margin-top: 1rem;
+}
+
+.status-tab {
+  padding: 0.75rem 1rem;
+  color: var(--text-color);
+  position: relative;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+
+.status-tab:hover {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.status-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.status-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: var(--border-color);
+  color: var(--text-color);
+  border-radius: 50%;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+}
+
+.status-tab-0 .status-count { background-color: var(--status-new); color: white; }
+.status-tab-1 .status-count { background-color: var(--status-available); color: white; }
+.status-tab-2 .status-count { background-color: var(--status-queued); color: white; }
+.status-tab-3 .status-count { background-color: var(--status-active); color: white; }
+.status-tab-4 .status-count { background-color: var(--status-learned); color: black; }
+
+/* Letter Filter */
+.letter-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.letter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--card-bg);
+  transition: all 0.2s ease;
+}
+
+.letter-btn:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.letter-btn.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+/* Words Table */
+.words-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.words-table th {
+  background-color: rgba(0, 0, 0, 0.03);
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: 2px solid var(--border-color);
+  padding: 0.75rem 1rem;
+}
+
+.words-table td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.word-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.word-row:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Selection bar */
+.selection-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.selected-count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Status Dropdown */
+.status-dropdown {
+  min-width: 180px;
+}
+
+/* Search results info */
+.search-results-info {
+  padding: 0.75rem 1rem;
+  background-color: rgba(var(--info-color-rgb), 0.1);
+  color: var(--text-color);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Pagination container */
+.pagination-container {
+  padding: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination .page-link {
+  color: var(--text-color);
+  border-color: var(--border-color);
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+/* Word Detail Modal */
+.word-detail-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.word-detail-header .word-text {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-right: 0.75rem;
+}
+
+.word-detail-pronunciation {
+  margin-bottom: 1rem;
+}
+
+.word-detail-translation {
+  font-size: 1.25rem;
+  color: var(--primary-color);
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.word-detail-examples {
+  margin-top: 1.5rem;
+}
+
+.word-detail-examples .example-item {
+  margin-bottom: 0.75rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border-color);
+}
+
+.word-detail-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Anki Card Preview */
+.card-preview {
+  font-size: 0.875rem;
+}
+
+.preview-content {
+  text-align: center;
+  padding: 1rem;
+}
+
+.preview-word {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.preview-pronunciation {
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.preview-translation {
+  color: var(--danger-color);
+  font-weight: 600;
+  font-size: 1.25rem;
+  margin: 0.75rem 0;
+}
+
+.preview-example {
+  font-style: italic;
+  color: var(--text-muted);
+  text-align: left;
+  margin-top: 1rem;
+  padding: 0 0.5rem;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.empty-state-icon i {
+  font-size: 3rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: var(--text-muted);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .status-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 5px;
+  }
+
+  .status-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .letter-filter {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 5px;
+  }
+
+  .letter-btn {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .words-table th:nth-child(4),
+  .words-table td:nth-child(4) {
+    display: none;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
