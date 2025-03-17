@@ -1,124 +1,72 @@
-/**
- * Homepage JavaScript
- */
-
 document.addEventListener('DOMContentLoaded', function() {
-  initScrollAnimation();
-  initMobileMenuEnhancements();
-});
+  // Fade-in animation for elements as they appear on scroll
+  const fadeElements = document.querySelectorAll('.feature-card, .why-us-item, .testimonial-card, .step-item');
 
-/**
- * Initialize scroll animations
- */
-function initScrollAnimation() {
-  const animatedElements = document.querySelectorAll('.feature-card, .step-item');
+  fadeElements.forEach(element => {
+    element.classList.add('fade-in');
+  });
 
-  // Intersection Observer for revealing elements on scroll
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('animated');
-        // Unobserve after animation to save resources
-        observer.unobserve(entry.target);
+  // Function to check if an element is in viewport
+  function isInViewport(element) {
+    const rect = element.getBoundingClientRect();
+    return (
+      rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.85
+    );
+  }
+
+  // Function to handle scroll animation
+  function handleScrollAnimation() {
+    fadeElements.forEach(element => {
+      if (isInViewport(element)) {
+        element.classList.add('visible');
       }
     });
-  }, {
-    root: null, // viewport
-    threshold: 0.15, // 15% of the item visible
-    rootMargin: '0px 0px -10% 0px' // trigger a bit before the item is visible
-  });
+  }
 
-  // Observe each element
-  animatedElements.forEach(element => {
-    // Add the initial hidden class
-    element.classList.add('animate-on-scroll');
-    observer.observe(element);
-  });
+  // Initial check for elements in viewport
+  handleScrollAnimation();
 
-  // Smooth scrolling for anchor links
+  // Listen for scroll events
+  window.addEventListener('scroll', handleScrollAnimation);
+
+  // Smooth scroll for anchor links
   document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function(e) {
-      const href = this.getAttribute('href');
+      e.preventDefault();
 
-      if (href !== '#') {
-        e.preventDefault();
+      const targetId = this.getAttribute('href');
+      if (targetId === '#') return;
 
-        const targetElement = document.querySelector(href);
-        if (targetElement) {
-          window.scrollTo({
-            top: targetElement.offsetTop - 80, // Offset for fixed header
-            behavior: 'smooth'
-          });
-        }
+      const targetElement = document.querySelector(targetId);
+      if (targetElement) {
+        targetElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
       }
     });
   });
-}
 
-/**
- * Initialize mobile menu enhancements
- */
-function initMobileMenuEnhancements() {
-  // Close mobile menu when clicking outside
-  document.addEventListener('click', function(e) {
-    const navbarCollapse = document.querySelector('.navbar-collapse.show');
+  // Mobile menu toggle (if needed)
+  const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+  const navMenu = document.querySelector('.nav-menu');
 
-    if (navbarCollapse && !navbarCollapse.contains(e.target) &&
-        !e.target.classList.contains('navbar-toggler')) {
-      // Find the toggler button and click it to close the menu
-      document.querySelector('.navbar-toggler').click();
-    }
-  });
+  if (mobileMenuToggle && navMenu) {
+    mobileMenuToggle.addEventListener('click', function() {
+      navMenu.classList.toggle('active');
+      this.classList.toggle('active');
+    });
+  }
 
-  // Close mobile menu when a nav link is clicked
-  const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
-  const navbarToggler = document.querySelector('.navbar-toggler');
-
-  navLinks.forEach(link => {
-    link.addEventListener('click', function() {
-      if (window.innerWidth < 992 && document.querySelector('.navbar-collapse.show')) {
-        navbarToggler.click();
+  // Add a class to navbar when scrolled
+  const navbar = document.querySelector('.navbar');
+  if (navbar) {
+    window.addEventListener('scroll', function() {
+      if (window.scrollY > 50) {
+        navbar.classList.add('navbar-scrolled');
+      } else {
+        navbar.classList.remove('navbar-scrolled');
       }
     });
-  });
-}
-
-/**
- * CSS for animations in JavaScript to avoid separate CSS file for just a few lines
- */
-(function() {
-  const style = document.createElement('style');
-  style.textContent = `
-    .animate-on-scroll {
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-    
-    .animate-on-scroll.animated {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    .feature-card:nth-child(2) {
-      transition-delay: 0.1s;
-    }
-    
-    .feature-card:nth-child(3) {
-      transition-delay: 0.2s;
-    }
-    
-    .step-item:nth-child(2) {
-      transition-delay: 0.1s;
-    }
-    
-    .step-item:nth-child(3) {
-      transition-delay: 0.2s;
-    }
-    
-    .step-item:nth-child(4) {
-      transition-delay: 0.3s;
-    }
-  `;
-  document.head.appendChild(style);
-})();
+  }
+});
