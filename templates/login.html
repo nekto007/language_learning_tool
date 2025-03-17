@@ -4,9 +4,47 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/auth-exact.css') }}">
+<style>
+  /* Инлайн стили для мобильной версии */
+  @viewport {
+    width: device-width;
+    zoom: 1.0;
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+  }
+
+  body {
+    background-color: #4958E5;
+  }
+
+  /* Скрываем стандартный хедер и футер */
+  header, footer {
+    display: none;
+  }
+
+  .auth-page {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  /* Добавьте любые остальные критические стили здесь */
+</style>
 {% endblock %}
 
 {% block content %}
+<!-- Весь контент в одном контейнере для мобильной версии -->
 <div class="auth-page">
   <!-- App Logo and Title -->
   <div class="app-logo">
@@ -18,12 +56,12 @@
   <div class="auth-form">
     <h2 class="form-title">Sign In</h2>
 
-    <form method="post">
+    <form method="post" id="loginForm">
       <div class="form-field">
         <label for="username">Username</label>
         <div class="input-wrapper">
           <i class="bi bi-person input-icon"></i>
-          <input type="text" id="username" name="username" placeholder=" " required>
+          <input type="text" id="username" name="username" required autocomplete="username">
         </div>
       </div>
 
@@ -31,8 +69,8 @@
         <label for="password">Password</label>
         <div class="input-wrapper">
           <i class="bi bi-lock input-icon"></i>
-          <input type="password" id="password" name="password" placeholder=" " required>
-          <button type="button" class="toggle-password" tabindex="-1">
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+          <button type="button" class="toggle-password" tabindex="-1" aria-label="Show password">
             <i class="bi bi-eye"></i>
           </button>
         </div>
@@ -67,4 +105,36 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/auth-exact.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Функция для обновления отображения на мобильных
+    function updateViewportHeight() {
+      // Устанавливаем высоту viewport для мобильных устройств
+      let vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+
+    // Вызов при загрузке и при изменении размера окна
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+
+    // Обработка переключателя видимости пароля
+    const togglePassword = document.querySelector('.toggle-password');
+    const passwordInput = document.getElementById('password');
+
+    if (togglePassword && passwordInput) {
+      togglePassword.addEventListener('click', function() {
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          this.innerHTML = '<i class="bi bi-eye-slash"></i>';
+          this.setAttribute('aria-label', 'Hide password');
+        } else {
+          passwordInput.type = 'password';
+          this.innerHTML = '<i class="bi bi-eye"></i>';
+          this.setAttribute('aria-label', 'Show password');
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}
