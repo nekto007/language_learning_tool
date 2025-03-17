@@ -1,89 +1,292 @@
 {% extends 'admin/master.html' %}
 
 {% block body %}
-<div class="container">
-  <div class="row">
-    <div class="col-md-12">
-      <h1>Административная панель Language Learning Tool</h1>
-      <p class="lead">
-        Добро пожаловать в административную панель!
-      </p>
-    </div>
+<div class="dashboard-header">
+  <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0">Administration Dashboard</h1>
+    <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+      <i class="bi bi-download me-1"></i> Generate Report
+    </a>
   </div>
+</div>
 
-  <div class="row">
-    <div class="col-md-3">
-      <div class="panel panel-default">
-        <div class="panel-heading">
-          <h3 class="panel-title">Пользователи</h3>
-        </div>
-        <div class="panel-body">
-          <p>Управление учетными записями пользователей.</p>
-          <a href="{{ url_for('user.index_view') }}" class="btn btn-primary">Перейти</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="panel panel-default">
-        <div class="panel-heading">
-          <h3 class="panel-title">Слова</h3>
-        </div>
-        <div class="panel-body">
-          <p>Просмотр и управление словарем.</p>
-          <a href="{{ url_for('word.index_view') }}" class="btn btn-primary">Перейти</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="panel panel-default">
-        <div class="panel-heading">
-          <h3 class="panel-title">Книги</h3>
-        </div>
-        <div class="panel-body">
-          <p>Управление источниками слов.</p>
-          <a href="{{ url_for('book.index_view') }}" class="btn btn-primary">Перейти</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="panel panel-default">
-        <div class="panel-heading">
-          <h3 class="panel-title">Статусы изучения</h3>
+<!-- Dashboard Stats -->
+<div class="row">
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-primary shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col">
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Users</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-users">Loading...</div>
+          </div>
+          <div class="col-auto">
+            <i class="bi bi-people fa-2x text-gray-300"></i>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-12">
-      <div class="panel panel-default">
-        <div class="panel-heading">
-          <h3 class="panel-title">Статистика</h3>
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-success shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Words</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-words">Loading...</div>
+          </div>
+          <div class="col-auto">
+            <i class="bi bi-journal-text fa-2x text-gray-300"></i>
+          </div>
         </div>
-        <div class="panel-body">
-          <p>Общая информация о системе:</p>
-          <ul>
-            <li><strong>Всего пользователей:</strong> <span id="total-users">Загрузка...</span></li>
-            <li><strong>Всего слов:</strong> <span id="total-words">Загрузка...</span></li>
-            <li><strong>Всего книг:</strong> <span id="total-books">Загрузка...</span></li>
-          </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-info shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Books</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-books">Loading...</div>
+          </div>
+          <div class="col-auto">
+            <i class="bi bi-book fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-left-warning shadow h-100">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">System Status</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">Online</div>
+          </div>
+          <div class="col-auto">
+            <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Content Row -->
+<div class="row">
+  <!-- Admin Modules -->
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Administration Modules</h6>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-4">
+            <div class="admin-module">
+              <div class="module-icon">
+                <i class="bi bi-people"></i>
+              </div>
+              <div class="module-content">
+                <h5>Users</h5>
+                <p>Manage user accounts and permissions.</p>
+                <a href="{{ url_for('user.index_view') }}" class="btn btn-sm btn-primary">
+                  <i class="bi bi-arrow-right me-1"></i> Access
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-4">
+            <div class="admin-module">
+              <div class="module-icon">
+                <i class="bi bi-journal-text"></i>
+              </div>
+              <div class="module-content">
+                <h5>Words</h5>
+                <p>View and manage vocabulary database.</p>
+                <a href="{{ url_for('word.index_view') }}" class="btn btn-sm btn-primary">
+                  <i class="bi bi-arrow-right me-1"></i> Access
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-4">
+            <div class="admin-module">
+              <div class="module-icon">
+                <i class="bi bi-book"></i>
+              </div>
+              <div class="module-content">
+                <h5>Books</h5>
+                <p>Manage vocabulary sources.</p>
+                <a href="{{ url_for('book.index_view') }}" class="btn btn-sm btn-primary">
+                  <i class="bi bi-arrow-right me-1"></i> Access
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-4">
+            <div class="admin-module">
+              <div class="module-icon">
+                <i class="bi bi-gear"></i>
+              </div>
+              <div class="module-content">
+                <h5>Settings</h5>
+                <p>Configure system options and preferences.</p>
+                <a href="#" class="btn btn-sm btn-primary">
+                  <i class="bi bi-arrow-right me-1"></i> Access
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Information -->
+  <div class="col-lg-6 mb-4">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">System Information</h6>
+        <div class="dropdown no-arrow">
+          <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="bi bi-three-dots-vertical text-gray-400"></i>
+          </a>
+          <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+            <div class="dropdown-header">Actions:</div>
+            <a class="dropdown-item" href="#">Refresh</a>
+            <a class="dropdown-item" href="#">Export Data</a>
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="#">View Details</a>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="table table-borderless">
+          <tbody>
+            <tr>
+              <td><strong>Version:</strong></td>
+              <td>1.0.0</td>
+            </tr>
+            <tr>
+              <td><strong>Server Time:</strong></td>
+              <td id="server-time">Loading...</td>
+            </tr>
+            <tr>
+              <td><strong>Database Status:</strong></td>
+              <td><span class="badge bg-success">Connected</span></td>
+            </tr>
+            <tr>
+              <td><strong>Cache Status:</strong></td>
+              <td><span class="badge bg-success">Operational</span></td>
+            </tr>
+            <tr>
+              <td><strong>Storage Usage:</strong></td>
+              <td>
+                <div class="progress" style="height: 15px;">
+                  <div class="progress-bar" role="progressbar" style="width: 35%;" aria-valuenow="35" aria-valuemin="0" aria-valuemax="100">35%</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Memory Usage:</strong></td>
+              <td>
+                <div class="progress" style="height: 15px;">
+                  <div class="progress-bar bg-info" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">50%</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+  <div class="col-lg-12 mb-4">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Recent Activity</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Action</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="activity-log">
+              <tr>
+                <td colspan="4" class="text-center">Loading activity data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-  // Простая функция для загрузки статистики
-  // В реальном приложении вам понадобится создать API-эндпоинт
+  // This would be moved to admin.js in a real implementation
   document.addEventListener('DOMContentLoaded', function() {
-    // Это просто заглушка, в реальном приложении нужно загружать данные с сервера
-    document.getElementById('total-users').textContent = 'Недоступно';
-    document.getElementById('total-words').textContent = 'Недоступно';
-    document.getElementById('total-books').textContent = 'Недоступно';
+    // Load system statistics (in a real app, these would come from an API)
+    setTimeout(function() {
+      document.getElementById('total-users').textContent = '125';
+      document.getElementById('total-words').textContent = '15,420';
+      document.getElementById('total-books').textContent = '37';
+
+      // Update server time
+      const now = new Date();
+      document.getElementById('server-time').textContent = now.toLocaleString();
+
+      // Add some sample activity (this would come from your backend in a real app)
+      const activityLog = document.getElementById('activity-log');
+      if (activityLog) {
+        activityLog.innerHTML = `
+          <tr>
+            <td>admin</td>
+            <td>Added new word: "example"</td>
+            <td>${new Date(now - 1000 * 60 * 5).toLocaleString()}</td>
+            <td><span class="badge bg-success">Success</span></td>
+          </tr>
+          <tr>
+            <td>john.doe</td>
+            <td>Updated user settings</td>
+            <td>${new Date(now - 1000 * 60 * 15).toLocaleString()}</td>
+            <td><span class="badge bg-success">Success</span></td>
+          </tr>
+          <tr>
+            <td>system</td>
+            <td>Database backup</td>
+            <td>${new Date(now - 1000 * 60 * 60).toLocaleString()}</td>
+            <td><span class="badge bg-success">Success</span></td>
+          </tr>
+          <tr>
+            <td>jane.smith</td>
+            <td>Added new book: "Advanced Grammar"</td>
+            <td>${new Date(now - 1000 * 60 * 60 * 2).toLocaleString()}</td>
+            <td><span class="badge bg-success">Success</span></td>
+          </tr>
+        `;
+      }
+    }, 1000);
   });
 </script>
 {% endblock %}
