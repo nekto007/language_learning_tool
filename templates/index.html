@@ -1,51 +1,208 @@
 {% extends "base.html" %}
 
-{% block title %}Language Learning Tool - Home{% endblock %}
+{% block title %}Language Learning Tool - Smart Vocabulary Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-8">
-    <div class="card mb-4">
-      <div class="card-body text-center">
-        <h1 class="card-title">Welcome to Language Learning Tool</h1>
-        <p class="card-text">
-          An effective way to manage your English vocabulary learning process.
-        </p>
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-6 hero-content">
+        <h1 class="display-4 fw-bold mb-4">Master Your Language Learning Journey</h1>
+        <p class="lead mb-4">An intelligent platform to track, organize and accelerate your vocabulary acquisition process.</p>
 
         {% if g.user %}
-        <div class="mt-4">
-          <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">Go to Dashboard</a>
+        <div class="cta-buttons">
+          <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
+          </a>
         </div>
         {% else %}
-        <div class="mt-4">
-          <a href="{{ url_for('login') }}" class="btn btn-primary mx-2">Login</a>
-          <a href="{{ url_for('register') }}" class="btn btn-outline-primary mx-2">Register</a>
+        <div class="cta-buttons">
+          <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-2 mb-2">
+            <i class="bi bi-person-plus me-2"></i>Get Started
+          </a>
+          <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg mb-2">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+          </a>
         </div>
         {% endif %}
       </div>
+      <div class="col-lg-6 hero-image">
+        <img src="{{ url_for('static', filename='img/hero-illustration.svg') }}" alt="Language Learning" class="img-fluid">
+      </div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+      <path fill="#ffffff" fill-opacity="1" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,202.7C672,203,768,181,864,170.7C960,160,1056,160,1152,176C1248,192,1344,224,1392,240L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+    </svg>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title">Features Designed for Effective Learning</h2>
+      <p class="section-subtitle">Tools that make vocabulary acquisition efficient and enjoyable</p>
     </div>
 
-    <div class="card">
-      <div class="card-body">
-        <h2 class="card-title">Features</h2>
-        <div class="row">
-          <div class="col-md-6">
-            <ul>
-              <li>Track words you already know</li>
-              <li>Mark words for learning in flashcards</li>
-              <li>Monitor your learning progress</li>
-            </ul>
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-journal-check"></i>
           </div>
-          <div class="col-md-6">
-            <ul>
-              <li>Organize words by books or texts</li>
-              <li>Access words with translations</li>
-              <li>Multiple user support</li>
-            </ul>
+          <h3 class="feature-title">Vocabulary Tracking</h3>
+          <p class="feature-description">
+            Organize words by status: new, in progress, or mastered. Track your learning journey with visual indicators.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-card-text"></i>
+          </div>
+          <h3 class="feature-title">Anki Integration</h3>
+          <p class="feature-description">
+            Create Anki flashcards directly from your word list with just a few clicks. Study anywhere with seamless export.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-translate"></i>
+          </div>
+          <h3 class="feature-title">Translations & Examples</h3>
+          <p class="feature-description">
+            Store translations and usage examples for each word to understand context and proper usage.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-soundwave"></i>
+          </div>
+          <h3 class="feature-title">Pronunciation Support</h3>
+          <p class="feature-description">
+            Access audio pronunciations to improve speaking skills and listening comprehension.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-book"></i>
+          </div>
+          <h3 class="feature-title">Book Organization</h3>
+          <p class="feature-description">
+            Group vocabulary by books or texts you're reading to see your progress through different materials.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-graph-up"></i>
+          </div>
+          <h3 class="feature-title">Progress Analytics</h3>
+          <p class="feature-description">
+            Visualize your learning progress with charts and statistics. Stay motivated by seeing your improvements.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="how-it-works-section">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-subtitle">Simple steps to accelerate your language learning</p>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3 class="step-title">Add Words</h3>
+              <p class="step-description">
+                Add new vocabulary as you encounter it in books, articles, or conversations.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3 class="step-title">Organize & Study</h3>
+              <p class="step-description">
+                Categorize words by status and create Anki cards for effective studying.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3 class="step-title">Track Progress</h3>
+              <p class="step-description">
+                Update word statuses as you learn and monitor your vocabulary growth.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h3 class="step-title">Master Vocabulary</h3>
+              <p class="step-description">
+                Watch as you progressively build your language proficiency with an ever-growing vocabulary.
+              </p>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+</section>
+
+<!-- Call to Action Section -->
+<section class="cta-section">
+  <div class="container text-center">
+    <h2 class="cta-title">Ready to Accelerate Your Language Learning?</h2>
+    <p class="cta-description">Start tracking your vocabulary today and see the difference an organized approach makes.</p>
+
+    {% if g.user %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">
+      <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
+    </a>
+    {% else %}
+    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+      <i class="bi bi-person-plus me-2"></i>Get Started for Free
+    </a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
 {% endblock %}
