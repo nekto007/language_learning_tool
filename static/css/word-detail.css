@@ -1,0 +1,506 @@
+/* Общие стили для страницы слова */
+:root {
+  --primary-color: #4958E5;
+  --primary-color-rgb: 73, 88, 229;
+  --dark-bg: #1e2124;
+  --card-bg: #1e2124;
+  --text-color: #FFFFFF;
+  --border-color: #333;
+  --status-new: #6c757d;
+  --status-available: #28a745;
+  --status-queued: #ffc107;
+  --status-active: #007bff;
+  --status-learned: #6f42c1;
+}
+
+/* Основные стили */
+.word-detail-container {
+  padding: 1rem;
+  color: var(--text-color);
+}
+
+/* Стили заголовка */
+.word-header {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.word-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Стили для статусов */
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-0 {
+  background-color: var(--status-new);
+  color: white;
+}
+
+.status-1 {
+  background-color: var(--status-available);
+  color: white;
+}
+
+.status-2 {
+  background-color: var(--status-queued);
+  color: black;
+}
+
+.status-3 {
+  background-color: var(--status-active);
+  color: white;
+}
+
+.status-4 {
+  background-color: var(--status-learned);
+  color: white;
+}
+
+/* Стиль для проигрывателя произношения */
+.pronunciation-player {
+  display: flex;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-icon:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.word-translation {
+  margin-left: 0.5rem;
+  font-size: 1rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Стили для карточек */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.card-header {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+  margin: 0;
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.card-body {
+  padding: 1rem;
+}
+
+/* Стили для деталей слова */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.25rem;
+}
+
+.detail-value {
+  font-size: 1rem;
+}
+
+/* Стили аудио-плеера */
+.audio-player {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+audio {
+  width: 100%;
+  height: 36px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+/* Mobile-specific audio player */
+.mobile-audio-player {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.mobile-play-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary-color);
+  color: white;
+  margin-right: 10px;
+  flex-shrink: 0;
+  border: none;
+  font-size: 1.2rem;
+}
+
+.mobile-audio-progress {
+  flex-grow: 1;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.mobile-audio-progress-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  width: 0;
+  transition: width 0.1s linear;
+}
+
+.mobile-audio-time {
+  margin-left: 10px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.audio-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Стили для примеров предложений */
+.example-sentences {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.example-sentences p {
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+  border-left: 3px solid rgba(var(--primary-color-rgb), 0.4);
+}
+
+/* Стили для списка книг */
+.books-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.books-table th {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.books-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.book-title {
+  font-weight: 500;
+}
+
+.frequency-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: rgba(var(--primary-color-rgb), 0.2);
+  color: var(--primary-color);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Стили для изменения статуса */
+.status-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border: none;
+  background-color: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s ease;
+  color: var(--text-color);
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.status-item.active {
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+}
+
+.status-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.status-item-0 .status-icon {
+  background-color: var(--status-new);
+  color: white;
+}
+
+.status-item-1 .status-icon {
+  background-color: var(--status-available);
+  color: white;
+}
+
+.status-item-2 .status-icon {
+  background-color: var(--status-queued);
+  color: black;
+}
+
+.status-item-3 .status-icon {
+  background-color: var(--status-active);
+  color: white;
+}
+
+.status-item-4 .status-icon {
+  background-color: var(--status-learned);
+  color: white;
+}
+
+.status-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.status-label {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.current-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+  background-color: rgba(var(--primary-color-rgb), 0.3);
+  border-radius: 4px;
+  margin-top: 0.25rem;
+  align-self: flex-start;
+}
+
+/* Стили для внешних ресурсов */
+.external-resources {
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-link {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 0;
+  color: var(--text-color);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.resource-link:last-child {
+  border-bottom: none;
+}
+
+.resource-link:hover {
+  color: var(--primary-color);
+}
+
+.resource-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+}
+
+.resource-text {
+  font-weight: 500;
+}
+
+/* Стили для оповещений */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.toast {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: toast-in 0.3s ease-out forwards;
+}
+
+.toast-success {
+  background-color: #28a745;
+}
+
+.toast-danger {
+  background-color: #dc3545;
+}
+
+.toast-warning {
+  background-color: #ffc107;
+  color: black;
+}
+
+.toast-icon {
+  margin-right: 0.5rem;
+  font-size: 1.1rem;
+}
+
+/* Анимации для оповещений */
+@keyframes toast-in {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Адаптивные стили */
+@media (min-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Мобильные специфические стили */
+@media (max-width: 767px) {
+  .word-title {
+    font-size: 1.75rem;
+  }
+
+  .status-badge {
+    margin-top: 0.5rem;
+    margin-left: 0 !important;
+  }
+
+  .d-flex.justify-content-between.align-items-center {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .d-flex.align-items-center {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .btn-outline-secondary {
+    margin-top: 1rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .word-header {
+    text-align: center;
+  }
+
+  .pronunciation-player {
+    justify-content: center;
+    margin-top: 1rem;
+  }
+
+  /* Улучшенный мобильный проигрыватель */
+  .audio-controls {
+    margin-top: 1rem;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+}
