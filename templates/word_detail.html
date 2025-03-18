@@ -171,8 +171,7 @@
                                                     {% if word.get_download != 1 %}disabled{% endif %}>
                                                 <i class="bi bi-volume-up"></i>
                     </button>
-                    <source src="{{ url_for('/media/', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
-                    <source src="{{ url_for(filename='/media/pronunciation_en_pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
+                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
                     <p>Your browser does not support HTML5 audio.</p>
                   </audio>
                   <!-- Резервная кнопка проигрывания для мобильных устройств -->
