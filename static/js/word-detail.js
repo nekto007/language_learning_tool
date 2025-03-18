@@ -1,15 +1,230 @@
 /**
  * Word Detail Page JavaScript
+ * Enhanced for mobile compatibility
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-  initPronunciationPlayer();
+  // Detect if we're on a mobile device
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // Initialize the mobile-optimized player
+    initMobileAudioPlayer();
+  } else {
+    // Desktop player initialization
+    initPronunciationPlayer();
+  }
+
   initStatusChanges();
   initExampleDisplay();
 });
 
 /**
- * Initialize pronunciation player functionality
+ * Initialize mobile-optimized audio player
+ */
+function initMobileAudioPlayer() {
+  // Get audio element and check if it exists
+  const audioElement = document.getElementById('pronunciationAudio');
+  if (!audioElement) return;
+
+  // Get container for the player
+  const container = document.querySelector('.pronunciation-player');
+  if (!container) return;
+
+  // Get source URL
+  const audioSource = audioElement.querySelector('source');
+  if (!audioSource || !audioSource.src) {
+    console.error('Audio source not found');
+    showErrorMessage(container);
+    return;
+  }
+
+  // Create custom mobile player
+  const customPlayer = document.createElement('div');
+  customPlayer.className = 'mobile-audio-player';
+  customPlayer.innerHTML = `
+    <button class="mobile-play-button" id="mobilePlayButton">
+      <i class="bi bi-play-fill"></i>
+    </button>
+    <div class="mobile-audio-progress" id="mobileProgress">
+      <div class="mobile-audio-progress-bar" id="mobileProgressBar"></div>
+    </div>
+    <span class="mobile-audio-time" id="mobileAudioTime">0:00</span>
+  `;
+
+  // Remove existing play button and audio element
+  const existingButton = container.querySelector('.play-pronunciation');
+  if (existingButton) {
+    existingButton.remove();
+  }
+
+  // Add new player to container
+  container.appendChild(customPlayer);
+
+  // Create a new audio object
+  const audio = new Audio(audioSource.src);
+  let isLoading = true;
+
+  // Show loading state
+  showLoadingState(customPlayer);
+
+  // Set up event listeners for mobile audio
+  const playButton = document.getElementById('mobilePlayButton');
+  const progressBar = document.getElementById('mobileProgressBar');
+  const progressContainer = document.getElementById('mobileProgress');
+  const timeDisplay = document.getElementById('mobileAudioTime');
+
+  // Handle audio loading
+  audio.addEventListener('canplaythrough', function() {
+    isLoading = false;
+    hideLoadingState(customPlayer);
+    playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+    playButton.disabled = false;
+  });
+
+  // Handle play button click
+  playButton.addEventListener('click', function() {
+    if (isLoading) return;
+
+    if (audio.paused) {
+      // Force interaction to unlock audio in iOS Safari
+      audio.load();
+
+      // Play the audio with promise handling
+      const playPromise = audio.play();
+
+      if (playPromise !== undefined) {
+        playPromise.then(_ => {
+          // Playback started successfully
+          playButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+        })
+        .catch(error => {
+          // Auto-play was prevented
+          console.error("Audio playback failed:", error);
+
+          // Create a visual feedback for the user
+          const container = document.createElement('div');
+          container.style.position = 'fixed';
+          container.style.top = '50%';
+          container.style.left = '50%';
+          container.style.transform = 'translate(-50%, -50%)';
+          container.style.backgroundColor = 'rgba(0,0,0,0.8)';
+          container.style.color = 'white';
+          container.style.padding = '20px';
+          container.style.borderRadius = '10px';
+          container.style.zIndex = '9999';
+          container.innerHTML = `
+            <div style="text-align:center">
+              <i class="bi bi-volume-up" style="font-size: 2rem; margin-bottom: 10px;"></i>
+              <p>Tap to play audio</p>
+            </div>
+          `;
+          document.body.appendChild(container);
+
+          // Remove the message when clicked
+          container.addEventListener('click', function() {
+            audio.play().then(() => {
+              playButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+              document.body.removeChild(container);
+            }).catch(e => {
+              console.error("Still could not play audio:", e);
+            });
+          });
+        });
+      }
+    } else {
+      audio.pause();
+      playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+    }
+  });
+
+  // Handle progress updates
+  audio.addEventListener('timeupdate', function() {
+    if (isLoading) return;
+
+    const percentage = (audio.currentTime / audio.duration) * 100;
+    progressBar.style.width = percentage + '%';
+
+    // Update time display
+    const currentMinutes = Math.floor(audio.currentTime / 60);
+    const currentSeconds = Math.floor(audio.currentTime % 60);
+    timeDisplay.textContent = `${currentMinutes}:${currentSeconds < 10 ? '0' : ''}${currentSeconds}`;
+  });
+
+  // Handle progress bar clicks
+  progressContainer.addEventListener('click', function(e) {
+    if (isLoading || !audio.duration) return;
+
+    const rect = progressContainer.getBoundingClientRect();
+    const position = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = position * audio.duration;
+  });
+
+  // Handle audio ended
+  audio.addEventListener('ended', function() {
+    playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+    progressBar.style.width = '0%';
+    audio.currentTime = 0;
+  });
+
+  // Handle audio errors
+  audio.addEventListener('error', function(e) {
+    console.error('Audio error:', e);
+    showErrorMessage(customPlayer);
+  });
+
+  // Handle stalled/waiting audio
+  audio.addEventListener('waiting', function() {
+    isLoading = true;
+    showLoadingState(customPlayer);
+  });
+}
+
+/**
+ * Show loading state in the audio player
+ */
+function showLoadingState(container) {
+  // Hide play button
+  const playButton = container.querySelector('#mobilePlayButton');
+  if (playButton) {
+    playButton.innerHTML = '<div class="spinner"></div>';
+    playButton.disabled = true;
+  }
+}
+
+/**
+ * Hide loading state in the audio player
+ */
+function hideLoadingState(container) {
+  // Show play button
+  const playButton = container.querySelector('#mobilePlayButton');
+  if (playButton) {
+    playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+    playButton.disabled = false;
+  }
+}
+
+/**
+ * Show error message when audio fails
+ */
+function showErrorMessage(container) {
+  // Create error message
+  const errorMsg = document.createElement('div');
+  errorMsg.className = 'audio-error';
+  errorMsg.innerHTML = `
+    <div style="display: flex; align-items: center; color: #ff6b6b;">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      <span>Unable to load audio</span>
+    </div>
+  `;
+
+  // Clear container and append error
+  container.innerHTML = '';
+  container.appendChild(errorMsg);
+}
+
+/**
+ * Initialize pronunciation player functionality (desktop version)
  */
 function initPronunciationPlayer() {
   const playButton = document.querySelector('.play-pronunciation');
@@ -19,17 +234,23 @@ function initPronunciationPlayer() {
 
   // Play button click handler
   playButton.addEventListener('click', function() {
+    // Force reload audio to bypass iOS restrictions
+    audioElement.load();
+
     if (audioElement.paused) {
       // If audio is paused, play it
-      audioElement.play()
-        .then(() => {
+      const playPromise = audioElement.play();
+
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
           playButton.innerHTML = '<i class="bi bi-pause"></i>';
           playButton.setAttribute('title', 'Pause pronunciation');
         })
         .catch(error => {
           console.error('Error playing audio:', error);
-          showToast('Error playing pronunciation', 'danger');
+          showToast('Error playing pronunciation. Tap the button again.', 'warning');
         });
+      }
     } else {
       // If audio is playing, pause it
       audioElement.pause();
@@ -240,4 +461,100 @@ function initExampleDisplay() {
     }
   `;
   document.head.appendChild(style);
+}
+
+/**
+ * Helper function to show toast notifications
+ * @param {string} message - The message to display
+ * @param {string} type - Type of toast (success, danger, warning)
+ */
+function showToast(message, type = 'success') {
+  // Create toast container if it doesn't exist
+  let toastContainer = document.querySelector('.toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
+
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  // Set icon based on type
+  let icon = 'check-circle';
+  if (type === 'danger') icon = 'exclamation-circle';
+  if (type === 'warning') icon = 'exclamation-triangle';
+
+  toast.innerHTML = `
+    <i class="bi bi-${icon} toast-icon"></i>
+    <span>${message}</span>
+  `;
+
+  // Add to container
+  toastContainer.appendChild(toast);
+
+  // Remove after delay
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-20px)';
+    toast.style.transition = 'opacity 0.3s, transform 0.3s';
+
+    setTimeout(() => {
+      if (toast.parentNode === toastContainer) {
+        toastContainer.removeChild(toast);
+      }
+
+      // Remove container if empty
+      if (toastContainer.children.length === 0) {
+        document.body.removeChild(toastContainer);
+      }
+    }, 300);
+  }, 3000);
+}
+
+/**
+ * Helper function to make API calls
+ * @param {string} url - API endpoint
+ * @param {object} options - Fetch options
+ * @param {function} onSuccess - Success callback
+ * @param {function} onError - Error callback
+ */
+function callApi(url, options, onSuccess, onError) {
+  // Default headers
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  };
+
+  // Add CSRF token if available
+  const csrfToken = document.querySelector('meta[name="csrf-token"]');
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken.getAttribute('content');
+  }
+
+  // Merge options
+  const fetchOptions = {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers || {})
+    }
+  };
+
+  // Make the fetch call
+  fetch(url, fetchOptions)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (onSuccess) onSuccess(data);
+    })
+    .catch(error => {
+      console.error('API call failed:', error);
+      if (onError) onError(error);
+    });
 }

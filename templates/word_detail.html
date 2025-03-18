@@ -4,6 +4,86 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/word-detail.css') }}">
+<style>
+  /* Инлайн-стили для решения проблем с аудио на мобильных устройствах */
+  @media (max-width: 767px) {
+    .pronunciation-player {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .play-pronunciation {
+      margin-bottom: 8px;
+    }
+
+    audio {
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .mobile-audio-player {
+      display: flex;
+      align-items: center;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      padding: 8px;
+      margin-top: 10px;
+      width: 100%;
+    }
+
+    .mobile-play-button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #4958E5;
+      color: white;
+      margin-right: 10px;
+      flex-shrink: 0;
+      border: none;
+      font-size: 1.2rem;
+    }
+
+    .mobile-audio-progress {
+      flex-grow: 1;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .mobile-audio-progress-bar {
+      height: 100%;
+      background-color: #4958E5;
+      width: 0;
+    }
+
+    .mobile-audio-time {
+      margin-left: 10px;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #4958E5;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  }
+</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 {% endblock %}
 
 {% block content %}
@@ -27,8 +107,10 @@
       <button class="btn btn-sm btn-icon me-2 play-pronunciation" title="Play pronunciation">
         <i class="bi bi-volume-up"></i>
       </button>
-      <audio id="pronunciationAudio">
+      <!-- Скрытый аудио элемент для JavaScript -->
+      <audio id="pronunciationAudio" preload="auto">
         <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
+        <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
       </audio>
       {% if word.russian_word %}
       <span class="word-translation">{{ word.russian_word }}</span>
@@ -82,10 +164,16 @@
               <div class="detail-value">
                 {% if word.get_download == 1 %}
                 <div class="audio-player">
-                  <audio controls class="w-100">
+                  <!-- Обновленный проигрыватель с дополнительным атрибутом -->
+                  <audio controls class="w-100" controlsList="nodownload" preload="metadata">
                     <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
-                    Your browser does not support the audio element.
+                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
+                    <p>Your browser does not support HTML5 audio.</p>
                   </audio>
+                  <!-- Резервная кнопка проигрывания для мобильных устройств -->
+                  <button class="btn btn-primary btn-sm mt-2 d-none mobile-fallback-play">
+                    <i class="bi bi-play-fill me-1"></i> Play Pronunciation
+                  </button>
                 </div>
                 {% else %}
                 <span class="badge bg-danger"><i class="bi bi-volume-mute me-1"></i>Not available</span>
@@ -252,4 +340,41 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/word-detail.js') }}"></script>
+<script>
+  // Дополнительный код для решения проблем с аудио на мобильных устройствах
+  document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем, мобильное ли устройство
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // Добавляем обработку жеста для разблокировки аудио
+      document.body.addEventListener('touchstart', function() {
+        const audio = document.getElementById('pronunciationAudio');
+        if (audio) {
+          // Попытка разблокировать аудио контекст
+          audio.load();
+        }
+      }, { once: true });
+
+      // Показываем резервную кнопку проигрывания
+      const fallbackButton = document.querySelector('.mobile-fallback-play');
+      if (fallbackButton) {
+        fallbackButton.classList.remove('d-none');
+
+        fallbackButton.addEventListener('click', function(e) {
+          e.preventDefault();
+
+          const audio = document.getElementById('pronunciationAudio');
+          if (audio) {
+            audio.load();
+            audio.play().catch(function(error) {
+              console.error('Error playing audio:', error);
+              alert('Tap the screen once and try again to enable audio playback');
+            });
+          }
+        });
+      }
+    }
+  });
+</script>
 {% endblock %}
