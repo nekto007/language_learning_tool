@@ -149,7 +149,7 @@
             {% endif %}
 
             <div class="detail-item">
-              <div class="detail-label">In Brown Corpus</div>
+              <div class="detail-label">In Brown Corpus<a href="https://en.wikipedia.org/wiki/Brown_Corpus">(?)</a> </div>
               <div class="detail-value">
                 {% if word.brown == 1 %}
                 <span class="badge bg-success"><i class="bi bi-check me-1"></i>Yes</span>
@@ -166,8 +166,13 @@
                 <div class="audio-player">
                   <!-- Обновленный проигрыватель с дополнительным атрибутом -->
                   <audio controls class="w-100" controlsList="nodownload" preload="metadata">
-                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
-                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
+                    <button type="button" class="btn btn-sm btn-icon"
+                                                    data-bs-toggle="tooltip" title="Play pronunciation"
+                                                    {% if word.get_download != 1 %}disabled{% endif %}>
+                                                <i class="bi bi-volume-up"></i>
+                    </button>
+                    <source src="{{ url_for('/media/', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
+                    <source src="{{ url_for(filename='/media/pronunciation_en_pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
                     <p>Your browser does not support HTML5 audio.</p>
                   </audio>
                   <!-- Резервная кнопка проигрывания для мобильных устройств -->
