@@ -101,24 +101,6 @@
         <i class="bi bi-arrow-left me-2"></i>Back
       </a>
     </div>
-
-    {% if word.get_download == 1 %}
-    <div class="pronunciation-player mt-3">
-      <button class="btn btn-sm btn-icon me-2 play-pronunciation" title="Play pronunciation">
-        <i class="bi bi-volume-up"></i>
-      </button>
-      <!-- Скрытый аудио элемент для JavaScript -->
-      <audio id="pronunciationAudio" preload="auto">
-        <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mpeg">
-        <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
-      </audio>
-      {% if word.russian_word %}
-      <span class="word-translation">{{ word.russian_word }}</span>
-      {% endif %}
-    </div>
-    {% endif %}
-  </div>
-
   <div class="row g-4">
     <!-- Left Column -->
     <div class="col-lg-8">
