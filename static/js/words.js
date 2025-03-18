@@ -49,7 +49,7 @@ function initPronunciationButtons() {
       if (!audio) {
         audio = document.createElement('audio');
         audio.id = `audio-${wordId}`;
-        audio.src = `/media/pronunciation_en_${wordText.toLowerCase().replace(/\s+/g, '_')}.mp3`;
+        audio.src = `/static/media/pronunciation_en_${wordText.toLowerCase().replace(/\s+/g, '_')}.mp3`;
         document.body.appendChild(audio);
       }
 
