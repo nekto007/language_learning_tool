@@ -1,9 +1,13 @@
 """
 Repository for working with SQLite database.
 """
+from __future__ import annotations
+
 import logging
+import os
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 from config.settings import DB_FILE
 from src.db.models import Book, PhrasalVerb, Word
@@ -19,43 +23,87 @@ class DatabaseRepository:
         Initializes the repository.
 
         Args:
-            db_path (str, optional): Path to the database file.
+            db_path: Path to the database file.
         """
         self.db_path = db_path
 
-    def get_connection(self) -> sqlite3.Connection:
+    @contextmanager
+    def get_connection(self) -> Iterator[sqlite3.Connection]:
         """
-        Gets a connection to the database.
+        Context manager for database connections.
 
-        Returns:
-            sqlite3.Connection: Connection object.
+        Yields:
+            Database connection object.
         """
-        return sqlite3.connect(self.db_path)
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            yield conn
+        except sqlite3.Error as e:
+            logger.error(f"Database connection error: {e}")
+            raise
+        finally:
+            if conn:
+                conn.close()
 
     def execute_query(
-            self, query: str, parameters: Tuple = (), fetch: bool = False
-    ) -> Optional[List[Tuple]]:
+            self, query: str, parameters: Union[Tuple, List] = (), fetch: bool = False,
+            fetch_one: bool = False, as_dict: bool = False
+    ) -> Optional[List[Union[Tuple, Dict[str, Any]]]]:
         """
-        Executes an SQL query.
+        Executes an SQL query with error handling and connection management.
 
         Args:
-            query (str): SQL query.
-            parameters (Tuple, optional): Query parameters.
-            fetch (bool, optional): Flag to return results. Defaults to False.
+            query: SQL query string.
+            parameters: Query parameters.
+            fetch: Whether to fetch results.
+            fetch_one: Whether to fetch a single result.
+            as_dict: Whether to return results as dictionaries.
 
         Returns:
-            Optional[List[Tuple]]: Query results or None.
+            Query results or None.
         """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(query, parameters)
 
+                if fetch_one:
+                    result = cursor.fetchone()
+                    if result and as_dict:
+                        return [dict(result)]
+                    return [result] if result else None
+
                 if fetch:
-                    return cursor.fetchall()
+                    results = cursor.fetchall()
+                    if as_dict:
+                        return [dict(row) for row in results]
+                    return list(results)
+
+                conn.commit()
                 return None
         except sqlite3.Error as e:
-            logger.error(f"Database error: {e}")
+            logger.error(f"Database error in execute_query: {e}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Parameters: {parameters}")
+            raise
+
+    def execute_script(self, script: str) -> None:
+        """
+        Executes an SQL script.
+
+        Args:
+            script: SQL script to execute.
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.executescript(script)
+                conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database error in execute_script: {e}")
+            logger.error(f"Script: {script}")
             raise
 
     def insert_or_update_book(self, book: Book) -> int:
@@ -63,204 +111,239 @@ class DatabaseRepository:
         Inserts or updates a book in the database.
 
         Args:
-            book (Book): Book object.
+            book: Book object.
 
         Returns:
-            int: ID of the inserted book.
+            ID of the inserted/updated book.
         """
-        query = """
-            INSERT OR IGNORE INTO book (title) VALUES (?)
-        """
-        self.execute_query(query, (book.title,))
+        try:
+            # Try to insert first
+            query = "INSERT OR IGNORE INTO book (title) VALUES (?)"
+            self.execute_query(query, (book.title,))
 
-        # Get book ID
-        query = "SELECT id FROM book WHERE title = ?"
-        result = self.execute_query(query, (book.title,), fetch=True)
+            # Get the book ID
+            query = "SELECT id FROM book WHERE title = ?"
+            result = self.execute_query(query, (book.title,), fetch_one=True)
 
-        if result and result[0]:
-            return result[0][0]
-        return 0
+            if result and result[0]:
+                book_id = result[0][0]
+
+                # Update stats if provided
+                if book.total_words or book.unique_words:
+                    update_query = """
+                        UPDATE book
+                        SET total_words = COALESCE(?, total_words),
+                            unique_words = COALESCE(?, unique_words),
+                            scrape_date = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """
+                    self.execute_query(
+                        update_query,
+                        (book.total_words, book.unique_words, book_id)
+                    )
+
+                return book_id
+
+            return 0
+        except sqlite3.Error as e:
+            logger.error(f"Error in insert_or_update_book: {e}")
+            raise
 
     def insert_or_update_word(self, word: Word) -> int:
         """
         Inserts or updates a word in the database.
 
         Args:
-            word (Word): Word object.
+            word: Word object.
 
         Returns:
-            int: ID of the inserted word.
+            ID of the inserted/updated word.
         """
-        # Check if word exists
-        check_query = "SELECT id FROM collections_word WHERE english_word = ?"
-        result = self.execute_query(check_query, (word.english_word,), fetch=True)
+        try:
+            # Check if word exists
+            check_query = "SELECT id FROM collections_word WHERE english_word = ?"
+            result = self.execute_query(check_query, (word.english_word,), fetch_one=True)
 
-        if result and result[0]:
-            word_id = result[0][0]
+            if result and result[0]:
+                word_id = result[0][0]
 
-            # Update word
-            update_query = """
-                UPDATE collections_word
-                SET listening = COALESCE(?, listening),
-                    russian_word = COALESCE(?, russian_word),
-                    sentences = COALESCE(?, sentences),
-                    level = COALESCE(?, level),
-                    brown = COALESCE(?, brown),
-                    get_download = COALESCE(?, get_download)
-                WHERE id = ?
-            """
-            self.execute_query(
-                update_query,
-                (
-                    word.listening,
-                    word.russian_word,
-                    word.sentences,
-                    word.level,
-                    word.brown,
-                    word.get_download,
-                    word_id,
-                ),
-            )
-        else:
-            # Insert new word
-            insert_query = """
-                INSERT INTO collections_word
-                (english_word, listening, russian_word, sentences, level, brown, get_download)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            self.execute_query(
-                insert_query,
-                (
-                    word.english_word,
-                    word.listening,
-                    word.russian_word,
-                    word.sentences,
-                    word.level,
-                    word.brown,
-                    word.get_download,
-                ),
-            )
+                # Update existing word
+                update_query = """
+                    UPDATE collections_word
+                    SET russian_word = COALESCE(?, russian_word),
+                        listening = COALESCE(?, listening),
+                        sentences = COALESCE(?, sentences),
+                        level = COALESCE(?, level),
+                        brown = COALESCE(?, brown),
+                        get_download = COALESCE(?, get_download),
+                        learning_status = COALESCE(?, learning_status)
+                    WHERE id = ?
+                """
+                self.execute_query(
+                    update_query,
+                    (
+                        word.russian_word,
+                        word.listening,
+                        word.sentences,
+                        word.level,
+                        word.brown,
+                        word.get_download,
+                        word.learning_status,
+                        word_id,
+                    )
+                )
 
-            # Get ID of the new word
-            result = self.execute_query(
-                "SELECT id FROM collections_word WHERE english_word = ?",
-                (word.english_word,),
-                fetch=True,
-            )
-            word_id = result[0][0] if result and result[0] else 0
+                return word_id
+            else:
+                # Insert new word
+                insert_query = """
+                    INSERT INTO collections_word
+                    (english_word, listening, russian_word, sentences, level, brown, get_download, learning_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                self.execute_query(
+                    insert_query,
+                    (
+                        word.english_word,
+                        word.listening,
+                        word.russian_word,
+                        word.sentences,
+                        word.level,
+                        word.brown,
+                        word.get_download,
+                        word.learning_status,
+                    )
+                )
 
-        return word_id
+                # Get ID of the new word
+                result = self.execute_query(
+                    "SELECT id FROM collections_word WHERE english_word = ?",
+                    (word.english_word,),
+                    fetch_one=True
+                )
 
-    def link_word_to_book(self, word_id: int, book_id: int, frequency: int) -> None:
+                return result[0][0] if result and result[0] else 0
+        except sqlite3.Error as e:
+            logger.error(f"Error in insert_or_update_word: {e}")
+            raise
+
+    def link_word_to_book(self, word_id: int, book_id: int, frequency: int = 1) -> bool:
         """
-        Links a word to a book.
+        Links a word to a book or updates the frequency if link exists.
 
         Args:
-            word_id (int): Word ID.
-            book_id (int): Book ID.
-            frequency (int): Frequency of the word in the book.
+            word_id: Word ID.
+            book_id: Book ID.
+            frequency: Frequency of the word in the book.
+
+        Returns:
+            True if successful, False otherwise.
         """
-        query = """
-            INSERT OR REPLACE INTO word_book_link
-            (word_id, book_id, frequency)
-            VALUES (?, ?, ?)
-        """
-        self.execute_query(query, (word_id, book_id, frequency))
+        try:
+            query = """
+                INSERT INTO word_book_link (word_id, book_id, frequency)
+                VALUES (?, ?, ?)
+                ON CONFLICT(word_id, book_id) 
+                DO UPDATE SET frequency = frequency + ?
+            """
+            self.execute_query(query, (word_id, book_id, frequency, frequency))
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error in link_word_to_book: {e}")
+            return False
 
     def insert_or_update_phrasal_verb(self, verb: PhrasalVerb) -> int:
         """
         Inserts or updates a phrasal verb in the database.
 
         Args:
-            verb (PhrasalVerb): Phrasal verb object.
+            verb: PhrasalVerb object.
 
         Returns:
-            int: ID of the inserted phrasal verb.
+            ID of the inserted/updated phrasal verb.
         """
-        # Check if phrasal verb exists
-        check_query = "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?"
-        result = self.execute_query(check_query, (verb.phrasal_verb,), fetch=True)
+        try:
+            # Check if phrasal verb exists
+            check_query = "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?"
+            result = self.execute_query(check_query, (verb.phrasal_verb,), fetch_one=True)
 
-        if result and result[0]:
-            verb_id = result[0][0]
+            if result and result[0]:
+                verb_id = result[0][0]
 
-            # Update phrasal verb
-            update_query = """
-                UPDATE phrasal_verb
-                SET russian_translate = COALESCE(?, russian_translate),
-                    "using" = COALESCE(?, "using"),
-                    sentence = COALESCE(?, sentence),
-                    word_id = COALESCE(?, word_id),
-                    listening = COALESCE(?, listening),
-                    get_download = COALESCE(?, get_download)
-                WHERE id = ?
-            """
-            self.execute_query(
-                update_query,
-                (
-                    verb.russian_translate,
-                    verb.using,
-                    verb.sentence,
-                    verb.word_id,
-                    verb.listening,
-                    verb.get_download,
-                    verb_id,
-                ),
-            )
-        else:
-            # Insert new phrasal verb
-            insert_query = """
-                INSERT INTO phrasal_verb
-                (phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            self.execute_query(
-                insert_query,
-                (
-                    verb.phrasal_verb,
-                    verb.russian_translate,
-                    verb.using,
-                    verb.sentence,
-                    verb.word_id,
-                    verb.listening,
-                    verb.get_download,
-                ),
-            )
+                # Update existing phrasal verb
+                update_query = """
+                    UPDATE phrasal_verb
+                    SET russian_translate = COALESCE(?, russian_translate),
+                        "using" = COALESCE(?, "using"),
+                        sentence = COALESCE(?, sentence),
+                        word_id = COALESCE(?, word_id),
+                        listening = COALESCE(?, listening),
+                        get_download = COALESCE(?, get_download)
+                    WHERE id = ?
+                """
+                self.execute_query(
+                    update_query,
+                    (
+                        verb.russian_translate,
+                        verb.using,
+                        verb.sentence,
+                        verb.word_id,
+                        verb.listening,
+                        verb.get_download,
+                        verb_id,
+                    )
+                )
 
-            # Get ID of the new phrasal verb
-            result = self.execute_query(
-                "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?",
-                (verb.phrasal_verb,),
-                fetch=True,
-            )
-            verb_id = result[0][0] if result and result[0] else 0
+                return verb_id
+            else:
+                # Insert new phrasal verb
+                insert_query = """
+                    INSERT INTO phrasal_verb
+                    (phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+                self.execute_query(
+                    insert_query,
+                    (
+                        verb.phrasal_verb,
+                        verb.russian_translate,
+                        verb.using,
+                        verb.sentence,
+                        verb.word_id,
+                        verb.listening,
+                        verb.get_download,
+                    )
+                )
 
-        return verb_id
+                # Get ID of the new phrasal verb
+                result = self.execute_query(
+                    "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?",
+                    (verb.phrasal_verb,),
+                    fetch_one=True
+                )
+
+                return result[0][0] if result and result[0] else 0
+        except sqlite3.Error as e:
+            logger.error(f"Error in insert_or_update_phrasal_verb: {e}")
+            raise
 
     def get_word_by_english(self, english_word: str) -> Optional[Word]:
         """
         Gets a word by its English word.
 
         Args:
-            english_word (str): English word.
+            english_word: English word.
 
         Returns:
-            Optional[Word]: Word object or None.
+            Word object or None.
         """
         query = "SELECT * FROM collections_word WHERE english_word = ?"
-        result = self.execute_query(query, (english_word,), fetch=True)
+        result = self.execute_query(query, (english_word,), fetch_one=True, as_dict=True)
 
         if not result:
             return None
 
-        # Convert result row to dictionary
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download'
-        ]
-        data = dict(zip(columns, result[0]))
-
-        return Word.from_dict(data)
+        return Word.from_dict(result[0])
 
     def get_words_by_filter(self, **filters) -> List[Word]:
         """
@@ -270,103 +353,106 @@ class DatabaseRepository:
             **filters: Filters in key=value format.
 
         Returns:
-            List[Word]: List of Word objects.
+            List of Word objects.
         """
         # Build query with filters
-        query = "SELECT * FROM collections_word"
+        query_parts = ["SELECT * FROM collections_word"]
         params = []
 
         for key, value in filters.items():
             if value is not None:
-                query += f" AND {key} = ?"
+                query_parts.append(f" AND {key} = ?")
                 params.append(value)
 
-        result = self.execute_query(query, tuple(params), fetch=True)
+        query = " ".join(query_parts)
+        result = self.execute_query(query, params, fetch=True, as_dict=True)
 
         if not result:
             return []
 
-        # Convert results to Word objects
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download'
-        ]
+        return [Word.from_dict(data) for data in result]
 
-        words = []
-        for row in result:
-            data = dict(zip(columns, row))
-            words.append(Word.from_dict(data))
-
-        return words
-
-    def get_words_by_book(self, book_id: int) -> List[Dict[str, Any]]:
+    def get_words_by_book(self, book_id: int, limit: int = 0, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Gets words by book ID with frequency information.
 
         Args:
-            book_id (int): Book ID.
+            book_id: Book ID.
+            limit: Maximum number of results to return (0 for all).
+            offset: Number of results to skip.
 
         Returns:
-            List[Dict[str, Any]]: List of dictionaries with word information.
+            List of dictionaries with word information.
         """
         query = """
-            SELECT cw.*, wbl.frequency
+            SELECT cw.*, wbl.frequency, COALESCE(uws.status, 0) AS status
             FROM collections_word cw
             JOIN word_book_link wbl ON cw.id = wbl.word_id
+            LEFT JOIN user_word_status uws ON cw.id = uws.word_id
             WHERE wbl.book_id = ?
             ORDER BY wbl.frequency DESC
         """
-        result = self.execute_query(query, (book_id,), fetch=True)
+
+        params = [book_id]
+
+        if limit > 0:
+            query += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+        result = self.execute_query(query, params, fetch=True, as_dict=True)
 
         if not result:
             return []
 
-        # Convert results to dictionaries
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download', 'frequency'
-        ]
-
-        return [dict(zip(columns, row)) for row in result]
+        return cast(List[Dict[str, Any]], result)
 
     def update_download_status(self, table_name: str, column_name: str, media_folder: str) -> int:
         """
         Updates download status based on file presence in folder.
 
         Args:
-            table_name (str): Table name.
-            column_name (str): Column name with word/phrase name.
-            media_folder (str): Path to media files folder.
+            table_name: Table name.
+            column_name: Column name with word/phrase name.
+            media_folder: Path to media files folder.
 
         Returns:
-            int: Number of updated records.
+            Number of updated records.
         """
-        import os
-
-        # Get list of words/phrases for which files are not downloaded
-        query = f"SELECT {column_name} FROM {table_name} WHERE get_download = 0"
-        result = self.execute_query(query, fetch=True)
-
-        if not result:
+        # Validate media folder exists
+        if not os.path.isdir(media_folder):
+            logger.error(f"Media folder not found: {media_folder}")
             return 0
 
-        words = [row[0] for row in result]
+        # Get list of words/phrases for which files are not downloaded
+        query = f"SELECT id, {column_name} FROM {table_name} WHERE get_download = 0"
+        results = self.execute_query(query, fetch=True)
+
+        if not results:
+            return 0
+
         updated_count = 0
 
-        # Check file presence and update status
-        for word in words:
-            word_modified = word.replace(" ", "_").lower()
-            file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
 
-            status = 1 if os.path.isfile(file_path) else 0
+            # Check file presence and update status in batches
+            for row in results:
+                item_id, word = row
+                word_modified = str(word).replace(" ", "_").lower()
+                file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
 
-            # Update status in database
-            update_query = f"UPDATE {table_name} SET get_download = ? WHERE {column_name} = ?"
-            self.execute_query(update_query, (status, word))
+                status = 1 if os.path.isfile(file_path) else 0
 
-            if status == 1:
-                updated_count += 1
+                if status == 1:
+                    cursor.execute(
+                        f"UPDATE {table_name} SET get_download = ? WHERE id = ?",
+                        (status, item_id)
+                    )
+                    updated_count += 1
 
+            conn.commit()
+
+        logger.info(f"Updated download status for {updated_count} items in {table_name}")
         return updated_count
 
     def process_translate_file(self, translate_file: str, table_name: str = "collections_word") -> int:
@@ -374,22 +460,24 @@ class DatabaseRepository:
         Processes translation file and updates the database.
 
         Args:
-            translate_file (str): Path to translation file.
-            table_name (str, optional): Table name. Defaults to "collections_word".
+            translate_file: Path to translation file.
+            table_name: Table name.
 
         Returns:
-            int: Number of processed records.
+            Number of processed records.
         """
-        import os
-
         if not os.path.exists(translate_file):
             logger.error(f"Translate file not found: {translate_file}")
             return 0
 
         processed_count = 0
+        batch_size = 100
+        current_batch = []
 
         try:
-            with open(translate_file, "r", encoding="utf-8") as file:
+            with open(translate_file, "r", encoding="utf-8") as file, self.get_connection() as conn:
+                cursor = conn.cursor()
+
                 for line in file:
                     line = line.strip()
                     if not line:
@@ -404,33 +492,54 @@ class DatabaseRepository:
                         sound_file = english_word.replace(" ", "_").lower()
                         listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
 
-                        # Update information in database
-                        update_query = f"""
-                            UPDATE {table_name}
-                            SET russian_word = ?,
-                                sentences = ?,
-                                level = ?,
-                                listening = ?
-                            WHERE english_word = ?
-                        """
-                        self.execute_query(
-                            update_query,
-                            (
-                                russian_translate,
-                                f"{english_sentence}<br>{russian_sentence}",
-                                level,
-                                listening,
-                                english_word.lower(),
-                            ),
-                        )
+                        current_batch.append((
+                            russian_translate,
+                            f"{english_sentence}<br>{russian_sentence}",
+                            level,
+                            listening,
+                            english_word.lower()
+                        ))
 
-                        processed_count += 1
+                        # Execute updates in batches
+                        if len(current_batch) >= batch_size:
+                            cursor.executemany(
+                                f"""
+                                UPDATE {table_name}
+                                SET russian_word = ?,
+                                    sentences = ?,
+                                    level = ?,
+                                    listening = ?
+                                WHERE english_word = ?
+                                """,
+                                current_batch
+                            )
+                            processed_count += len(current_batch)
+                            current_batch = []
                     else:
                         logger.warning(f"Invalid line format: {line}")
+
+                # Process any remaining items
+                if current_batch:
+                    cursor.executemany(
+                        f"""
+                        UPDATE {table_name}
+                        SET russian_word = ?,
+                            sentences = ?,
+                            level = ?,
+                            listening = ?
+                        WHERE english_word = ?
+                        """,
+                        current_batch
+                    )
+                    processed_count += len(current_batch)
+
+                conn.commit()
+
         except Exception as e:
             logger.error(f"Error processing translate file: {e}")
             raise
 
+        logger.info(f"Processed {processed_count} translations from {translate_file}")
         return processed_count
 
     def process_phrasal_verb_file(self, phrasal_verb_file: str) -> int:
@@ -438,20 +547,20 @@ class DatabaseRepository:
         Processes phrasal verb file and updates the database.
 
         Args:
-            phrasal_verb_file (str): Path to phrasal verb file.
+            phrasal_verb_file: Path to phrasal verb file.
 
         Returns:
-            int: Number of processed records.
+            Number of processed records.
         """
-        import os
-
         if not os.path.exists(phrasal_verb_file):
             logger.error(f"Phrasal verb file not found: {phrasal_verb_file}")
             return 0
 
         processed_count = 0
+        verbs_to_insert = []
 
         try:
+            # First, read all lines and prepare data
             with open(phrasal_verb_file, "r", encoding="utf-8") as file:
                 for line in file:
                     line = line.strip()
@@ -466,45 +575,66 @@ class DatabaseRepository:
                         # Get base verb (first word)
                         english_word = phrasal_verb.split(" ")[0]
 
-                        # Get base verb ID
-                        query = "SELECT id FROM collections_word WHERE english_word = ?"
-                        result = self.execute_query(query, (english_word,), fetch=True)
-
-                        if not result:
-                            logger.warning(f"Base word not found: {english_word}")
-                            continue
-
-                        word_id = result[0][0]
-
                         # Form path to audio file
                         sound_file = phrasal_verb.lower().replace(" ", "_")
                         listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
 
-                        # Insert phrasal verb
-                        insert_query = """
-                            INSERT OR IGNORE INTO phrasal_verb
-                            (phrasal_verb, russian_translate, "using", sentence, word_id, listening)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """
-                        self.execute_query(
-                            insert_query,
-                            (
-                                phrasal_verb,
-                                russian_translate,
-                                using,
-                                f"{english_sentence}<br>{russian_sentence}",
-                                word_id,
-                                listening,
-                            ),
-                        )
-
-                        processed_count += 1
+                        verbs_to_insert.append({
+                            'phrasal_verb': phrasal_verb,
+                            'english_word': english_word,
+                            'russian_translate': russian_translate,
+                            'using': using,
+                            'sentence': f"{english_sentence}<br>{russian_sentence}",
+                            'listening': listening
+                        })
                     else:
                         logger.warning(f"Invalid line format: {line}")
+
+            # Now, process all verbs in a single transaction
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+
+                for verb_data in verbs_to_insert:
+                    # Get base verb ID
+                    cursor.execute(
+                        "SELECT id FROM collections_word WHERE english_word = ?",
+                        (verb_data['english_word'],)
+                    )
+                    word_row = cursor.fetchone()
+
+                    if not word_row:
+                        logger.warning(f"Base word not found: {verb_data['english_word']}")
+                        continue
+
+                    word_id = word_row[0]
+
+                    # Insert phrasal verb
+                    cursor.execute(
+                        """
+                        INSERT OR IGNORE INTO phrasal_verb
+                        (phrasal_verb, russian_translate, "using", sentence, word_id, listening)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            verb_data['phrasal_verb'],
+                            verb_data['russian_translate'],
+                            verb_data['using'],
+                            verb_data['sentence'],
+                            word_id,
+                            verb_data['listening']
+                        )
+                    )
+
+                    if cursor.rowcount > 0:
+                        processed_count += 1
+
+                conn.commit()
+
         except Exception as e:
             logger.error(f"Error processing phrasal verb file: {e}")
             raise
 
+        logger.info(f"Processed {processed_count} phrasal verbs from {phrasal_verb_file}")
         return processed_count
 
     def update_schema_if_needed(self) -> None:
@@ -517,45 +647,37 @@ class DatabaseRepository:
 
                 # Check schema version
                 cursor.execute("PRAGMA user_version")
-                # current_version = cursor.fetchone()[0]
+                current_version = cursor.fetchone()[0]
+                logger.info(f"Current database schema version: {current_version}")
 
-                # Check for new learning_status field
-                cursor.execute("PRAGMA table_info(collections_word)")
-                columns = [column[1] for column in cursor.fetchall()]
+                # Apply migrations based on version
+                if current_version < 3:
+                    from src.db.models import DBInitializer
+                    DBInitializer.update_schema_if_needed(self.db_path)
 
-                # If learning_status field is missing, add it
-                if "learning_status" not in columns:
-                    logger.info("Updating database schema: adding learning_status column")
-                    cursor.execute("ALTER TABLE collections_word ADD COLUMN learning_status INTEGER DEFAULT 0")
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS idx_collections_word_learning_status ON"
-                        " collections_word(learning_status)")
-                    cursor.execute("PRAGMA user_version = 2")
-                    logger.info("Database schema updated to version 2")
-
-                conn.commit()
         except sqlite3.Error as e:
             logger.error(f"Error checking/updating schema: {e}")
+            raise
 
     def update_word_status(self, word_id: int, status: int) -> bool:
         """
         Updates word learning status.
 
         Args:
-            word_id (int): Word ID.
-            status (int): New learning status.
+            word_id: Word ID.
+            status: New learning status.
 
         Returns:
-            bool: True on success, False otherwise.
-        """
-        query = """
-            UPDATE collections_word
-            SET learning_status = ?
-            WHERE id = ?
+            True on success, False otherwise.
         """
         try:
+            query = """
+                UPDATE collections_word
+                SET learning_status = ?
+                WHERE id = ?
+            """
             self.execute_query(query, (status, word_id))
-            logger.info(f"Updated learning status for word ID {word_id} to {status}")
+            logger.debug(f"Updated learning status for word ID {word_id} to {status}")
             return True
         except sqlite3.Error as e:
             logger.error(f"Error updating learning status: {e}")
@@ -566,68 +688,61 @@ class DatabaseRepository:
         Updates word learning status by its English value.
 
         Args:
-            english_word (str): English word.
-            status (int): New learning status.
+            english_word: English word.
+            status: New learning status.
 
         Returns:
-            bool: True on success, False otherwise.
-        """
-        query = """
-            UPDATE collections_word
-            SET learning_status = ?
-            WHERE english_word = ?
+            True on success, False otherwise.
         """
         try:
+            query = """
+                UPDATE collections_word
+                SET learning_status = ?
+                WHERE english_word = ?
+            """
             self.execute_query(query, (status, english_word))
-            logger.info(f"Updated learning status for word '{english_word}' to {status}")
+            logger.debug(f"Updated learning status for word '{english_word}' to {status}")
             return True
         except sqlite3.Error as e:
             logger.error(f"Error updating learning status: {e}")
             return False
 
-    def get_words_by_status(self, status: int) -> List[Word]:
+    def get_words_by_status(self, status: int, limit: int = 0, offset: int = 0) -> List[Word]:
         """
         Gets words by learning status.
 
         Args:
-            status (int): Learning status.
+            status: Learning status.
+            limit: Maximum number of results to return (0 for all).
+            offset: Number of results to skip.
 
         Returns:
-            List[Word]: List of Word objects.
+            List of Word objects.
         """
         query = "SELECT * FROM collections_word WHERE learning_status = ?"
-        result = self.execute_query(query, (status,), fetch=True)
+        params = [status]
+
+        if limit > 0:
+            query += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+        result = self.execute_query(query, params, fetch=True, as_dict=True)
 
         if not result:
             return []
 
-        # Convert results to Word objects
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download', 'learning_status'
-        ]
-
-        words = []
-        for row in result:
-            # Handle case when learning_status column is missing in result
-            if len(row) == 8:
-                row = row + (0,)  # Add default value for learning_status
-
-            data = dict(zip(columns, row))
-            words.append(Word.from_dict(data))
-
-        return words
+        return [Word.from_dict(data) for data in result]
 
     def batch_update_word_status(self, english_words: List[str], status: int) -> int:
         """
         Batch updates learning status for a list of words.
 
         Args:
-            english_words (List[str]): List of English words.
-            status (int): New learning status.
+            english_words: List of English words.
+            status: New learning status.
 
         Returns:
-            int: Number of updated words.
+            Number of updated words.
         """
         if not english_words:
             return 0
@@ -637,12 +752,20 @@ class DatabaseRepository:
                 cursor = conn.cursor()
                 updated_count = 0
 
-                # Update status for each word
-                for word in english_words:
-                    cursor.execute(
-                        "UPDATE collections_word SET learning_status = ? WHERE english_word = ?",
-                        (status, word)
-                    )
+                # Process in batches of 100
+                batch_size = 100
+                for i in range(0, len(english_words), batch_size):
+                    batch = english_words[i:i + batch_size]
+
+                    # Create placeholders for SQL query
+                    placeholders = ','.join(['?'] * len(batch))
+                    query = f"""
+                        UPDATE collections_word 
+                        SET learning_status = ? 
+                        WHERE english_word IN ({placeholders})
+                    """
+
+                    cursor.execute(query, [status] + batch)
                     updated_count += cursor.rowcount
 
                 conn.commit()
@@ -653,24 +776,24 @@ class DatabaseRepository:
             logger.error(f"Error batch updating learning status: {e}")
             return 0
 
-    def update_book_stats(self, book_id: int, total_words: int, unique_words: int) -> bool:
+    def update_book_stats(self, book_id: int, total_words: int = 0, unique_words: int = 0) -> bool:
         """
         Updates book statistics.
 
         Args:
-            book_id (int): Book ID.
-            total_words (int): Total word count.
-            unique_words (int): Unique word count.
+            book_id: Book ID.
+            total_words: Total word count.
+            unique_words: Unique word count.
 
         Returns:
-            bool: True on success, False otherwise.
-        """
-        query = """
-            UPDATE book
-            SET total_words = ?, unique_words = ?, scrape_date = datetime('now')
-            WHERE id = ?
+            True on success, False otherwise.
         """
         try:
+            query = """
+                UPDATE book
+                SET total_words = ?, unique_words = ?, scrape_date = datetime('now')
+                WHERE id = ?
+            """
             self.execute_query(query, (total_words, unique_words, book_id))
             logger.info(f"Updated stats for book ID {book_id}: {total_words} total words, {unique_words} unique words")
             return True
@@ -678,36 +801,62 @@ class DatabaseRepository:
             logger.error(f"Error updating book stats: {e}")
             return False
 
+    def calculate_book_stats(self, book_id: int) -> Dict[str, int]:
+        """
+        Calculates book statistics from word-book links.
+
+        Args:
+            book_id: Book ID.
+
+        Returns:
+            Dictionary with total_words and unique_words.
+        """
+        try:
+            query = """
+                SELECT 
+                    COUNT(DISTINCT word_id) as unique_words,
+                    SUM(frequency) as total_words
+                FROM word_book_link
+                WHERE book_id = ?
+            """
+            result = self.execute_query(query, (book_id,), fetch_one=True, as_dict=True)
+
+            if result:
+                stats = {
+                    'total_words': result[0].get('total_words', 0) or 0,
+                    'unique_words': result[0].get('unique_words', 0) or 0
+                }
+                return stats
+
+            return {'total_words': 0, 'unique_words': 0}
+        except sqlite3.Error as e:
+            logger.error(f"Error calculating book stats: {e}")
+            return {'total_words': 0, 'unique_words': 0}
+
     def get_book_by_id(self, book_id: int) -> Optional[Book]:
         """
         Gets a book by ID.
 
         Args:
-            book_id (int): Book ID.
+            book_id: Book ID.
 
         Returns:
-            Optional[Book]: Book object or None if book not found.
+            Book object or None if book not found.
         """
         query = "SELECT * FROM book WHERE id = ?"
-        result = self.execute_query(query, (book_id,), fetch=True)
+        result = self.execute_query(query, (book_id,), fetch_one=True, as_dict=True)
 
         if not result:
             return None
 
-        # Convert result row to dictionary
-        columns = [
-            'id', 'title', 'total_words', 'unique_words', 'scrape_date'
-        ]
-        data = dict(zip(columns, result[0]))
-
-        return Book.from_dict(data)
+        return Book.from_dict(result[0])
 
     def get_books_with_stats(self) -> List[Dict[str, Any]]:
         """
         Gets a list of all books with their statistics.
 
         Returns:
-            List[Dict[str, Any]]: List of dictionaries with book data.
+            List of dictionaries with book data.
         """
         query = """
             SELECT b.id, b.title, b.total_words, b.unique_words, b.scrape_date,
@@ -718,23 +867,49 @@ class DatabaseRepository:
             GROUP BY b.id, b.title
             ORDER BY b.title
         """
-        result = self.execute_query(query, fetch=True)
+        result = self.execute_query(query, fetch=True, as_dict=True)
 
         if not result:
             return []
 
-        # Convert results to dictionaries
-        books = []
-        for row in result:
-            book = {
-                'id': row[0],
-                'title': row[1],
-                'total_words': row[2],
-                'unique_words': row[3],
-                'scrape_date': row[4],
-                'linked_words': row[5],
-                'word_occurrences': row[6]
-            }
-            books.append(book)
+        return cast(List[Dict[str, Any]], result)
 
-        return books
+    def get_books(self) -> List[Book]:
+        """
+        Gets a list of all books.
+
+        Returns:
+            List of Book objects.
+        """
+        query = "SELECT * FROM book ORDER BY title"
+        result = self.execute_query(query, fetch=True, as_dict=True)
+
+        if not result:
+            return []
+
+        return [Book.from_dict(data) for data in result]
+
+    def search_words(self, search_term: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Searches for words by partial match in English or Russian.
+
+        Args:
+            search_term: Search term.
+            limit: Maximum number of results.
+
+        Returns:
+            List of word dictionaries.
+        """
+        search_param = f"%{search_term}%"
+        query = """
+            SELECT * FROM collections_word 
+            WHERE english_word LIKE ? OR russian_word LIKE ?
+            ORDER BY learning_status, english_word
+            LIMIT ?
+        """
+        result = self.execute_query(query, (search_param, search_param, limit), fetch=True, as_dict=True)
+
+        if not result:
+            return []
+
+        return cast(List[Dict[str, Any]], result)
