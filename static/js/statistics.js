@@ -1,6 +1,7 @@
 /**
  * Statistics Page JavaScript
  * Modern implementation with ES6+ features
+ * Fixed Chart.js initialization
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,7 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 const initActivityChart = () => {
   const chartElement = document.getElementById('activityChart');
-  if (!chartElement) return;
+
+  // Check if element exists and is a canvas
+  if (!chartElement || !(chartElement instanceof HTMLCanvasElement)) {
+    console.error('Activity chart element not found or not a canvas element');
+    return;
+  }
 
   // Process data for chart
   const dates = [];
@@ -35,9 +41,15 @@ const initActivityChart = () => {
   }
 
   sessionData.forEach(session => {
-    const date = new Date(session.session_date);
-    const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-    sessionsMap[dateStr] = session.cards_reviewed;
+    if (!session || !session.session_date) return;
+
+    try {
+      const date = new Date(session.session_date);
+      const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+      sessionsMap[dateStr] = session.cards_reviewed || 0;
+    } catch (e) {
+      console.error('Error processing session data:', e);
+    }
   });
 
   // Fill in all dates for the last 30 days
@@ -56,76 +68,87 @@ const initActivityChart = () => {
   const maxCount = Math.max(...counts, 1);
   const yAxisMax = Math.ceil(maxCount * 1.2); // 20% headroom
 
-  // Create chart
-  const ctx = chartElement.getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: dates,
-      datasets: [{
-        label: 'Cards Reviewed',
-        data: counts,
-        backgroundColor: 'rgba(13, 110, 253, 0.6)',
-        borderColor: 'rgba(13, 110, 253, 1)',
-        borderWidth: 1,
-        borderRadius: 4,
-        barThickness: 8,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            title: (tooltipItems) => {
-              const date = tooltipItems[0].label;
-              return `Date: ${date}`;
-            },
-            label: (context) => {
-              const count = context.raw;
-              return `Cards: ${count}`;
-            }
-          }
-        }
+  try {
+    // Create chart
+    const ctx = chartElement.getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dates,
+        datasets: [{
+          label: 'Cards Reviewed',
+          data: counts,
+          backgroundColor: 'rgba(13, 110, 253, 0.6)',
+          borderColor: 'rgba(13, 110, 253, 1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          barThickness: 8,
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          suggestedMax: yAxisMax,
-          ticks: {
-            precision: 0
-          },
-          grid: {
-            display: true,
-            color: 'rgba(0, 0, 0, 0.05)'
-          }
-        },
-        x: {
-          grid: {
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
             display: false
           },
-          ticks: {
-            maxRotation: 45,
-            minRotation: 45,
-            callback: function(value, index, values) {
-              // Show fewer labels on smaller screens
-              const screenWidth = window.innerWidth;
-              if (screenWidth < 768) {
-                return index % 5 === 0 ? this.getLabelForValue(value) : '';
-              } else if (screenWidth < 992) {
-                return index % 3 === 0 ? this.getLabelForValue(value) : '';
+          tooltip: {
+            callbacks: {
+              title: (tooltipItems) => {
+                const date = tooltipItems[0].label;
+                return `Date: ${date}`;
+              },
+              label: (context) => {
+                const count = context.raw;
+                return `Cards: ${count}`;
               }
-              return this.getLabelForValue(value);
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            suggestedMax: yAxisMax,
+            ticks: {
+              precision: 0
+            },
+            grid: {
+              display: true,
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              callback: function(value, index, values) {
+                // Show fewer labels on smaller screens
+                const screenWidth = window.innerWidth;
+                if (screenWidth < 768) {
+                  return index % 5 === 0 ? this.getLabelForValue(value) : '';
+                } else if (screenWidth < 992) {
+                  return index % 3 === 0 ? this.getLabelForValue(value) : '';
+                }
+                return this.getLabelForValue(value);
+              }
             }
           }
         }
       }
-    }
-  });
+    });
+  } catch (e) {
+    console.error('Error creating activity chart:', e);
+    // Fallback message
+    chartElement.parentElement.innerHTML = `
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Unable to load activity chart. Please try refreshing the page.
+      </div>
+    `;
+  }
 };
 
 /**
@@ -133,7 +156,12 @@ const initActivityChart = () => {
  */
 const initStatusChart = () => {
   const chartElement = document.getElementById('statusChart');
-  if (!chartElement) return;
+
+  // Check if element exists and is a canvas
+  if (!chartElement || !(chartElement instanceof HTMLCanvasElement)) {
+    console.error('Status chart element not found or not a canvas element');
+    return;
+  }
 
   // Check if statusCounts is available from the template
   if (typeof statusCounts === 'undefined') {
@@ -165,44 +193,55 @@ const initStatusChart = () => {
     '#198754'  // Studied - Green
   ];
 
-  // Create chart
-  const ctx = chartElement.getContext('2d');
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: backgroundColors,
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '60%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            usePointStyle: true,
-            padding: 15
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              const label = context.label || '';
-              const value = context.raw;
-              const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-              const percentage = Math.round((value / total) * 100);
-              return `${label}: ${value} (${percentage}%)`;
+  try {
+    // Create chart
+    const ctx = chartElement.getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: backgroundColors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              padding: 15
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const label = context.label || '';
+                const value = context.raw;
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const percentage = Math.round((value / total) * 100);
+                return `${label}: ${value} (${percentage}%)`;
+              }
             }
           }
         }
       }
-    }
-  });
+    });
+  } catch (e) {
+    console.error('Error creating status chart:', e);
+    // Fallback message
+    chartElement.parentElement.innerHTML = `
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Unable to load status chart. Please try refreshing the page.
+      </div>
+    `;
+  }
 };
 
 /**
@@ -243,18 +282,26 @@ const filterActivity = (days) => {
   rows.forEach(row => {
     const dateCell = row.cells[0].textContent;
     const dateParts = dateCell.split('.');
-    const rowDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
+    if (dateParts.length !== 3) return;
 
-    if (rowDate >= cutoffDate) {
-      row.style.display = '';
-      visibleRows++;
-    } else {
-      row.style.display = 'none';
+    try {
+      const rowDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`);
+
+      if (rowDate >= cutoffDate) {
+        row.style.display = '';
+        visibleRows++;
+      } else {
+        row.style.display = 'none';
+      }
+    } catch (e) {
+      console.error('Error parsing date:', e);
     }
   });
 
   // Show empty state if no visible rows
-  const tableBody = rows[0].parentElement;
+  const tableBody = rows[0]?.parentElement;
+  if (!tableBody) return;
+
   const existingMessage = tableBody.querySelector('.no-data-message');
 
   if (visibleRows === 0) {

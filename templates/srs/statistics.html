@@ -1,19 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Learning Statistics{% endblock %}
+{% block title %}Statistics | Learning Cards{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statistics.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="stats-header">
-        <h1 class="stats-header__title">Learning Statistics</h1>
-        <a href="{{ url_for('srs.decks_list') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Back to Decks
-        </a>
+<main class="container mt-4" id="stats-manager">
+    <!-- Header -->
+    <div class="decks-header">
+        <h1 class="decks-header__title">Statistics</h1>
     </div>
+
+    <!-- Navigation - EXACTLY matching the first image -->
+    <nav class="decks-nav" aria-label="Deck Management Navigation">
+        <a href="{{ url_for('srs.decks_list') }}" class="decks-nav__item">Decks</a>
+        <a href="{{ url_for('srs.statistics') }}" class="decks-nav__item active" aria-current="page">Statistics</a>
+    </nav>
 
     <!-- Key Metrics -->
     <div class="stats-overview">
@@ -59,20 +63,20 @@
         <!-- Activity Calendar -->
         <div class="stats-card stats-card--wide">
             <div class="stats-card__header">
-                <h5 class="stats-card__title">Daily Activity</h5>
+                <h3 class="stats-card__title">Daily Activity</h3>
             </div>
             <div class="stats-card__body">
-                <div id="activityChart" class="chart-container"></div>
+                <canvas id="activityChart" class="chart-container"></canvas>
             </div>
         </div>
 
         <!-- Word Status Breakdown -->
         <div class="stats-card">
             <div class="stats-card__header">
-                <h5 class="stats-card__title">Words by Status</h5>
+                <h3 class="stats-card__title">Words by Status</h3>
             </div>
             <div class="stats-card__body">
-                <div id="statusChart" class="chart-container"></div>
+                <canvas id="statusChart" class="chart-container"></canvas>
             </div>
         </div>
     </div>
@@ -80,7 +84,7 @@
     <!-- Recent Activity -->
     <div class="stats-card stats-card--full">
         <div class="stats-card__header">
-            <h5 class="stats-card__title">Recent Activity</h5>
+            <h3 class="stats-card__title">Recent Activity</h3>
             <div class="stats-card__actions">
                 <select class="form-select form-select-sm" id="activityPeriod">
                     <option value="7">Last 7 days</option>
@@ -92,7 +96,7 @@
         <div class="stats-card__body">
             {% if stats.review_history %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table">
                         <thead>
                             <tr>
                                 <th>Date</th>
@@ -120,7 +124,7 @@
             {% else %}
                 <div class="empty-state">
                     <div class="empty-state__icon">
-                        <i class="bi bi-calendar-x"></i>
+                        <i class="bi bi-calendar-x" aria-hidden="true"></i>
                     </div>
                     <h3 class="empty-state__title">No Activity Yet</h3>
                     <p class="empty-state__text">You haven't reviewed any cards yet. Start learning to see your progress here.</p>
@@ -128,11 +132,11 @@
             {% endif %}
         </div>
     </div>
-</div>
+</main>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
     // Session data for charts
     const sessionData = {{ stats.review_history|tojson }};
