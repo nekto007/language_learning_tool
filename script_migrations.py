@@ -1,332 +1,323 @@
 """
-Скрипт для выполнения миграции таблицы collections_word в collection_words
-и добавления полей created_at, updated_at.
+Script to initialize all necessary database tables for the language learning application.
 """
 import logging
 import os
 import sqlite3
 from datetime import datetime
-import traceback
 
-# Настройка логирования
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
-def execute_migration(db_path):
+def initialize_database(db_path: str) -> bool:
     """
-    Выполняет миграцию таблицы collections_word в collection_words и
-    добавляет поля created_at и updated_at.
+    Initialize all tables in the database.
 
     Args:
-        db_path: путь к файлу базы данных
+        db_path: Path to the SQLite database file
 
     Returns:
-        bool: True, если миграция успешна, False в случае ошибки
+        bool: True if initialization was successful, False otherwise
     """
     conn = None
     try:
-        logger.info(f"Starting migration for database: {db_path}")
+        # Create database directory if it doesn't exist
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir)
+            logger.info(f"Created directory: {db_dir}")
 
-        # Проверка существования файла БД
-        if not os.path.exists(db_path):
-            logger.error(f"Database file not found: {db_path}")
-            return False
-
-        # Подключение к БД
+        # Connect to database
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # ВАЖНО: Проверяем точные имена таблиц в базе данных
+        # Log current database state
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        all_tables = [table[0] for table in cursor.fetchall()]
-        logger.info(f"All tables in database: {all_tables}")
+        tables = [table[0] for table in cursor.fetchall()]
+        logger.info(f"Existing tables: {tables}")
 
-        # Проверка необходимости миграции - используем правильные имена таблиц
-        old_table = "collections_word"  # Это исходная таблица
-        new_table = "collection_words"  # Это целевая таблица
+        # Begin transaction
+        conn.execute("BEGIN TRANSACTION")
 
-        old_table_exists = old_table in all_tables
-        new_table_exists = new_table in all_tables
+        # 1. Create collection_words table
+        logger.info("Creating collection_words table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS collection_words (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                english_word TEXT UNIQUE NOT NULL,
+                russian_word TEXT,
+                listening TEXT,
+                sentences TEXT,
+                level TEXT,
+                brown INTEGER DEFAULT 0,
+                get_download INTEGER DEFAULT 0,
+                learning_status INTEGER DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-        logger.info(f"Old table '{old_table}' exists: {old_table_exists}")
-        logger.info(f"New table '{new_table}' exists: {new_table_exists}")
+        # Create indexes for collection_words
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_collection_words_english_word ON collection_words(english_word)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_collection_words_learning_status ON collection_words(learning_status)")
 
-        if not old_table_exists and not new_table_exists:
-            logger.info("Neither old nor new table exists. No migration needed.")
-            return True
+        # 2. Create book table
+        logger.info("Creating book table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS book (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT UNIQUE NOT NULL,
+                total_words INTEGER DEFAULT 0,
+                unique_words INTEGER DEFAULT 0,
+                scrape_date TIMESTAMP DEFAULT NULL
+            )
+        """)
 
-        if not old_table_exists and new_table_exists:
-            logger.info("New table already exists. Checking columns...")
+        # 3. Create word_book_link table
+        logger.info("Creating word_book_link table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS word_book_link (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                word_id INTEGER NOT NULL,
+                book_id INTEGER NOT NULL,
+                frequency INTEGER DEFAULT 1,
+                FOREIGN KEY (word_id) REFERENCES collection_words (id),
+                FOREIGN KEY (book_id) REFERENCES book (id),
+                UNIQUE (word_id, book_id)
+            )
+        """)
 
-            # Проверяем наличие столбцов created_at и updated_at
-            cursor.execute(f"PRAGMA table_info({new_table})")
-            columns = [column[1] for column in cursor.fetchall()]
+        # Create indexes for word_book_link
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_word_id ON word_book_link(word_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_book_id ON word_book_link(book_id)")
 
-            columns_to_add = []
-            if "created_at" not in columns:
-                columns_to_add.append("created_at")
-            if "updated_at" not in columns:
-                columns_to_add.append("updated_at")
+        # 4. Create phrasal_verb table
+        logger.info("Creating phrasal_verb table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS phrasal_verb (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phrasal_verb TEXT UNIQUE NOT NULL,
+                russian_translate TEXT,
+                "using" TEXT,
+                sentence TEXT,
+                word_id INTEGER,
+                listening TEXT,
+                get_download INTEGER DEFAULT 0,
+                FOREIGN KEY (word_id) REFERENCES collection_words (id)
+            )
+        """)
 
-            if not columns_to_add:
-                logger.info("All required columns exist. No migration needed.")
-                return True
+        # 5. Create users table
+        logger.info("Creating users table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                email TEXT UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP,
+                is_admin INTEGER DEFAULT 0
+            )
+        """)
 
-            # Добавляем недостающие столбцы
-            try:
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 6. Create user_word_status table
+        logger.info("Creating user_word_status table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_word_status (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                word_id INTEGER NOT NULL,
+                status INTEGER NOT NULL DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (word_id) REFERENCES collection_words (id),
+                UNIQUE (user_id, word_id)
+            )
+        """)
 
-                # Используем безопасный метод: сначала добавляем столбцы без DEFAULT, затем обновляем данные
-                conn.execute("BEGIN TRANSACTION")
-                for column in columns_to_add:
-                    cursor.execute(f"ALTER TABLE {new_table} ADD COLUMN {column} DATETIME")
-                    logger.info(f"Added column {column} to {new_table}")
+        # Create indexes for user_word_status
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status ON user_word_status(user_id, word_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status_status ON user_word_status(user_id, status)")
 
-                # Обновляем все записи текущей датой
-                if columns_to_add:
-                    update_parts = [f"{col} = '{current_time}'" for col in columns_to_add]
-                    cursor.execute(f"UPDATE {new_table} SET {', '.join(update_parts)}")
-                    logger.info(f"Updated {cursor.rowcount} rows with timestamps")
+        # 7. Create deck table
+        logger.info("Creating deck table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deck (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                UNIQUE (user_id, name)
+            )
+        """)
 
-                conn.commit()
-                logger.info("Successfully added missing timestamp columns")
-                return True
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Error adding columns: {e}")
-                logger.error(traceback.format_exc())
-                return False
+        # Create index for deck
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_user_id ON deck(user_id)")
 
-        if old_table_exists and new_table_exists:
-            logger.warning(f"Both old table '{old_table}' and new table '{new_table}' exist. Inconsistent state.")
-            return False
+        # 8. Create deck_card table
+        logger.info("Creating deck_card table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deck_card (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                deck_id INTEGER NOT NULL,
+                word_id INTEGER NOT NULL,
+                next_review_date DATE,
+                last_review_date DATE,
+                interval INTEGER DEFAULT 0,
+                repetitions INTEGER DEFAULT 0,
+                ease_factor REAL DEFAULT 2.5,
+                lapses INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (deck_id) REFERENCES deck (id),
+                FOREIGN KEY (word_id) REFERENCES collection_words (id),
+                UNIQUE (deck_id, word_id)
+            )
+        """)
 
-        # Если мы здесь, значит нужно выполнить полную миграцию
-        logger.info(f"Starting full migration from {old_table} to {new_table}")
+        # Create indexes for deck_card
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_card_deck_id ON deck_card(deck_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_card_word_id ON deck_card(word_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_card_next_review ON deck_card(next_review_date)")
 
-        try:
-            # Выводим структуру существующей таблицы для отладки
-            cursor.execute(f"PRAGMA table_info({old_table})")
-            columns_info = cursor.fetchall()
-            column_names = [col[1] for col in columns_info]
-            logger.info(f"Current {old_table} columns: {column_names}")
+        # 9. Create review_session_log table
+        logger.info("Creating review_session_log table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS review_session_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                session_date DATE NOT NULL,
+                cards_reviewed INTEGER DEFAULT 0,
+                duration_seconds INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
 
-            # Начинаем транзакцию
-            conn.execute("BEGIN TRANSACTION")
+        # Create index for review_session_log
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_session_user_date ON review_session_log(user_id, session_date)")
 
-            # 1. Создаем новую таблицу со всеми нужными столбцами
-            cursor.execute(f"""
-                CREATE TABLE {new_table} (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    english_word TEXT UNIQUE NOT NULL,
-                    russian_word TEXT,
-                    listening TEXT,
-                    sentences TEXT,
-                    level TEXT,
-                    brown INTEGER DEFAULT 0,
-                    get_download INTEGER DEFAULT 0,
-                    learning_status INTEGER DEFAULT 0,
-                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+        # 10. Create card_review_history table
+        logger.info("Creating card_review_history table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS card_review_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                card_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                review_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                difficulty TEXT,
+                time_seconds INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (card_id) REFERENCES deck_card(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
 
-            # 2. Копируем данные - исправляем ошибку с несоответствием столбцов
-            if "learning_status" in column_names:
-                # Если в старой таблице есть learning_status
-                cursor.execute(f"""
-                    INSERT INTO {new_table} (
-                        id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
-                    )
-                    SELECT 
-                        id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
-                    FROM {old_table}
-                """)
-            else:
-                # Если в старой таблице нет learning_status, устанавливаем значение по умолчанию
-                cursor.execute(f"""
-                    INSERT INTO {new_table} (
-                        id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
-                    )
-                    SELECT 
-                        id, english_word, russian_word, listening, sentences, level, brown, get_download, 0
-                    FROM {old_table}
-                """)
+        # Create indexes for card_review_history
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_history_card ON card_review_history(card_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_history_user ON card_review_history(user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_history_date ON card_review_history(review_date)")
 
-            rows_copied = cursor.rowcount
-            logger.info(f"Copied {rows_copied} rows to new table")
+        # Set schema version
+        cursor.execute("PRAGMA user_version = 3")
 
-            # 3. Создаем индексы
-            cursor.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_collection_words_english_word ON {new_table}(english_word)")
-            cursor.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_collection_words_learning_status ON {new_table}(learning_status)")
+        # Commit transaction
+        conn.commit()
 
-            # 4. Обновляем связанные таблицы
-            # 4.1 Проверяем и обновляем word_book_link
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='word_book_link'")
-            if cursor.fetchone():
-                cursor.execute("""
-                    CREATE TABLE word_book_link_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        word_id INTEGER NOT NULL,
-                        book_id INTEGER NOT NULL,
-                        frequency INTEGER DEFAULT 1,
-                        FOREIGN KEY (word_id) REFERENCES collection_words (id),
-                        FOREIGN KEY (book_id) REFERENCES book (id),
-                        UNIQUE (word_id, book_id)
-                    )
-                """)
+        # Log successful initialization
+        logger.info("Database initialization completed successfully.")
 
-                cursor.execute("INSERT INTO word_book_link_new SELECT * FROM word_book_link")
-                cursor.execute("DROP TABLE word_book_link")
-                cursor.execute("ALTER TABLE word_book_link_new RENAME TO word_book_link")
+        # Double-check that all tables were created
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables_after = [table[0] for table in cursor.fetchall()]
+        tables_after.sort()
+        logger.info(f"Tables after initialization: {tables_after}")
 
-                # Восстанавливаем индексы
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_word_id ON word_book_link(word_id)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_book_id ON word_book_link(book_id)")
-
-            # 4.2 Проверяем и обновляем phrasal_verb
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='phrasal_verb'")
-            if cursor.fetchone():
-                cursor.execute("""
-                    CREATE TABLE phrasal_verb_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        phrasal_verb TEXT UNIQUE NOT NULL,
-                        russian_translate TEXT,
-                        "using" TEXT,
-                        sentence TEXT,
-                        word_id INTEGER,
-                        listening TEXT,
-                        get_download INTEGER DEFAULT 0,
-                        FOREIGN KEY (word_id) REFERENCES collection_words (id)
-                    )
-                """)
-
-                cursor.execute("INSERT INTO phrasal_verb_new SELECT * FROM phrasal_verb")
-                cursor.execute("DROP TABLE phrasal_verb")
-                cursor.execute("ALTER TABLE phrasal_verb_new RENAME TO phrasal_verb")
-
-            # 4.3 Проверяем и обновляем user_word_status
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_word_status'")
-            if cursor.fetchone():
-                cursor.execute("""
-                    CREATE TABLE user_word_status_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        word_id INTEGER NOT NULL,
-                        status INTEGER NOT NULL DEFAULT 0,
-                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        FOREIGN KEY (word_id) REFERENCES collection_words (id),
-                        UNIQUE (user_id, word_id)
-                    )
-                """)
-
-                cursor.execute("INSERT INTO user_word_status_new SELECT * FROM user_word_status")
-                cursor.execute("DROP TABLE user_word_status")
-                cursor.execute("ALTER TABLE user_word_status_new RENAME TO user_word_status")
-
-                # Восстанавливаем индексы
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status ON user_word_status(user_id, word_id)")
-                cursor.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_user_word_status_status ON user_word_status(user_id, status)")
-
-            # 4.4 Проверяем и обновляем deck_card
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='deck_card'")
-            if cursor.fetchone():
-                # Определяем структуру таблицы deck_card
-                cursor.execute("PRAGMA table_info(deck_card)")
-                columns = [column[1] for column in cursor.fetchall()]
-
-                # Готовим список столбцов для новой таблицы
-                column_defs = []
-                column_list = []
-
-                # Базовые столбцы, которые должны быть
-                column_defs.append("id INTEGER PRIMARY KEY AUTOINCREMENT")
-                column_defs.append("deck_id INTEGER NOT NULL")
-                column_defs.append("word_id INTEGER NOT NULL")
-                column_list.append("id")
-                column_list.append("deck_id")
-                column_list.append("word_id")
-
-                # Дополнительные столбцы, которые могут быть
-                optional_columns = [
-                    "next_review_date", "last_review_date", "interval",
-                    "repetitions", "ease_factor", "lapses",
-                    "created_at", "updated_at"
-                ]
-
-                for col in optional_columns:
-                    if col in columns:
-                        column_type = "DATE" if "date" in col else "INTEGER" if col in ["interval", "repetitions",
-                                                                                        "lapses"] else "REAL" if col == "ease_factor" else "DATETIME"
-                        default = ""
-                        if col == "interval" or col == "repetitions" or col == "lapses":
-                            default = "DEFAULT 0"
-                        elif col == "ease_factor":
-                            default = "DEFAULT 2.5"
-
-                        column_defs.append(f"{col} {column_type} {default}")
-                        column_list.append(col)
-
-                # Добавляем внешние ключи и ограничения уникальности
-                column_defs.append("FOREIGN KEY (deck_id) REFERENCES deck (id)")
-                column_defs.append("FOREIGN KEY (word_id) REFERENCES collection_words (id)")
-                column_defs.append("UNIQUE (deck_id, word_id)")
-
-                # Создаем новую таблицу
-                create_table_sql = f"""
-                CREATE TABLE deck_card_new (
-                    {','.join(column_defs)}
-                )
-                """
-                cursor.execute(create_table_sql)
-
-                # Копируем данные
-                column_list_str = ','.join(column_list)
-                cursor.execute(f"INSERT INTO deck_card_new ({column_list_str}) SELECT {column_list_str} FROM deck_card")
-
-                # Заменяем таблицу
-                cursor.execute("DROP TABLE deck_card")
-                cursor.execute("ALTER TABLE deck_card_new RENAME TO deck_card")
-
-                # Создаем индексы
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_card_deck_id ON deck_card(deck_id)")
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_card_word_id ON deck_card(word_id)")
-                if "next_review_date" in columns:
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS idx_deck_card_next_review ON deck_card(next_review_date)")
-
-            # 5. Удаляем старую таблицу
-            cursor.execute(f"DROP TABLE {old_table}")
-
-            # 6. Обновляем версию схемы
-            cursor.execute("PRAGMA user_version")
-            current_version = cursor.fetchone()[0]
-            cursor.execute(f"PRAGMA user_version = {current_version + 1}")
-
-            conn.commit()
-            logger.info("Migration completed successfully!")
-            return True
-
-        except Exception as e:
-            conn.rollback()
-            error_msg = str(e)
-            logger.error(f"Error during migration: {error_msg}")
-            logger.error(traceback.format_exc())
-            return False
+        return True
 
     except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Unexpected error: {error_msg}")
-        logger.error(traceback.format_exc())
+        # Log error and roll back transaction
+        logger.error(f"Error initializing database: {e}")
+        if conn:
+            conn.rollback()
         return False
+
+    finally:
+        # Close connection
+        if conn:
+            conn.close()
+
+
+def create_main_deck_if_needed(db_path: str, user_id: int = 1) -> bool:
+    """
+    Create a Main Deck for a user if it doesn't exist.
+
+    Args:
+        db_path: Path to the SQLite database file
+        user_id: User ID for whom to create the deck
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    conn = None
+    try:
+        # Connect to database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Check if the user exists
+        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            # Create a default user if none exists
+            salt = "default_salt"
+            password_hash = "default_hash"  # In production, use proper hashing
+
+            cursor.execute("""
+                INSERT INTO users (id, username, password_hash, salt, is_admin) 
+                VALUES (?, ?, ?, ?, ?)
+            """, (user_id, "default_user", password_hash, salt, 1))
+
+            logger.info(f"Created default user with ID {user_id}")
+
+        # Check if Main Deck already exists for the user
+        cursor.execute("SELECT id FROM deck WHERE user_id = ? AND name = ?", (user_id, "Main Deck"))
+        deck = cursor.fetchone()
+
+        if not deck:
+            # Create Main Deck
+            cursor.execute("""
+                INSERT INTO deck (user_id, name, description)
+                VALUES (?, ?, ?)
+            """, (user_id, "Main Deck", "Default deck for all new words"))
+
+            deck_id = cursor.lastrowid
+            conn.commit()
+            logger.info(f"Created Main Deck with ID {deck_id} for user {user_id}")
+            return True
+        else:
+            logger.info(f"Main Deck already exists for user {user_id}")
+            return True
+
+    except Exception as e:
+        logger.error(f"Error creating Main Deck: {e}")
+        if conn:
+            conn.rollback()
+        return False
+
     finally:
         if conn:
             conn.close()
@@ -336,14 +327,21 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) > 1:
-        database_path = sys.argv[1]
-        result = execute_migration(database_path)
-        if result:
-            print("Migration completed successfully!")
-            sys.exit(0)
-        else:
-            print("Migration failed! Check the log for details.")
-            sys.exit(1)
+        db_file = sys.argv[1]
     else:
-        print("Usage: python script_migrations.py <path_to_database>")
+        db_file = "data/language_learning.db"
+
+    print(f"Initializing database at: {db_file}")
+    if initialize_database(db_file):
+        print("Database initialization successful!")
+
+        # Create Main Deck for default user (ID=1)
+        if create_main_deck_if_needed(db_file):
+            print("Main Deck created or already exists for default user")
+        else:
+            print("Failed to create Main Deck")
+
+        sys.exit(0)
+    else:
+        print("Database initialization failed!")
         sys.exit(1)
