@@ -6,6 +6,7 @@ import logging
 import os
 import sqlite3
 from datetime import datetime
+import traceback
 
 # Настройка логирования
 logging.basicConfig(
@@ -40,7 +41,7 @@ def execute_migration(db_path):
         cursor = conn.cursor()
 
         # Проверка необходимости миграции
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collection_words'")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collections_word'")
         old_table_exists = cursor.fetchone() is not None
 
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collection_words'")
@@ -89,6 +90,7 @@ def execute_migration(db_path):
             except Exception as e:
                 conn.rollback()
                 logger.error(f"Error adding columns: {e}")
+                logger.error(traceback.format_exc())
                 return False
 
         if old_table_exists and new_table_exists:
@@ -99,6 +101,12 @@ def execute_migration(db_path):
         logger.info("Starting full migration from collection_words to collection_words")
 
         try:
+            # Выводим структуру существующей таблицы для отладки
+            cursor.execute("PRAGMA table_info(collections_word)")
+            columns_info = cursor.fetchall()
+            column_names = [col[1] for col in columns_info]
+            logger.info(f"Current collections_word columns: {column_names}")
+
             # Начинаем транзакцию
             conn.execute("BEGIN TRANSACTION")
 
@@ -119,15 +127,27 @@ def execute_migration(db_path):
                 )
             """)
 
-            # 2. Копируем данные
-            cursor.execute("""
-                INSERT INTO collection_words (
-                    id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
-                )
-                SELECT 
-                    id, english_word, russian_word, listening, sentences, level, brown, get_download
-                FROM collection_words
-            """)
+            # 2. Копируем данные - исправляем ошибку с несоответствием столбцов
+            if "learning_status" in column_names:
+                # Если в старой таблице есть learning_status
+                cursor.execute("""
+                    INSERT INTO collection_words (
+                        id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
+                    )
+                    SELECT 
+                        id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
+                    FROM collection_words
+                """)
+            else:
+                # Если в старой таблице нет learning_status, устанавливаем значение по умолчанию
+                cursor.execute("""
+                    INSERT INTO collection_words (
+                        id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
+                    )
+                    SELECT 
+                        id, english_word, russian_word, listening, sentences, level, brown, get_download, 0
+                    FROM collection_words
+                """)
 
             rows_copied = cursor.rowcount
             logger.info(f"Copied {rows_copied} rows to new table")
@@ -289,11 +309,15 @@ def execute_migration(db_path):
 
         except Exception as e:
             conn.rollback()
-            logger.error(f"Error during migration: {e}")
+            error_msg = str(e)
+            logger.error(f"Error during migration: {error_msg}")
+            logger.error(traceback.format_exc())
             return False
 
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        error_msg = str(e)
+        logger.error(f"Unexpected error: {error_msg}")
+        logger.error(traceback.format_exc())
         return False
     finally:
         if conn:
