@@ -87,7 +87,7 @@ class UserWord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False)
-    learning_status = db.Column(db.Integer, default=0)  # 0=New, 1=Known, 2=Queued, 3=Active, 4=Mastered
+    learning_status = db.Column(db.Integer, default=0)
     last_practice = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -116,17 +116,13 @@ def load_user(user_id):
 # Constants for learning statuses
 class LearningStatus:
     NEW = 0
-    KNOWN = 1
-    QUEUED = 2
-    ACTIVE = 3
-    MASTERED = 4
+    STUDYING = 1
+    STUDIED = 2
 
     LABELS = {
         NEW: "New",
-        KNOWN: "Known",
-        QUEUED: "Queued",
-        ACTIVE: "Active",
-        MASTERED: "Mastered",
+        STUDYING: "Studying",
+        STUDIED: "Studied",
     }
 
 

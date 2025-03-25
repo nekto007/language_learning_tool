@@ -12,11 +12,11 @@ DB_FILE = os.environ.get("DB_FILE", os.path.join(BASE_DIR, "words.db"))
 # Media files folder
 MEDIA_FOLDER = os.environ.get(
     "MEDIA_FOLDER",
-    os.path.expanduser("~/Library/Application Support/Anki2/User 1/collection.media")
+    os.path.expanduser("static/media/")
 )
 
 # Database tables
-COLLECTIONS_TABLE = "collections_word"
+COLLECTIONS_TABLE = "collection_words"
 PHRASAL_VERB_TABLE = "phrasal_verb"
 
 # Translation files

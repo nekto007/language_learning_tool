@@ -1,22 +1,19 @@
 """
 Определение моделей базы данных и схемы таблиц.
 """
-from __future__ import annotations
-
 import logging
 import sqlite3
-from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class DBInitializer:
-    """Класс для инициализации и обновления схемы базы данных."""
+    """Класс для инициализации базы данных."""
 
     # SQL для создания основных таблиц
-    CREATE_TABLES_SQL: ClassVar[str] = """
+    CREATE_TABLES_SQL = """
         -- Таблица книг
         CREATE TABLE IF NOT EXISTS book (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,9 +33,7 @@ class DBInitializer:
             level TEXT,
             brown INTEGER DEFAULT 0,
             get_download INTEGER DEFAULT 0,
-            learning_status INTEGER DEFAULT 0,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            learning_status INTEGER DEFAULT 0
         );
 
         -- Таблица связи слов с книгами
@@ -73,7 +68,7 @@ class DBInitializer:
     """
 
     # SQL для обновления статистики книг
-    UPDATE_BOOK_STATS_SQL: ClassVar[str] = """
+    UPDATE_BOOK_STATS_SQL = """
         WITH book_stats AS (
             SELECT
                 b.id,
@@ -97,7 +92,7 @@ class DBInitializer:
         Создает необходимые таблицы в базе данных, если они не существуют.
 
         Args:
-            db_path: Путь к файлу базы данных.
+            db_path (str): Путь к файлу базы данных.
         """
         try:
             with sqlite3.connect(db_path) as conn:
@@ -128,7 +123,7 @@ class DBInitializer:
         Проверяет и обновляет схему базы данных при необходимости.
 
         Args:
-            db_path: Путь к файлу базы данных.
+            db_path (str): Путь к файлу базы данных.
         """
         try:
             with sqlite3.connect(db_path) as conn:
@@ -189,8 +184,8 @@ class DBInitializer:
         Обновляет статистику для книг на основе связей с словами.
 
         Args:
-            db_path: Путь к файлу базы данных.
-            book_id: ID конкретной книги или None для всех книг.
+            db_path (str): Путь к файлу базы данных.
+            book_id (Optional[int], optional): ID конкретной книги или None для всех книг.
         """
         try:
             with sqlite3.connect(db_path) as conn:
@@ -229,30 +224,42 @@ class DBInitializer:
             raise
 
 
-@dataclass
 class Book:
     """Модель книги."""
 
-    title: str
-    id: Optional[int] = None
-    total_words: int = 0
-    unique_words: int = 0
-    scrape_date: Optional[datetime] = None
+    def __init__(self, title: str, book_id: Optional[int] = None,
+                 total_words: int = 0, unique_words: int = 0,
+                 scrape_date: Optional[datetime] = None):
+        """
+        Инициализирует объект Book.
+
+        Args:
+            title (str): Название книги.
+            book_id (Optional[int], optional): ID книги. По умолчанию None.
+            total_words (int, optional): Общее количество слов. По умолчанию 0.
+            unique_words (int, optional): Количество уникальных слов. По умолчанию 0.
+            scrape_date (Optional[datetime], optional): Дата скрапинга. По умолчанию None.
+        """
+        self.id = book_id
+        self.title = title
+        self.total_words = total_words
+        self.unique_words = unique_words
+        self.scrape_date = scrape_date
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Book:
+    def from_dict(cls, data: Dict[str, Any]) -> 'Book':
         """
         Создает объект Book из словаря.
 
         Args:
-            data: Словарь с данными книги.
+            data (Dict[str, Any]): Словарь с данными книги.
 
         Returns:
-            Объект Book.
+            Book: Объект Book.
         """
         return cls(
             title=data['title'],
-            id=data.get('id'),
+            book_id=data.get('id'),
             total_words=data.get('total_words', 0),
             unique_words=data.get('unique_words', 0),
             scrape_date=data.get('scrape_date')
@@ -263,7 +270,7 @@ class Book:
         Преобразует объект Book в словарь.
 
         Returns:
-            Словарь с данными книги.
+            Dict[str, Any]: Словарь с данными книги.
         """
         result = {
             'title': self.title,
@@ -277,44 +284,66 @@ class Book:
         return result
 
 
-@dataclass
 class Word:
     """Модель слова."""
 
     # Константы для статусов изучения
-    STATUS_NEW: ClassVar[int] = 0  # Необработанное слово
-    STATUS_STUDYING: ClassVar[int] = 1  # В процессе изучения
-    STATUS_STUDIED: ClassVar[int] = 2  # Полностью изучено
-    STATUS_ACTIVE: ClassVar[int] = 3  # Активное изучение (для совместимости)
+    STATUS_NEW = 0      # Необработанное слово
+    STATUS_STUDYING = 1  # В процессе изучения (объединяет KNOWN, QUEUED, ACTIVE)
+    STATUS_STUDIED = 2  # Полностью изучено
 
-    STATUS_LABELS: ClassVar[Dict[int, str]] = {
+    STATUS_LABELS = {
         STATUS_NEW: "New",
         STATUS_STUDYING: "Studying",
         STATUS_STUDIED: "Studied",
-        STATUS_ACTIVE: "Active",
     }
 
-    english_word: str
-    listening: Optional[str] = None
-    russian_word: Optional[str] = None
-    sentences: Optional[str] = None
-    level: Optional[str] = None
-    brown: int = 0
-    get_download: int = 0
-    learning_status: int = field(default=STATUS_NEW)
-    id: Optional[int] = None
-    status: int = 0  # Статус для пользовательского контекста
+    def __init__(
+            self,
+            english_word: str,
+            listening: Optional[str] = None,
+            russian_word: Optional[str] = None,
+            sentences: Optional[str] = None,
+            level: Optional[str] = None,
+            brown: int = 0,
+            get_download: int = 0,
+            learning_status: int = STATUS_NEW,
+            word_id: Optional[int] = None,
+    ):
+        """
+        Инициализирует объект Word.
+
+        Args:
+            english_word (str): Английское слово.
+            listening (Optional[str], optional): Ссылка на прослушивание. По умолчанию None.
+            russian_word (Optional[str], optional): Русский перевод. По умолчанию None.
+            sentences (Optional[str], optional): Примеры предложений. По умолчанию None.
+            level (Optional[str], optional): Уровень сложности. По умолчанию None.
+            brown (int, optional): Флаг наличия в корпусе Brown. По умолчанию 0.
+            get_download (int, optional): Флаг загрузки произношения. По умолчанию 0.
+            learning_status (int, optional): Статус изучения слова. По умолчанию STATUS_NEW (0).
+            word_id (Optional[int], optional): ID слова. По умолчанию None.
+        """
+        self.id = word_id
+        self.english_word = english_word
+        self.listening = listening
+        self.russian_word = russian_word
+        self.sentences = sentences
+        self.level = level
+        self.brown = brown
+        self.get_download = get_download
+        self.learning_status = learning_status
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Word:
+    def from_dict(cls, data: Dict[str, Any]) -> 'Word':
         """
         Создает объект Word из словаря.
 
         Args:
-            data: Словарь с данными слова.
+            data (Dict[str, Any]): Словарь с данными слова.
 
         Returns:
-            Объект Word.
+            Word: Объект Word.
         """
         return cls(
             english_word=data['english_word'],
@@ -325,8 +354,7 @@ class Word:
             brown=data.get('brown', 0),
             get_download=data.get('get_download', 0),
             learning_status=data.get('learning_status', Word.STATUS_NEW),
-            id=data.get('id'),
-            status=data.get('status', 0),
+            word_id=data.get('id'),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -334,14 +362,13 @@ class Word:
         Преобразует объект Word в словарь.
 
         Returns:
-            Словарь с данными слова.
+            Dict[str, Any]: Словарь с данными слова.
         """
         result = {
             'english_word': self.english_word,
             'brown': self.brown,
             'get_download': self.get_download,
             'learning_status': self.learning_status,
-            'status': self.status,
         }
 
         if self.id is not None:
@@ -362,34 +389,57 @@ class Word:
         Возвращает текстовую метку для статуса изучения.
 
         Returns:
-            Метка статуса.
+            str: Метка статуса.
         """
         return self.STATUS_LABELS.get(self.learning_status, "Неизвестный статус")
 
 
-@dataclass
 class PhrasalVerb:
     """Модель фразового глагола."""
 
-    phrasal_verb: str
-    russian_translate: Optional[str] = None
-    using: Optional[str] = None
-    sentence: Optional[str] = None
-    word_id: Optional[int] = None
-    listening: Optional[str] = None
-    get_download: int = 0
-    id: Optional[int] = None
+    def __init__(
+            self,
+            phrasal_verb: str,
+            russian_translate: Optional[str] = None,
+            using: Optional[str] = None,
+            sentence: Optional[str] = None,
+            word_id: Optional[int] = None,
+            listening: Optional[str] = None,
+            get_download: int = 0,
+            verb_id: Optional[int] = None,
+    ):
+        """
+        Инициализирует объект PhrasalVerb.
+
+        Args:
+            phrasal_verb (str): Фразовый глагол.
+            russian_translate (Optional[str], optional): Русский перевод. По умолчанию None.
+            using (Optional[str], optional): Примеры использования. По умолчанию None.
+            sentence (Optional[str], optional): Примеры предложений. По умолчанию None.
+            word_id (Optional[int], optional): ID слова. По умолчанию None.
+            listening (Optional[str], optional): Ссылка на прослушивание. По умолчанию None.
+            get_download (int, optional): Флаг загрузки произношения. По умолчанию 0.
+            verb_id (Optional[int], optional): ID фразового глагола. По умолчанию None.
+        """
+        self.id = verb_id
+        self.phrasal_verb = phrasal_verb
+        self.russian_translate = russian_translate
+        self.using = using
+        self.sentence = sentence
+        self.word_id = word_id
+        self.listening = listening
+        self.get_download = get_download
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> PhrasalVerb:
+    def from_dict(cls, data: Dict[str, Any]) -> 'PhrasalVerb':
         """
         Создает объект PhrasalVerb из словаря.
 
         Args:
-            data: Словарь с данными фразового глагола.
+            data (Dict[str, Any]): Словарь с данными фразового глагола.
 
         Returns:
-            Объект PhrasalVerb.
+            PhrasalVerb: Объект PhrasalVerb.
         """
         return cls(
             phrasal_verb=data['phrasal_verb'],
@@ -399,7 +449,7 @@ class PhrasalVerb:
             word_id=data.get('word_id'),
             listening=data.get('listening'),
             get_download=data.get('get_download', 0),
-            id=data.get('id'),
+            verb_id=data.get('id'),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -407,7 +457,7 @@ class PhrasalVerb:
         Преобразует объект PhrasalVerb в словарь.
 
         Returns:
-            Словарь с данными фразового глагола.
+            Dict[str, Any]: Словарь с данными фразового глагола.
         """
         result = {
             'phrasal_verb': self.phrasal_verb,

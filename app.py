@@ -5,6 +5,7 @@ import logging
 import os
 import sqlite3
 from functools import wraps
+from config.settings import MEDIA_FOLDER
 
 from flask import (
     Flask, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for,
@@ -15,6 +16,7 @@ from config.settings import DB_FILE
 from src.db.models import Word
 from src.db.repository import DatabaseRepository
 from src.user.repository import UserRepository
+from src.srs.routes import srs_bp, init_srs_service  # Import SRS routes and initializer
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +37,11 @@ user_repo = UserRepository(DB_FILE)
 # Ensure user schema exists
 user_repo.initialize_schema()
 
+# Initialize SRS functionality
+init_srs_service(DB_FILE)
+
+# Register SRS blueprint
+app.register_blueprint(srs_bp)
 
 # Authentication decorator
 def login_required(f):
@@ -179,9 +186,16 @@ def dashboard():
             ORDER BY b.title
         """)
         books = [dict(row) for row in cursor.fetchall()]
+
+        # Get SRS statistics for the dashboard
+        from src.srs.service import SRSService
+        srs_service = SRSService(DB_FILE)
+        srs_stats = srs_service.get_user_statistics(user_id)
+
     except sqlite3.Error as e:
         logger.error(f"Database error in dashboard: {e}")
         books = []
+        srs_stats = {}
     finally:
         conn.close()
 
@@ -190,6 +204,7 @@ def dashboard():
         stats=stats,
         books=books,
         status_labels=Word.STATUS_LABELS,
+        srs_stats=srs_stats
     )
 
 
@@ -205,6 +220,7 @@ def words_list():
     per_page = 50  # number of words per page
     show_all = request.args.get('show_all', type=int, default=0)  # parameter to show all words
     search_query = request.args.get('search', '')  # search query
+    format_type = request.args.get('format', '')  # format parameter for API responses
 
     words = []
     book_title = None
@@ -231,14 +247,14 @@ def words_list():
 
             base_query = """
                 SELECT cw.*, COALESCE(uws.status, 0) as status, wbl.frequency
-                FROM collections_word cw
+                FROM collection_words cw
                 JOIN word_book_link wbl ON cw.id = wbl.word_id
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
                 WHERE wbl.book_id = ?
             """
             base_count_query = """
                 SELECT COUNT(*)
-                FROM collections_word cw
+                FROM collection_words cw
                 JOIN word_book_link wbl ON cw.id = wbl.word_id
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
                 WHERE wbl.book_id = ?
@@ -248,13 +264,13 @@ def words_list():
         else:
             base_query = """
                 SELECT cw.*, COALESCE(uws.status, 0) as status
-                FROM collections_word cw
+                FROM collection_words cw
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
                 WHERE 1=1  
             """
             base_count_query = """
                 SELECT COUNT(*)
-                FROM collections_word cw
+                FROM collection_words cw
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
                 WHERE 1=1
             """
@@ -319,6 +335,15 @@ def words_list():
     # Calculate total pages
     total_pages = (total_words + per_page - 1) // per_page if total_words > 0 else 1
 
+    # For JSON API format, return JSON response
+    if format_type == 'json':
+        return jsonify({
+            'words': words,
+            'total_words': total_words,
+            'total_pages': total_pages,
+            'page': page
+        })
+
     return render_template(
         'words_list.html',
         words=words,
@@ -350,6 +375,11 @@ def update_word_status():
     success = user_repo.set_word_status(user_id, word_id, status)
 
     if success:
+        # Also handle SRS integration when status changes
+        from src.srs.service import SRSService
+        srs_service = SRSService(DB_FILE)
+        srs_service.handle_word_status_change(user_id, word_id, status)
+
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'error': 'Failed to update status'}), 500
@@ -369,6 +399,11 @@ def batch_update_status():
     success_count = 0
     for word_id in word_ids:
         if user_repo.set_word_status(user_id, word_id, status):
+            # Also handle SRS integration when status changes
+            from src.srs.service import SRSService
+            srs_service = SRSService(DB_FILE)
+            srs_service.handle_word_status_change(user_id, word_id, status)
+
             success_count += 1
 
     return jsonify({
@@ -391,7 +426,7 @@ def word_detail(word_id):
         cursor = conn.cursor()
 
         # Get word details
-        cursor.execute("SELECT * FROM collections_word WHERE id = ?", (word_id,))
+        cursor.execute("SELECT * FROM collection_words WHERE id = ?", (word_id,))
         word_result = cursor.fetchone()
 
         if not word_result:
@@ -421,10 +456,16 @@ def word_detail(word_id):
 
         books = [dict(row) for row in cursor.fetchall()]
 
+        # Get decks containing this word
+        from src.srs.service import SRSService
+        srs_service = SRSService(DB_FILE)
+        decks = srs_service.get_word_decks(user_id, word_id)
+
     except sqlite3.Error as e:
         flash(f"Database error: {e}", "danger")
         logger.error(f"Database error in word_detail: {e}")
         books = []
+        decks = []
         word = {"english_word": "Error loading word", "status": Word.STATUS_NEW}
     finally:
         conn.close()
@@ -433,6 +474,7 @@ def word_detail(word_id):
         'word_detail.html',
         word=word,
         books=books,
+        decks=decks,
         status_labels=Word.STATUS_LABELS,
     )
 
@@ -442,9 +484,8 @@ def status_badge(status):
     """Template filter to render status as a badge."""
     classes = {
         Word.STATUS_NEW: 'badge bg-secondary',
-        Word.STATUS_QUEUED: 'badge bg-info',
-        Word.STATUS_ACTIVE: 'badge bg-primary',
-        Word.STATUS_MASTERED: 'badge bg-warning',
+        Word.STATUS_STUDYING: 'badge bg-primary',
+        Word.STATUS_STUDIED: 'badge bg-success',
     }
 
     label = Word.STATUS_LABELS.get(status, 'Unknown')
@@ -457,13 +498,7 @@ def status_badge(status):
 def serve_media(filename):
     """Serve pronunciation files from the Anki media folder."""
     # Configure this path to match your actual Anki media folder
-    anki_media_path = os.path.expanduser('~/Library/Application Support/Anki2/User 1/collection.media')
-
-    # For Windows, you might use something like:
-    # anki_media_path = os.path.join(os.environ['APPDATA'], 'Anki2', 'User 1', 'collection.media')
-
-    # For Linux:
-    # anki_media_path = os.path.expanduser('~/.local/share/Anki2/User 1/collection.media')
+    anki_media_path = os.path.expanduser('static/media/')
 
     return send_from_directory(anki_media_path, filename)
 
@@ -569,7 +604,7 @@ def export_anki():
             placeholders = ','.join(['?'] * len(word_ids))
             cursor.execute(f'''
                 SELECT cw.* 
-                FROM collections_word cw
+                FROM collection_words cw
                 WHERE cw.id IN ({placeholders})
             ''', word_ids)
 
@@ -578,12 +613,7 @@ def export_anki():
             # Get Anki media folder path
             anki_media_path = None
             if include_pronunciation:
-                if os.path.exists(os.path.expanduser('~/Library/Application Support/Anki2/User 1/collection.media')):
-                    anki_media_path = os.path.expanduser('~/Library/Application Support/Anki2/User 1/collection.media')
-                elif os.path.exists(os.path.join(os.environ.get('APPDATA', ''), 'Anki2/User 1/collection.media')):
-                    anki_media_path = os.path.join(os.environ.get('APPDATA', ''), 'Anki2/User 1/collection.media')
-                elif os.path.exists(os.path.expanduser('~/.local/share/Anki2/User 1/collection.media')):
-                    anki_media_path = os.path.expanduser('~/.local/share/Anki2/User 1/collection.media')
+                anki_media_path = MEDIA_FOLDER
 
             for word in words:
                 english = word['english_word']

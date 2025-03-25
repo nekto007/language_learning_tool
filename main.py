@@ -724,7 +724,7 @@ def list_words_by_status(args: argparse.Namespace) -> None:
         words = repo.get_words_by_status(status)
     else:
         # Get all words grouped by status
-        query = "SELECT * FROM collections_word ORDER BY learning_status, english_word"
+        query = "SELECT * FROM collection_words ORDER BY learning_status, english_word"
         result = repo.execute_query(query, fetch=True)
 
         if not result:
@@ -805,7 +805,7 @@ def show_status_statistics(args: argparse.Namespace) -> None:
     # Query to count words by status
     query = """
         SELECT learning_status, COUNT(*) as count
-        FROM collections_word
+        FROM collection_words
         GROUP BY learning_status
         ORDER BY learning_status
     """
@@ -841,7 +841,7 @@ def show_status_statistics(args: argparse.Namespace) -> None:
         # Statistics for book
         query = f"""
             SELECT cw.learning_status, COUNT(*) as count
-            FROM collections_word cw
+            FROM collection_words cw
             JOIN word_book_link wbl ON cw.id = wbl.word_id
             JOIN book b ON wbl.book_id = b.id
             WHERE b.title = ?
@@ -945,6 +945,130 @@ def update_book_statistics(args: argparse.Namespace) -> None:
 
     except Exception as e:
         logger.error(f"Error updating book statistics: {e}")
+
+
+@cli.command()
+@click.option('--user-id', '-u', type=int, required=True, help='User ID')
+@click.option('--name', '-n', required=True, help='Deck name')
+@click.option('--description', '-d', default=None, help='Deck description')
+def create_deck(user_id, name, description):
+    """Create a new deck for a user."""
+    from src.srs.service import SRSService
+
+    srs_service = SRSService(DB_FILE)
+    deck_id = srs_service.create_custom_deck(user_id, name, description)
+
+    if deck_id:
+        click.echo(f"Created deck '{name}' with ID {deck_id} for user {user_id}")
+    else:
+        click.echo("Failed to create deck")
+
+
+@cli.command()
+@click.option('--user-id', '-u', type=int, required=True, help='User ID')
+def list_decks(user_id):
+    """List all decks for a user."""
+    from src.srs.service import SRSService
+
+    srs_service = SRSService(DB_FILE)
+    decks = srs_service.get_decks_with_stats(user_id)
+
+    if not decks:
+        click.echo(f"No decks found for user {user_id}")
+        return
+
+    click.echo(f"Decks for user {user_id}:")
+    for deck in decks:
+        click.echo(f"ID: {deck['id']}, Name: {deck['name']}")
+        click.echo(f"  Total: {deck['total_cards']}, Due today: {deck['due_today']}, New: {deck['new_cards']}")
+        if deck.get('description'):
+            click.echo(f"  Description: {deck['description']}")
+        click.echo()
+
+
+@cli.command()
+@click.option('--user-id', '-u', type=int, required=True, help='User ID')
+@click.option('--deck-id', '-d', type=int, required=True, help='Deck ID')
+@click.option('--word-id', '-w', type=int, required=True, help='Word ID')
+def add_card(user_id, deck_id, word_id):
+    """Add a word to a deck."""
+    from src.srs.service import SRSService
+
+    srs_service = SRSService(DB_FILE)
+
+    # Verify deck belongs to user
+    deck = srs_service.srs_repo.get_deck_by_id(deck_id)
+    if not deck or deck.user_id != user_id:
+        click.echo(f"Deck ID {deck_id} not found or does not belong to user {user_id}")
+        return
+
+    # Add word to deck
+    card_id = srs_service.add_word_to_deck(user_id, word_id, deck_id)
+
+    if card_id:
+        click.echo(f"Added word {word_id} to deck {deck_id} (card ID: {card_id})")
+    else:
+        click.echo(f"Failed to add word {word_id} to deck {deck_id}")
+
+
+@cli.command()
+@click.option('--user-id', '-u', type=int, required=True, help='User ID')
+@click.option('--from-status', '-f', type=int, required=True, help='Source status (0-4)')
+@click.option('--to-status', '-t', type=int, required=True, help='Target status (0-4)')
+def migrate_words(user_id, from_status, to_status):
+    """Migrate words from one status to another and update SRS if needed."""
+    from src.srs.service import SRSService
+
+    if from_status not in range(0, 5) or to_status not in range(0, 5):
+        click.echo("Status must be in range 0-4")
+        return
+
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Find all words with the source status
+        cursor.execute(
+            """
+            SELECT word_id FROM user_word_status 
+            WHERE user_id = ? AND status = ?
+            """,
+            (user_id, from_status)
+        )
+
+        word_ids = [row['word_id'] for row in cursor.fetchall()]
+
+        if not word_ids:
+            click.echo(f"No words found with status {from_status} for user {user_id}")
+            return
+
+        # Update status for each word
+        user_repo = UserRepository(DB_FILE)
+        srs_service = SRSService(DB_FILE)
+
+        updated_count = 0
+        for word_id in word_ids:
+            if user_repo.set_word_status(user_id, word_id, to_status):
+                # Handle SRS implications
+                srs_service.handle_word_status_change(user_id, word_id, to_status)
+                updated_count += 1
+
+        click.echo(f"Updated {updated_count} of {len(word_ids)} words from status {from_status} to {to_status}")
+
+    except sqlite3.Error as e:
+        click.echo(f"Database error: {e}")
+    finally:
+        conn.close()
+
+
+@cli.command()
+def initialize_srs_schema():
+    """Initialize the SRS database schema."""
+    from src.srs import initialize_schema
+
+    initialize_schema(DB_FILE)
+    click.echo("SRS schema initialized")
 
 
 def main():

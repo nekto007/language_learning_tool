@@ -1,5 +1,5 @@
 """
-Скрипт для выполнения миграции таблицы collections_word в collection_words
+Скрипт для выполнения миграции таблицы collection_words в collection_words
 и добавления полей created_at, updated_at.
 """
 import logging
@@ -17,7 +17,7 @@ logger = logging.getLogger()
 
 def execute_migration(db_path):
     """
-    Выполняет миграцию таблицы collections_word в collection_words и
+    Выполняет миграцию таблицы collection_words в collection_words и
     добавляет поля created_at и updated_at.
 
     Args:
@@ -40,7 +40,7 @@ def execute_migration(db_path):
         cursor = conn.cursor()
 
         # Проверка необходимости миграции
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collections_word'")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collection_words'")
         old_table_exists = cursor.fetchone() is not None
 
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collection_words'")
@@ -96,7 +96,7 @@ def execute_migration(db_path):
             return False
 
         # Если мы здесь, значит нужно выполнить полную миграцию
-        logger.info("Starting full migration from collections_word to collection_words")
+        logger.info("Starting full migration from collection_words to collection_words")
 
         try:
             # Начинаем транзакцию
@@ -126,7 +126,7 @@ def execute_migration(db_path):
                 )
                 SELECT 
                     id, english_word, russian_word, listening, sentences, level, brown, get_download
-                FROM collections_word
+                FROM collection_words
             """)
 
             rows_copied = cursor.rowcount
@@ -276,7 +276,7 @@ def execute_migration(db_path):
                         "CREATE INDEX IF NOT EXISTS idx_deck_card_next_review ON deck_card(next_review_date)")
 
             # 5. Удаляем старую таблицу
-            cursor.execute("DROP TABLE collections_word")
+            cursor.execute("DROP TABLE collection_words")
 
             # 6. Обновляем версию схемы
             cursor.execute("PRAGMA user_version")

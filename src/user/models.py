@@ -37,7 +37,7 @@ class UserDBInitializer:
             status INTEGER NOT NULL DEFAULT 0,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
-            FOREIGN KEY (word_id) REFERENCES collections_word (id),
+            FOREIGN KEY (word_id) REFERENCES collection_words (id),
             UNIQUE (user_id, word_id)
         );
         
@@ -132,10 +132,8 @@ class UserDBInitializer:
         """
         stats = {
             Word.STATUS_NEW: 0,
-            Word.STATUS_KNOWN: 0,
-            Word.STATUS_QUEUED: 0,
-            Word.STATUS_ACTIVE: 0,
-            Word.STATUS_MASTERED: 0,
+            Word.STATUS_STUDYING: 0,
+            Word.STATUS_STUDIED: 0,
         }
 
         try:
@@ -155,7 +153,7 @@ class UserDBInitializer:
                     stats[status] = count
 
                 # Подсчет слов без статуса (считаются как новые)
-                cursor.execute("SELECT COUNT(*) FROM collections_word")
+                cursor.execute("SELECT COUNT(*) FROM collection_words")
                 total_words = cursor.fetchone()[0]
 
                 cursor.execute("""

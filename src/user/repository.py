@@ -96,7 +96,7 @@ class UserRepository:
                             status INTEGER NOT NULL DEFAULT 0,
                             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             FOREIGN KEY (user_id) REFERENCES users (id),
-                            FOREIGN KEY (word_id) REFERENCES collections_word (id),
+                            FOREIGN KEY (word_id) REFERENCES collection_words (id),
                             UNIQUE (user_id, word_id)
                         )
                     ''')
@@ -281,7 +281,7 @@ class UserRepository:
         """
         try:
             # Get word ID
-            word_query = "SELECT id FROM collections_word WHERE english_word = ?"
+            word_query = "SELECT id FROM collection_words WHERE english_word = ?"
             word_result = self.execute_query(word_query, (english_word,), fetch=True)
 
             if not word_result:
@@ -335,7 +335,7 @@ class UserRepository:
             if status is not None:
                 query = """
                     SELECT cw.*, uws.status
-                    FROM collections_word cw
+                    FROM collection_words cw
                     JOIN user_word_status uws ON cw.id = uws.word_id
                     WHERE uws.user_id = ? AND uws.status = ?
                     ORDER BY cw.english_word
@@ -344,7 +344,7 @@ class UserRepository:
             else:
                 query = """
                     SELECT cw.*, uws.status
-                    FROM collections_word cw
+                    FROM collection_words cw
                     JOIN user_word_status uws ON cw.id = uws.word_id
                     WHERE uws.user_id = ?
                     ORDER BY uws.status, cw.english_word
@@ -379,7 +379,7 @@ class UserRepository:
         try:
             query = """
                 SELECT cw.*, COALESCE(uws.status, 0) as status
-                FROM collections_word cw
+                FROM collection_words cw
                 LEFT JOIN user_word_status uws ON cw.id = uws.word_id AND uws.user_id = ?
                 ORDER BY COALESCE(uws.status, 0), cw.english_word
             """
@@ -421,9 +421,8 @@ class UserRepository:
 
             stats = {
                 Word.STATUS_NEW: 0,
-                Word.STATUS_QUEUED: 0,
-                Word.STATUS_ACTIVE: 0,
-                Word.STATUS_MASTERED: 0,
+                Word.STATUS_STUDYING: 0,
+                Word.STATUS_STUDIED: 0,
             }
 
             if result:
@@ -431,7 +430,7 @@ class UserRepository:
                     stats[row['status']] = row['count']
 
             # Count words without explicit status (considered as STATUS_NEW)
-            total_query = "SELECT COUNT(*) as count FROM collections_word"
+            total_query = "SELECT COUNT(*) as count FROM collection_words"
             total_result = self.execute_query(total_query, fetch=True)
 
             explicit_query = """
@@ -455,9 +454,8 @@ class UserRepository:
             logger.error(f"Error getting status statistics: {e}")
             return {
                 Word.STATUS_NEW: 0,
-                Word.STATUS_QUEUED: 0,
-                Word.STATUS_ACTIVE: 0,
-                Word.STATUS_MASTERED: 0,
+                Word.STATUS_STUDYING: 0,
+                Word.STATUS_STUDIED: 0,
             }
 
     def batch_update_word_status(self, user_id: int, english_words: List[str], status: int) -> int:
@@ -482,7 +480,7 @@ class UserRepository:
 
                 # Get word IDs
                 placeholders = ', '.join(['?'] * len(english_words))
-                word_query = f"SELECT id, english_word FROM collections_word WHERE english_word IN ({placeholders})"
+                word_query = f"SELECT id, english_word FROM collection_words WHERE english_word IN ({placeholders})"
                 cursor.execute(word_query, english_words)
                 words = cursor.fetchall()
 
