@@ -1,5 +1,5 @@
 """
-Скрипт для выполнения миграции таблицы collection_words в collection_words
+Скрипт для выполнения миграции таблицы collections_word в collection_words
 и добавления полей created_at, updated_at.
 """
 import logging
@@ -18,7 +18,7 @@ logger = logging.getLogger()
 
 def execute_migration(db_path):
     """
-    Выполняет миграцию таблицы collection_words в collection_words и
+    Выполняет миграцию таблицы collections_word в collection_words и
     добавляет поля created_at и updated_at.
 
     Args:
@@ -40,12 +40,20 @@ def execute_migration(db_path):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # Проверка необходимости миграции
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collections_word'")
-        old_table_exists = cursor.fetchone() is not None
+        # ВАЖНО: Проверяем точные имена таблиц в базе данных
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        all_tables = [table[0] for table in cursor.fetchall()]
+        logger.info(f"All tables in database: {all_tables}")
 
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='collection_words'")
-        new_table_exists = cursor.fetchone() is not None
+        # Проверка необходимости миграции - используем правильные имена таблиц
+        old_table = "collections_word"  # Это исходная таблица
+        new_table = "collection_words"  # Это целевая таблица
+
+        old_table_exists = old_table in all_tables
+        new_table_exists = new_table in all_tables
+
+        logger.info(f"Old table '{old_table}' exists: {old_table_exists}")
+        logger.info(f"New table '{new_table}' exists: {new_table_exists}")
 
         if not old_table_exists and not new_table_exists:
             logger.info("Neither old nor new table exists. No migration needed.")
@@ -55,7 +63,7 @@ def execute_migration(db_path):
             logger.info("New table already exists. Checking columns...")
 
             # Проверяем наличие столбцов created_at и updated_at
-            cursor.execute("PRAGMA table_info(collection_words)")
+            cursor.execute(f"PRAGMA table_info({new_table})")
             columns = [column[1] for column in cursor.fetchall()]
 
             columns_to_add = []
@@ -75,13 +83,13 @@ def execute_migration(db_path):
                 # Используем безопасный метод: сначала добавляем столбцы без DEFAULT, затем обновляем данные
                 conn.execute("BEGIN TRANSACTION")
                 for column in columns_to_add:
-                    cursor.execute(f"ALTER TABLE collection_words ADD COLUMN {column} DATETIME")
-                    logger.info(f"Added column {column} to collection_words")
+                    cursor.execute(f"ALTER TABLE {new_table} ADD COLUMN {column} DATETIME")
+                    logger.info(f"Added column {column} to {new_table}")
 
                 # Обновляем все записи текущей датой
                 if columns_to_add:
                     update_parts = [f"{col} = '{current_time}'" for col in columns_to_add]
-                    cursor.execute(f"UPDATE collection_words SET {', '.join(update_parts)}")
+                    cursor.execute(f"UPDATE {new_table} SET {', '.join(update_parts)}")
                     logger.info(f"Updated {cursor.rowcount} rows with timestamps")
 
                 conn.commit()
@@ -94,25 +102,25 @@ def execute_migration(db_path):
                 return False
 
         if old_table_exists and new_table_exists:
-            logger.warning("Both old and new tables exist. Inconsistent state.")
+            logger.warning(f"Both old table '{old_table}' and new table '{new_table}' exist. Inconsistent state.")
             return False
 
         # Если мы здесь, значит нужно выполнить полную миграцию
-        logger.info("Starting full migration from collection_words to collection_words")
+        logger.info(f"Starting full migration from {old_table} to {new_table}")
 
         try:
             # Выводим структуру существующей таблицы для отладки
-            cursor.execute("PRAGMA table_info(collections_word)")
+            cursor.execute(f"PRAGMA table_info({old_table})")
             columns_info = cursor.fetchall()
             column_names = [col[1] for col in columns_info]
-            logger.info(f"Current collections_word columns: {column_names}")
+            logger.info(f"Current {old_table} columns: {column_names}")
 
             # Начинаем транзакцию
             conn.execute("BEGIN TRANSACTION")
 
             # 1. Создаем новую таблицу со всеми нужными столбцами
-            cursor.execute("""
-                CREATE TABLE collection_words (
+            cursor.execute(f"""
+                CREATE TABLE {new_table} (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     english_word TEXT UNIQUE NOT NULL,
                     russian_word TEXT,
@@ -130,23 +138,23 @@ def execute_migration(db_path):
             # 2. Копируем данные - исправляем ошибку с несоответствием столбцов
             if "learning_status" in column_names:
                 # Если в старой таблице есть learning_status
-                cursor.execute("""
-                    INSERT INTO collection_words (
+                cursor.execute(f"""
+                    INSERT INTO {new_table} (
                         id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
                     )
                     SELECT 
                         id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
-                    FROM collection_words
+                    FROM {old_table}
                 """)
             else:
                 # Если в старой таблице нет learning_status, устанавливаем значение по умолчанию
-                cursor.execute("""
-                    INSERT INTO collection_words (
+                cursor.execute(f"""
+                    INSERT INTO {new_table} (
                         id, english_word, russian_word, listening, sentences, level, brown, get_download, learning_status
                     )
                     SELECT 
                         id, english_word, russian_word, listening, sentences, level, brown, get_download, 0
-                    FROM collection_words
+                    FROM {old_table}
                 """)
 
             rows_copied = cursor.rowcount
@@ -154,9 +162,9 @@ def execute_migration(db_path):
 
             # 3. Создаем индексы
             cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_collection_words_english_word ON collection_words(english_word)")
+                f"CREATE INDEX IF NOT EXISTS idx_collection_words_english_word ON {new_table}(english_word)")
             cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_collection_words_learning_status ON collection_words(learning_status)")
+                f"CREATE INDEX IF NOT EXISTS idx_collection_words_learning_status ON {new_table}(learning_status)")
 
             # 4. Обновляем связанные таблицы
             # 4.1 Проверяем и обновляем word_book_link
@@ -296,7 +304,7 @@ def execute_migration(db_path):
                         "CREATE INDEX IF NOT EXISTS idx_deck_card_next_review ON deck_card(next_review_date)")
 
             # 5. Удаляем старую таблицу
-            cursor.execute("DROP TABLE collection_words")
+            cursor.execute(f"DROP TABLE {old_table}")
 
             # 6. Обновляем версию схемы
             cursor.execute("PRAGMA user_version")
@@ -337,5 +345,5 @@ if __name__ == "__main__":
             print("Migration failed! Check the log for details.")
             sys.exit(1)
     else:
-        print("Usage: python db_migration.py <path_to_database>")
+        print("Usage: python script_migrations.py <path_to_database>")
         sys.exit(1)
