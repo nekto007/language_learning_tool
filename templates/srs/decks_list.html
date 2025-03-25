@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}Decks | Learning Cards{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/decks.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container mt-4" id="deck-manager">
+    <!-- Header -->
+    <div class="decks-header">
+        <h1 class="decks-header__title">Study Decks</h1>
+        <div class="decks-header__actions">
+            <button class="btn btn-outline-secondary me-2" id="importDeckBtn" aria-label="Import Deck">
+                <i class="bi bi-upload me-1" aria-hidden="true"></i>Import
+            </button>
+            <a href="{{ url_for('srs.create_deck') }}" class="btn btn-primary" aria-label="Create New Deck">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create Deck
+            </a>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="decks-nav" aria-label="Deck Management Navigation">
+        <a href="{{ url_for('srs.decks_list') }}" class="decks-nav__item active" aria-current="page">Decks</a>
+        <a href="{{ url_for('srs.statistics') }}" class="decks-nav__item">Statistics</a>
+    </nav>
+
+    <!-- Decks List -->
+    <section class="decks-container" aria-labelledby="decks-heading">
+        <h2 id="decks-heading" class="visually-hidden">Your Study Decks</h2>
+        {% if decks %}
+            <div class="decks-table" role="table" aria-label="Study Decks">
+                <div class="decks-table__header" role="rowgroup">
+                    <div role="row">
+                        <div class="deck-name" role="columnheader">Deck</div>
+                        <div class="deck-new" role="columnheader">New</div>
+                        <div class="deck-studying" role="columnheader">Studying</div>
+                        <div class="deck-due" role="columnheader">Due</div>
+                    </div>
+                </div>
+                <div role="rowgroup">
+                    {% for deck in decks %}
+                    <div class="decks-table__row" role="row">
+                        <div class="deck-name" role="cell">
+                            <a href="{{ url_for('srs.deck_detail', deck_id=deck.id) }}">{{ deck.name }}</a>
+                            {% if deck.description %}
+                            <div class="deck-description">{{ deck.description }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="deck-new" role="cell" aria-label="New cards: {{ deck.new_cards }}">
+                            {{ deck.new_cards }}
+                        </div>
+                        <div class="deck-studying" role="cell" aria-label="Cards in learning: {{ deck.learning_cards }}">
+                            {{ deck.learning_cards }}
+                        </div>
+                        <div class="deck-due" role="cell" aria-label="Cards due today: {{ deck.due_today }}">
+                            {{ deck.due_today }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state" role="status">
+                <div class="empty-state__icon">
+                    <i class="bi bi-stack" aria-hidden="true"></i>
+                </div>
+                <h3 class="empty-state__title">No Decks Yet</h3>
+                <p class="empty-state__text">You haven't created any decks yet. Create your first deck to start learning.</p>
+                <a href="{{ url_for('srs.create_deck') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Create First Deck
+                </a>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- Stats & Activity -->
+    <div class="stats-activity">
+        <!-- Stats Summary -->
+        <section class="stats-summary" aria-labelledby="stats-heading">
+            <h2 id="stats-heading" class="visually-hidden">Learning Statistics</h2>
+            <div class="stats-card">
+                <div class="stats-card__header">
+                    <h3 class="stats-card__title">Today's Progress</h3>
+                </div>
+                <div class="stats-card__body">
+                    <div class="stats-today">
+                        <div class="stats-item">
+                            <div class="stats-value">{{ stats.cards_today|default(0) }}</div>
+                            <div class="stats-label">Cards Reviewed</div>
+                        </div>
+                        <div class="stats-item">
+                            <div class="stats-value">{{ stats.minutes_today|default(0) }}</div>
+                            <div class="stats-label">Minutes</div>
+                        </div>
+                        {% if stats.cards_today|default(0) > 0 and stats.minutes_today|default(0) > 0 %}
+                        <div class="stats-item">
+                            <div class="stats-value">{{ stats.cards_per_minute|default(0) }}</div>
+                            <div class="stats-label">Cards/Min</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="stats-footer">
+                        {{ now.strftime('%A, %B %d, %Y') }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-card">
+                <div class="stats-card__header">
+                    <h3 class="stats-card__title">Learning Streak</h3>
+                </div>
+                <div class="stats-card__body">
+                    <div class="streak-stats">
+                        <div class="stats-item">
+                            <div class="stats-value">{{ stats.streak|default(0) }}</div>
+                            <div class="stats-label">Current Streak</div>
+                        </div>
+                        <div class="stats-item">
+                            <div class="stats-value">{{ stats.longest_streak|default(0) }}</div>
+                            <div class="stats-label">Longest Streak</div>
+                        </div>
+                        <div class="stats-item">
+                            <div class="stats-value">{{ stats.days_learned_percent|default(0) }}%</div>
+                            <div class="stats-label">Consistency</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Activity Calendar -->
+        <section class="activity-calendar" aria-labelledby="calendar-heading">
+            <div class="calendar-header">
+                <h3 id="calendar-heading" class="calendar-title">Activity Calendar</h3>
+                <div class="calendar-controls">
+                    <button id="prevYearBtn" class="btn btn-sm btn-outline-secondary" aria-label="Previous Year">
+                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <div id="currentYear" class="year-display">2025</div>
+                    <button id="nextYearBtn" class="btn btn-sm btn-outline-secondary" aria-label="Next Year">
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </button>
+                    <button id="clearActivityBtn" class="btn btn-sm btn-outline-danger ms-2" aria-label="Clear Activity Data">
+                        <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Clear
+                    </button>
+                </div>
+            </div>
+            <div class="calendar-body">
+                <div id="heatmap-grid" class="heatmap-grid" role="grid" aria-label="Activity Calendar Heatmap"></div>
+            </div>
+            <div class="calendar-legend" aria-label="Activity Level Legend">
+                <div class="legend-item">
+                    <div class="legend-color activity-level-0"></div>
+                    <span>No activity</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color activity-scheduled" style="width: 14px; height: 14px;"></div>
+                    <span>Scheduled</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color activity-level-1"></div>
+                    <span>1-9 cards</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color activity-level-3"></div>
+                    <span>10-29 cards</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color activity-level-5"></div>
+                    <span>30+ cards</span>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+
+<!-- Import Deck Modal -->
+<div class="modal fade" id="importDeckModal" tabindex="-1" aria-labelledby="importDeckModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importDeckModalLabel">Import Deck</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importDeckForm">
+                    <div class="mb-3">
+                        <label for="importType" class="form-label">Import Type</label>
+                        <select class="form-select" id="importType" required>
+                            <option value="file">From File</option>
+                            <option value="words">From Word List</option>
+                        </select>
+                    </div>
+
+                    <!-- File Import Section -->
+                    <div id="fileImportSection">
+                        <div class="mb-3">
+                            <label for="deckFile" class="form-label">Select File</label>
+                            <input type="file" class="form-control" id="deckFile" accept=".csv,.txt,.apkg">
+                            <div class="form-text">Supported formats: CSV, TXT, APKG (Anki)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="deckNameInput" class="form-label">Deck Name</label>
+                            <input type="text" class="form-control" id="deckNameInput" placeholder="Enter deck name">
+                        </div>
+                    </div>
+
+                    <!-- Words Import Section -->
+                    <div id="wordsImportSection" style="display: none;">
+                        <div class="mb-3">
+                            <label for="wordsList" class="form-label">Words List (one per line)</label>
+                            <textarea class="form-control" id="wordsList" rows="6" placeholder="apple&#10;house&#10;car"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="wordsImportDeckName" class="form-label">Deck Name</label>
+                            <input type="text" class="form-control" id="wordsImportDeckName" placeholder="Enter deck name">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="startImportBtn">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Progress Modal -->
+<div class="modal fade" id="importProgressModal" tabindex="-1" aria-labelledby="importProgressModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importProgressModalLabel">Import Progress</h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <p id="importProgressMessage">Importing deck, please wait...</p>
+                <div class="progress mt-3">
+                    <div id="importProgressBar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Results Modal -->
+<div class="modal fade" id="importResultsModal" tabindex="-1" aria-labelledby="importResultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importResultsModalLabel">Import Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="importResultsContent">
+                    <!-- Results will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="importResultsOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/decks.js') }}"></script>
+{% endblock %}

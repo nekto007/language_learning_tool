@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Learning Words - {{ deck.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="d-flex justify-content-between mb-3">
+                <div>
+                    <a href="{{ url_for('srs.deck_detail', deck_id=deck.id) }}" class="btn btn-outline-secondary" id="exitBtn">
+                        <i class="fas fa-times"></i> Exit
+                    </a>
+                </div>
+
+                <div class="text-center">
+                    <h5 class="mb-0">{{ deck.name }}</h5>
+                    <div class="progress mt-2" style="height: 8px;">
+                        <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <small class="text-muted" id="progressText">Loading...</small>
+                </div>
+
+                <div>
+                    <span class="badge bg-primary" id="remainingCards">-</span>
+                </div>
+            </div>
+
+            <!-- Loading indicator -->
+            <div id="loadingContainer" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Loading flashcards data...</p>
+            </div>
+
+            <!-- Card container - hidden until data is loaded -->
+            <div class="card mb-4" id="cardContainer" style="display: none;">
+                <div class="card-body text-center">
+                    <!-- Card Front (Question) -->
+                    <div id="cardFront" class="py-5">
+                        <h2 class="word-text mb-4" id="englishWord"></h2>
+
+                        {% if deck.name != "Основная колода" %}
+                            <div class="mb-3">
+                                <span class="badge bg-secondary">{{ deck.name }}</span>
+                            </div>
+                        {% endif %}
+
+                        <!-- Container for examples with English text -->
+                        <div class="card mb-3" id="englishExampleContainer" style="display: none;">
+                            <div class="card-body">
+                                <p class="mb-0" id="englishExampleText"></p>
+                            </div>
+                        </div>
+
+                        <!-- Audio playback button (if available) -->
+                        <div class="mt-3">
+                            <button class="btn btn-outline-primary btn-sm" id="playAudioBtn" style="display: none;" onclick="playAudio()">
+                                <i class="fas fa-volume-up"></i> Listen
+                            </button>
+                        </div>
+
+                        <div class="mt-5">
+                            <button class="btn btn-primary btn-lg" id="showAnswerBtn">Show Answer</button>
+                        </div>
+                    </div>
+
+                    <!-- Card Back (Answer) -->
+                    <div id="cardBack" class="py-5" style="display: none;">
+                        <h2 class="word-text mb-3" id="englishWordBack"></h2>
+                        <h3 class="text-danger mb-4" id="russianWord"></h3>
+
+                        <!-- Example sentence (if available) -->
+                        <div class="card mb-4" id="exampleContainer" style="display: none;">
+                            <div class="card-body">
+                                <p class="mb-0 font-italic" id="exampleText"></p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-5">
+                            <button class="btn btn-danger btn-lg difficulty-btn" data-difficulty="again">
+                                <i class="fas fa-redo"></i> <span class="btn-text" data-key="again">Again</span>
+                                <small class="d-block text-white-50 mt-1">(1)</small>
+                            </button>
+                            <button class="btn btn-warning btn-lg difficulty-btn" data-difficulty="hard">
+                                <i class="fas fa-frown"></i> <span class="btn-text" data-key="hard">Hard</span>
+                                <small class="d-block text-white-50 mt-1">(2)</small>
+                            </button>
+                            <button class="btn btn-info btn-lg difficulty-btn" data-difficulty="good">
+                                <i class="fas fa-meh"></i> <span class="btn-text" data-key="good">Good</span>
+                                <small class="d-block text-white-50 mt-1">(3)</small>
+                            </button>
+                            <button class="btn btn-success btn-lg difficulty-btn" data-difficulty="easy">
+                                <i class="fas fa-smile"></i> <span class="btn-text" data-key="easy">Easy</span>
+                                <small class="d-block text-white-50 mt-1">(4)</small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Complete Modal -->
+<div class="modal fade" id="sessionCompleteModal" tabindex="-1" aria-labelledby="sessionCompleteModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sessionCompleteModalLabel">Review Completed!</h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <i id="sessionCompleteIcon" class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
+
+                <h4 id="sessionCompleteTitle" class="text-center mb-2">Session Completed</h4>
+                <p id="sessionCompleteMessage" class="text-center mb-4">Keep practicing to improve your results.</p>
+
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h2 mb-0" id="totalReviewed">0</div>
+                        <div class="text-muted">Cards Reviewed</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="h2 mb-0" id="currentStreak">0</div>
+                        <div class="text-muted">Day Streak</div>
+                    </div>
+                </div>
+
+                <div id="sessionSummary" class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span data-key="again">Again:</span>
+                        <span id="againCount">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span data-key="hard">Hard:</span>
+                        <span id="hardCount">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span data-key="good">Good:</span>
+                        <span id="goodCount">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span data-key="easy">Easy:</span>
+                        <span id="easyCount">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <a href="{{ url_for('srs.deck_detail', deck_id=deck.id) }}" class="btn btn-primary">
+                    Return to Deck
+                </a>
+                <a href="{{ url_for('srs.decks_list') }}" class="btn btn-secondary">
+                    All Decks
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden fields for JavaScript -->
+<input type="hidden" id="sessionId" value="{{ session_id }}">
+<input type="hidden" id="deckId" value="{{ deck.id }}">
+<input type="hidden" id="today" value="{{ today }}">
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/review-session.js') }}"></script>
+{% endblock %}
+{% endblock %}

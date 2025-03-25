@@ -69,27 +69,48 @@
 
                     <!-- Bulk actions -->
                     <div class="col-md-6">
-                        <div class="dropdown text-end">
-                            <button type="button" class="btn btn-primary dropdown-toggle" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-list-check me-1"></i> Bulk Actions
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bulkActionsBtn">
-                                <li><h6 class="dropdown-header">Mark selected as:</h6></li>
-                                {% for status_id, label in status_labels.items() %}
-                                <li>
-                                    <a class="dropdown-item status-action-item" href="#" data-status="{{ status_id }}">
-                                        <span class="status-dot status-{{ status_id }}"></span>
-                                        {{ label }}
-                                    </a>
-                                </li>
-                                {% endfor %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item" href="#" id="createAnkiBtn">
-                                        <i class="bi bi-card-text me-1"></i> Create Anki Cards
-                                    </a>
-                                </li>
-                            </ul>
+                        <div class="d-flex justify-content-end">
+                            <!-- Bulk actions dropdown -->
+                            <div class="dropdown me-2">
+                                <button type="button" class="btn btn-primary dropdown-toggle" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-list-check me-1"></i> Bulk Actions
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bulkActionsBtn">
+                                    <li><h6 class="dropdown-header">Mark selected as:</h6></li>
+                                    {% for status_id, label in status_labels.items() %}
+                                    <li>
+                                        <a class="dropdown-item status-action-item" href="#" data-status="{{ status_id }}">
+                                            <span class="status-dot status-{{ status_id }}"></span>
+                                            {{ label }}
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" id="createAnkiBtn">
+                                            <i class="bi bi-card-text me-1"></i> Create Anki Cards
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Import to SRS Deck dropdown -->
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" id="importToDeckDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-stack me-1"></i> Import to Deck
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="importToDeckDropdown">
+                                    <li><a class="dropdown-item" href="#" id="createNewDeckBtn">Create New Deck</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Existing Decks</h6></li>
+                                    <li><div id="existingDecksContainer" class="px-2" style="max-height: 200px; overflow-y: auto;">
+                                        <div class="text-center py-2">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                            <span class="ms-2">Loading decks...</span>
+                                        </div>
+                                    </div></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -177,7 +198,7 @@
                                 <tr class="word-row" data-word-id="{{ word.id }}">
                                     <td>
                                         <div class="form-check">
-                                            <input type="checkbox" class="form-check-input word-checkbox" data-word-id="{{ word.id }}">
+                                            <input type="checkbox" name="selectedWords" class="form-check-input word-checkbox" value="{{ word.id }}" data-word-id="{{ word.id }}">
                                         </div>
                                     </td>
                                     <td>{{ word.english_word }}</td>
@@ -203,12 +224,20 @@
                                             {% endif %}
                                         </span>
                                     </td>
+                                    {% if filter_active %}
+                                        <div class="d-flex mb-3">
+                                          <a href="{{ url_for('srs.decks_list') }}" class="btn btn-warning ms-auto">
+                                            <i class="bi bi-card-text me-2"></i>Study Cards
+                                          </a>
+                                        </div>
+                                    {% endif %}
                                     {% if book_id %}
                                     <td>{{ word.frequency }}</td>
                                     {% endif %}
                                     <td>
                                         <div class="action-buttons">
-                                            <button type="button" class="btn btn-sm btn-icon"
+                                            <button type="button" class="btn btn-sm btn-icon play-pronunciation"
+                                                    data-word="{{ word.english_word }}"
                                                     data-bs-toggle="tooltip" title="Play pronunciation"
                                                     {% if word.get_download != 1 %}disabled{% endif %}>
                                                 <i class="bi bi-volume-up"></i>
@@ -221,9 +250,10 @@
                                                     <li><h6 class="dropdown-header">Change status</h6></li>
                                                     {% for status_id, label in status_labels.items() %}
                                                     <li>
-                                                        <a class="dropdown-item {% if word.status == status_id %}active{% endif %}"
+                                                        <a class="dropdown-item status-action {% if word.status == status_id %}active{% endif %}"
                                                            href="#"
-                                                           onclick="event.stopPropagation(); updateWordStatus({{ word.id }}, {{ status_id }}); return false;">
+                                                           data-word-id="{{ word.id }}"
+                                                           data-status="{{ status_id }}">
                                                            <span class="status-dot status-{{ status_id }}"></span>
                                                             {{ label }}
                                                         </a>
@@ -231,8 +261,9 @@
                                                     {% endfor %}
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li>
-                                                        <a class="dropdown-item" href="#"
-                                                           onclick="event.stopPropagation(); showWordDetails({{ word.id }}); return false;">
+                                                        <a class="dropdown-item view-details"
+                                                           href="#"
+                                                           data-word-id="{{ word.id }}">
                                                             <i class="bi bi-info-circle me-2"></i> View Details
                                                         </a>
                                                     </li>
@@ -308,11 +339,11 @@
 </div>
 
 <!-- Word detail modal template -->
-<div class="modal fade" id="wordDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="wordDetailModal" tabindex="-1" aria-labelledby="wordDetailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Word Details</h5>
+                <h5 class="modal-title" id="wordDetailModalLabel">Word Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -328,11 +359,11 @@
 </div>
 
 <!-- Anki export modal -->
-<div class="modal fade" id="ankiExportModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="ankiExportModal" tabindex="-1" aria-labelledby="ankiExportModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Anki Cards</h5>
+                <h5 class="modal-title" id="ankiExportModalLabel">Create Anki Cards</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -376,7 +407,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label" id="selectedWordsCount">Selected words: 0</label>
+                                <label class="form-label" id="ankiSelectedWordsCount">Selected words: 0</label>
                             </div>
                         </form>
                     </div>
@@ -425,13 +456,78 @@
         </div>
     </div>
 </div>
+
+<!-- Create Deck Modal -->
+<div class="modal fade" id="createDeckModal" tabindex="-1" aria-labelledby="createDeckModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDeckModalLabel">Create New Deck</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createDeckForm">
+                    <div class="mb-3">
+                        <label for="deckNameInput" class="form-label">Deck Name</label>
+                        <input type="text" class="form-control" id="deckNameInput" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deckDescriptionInput" class="form-label">Description (optional)</label>
+                        <textarea class="form-control" id="deckDescriptionInput" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="alert alert-info">
+                            <small>A new deck will be created with <span id="selectedWordsCount">0</span> selected words.</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="createDeckWithWordsBtn">Create Deck</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import to Deck Modal -->
+<div class="modal fade" id="importToDeckModal" tabindex="-1" aria-labelledby="importToDeckModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importToDeckModalLabel">Import to Deck</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="targetDeckSelect" class="form-label">Select Deck</label>
+                    <select class="form-select" id="targetDeckSelect" required>
+                        <option value="" disabled selected>Choose a deck for import</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <div class="alert alert-info">
+                        <small>Selected words (<span id="importWordsCount">0</span>) will be added to the specified deck. Duplicate words will be skipped.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="importWordsToDeckBtn">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/words.js') }}"></script>
+<script src="{{ url_for('static', filename='js/word-selection.js') }}"></script>
+<script src="{{ url_for('static', filename='js/word-status.js') }}"></script>
+<script src="{{ url_for('static', filename='js/anki-export.js') }}"></script>
+<script src="{{ url_for('static', filename='js/srs-integration.js') }}"></script>
 <script>
-    // Status labels for JavaScript
-    const statusLabels = {
+    // Pass status labels to JavaScript
+    window.statusLabels = {
         {% for status_id, label in status_labels.items() %}
         {{ status_id }}: "{{ label }}",
         {% endfor %}

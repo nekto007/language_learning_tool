@@ -4,165 +4,87 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/word-detail.css') }}">
-<style>
-  /* Инлайн-стили для решения проблем с аудио на мобильных устройствах */
-  @media (max-width: 767px) {
-    .pronunciation-player {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-top: 1rem;
-    }
-
-    .play-pronunciation {
-      margin-bottom: 8px;
-    }
-
-    audio {
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .mobile-audio-player {
-      display: flex;
-      align-items: center;
-      background-color: rgba(255, 255, 255, 0.05);
-      border-radius: 4px;
-      padding: 8px;
-      margin-top: 10px;
-      width: 100%;
-    }
-
-    .mobile-play-button {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #4958E5;
-      color: white;
-      margin-right: 10px;
-      flex-shrink: 0;
-      border: none;
-      font-size: 1.2rem;
-    }
-
-    .mobile-audio-progress {
-      flex-grow: 1;
-      height: 6px;
-      background-color: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .mobile-audio-progress-bar {
-      height: 100%;
-      background-color: #4958E5;
-      width: 0;
-    }
-
-    .mobile-audio-time {
-      margin-left: 10px;
-      font-size: 0.8rem;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #4958E5;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  }
-</style>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 {% endblock %}
 
 {% block content %}
-<div class="word-detail-container">
+<div class="container py-4">
   <!-- Word Header -->
   <div class="word-header">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="d-flex align-items-center">
-        <h1 class="word-title mb-0">{{ word.english_word }}</h1>
-        <span class="status-badge status-{{ word.status }} ms-3">
+        <h1 class="word-header__title mb-0">{{ word.english_word }}</h1>
+        <span class="status-badge status-badge--{{ word.status }} ms-3">
           {{ status_labels[word.status] }}
         </span>
       </div>
-      <a href="{{ request.referrer or url_for('words_list') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-2"></i>Back
-      </a>
+      <div class="d-flex gap-3 align-items-center">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode" title="Toggle dark/light mode"></button>
+        <a href="{{ request.referrer or url_for('words_list') }}" class="btn btn--outline-secondary">
+          <i class="bi bi-arrow-left me-2"></i>Back
+        </a>
+      </div>
     </div>
-  <div class="row g-4">
+  </div>
+
+  <div class="row">
     <!-- Left Column -->
     <div class="col-lg-8">
       <!-- Word Details Card -->
       <div class="card shadow-sm mb-4">
-        <div class="card-header">
-          <h2 class="card-title h5 mb-0"><i class="bi bi-info-circle me-2"></i>Word Details</h2>
+        <div class="card__header">
+          <h2 class="card__title h5 mb-0"><i class="bi bi-info-circle me-2"></i>Word Details</h2>
         </div>
-        <div class="card-body">
+        <div class="card__body">
           <div class="detail-grid">
             <div class="detail-item">
-              <div class="detail-label">English</div>
-              <div class="detail-value">{{ word.english_word }}</div>
+              <div class="detail-item__label">English</div>
+              <div class="detail-item__value">{{ word.english_word }}</div>
             </div>
 
             <div class="detail-item">
-              <div class="detail-label">Translation</div>
-              <div class="detail-value">{{ word.russian_word or 'Not available' }}</div>
+              <div class="detail-item__label">Translation</div>
+              <div class="detail-item__value">{{ word.russian_word or 'Not available' }}</div>
             </div>
 
             {% if word.level %}
             <div class="detail-item">
-              <div class="detail-label">Level</div>
-              <div class="detail-value">
-                <span class="badge bg-info">{{ word.level }}</span>
+              <div class="detail-item__label">Level</div>
+              <div class="detail-item__value">
+                <span class="badge badge--info">{{ word.level }}</span>
               </div>
             </div>
             {% endif %}
 
             <div class="detail-item">
-              <div class="detail-label">In Brown Corpus<a href="https://en.wikipedia.org/wiki/Brown_Corpus">(?)</a> </div>
-              <div class="detail-value">
+              <div class="detail-item__label">In Brown Corpus <a href="https://en.wikipedia.org/wiki/Brown_Corpus" class="text-decoration-none" aria-label="Information about Brown Corpus">(?)</a></div>
+              <div class="detail-item__value">
                 {% if word.brown == 1 %}
-                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Yes</span>
+                <span class="badge badge--success"><i class="bi bi-check me-1"></i>Yes</span>
                 {% else %}
-                <span class="badge bg-secondary"><i class="bi bi-x me-1"></i>No</span>
+                <span class="badge badge--secondary"><i class="bi bi-x me-1"></i>No</span>
                 {% endif %}
               </div>
             </div>
 
             <div class="detail-item">
-              <div class="detail-label">Pronunciation</div>
-              <div class="detail-value">
+              <div class="detail-item__label">Pronunciation</div>
+              <div class="detail-item__value">
                 {% if word.get_download == 1 %}
-                <div class="audio-player">
-                  <!-- Обновленный проигрыватель с дополнительным атрибутом -->
-                  <audio controls class="w-100" controlsList="nodownload" preload="metadata">
-                    <button type="button" class="btn btn-sm btn-icon"
-                                                    data-bs-toggle="tooltip" title="Play pronunciation"
-                                                    {% if word.get_download != 1 %}disabled{% endif %}>
-                                                <i class="bi bi-volume-up"></i>
-                    </button>
-                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
-                    <p>Your browser does not support HTML5 audio.</p>
-                  </audio>
-                  <!-- Резервная кнопка проигрывания для мобильных устройств -->
-                  <button class="btn btn-primary btn-sm mt-2 d-none mobile-fallback-play">
-                    <i class="bi bi-play-fill me-1"></i> Play Pronunciation
+                <div class="audio-player" id="audioContainer">
+                  <button class="audio-player__play-btn" id="audioPlayBtn" aria-label="Play pronunciation">
+                    <i class="bi bi-play-fill"></i>
                   </button>
+                  <div class="audio-player__progress" id="audioProgress">
+                    <div class="audio-player__progress-bar" id="audioProgressBar"></div>
+                  </div>
+                  <div class="audio-player__time" id="audioTime">0:00</div>
+                  <audio id="pronunciationAudio" preload="metadata">
+                    <source src="{{ url_for('serve_media', filename='pronunciation_en_' + word.english_word|lower|replace(' ', '_') + '.mp3') }}" type="audio/mp3">
+                    Your browser does not support the audio element.
+                  </audio>
                 </div>
                 {% else %}
-                <span class="badge bg-danger"><i class="bi bi-volume-mute me-1"></i>Not available</span>
+                <span class="badge badge--danger"><i class="bi bi-volume-mute me-1"></i>Not available</span>
                 {% endif %}
               </div>
             </div>
@@ -182,12 +104,12 @@
       <!-- Books Card -->
       {% if books %}
       <div class="card shadow-sm mb-4">
-        <div class="card-header">
-          <h2 class="card-title h5 mb-0"><i class="bi bi-book me-2"></i>Books containing this word</h2>
+        <div class="card__header">
+          <h2 class="card__title h5 mb-0"><i class="bi bi-book me-2"></i>Books containing this word</h2>
         </div>
-        <div class="card-body">
+        <div class="card__body">
           <div class="table-responsive">
-            <table class="table table-hover books-table">
+            <table class="table books-table">
               <thead>
                 <tr>
                   <th>Book</th>
@@ -203,7 +125,7 @@
                     <span class="frequency-badge">{{ book.frequency }}</span>
                   </td>
                   <td>
-                    <a href="{{ url_for('words_list', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">
+                    <a href="{{ url_for('words_list', book_id=book.id) }}" class="btn btn--sm btn--primary">
                       <i class="bi bi-eye me-1"></i>View Words
                     </a>
                   </td>
@@ -215,23 +137,120 @@
         </div>
       </div>
       {% endif %}
+
+      <!-- Learning Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card__header d-flex justify-content-between align-items-center">
+          <h2 class="card__title h5 mb-0"><i class="bi bi-layers me-2"></i>Learning</h2>
+          <button type="button" class="btn btn--primary btn--sm" id="addToDeckBtn" {% if word.status != 3 %}style="display: none;"{% endif %}>
+            <i class="bi bi-plus-lg me-1"></i> Add to Deck
+          </button>
+        </div>
+        <div class="card__body">
+          {% if decks %}
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Deck</th>
+                    <th class="text-center">Interval</th>
+                    <th class="text-center">Repetitions</th>
+                    <th class="text-center">Next Review</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for deck in decks %}
+                    <tr>
+                      <td>
+                        <a href="{{ url_for('srs.deck_detail', deck_id=deck.id) }}" class="text-decoration-none">
+                          {{ deck.name }}
+                        </a>
+                      </td>
+                      <td class="text-center">
+                        {% if 'interval' in deck %}
+                          {% if deck.interval == 0 %}
+                            <span class="badge badge--info">New</span>
+                          {% else %}
+                            {{ deck.interval }} {{ 'day' if deck.interval == 1 else 'days' }}
+                          {% endif %}
+                        {% else %}
+                          <span class="badge badge--secondary">N/A</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-center">
+                        {% if 'repetitions' in deck %}
+                          {{ deck.repetitions }}
+                          {% if deck.repetitions >= 7 %}
+                            <i class="bi bi-check-circle-fill text-success ms-1" title="Mastered"></i>
+                          {% endif %}
+                        {% else %}
+                          <span>-</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-center">
+                        {% if 'next_review_date' in deck and deck.next_review_date %}
+                          {% set review_date = deck.next_review_date|datetime %}
+                          {% if review_date <= now %}
+                            <span class="badge badge--primary">Today</span>
+                          {% else %}
+                            {{ review_date.strftime('%d.%m.%Y') }}
+                          {% endif %}
+                        {% else %}
+                          <span>-</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-center">
+                        {% if 'card_id' in deck %}
+                          <button type="button" class="btn btn--danger btn--sm js-remove-from-deck" data-card-id="{{ deck.card_id }}">
+                            <i class="bi bi-trash me-1"></i>Remove
+                          </button>
+                        {% else %}
+                          <button type="button" class="btn btn--danger btn--sm" disabled>
+                            <i class="bi bi-trash me-1"></i>Remove
+                          </button>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              {% if word.status == 3 %}
+                <p>This word has "Active" status but has not been added to any deck yet.</p>
+                <button type="button" class="btn btn--primary" id="addToDeckBtn">
+                  <i class="bi bi-plus-lg me-1"></i> Add to Deck
+                </button>
+              {% else %}
+                <p>To learn this word using spaced repetition, set its status to "Active".</p>
+                <button type="button" class="btn btn--primary" id="makeActiveBtn">
+                  <i class="bi bi-play-fill me-1"></i> Start Learning
+                </button>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
     </div>
 
     <!-- Right Column -->
     <div class="col-lg-4">
       <!-- Status Change Card -->
       <div class="card shadow-sm mb-4">
-        <div class="card-header">
-          <h2 class="card-title h5 mb-0"><i class="bi bi-arrow-repeat me-2"></i>Change Status</h2>
+        <div class="card__header">
+          <h2 class="card__title h5 mb-0"><i class="bi bi-arrow-repeat me-2"></i>Change Status</h2>
         </div>
-        <div class="card-body p-0">
-          <div class="status-list">
+        <div class="card__body p-0">
+          <div class="list-group list-group-flush">
             {% for status_id, label in status_labels.items() %}
             <button
-              class="status-item status-item-{{ status_id }} {% if word.status == status_id %}active{% endif %}"
-              onclick="updateWordStatus({{ word.id }}, {{ status_id }})"
+              class="status-item {% if word.status == status_id %}status-item--active{% endif %} js-update-status"
+              data-word-id="{{ word.id }}"
+              data-status="{{ status_id }}"
             >
-              <div class="status-icon">
+              <div class="status-item__icon">
                 {% if status_id == 0 %}
                 <i class="bi bi-plus-circle"></i>
                 {% elif status_id == 1 %}
@@ -244,10 +263,10 @@
                 <i class="bi bi-mortarboard"></i>
                 {% endif %}
               </div>
-              <div class="status-content">
-                <span class="status-label">{{ label }}</span>
+              <div class="status-item__content">
+                <span class="status-item__label">{{ label }}</span>
                 {% if word.status == status_id %}
-                <span class="current-badge">Current</span>
+                <span class="status-item__current">Current</span>
                 {% endif %}
               </div>
             </button>
@@ -257,67 +276,98 @@
       </div>
 
       <!-- External Resources Card -->
-      <div class="card shadow-sm">
-        <div class="card-header">
-          <h2 class="card-title h5 mb-0"><i class="bi bi-link-45deg me-2"></i>External Resources</h2>
+      <div class="card shadow-sm mb-4">
+        <div class="card__header">
+          <h2 class="card__title h5 mb-0"><i class="bi bi-link-45deg me-2"></i>External Resources</h2>
         </div>
-        <div class="card-body">
-          <div class="external-resources">
+        <div class="card__body">
+          <div class="resource-list">
             <a href="https://dictionary.cambridge.org/dictionary/english/{{ word.english_word|urlencode }}"
                class="resource-link"
-               target="_blank">
-              <div class="resource-icon">
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="resource-link__icon">
                 <i class="bi bi-book"></i>
               </div>
-              <div class="resource-text">Cambridge Dictionary</div>
+              <div class="resource-link__text">Cambridge Dictionary</div>
             </a>
 
             <a href="https://www.oxfordlearnersdictionaries.com/definition/english/{{ word.english_word|urlencode }}"
                class="resource-link"
-               target="_blank">
-              <div class="resource-icon">
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="resource-link__icon">
                 <i class="bi bi-journal-text"></i>
               </div>
-              <div class="resource-text">Oxford Dictionary</div>
+              <div class="resource-link__text">Oxford Dictionary</div>
             </a>
 
             <a href="https://context.reverso.net/translation/english-russian/{{ word.english_word|urlencode }}"
                class="resource-link"
-               target="_blank">
-              <div class="resource-icon">
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="resource-link__icon">
                 <i class="bi bi-translate"></i>
               </div>
-              <div class="resource-text">Reverso Context</div>
+              <div class="resource-link__text">Reverso Context</div>
             </a>
 
             <a href="https://forvo.com/word/{{ word.english_word|urlencode }}/#en"
                class="resource-link"
-               target="_blank">
-              <div class="resource-icon">
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="resource-link__icon">
                 <i class="bi bi-volume-up"></i>
               </div>
-              <div class="resource-text">Forvo Pronunciation</div>
+              <div class="resource-link__text">Forvo Pronunciation</div>
             </a>
 
             <a href="https://www.wordreference.com/en/translation.asp?tranword={{ word.english_word|urlencode }}"
                class="resource-link"
-               target="_blank">
-              <div class="resource-icon">
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="resource-link__icon">
                 <i class="bi bi-globe"></i>
               </div>
-              <div class="resource-text">WordReference</div>
+              <div class="resource-link__text">WordReference</div>
             </a>
 
             <a href="https://en.wiktionary.org/wiki/{{ word.english_word|urlencode }}"
                class="resource-link"
-               target="_blank">
-              <div class="resource-icon">
+               target="_blank"
+               rel="noopener noreferrer">
+              <div class="resource-link__icon">
                 <i class="bi bi-wikipedia"></i>
               </div>
-              <div class="resource-text">Wiktionary</div>
+              <div class="resource-link__text">Wiktionary</div>
             </a>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add to Deck Modal -->
+<div class="modal fade" id="addToDeckModal" tabindex="-1" aria-labelledby="addToDeckModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addToDeckModalLabel">Add to Deck</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Choose a deck to add this word to:</p>
+        <div class="mb-3">
+          <select class="form-select" id="deckSelect">
+            <option value="" disabled selected>Select a deck</option>
+            <!-- Options will be loaded via JavaScript -->
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn--secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn--primary" id="confirmAddToDeckBtn">Add</button>
       </div>
     </div>
   </div>
@@ -327,40 +377,17 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/word-detail.js') }}"></script>
 <script>
-  // Дополнительный код для решения проблем с аудио на мобильных устройствах
-  document.addEventListener('DOMContentLoaded', function() {
-    // Проверяем, мобильное ли устройство
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // Добавляем обработку жеста для разблокировки аудио
-      document.body.addEventListener('touchstart', function() {
-        const audio = document.getElementById('pronunciationAudio');
-        if (audio) {
-          // Попытка разблокировать аудио контекст
-          audio.load();
-        }
-      }, { once: true });
-
-      // Показываем резервную кнопку проигрывания
-      const fallbackButton = document.querySelector('.mobile-fallback-play');
-      if (fallbackButton) {
-        fallbackButton.classList.remove('d-none');
-
-        fallbackButton.addEventListener('click', function(e) {
-          e.preventDefault();
-
-          const audio = document.getElementById('pronunciationAudio');
-          if (audio) {
-            audio.load();
-            audio.play().catch(function(error) {
-              console.error('Error playing audio:', error);
-              alert('Tap the screen once and try again to enable audio playback');
-            });
-          }
-        });
-      }
+  // Pass word data to JavaScript
+  window.wordData = {
+    id: {{ word.id }},
+    status: {{ word.status }},
+    decks: {{ decks|tojson }},
+    apiUrls: {
+      updateStatus: '{{ url_for('update_word_status') }}',
+      getDecks: '{{ url_for('srs.api_get_decks') }}',
+      addCard: '{{ url_for('srs.api_add_card', deck_id=0) }}'.replace('0', ':deckId'),
+      deleteCard: '{{ url_for('srs.api_delete_card', card_id=0) }}'.replace('0', ':cardId')
     }
-  });
+  };
 </script>
 {% endblock %}
