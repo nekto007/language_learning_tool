@@ -3,6 +3,9 @@
  * Modern implementation with ES modules and modern patterns
  */
 
+// Import the language manager
+import { LanguageManager } from './language-manager.js';
+
 // Utility functions
 const Utils = {
   /**
@@ -17,7 +20,12 @@ const Utils = {
    * @param {Date} date - Date to format
    * @returns {string} Formatted date string
    */
-  formatDate: (date) => date.toISOString().split('T')[0],
+  formatDate: (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
 
   /**
    * Toggle element visibility
@@ -62,7 +70,10 @@ class ActivityHeatmap {
    * Initialize the heatmap and attach event listeners
    */
   init() {
-    if (!this.container) return;
+    if (!this.container) {
+      console.warn('Heatmap container not found');
+      return;
+    }
 
     // Set current year display
     if (this.yearDisplay) {
@@ -133,10 +144,29 @@ class ActivityHeatmap {
     // Clear activity button
     if (this.clearActivityBtn) {
       this.clearActivityBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear all your activity history?')) {
+        const message = this.getTranslation ?
+                       this.getTranslation('clearConfirmation', 'Are you sure you want to clear all your activity history?') :
+                       'Are you sure you want to clear all your activity history?';
+
+        if (confirm(message)) {
           this.clearActivityData();
         }
       });
+    }
+  }
+
+  /**
+   * Get translation if available
+   */
+  getTranslation(key, defaultText) {
+    try {
+      // Check if language manager is available in global scope
+      if (window.languageManager && typeof window.languageManager.translate === 'function') {
+        return window.languageManager.translate(key);
+      }
+      return defaultText;
+    } catch (e) {
+      return defaultText;
     }
   }
 
@@ -154,10 +184,8 @@ class ActivityHeatmap {
 
       if (response.ok) {
         const result = await response.json();
-
         // Show success message
         alert(result.message || 'Activity history cleared successfully');
-
         // Refresh the heatmap
         this.fetchData();
       } else {
@@ -181,46 +209,60 @@ class ActivityHeatmap {
     // Create first day of the year
     const firstDay = new Date(this.currentYear, 0, 1);
 
-    // Adjust for European week (Monday first)
-    // Convert from JS day (0=Sunday) to European (0=Monday, 6=Sunday)
-    let startDay = firstDay.getDay() - 1;
-    if (startDay === -1) startDay = 6; // Convert Sunday from -1 to 6
+    // Get day of week offset (0 = Sunday, 1 = Monday, etc.)
+    let startDayOfWeek = firstDay.getDay();
+    if (startDayOfWeek === 0) startDayOfWeek = 7; // Make Sunday the 7th day
 
     // Determine if it's a leap year
     const isLeapYear = (this.currentYear % 4 === 0 && this.currentYear % 100 !== 0) || (this.currentYear % 400 === 0);
     const daysInYear = isLeapYear ? 366 : 365;
 
+    // Calculate number of weeks
+    const numWeeks = Math.ceil((daysInYear + startDayOfWeek - 1) / 7);
+
+    // Set up grid style
+    this.container.style.display = 'grid';
+    this.container.style.gridTemplateColumns = `repeat(${numWeeks}, 1fr)`;
+    this.container.style.gridTemplateRows = 'repeat(7, 1fr)';
+    this.container.style.gap = '3px';
+
     // Create all day cells
     let currentDate = new Date(this.currentYear, 0, 1);
 
-    // Adjust for first day of the year
-    for (let day = 0; day < daysInYear; day++) {
-      // Convert from JS day (0=Sunday) to European (0=Monday, 6=Sunday)
-      let dayOfWeek = (startDay + day) % 7;
-      const weekNumber = Math.floor((startDay + day) / 7) + 1;
+    for (let i = 0; i < daysInYear; i++) {
+      const dayOfWeek = currentDate.getDay(); // 0-6 (Sunday-Saturday)
+      const adjustedDayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0-6 (Monday-Sunday)
+
+      // Calculate week number (0-based)
+      const weekNum = Math.floor((i + startDayOfWeek - 1) / 7);
 
       const cell = document.createElement('div');
       cell.className = 'heatmap-cell activity-level-0';
-      cell.setAttribute('role', 'gridcell');
 
-      // Position in grid - add 1 to weekNumber for offset
-      cell.style.gridColumn = weekNumber + 1;
-      cell.style.gridRow = dayOfWeek + 1;
+      // Set position in grid
+      cell.style.gridRow = adjustedDayOfWeek + 1;
+      cell.style.gridColumn = weekNum + 1;
 
-      // Format date as YYYY-MM-DD for data attribute
+      // Style the cell
+      cell.style.width = '12px';
+      cell.style.height = '12px';
+      cell.style.borderRadius = '2px';
+      cell.style.backgroundColor = 'var(--activity-0, #ebedf0)';
+
+      // Store date data
       const dateStr = Utils.formatDate(currentDate);
       cell.dataset.date = dateStr;
 
-      // Add accessibility attributes
+      // Accessibility
+      cell.setAttribute('role', 'gridcell');
       cell.setAttribute('aria-label', `${dateStr}: No activity`);
-
-      // Add tooltip
       cell.title = dateStr;
 
-      // Increment date
-      currentDate.setDate(currentDate.getDate() + 1);
-
+      // Add to grid
       this.container.appendChild(cell);
+
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
     }
   }
 
@@ -270,31 +312,29 @@ class ActivityHeatmap {
    * @param {Object} data - Activity data object
    */
   updateHeatmap(data) {
-    console.log('Updating heatmap with data:', data);
-
     // Get all heatmap cells
     const cells = document.querySelectorAll('.heatmap-cell');
-    console.log(`Found ${cells.length} calendar cells`);
+
+    if (!cells.length) {
+      console.warn('No heatmap cells found to update');
+      return;
+    }
 
     // Reset all cells to level 0
     cells.forEach(cell => {
       cell.className = 'heatmap-cell activity-level-0';
+      cell.style.backgroundColor = 'var(--activity-0, #ebedf0)';
+      cell.style.border = 'none';
       const dateStr = cell.dataset.date;
       const displayDate = this.formatDateForDisplay(dateStr);
       cell.setAttribute('aria-label', `${displayDate}: No activity`);
       cell.title = `${displayDate}: No activity`;
     });
 
-    // Keep track of cells updated
-    let updatedCells = 0;
-    let scheduledCells = 0;
-    let activityCells = 0;
-
     // For each date in the data, update the corresponding cell
     Object.entries(data).forEach(([dateStr, activityData]) => {
       const cell = document.querySelector(`.heatmap-cell[data-date="${dateStr}"]`);
       if (!cell) {
-        console.log(`No cell found for date ${dateStr}`);
         return;
       }
 
@@ -308,21 +348,16 @@ class ActivityHeatmap {
         return;
       }
 
-      updatedCells++;
-
       // Format date for display
       const displayDate = this.formatDateForDisplay(dateStr);
 
-      console.log(`Updating cell for ${dateStr} - reviewed: ${reviewed}, scheduled: ${scheduled}`);
-
       // Set cell class based on status and count
       if (scheduled > 0) {
-        // Scheduled cards - reset all classes and apply ONLY scheduled class
-        cell.className = ''; // Remove all classes first
-        cell.classList.add('heatmap-cell');
-        cell.classList.add('activity-scheduled');
-        scheduledCells++;
-        console.log(`Cell ${dateStr} marked as scheduled with ${scheduled} cards`);
+        // Scheduled cards
+        cell.className = 'heatmap-cell activity-scheduled';
+        cell.style.backgroundColor = 'var(--activity-0, #ebedf0)';
+        cell.style.border = '2px dashed var(--color-primary, #0d6efd)';
+        cell.style.boxSizing = 'border-box';
       }
       else if (reviewed > 0) {
         // Completed cards - level based on count
@@ -334,8 +369,18 @@ class ActivityHeatmap {
         else if (reviewed >= 50) level = 5;
 
         cell.className = `heatmap-cell activity-level-${level}`;
-        activityCells++;
-        console.log(`Cell ${dateStr} marked as activity level ${level} with ${reviewed} cards`);
+
+        // Set color based on level
+        const colors = {
+          1: 'var(--activity-1, #9be9a8)',
+          2: 'var(--activity-2, #40c463)',
+          3: 'var(--activity-3, #30a14e)',
+          4: 'var(--activity-4, #216e39)',
+          5: 'var(--activity-5, #0d4e24)'
+        };
+
+        cell.style.backgroundColor = colors[level] || colors[1];
+        cell.style.border = 'none';
       }
 
       // Create tooltip text
@@ -361,8 +406,6 @@ class ActivityHeatmap {
       // Update tooltip
       cell.title = tooltipText;
     });
-
-    console.log(`Updated ${updatedCells} cells total (${activityCells} with activity, ${scheduledCells} with scheduled cards)`);
   }
 }
 
@@ -371,7 +414,9 @@ class ActivityHeatmap {
  * Handles the import functionality for decks
  */
 class DeckImporter {
-  constructor() {
+  constructor(languageManager) {
+    this.languageManager = languageManager;
+
     // Main import button
     this.importDeckBtn = document.getElementById('importDeckBtn');
 
@@ -381,10 +426,17 @@ class DeckImporter {
     this.wordsImportSection = document.getElementById('wordsImportSection');
     this.startImportBtn = document.getElementById('startImportBtn');
 
-    // Modals
-    this.importDeckModal = new bootstrap.Modal(document.getElementById('importDeckModal'));
-    this.importProgressModal = new bootstrap.Modal(document.getElementById('importProgressModal'));
-    this.importResultsModal = new bootstrap.Modal(document.getElementById('importResultsModal'));
+    // Modals - with error handling for missing bootstrap
+    try {
+      this.importDeckModal = new bootstrap.Modal(document.getElementById('importDeckModal'));
+      this.importProgressModal = new bootstrap.Modal(document.getElementById('importProgressModal'));
+      this.importResultsModal = new bootstrap.Modal(document.getElementById('importResultsModal'));
+    } catch (error) {
+      console.warn('Bootstrap not available or modal elements missing:', error);
+      this.importDeckModal = null;
+      this.importProgressModal = null;
+      this.importResultsModal = null;
+    }
 
     this.init();
   }
@@ -403,7 +455,7 @@ class DeckImporter {
     }
 
     // Open import modal
-    if (this.importDeckBtn) {
+    if (this.importDeckBtn && this.importDeckModal) {
       this.importDeckBtn.addEventListener('click', () => {
         this.importDeckModal.show();
       });
@@ -425,45 +477,67 @@ class DeckImporter {
   }
 
   /**
+   * Get translation using language manager
+   */
+  translate(key, defaultText) {
+    if (this.languageManager && typeof this.languageManager.translate === 'function') {
+      return this.languageManager.translate(key) || defaultText;
+    }
+    return defaultText;
+  }
+
+  /**
    * Handle start import button click
    */
   handleStartImport() {
-    const importType = this.importTypeSelect.value;
+    const importType = this.importTypeSelect ? this.importTypeSelect.value : 'file';
 
     // Validate input
     if (importType === 'file') {
       const deckFile = document.getElementById('deckFile');
-      const deckName = document.getElementById('deckNameInput').value;
+      const deckName = document.getElementById('deckNameInput') ? document.getElementById('deckNameInput').value : '';
 
-      if (!deckFile.files || deckFile.files.length === 0) {
-        this.showAlert('Please select a file to import');
+      if (!deckFile || !deckFile.files || deckFile.files.length === 0) {
+        this.showAlert(this.translate('pleaseSelectFile', 'Please select a file to import'));
         return;
       }
 
       if (!deckName) {
-        this.showAlert('Please enter a deck name');
+        this.showAlert(this.translate('pleaseEnterDeckName', 'Please enter a deck name'));
         return;
       }
 
       // Start file import
-      this.importDeckModal.hide();
+      if (this.importDeckModal) {
+        this.importDeckModal.hide();
+      }
       this.startFileImport(deckFile.files[0], deckName);
     } else {
-      const wordsList = document.getElementById('wordsList').value;
-      const deckName = document.getElementById('wordsImportDeckName').value;
+      const wordsListElement = document.getElementById('wordsList');
+      const deckNameElement = document.getElementById('wordsImportDeckName');
+
+      if (!wordsListElement || !deckNameElement) {
+        this.showAlert('Form elements not found');
+        return;
+      }
+
+      const wordsList = wordsListElement.value;
+      const deckName = deckNameElement.value;
 
       if (!wordsList) {
-        this.showAlert('Please enter words to import');
+        this.showAlert(this.translate('pleaseEnterWords', 'Please enter words to import'));
         return;
       }
 
       if (!deckName) {
-        this.showAlert('Please enter a deck name');
+        this.showAlert(this.translate('pleaseEnterDeckName', 'Please enter a deck name'));
         return;
       }
 
       // Start words import
-      this.importDeckModal.hide();
+      if (this.importDeckModal) {
+        this.importDeckModal.hide();
+      }
       this.startWordsImport(wordsList, deckName);
     }
   }
@@ -483,7 +557,9 @@ class DeckImporter {
    */
   async startFileImport(file, deckName) {
     // Show progress modal
-    this.importProgressModal.show();
+    if (this.importProgressModal) {
+      this.importProgressModal.show();
+    }
 
     try {
       // Create form data
@@ -498,32 +574,43 @@ class DeckImporter {
       });
 
       const data = await response.json();
-      this.importProgressModal.hide();
+
+      if (this.importProgressModal) {
+        this.importProgressModal.hide();
+      }
 
       // Show results
       if (data.success) {
+        const importCompleted = this.translate('importCompleted', 'Import completed successfully!');
         this.showImportResults(true, `
           <div class="alert alert-success">
-            <strong>Import completed successfully!</strong>
+            <strong>${importCompleted}</strong>
           </div>
           <p>Deck "${deckName}" has been created with ${data.imported_count} words.</p>
           <p>There were ${data.error_count} errors during import.</p>
         `);
       } else {
+        const importFailed = this.translate('importFailed', 'Import failed!');
         this.showImportResults(false, `
           <div class="alert alert-danger">
-            <strong>Import failed!</strong>
+            <strong>${importFailed}</strong>
           </div>
           <p>Error: ${data.error}</p>
         `);
       }
     } catch (error) {
-      this.importProgressModal.hide();
+      if (this.importProgressModal) {
+        this.importProgressModal.hide();
+      }
+
+      const importFailed = this.translate('importFailed', 'Import failed!');
+      const unexpectedError = this.translate('unexpectedError', 'An unexpected error occurred');
+
       this.showImportResults(false, `
         <div class="alert alert-danger">
-          <strong>Import failed!</strong>
+          <strong>${importFailed}</strong>
         </div>
-        <p>An unexpected error occurred: ${error.message}</p>
+        <p>${unexpectedError}: ${error.message}</p>
       `);
     }
   }
@@ -535,7 +622,9 @@ class DeckImporter {
    */
   async startWordsImport(wordsList, deckName) {
     // Show progress modal
-    this.importProgressModal.show();
+    if (this.importProgressModal) {
+      this.importProgressModal.show();
+    }
 
     try {
       // Parse words list
@@ -556,32 +645,43 @@ class DeckImporter {
       });
 
       const data = await response.json();
-      this.importProgressModal.hide();
+
+      if (this.importProgressModal) {
+        this.importProgressModal.hide();
+      }
 
       // Show results
       if (data.success) {
+        const importCompleted = this.translate('importCompleted', 'Import completed successfully!');
         this.showImportResults(true, `
           <div class="alert alert-success">
-            <strong>Import completed successfully!</strong>
+            <strong>${importCompleted}</strong>
           </div>
           <p>Deck "${deckName}" has been created with ${data.imported_count} words.</p>
           <p>There were ${data.error_count} errors during import.</p>
         `);
       } else {
+        const importFailed = this.translate('importFailed', 'Import failed!');
         this.showImportResults(false, `
           <div class="alert alert-danger">
-            <strong>Import failed!</strong>
+            <strong>${importFailed}</strong>
           </div>
           <p>Error: ${data.error}</p>
         `);
       }
     } catch (error) {
-      this.importProgressModal.hide();
+      if (this.importProgressModal) {
+        this.importProgressModal.hide();
+      }
+
+      const importFailed = this.translate('importFailed', 'Import failed!');
+      const unexpectedError = this.translate('unexpectedError', 'An unexpected error occurred');
+
       this.showImportResults(false, `
         <div class="alert alert-danger">
-          <strong>Import failed!</strong>
+          <strong>${importFailed}</strong>
         </div>
-        <p>An unexpected error occurred: ${error.message}</p>
+        <p>${unexpectedError}: ${error.message}</p>
       `);
     }
   }
@@ -596,7 +696,10 @@ class DeckImporter {
     if (resultsContent) {
       resultsContent.innerHTML = content;
     }
-    this.importResultsModal.show();
+
+    if (this.importResultsModal) {
+      this.importResultsModal.show();
+    }
   }
 }
 
@@ -643,19 +746,151 @@ class UIAnimator {
 }
 
 /**
+ * Fix column headers alignment
+ */
+function fixTableCellAlignment() {
+  // Add CSS class to fix layout
+  const style = document.createElement('style');
+  style.textContent = `
+    /* Table structure */
+    .decks-table {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+    
+    .decks-table__header {
+      display: table-header-group;
+    }
+    
+    .decks-table__header > div {
+      display: table-row;
+    }
+    
+    .decks-table [role="rowgroup"]:last-child {
+      display: table-row-group;
+    }
+    
+    .decks-table__row {
+      display: table-row;
+    }
+    
+    /* Cell alignment */
+    .decks-table__header [role="columnheader"],
+    .decks-table__row [role="cell"] {
+      display: table-cell;
+      text-align: center;
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
+    
+    /* Column widths */
+    .deck-name {
+      width: 70%;
+      text-align: left !important;
+    }
+    
+    .deck-new, .deck-studying, .deck-due {
+      width: 10%;
+      text-align: center !important;
+    }
+    
+    /* Force numeric alignment */
+    .decks-table__row .deck-new,
+    .decks-table__row .deck-studying,
+    .decks-table__row .deck-due {
+      text-align: center !important;
+    }
+    
+    /* Heatmap fixes */
+    .heatmap-cell {
+      width: 12px !important;
+      height: 12px !important;
+      border-radius: 2px !important;
+      transition: transform 0.2s !important;
+    }
+    
+    .heatmap-cell:hover {
+      transform: scale(1.5) !important;
+      z-index: 1 !important;
+    }
+    
+    /* Activity levels */
+    .activity-level-0 { background-color: #ebedf0 !important; }
+    .activity-level-1 { background-color: #9be9a8 !important; }
+    .activity-level-2 { background-color: #40c463 !important; }
+    .activity-level-3 { background-color: #30a14e !important; }
+    .activity-level-4 { background-color: #216e39 !important; }
+    .activity-level-5 { background-color: #0d4e24 !important; }
+    
+    .activity-scheduled {
+      background-color: #ebedf0 !important;
+      border: 2px dashed #0d6efd !important;
+      box-sizing: border-box !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Apply direct DOM fixes to ensure cell alignment
+  const cells = document.querySelectorAll('.decks-table__row [role="cell"]');
+  cells.forEach(cell => {
+    if (cell.classList.contains('deck-name')) {
+      cell.style.textAlign = 'left';
+      cell.style.width = '70%';
+    } else if (cell.classList.contains('deck-new') ||
+              cell.classList.contains('deck-studying') ||
+              cell.classList.contains('deck-due')) {
+      cell.style.textAlign = 'center';
+      cell.style.width = '10%';
+    }
+  });
+
+  // Fix header alignment
+  const headers = document.querySelectorAll('.decks-table__header [role="columnheader"]');
+  headers.forEach(header => {
+    if (header.classList.contains('deck-name')) {
+      header.style.textAlign = 'left';
+      header.style.width = '70%';
+    } else if (header.classList.contains('deck-new') ||
+              header.classList.contains('deck-studying') ||
+              header.classList.contains('deck-due')) {
+      header.style.textAlign = 'center';
+      header.style.width = '10%';
+    }
+  });
+
+  console.log('Table cell alignment fixed');
+}
+
+/**
  * App initialization
  * Main entry point for the application
  */
 const initApp = () => {
-  // Initialize all components
-  const heatmap = new ActivityHeatmap();
-  const importer = new DeckImporter();
-  const animator = new UIAnimator();
+  try {
+    // Fix table alignment first
+    fixTableCellAlignment();
 
-  // Start animations
-  animator.animateEntrance();
+    // Initialize language manager
+    const languageManager = new LanguageManager();
 
-  // App is now fully initialized
+    // Make language manager globally available
+    window.languageManager = languageManager;
+
+    // Initialize all components
+    const activityHeatmap = new ActivityHeatmap();
+    const importer = new DeckImporter(languageManager);
+    const animator = new UIAnimator();
+
+    // Start animations
+    animator.animateEntrance();
+
+    // App is now fully initialized
+    console.log('Application initialized with language: ' + languageManager.currentLang);
+  } catch (error) {
+    console.error('Error initializing application:', error);
+  }
 };
 
 // Initialize the app when DOM is loaded
@@ -665,5 +900,6 @@ document.addEventListener('DOMContentLoaded', initApp);
 export {
   ActivityHeatmap,
   DeckImporter,
-  UIAnimator
+  UIAnimator,
+  LanguageManager
 };

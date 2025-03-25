@@ -1,20 +1,37 @@
 /**
- * Modern Statistics Page Styles
- * Follows design system from dashboard
+ * Statistics Page Styles - Updated to match the main deck page
+ * Uses the same design system and variables
  */
 
+/* Use the same variables as main decks page */
 :root {
-  /* Status colors */
-  --color-new: #6c757d;
-  --color-studying: #0d6efd;
-  --color-mastered: #198754;
+  /* Color System */
+  --color-primary: #0d6efd;
+  --color-primary-dark: #0b5ed7;
+  --color-primary-light: #cfe2ff;
+  --color-secondary: #6c757d;
+  --color-success: #198754;
+  --color-danger: #dc3545;
+  --color-warning: #ffc107;
+  --color-info: #0dcaf0;
+  --color-light: #f8f9fa;
+  --color-dark: #212529;
+  --color-white: #ffffff;
+  --color-black: #000000;
 
-  /* Spacing variables */
-  --space-xs: 0.25rem;
-  --space-sm: 0.5rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
+  /* Status colors */
+  --color-new: var(--color-secondary);
+  --color-studying: var(--color-primary);
+  --color-due: var(--color-danger);
+  --color-mastered: var(--color-success);
+
+  /* Spacing scale (8px grid) */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.5rem;   /* 24px */
+  --space-6: 2rem;     /* 32px */
 
   /* Border radius */
   --radius-sm: 0.25rem;
@@ -22,83 +39,111 @@
   --radius-lg: 0.75rem;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
-
-  /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-medium: 0.3s ease;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Stats header */
-.stats-header {
+/* Stats header - match decks header style */
+.decks-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-5);
 }
 
-.stats-header__title {
+.decks-header__title {
   font-size: 2rem;
   font-weight: 700;
   margin: 0;
-  color: #212529;
+  color: var(--color-dark);
 }
 
-/* Overview stats */
+.decks-header__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Navigation tabs - match decks navigation */
+.decks-nav {
+  display: flex;
+  border-bottom: 1px solid var(--color-gray-300, #dee2e6);
+  margin-bottom: var(--space-5);
+}
+
+.decks-nav__item {
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: -1px;
+  font-weight: 500;
+  color: var(--color-secondary);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.decks-nav__item:hover {
+  color: var(--color-primary);
+}
+
+.decks-nav__item.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Stats overview cards - match deck card style */
 .stats-overview {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .stat-card {
-  background-color: #fff;
+  background-color: var(--color-white);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .stat-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
 .stat-card__body {
-  padding: var(--space-lg);
+  padding: var(--space-5);
   text-align: center;
 }
 
 .stat-card__label {
-  color: #6c757d;
+  color: var(--color-secondary);
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-2);
 }
 
 .stat-card__value {
   font-size: 2.5rem;
   font-weight: 700;
   line-height: 1.2;
-  color: #212529;
-  margin-bottom: var(--space-xs);
+  color: var(--color-dark);
+  margin-bottom: var(--space-1);
 }
 
 .stat-card__subtitle {
-  color: #6c757d;
+  color: var(--color-secondary);
   font-size: 0.875rem;
 }
 
-/* Charts layout */
+/* Charts layout - match stats layout */
 .stats-charts {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 @media (max-width: 991.98px) {
@@ -107,14 +152,14 @@
   }
 }
 
-/* Stats cards */
+/* Stats cards - match deck card style */
 .stats-card {
-  background-color: #fff;
+  background-color: var(--color-white);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: box-shadow var(--transition-medium);
-  margin-bottom: var(--space-md);
+  transition: box-shadow var(--transition-normal, 0.3s ease);
+  margin-bottom: var(--space-4);
 }
 
 .stats-card:hover {
@@ -125,20 +170,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid #e9ecef;
-  background-color: #f8f9fa;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-gray-200, #e9ecef);
+  background-color: var(--color-gray-100, #f8f9fa);
 }
 
 .stats-card__title {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
-  color: #212529;
+  color: var(--color-dark);
 }
 
 .stats-card__body {
-  padding: var(--space-lg);
+  padding: var(--space-5);
 }
 
 .stats-card--wide {
@@ -151,50 +196,70 @@
 
 /* Chart containers */
 .chart-container {
-  height: 300px;
-  width: 100%;
+  height: 300px !important;
+  width: 100% !important;
+  position: relative;
 }
 
-/* Activity table */
+/* Activity table - match deck table style */
 .table {
+  width: 100%;
   margin-bottom: 0;
 }
 
 .table th {
   font-weight: 600;
   font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6c757d;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-secondary);
+  background-color: var(--color-gray-100, #f8f9fa);
+  border-bottom: 1px solid var(--color-gray-200, #e9ecef);
 }
 
 .table td {
   vertical-align: middle;
-  padding: var(--space-md);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-gray-200, #e9ecef);
 }
 
-/* Empty state */
+.table tr:hover {
+  background-color: rgba(13, 110, 253, 0.04);
+}
+
+/* Empty state - match deck empty state */
 .empty-state {
   text-align: center;
-  padding: var(--space-xl) var(--space-md);
+  padding: var(--space-6) var(--space-5);
+  background-color: var(--color-white);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .empty-state__icon {
   font-size: 3rem;
-  color: #6c757d;
-  margin-bottom: var(--space-md);
+  color: var(--color-secondary);
+  margin-bottom: var(--space-4);
 }
 
 .empty-state__title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: var(--space-sm);
-  color: #212529;
+  font-size: var(--font-size-lg, 1.25rem);
+  font-weight: var(--font-weight-medium, 600);
+  margin-bottom: var(--space-2);
+  color: var(--color-dark);
 }
 
 .empty-state__text {
-  color: #6c757d;
-  margin-bottom: var(--space-md);
+  color: var(--color-secondary);
+  margin-bottom: var(--space-4);
+}
+
+/* Fix for Chart.js containers */
+canvas.chart-container {
+  height: 300px !important;
+  width: 100% !important;
 }
 
 /* Animations */
@@ -225,13 +290,13 @@
 
 /* Responsive adjustments */
 @media (max-width: 767.98px) {
-  .stats-header {
+  .decks-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .stats-header a {
-    margin-top: var(--space-sm);
+  .decks-header__actions {
+    margin-top: var(--space-2);
   }
 
   .stats-overview {
@@ -242,8 +307,8 @@
     font-size: 2rem;
   }
 
-  .chart-container {
-    height: 250px;
+  canvas.chart-container {
+    height: 250px !important;
   }
 }
 
@@ -258,7 +323,7 @@
   }
 
   .stats-card__actions {
-    margin-top: var(--space-sm);
+    margin-top: var(--space-2);
     width: 100%;
   }
 
