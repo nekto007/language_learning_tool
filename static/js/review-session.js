@@ -52,7 +52,6 @@ function addStyles() {
         .card { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
         .word-text { font-size: 2.5rem; font-weight: 600; color: #333; }
         #russianWord { font-size: 2rem; color: #e74c3c !important; font-weight: 500; }
-        #exampleContainer { background-color: #f8f9fa; border-left: 4px solid #6c757d; }
         #exampleText { color: #495057 !important; font-size: 1.1rem; line-height: 1.6; }
         .difficulty-btn { transition: transform 0.2s ease; min-width: 80px; border-radius: 8px; }
         .difficulty-btn:hover { transform: translateY(-3px); }
@@ -97,6 +96,7 @@ function applyTranslations() {
         showAnswerBtn.textContent = texts['showAnswer'];
     }
 
+    // Update front audio button
     const playAudioBtn = document.getElementById('playAudioBtn');
     if (playAudioBtn) {
         const icon = playAudioBtn.querySelector('i');
@@ -106,6 +106,19 @@ function applyTranslations() {
             playAudioBtn.appendChild(document.createTextNode(' ' + texts['listen']));
         } else {
             playAudioBtn.textContent = texts['listen'];
+        }
+    }
+
+    // Update back audio button
+    const playAudioBtnBack = document.getElementById('playAudioBtnBack');
+    if (playAudioBtnBack) {
+        const icon = playAudioBtnBack.querySelector('i');
+        if (icon) {
+            playAudioBtnBack.innerHTML = '';
+            playAudioBtnBack.appendChild(icon);
+            playAudioBtnBack.appendChild(document.createTextNode(' ' + texts['listen']));
+        } else {
+            playAudioBtnBack.textContent = texts['listen'];
         }
     }
 }
@@ -131,6 +144,21 @@ document.addEventListener('DOMContentLoaded', function() {
             processAnswer(difficulty);
         });
     });
+
+    // Set up audio button event listeners
+    const playAudioBtn = document.getElementById('playAudioBtn');
+    const playAudioBtnBack = document.getElementById('playAudioBtnBack');
+
+    if (playAudioBtn) {
+        playAudioBtn.addEventListener('click', playAudio);
+    }
+
+    if (playAudioBtnBack) {
+        playAudioBtnBack.addEventListener('click', playAudio);
+    }
+
+    // Pre-set audio to allow user interaction to trigger it later
+    audioElement.preload = 'auto';
 
     // Exit confirmation
     const exitBtn = document.getElementById('exitBtn');
@@ -353,10 +381,25 @@ function showCard(index) {
             cardBack.classList.remove('hiding');
         }, 150);
 
-        // Handle audio with auto-play
+        // Handle audio buttons - MODIFIED CODE
         const playAudioBtn = document.getElementById('playAudioBtn');
-        if (playAudioBtn && card.get_download === 1) {
-            playAudioBtn.style.display = 'inline-block';
+        const playAudioBtnBack = document.getElementById('playAudioBtnBack');
+
+        if ((playAudioBtn || playAudioBtnBack) && card.get_download === 1) {
+            // Display both audio buttons if audio is available
+            if (playAudioBtn) {
+                playAudioBtn.style.display = 'inline-block';
+                // Update button appearance to highlight it
+                playAudioBtn.classList.add('btn-primary');
+                playAudioBtn.classList.remove('btn-outline-primary');
+            }
+
+            if (playAudioBtnBack) {
+                playAudioBtnBack.style.display = 'inline-block';
+                // Update button appearance to highlight it
+                playAudioBtnBack.classList.add('btn-primary');
+                playAudioBtnBack.classList.remove('btn-outline-primary');
+            }
 
             // Clean the word for filename (lowercase, replace spaces with underscores)
             const cleanWord = card.english_word.toLowerCase().replace(/ /g, '_');
@@ -364,14 +407,14 @@ function showCard(index) {
             // Set up audio element
             audioElement.src = `/static/media/pronunciation_en_${cleanWord}.mp3`;
 
-            // Auto-play audio after a short delay
-            setTimeout(() => {
-                audioElement.play().catch(error => {
-                    console.error('Error auto-playing audio:', error);
-                });
-            }, 800);
-        } else if (playAudioBtn) {
-            playAudioBtn.style.display = 'none';
+            // Preload audio but don't auto-play
+            audioElement.load();
+
+            // Remove auto-play code
+        } else {
+            // Hide both audio buttons if no audio is available
+            if (playAudioBtn) playAudioBtn.style.display = 'none';
+            if (playAudioBtnBack) playAudioBtnBack.style.display = 'none';
         }
     }
 
@@ -420,92 +463,181 @@ function showAnswer() {
 /**
  * Play audio for current word
  */
-function playAudio() {
-    audioElement.play().catch(error => {
-        console.error('Error playing audio:', error);
-        // Show error message to user
-        const playAudioBtn = document.getElementById('playAudioBtn');
-        if (playAudioBtn) {
-            const originalText = playAudioBtn.innerHTML;
-            playAudioBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Audio Error';
-            playAudioBtn.classList.add('btn-outline-danger');
 
-            setTimeout(() => {
-                playAudioBtn.innerHTML = originalText;
-                playAudioBtn.classList.remove('btn-outline-danger');
-            }, 2000);
+let audioState = {
+    isPlaying: false,
+    buttonElement: null,
+    originalButtonText: '',
+    timer: null
+};
+
+
+function playAudio() {
+    // Если уже воспроизводится, просто остановим
+    if (audioState.isPlaying) {
+        audioElement.pause();
+        resetAudioButton();
+        return;
+    }
+
+    // Определение активной кнопки
+    const frontButton = document.getElementById('playAudioBtn');
+    const backButton = document.getElementById('playAudioBtnBack');
+    const activeButton = (frontButton && frontButton.offsetParent !== null) ? frontButton : backButton;
+
+    if (!activeButton) return;
+
+    // Сохраняем исходное состояние
+    audioState.buttonElement = activeButton;
+    audioState.originalButtonText = activeButton.innerHTML;
+    audioState.isPlaying = true;
+
+    // Показываем состояние загрузки
+    activeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    activeButton.disabled = true;
+
+    // Установка простого таймера безопасности
+    if (audioState.timer) clearTimeout(audioState.timer);
+    audioState.timer = setTimeout(resetAudioButton, 5000);
+
+    // Подготовка аудио элемента
+    audioElement.pause();
+
+    // Очистка всех старых обработчиков
+    audioElement.onloadeddata = null;
+    audioElement.onplay = null;
+    audioElement.onended = null;
+    audioElement.onpause = null;
+    audioElement.onerror = null;
+
+    // Устанавливаем новые обработчики
+    audioElement.onloadeddata = handleAudioLoaded;
+    audioElement.onplay = handleAudioPlay;
+    audioElement.onended = handleAudioEnded;
+    audioElement.onpause = handleAudioPause;
+    audioElement.onerror = handleAudioError;
+
+    // Попытка воспроизведения
+    try {
+        audioElement.currentTime = 0; // Сброс позиции
+        const playPromise = audioElement.play();
+
+        // Современные браузеры возвращают Promise
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    console.log("Audio playback started successfully");
+                })
+                .catch(error => {
+                    console.error("Audio playback failed:", error);
+                    handleAudioError(error);
+                });
         }
-    });
+    } catch (e) {
+        console.error("Exception during audio playback:", e);
+        handleAudioError(e);
+    }
 }
+
 
 /**
  * Process user's answer
  * @param {string} difficulty - The difficulty level ('again', 'hard', 'good', 'easy')
  */
-function processAnswer(difficulty) {
-    if (currentCardIndex >= cards.length) {
-        console.error('No current card to process');
-        return;
+function playAudio() {
+    // Получаем активную кнопку
+    const frontButton = document.getElementById('playAudioBtn');
+    const backButton = document.getElementById('playAudioBtnBack');
+    const activeButton = (frontButton && frontButton.offsetParent !== null) ? frontButton : backButton;
+
+    if (!activeButton) return;
+
+    // Сохраняем оригинальный текст
+    const originalText = activeButton.innerHTML;
+
+    // Показываем состояние загрузки
+    activeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    activeButton.disabled = true;
+
+    // Простой сброс кнопки через 3 секунды на случай любых проблем
+    setTimeout(() => {
+        activeButton.innerHTML = originalText;
+        activeButton.disabled = false;
+    }, 3000);
+
+    // Пробуем воспроизвести аудио
+    try {
+        audioElement.play()
+            .then(() => {
+                // Успешное воспроизведение
+                activeButton.innerHTML = '<i class="fas fa-volume-up"></i> Playing';
+            })
+            .catch(error => {
+                // Сбрасываем кнопку при ошибке
+                activeButton.innerHTML = originalText;
+                activeButton.disabled = false;
+                console.error('Audio playback error:', error);
+            });
+    } catch (e) {
+        // Сбрасываем кнопку при исключении
+        activeButton.innerHTML = originalText;
+        activeButton.disabled = false;
+        console.error('Exception during playback:', e);
     }
-
-    const currentCard = cards[currentCardIndex];
-
-    // Visual feedback for button click
-    const clickedButton = document.querySelector(`.difficulty-btn[data-difficulty="${difficulty}"]`);
-    if (clickedButton) {
-        clickedButton.classList.add('active-response');
-        setTimeout(() => {
-            clickedButton.classList.remove('active-response');
-        }, 200);
-    }
-
-    // Update session stats
-    sessionStats[difficulty]++;
-
-    // Mark this card as reviewed (unless it's "again")
-    if (difficulty !== 'again') {
-        reviewedCardIds.add(currentCard.id);
-    }
-
-    // If "again" is selected, add card to the review queue
-    if (difficulty === 'again') {
-        // Only add if not already in the "again" list
-        if (!againCardIds.has(currentCard.id)) {
-            // Clone the card to avoid reference issues
-            const cardToReview = {...currentCard};
-
-            // Add timestamp to determine when to show it again
-            cardToReview.reviewAfter = new Date(new Date().getTime() + AGAIN_DELAY_MINUTES * 60000);
-            cardsToReview.push(cardToReview);
-            againCardIds.add(currentCard.id);
-
-            console.log(`Card ${currentCard.english_word} marked for review in ${AGAIN_DELAY_MINUTES} minutes`);
-        }
-    }
-
-    // Call API to update card
-    fetch(`/srs/api/review/${currentCard.id}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ difficulty: difficulty }),
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.success) {
-            console.error('Error updating card:', data.error);
-        }
-
-        // Move to next card regardless of API success
-        goToNextCard();
-    })
-    .catch(error => {
-        console.error('Error calling API:', error);
-        // Move to next card even if there's an API error
-        goToNextCard();
-    });
 }
+
+// Очищаем все обработчики событий у аудио элемента
+audioElement.onloadeddata = null;
+audioElement.onplay = null;
+audioElement.onended = null;
+audioElement.onpause = null;
+audioElement.onerror = null;
+
+// Устанавливаем только самый необходимый обработчик
+audioElement.onended = function() {
+    // Находим активную кнопку при завершении воспроизведения
+    const frontButton = document.getElementById('playAudioBtn');
+    const backButton = document.getElementById('playAudioBtnBack');
+    const activeButton = (frontButton && frontButton.offsetParent !== null) ? frontButton : backButton;
+
+    if (activeButton) {
+        // Возвращаем исходный текст
+        if (activeButton.classList.contains('front-button')) {
+            activeButton.innerHTML = '<i class="fas fa-volume-up"></i> ' + (translations[getBrowserLanguage()] || translations['en'])['listen'];
+        } else {
+            activeButton.innerHTML = '<i class="fas fa-volume-up"></i> ' + (translations[getBrowserLanguage()] || translations['en'])['listen'];
+        }
+        activeButton.disabled = false;
+    }
+};
+
+// Очистим обработчики на кнопках и установим новые
+function setupAudioButtons() {
+    const frontButton = document.getElementById('playAudioBtn');
+    const backButton = document.getElementById('playAudioBtnBack');
+
+    if (frontButton) {
+        // Удаляем все предыдущие обработчики
+        const newFrontButton = frontButton.cloneNode(true);
+        newFrontButton.classList.add('front-button');
+        frontButton.parentNode.replaceChild(newFrontButton, frontButton);
+        newFrontButton.addEventListener('click', playAudio);
+    }
+
+    if (backButton) {
+        // Удаляем все предыдущие обработчики
+        const newBackButton = backButton.cloneNode(true);
+        newBackButton.classList.add('back-button');
+        backButton.parentNode.replaceChild(newBackButton, backButton);
+        newBackButton.addEventListener('click', playAudio);
+    }
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', setupAudioButtons);
+
+// Вызываем сразу же для текущей страницы
+setupAudioButtons();
 
 /**
  * Determine and show the next card

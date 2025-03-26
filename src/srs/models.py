@@ -1,12 +1,9 @@
 """
 Models for Spaced Repetition System using SQLAlchemy ORM.
 """
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Any
 import enum
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
 
@@ -15,7 +12,7 @@ class WordStatus(enum.IntEnum):
     """Enumeration for word learning status."""
     NEW = 0
     STUDYING = 3  # Active learning
-    STUDIED = 5   # Learned
+    STUDIED = 5  # Learned
 
     @classmethod
     def label(cls, status: int) -> str:
@@ -32,8 +29,364 @@ class WordStatus(enum.IntEnum):
 Models for Spaced Repetition System functionality.
 """
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import sqlite3
+
+
+class DeckSettings:
+    """Model for deck-specific SRS settings."""
+
+    def __init__(
+            self,
+            deck_id: int,
+            new_cards_per_day: int = 20,
+            reviews_per_day: int = 200,
+            learning_steps: str = "1m 10m",
+            graduating_interval: int = 1,
+            easy_interval: int = 4,
+            insertion_order: str = "sequential",
+            relearning_steps: str = "10m",
+            minimum_interval: int = 1,
+            lapse_threshold: int = 8,
+            lapse_action: str = "tag",
+            new_card_gathering: str = "deck",
+            new_card_order: str = "cardType",
+            new_review_mix: str = "mix",
+            inter_day_order: str = "mix",
+            review_order: str = "dueRandom",
+            bury_new_related: bool = False,
+            bury_reviews_related: bool = False,
+            bury_interday: bool = False,
+            max_answer_time: int = 60,
+            show_answer_timer: bool = True,
+            stop_timer_on_answer: bool = False,
+            seconds_show_question: float = 0.0,
+            seconds_show_answer: float = 0.0,
+            wait_for_audio: bool = False,
+            answer_action: str = "bury",
+            disable_auto_play: bool = False,
+            skip_question_audio: bool = False,
+            fsrs_enabled: bool = True,
+            max_interval: int = 36500,
+            starting_ease: float = 2.5,
+            easy_bonus: float = 1.3,
+            interval_modifier: float = 1.0,
+            hard_interval: float = 1.2,
+            new_interval: float = 0.0,
+            created_at=None,
+            updated_at=None,
+            settings_id: int = None,
+    ):
+        """Initialize a DeckSettings object with all SRS parameters."""
+        from datetime import datetime
+
+        self.id = settings_id
+        self.deck_id = deck_id
+        self.new_cards_per_day = new_cards_per_day
+        self.reviews_per_day = reviews_per_day
+        self.learning_steps = learning_steps
+        self.graduating_interval = graduating_interval
+        self.easy_interval = easy_interval
+        self.insertion_order = insertion_order
+        self.relearning_steps = relearning_steps
+        self.minimum_interval = minimum_interval
+        self.lapse_threshold = lapse_threshold
+        self.lapse_action = lapse_action
+        self.new_card_gathering = new_card_gathering
+        self.new_card_order = new_card_order
+        self.new_review_mix = new_review_mix
+        self.inter_day_order = inter_day_order
+        self.review_order = review_order
+        self.bury_new_related = bury_new_related
+        self.bury_reviews_related = bury_reviews_related
+        self.bury_interday = bury_interday
+        self.max_answer_time = max_answer_time
+        self.show_answer_timer = show_answer_timer
+        self.stop_timer_on_answer = stop_timer_on_answer
+        self.seconds_show_question = seconds_show_question
+        self.seconds_show_answer = seconds_show_answer
+        self.wait_for_audio = wait_for_audio
+        self.answer_action = answer_action
+        self.disable_auto_play = disable_auto_play
+        self.skip_question_audio = skip_question_audio
+        self.fsrs_enabled = fsrs_enabled
+        self.max_interval = max_interval
+        self.starting_ease = starting_ease
+        self.easy_bonus = easy_bonus
+        self.interval_modifier = interval_modifier
+        self.hard_interval = hard_interval
+        self.new_interval = new_interval
+        self.created_at = created_at or datetime.now()
+        self.updated_at = updated_at or datetime.now()
+
+    @staticmethod
+    def ensure_table_exists(db_connection):
+        """
+        Ensure that the deck_settings table exists in the database.
+
+        Args:
+            db_connection: SQLite database connection
+
+        Returns:
+            bool: True if table was created, False if it already existed
+        """
+        cursor = db_connection.cursor()
+
+        # Check if table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='deck_settings'")
+        if cursor.fetchone() is not None:
+            return False
+
+        # Create table if it doesn't exist
+        cursor.execute("""
+        CREATE TABLE deck_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deck_id INTEGER NOT NULL UNIQUE,
+            new_cards_per_day INTEGER DEFAULT 20,
+            reviews_per_day INTEGER DEFAULT 200,
+            learning_steps TEXT DEFAULT '1m 10m',
+            graduating_interval INTEGER DEFAULT 1,
+            easy_interval INTEGER DEFAULT 4,
+            insertion_order TEXT DEFAULT 'sequential',
+            relearning_steps TEXT DEFAULT '10m',
+            minimum_interval INTEGER DEFAULT 1,
+            lapse_threshold INTEGER DEFAULT 8,
+            lapse_action TEXT DEFAULT 'tag',
+            new_card_gathering TEXT DEFAULT 'deck',
+            new_card_order TEXT DEFAULT 'cardType',
+            new_review_mix TEXT DEFAULT 'mix',
+            inter_day_order TEXT DEFAULT 'mix',
+            review_order TEXT DEFAULT 'dueRandom',
+            bury_new_related INTEGER DEFAULT 0,
+            bury_reviews_related INTEGER DEFAULT 0,
+            bury_interday INTEGER DEFAULT 0,
+            max_answer_time INTEGER DEFAULT 60,
+            show_answer_timer INTEGER DEFAULT 1,
+            stop_timer_on_answer INTEGER DEFAULT 0,
+            seconds_show_question REAL DEFAULT 0.0,
+            seconds_show_answer REAL DEFAULT 0.0,
+            wait_for_audio INTEGER DEFAULT 0,
+            answer_action TEXT DEFAULT 'bury',
+            disable_auto_play INTEGER DEFAULT 0,
+            skip_question_audio INTEGER DEFAULT 0,
+            fsrs_enabled INTEGER DEFAULT 1,
+            max_interval INTEGER DEFAULT 36500,
+            starting_ease REAL DEFAULT 2.5,
+            easy_bonus REAL DEFAULT 1.3,
+            interval_modifier REAL DEFAULT 1.0,
+            hard_interval REAL DEFAULT 1.2,
+            new_interval REAL DEFAULT 0.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (deck_id) REFERENCES deck(id) ON DELETE CASCADE
+        )
+        """)
+
+        # Create index for faster lookups
+        cursor.execute("CREATE INDEX idx_deck_settings_deck_id ON deck_settings(deck_id)")
+
+        db_connection.commit()
+        return True
+
+    @classmethod
+    def get_or_create(cls, db_connection, deck_id):
+        """
+        Get or create deck settings for a specific deck.
+
+        Args:
+            db_connection: SQLite database connection
+            deck_id: ID of the deck
+
+        Returns:
+            DeckSettings: The retrieved or created settings
+        """
+        from datetime import datetime
+
+        cursor = db_connection.cursor()
+
+        # Ensure table exists
+        cls.ensure_table_exists(db_connection)
+
+        # Try to get existing settings
+        cursor.execute(
+            "SELECT * FROM deck_settings WHERE deck_id = ?",
+            (deck_id,)
+        )
+
+        result = cursor.fetchone()
+        if result:
+            # Return existing settings
+            settings_dict = {}
+            for idx, col in enumerate(cursor.description):
+                settings_dict[col[0]] = result[idx]
+
+            # Convert integer boolean fields back to booleans
+            boolean_fields = ['bury_new_related', 'bury_reviews_related', 'bury_interday',
+                              'show_answer_timer', 'stop_timer_on_answer', 'wait_for_audio',
+                              'disable_auto_play', 'skip_question_audio', 'fsrs_enabled']
+
+            for field in boolean_fields:
+                if field in settings_dict:
+                    settings_dict[field] = bool(settings_dict[field])
+
+            # Handle created_at and updated_at
+            created_at = datetime.fromisoformat(settings_dict.get('created_at')) if settings_dict.get(
+                'created_at') else None
+            updated_at = datetime.fromisoformat(settings_dict.get('updated_at')) if settings_dict.get(
+                'updated_at') else None
+
+            # Remove database fields that aren't in constructor
+            settings_id = settings_dict.pop('id', None)
+            settings_dict.pop('created_at', None)
+            settings_dict.pop('updated_at', None)
+
+            return cls(
+                deck_id=deck_id,
+                created_at=created_at,
+                updated_at=updated_at,
+                settings_id=settings_id,
+                **settings_dict
+            )
+        else:
+            # Create new settings with defaults
+            settings = cls(deck_id=deck_id)
+            settings.save(db_connection)
+            return settings
+
+    def save(self, db_connection):
+        """
+        Save settings to the database.
+
+        Args:
+            db_connection: SQLite database connection
+        """
+        from datetime import datetime
+
+        cursor = db_connection.cursor()
+
+        # Ensure table exists
+        self.ensure_table_exists(db_connection)
+
+        # Prepare data
+        data = self.to_dict()
+
+        if self.id:
+            # Update existing settings
+            columns = []
+            values = []
+
+            for key, value in data.items():
+                if key != 'id' and key != 'deck_id':
+                    if isinstance(value, bool):
+                        value = 1 if value else 0
+                    columns.append(f"{key} = ?")
+                    values.append(value)
+
+            values.append(self.id)
+
+            cursor.execute(
+                f"UPDATE deck_settings SET {', '.join(columns)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                tuple(values)
+            )
+        else:
+            # Insert new settings
+            keys = []
+            placeholders = []
+            values = []
+
+            for key, value in data.items():
+                if key != 'id':
+                    keys.append(key)
+                    placeholders.append('?')
+                    # Convert boolean to integer
+                    if isinstance(value, bool):
+                        value = 1 if value else 0
+                    values.append(value)
+
+            cursor.execute(
+                f"INSERT INTO deck_settings ({', '.join(keys)}) VALUES ({', '.join(placeholders)})",
+                tuple(values)
+            )
+
+            self.id = cursor.lastrowid
+            self.updated_at = datetime.now()
+
+        db_connection.commit()
+
+    def to_dict(self):
+        """
+        Convert DeckSettings object to a dictionary.
+
+        Returns:
+            Dict: Dictionary with settings data
+        """
+        result = {
+            'deck_id': self.deck_id,
+            'new_cards_per_day': self.new_cards_per_day,
+            'reviews_per_day': self.reviews_per_day,
+            'learning_steps': self.learning_steps,
+            'graduating_interval': self.graduating_interval,
+            'easy_interval': self.easy_interval,
+            'insertion_order': self.insertion_order,
+            'relearning_steps': self.relearning_steps,
+            'minimum_interval': self.minimum_interval,
+            'lapse_threshold': self.lapse_threshold,
+            'lapse_action': self.lapse_action,
+            'new_card_gathering': self.new_card_gathering,
+            'new_card_order': self.new_card_order,
+            'new_review_mix': self.new_review_mix,
+            'inter_day_order': self.inter_day_order,
+            'review_order': self.review_order,
+            'bury_new_related': self.bury_new_related,
+            'bury_reviews_related': self.bury_reviews_related,
+            'bury_interday': self.bury_interday,
+            'max_answer_time': self.max_answer_time,
+            'show_answer_timer': self.show_answer_timer,
+            'stop_timer_on_answer': self.stop_timer_on_answer,
+            'seconds_show_question': self.seconds_show_question,
+            'seconds_show_answer': self.seconds_show_answer,
+            'wait_for_audio': self.wait_for_audio,
+            'answer_action': self.answer_action,
+            'disable_auto_play': self.disable_auto_play,
+            'skip_question_audio': self.skip_question_audio,
+            'fsrs_enabled': self.fsrs_enabled,
+            'max_interval': self.max_interval,
+            'starting_ease': self.starting_ease,
+            'easy_bonus': self.easy_bonus,
+            'interval_modifier': self.interval_modifier,
+            'hard_interval': self.hard_interval,
+            'new_interval': self.new_interval
+        }
+
+        if self.id is not None:
+            result['id'] = self.id
+
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DeckSettings':
+        """
+        Create a DeckSettings object from a dictionary.
+
+        Args:
+            data: Dictionary with settings data
+
+        Returns:
+            DeckSettings: Created object
+        """
+        deck_id = data.pop('deck_id')
+        settings_id = data.pop('id', None)
+
+        # Convert integer boolean fields back to booleans
+        boolean_fields = ['bury_new_related', 'bury_reviews_related', 'bury_interday',
+                          'show_answer_timer', 'stop_timer_on_answer', 'wait_for_audio',
+                          'disable_auto_play', 'skip_question_audio', 'fsrs_enabled']
+
+        for field in boolean_fields:
+            if field in data:
+                data[field] = bool(data[field])
+
+        return cls(deck_id=deck_id, settings_id=settings_id, **data)
 
 
 class Deck:

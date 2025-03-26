@@ -42,6 +42,16 @@
   --text-muted: #6c757d;
   --border-color: #dee2e6;
 
+  --dropdown-bg: #ffffff;
+  --dropdown-text: #212529;
+  --dropdown-border: rgba(0, 0, 0, 0.15);
+  --dropdown-hover-bg: #f8f9fa;
+  --dropdown-hover-text: #16181b;
+  --dropdown-divider: #e9ecef;
+  --dropdown-active-bg: #0d6efd;
+  --dropdown-active-text: #ffffff;
+
+
   /* Status Colors */
   --status-new: #6c757d;
   --status-available: #28a745;

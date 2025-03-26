@@ -230,8 +230,57 @@ def initialize_database(db_path: str) -> bool:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_history_user ON card_review_history(user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_review_history_date ON card_review_history(review_date)")
 
-        # Set schema version
-        cursor.execute("PRAGMA user_version = 3")
+        # 11. Create deck_settings table
+        logger.info("Creating deck_settings table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deck_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                deck_id INTEGER NOT NULL UNIQUE,
+                new_cards_per_day INTEGER DEFAULT 20,
+                reviews_per_day INTEGER DEFAULT 200,
+                learning_steps TEXT DEFAULT '1m 10m',
+                graduating_interval INTEGER DEFAULT 1,
+                easy_interval INTEGER DEFAULT 4,
+                insertion_order TEXT DEFAULT 'sequential',
+                relearning_steps TEXT DEFAULT '10m',
+                minimum_interval INTEGER DEFAULT 1,
+                lapse_threshold INTEGER DEFAULT 8,
+                lapse_action TEXT DEFAULT 'tag',
+                new_card_gathering TEXT DEFAULT 'deck',
+                new_card_order TEXT DEFAULT 'cardType',
+                new_review_mix TEXT DEFAULT 'mix',
+                inter_day_order TEXT DEFAULT 'mix',
+                review_order TEXT DEFAULT 'dueRandom',
+                bury_new_related INTEGER DEFAULT 0,
+                bury_reviews_related INTEGER DEFAULT 0,
+                bury_interday INTEGER DEFAULT 0,
+                max_answer_time INTEGER DEFAULT 60,
+                show_answer_timer INTEGER DEFAULT 1,
+                stop_timer_on_answer INTEGER DEFAULT 0,
+                seconds_show_question REAL DEFAULT 0.0,
+                seconds_show_answer REAL DEFAULT 0.0,
+                wait_for_audio INTEGER DEFAULT 0,
+                answer_action TEXT DEFAULT 'bury',
+                disable_auto_play INTEGER DEFAULT 0,
+                skip_question_audio INTEGER DEFAULT 0,
+                fsrs_enabled INTEGER DEFAULT 1,
+                max_interval INTEGER DEFAULT 36500,
+                starting_ease REAL DEFAULT 2.5,
+                easy_bonus REAL DEFAULT 1.3,
+                interval_modifier REAL DEFAULT 1.0,
+                hard_interval REAL DEFAULT 1.2,
+                new_interval REAL DEFAULT 0.0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (deck_id) REFERENCES deck(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Create index for deck_settings
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_deck_settings_deck_id ON deck_settings(deck_id)")
+
+        # Set schema version (incremented to 4 for the new table)
+        cursor.execute("PRAGMA user_version = 4")
 
         # Commit transaction
         conn.commit()
@@ -305,15 +354,92 @@ def create_main_deck_if_needed(db_path: str, user_id: int = 1) -> bool:
             """, (user_id, "Main Deck", "Default deck for all new words"))
 
             deck_id = cursor.lastrowid
+
+            # Create default settings for this deck
+            cursor.execute("""
+                INSERT INTO deck_settings (deck_id) VALUES (?)
+            """, (deck_id,))
+
             conn.commit()
             logger.info(f"Created Main Deck with ID {deck_id} for user {user_id}")
             return True
         else:
+            # Check if settings exist for this deck
+            deck_id = deck[0]
+            cursor.execute("SELECT id FROM deck_settings WHERE deck_id = ?", (deck_id,))
+            settings = cursor.fetchone()
+
+            if not settings:
+                # Create default settings if they don't exist
+                cursor.execute("""
+                    INSERT INTO deck_settings (deck_id) VALUES (?)
+                """, (deck_id,))
+                conn.commit()
+                logger.info(f"Created default settings for existing Main Deck {deck_id}")
+
             logger.info(f"Main Deck already exists for user {user_id}")
             return True
 
     except Exception as e:
         logger.error(f"Error creating Main Deck: {e}")
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+
+def create_default_settings_for_existing_decks(db_path: str) -> bool:
+    """
+    Create default settings for all existing decks that don't have settings.
+
+    Args:
+        db_path: Path to the SQLite database file
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    conn = None
+    try:
+        # Connect to database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Check if deck_settings table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='deck_settings'")
+        if not cursor.fetchone():
+            logger.warning("deck_settings table doesn't exist. Run initialize_database first.")
+            return False
+
+        # Get all decks that don't have settings
+        cursor.execute("""
+            SELECT d.id FROM deck d 
+            LEFT JOIN deck_settings ds ON d.id = ds.deck_id 
+            WHERE ds.id IS NULL
+        """)
+
+        decks_without_settings = cursor.fetchall()
+
+        if not decks_without_settings:
+            logger.info("All decks already have settings")
+            return True
+
+        # Create default settings for each deck
+        for deck_row in decks_without_settings:
+            deck_id = deck_row[0]
+            cursor.execute("""
+                INSERT INTO deck_settings (deck_id) VALUES (?)
+            """, (deck_id,))
+            logger.info(f"Created default settings for deck {deck_id}")
+
+        conn.commit()
+        logger.info(f"Created default settings for {len(decks_without_settings)} decks")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error creating default settings: {e}")
         if conn:
             conn.rollback()
         return False
@@ -340,6 +466,12 @@ if __name__ == "__main__":
             print("Main Deck created or already exists for default user")
         else:
             print("Failed to create Main Deck")
+
+        # Create default settings for all existing decks
+        if create_default_settings_for_existing_decks(db_file):
+            print("Default settings created for all existing decks")
+        else:
+            print("Failed to create default settings for existing decks")
 
         sys.exit(0)
     else:

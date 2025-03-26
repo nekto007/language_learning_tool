@@ -16,7 +16,7 @@
           <div class="back-link-container">
             <a href="{{ url_for('srs.decks_list') }}" class="back-link">
               <i class="bi bi-arrow-left"></i>
-              <span>Back to Decks</span>
+              <span data-i18n="backToDecks">Back to Decks</span>
             </a>
           </div>
           <h1 class="deck-title">{{ deck.name }}</h1>
@@ -24,29 +24,31 @@
           <p class="deck-description">{{ deck.description }}</p>
           {% endif %}
         </div>
-
-        <div class="header-actions">
+      </div>
+            <!-- Moved header actions to a separate row for better alignment -->
+      <div class="header-actions-row mt-3">
+        <div class="d-flex justify-content-between align-items-center">
           <button type="button" class="btn-primary add-words-btn" data-bs-toggle="modal" data-bs-target="#addWordModal">
             <i class="bi bi-plus-lg"></i>
-            <span>Add Words</span>
+            <span data-i18n="addWords">Add Words</span>
           </button>
 
           <div class="dropdown actions-dropdown">
             <button class="btn-secondary dropdown-toggle" type="button" id="actionMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-three-dots-vertical"></i>
-              <span class="d-none d-md-inline">Actions</span>
+              <span class="d-none d-md-inline" data-i18n="actions">Actions</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionMenuButton">
               <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editDeckModal">
-                  <i class="bi bi-pencil me-2"></i> Edit Deck
+                  <i class="bi bi-pencil me-2"></i> <span data-i18n="editDeck">Edit Deck</span>
               </a></li>
               <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deckSettingsModal">
-                  <i class="bi bi-gear me-2"></i> Deck Settings
+                  <i class="bi bi-gear me-2"></i> <span data-i18n="deckSettings">Deck Settings</span>
               </a></li>
               {% if deck.name != "Main Deck" %}
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteDeckModal">
-                  <i class="bi bi-trash me-2"></i> Delete Deck
+                  <i class="bi bi-trash me-2"></i> <span data-i18n="deleteDeck">Delete Deck</span>
               </a></li>
               {% endif %}
             </ul>
@@ -61,37 +63,48 @@
     <section class="deck-study-progress mb-4" aria-labelledby="study-progress-title">
       <div class="card shadow-sm">
         <div class="card-body text-center">
-          <h2 class="card-title h5 mb-3" id="study-progress-title">Cards to Study</h2>
+          <h2 class="card-title h5 mb-3" id="study-progress-title" data-i18n="cardsToStudy">Карточки для изучения</h2>
 
           <!-- Card Counter Display -->
           <div class="card-counter-container">
-            <a href="{{ url_for('srs.deck_detail', deck_id=deck.id, filter='new') }}" class="counter-wrapper">
+            <div class="counter-wrapper">
               <div class="counter counter-new">{{ card_counts.new }}</div>
-              <div class="counter-label">New</div>
-            </a>
+              <div class="counter-label" data-i18n="new">НОВЫЕ</div>
+            </div>
             <span class="counter-separator">+</span>
-            <a href="{{ url_for('srs.deck_detail', deck_id=deck.id, filter='learning') }}" class="counter-wrapper">
+            <div class="counter-wrapper">
               <div class="counter counter-learning">{{ card_counts.learning }}</div>
-              <div class="counter-label">Learning</div>
-            </a>
+              <div class="counter-label" data-i18n="learning">ИЗУЧАЕМЫЕ</div>
+            </div>
             <span class="counter-separator">+</span>
-            <a href="{{ url_for('srs.deck_detail', deck_id=deck.id, filter='review') }}" class="counter-wrapper">
+            <div class="counter-wrapper">
               <div class="counter counter-review">{{ card_counts.review }}</div>
-              <div class="counter-label">Review</div>
-            </a>
+              <div class="counter-label" data-i18n="review">ПОВТОРЕНИЕ</div>
+            </div>
           </div>
 
-          <!-- Study Button -->
           {% if card_counts.new > 0 or card_counts.learning > 0 or card_counts.review > 0 %}
+          <!-- Показываем кнопку начать повторение, если есть карточки -->
           <div class="mt-4">
             <a href="{{ url_for('srs.start_review', deck_id=deck.id) }}" class="btn btn-primary start-review-btn">
-              <i class="bi bi-play-fill me-2"></i> Start Review
+              <i class="bi bi-play-fill me-2"></i> <span data-i18n="startReview">Начать повторение</span>
             </a>
           </div>
           {% else %}
-          <div class="alert alert-info mt-4" role="alert">
-            <i class="bi bi-info-circle me-2"></i>
-            No cards available for review at this time.
+          <!-- Показываем сообщение, что нечего изучать сегодня -->
+          <div class="no-cards-message mt-4">
+            <div class="no-cards-icon">
+              <i class="bi bi-calendar-check"></i>
+            </div>
+            <h3 class="no-cards-title" data-i18n="nothingToStudy">Сегодня нечего изучать</h3>
+            <p class="no-cards-text" data-i18n="noCardsToday">
+              На сегодня нет запланированных карточек для изучения.
+            </p>
+            <div class="mt-3 text-center">
+              <a href="{{ url_for('srs.start_extra_session', deck_id=deck.id) }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-play-fill me-1"></i> <span data-i18n="extraSession">Начать допзанятие</span>
+              </a>
+            </div>
           </div>
           {% endif %}
         </div>
@@ -102,10 +115,10 @@
     <section class="deck-cards mb-4" aria-labelledby="cards-list-title">
       <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h2 class="h5 mb-0" id="cards-list-title">Words in Deck</h2>
+          <h2 class="h5 mb-0" id="cards-list-title" data-i18n="wordsInDeck">Words in Deck</h2>
 
           <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWordModal">
-            <i class="bi bi-plus-lg me-1"></i> Add Words
+            <i class="bi bi-plus-lg me-1"></i> <span data-i18n="addWords">Add Words</span>
           </button>
         </div>
         <div class="card-body p-0">
@@ -114,12 +127,12 @@
             <table class="table table-hover mb-0">
               <thead class="table-light">
                 <tr>
-                  <th>Word</th>
-                  <th>Translation</th>
-                  <th class="text-center">Interval</th>
-                  <th class="text-center">Repetitions</th>
-                  <th class="text-center">Next Review</th>
-                  <th class="text-center">Actions</th>
+                  <th data-i18n="word">Word</th>
+                  <th data-i18n="translation">Translation</th>
+                  <th class="text-center" data-i18n="interval">Interval</th>
+                  <th class="text-center" data-i18n="repetitions">Repetitions</th>
+                  <th class="text-center" data-i18n="nextReview">Next Review</th>
+                  <th class="text-center" data-i18n="actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,21 +147,21 @@
                   <td>{{ word.get('russian_word', '') }}</td>
                   <td class="text-center">
                     {% if card.interval == 0 %}
-                    <span class="badge bg-info">New</span>
+                    <span class="badge bg-info" data-i18n="new">New</span>
                     {% else %}
-                    {{ card.interval }} {% if card.interval == 1 %}day{% else %}days{% endif %}
+                    {{ card.interval }} {% if card.interval == 1 %}<span data-i18n="day">day</span>{% else %}<span data-i18n="days">days</span>{% endif %}
                     {% endif %}
                   </td>
                   <td class="text-center">
                     {{ card.repetitions }}
                     {% if card.repetitions >= 7 %}
-                    <i class="bi bi-check-circle-fill text-success ms-1" title="Mastered"></i>
+                    <i class="bi bi-check-circle-fill text-success ms-1" title="{{ translate('mastered') }}"></i>
                     {% endif %}
                   </td>
                   <td class="text-center">
                     {% if card.next_review_date %}
                     {% if card.next_review_date <= today %}
-                    <span class="badge bg-primary">Today</span>
+                    <span class="badge bg-primary" data-i18n="today">Today</span>
                     {% else %}
                     {{ card.next_review_date.strftime('%d %b %Y') }}
                     {% endif %}
@@ -158,21 +171,21 @@
                   </td>
                   <td class="text-center">
                     <div class="dropdown card-actions-dropdown">
-                      <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                      <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-i18n="actions">
                         Actions
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end">
                         <li><button class="dropdown-item move-card-btn" data-card-id="{{ card.id }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Move Card
+                            <i class="bi bi-arrow-left-right me-2"></i> <span data-i18n="moveCard">Move Card</span>
                           </button></li>
                         <li><button class="dropdown-item reset-card-btn" data-card-id="{{ card.id }}">
-                            <i class="bi bi-arrow-counterclockwise me-2"></i> Reset Progress
+                            <i class="bi bi-arrow-counterclockwise me-2"></i> <span data-i18n="resetProgress">Reset Progress</span>
                           </button></li>
                         <li>
                           <hr class="dropdown-divider">
                         </li>
                         <li><button class="dropdown-item text-danger remove-card-btn" data-card-id="{{ card.id }}">
-                            <i class="bi bi-x-lg me-2"></i> Remove from Deck
+                            <i class="bi bi-x-lg me-2"></i> <span data-i18n="removeFromDeck">Remove from Deck</span>
                           </button></li>
                       </ul>
                     </div>
@@ -187,10 +200,10 @@
             <div class="empty-state-icon">
               <i class="bi bi-card-text"></i>
             </div>
-            <h3 class="empty-state-title">There are no words in this deck yet</h3>
-            <p class="empty-state-description">Add words to begin studying with this deck</p>
+            <h3 class="empty-state-title" data-i18n="noWordsInDeck">There are no words in this deck yet</h3>
+            <p class="empty-state-description" data-i18n="addWordsToBegin">Add words to begin studying with this deck</p>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWordModal">
-              <i class="bi bi-plus-lg me-2"></i> Add Words
+              <i class="bi bi-plus-lg me-2"></i> <span data-i18n="addWords">Add Words</span>
             </button>
           </div>
           {% endif %}
@@ -205,25 +218,25 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title h5" id="addWordModalLabel">Add Words to Deck</h3>
+                <h3 class="modal-title h5" id="addWordModalLabel" data-i18n="addWordsToDeck">Add Words to Deck</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Select word status to add:</p>
+                <p data-i18n="selectWordStatus">Select word status to add:</p>
 
                 <div class="mb-3">
                     <select class="form-select" id="wordStatusSelect">
-                        <option value="0" selected>New Words</option>
-                        <option value="2">Queued Words</option>
-                        <option value="3">Active Words</option>
-                        <option value="4">Learned Words</option>
+                        <option value="0" selected data-i18n="newWords">New Words</option>
+                        <option value="2" data-i18n="queuedWords">Queued Words</option>
+                        <option value="3" data-i18n="activeWords">Active Words</option>
+                        <option value="4" data-i18n="learnedWords">Learned Words</option>
                     </select>
                 </div>
 
                 <div class="mb-3">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control" id="wordSearchInput" placeholder="Search by word or translation...">
+                        <input type="text" class="form-control" id="wordSearchInput" placeholder="Search by word or translation..." data-i18n-placeholder="searchWordPlaceholder">
                     </div>
                 </div>
 
@@ -236,8 +249,8 @@
                                         <input class="form-check-input" type="checkbox" id="selectAllWords">
                                     </div>
                                 </th>
-                                <th>Word</th>
-                                <th>Translation</th>
+                                <th data-i18n="word">Word</th>
+                                <th data-i18n="translation">Translation</th>
                             </tr>
                         </thead>
                         <tbody id="wordsList">
@@ -247,7 +260,7 @@
                                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
-                                    <span class="ms-2">Loading words...</span>
+                                    <span class="ms-2" data-i18n="loadingWords">Loading words...</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -255,9 +268,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-primary" id="addSelectedWordsBtn">
-                    <i class="bi bi-plus-lg me-1"></i> Add Selected
+                    <i class="bi bi-plus-lg me-1"></i> <span data-i18n="addSelected">Add Selected</span>
                 </button>
             </div>
         </div>
@@ -269,25 +282,25 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title h5" id="editDeckModalLabel">Edit Deck</h3>
+                <h3 class="modal-title h5" id="editDeckModalLabel" data-i18n="editDeck">Edit Deck</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="editDeckForm">
                     <div class="mb-3">
-                        <label for="deckNameInput" class="form-label">Deck Name</label>
+                        <label for="deckNameInput" class="form-label" data-i18n="deckName">Deck Name</label>
                         <input type="text" class="form-control" id="deckNameInput" value="{{ deck.name }}" required>
                     </div>
                     <div class="mb-3">
-                        <label for="deckDescriptionInput" class="form-label">Description</label>
-                        <textarea class="form-control" id="deckDescriptionInput" rows="3" placeholder="Enter deck description">{{ deck.description or '' }}</textarea>
+                        <label for="deckDescriptionInput" class="form-label" data-i18n="description">Description</label>
+                        <textarea class="form-control" id="deckDescriptionInput" rows="3" placeholder="Enter deck description" data-i18n-placeholder="enterDeckDescription">{{ deck.description or '' }}</textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-primary" id="saveDeckBtn">
-                    <i class="bi bi-save me-1"></i> Save Changes
+                    <i class="bi bi-save me-1"></i> <span data-i18n="saveChanges">Save Changes</span>
                 </button>
             </div>
         </div>
@@ -299,21 +312,21 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title h5" id="deleteDeckModalLabel">Delete Deck</h3>
+                <h3 class="modal-title h5" id="deleteDeckModalLabel" data-i18n="deleteDeck">Delete Deck</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    <strong>Warning:</strong> This action cannot be undone.
+                    <strong data-i18n="warning">Warning:</strong> <span data-i18n="actionCannotBeUndone">This action cannot be undone.</span>
                 </div>
-                <p>Are you sure you want to delete the deck <strong>{{ deck.name }}</strong>?</p>
-                <p>All cards in this deck will be removed.</p>
+                <p><span data-i18n="areYouSureDelete">Are you sure you want to delete the deck</span> <strong>{{ deck.name }}</strong>?</p>
+                <p data-i18n="allCardsRemoved">All cards in this deck will be removed.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-danger" id="confirmDeleteDeckBtn">
-                    <i class="bi bi-trash me-1"></i> Delete
+                    <i class="bi bi-trash me-1"></i> <span data-i18n="delete">Delete</span>
                 </button>
             </div>
         </div>
@@ -325,22 +338,22 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title h5" id="moveCardModalLabel">Move Card</h3>
+                <h3 class="modal-title h5" id="moveCardModalLabel" data-i18n="moveCard">Move Card</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Select the target deck to move this card to:</p>
+                <p data-i18n="selectTargetDeck">Select the target deck to move this card to:</p>
                 <div class="mb-3">
                     <select class="form-select" id="targetDeckSelect">
                         <!-- Decks will be loaded here via JavaScript -->
-                        <option value="" disabled selected>Loading decks...</option>
+                        <option value="" disabled selected data-i18n="loadingDecks">Loading decks...</option>
                     </select>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-primary" id="confirmMoveCardBtn">
-                    <i class="bi bi-arrow-left-right me-1"></i> Move Card
+                    <i class="bi bi-arrow-left-right me-1"></i> <span data-i18n="moveCard">Move Card</span>
                 </button>
             </div>
         </div>
@@ -352,31 +365,31 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title h5" id="deckSettingsModalLabel">Настройки колоды</h3>
+                <h3 class="modal-title h5" id="deckSettingsModalLabel" data-i18n="deckSettings">Deck Settings</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily-settings" type="button" role="tab" aria-controls="daily-settings" aria-selected="true">Дневные лимиты</button>
+                        <button class="nav-link active" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily-settings" type="button" role="tab" aria-controls="daily-settings" aria-selected="true" data-i18n="dailyLimits">Daily Limits</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="new-cards-tab" data-bs-toggle="tab" data-bs-target="#new-cards-settings" type="button" role="tab" aria-controls="new-cards-settings" aria-selected="false">Новые карточки</button>
+                        <button class="nav-link" id="new-cards-tab" data-bs-toggle="tab" data-bs-target="#new-cards-settings" type="button" role="tab" aria-controls="new-cards-settings" aria-selected="false" data-i18n="newCards">New Cards</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="forgotten-tab" data-bs-toggle="tab" data-bs-target="#forgotten-settings" type="button" role="tab" aria-controls="forgotten-settings" aria-selected="false">Забытые</button>
+                        <button class="nav-link" id="forgotten-tab" data-bs-toggle="tab" data-bs-target="#forgotten-settings" type="button" role="tab" aria-controls="forgotten-settings" aria-selected="false" data-i18n="forgotten">Forgotten</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="order-tab" data-bs-toggle="tab" data-bs-target="#order-settings" type="button" role="tab" aria-controls="order-settings" aria-selected="false">Порядок показа</button>
+                        <button class="nav-link" id="order-tab" data-bs-toggle="tab" data-bs-target="#order-settings" type="button" role="tab" aria-controls="order-settings" aria-selected="false" data-i18n="orderDisplay">Order Display</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="timer-tab" data-bs-toggle="tab" data-bs-target="#timer-settings" type="button" role="tab" aria-controls="timer-settings" aria-selected="false">Таймер</button>
+                        <button class="nav-link" id="timer-tab" data-bs-toggle="tab" data-bs-target="#timer-settings" type="button" role="tab" aria-controls="timer-settings" aria-selected="false" data-i18n="timer">Timer</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="audio-tab" data-bs-toggle="tab" data-bs-target="#audio-settings" type="button" role="tab" aria-controls="audio-settings" aria-selected="false">Звук</button>
+                        <button class="nav-link" id="audio-tab" data-bs-toggle="tab" data-bs-target="#audio-settings" type="button" role="tab" aria-controls="audio-settings" aria-selected="false" data-i18n="audio">Audio</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced-settings" type="button" role="tab" aria-controls="advanced-settings" aria-selected="false">Дополнительные</button>
+                        <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced-settings" type="button" role="tab" aria-controls="advanced-settings" aria-selected="false" data-i18n="additional">Additional</button>
                     </li>
                 </ul>
                 <div class="tab-content mt-3" id="settingsTabContent">
@@ -384,14 +397,14 @@
                     <div class="tab-pane fade show active" id="daily-settings" role="tabpanel" aria-labelledby="daily-tab">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h4 class="h6 mb-3">Новых карточек в день</h4>
+                                <h4 class="h6 mb-3" data-i18n="newCardsPerDay">New cards per day</h4>
                                 <div class="btn-group w-100 mb-3" role="group" aria-label="Scope for new cards limit">
                                     <input type="radio" class="btn-check" name="newCardsScope" id="newCardsPreset" value="preset" checked>
-                                    <label class="btn btn-outline-secondary" for="newCardsPreset">Предустановка</label>
+                                    <label class="btn btn-outline-secondary" for="newCardsPreset" data-i18n="preset">Preset</label>
                                     <input type="radio" class="btn-check" name="newCardsScope" id="newCardsDeck" value="deck" checked>
-                                    <label class="btn btn-outline-primary" for="newCardsDeck">Эта колода</label>
+                                    <label class="btn btn-outline-primary" for="newCardsDeck" data-i18n="thisDeck">This deck</label>
                                     <input type="radio" class="btn-check" name="newCardsScope" id="newCardsToday" value="today">
-                                    <label class="btn btn-outline-secondary" for="newCardsToday">Только сегодня</label>
+                                    <label class="btn btn-outline-secondary" for="newCardsToday" data-i18n="todayOnly">Today only</label>
                                 </div>
                                 <div class="mb-3">
                                     <div class="d-flex align-items-center justify-content-between">
@@ -403,14 +416,14 @@
                                     </div>
                                 </div>
 
-                                <h4 class="h6 mb-3 mt-4">Максимум повторяемых в день</h4>
+                                <h4 class="h6 mb-3 mt-4" data-i18n="maxReviewsPerDay">Maximum reviews per day</h4>
                                 <div class="btn-group w-100 mb-3" role="group" aria-label="Scope for review limit">
                                     <input type="radio" class="btn-check" name="reviewScope" id="reviewPreset" value="preset">
-                                    <label class="btn btn-outline-secondary" for="reviewPreset">Предустановка</label>
+                                    <label class="btn btn-outline-secondary" for="reviewPreset" data-i18n="preset">Preset</label>
                                     <input type="radio" class="btn-check" name="reviewScope" id="reviewDeck" value="deck" checked>
-                                    <label class="btn btn-outline-primary" for="reviewDeck">Эта колода</label>
+                                    <label class="btn btn-outline-primary" for="reviewDeck" data-i18n="thisDeck">This deck</label>
                                     <input type="radio" class="btn-check" name="reviewScope" id="reviewToday" value="today">
-                                    <label class="btn btn-outline-secondary" for="reviewToday">Только сегодня</label>
+                                    <label class="btn btn-outline-secondary" for="reviewToday" data-i18n="todayOnly">Today only</label>
                                 </div>
                                 <div class="mb-3">
                                     <div class="d-flex align-items-center justify-content-between">
@@ -424,14 +437,14 @@
 
                                 <div class="form-check mb-3 mt-4">
                                     <input class="form-check-input" type="checkbox" id="reviewLimitAffectsNew">
-                                    <label class="form-check-label" for="reviewLimitAffectsNew">
-                                        Лимит повторений не влияет на новые
+                                    <label class="form-check-label" for="reviewLimitAffectsNew" data-i18n="reviewLimitNoAffectNew">
+                                        Review limit doesn't affect new cards
                                         <i class="bi bi-globe ms-1 text-primary" title="Global setting"></i>
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="limitsStartFromTop">
-                                    <label class="form-check-label" for="limitsStartFromTop">
+                                    <label class="form-check-label" for="limitsStartFromTop" data-i18n="limitsStartFromTop">
                                         Limits start from top
                                         <i class="bi bi-globe ms-1 text-primary" title="Global setting"></i>
                                     </label>
@@ -445,22 +458,22 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="learningSteps" class="form-label">Шаги изучаемых</label>
+                                    <label for="learningSteps" class="form-label" data-i18n="learningSteps">Learning steps</label>
                                     <input type="text" class="form-control" id="learningSteps" value="1m 10m">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="graduatingInterval" class="form-label">Интервал перевода</label>
+                                    <label for="graduatingInterval" class="form-label" data-i18n="graduatingInterval">Graduating interval</label>
                                     <input type="number" class="form-control" id="graduatingInterval" min="1" max="30" value="1">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="easyInterval" class="form-label">Интервал лёгких</label>
+                                    <label for="easyInterval" class="form-label" data-i18n="easyInterval">Easy interval</label>
                                     <input type="number" class="form-control" id="easyInterval" min="1" max="30" value="4">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="insertionOrder" class="form-label">Порядок добавления</label>
+                                    <label for="insertionOrder" class="form-label" data-i18n="insertionOrder">Insertion order</label>
                                     <select class="form-select" id="insertionOrder">
-                                        <option value="sequential" selected>Последовательный (сначала стар...)</option>
-                                        <option value="random">Случайный</option>
+                                        <option value="sequential" selected data-i18n="sequential">Sequential (oldest first)</option>
+                                        <option value="random" data-i18n="random">Random</option>
                                     </select>
                                 </div>
                             </div>
@@ -472,22 +485,22 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="relearningSteps" class="form-label">Шаги переучиваемых</label>
+                                    <label for="relearningSteps" class="form-label" data-i18n="relearningSteps">Relearning steps</label>
                                     <input type="text" class="form-control" id="relearningSteps" value="10m">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="minLapseInterval" class="form-label">Минимальный интервал</label>
+                                    <label for="minLapseInterval" class="form-label" data-i18n="minimumInterval">Minimum interval</label>
                                     <input type="number" class="form-control" id="minLapseInterval" min="0" max="30" value="1">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="lapseThreshold" class="form-label">Порог для приставучих</label>
+                                    <label for="lapseThreshold" class="form-label" data-i18n="lapseThreshold">Lapse threshold</label>
                                     <input type="number" class="form-control" id="lapseThreshold" min="0" max="20" value="8">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="lapseAction" class="form-label">Что делать с приставучими</label>
+                                    <label for="lapseAction" class="form-label" data-i18n="lapseAction">Lapse action</label>
                                     <select class="form-select" id="lapseAction">
-                                        <option value="tag" selected>Только пометить</option>
-                                        <option value="suspend">Приостановить</option>
+                                        <option value="tag" selected data-i18n="tagOnly">Tag only</option>
+                                        <option value="suspend" data-i18n="suspend">Suspend</option>
                                     </select>
                                 </div>
                             </div>
@@ -499,65 +512,65 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="newCardGathering" class="form-label">Порядок отбора новых</label>
+                                    <label for="newCardGathering" class="form-label" data-i18n="newCardGathering">New card gathering</label>
                                     <select class="form-select" id="newCardGathering">
-                                        <option value="deck" selected>По колоде</option>
-                                        <option value="random">Случайно</option>
+                                        <option value="deck" selected data-i18n="byDeck">By deck</option>
+                                        <option value="random" data-i18n="random">Random</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="newCardSort" class="form-label">Порядок новых</label>
+                                    <label for="newCardSort" class="form-label" data-i18n="newCardOrder">New card order</label>
                                     <select class="form-select" id="newCardSort">
-                                        <option value="cardType" selected>По типу карточки</option>
-                                        <option value="added">По времени добавления</option>
-                                        <option value="random">Случайно</option>
+                                        <option value="cardType" selected data-i18n="byCardType">By card type</option>
+                                        <option value="added" data-i18n="byTimeAdded">By time added</option>
+                                        <option value="random" data-i18n="random">Random</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="newReviewMix" class="form-label">Порядок новых и повторяемых</label>
+                                    <label for="newReviewMix" class="form-label" data-i18n="newAndReviewOrder">New and review order</label>
                                     <select class="form-select" id="newReviewMix">
-                                        <option value="mix" selected>Перемежать с повторяемыми</option>
-                                        <option value="newFirst">Сначала новые</option>
-                                        <option value="reviewFirst">Сначала повторяемые</option>
+                                        <option value="mix" selected data-i18n="interleaveWithReviews">Interleave with reviews</option>
+                                        <option value="newFirst" data-i18n="newFirst">New first</option>
+                                        <option value="reviewFirst" data-i18n="reviewFirst">Review first</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="interDayOrder" class="form-label">Порядок перенесённых</label>
+                                    <label for="interDayOrder" class="form-label" data-i18n="interDayLearningOrder">Inter-day learning order</label>
                                     <select class="form-select" id="interDayOrder">
-                                        <option value="mix" selected>Перемежать с повторяемыми</option>
-                                        <option value="dueFirst">Сначала по сроку</option>
-                                        <option value="random">Случайно</option>
+                                        <option value="mix" selected data-i18n="interleaveWithReviews">Interleave with reviews</option>
+                                        <option value="dueFirst" data-i18n="byDue">By due</option>
+                                        <option value="random" data-i18n="random">Random</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="reviewOrder" class="form-label">Порядок повторяемых</label>
+                                    <label for="reviewOrder" class="form-label" data-i18n="reviewOrder">Review order</label>
                                     <select class="form-select" id="reviewOrder">
-                                        <option value="dueRandom" selected>По сроку, потом случайный</option>
-                                        <option value="due">Строго по сроку</option>
-                                        <option value="random">Случайно</option>
+                                        <option value="dueRandom" selected data-i18n="dueThenRandom">Due then random</option>
+                                        <option value="due" data-i18n="strictlyByDue">Strictly by due</option>
+                                        <option value="random" data-i18n="random">Random</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
                         <div class="card">
                             <div class="card-body">
-                                <h4 class="h6 mb-3">Откладывание</h4>
+                                <h4 class="h6 mb-3" data-i18n="burying">Burying</h4>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="buryNewRelated">
-                                    <label class="form-check-label" for="buryNewRelated">
-                                        Откладывать новые связанные до завтра
+                                    <label class="form-check-label" for="buryNewRelated" data-i18n="buryNewRelated">
+                                        Bury new related until next day
                                     </label>
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="buryReviewsRelated">
-                                    <label class="form-check-label" for="buryReviewsRelated">
-                                        Откладывать повторяемые связанные до завтра
+                                    <label class="form-check-label" for="buryReviewsRelated" data-i18n="buryReviewsRelated">
+                                        Bury reviews related until next day
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="buryInterday">
-                                    <label class="form-check-label" for="buryInterday">
-                                        Откладывать связанные изучаемые, которые переносятся
+                                    <label class="form-check-label" for="buryInterday" data-i18n="buryInterday">
+                                        Bury interday learning related cards
                                     </label>
                                 </div>
                             </div>
@@ -569,47 +582,47 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="maxAnswerTime" class="form-label">Максимум секунд для ответа</label>
+                                    <label for="maxAnswerTime" class="form-label" data-i18n="maxAnswerTime">Maximum seconds for answer</label>
                                     <input type="number" class="form-control" id="maxAnswerTime" min="0" max="300" value="60">
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="showAnswerTimer">
-                                    <label class="form-check-label" for="showAnswerTimer">
-                                        Показывать время ответа
+                                    <label class="form-check-label" for="showAnswerTimer" data-i18n="showAnswerTimer">
+                                        Show answer timer
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="stopTimerOnAnswer">
-                                    <label class="form-check-label" for="stopTimerOnAnswer">
-                                        Остановить таймер при ответе
+                                    <label class="form-check-label" for="stopTimerOnAnswer" data-i18n="stopTimerOnAnswer">
+                                        Stop timer on answer
                                     </label>
                                 </div>
                             </div>
                         </div>
                         <div class="card">
                             <div class="card-body">
-                                <h4 class="h6 mb-3">Автопросмотр</h4>
+                                <h4 class="h6 mb-3" data-i18n="autoPreview">Auto Preview</h4>
                                 <div class="mb-3">
-                                    <label for="secondsShowQuestion" class="form-label">Seconds to show question for</label>
+                                    <label for="secondsShowQuestion" class="form-label" data-i18n="secondsShowQuestion">Seconds to show question for</label>
                                     <input type="number" class="form-control" id="secondsShowQuestion" min="0" max="60" step="0.1" value="0.0">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="secondsShowAnswer" class="form-label">Seconds to show answer for</label>
+                                    <label for="secondsShowAnswer" class="form-label" data-i18n="secondsShowAnswer">Seconds to show answer for</label>
                                     <input type="number" class="form-control" id="secondsShowAnswer" min="0" max="60" step="0.1" value="0.0">
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="waitForAudio">
-                                    <label class="form-check-label" for="waitForAudio">
-                                        Ждать аудио
+                                    <label class="form-check-label" for="waitForAudio" data-i18n="waitForAudio">
+                                        Wait for audio
                                     </label>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="answerAction" class="form-label">Answer action</label>
+                                    <label for="answerAction" class="form-label" data-i18n="answerAction">Answer action</label>
                                     <select class="form-select" id="answerAction">
-                                        <option value="bury" selected>Отложить карточку</option>
-                                        <option value="again">Снова</option>
-                                        <option value="good">Хорошо</option>
-                                        <option value="easy">Легко</option>
+                                        <option value="bury" selected data-i18n="buryCard">Bury card</option>
+                                        <option value="again" data-i18n="again">Again</option>
+                                        <option value="good" data-i18n="good">Good</option>
+                                        <option value="easy" data-i18n="easy">Easy</option>
                                     </select>
                                 </div>
                             </div>
@@ -622,14 +635,14 @@
                             <div class="card-body">
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="disableAutoPlay">
-                                    <label class="form-check-label" for="disableAutoPlay">
-                                        Не воспроизводить звук автоматически
+                                    <label class="form-check-label" for="disableAutoPlay" data-i18n="disableAutoPlay">
+                                        Disable auto-play
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="skipQuestionAudio">
-                                    <label class="form-check-label" for="skipQuestionAudio">
-                                        Пропускать вопрос при воспроизведении ответа
+                                    <label class="form-check-label" for="skipQuestionAudio" data-i18n="skipQuestionAudio">
+                                        Skip question on replay answer
                                     </label>
                                 </div>
                             </div>
@@ -640,7 +653,7 @@
                     <div class="tab-pane fade" id="advanced-settings" role="tabpanel" aria-labelledby="advanced-tab">
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="fsrsEnabled" checked>
-                            <label class="form-check-label" for="fsrsEnabled">
+                            <label class="form-check-label" for="fsrsEnabled" data-i18n="fsrs">
                                 FSRS
                                 <i class="bi bi-globe ms-1 text-primary" title="Global setting"></i>
                             </label>
@@ -648,34 +661,34 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label for="maxInterval" class="form-label">Максимальный интервал</label>
+                                    <label for="maxInterval" class="form-label" data-i18n="maxInterval">Maximum interval</label>
                                     <input type="number" class="form-control" id="maxInterval" min="0" max="99999" value="36500">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="startingEase" class="form-label">Начальная лёгкость</label>
+                                    <label for="startingEase" class="form-label" data-i18n="startingEase">Starting ease</label>
                                     <input type="number" class="form-control" id="startingEase" min="1.0" max="5.0" step="0.05" value="2.50">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="easyBonus" class="form-label">Множитель для «Легко»</label>
+                                    <label for="easyBonus" class="form-label" data-i18n="easyBonus">Easy bonus</label>
                                     <input type="number" class="form-control" id="easyBonus" min="1.0" max="2.0" step="0.05" value="1.30">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="intervalModifier" class="form-label">Модификатор интервала</label>
+                                    <label for="intervalModifier" class="form-label" data-i18n="intervalModifier">Interval modifier</label>
                                     <input type="number" class="form-control" id="intervalModifier" min="0.5" max="2.0" step="0.05" value="1.00">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="hardInterval" class="form-label">Интервал для «Трудно»</label>
+                                    <label for="hardInterval" class="form-label" data-i18n="hardInterval">Hard interval</label>
                                     <input type="number" class="form-control" id="hardInterval" min="0.5" max="1.5" step="0.05" value="1.20">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="newInterval" class="form-label">Новый интервал</label>
+                                    <label for="newInterval" class="form-label" data-i18n="newInterval">New interval</label>
                                     <input type="number" class="form-control" id="newInterval" min="0.0" max="1.0" step="0.05" value="0.00">
                                 </div>
                             </div>
                         </div>
                         <div class="mb-3">
                             <button type="button" class="btn btn-outline-primary" id="specialSchedulingBtn">
-                                <i class="bi bi-play-fill me-1"></i> Особое планирование
+                                <i class="bi bi-play-fill me-1"></i> <span data-i18n="specialScheduling">Special scheduling</span>
                                 <i class="bi bi-globe ms-1 text-primary" title="Global setting"></i>
                             </button>
                         </div>
@@ -683,9 +696,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
                 <button type="button" class="btn btn-primary" id="saveDeckSettingsBtn">
-                    <i class="bi bi-save me-1"></i> Сохранить
+                    <i class="bi bi-save me-1"></i> <span data-i18n="saveChanges">Save Changes</span>
                 </button>
             </div>
         </div>
@@ -693,6 +706,30 @@
 </div>
 
 {% block extra_js %}
+<script type="module">
+  import { LanguageManager } from "{{ url_for('static', filename='js/language-manager.js') }}";
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize language manager
+    const languageManager = new LanguageManager();
+
+    // Make the language manager available globally if needed
+    window.languageManager = languageManager;
+
+    // Скрываем стандартное flash сообщение при наличии параметра no_cards_today
+    if (window.location.search.includes('no_cards_today=true')) {
+      // Если был редирект и есть flash-сообщение
+      const flashMessages = document.querySelectorAll('.alert-info');
+      for (let i = 0; i < flashMessages.length; i++) {
+        if (flashMessages[i].textContent.includes('No cards due for review today')) {
+          // Скрываем стандартное сообщение
+          flashMessages[i].style.display = 'none';
+        }
+      }
+    }
+  });
+</script>
+<script type="module" src="{{ url_for('static', filename='js/custom-ui.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/deck_detail.js') }}"></script>
 <script>
   // Pass essential data to JavaScript
@@ -713,6 +750,11 @@
     urls: {
       decksList: "{{ url_for('srs.decks_list') }}"
     }
+  };
+
+  // Function to help translate text - useful in templates
+  window.translate = function(key) {
+    return window.languageManager ? window.languageManager.translate(key) : key;
   };
 </script>
 {% endblock %}

@@ -1,11 +1,11 @@
 /**
- * Statistics Page Styles - Updated to match the main deck page
- * Uses the same design system and variables
+ * Statistics Page Styles - Compact Version
+ * Reduced font sizes and spacing for better fit
  */
 
-/* Use the same variables as main decks page */
+/* Use the same variables as main decks page - with reduced spacing */
 :root {
-  /* Color System */
+  /* Color System - light theme only */
   --color-primary: #0d6efd;
   --color-primary-dark: #0b5ed7;
   --color-primary-light: #cfe2ff;
@@ -15,47 +15,74 @@
   --color-warning: #ffc107;
   --color-info: #0dcaf0;
   --color-light: #f8f9fa;
-  --color-dark: #212529;
+  --color-dark: #495057;  /* Lightened from #212529 */
   --color-white: #ffffff;
-  --color-black: #000000;
+  --color-black: #495057;  /* Lightened from #000000 */
 
-  /* Status colors */
+  /* Grayscale - lighter version */
+  --color-gray-100: #f8f9fa;
+  --color-gray-200: #e9ecef;
+  --color-gray-300: #dee2e6;
+  --color-gray-400: #ced4da;
+  --color-gray-500: #adb5bd;
+  --color-gray-600: #6c757d;
+  --color-gray-700: #6c757d;  /* Lightened from #495057 */
+  --color-gray-800: #6c757d;  /* Lightened from #343a40 */
+  --color-gray-900: #6c757d;  /* Lightened from #212529 */
+
+  /* Status colors - unchanged */
   --color-new: var(--color-secondary);
   --color-studying: var(--color-primary);
   --color-due: var(--color-danger);
   --color-mastered: var(--color-success);
 
-  /* Spacing scale (8px grid) */
-  --space-1: 0.25rem;  /* 4px */
-  --space-2: 0.5rem;   /* 8px */
-  --space-3: 0.75rem;  /* 12px */
-  --space-4: 1rem;     /* 16px */
-  --space-5: 1.5rem;   /* 24px */
-  --space-6: 2rem;     /* 32px */
+  /* Spacing scale - reduced for compactness (matching decks.css) */
+  --space-1: 0.2rem;   /* 3.2px - reduced from 4px */
+  --space-2: 0.4rem;   /* 6.4px - reduced from 8px */
+  --space-3: 0.6rem;   /* 9.6px - reduced from 12px */
+  --space-4: 0.8rem;   /* 12.8px - reduced from 16px */
+  --space-5: 1.2rem;   /* 19.2px - reduced from 24px */
+  --space-6: 1.6rem;   /* 25.6px - reduced from 32px */
 
-  /* Border radius */
+  /* Border radius - unchanged */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
 
-  /* Shadows */
+  /* Shadows - unchanged */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.15);
+
+  /* Typography - reduced sizes for compactness (from decks.css) */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-size-base: 0.875rem;      /* 14px - reduced from 16px */
+  --font-size-sm: 0.75rem;         /* 12px - reduced from 14px */
+  --font-size-xs: 0.625rem;        /* 10px - reduced from 12px */
+  --font-size-lg: 1rem;            /* 16px - reduced from 20px */
+  --font-size-xl: 1.25rem;         /* 20px - reduced from 24px */
+  --font-size-2xl: 1.5rem;         /* 24px - reduced from 32px */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;        /* reduced from 1.25 */
+  --line-height-normal: 1.4;       /* reduced from 1.5 */
+  --line-height-loose: 1.7;        /* reduced from 1.75 */
 }
 
-/* Stats header - match decks header style */
+/* Stats header - match decks header style with more compact spacing */
 .decks-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-3);
 }
 
 .decks-header__title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--color-dark);
 }
@@ -65,17 +92,17 @@
   gap: var(--space-2);
 }
 
-/* Navigation tabs - match decks navigation */
+/* Navigation tabs - more compact */
 .decks-nav {
   display: flex;
-  border-bottom: 1px solid var(--color-gray-300, #dee2e6);
-  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-gray-300);
+  margin-bottom: var(--space-3);
 }
 
 .decks-nav__item {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   margin-bottom: -1px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-secondary);
   text-decoration: none;
   border-bottom: 3px solid transparent;
@@ -91,12 +118,12 @@
   border-bottom-color: var(--color-primary);
 }
 
-/* Stats overview cards - match deck card style */
+/* Stats overview cards - more compact */
 .stats-overview {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .stat-card {
@@ -113,21 +140,21 @@
 }
 
 .stat-card__body {
-  padding: var(--space-5);
+  padding: var(--space-3);
   text-align: center;
 }
 
 .stat-card__label {
   color: var(--color-secondary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .stat-card__value {
-  font-size: 2.5rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   line-height: 1.2;
   color: var(--color-dark);
   margin-bottom: var(--space-1);
@@ -135,15 +162,15 @@
 
 .stat-card__subtitle {
   color: var(--color-secondary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-xs);
 }
 
-/* Charts layout - match stats layout */
+/* Charts layout - more compact */
 .stats-charts {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 @media (max-width: 991.98px) {
@@ -152,38 +179,38 @@
   }
 }
 
-/* Stats cards - match deck card style */
+/* Stats cards - more compact */
 .stats-card {
   background-color: var(--color-white);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: box-shadow var(--transition-normal, 0.3s ease);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .stats-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);  /* Lighter shadow on hover */
 }
 
 .stats-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--color-gray-200, #e9ecef);
-  background-color: var(--color-gray-100, #f8f9fa);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-gray-200);
+  background-color: var(--color-white);  /* Changed to white instead of light gray */
 }
 
 .stats-card__title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
   margin: 0;
   color: var(--color-dark);
 }
 
 .stats-card__body {
-  padding: var(--space-5);
+  padding: var(--space-3);
 }
 
 .stats-card--wide {
@@ -194,42 +221,66 @@
   grid-column: 1 / -1;
 }
 
-/* Chart containers */
+/* Chart containers - reduced height */
 .chart-container {
-  height: 300px !important;
+  height: 250px !important;
   width: 100% !important;
   position: relative;
 }
 
-/* Activity table - match deck table style */
-.table {
+/* Activity table - light version with stronger selectors */
+.stats-card .table,
+table.table {
   width: 100%;
   margin-bottom: 0;
+  background-color: var(--color-white) !important;
+  color: var(--color-dark) !important;
 }
 
-.table th {
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: var(--space-3) var(--space-4);
+.stats-card .table th,
+table.table th {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
   color: var(--color-secondary);
-  background-color: var(--color-gray-100, #f8f9fa);
-  border-bottom: 1px solid var(--color-gray-200, #e9ecef);
+  background-color: var(--color-gray-100) !important;
+  border-bottom: 1px solid var(--color-gray-200);
 }
 
-.table td {
+.stats-card .table td,
+table.table td {
   vertical-align: middle;
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--color-gray-200, #e9ecef);
+  padding: var(--space-3);
+  font-size: var(--font-size-base);
+  border-bottom: 1px solid var(--color-gray-200);
+  color: var(--color-dark) !important;
 }
 
-.table tr:hover {
-  background-color: rgba(13, 110, 253, 0.04);
+.stats-card .table tr,
+table.table tr,
+table.table tbody tr {
+  background-color: var(--color-white) !important;
 }
 
-/* Empty state - match deck empty state */
+.stats-card .table tbody tr:nth-child(odd),
+table.table tbody tr:nth-child(odd) {
+  background-color: var(--color-white) !important;
+}
+
+.stats-card .table tbody tr:nth-child(even),
+table.table tbody tr:nth-child(even) {
+  background-color: var(--color-white) !important;
+}
+
+.stats-card .table tr:hover,
+table.table tr:hover {
+  background-color: rgba(13, 110, 253, 0.04) !important;
+}
+
+/* Empty state - more compact */
 .empty-state {
   text-align: center;
-  padding: var(--space-6) var(--space-5);
+  padding: var(--space-4);
   background-color: var(--color-white);
   border-radius: var(--radius-md);
   display: flex;
@@ -239,34 +290,34 @@
 }
 
 .empty-state__icon {
-  font-size: 3rem;
+  font-size: 2rem;
   color: var(--color-secondary);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .empty-state__title {
-  font-size: var(--font-size-lg, 1.25rem);
-  font-weight: var(--font-weight-medium, 600);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
   margin-bottom: var(--space-2);
   color: var(--color-dark);
 }
 
 .empty-state__text {
   color: var(--color-secondary);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 /* Fix for Chart.js containers */
 canvas.chart-container {
-  height: 300px !important;
+  height: 250px !important;
   width: 100% !important;
 }
 
-/* Animations */
+/* Animations - lighter version with reduced delays */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);  /* Reduced from 20px for subtler animation */
   }
   to {
     opacity: 1;
@@ -288,8 +339,84 @@ canvas.chart-container {
 
 .stats-card--full { animation-delay: 0.7s; }
 
-/* Responsive adjustments */
-@media (max-width: 767.98px) {
+/* Override Bootstrap's table-dark if it's being used */
+.table-dark,
+.table-dark > th,
+.table-dark > td,
+.table-dark thead th,
+.table-dark tbody + tbody {
+  border-color: var(--color-gray-200) !important;
+}
+
+.table-dark,
+.table-dark > th,
+.table-dark > td {
+  background-color: var(--color-white) !important;
+  color: var(--color-dark) !important;
+}
+
+.table.table-dark tbody tr {
+  background-color: var(--color-white) !important;
+  color: var(--color-dark) !important;
+}
+
+.table-dark tbody td {
+  color: var(--color-dark) !important;
+  border-bottom: 1px solid var(--color-gray-200) !important;
+}
+
+/* Also target specific table in the Recent Activity section */
+.stats-card--full .table tr,
+.stats-card--full .table td {
+  background-color: var(--color-white) !important;
+  color: var(--color-dark) !important;
+}
+.text-center {
+  text-align: center !important;
+}
+
+.text-end {
+  text-align: right !important;
+}
+
+/* Buttons styling - light theme */
+.btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.btn-dark,
+.btn-secondary,
+#activityPeriod,
+.form-select,
+select.form-select,
+button.dropdown-toggle {
+  background-color: var(--color-gray-200) !important;
+  color: var(--color-dark) !important;
+  border-color: var(--color-gray-300) !important;
+  border: 1px solid var(--color-gray-300) !important;
+}
+
+.btn-dark:hover,
+.btn-secondary:hover,
+#activityPeriod:hover,
+.form-select:hover,
+button.dropdown-toggle:hover {
+  background-color: var(--color-gray-300) !important;
+  color: var(--color-dark) !important;
+  border-color: var(--color-gray-400) !important;
+}
+
+/* Specific styling for the Last X days button */
+[class*="Last"],
+/*button:contains("Last"),*/
+button.dropdown-toggle {
+  background-color: var(--color-gray-200) !important;
+  color: var(--color-dark) !important;
+  border: 1px solid var(--color-gray-300) !important;
+}
   .decks-header {
     flex-direction: column;
     align-items: flex-start;
@@ -297,6 +424,7 @@ canvas.chart-container {
 
   .decks-header__actions {
     margin-top: var(--space-2);
+    width: 100%;
   }
 
   .stats-overview {
@@ -304,13 +432,12 @@ canvas.chart-container {
   }
 
   .stat-card__value {
-    font-size: 2rem;
+    font-size: var(--font-size-xl);
   }
 
   canvas.chart-container {
-    height: 250px !important;
+    height: 200px !important;
   }
-}
 
 @media (max-width: 575.98px) {
   .stats-overview {
@@ -330,4 +457,38 @@ canvas.chart-container {
   .stats-card__actions .form-select {
     width: 100%;
   }
+
+  .table th, .table td {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
+/* Reduce button sizes (from decks.css) */
+.btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.btn-sm {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+/* Compact spacing for form elements (from decks.css) */
+.form-control, .form-select {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.form-label {
+  margin-bottom: 0.25rem;
+}
+
+.mb-3 {
+  margin-bottom: 0.6rem !important;
+}
+
+.mt-4 {
+  margin-top: 0.8rem !important;
 }

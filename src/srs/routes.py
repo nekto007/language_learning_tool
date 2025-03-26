@@ -456,6 +456,7 @@ def deck_detail(deck_id):
     )
 
 
+# Make sure this route is properly defined in your routes.py file
 @srs_bp.route('/api/decks/<int:deck_id>/card_counts')
 @login_required
 def api_get_card_counts(deck_id):
@@ -470,13 +471,25 @@ def api_get_card_counts(deck_id):
             'error': 'Deck not found or access denied'
         }), 404
 
-    # Get card counts
-    card_counts = srs_service.get_deck_card_counts(deck_id)
+    try:
+        # Get card counts - only count cards due today or earlier
+        card_counts = srs_service.get_deck_card_counts(deck_id)
 
-    return jsonify({
-        'success': True,
-        'counts': card_counts
-    })
+        # Add today's date for frontend reference
+        from datetime import date
+        today = date.today().isoformat()
+
+        return jsonify({
+            'success': True,
+            'counts': card_counts,
+            'today': today
+        })
+    except Exception as e:
+        logger.error(f"Error getting card counts: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @srs_bp.route('/decks/create', methods=['GET', 'POST'])
@@ -534,7 +547,8 @@ def start_review(deck_id):
 
     if not cards_data:
         flash('No cards due for review today!', 'info')
-        return redirect(url_for('srs.deck_detail', deck_id=deck_id))
+        # Добавляем параметр no_cards_today=True в URL
+        return redirect(url_for('srs.deck_detail', deck_id=deck_id, no_cards_today=True))
 
     # Process cards to ensure JSON serialization works
     simplified_cards = []
@@ -578,6 +592,86 @@ def start_review(deck_id):
         deck=deck_dict,
         session_id=session_id,
         today=today
+    )
+
+
+@srs_bp.route('/review/extra/<int:deck_id>')
+@login_required
+def start_extra_session(deck_id):
+    """Start an extra review session for a deck, ignoring scheduling."""
+    user_id = session['user_id']
+
+    # Get deck
+    deck = srs_service.srs_repo.get_deck_by_id(deck_id)
+    if not deck or deck.user_id != user_id:
+        flash('Deck not found or access denied.', 'danger')
+        return redirect(url_for('srs.decks_list'))
+
+    # Get ALL cards from the deck, not just those due for review
+    cards_data = srs_service.get_all_deck_cards(deck_id)
+
+    # Debug logging
+    logger.info(f"Extra session for deck {deck_id}: Found {len(cards_data) if cards_data else 0} cards")
+
+    if not cards_data:
+        flash('No cards in this deck. Add some cards first.', 'info')
+        return redirect(url_for('srs.deck_detail', deck_id=deck_id))
+
+    # Create session ID and store cards in session
+    session_id = str(uuid.uuid4())
+
+    # Process cards for JSON serialization
+    simplified_cards = []
+    for card in cards_data:
+        if isinstance(card, dict):
+            simple_card = card.copy()
+        else:
+            simple_card = dict(vars(card))
+
+        # Process date fields
+        for date_field in ['next_review_date', 'last_review_date']:
+            if date_field in simple_card and simple_card[date_field]:
+                if hasattr(simple_card[date_field], 'isoformat'):
+                    simple_card[date_field] = simple_card[date_field].isoformat()
+                else:
+                    simple_card[date_field] = str(simple_card[date_field])
+
+        simplified_cards.append(simple_card)
+
+    # Store data in session with explicit extra session flag
+    session['review_session_data'] = {
+        'session_id': session_id,
+        'cards': simplified_cards,
+        'deck_id': deck_id,
+        'is_extra': True  # Flag this as an extra session
+    }
+
+    # Store card count in session for progress tracking
+    session['review_total'] = len(simplified_cards)
+    session['review_done'] = 0
+
+    # Add current date for comparisons
+    from datetime import date
+    today = date.today().isoformat()
+
+    # Convert deck to dict if needed
+    if hasattr(deck, 'to_dict'):
+        deck_dict = deck.to_dict()
+    else:
+        deck_dict = {
+            'id': deck_id,
+            'name': getattr(deck, 'name', 'Deck')
+        }
+
+    # Log extra session start
+    logger.info(f"User {user_id} started extra session for deck {deck_id} with {len(simplified_cards)} cards")
+
+    return render_template(
+        'srs/review_session.html',
+        deck=deck_dict,
+        session_id=session_id,
+        today=today,
+        is_extra_session=True  # Pass this flag to the template
     )
 
 
@@ -747,6 +841,123 @@ def api_update_deck(deck_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@srs_bp.route('/api/decks/<int:deck_id>/settings', methods=['GET'])
+@login_required
+def api_get_deck_settings(deck_id):
+    """API: Get settings for a specific deck"""
+    user_id = session['user_id']
+
+    # Check if deck exists and belongs to current user
+    deck = srs_service.srs_repo.get_deck_by_id(deck_id)
+    if not deck or deck.user_id != user_id:
+        return jsonify({
+            'success': False,
+            'error': 'Deck not found or you do not have permission to access it'
+        }), 404
+
+    try:
+        # Import the model
+        from src.srs.models import DeckSettings
+        import sqlite3
+        from config.settings import DB_FILE
+
+        # Get database connection
+        conn = sqlite3.connect(DB_FILE)
+
+        try:
+            # Get settings from database
+            settings = DeckSettings.get_or_create(conn, deck_id)
+
+            # Convert to dict for JSON response
+            settings_dict = settings.to_dict()
+
+            # Convert boolean values for proper JSON serialization
+            boolean_fields = ['bury_new_related', 'bury_reviews_related', 'bury_interday',
+                              'show_answer_timer', 'stop_timer_on_answer', 'wait_for_audio',
+                              'disable_auto_play', 'skip_question_audio', 'fsrs_enabled']
+
+            for field in boolean_fields:
+                if field in settings_dict:
+                    settings_dict[field] = bool(settings_dict[field])
+
+            return jsonify({
+                'success': True,
+                'settings': settings_dict
+            })
+        finally:
+            conn.close()
+
+    except Exception as e:
+        logger.error(f"Error getting deck settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@srs_bp.route('/api/decks/<int:deck_id>/settings', methods=['POST'])
+@login_required
+def api_save_deck_settings(deck_id):
+    """API: Save or get settings for a specific deck"""
+    user_id = session['user_id']
+
+    # Check if deck exists and belongs to current user
+    deck = srs_service.srs_repo.get_deck_by_id(deck_id)
+    if not deck or deck.user_id != user_id:
+        return jsonify({
+            'success': False,
+            'error': 'Deck not found or you do not have permission to access it'
+        }), 404
+
+    # Handle GET action
+    if request.is_json and request.json.get('action') == 'get':
+        try:
+            # Import the model
+            from src.srs.models import DeckSettings
+            import sqlite3
+            from config.settings import DB_FILE
+
+            # Get database connection
+            conn = sqlite3.connect(DB_FILE)
+
+            try:
+                # Get settings from database
+                settings = DeckSettings.get_or_create(conn, deck_id)
+
+                # Convert to dict for JSON response
+                settings_dict = settings.to_dict()
+
+                # Convert boolean values for proper JSON serialization
+                boolean_fields = ['bury_new_related', 'bury_reviews_related', 'bury_interday',
+                                  'show_answer_timer', 'stop_timer_on_answer', 'wait_for_audio',
+                                  'disable_auto_play', 'skip_question_audio', 'fsrs_enabled']
+
+                for field in boolean_fields:
+                    if field in settings_dict:
+                        settings_dict[field] = bool(settings_dict[field])
+
+                return jsonify({
+                    'success': True,
+                    'settings': settings_dict
+                })
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.error(f"Error getting deck settings: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    # Original code for saving settings
+    # Validate request data
+    if not request.is_json:
+        return jsonify({
+            'success': False,
+            'error': 'Request must be JSON'
+        }), 400
 
 
 @srs_bp.route('/api/decks/<int:deck_id>', methods=['DELETE'])

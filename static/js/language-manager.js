@@ -13,6 +13,7 @@ class LanguageManager {
         // Navigation
         'decks': 'Decks',
         'statistics': 'Statistics',
+        'backToDecks': 'Back to Decks',
 
         // Headers
         'studyDecks': 'Study Decks',
@@ -98,12 +99,164 @@ class LanguageManager {
         'date': 'Date',
         'duration': 'Duration',
         'noActivityYet': 'No Activity Yet',
-        'noActivityDescription': 'You haven\'t reviewed any cards yet. Start learning to see your progress here.'
+        'noActivityDescription': 'You haven\'t reviewed any cards yet. Start learning to see your progress here.',
+
+        // Deck detail page
+        'word': 'Word',
+        'translation': 'Translation',
+        'interval': 'Interval',
+        'repetitions': 'Repetitions',
+        'nextReview': 'Next Review',
+        'actions': 'Actions',
+        'addWords': 'Add Words',
+        'cardsToStudy': 'Cards to Study',
+        'wordsInDeck': 'Words in Deck',
+        'learning': 'Learning',
+        'review': 'Review',
+        'startReview': 'Start Review',
+        'noCardsAvailable': 'No cards available for review at this time.',
+        'mastered': 'Mastered',
+        'today': 'Today',
+        'noWordsInDeck': 'There are no words in this deck yet',
+        'addWordsToBegin': 'Add words to begin studying with this deck',
+
+        // Deck actions
+        'editDeck': 'Edit Deck',
+        'deckSettings': 'Deck Settings',
+        'deleteDeck': 'Delete Deck',
+        'moveCard': 'Move Card',
+        'resetProgress': 'Reset Progress',
+        'removeFromDeck': 'Remove from Deck',
+
+        // Add word modal
+        'addWordsToDeck': 'Add Words to Deck',
+        'selectWordStatus': 'Select word status to add:',
+        'newWords': 'New Words',
+        'queuedWords': 'Queued Words',
+        'activeWords': 'Active Words',
+        'learnedWords': 'Learned Words',
+        'searchWordPlaceholder': 'Search by word or translation...',
+        'loadingWords': 'Loading words...',
+        'addSelected': 'Add Selected',
+
+        // Edit deck modal
+        'description': 'Description',
+        'enterDeckDescription': 'Enter deck description',
+        'saveChanges': 'Save Changes',
+
+        // Delete deck modal
+        'warning': 'Warning:',
+        'actionCannotBeUndone': 'This action cannot be undone.',
+        'areYouSureDelete': 'Are you sure you want to delete the deck',
+        'allCardsRemoved': 'All cards in this deck will be removed.',
+        'delete': 'Delete',
+
+        // Move card modal
+        'selectTargetDeck': 'Select the target deck to move this card to:',
+        'loadingDecks': 'Loading decks...',
+
+        // Deck settings modal
+        'dailyLimits': 'Daily Limits',
+        'newCardsPerDay': 'New cards per day',
+        'preset': 'Preset',
+        'thisDeck': 'This deck',
+        'todayOnly': 'Today only',
+        'maxReviewsPerDay': 'Maximum reviews per day',
+        'reviewLimitNoAffectNew': 'Review limit doesn\'t affect new cards',
+        'limitsStartFromTop': 'Limits start from top',
+        'globalSetting': 'Global setting',
+
+        // New cards tab
+        'newCards': 'New Cards',
+        'learningSteps': 'Learning steps',
+        'graduatingInterval': 'Graduating interval',
+        'easyInterval': 'Easy interval',
+        'insertionOrder': 'Insertion order',
+        'sequential': 'Sequential (oldest first)',
+        'random': 'Random',
+
+        // Forgotten tab
+        'forgotten': 'Forgotten',
+        'relearningSteps': 'Relearning steps',
+        'minimumInterval': 'Minimum interval',
+        'lapseThreshold': 'Lapse threshold',
+        'lapseAction': 'Lapse action',
+        'tagOnly': 'Tag only',
+        'suspend': 'Suspend',
+
+        // Order tab
+        'orderDisplay': 'Order Display',
+        'newCardGathering': 'New card gathering',
+        'byDeck': 'By deck',
+        'newCardOrder': 'New card order',
+        'byCardType': 'By card type',
+        'byTimeAdded': 'By time added',
+        'newAndReviewOrder': 'New and review order',
+        'interleaveWithReviews': 'Interleave with reviews',
+        'newFirst': 'New first',
+        'reviewFirst': 'Review first',
+        'interDayLearningOrder': 'Inter-day learning order',
+        'byDue': 'By due',
+        'reviewOrder': 'Review order',
+        'dueThenRandom': 'Due then random',
+        'strictlyByDue': 'Strictly by due',
+        'burying': 'Burying',
+        'buryNewRelated': 'Bury new related until next day',
+        'buryReviewsRelated': 'Bury reviews related until next day',
+        'buryInterday': 'Bury interday learning related cards',
+
+        // Timer tab
+        'timer': 'Timer',
+        'maxAnswerTime': 'Maximum seconds for answer',
+        'showAnswerTimer': 'Show answer timer',
+        'stopTimerOnAnswer': 'Stop timer on answer',
+        'autoPreview': 'Auto Preview',
+        'secondsShowQuestion': 'Seconds to show question for',
+        'secondsShowAnswer': 'Seconds to show answer for',
+        'waitForAudio': 'Wait for audio',
+        'answerAction': 'Answer action',
+        'buryCard': 'Bury card',
+        'again': 'Again',
+        'good': 'Good',
+        'easy': 'Easy',
+
+        // Audio tab
+        'audio': 'Audio',
+        'disableAutoPlay': 'Disable auto-play',
+        'skipQuestionAudio': 'Skip question on replay answer',
+
+        // Advanced tab
+        'additional': 'Additional',
+        'fsrs': 'FSRS',
+        'maxInterval': 'Maximum interval',
+        'startingEase': 'Starting ease',
+        'easyBonus': 'Easy bonus',
+        'intervalModifier': 'Interval modifier',
+        'hardInterval': 'Hard interval',
+        'newInterval': 'New interval',
+        'specialScheduling': 'Special scheduling',
+
+        // Session complete modal
+        'reviewCompleted': 'Review Completed!',
+        'wellDone': 'Well done!',
+        'greatJobMastering': 'Great job! You\'re mastering these words.',
+        'sessionProgress': 'Session Progress',
+        'dayStreak': 'Day Streak',
+        'sessionSummary': 'Session Summary',
+        'returnToDeck': 'Return to Deck',
+        'allDecks': 'All Decks',
+        'hard': 'Hard',
+        'listen': 'Listen',
+        'allDoneForToday': 'Hooray! All done for today.',
+        'startExtraSession': 'If you want to study outside the schedule, start an extra session.',
+        'extraSession': 'extra session',
+        'noCards': 'No cards to review'
       },
       ru: {
         // Navigation
         'decks': 'Колоды',
         'statistics': 'Статистика',
+        'backToDecks': 'Назад к колодам',
 
         // Headers
         'studyDecks': 'Колоды для изучения',
@@ -136,7 +289,6 @@ class LanguageManager {
         'cards': 'карточек',
         'days': 'дней',
         'day': 'день',
-
 
         // Calendar Legend
         'noActivity': 'Нет активности',
@@ -190,7 +342,158 @@ class LanguageManager {
         'date': 'Дата',
         'duration': 'Длительность',
         'noActivityYet': 'Пока нет активности',
-        'noActivityDescription': 'Вы еще не изучали карточки. Начните обучение, чтобы увидеть свой прогресс здесь.'
+        'noActivityDescription': 'Вы еще не изучали карточки. Начните обучение, чтобы увидеть свой прогресс здесь.',
+
+        // Deck detail page
+        'word': 'Слово',
+        'translation': 'Перевод',
+        'interval': 'Интервал',
+        'repetitions': 'Повторения',
+        'nextReview': 'Следующее повторение',
+        'actions': 'Действия',
+        'addWords': 'Добавить слова',
+        'cardsToStudy': 'Карточки для изучения',
+        'wordsInDeck': 'Слова в колоде',
+        'learning': 'Изучаемые',
+        'review': 'Повторение',
+        'startReview': 'Начать повторение',
+        'noCardsAvailable': 'Нет карточек для повторения в данный момент.',
+        'mastered': 'Изучено',
+        'today': 'Сегодня',
+        'noWordsInDeck': 'В этой колоде пока нет слов',
+        'addWordsToBegin': 'Добавьте слова, чтобы начать изучение с этой колодой',
+
+        // Deck actions
+        'editDeck': 'Редактировать колоду',
+        'deckSettings': 'Настройки колоды',
+        'deleteDeck': 'Удалить колоду',
+        'moveCard': 'Переместить карточку',
+        'resetProgress': 'Сбросить прогресс',
+        'removeFromDeck': 'Удалить из колоды',
+
+        // Add word modal
+        'addWordsToDeck': 'Добавить слова в колоду',
+        'selectWordStatus': 'Выберите статус слов для добавления:',
+        'newWords': 'Новые слова',
+        'queuedWords': 'В очереди',
+        'activeWords': 'Активные слова',
+        'learnedWords': 'Изученные слова',
+        'searchWordPlaceholder': 'Поиск по слову или переводу...',
+        'loadingWords': 'Загрузка слов...',
+        'addSelected': 'Добавить выбранные',
+
+        // Edit deck modal
+        'description': 'Описание',
+        'enterDeckDescription': 'Введите описание колоды',
+        'saveChanges': 'Сохранить изменения',
+
+        // Delete deck modal
+        'warning': 'Внимание:',
+        'actionCannotBeUndone': 'Это действие нельзя отменить.',
+        'areYouSureDelete': 'Вы уверены, что хотите удалить колоду',
+        'allCardsRemoved': 'Все карточки в этой колоде будут удалены.',
+        'delete': 'Удалить',
+
+        // Move card modal
+        'selectTargetDeck': 'Выберите целевую колоду для перемещения карточки:',
+        'loadingDecks': 'Загрузка колод...',
+
+        // Deck settings modal
+        'dailyLimits': 'Дневные лимиты',
+        'newCardsPerDay': 'Новых карточек в день',
+        'preset': 'Предустановка',
+        'thisDeck': 'Эта колода',
+        'todayOnly': 'Только сегодня',
+        'maxReviewsPerDay': 'Максимум повторяемых в день',
+        'reviewLimitNoAffectNew': 'Лимит повторений не влияет на новые',
+        'limitsStartFromTop': 'Лимиты начинаются сверху',
+        'globalSetting': 'Глобальная настройка',
+
+        // New cards tab
+        'newCards': 'Новые карточки',
+        'learningSteps': 'Шаги изучаемых',
+        'graduatingInterval': 'Интервал перевода',
+        'easyInterval': 'Интервал лёгких',
+        'insertionOrder': 'Порядок добавления',
+        'sequential': 'Последовательный (сначала старые)',
+        'random': 'Случайный',
+
+        // Forgotten tab
+        'forgotten': 'Забытые',
+        'relearningSteps': 'Шаги переучиваемых',
+        'minimumInterval': 'Минимальный интервал',
+        'lapseThreshold': 'Порог для приставучих',
+        'lapseAction': 'Что делать с приставучими',
+        'tagOnly': 'Только пометить',
+        'suspend': 'Приостановить',
+
+        // Order tab
+        'orderDisplay': 'Порядок показа',
+        'newCardGathering': 'Порядок отбора новых',
+        'byDeck': 'По колоде',
+        'newCardOrder': 'Порядок новых',
+        'byCardType': 'По типу карточки',
+        'byTimeAdded': 'По времени добавления',
+        'newAndReviewOrder': 'Порядок новых и повторяемых',
+        'interleaveWithReviews': 'Перемежать с повторяемыми',
+        'newFirst': 'Сначала новые',
+        'reviewFirst': 'Сначала повторяемые',
+        'interDayLearningOrder': 'Порядок перенесённых',
+        'byDue': 'По сроку',
+        'reviewOrder': 'Порядок повторяемых',
+        'dueThenRandom': 'По сроку, потом случайный',
+        'strictlyByDue': 'Строго по сроку',
+        'burying': 'Откладывание',
+        'buryNewRelated': 'Откладывать новые связанные до завтра',
+        'buryReviewsRelated': 'Откладывать повторяемые связанные до завтра',
+        'buryInterday': 'Откладывать связанные изучаемые, которые переносятся',
+
+        // Timer tab
+        'timer': 'Таймер',
+        'maxAnswerTime': 'Максимум секунд для ответа',
+        'showAnswerTimer': 'Показывать время ответа',
+        'stopTimerOnAnswer': 'Остановить таймер при ответе',
+        'autoPreview': 'Автопросмотр',
+        'secondsShowQuestion': 'Секунд для показа вопроса',
+        'secondsShowAnswer': 'Секунд для показа ответа',
+        'waitForAudio': 'Ждать аудио',
+        'answerAction': 'Действие при ответе',
+        'buryCard': 'Отложить карточку',
+        'again': 'Снова',
+        'good': 'Хорошо',
+        'easy': 'Легко',
+
+        // Audio tab
+        'audio': 'Звук',
+        'disableAutoPlay': 'Не воспроизводить звук автоматически',
+        'skipQuestionAudio': 'Пропускать вопрос при воспроизведении ответа',
+
+        // Advanced tab
+        'additional': 'Дополнительные',
+        'fsrs': 'FSRS',
+        'maxInterval': 'Максимальный интервал',
+        'startingEase': 'Начальная лёгкость',
+        'easyBonus': 'Множитель для «Легко»',
+        'intervalModifier': 'Модификатор интервала',
+        'hardInterval': 'Интервал для «Трудно»',
+        'newInterval': 'Новый интервал',
+        'specialScheduling': 'Особое планирование',
+
+        // Session complete modal
+        'reviewCompleted': 'Повторение завершено!',
+        'wellDone': 'Отлично!',
+        'greatJobMastering': 'Молодец! Вы осваиваете эти слова.',
+        'sessionProgress': 'Прогресс сессии',
+        'dayStreak': 'Дней подряд',
+        'sessionSummary': 'Итоги сессии',
+        'returnToDeck': 'Вернуться к колоде',
+        'allDecks': 'Все колоды',
+        'hard': 'Трудно',
+        'listen': 'Прослушать',
+        'allDoneForToday': 'Ура! На сегодня всё.',
+        'startExtraSession': 'Если вы хотите заниматься вне расписания, начните допзанятие.',
+        'extraSession': 'допзанятие',
+        'noCards': 'Нет карточек для повторения'
       }
     };
 
@@ -210,6 +513,9 @@ class LanguageManager {
     }
 
     console.log(`Language detected from browser: ${browserLang}, using: ${this.currentLang}`);
+
+    // Set HTML lang attribute
+    document.documentElement.lang = this.currentLang;
 
     // Apply translations
     this.applyTranslations();
@@ -237,6 +543,12 @@ class LanguageManager {
       pageTitle.textContent = this.translate(pageTitle.dataset.i18n || 'studyDecks');
     }
 
+    // Apply to deck title
+    const deckTitle = document.querySelector('.deck-title');
+    if (deckTitle && deckTitle.dataset.i18n) {
+      deckTitle.textContent = this.translate(deckTitle.dataset.i18n);
+    }
+
     // Apply to elements with data-i18n attribute
     document.querySelectorAll('[data-i18n]').forEach(element => {
       const key = element.dataset.i18n;
@@ -254,12 +566,33 @@ class LanguageManager {
       }
     });
 
+    // Translate back link
+    const backLink = document.querySelector('.back-link span');
+    if (backLink) {
+      backLink.textContent = this.translate('backToDecks');
+    }
+
+    // Translate buttons
+    const addWordsBtn = document.querySelector('.add-words-btn span');
+    if (addWordsBtn) {
+      addWordsBtn.textContent = this.translate('addWords');
+    }
+
+    // Translate actions dropdown
+    const actionsBtn = document.querySelector('#actionMenuButton .d-none');
+    if (actionsBtn) {
+      actionsBtn.textContent = this.translate('actions');
+    }
+
     // Special handling for specific elements
     this.updateTableHeaders();
     this.updateEmptyState();
+    this.updateDeckDetailElements();
     this.updateModals();
     this.updateButtons();
     this.updateStatisticsElements();
+    this.updateSessionCompleteModal();
+    this.updateNoCardsMessage();
   }
 
   /**
@@ -277,6 +610,125 @@ class LanguageManager {
       const element = document.querySelector(selector);
       if (element) {
         element.textContent = this.translate(key);
+      }
+    });
+
+    // Translate table headers in deck detail
+    const tableHeaders = {
+      'Word': 'word',
+      'Translation': 'translation',
+      'Interval': 'interval',
+      'Repetitions': 'repetitions',
+      'Next Review': 'nextReview',
+      'Actions': 'actions'
+    };
+
+    document.querySelectorAll('th').forEach(th => {
+      const text = th.textContent.trim();
+      if (tableHeaders[text]) {
+        th.textContent = this.translate(tableHeaders[text]);
+      }
+    });
+
+    // Translate "day" and "days" in interval column
+    document.querySelectorAll('td').forEach(td => {
+      if (td.innerHTML.includes('day</span>')) {
+        td.innerHTML = td.innerHTML.replace('day</span>', this.translate('day') + '</span>');
+      } else if (td.innerHTML.includes('days</span>')) {
+        td.innerHTML = td.innerHTML.replace('days</span>', this.translate('days') + '</span>');
+      }
+    });
+  }
+
+  /**
+   * Update deck detail specific elements
+   */
+  updateDeckDetailElements() {
+    // Card Counter Labels
+    document.querySelectorAll('.counter-label').forEach(label => {
+      const text = label.textContent.trim();
+      if (text === 'New') {
+        label.textContent = this.translate('new');
+      } else if (text === 'Learning') {
+        label.textContent = this.translate('learning');
+      } else if (text === 'Review') {
+        label.textContent = this.translate('review');
+      }
+    });
+
+    // Study progress title
+    const studyProgressTitle = document.querySelector('#study-progress-title');
+    if (studyProgressTitle) {
+      studyProgressTitle.textContent = this.translate('cardsToStudy');
+    }
+
+    // Words in deck title
+    const wordsListTitle = document.querySelector('#cards-list-title');
+    if (wordsListTitle) {
+      wordsListTitle.textContent = this.translate('wordsInDeck');
+    }
+
+    // Start review button
+    const startReviewBtn = document.querySelector('.start-review-btn');
+    if (startReviewBtn) {
+      const icon = '<i class="bi bi-play-fill me-2"></i> ';
+      startReviewBtn.innerHTML = icon + this.translate('startReview');
+    }
+
+    // No cards alert
+    const alertInfo = document.querySelector('.alert-info');
+    if (alertInfo && alertInfo.textContent.includes('No cards available')) {
+      const icon = '<i class="bi bi-info-circle me-2"></i> ';
+      alertInfo.innerHTML = icon + this.translate('noCardsAvailable');
+    }
+
+    // Badges
+    document.querySelectorAll('.badge').forEach(badge => {
+      if (badge.textContent === 'New') {
+        badge.textContent = this.translate('new');
+      } else if (badge.textContent === 'Today') {
+        badge.textContent = this.translate('today');
+      }
+    });
+
+    // Mastered title
+    const masteredIcon = document.querySelector('.text-success');
+    if (masteredIcon && masteredIcon.title === 'Mastered') {
+      masteredIcon.title = this.translate('mastered');
+    }
+
+    // No words in deck empty state
+    const emptyStateTitle = document.querySelector('.empty-state-title');
+    if (emptyStateTitle && emptyStateTitle.textContent.includes('There are no words')) {
+      emptyStateTitle.textContent = this.translate('noWordsInDeck');
+    }
+
+    const emptyStateDesc = document.querySelector('.empty-state-description');
+    if (emptyStateDesc && emptyStateDesc.textContent.includes('Add words to begin')) {
+      emptyStateDesc.textContent = this.translate('addWordsToBegin');
+    }
+
+    // Dropdown items
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+      if (item.textContent.includes('Edit Deck')) {
+        item.innerHTML = '<i class="bi bi-pencil me-2"></i> ' + this.translate('editDeck');
+      } else if (item.textContent.includes('Deck Settings')) {
+        item.innerHTML = '<i class="bi bi-gear me-2"></i> ' + this.translate('deckSettings');
+      } else if (item.textContent.includes('Delete Deck')) {
+        item.innerHTML = '<i class="bi bi-trash me-2"></i> ' + this.translate('deleteDeck');
+      } else if (item.textContent.includes('Move Card')) {
+        item.innerHTML = '<i class="bi bi-arrow-left-right me-2"></i> ' + this.translate('moveCard');
+      } else if (item.textContent.includes('Reset Progress')) {
+        item.innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i> ' + this.translate('resetProgress');
+      } else if (item.textContent.includes('Remove from Deck')) {
+        item.innerHTML = '<i class="bi bi-x-lg me-2"></i> ' + this.translate('removeFromDeck');
+      }
+    });
+
+    // Actions button for cards
+    document.querySelectorAll('.card-actions-dropdown button').forEach(btn => {
+      if (btn.textContent.trim() === 'Actions') {
+        btn.textContent = this.translate('actions');
       }
     });
   }
@@ -320,6 +772,20 @@ class LanguageManager {
         createDeckBtn.innerHTML = createIcon + this.translate(spanElement.dataset.i18n || 'createDeck');
       }
     }
+
+    // Update Add Words button
+    const addWordsBtn = document.querySelector('.btn-sm[data-bs-toggle="modal"][data-bs-target="#addWordModal"]');
+    if (addWordsBtn) {
+      const addIcon = '<i class="bi bi-plus-lg me-1"></i> ';
+      addWordsBtn.innerHTML = addIcon + this.translate('addWords');
+    }
+
+    // Empty state Add Words button
+    const emptyStateAddBtn = document.querySelector('.empty-state .btn-primary');
+    if (emptyStateAddBtn && emptyStateAddBtn.textContent.includes('Add Words')) {
+      const addIcon = '<i class="bi bi-plus-lg me-2"></i> ';
+      emptyStateAddBtn.innerHTML = addIcon + this.translate('addWords');
+    }
   }
 
   /**
@@ -330,8 +796,12 @@ class LanguageManager {
     const activityPeriod = document.getElementById('activityPeriod');
     if (activityPeriod) {
       Array.from(activityPeriod.options).forEach(option => {
-        if (option.dataset.i18n) {
-          option.textContent = this.translate(option.dataset.i18n);
+        if (option.value === '7') {
+          option.textContent = this.translate('lastSevenDays');
+        } else if (option.value === '14') {
+          option.textContent = this.translate('lastFourteenDays');
+        } else if (option.value === '30') {
+          option.textContent = this.translate('lastThirtyDays');
         }
       });
     }
@@ -360,95 +830,277 @@ class LanguageManager {
    * Update modal content
    */
   updateModals() {
-    // Import modal
-    const importDeckModalLabel = document.querySelector('#importDeckModalLabel');
-    if (importDeckModalLabel) {
-      importDeckModalLabel.textContent = this.translate('importDeck');
+    // Add Words modal
+    const addWordModalLabel = document.querySelector('#addWordModalLabel');
+    if (addWordModalLabel) {
+      addWordModalLabel.textContent = this.translate('addWordsToDeck');
     }
 
-    const importTypeLabel = document.querySelector('label[for="importType"]');
-    if (importTypeLabel) {
-      importTypeLabel.textContent = this.translate('importType');
+    // Select word status text
+    const selectStatusText = document.querySelector('#addWordModal p');
+    if (selectStatusText && selectStatusText.textContent.trim() === 'Select word status to add:') {
+      selectStatusText.textContent = this.translate('selectWordStatus');
     }
 
-    // Update select options
-    const importTypeSelect = document.querySelector('#importType');
-    if (importTypeSelect) {
-      Array.from(importTypeSelect.options).forEach(option => {
-        if (option.value === 'file') option.textContent = this.translate('fromFile');
-        if (option.value === 'words') option.textContent = this.translate('fromWordList');
+    // Word status options
+    const wordStatusSelect = document.querySelector('#wordStatusSelect');
+    if (wordStatusSelect) {
+      Array.from(wordStatusSelect.options).forEach(option => {
+        if (option.textContent === 'New Words') {
+          option.textContent = this.translate('newWords');
+        } else if (option.textContent === 'Queued Words') {
+          option.textContent = this.translate('queuedWords');
+        } else if (option.textContent === 'Active Words') {
+          option.textContent = this.translate('activeWords');
+        } else if (option.textContent === 'Learned Words') {
+          option.textContent = this.translate('learnedWords');
+        }
       });
     }
 
-    // More form labels
-    const deckFileLabel = document.querySelector('label[for="deckFile"]');
-    if (deckFileLabel) {
-      deckFileLabel.textContent = this.translate('selectFile');
+    // Search placeholder
+    const searchInput = document.querySelector('#wordSearchInput');
+    if (searchInput && searchInput.placeholder === 'Search by word or translation...') {
+      searchInput.placeholder = this.translate('searchWordPlaceholder');
     }
 
-    const deckNameInputLabel = document.querySelector('label[for="deckNameInput"]');
-    if (deckNameInputLabel) {
-      deckNameInputLabel.textContent = this.translate('deckName');
+    // Loading text
+    const loadingText = document.querySelector('#wordsLoadingRow .ms-2');
+    if (loadingText && loadingText.textContent === 'Loading words...') {
+      loadingText.textContent = this.translate('loadingWords');
     }
 
-    const wordsListLabel = document.querySelector('label[for="wordsList"]');
-    if (wordsListLabel) {
-      wordsListLabel.textContent = this.translate('wordsList');
+    // Edit Deck modal
+    const editDeckModalLabel = document.querySelector('#editDeckModalLabel');
+    if (editDeckModalLabel) {
+      editDeckModalLabel.textContent = this.translate('editDeck');
     }
 
-    const wordsImportDeckNameLabel = document.querySelector('label[for="wordsImportDeckName"]');
-    if (wordsImportDeckNameLabel) {
-      wordsImportDeckNameLabel.textContent = this.translate('deckName');
+    // Deck Name label
+    const deckNameLabel = document.querySelector('label[for="deckNameInput"]');
+    if (deckNameLabel) {
+      deckNameLabel.textContent = this.translate('deckName');
     }
 
-    // Support text
-    const supportedFormatsText = document.querySelector('.form-text');
-    if (supportedFormatsText) {
-      supportedFormatsText.textContent = this.translate('supportedFormats');
+    // Description label
+    const descriptionLabel = document.querySelector('label[for="deckDescriptionInput"]');
+    if (descriptionLabel) {
+      descriptionLabel.textContent = this.translate('description');
     }
 
-    // Placeholders
-    const deckNameInput = document.querySelector('#deckNameInput');
-    if (deckNameInput) {
-      deckNameInput.placeholder = this.translate('enterDeckName');
+    // Description placeholder
+    const descriptionInput = document.querySelector('#deckDescriptionInput');
+    if (descriptionInput && descriptionInput.placeholder === 'Enter deck description') {
+      descriptionInput.placeholder = this.translate('enterDeckDescription');
     }
 
-    const wordsImportDeckName = document.querySelector('#wordsImportDeckName');
-    if (wordsImportDeckName) {
-      wordsImportDeckName.placeholder = this.translate('enterDeckName');
+    // Delete Deck modal
+    const deleteDeckModalLabel = document.querySelector('#deleteDeckModalLabel');
+    if (deleteDeckModalLabel) {
+      deleteDeckModalLabel.textContent = this.translate('deleteDeck');
     }
 
-    // Progress message
-    const importProgressMessage = document.querySelector('#importProgressMessage');
-    if (importProgressMessage) {
-      importProgressMessage.textContent = this.translate('importing');
+    // Warning text
+    const warningText = document.querySelector('.alert-danger strong');
+    if (warningText && warningText.textContent === 'Warning:') {
+      warningText.textContent = this.translate('warning') + ':';
     }
+
+    // Cannot be undone text
+    const alertText = document.querySelector('.alert-danger');
+    if (alertText && alertText.textContent.includes('This action cannot be undone')) {
+      const icon = '<i class="bi bi-exclamation-triangle-fill me-2"></i> ';
+      const strongTag = '<strong>' + this.translate('warning') + ':</strong> ';
+      alertText.innerHTML = icon + strongTag + this.translate('actionCannotBeUndone');
+    }
+
+    // Are you sure text and All cards will be removed
+    const deleteConfirmParagraphs = document.querySelectorAll('#deleteDeckModal .modal-body p:not(.alert)');
+    if (deleteConfirmParagraphs.length >= 2) {
+      if (deleteConfirmParagraphs[0].textContent.includes('Are you sure')) {
+        // Keep the deck name in the confirmation text
+        const deckName = deleteConfirmParagraphs[0].querySelector('strong').textContent;
+        deleteConfirmParagraphs[0].innerHTML = this.translate('areYouSureDelete') + ' <strong>' + deckName + '</strong>?';
+      }
+      if (deleteConfirmParagraphs[1].textContent.includes('All cards in this deck')) {
+        deleteConfirmParagraphs[1].textContent = this.translate('allCardsRemoved');
+      }
+    }
+
+    // Move Card modal
+    const moveCardModalLabel = document.querySelector('#moveCardModalLabel');
+    if (moveCardModalLabel) {
+      moveCardModalLabel.textContent = this.translate('moveCard');
+    }
+
+    // Select target deck text
+    const selectTargetText = document.querySelector('#moveCardModal p');
+    if (selectTargetText && selectTargetText.textContent.includes('Select the target deck')) {
+      selectTargetText.textContent = this.translate('selectTargetDeck');
+    }
+
+    // Loading decks option
+    const loadingDecksOption = document.querySelector('#targetDeckSelect option');
+    if (loadingDecksOption && loadingDecksOption.textContent === 'Loading decks...') {
+      loadingDecksOption.textContent = this.translate('loadingDecks');
+    }
+
+    // Translation of all settings tabs
+    const settingsTabs = {
+      'daily-tab': 'dailyLimits',
+      'new-cards-tab': 'newCards',
+      'forgotten-tab': 'forgotten',
+      'order-tab': 'orderDisplay',
+      'timer-tab': 'timer',
+      'audio-tab': 'audio',
+      'advanced-tab': 'additional'
+    };
+
+    Object.entries(settingsTabs).forEach(([id, key]) => {
+      const tab = document.querySelector(`#${id}`);
+      if (tab) {
+        tab.textContent = this.translate(key);
+      }
+    });
 
     // Update buttons
     const modalCancelBtns = document.querySelectorAll('.modal-footer .btn-secondary');
     modalCancelBtns.forEach(btn => {
-      btn.textContent = this.translate('cancel');
+      if (btn.textContent === 'Cancel') {
+        btn.textContent = this.translate('cancel');
+      }
     });
 
-    const importBtn = document.querySelector('#startImportBtn');
-    if (importBtn) {
-      importBtn.textContent = this.translate('startImport');
+    const saveBtn = document.querySelector('#saveDeckBtn');
+    if (saveBtn) {
+      const saveIcon = '<i class="bi bi-save me-1"></i> ';
+      saveBtn.innerHTML = saveIcon + this.translate('saveChanges');
     }
 
-    const okBtn = document.querySelector('#importResultsOkBtn');
-    if (okBtn) {
-      okBtn.textContent = this.translate('ok');
+    const saveDeckSettingsBtn = document.querySelector('#saveDeckSettingsBtn');
+    if (saveDeckSettingsBtn) {
+      const saveIcon = '<i class="bi bi-save me-1"></i> ';
+      saveDeckSettingsBtn.innerHTML = saveIcon + this.translate('saveChanges');
     }
 
-    // Modal titles
-    const importProgressModalLabel = document.querySelector('#importProgressModalLabel');
-    if (importProgressModalLabel) {
-      importProgressModalLabel.textContent = this.translate('importProgress');
+    const confirmDeleteBtn = document.querySelector('#confirmDeleteDeckBtn');
+    if (confirmDeleteBtn) {
+      const deleteIcon = '<i class="bi bi-trash me-1"></i> ';
+      confirmDeleteBtn.innerHTML = deleteIcon + this.translate('delete');
     }
 
-    const importResultsModalLabel = document.querySelector('#importResultsModalLabel');
-    if (importResultsModalLabel) {
-      importResultsModalLabel.textContent = this.translate('importResults');
+    const confirmMoveCardBtn = document.querySelector('#confirmMoveCardBtn');
+    if (confirmMoveCardBtn) {
+      const moveIcon = '<i class="bi bi-arrow-left-right me-1"></i> ';
+      confirmMoveCardBtn.innerHTML = moveIcon + this.translate('moveCard');
+    }
+
+    const addSelectedBtn = document.querySelector('#addSelectedWordsBtn');
+    if (addSelectedBtn) {
+      const addIcon = '<i class="bi bi-plus-lg me-1"></i> ';
+      addSelectedBtn.innerHTML = addIcon + this.translate('addSelected');
+    }
+  }
+
+  /**
+   * Update session complete modal content
+   */
+  updateSessionCompleteModal() {
+    // Modal title
+    const modalTitle = document.querySelector('#sessionCompleteModalLabel');
+    if (modalTitle) {
+      modalTitle.textContent = this.translate('reviewCompleted');
+    }
+
+    // Session complete title
+    const sessionCompleteTitle = document.querySelector('#sessionCompleteTitle');
+    if (sessionCompleteTitle) {
+      sessionCompleteTitle.textContent = this.translate('wellDone');
+    }
+
+    // Session complete message
+    const sessionCompleteMessage = document.querySelector('#sessionCompleteMessage');
+    if (sessionCompleteMessage) {
+      // Проверяем содержимое, чтобы определить, какое сообщение показывать
+      if (sessionCompleteMessage.textContent.includes('mastering these words')) {
+        sessionCompleteMessage.textContent = this.translate('greatJobMastering');
+      } else {
+        // Другие возможные сообщения можно добавить здесь
+        sessionCompleteMessage.textContent = this.translate(sessionCompleteMessage.textContent);
+      }
+    }
+
+    // Cards reviewed label
+    const cardsReviewedLabel = document.querySelector('.col-6:first-child .text-muted');
+    if (cardsReviewedLabel) {
+      cardsReviewedLabel.textContent = this.translate('cardsReviewed');
+    }
+
+    // Day streak label
+    const dayStreakLabel = document.querySelector('.col-6:last-child .text-muted');
+    if (dayStreakLabel) {
+      dayStreakLabel.textContent = this.translate('dayStreak');
+    }
+
+    // Return to deck button
+    const returnToDeckBtn = document.querySelector('.modal-footer a.btn-primary');
+    if (returnToDeckBtn) {
+      returnToDeckBtn.textContent = this.translate('returnToDeck');
+    }
+
+    // All decks button
+    const allDecksBtn = document.querySelector('.modal-footer a.btn-secondary');
+    if (allDecksBtn) {
+      allDecksBtn.textContent = this.translate('allDecks');
+    }
+  }
+
+  updateNoCardsMessage() {
+    // Обновляем заголовок сообщения
+    const noCardsTitle = document.querySelector('.no-cards-title');
+    if (noCardsTitle) {
+      noCardsTitle.textContent = this.translate('allDoneForToday');
+    }
+
+    // Обновляем текст сообщения, сохраняя ссылку
+    const noCardsText = document.querySelector('.no-cards-text');
+    if (noCardsText) {
+      // Получаем ссылку и её содержимое
+      const extraSessionLink = noCardsText.querySelector('.extra-session-link');
+      if (extraSessionLink) {
+        // Получаем перевод для текста ссылки
+        const extraSessionText = this.translate('extraSession');
+        const linkSpan = extraSessionLink.querySelector('span');
+        if (linkSpan) {
+          linkSpan.textContent = extraSessionText;
+        }
+
+        // Полный текст сообщения
+        const startExtraSessionText = this.translate('startExtraSession');
+
+        // Находим позицию текста "допзанятие" в переводе
+        const linkTextPosition = startExtraSessionText.indexOf(extraSessionText);
+
+        if (linkTextPosition !== -1) {
+          // Разделяем текст на части: до ссылки и после ссылки
+          const textBeforeLink = startExtraSessionText.substring(0, linkTextPosition);
+          const textAfterLink = startExtraSessionText.substring(linkTextPosition + extraSessionText.length);
+
+          // Формируем новый HTML для текста с сохранением ссылки
+          noCardsText.innerHTML = textBeforeLink;
+          noCardsText.appendChild(extraSessionLink.cloneNode(true));
+          noCardsText.innerHTML += textAfterLink;
+        } else {
+          // Если шаблон текста не совпадает, просто обновляем весь текст
+          noCardsText.innerHTML = startExtraSessionText.replace(
+            extraSessionText,
+            `<a href="${extraSessionLink.getAttribute('href')}" class="extra-session-link"><span data-i18n="extraSession">${extraSessionText}</span></a>`
+          );
+        }
+      } else {
+        // Если ссылки нет, просто обновляем текст
+        noCardsText.textContent = this.translate('startExtraSession');
+      }
     }
   }
 }
