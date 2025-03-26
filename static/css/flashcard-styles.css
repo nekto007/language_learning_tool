@@ -1,11 +1,11 @@
 /* Flashcard Styles for SRS System */
 
 /* Header container */
-.container-fluid, .container {
-  padding: 15px 20px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
+/*.container-fluid, .container {*/
+/*  padding: 15px 20px;*/
+/*  background-color: #f8f9fa;*/
+/*  border-bottom: 1px solid #e9ecef;*/
+/*}*/
 
 /* Deck title */
 h5.mb-0 {
@@ -117,7 +117,7 @@ h5.mb-0 {
 /* Example sentences */
 #exampleContainer {
     background-color: #f8f9fa;
-    border-left: 4px solid #6c757d;
+    /*border-left: 4px solid #6c757d;*/
     margin: 1.5rem 0;
 }
 

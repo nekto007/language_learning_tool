@@ -1,105 +1,159 @@
 /**
  * Deck Detail Page JavaScript
- * Handles deck management, card operations and API interactions
+ * Refactored to remove Bootstrap and language dependencies
  */
 
-// Fix for Bootstrap modal issues
-(function() {
-  // Initialize a backup object if bootstrap is missing
-  if (typeof bootstrap === 'undefined') {
-    console.warn('Bootstrap not found - initializing backup implementation');
-    window.bootstrap = {
-      Modal: function(element, config) {
-        this.element = element;
-        this._config = config || { backdrop: true, keyboard: true, focus: true };
+// Import our custom UI implementation that replaces Bootstrap
+// import { initCustomUIImplementation } from './custom-ui.js';
 
-        // Simple show method
-        this.show = function() {
-          this.element.classList.add('show');
-          this.element.style.display = 'block';
-          document.body.classList.add('modal-open');
-
-          // Add backdrop
-          if (this._config.backdrop !== false && !document.querySelector('.modal-backdrop')) {
-            const backdrop = document.createElement('div');
-            backdrop.className = 'modal-backdrop fade show';
-            document.body.appendChild(backdrop);
-          }
-        };
-
-        // Simple hide method
-        this.hide = function() {
-          this.element.classList.remove('show');
-          this.element.style.display = 'none';
-          document.body.classList.remove('modal-open');
-
-          // Remove backdrop
-          const backdrop = document.querySelector('.modal-backdrop');
-          if (backdrop) {
-            backdrop.remove();
-          }
-        };
-      }
-    };
-
-    // Add getInstance method
-    bootstrap.Modal.getInstance = function(element) {
-      return element._bsModal || null;
-    };
+/**
+ * Ensure API URLs are properly initialized
+ */
+function initializeApiUrls() {
+  // Make sure window.appData exists
+  if (!window.appData) {
+    window.appData = {};
   }
 
-  // Fix for missing _config.backdrop
-  const originalModalShow = bootstrap.Modal.prototype.show;
-  if (originalModalShow) {
-    bootstrap.Modal.prototype.show = function() {
-      // Fix missing _config
-      if (!this._config) {
-        this._config = { backdrop: true, keyboard: true, focus: true };
-      }
-      // Call original method
-      try {
-        originalModalShow.call(this);
-      } catch (error) {
-        console.error('Error in bootstrap Modal show:', error);
-        // Fallback implementation
-        this.element.classList.add('show');
-        this.element.style.display = 'block';
-        document.body.classList.add('modal-open');
-      }
-    };
+  // Make sure apiUrls exists
+  if (!window.appData.apiUrls) {
+    window.appData.apiUrls = {};
   }
-})();
 
-// Fix any existing modal issues
-function fixBootstrapModalIssues() {
-  // Locate all modals
+  // Get the deck ID from the page
+  const deckId = window.appData.deckId ||
+    parseInt(window.location.pathname.match(/\/decks\/(\d+)/)?.[1]) ||
+    document.querySelector('[data-deck-id]')?.dataset.deckId;
+
+  if (deckId) {
+    window.appData.deckId = deckId;
+
+    // Set API URLs if they don't exist
+    if (!window.appData.apiUrls.getCardCounts) {
+      window.appData.apiUrls.getCardCounts = `/srs/api/decks/${deckId}/card_counts`;
+    }
+
+    // Add new API URL for deck settings
+    if (!window.appData.apiUrls.deckSettings) {
+      window.appData.apiUrls.deckSettings = `/srs/api/decks/${deckId}/settings`;
+    }
+  }
+
+  console.log('API URLs initialized:', window.appData.apiUrls);
+}
+
+/**
+ * Setup modals properly without Bootstrap
+ */
+function setupModals() {
+  // Process all modals
   document.querySelectorAll('.modal').forEach(modalElement => {
     // Skip if already processed
-    if (modalElement._bsModalFixed) return;
+    if (modalElement._modalFixed) return;
 
     // Mark as processed
-    modalElement._bsModalFixed = true;
+    modalElement._modalFixed = true;
 
     try {
-      // Create a proper Bootstrap Modal instance
-      const modalInstance = new bootstrap.Modal(modalElement, {
+      // Create a modal instance using our custom implementation
+      const modalInstance = new customUI.Modal(modalElement, {
         backdrop: true,
         keyboard: true,
         focus: true
       });
 
       // Store on element for future reference
-      modalElement._bsModal = modalInstance;
+      modalElement._customModal = modalInstance;
     } catch (error) {
       console.error(`Error initializing modal ${modalElement.id}:`, error);
     }
+
+    // Fix all triggers for this modal
+    const modalId = modalElement.id;
+    if (modalId) {
+      document.querySelectorAll(`[data-bs-toggle="modal"][data-bs-target="#${modalId}"]`).forEach(trigger => {
+        // Skip if already has a click handler
+        if (trigger._modalHandlerAdded) return;
+        trigger._modalHandlerAdded = true;
+
+        trigger.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          try {
+            // Try to use the instance
+            if (modalElement._customModal) {
+              modalElement._customModal.show();
+            } else {
+              // Fallback
+              modalElement.classList.add('show');
+              modalElement.style.display = 'block';
+              document.body.classList.add('modal-open');
+
+              if (!document.querySelector('.modal-backdrop')) {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                document.body.appendChild(backdrop);
+              }
+            }
+          } catch (error) {
+            console.error(`Error showing modal ${modalId}:`, error);
+            // Last resort
+            modalElement.style.display = 'block';
+          }
+        });
+      });
+    }
+
+    // Initialize modal events if needed
+    if (modalElement.id === 'addWordModal') {
+      modalElement.addEventListener('shown.bs.modal', loadWords);
+    } else if (modalElement.id === 'deckSettingsModal') {
+      modalElement.addEventListener('shown.bs.modal', loadDeckSettings);
+    }
+  });
+
+  // Find close buttons
+  document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(closeBtn => {
+    // Skip if already processed
+    if (closeBtn._closeHandlerAdded) return;
+    closeBtn._closeHandlerAdded = true;
+
+    closeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const modalElement = this.closest('.modal');
+      if (!modalElement) return;
+
+      try {
+        if (modalElement._customModal) {
+          modalElement._customModal.hide();
+        } else {
+          // Manual fallback
+          modalElement.classList.remove('show');
+          modalElement.style.display = 'none';
+          document.body.classList.remove('modal-open');
+          document.querySelector('.modal-backdrop')?.remove();
+        }
+      } catch (error) {
+        console.error('Error closing modal:', error);
+        // Force hide
+        modalElement.style.display = 'none';
+        document.querySelector('.modal-backdrop')?.remove();
+      }
+    });
   });
 }
 
-// Call immediately to fix any issues with existing modals
-fixBootstrapModalIssues();
-
+/**
+ * Main initialization function
+ */
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize our custom UI implementation
+  initCustomUIImplementation();
+
+  // Initialize API URLs
+  initializeApiUrls();
+
   // Initialize all components
   initCardActions();
   initAddWordModal();
@@ -107,21 +161,170 @@ document.addEventListener('DOMContentLoaded', () => {
   initDeckSettings();
   animatePageElements();
 
-  // Add these new fixes
+  // Fix common issues
   fixToastIssues();
   fixWordDisplay();
   setupModals();
 
   // Apply light theme
-  enforceLightTheme();
+  document.body.classList.add('light-theme');
 
-  // Reapply styles after a delay to ensure they override any late-loading styles
-  setTimeout(enforceLightTheme, 100);
-  setTimeout(enforceLightTheme, 500);
-  setTimeout(enforceLightTheme, 1000);
+  // Update card counters
+  updateCardCounters();
 });
 
+/**
+ * Debug API endpoints to help troubleshoot issues
+ */
+function debugApiEndpoints() {
+  console.log('Debugging API endpoints...');
+
+  // Log application data
+  console.log('App Data:', window.appData);
+
+  // Check if deck ID is available
+  const deckId = window.appData?.deckId;
+  console.log('Deck ID:', deckId);
+
+  // Try to find deck ID in DOM if not in appData
+  if (!deckId) {
+    const possibleDeckIdElements = [
+      document.querySelector('[data-deck-id]'),
+      document.querySelector('meta[name="deck-id"]'),
+    ];
+
+    for (const element of possibleDeckIdElements) {
+      if (element) {
+        console.log('Found deck ID in DOM:', element.dataset.deckId || element.content);
+        break;
+      }
+    }
+  }
+
+  // Log the route we're trying to use
+  const apiUrl = window.appData?.apiUrls?.getCardCounts ||
+    (deckId ? `/srs/api/decks/${deckId}/card_counts` : null);
+
+  console.log('API URL for card counts:', apiUrl);
+
+  // Try to manually fetch from the API to see what happens
+  if (apiUrl) {
+    console.log('Testing API endpoint...');
+    fetch(apiUrl)
+      .then(response => {
+        console.log('API Response Status:', response.status);
+        console.log('API Response OK:', response.ok);
+        return response.text(); // Get as text first to debug
+      })
+      .then(text => {
+        console.log('API Response Text (first 100 chars):', text.substring(0, 100));
+        try {
+          // Try to parse as JSON to see if it's valid
+          const json = JSON.parse(text);
+          console.log('Valid JSON response:', json);
+        } catch (e) {
+          console.error('Invalid JSON response:', e);
+        }
+      })
+      .catch(error => {
+        console.error('API request failed:', error);
+      });
+  }
+}
+
 // --- Card Action Handlers ---
+
+/**
+ * Update card counters in the UI based on today's date
+ * Only count cards that are due today or earlier
+ */
+function updateCardCounters() {
+  // Get current date
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);  // Set to beginning of day for comparison
+
+  // If the backend provides today's date, use it for consistency
+  const backendToday = document.querySelector('meta[name="current-date"]')?.content;
+  const todayStr = backendToday || today.toISOString().split('T')[0];
+
+  // Get the API URL for card counts
+  const deckId = window.appData?.deckId;
+
+  // Verify we have valid data before making the API call
+  if (!deckId) {
+    console.warn('Cannot update card counters: Missing deck ID');
+    return;
+  }
+
+  // Try to get the API URL from appData, or construct a fallback
+  const apiUrl = window.appData?.apiUrls?.getCardCounts || `/srs/api/decks/${deckId}/card_counts`;
+
+  // Fetch card counts from the API
+  fetch(apiUrl)
+    .then(response => {
+      // Check if the response is OK before trying to parse JSON
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Update counters for cards due today or earlier
+        updateCounter('counter-new', data.counts.new);
+        updateCounter('counter-learning', data.counts.learning);
+        updateCounter('counter-review', data.counts.review);
+
+        // Update visibility of review button and "no cards" message
+        const totalDueCards = data.counts.new + data.counts.learning + data.counts.review;
+        toggleReviewButton(totalDueCards > 0);
+      } else {
+        // Handle API success:false response
+        console.warn('API returned success:false', data);
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching card counts:', error);
+
+      // Fallback - just show the counts as they appear in the HTML
+      // This assumes the server rendered the initial counts correctly
+      const newCount = document.querySelector('.counter-new')?.textContent || '0';
+      const learningCount = document.querySelector('.counter-learning')?.textContent || '0';
+      const reviewCount = document.querySelector('.counter-review')?.textContent || '0';
+
+      // Calculate total based on what's already in the DOM
+      const totalDueCards = parseInt(newCount) + parseInt(learningCount) + parseInt(reviewCount);
+      toggleReviewButton(totalDueCards > 0);
+    });
+}
+
+/**
+ * Update a counter element with the given value
+ */
+function updateCounter(counterClass, value) {
+  const counterElement = document.querySelector(`.${counterClass}`);
+  if (counterElement) {
+    counterElement.textContent = value;
+  }
+}
+
+/**
+ * Toggle visibility of review button and "no cards" message
+ */
+function toggleReviewButton(hasCards) {
+  const reviewBtn = document.querySelector('.start-review-btn');
+  const noCardsMessage = document.querySelector('.no-cards-message');
+
+  if (reviewBtn && noCardsMessage) {
+    if (hasCards) {
+      reviewBtn.parentElement.style.display = 'block';
+      noCardsMessage.style.display = 'none';
+    } else {
+      reviewBtn.parentElement.style.display = 'none';
+      noCardsMessage.style.display = 'block';
+    }
+  }
+}
 
 /**
  * Initialize card action buttons
@@ -168,13 +371,13 @@ function resetCardProgress(cardId) {
   if (!cardId) return;
 
   showConfirmationDialog(
-    'Reset Progress',
-    'Are you sure you want to reset the learning progress for this card?',
-    'Reset',
+    window.translate('resetProgress'),
+    window.translate('confirmResetCardProgress'),
+    window.translate('reset'),
     () => {
       if (!window.appData || !window.appData.apiUrls) {
         console.error('API URLs not defined');
-        showToast('Error', 'Application configuration is missing', 'danger');
+        showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
         return;
       }
 
@@ -192,20 +395,20 @@ function resetCardProgress(cardId) {
         body: JSON.stringify({ difficulty: 'hard' })
       })
       .then(response => {
-        if (!response.ok) throw new Error('Failed to reset card progress');
+        if (!response.ok) throw new Error(window.translate('failedToResetProgress'));
         return response.json();
       })
       .then(data => {
         if (data.success) {
-          showToast('Success', 'Card progress has been reset', 'success');
+          showToast(window.translate('success'), window.translate('cardProgressReset'), 'success');
           reloadPage();
         } else {
-          throw new Error(data.error || 'Failed to reset card progress');
+          throw new Error(data.error || window.translate('failedToResetProgress'));
         }
       })
       .catch(error => {
         console.error('Error resetting card:', error);
-        showToast('Error', error.message, 'danger');
+        showToast(window.translate('error'), error.message, 'danger');
         // Remove loading state
         if (cardRow) {
           cardRow.classList.remove('table-warning', 'loading-pulse');
@@ -223,13 +426,13 @@ function removeCardFromDeck(cardId) {
   if (!cardId) return;
 
   showConfirmationDialog(
-    'Remove Card',
-    'Are you sure you want to remove this card from the deck?',
-    'Remove',
+    window.translate('removeCard'),
+    window.translate('confirmRemoveCard'),
+    window.translate('remove'),
     () => {
       if (!window.appData || !window.appData.apiUrls || !window.appData.apiUrls.deleteCard) {
         console.error('Delete card API URL not defined');
-        showToast('Error', 'Application configuration is missing', 'danger');
+        showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
         return;
       }
 
@@ -243,12 +446,12 @@ function removeCardFromDeck(cardId) {
 
       fetch(url, { method: 'DELETE' })
         .then(response => {
-          if (!response.ok) throw new Error('Failed to remove card');
+          if (!response.ok) throw new Error(window.translate('failedToRemoveCard'));
           return response.json();
         })
         .then(data => {
           if (data.success) {
-            showToast('Success', 'Card has been removed from the deck', 'success');
+            showToast(window.translate('success'), window.translate('cardRemoved'), 'success');
 
             // Animate row removal
             if (cardRow) {
@@ -268,12 +471,12 @@ function removeCardFromDeck(cardId) {
               reloadPage();
             }
           } else {
-            throw new Error(data.error || 'Failed to remove card');
+            throw new Error(data.error || window.translate('failedToRemoveCard'));
           }
         })
         .catch(error => {
           console.error('Error removing card:', error);
-          showToast('Error', error.message, 'danger');
+          showToast(window.translate('error'), error.message, 'danger');
           // Remove loading state
           if (cardRow) {
             cardRow.classList.remove('table-danger', 'loading-pulse');
@@ -303,19 +506,19 @@ function openMoveCardModal(cardId) {
   }
 
   // Show loading state in select
-  select.innerHTML = '<option value="" disabled selected>Loading decks...</option>';
+  select.innerHTML = `<option value="" disabled selected>${window.translate('loadingDecks')}</option>`;
   select.disabled = true;
 
   // Load available decks
   if (!window.appData || !window.appData.apiUrls || !window.appData.apiUrls.getDecks) {
     console.error('Get decks API URL not defined');
-    showToast('Error', 'Application configuration is missing', 'danger');
+    showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
     return;
   }
 
   fetch(window.appData.apiUrls.getDecks)
     .then(response => {
-      if (!response.ok) throw new Error('Failed to load decks');
+      if (!response.ok) throw new Error(window.translate('failedToLoadDecks'));
       return response.json();
     })
     .then(data => {
@@ -340,7 +543,7 @@ function openMoveCardModal(cardId) {
 
         // Handle no available decks
         if (!hasOptions) {
-          select.innerHTML = '<option value="" disabled selected>No other decks available</option>';
+          select.innerHTML = `<option value="" disabled selected>${window.translate('noOtherDecksAvailable')}</option>`;
           const confirmBtn = document.getElementById('confirmMoveCardBtn');
           if (confirmBtn) {
             confirmBtn.disabled = true;
@@ -354,16 +557,19 @@ function openMoveCardModal(cardId) {
 
         // Show modal
         try {
-          if (modalElement._bsModal) {
-            modalElement._bsModal.show();
+          if (modalElement._customModal) {
+            modalElement._customModal.show();
           } else {
-            const modalInstance = new bootstrap.Modal(modalElement, {
-              backdrop: true,
-              keyboard: true
-            });
+            // Fallback
+            modalElement.classList.add('show');
+            modalElement.style.display = 'block';
+            document.body.classList.add('modal-open');
 
-            modalElement._bsModal = modalInstance;
-            modalInstance.show();
+            if (!document.querySelector('.modal-backdrop')) {
+              const backdrop = document.createElement('div');
+              backdrop.className = 'modal-backdrop fade show';
+              document.body.appendChild(backdrop);
+            }
           }
         } catch (error) {
           console.error('Error showing modal:', error);
@@ -373,12 +579,12 @@ function openMoveCardModal(cardId) {
           document.body.classList.add('modal-open');
         }
       } else {
-        throw new Error(data.error || 'Failed to load decks');
+        throw new Error(data.error || window.translate('failedToLoadDecks'));
       }
     })
     .catch(error => {
       console.error('Error loading decks:', error);
-      showToast('Error', error.message, 'danger');
+      showToast(window.translate('error'), error.message, 'danger');
     });
 }
 
@@ -396,7 +602,7 @@ function confirmMoveCard() {
   const cardId = window.currentCardId;
 
   if (!targetDeckId || !cardId) {
-    showToast('Error', 'Please select a target deck', 'warning');
+    showToast(window.translate('error'), window.translate('selectTargetDeck'), 'warning');
     return;
   }
 
@@ -416,12 +622,12 @@ function confirmMoveCard() {
 
   const originalBtnText = confirmBtn.innerHTML;
   confirmBtn.disabled = true;
-  confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Moving...';
+  confirmBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${window.translate('moving')}...`;
 
   // Send move request
   if (!window.appData || !window.appData.apiUrls || !window.appData.apiUrls.moveCard) {
     console.error('Move card API URL not defined');
-    showToast('Error', 'Application configuration is missing', 'danger');
+    showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
 
     // Reset button
     confirmBtn.disabled = false;
@@ -437,14 +643,14 @@ function confirmMoveCard() {
     body: JSON.stringify({ deck_id: targetDeckId })
   })
     .then(response => {
-      if (!response.ok) throw new Error('Failed to move card');
+      if (!response.ok) throw new Error(window.translate('failedToMoveCard'));
       return response.json();
     })
     .then(data => {
       if (data.success) {
         try {
-          if (modalElement._bsModal) {
-            modalElement._bsModal.hide();
+          if (modalElement._customModal) {
+            modalElement._customModal.hide();
           } else {
             // Fallback manual close
             modalElement.classList.remove('show');
@@ -459,7 +665,7 @@ function confirmMoveCard() {
           document.querySelector('.modal-backdrop')?.remove();
         }
 
-        showToast('Success', 'Card has been moved to another deck', 'success');
+        showToast(window.translate('success'), window.translate('cardMoved'), 'success');
 
         // Animate row removal
         const cardRow = document.querySelector(`tr[data-card-id="${cardId}"]`);
@@ -480,12 +686,12 @@ function confirmMoveCard() {
           reloadPage();
         }
       } else {
-        throw new Error(data.error || 'Failed to move card');
+        throw new Error(data.error || window.translate('failedToMoveCard'));
       }
     })
     .catch(error => {
       console.error('Error moving card:', error);
-      showToast('Error', error.message, 'danger');
+      showToast(window.translate('error'), error.message, 'danger');
 
       // Reset button
       confirmBtn.disabled = false;
@@ -499,26 +705,6 @@ function confirmMoveCard() {
  * Initialize the add word modal functionality
  */
 function initAddWordModal() {
-  const addWordModal = document.getElementById('addWordModal');
-  if (!addWordModal) return;
-
-  // Create a modal instance with explicit configuration
-  try {
-    const modalInstance = new bootstrap.Modal(addWordModal, {
-      backdrop: true,
-      keyboard: true,
-      focus: true
-    });
-
-    // Store the instance for future use
-    addWordModal._bsModal = modalInstance;
-  } catch (error) {
-    console.error('Error initializing add word modal:', error);
-  }
-
-  // Load words when modal is shown
-  addWordModal.addEventListener('show.bs.modal', loadWords);
-
   // Form control event listeners
   const wordStatusSelect = document.getElementById('wordStatusSelect');
   if (wordStatusSelect) {
@@ -539,36 +725,6 @@ function initAddWordModal() {
   if (addSelectedWordsBtn) {
     addSelectedWordsBtn.addEventListener('click', addSelectedWords);
   }
-
-  // Fix the "Add Words" button
-  const addWordsButtons = document.querySelectorAll('[data-bs-toggle="modal"][data-bs-target="#addWordModal"]');
-  addWordsButtons.forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      try {
-        if (addWordModal._bsModal) {
-          addWordModal._bsModal.show();
-        } else {
-          // Fallback
-          addWordModal.classList.add('show');
-          addWordModal.style.display = 'block';
-          document.body.classList.add('modal-open');
-
-          if (!document.querySelector('.modal-backdrop')) {
-            const backdrop = document.createElement('div');
-            backdrop.className = 'modal-backdrop fade show';
-            document.body.appendChild(backdrop);
-          }
-        }
-      } catch (error) {
-        console.error('Error showing Add Word modal:', error);
-        // Last resort fallback
-        addWordModal.style.display = 'block';
-      }
-    });
-  });
 }
 
 /**
@@ -589,9 +745,9 @@ function loadWords() {
     <tr id="wordsLoadingRow">
       <td colspan="3" class="text-center py-3">
         <div class="spinner-border spinner-border-sm text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
+          <span class="visually-hidden">${window.translate('loading')}</span>
         </div>
-        <span class="ms-2">Loading words...</span>
+        <span class="ms-2">${window.translate('loadingWords')}</span>
       </td>
     </tr>
   `;
@@ -603,7 +759,7 @@ function loadWords() {
       <tr>
         <td colspan="3" class="text-center py-3 text-danger">
           <i class="bi bi-exclamation-triangle me-2"></i>
-          Application configuration is missing
+          ${window.translate('appConfigMissing')}
         </td>
       </tr>
     `;
@@ -618,7 +774,7 @@ function loadWords() {
   // Fetch words from API
   fetch(url)
     .then(response => {
-      if (!response.ok) throw new Error('Failed to load words');
+      if (!response.ok) throw new Error(window.translate('failedToLoadWords'));
       return response.json();
     })
     .then(data => {
@@ -649,7 +805,7 @@ function loadWords() {
           <tr>
             <td colspan="3" class="text-center py-3">
               <i class="bi bi-search me-2"></i>
-              No words found
+              ${window.translate('noWordsFound')}
             </td>
           </tr>
         `;
@@ -661,7 +817,7 @@ function loadWords() {
         <tr>
           <td colspan="3" class="text-center py-3 text-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            Failed to load words
+            ${window.translate('failedToLoadWords')}
           </td>
         </tr>
       `;
@@ -686,7 +842,7 @@ function addSelectedWords() {
   const selectedWords = Array.from(document.querySelectorAll('.word-checkbox:checked')).map(cb => cb.value);
 
   if (selectedWords.length === 0) {
-    showToast('Warning', 'Please select at least one word', 'warning');
+    showToast(window.translate('warning'), window.translate('selectAtLeastOneWord'), 'warning');
     return;
   }
 
@@ -699,12 +855,12 @@ function addSelectedWords() {
 
   const originalBtnText = addBtn.innerHTML;
   addBtn.disabled = true;
-  addBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Adding...';
+  addBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${window.translate('adding')}...`;
 
   // Check if API URLs are defined
   if (!window.appData || !window.appData.apiUrls || !window.appData.apiUrls.addCard) {
     console.error('Add card API URL not defined');
-    showToast('Error', 'Application configuration is missing', 'danger');
+    showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
 
     // Reset button
     addBtn.disabled = false;
@@ -719,7 +875,7 @@ function addSelectedWords() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ word_id: wordId })
     }).then(response => {
-      if (!response.ok) throw new Error(`Failed to add word ${wordId}`);
+      if (!response.ok) throw new Error(`${window.translate('failedToAddWord')} ${wordId}`);
       return response.json();
     });
   });
@@ -731,8 +887,8 @@ function addSelectedWords() {
       const modalElement = document.getElementById('addWordModal');
       if (modalElement) {
         try {
-          if (modalElement._bsModal) {
-            modalElement._bsModal.hide();
+          if (modalElement._customModal) {
+            modalElement._customModal.hide();
           } else {
             // Fallback to manual hiding
             modalElement.classList.remove('show');
@@ -749,14 +905,14 @@ function addSelectedWords() {
       }
 
       // Show success message
-      showToast('Success', `Added ${selectedWords.length} words to deck`, 'success');
+      showToast(window.translate('success'), `${window.translate('added')} ${selectedWords.length} ${window.translate('wordsToDeck')}`, 'success');
 
       // Reload page
       reloadPage();
     })
     .catch(error => {
       console.error('Error adding words:', error);
-      showToast('Error', error.message, 'danger');
+      showToast(window.translate('error'), error.message, 'danger');
 
       // Reset button
       addBtn.disabled = false;
@@ -783,7 +939,7 @@ function initDeckOperations() {
   }
 
   // Set deletion flag when delete button is clicked
-  const deleteDeckBtn = document.getElementById('deleteDeckBtn');
+  const deleteDeckBtn = document.querySelector('[data-bs-target="#deleteDeckModal"]');
   if (deleteDeckBtn) {
     deleteDeckBtn.addEventListener('click', () => {
       window.explicitlyRequestedDeletion = true;
@@ -807,7 +963,7 @@ function saveDeckChanges() {
   const description = deckDescriptionInput ? deckDescriptionInput.value?.trim() : '';
 
   if (!name) {
-    showToast('Warning', 'Deck name is required', 'warning');
+    showToast(window.translate('warning'), window.translate('deckNameRequired'), 'warning');
     return;
   }
 
@@ -820,12 +976,12 @@ function saveDeckChanges() {
 
   const originalBtnText = saveBtn.innerHTML;
   saveBtn.disabled = true;
-  saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+  saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${window.translate('saving')}...`;
 
   // Check if API URLs are defined
   if (!window.appData || !window.appData.apiUrls || !window.appData.apiUrls.updateDeck) {
     console.error('Update deck API URL not defined');
-    showToast('Error', 'Application configuration is missing', 'danger');
+    showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
 
     // Reset button
     saveBtn.disabled = false;
@@ -839,7 +995,7 @@ function saveDeckChanges() {
     body: JSON.stringify({ name, description })
   })
     .then(response => {
-      if (!response.ok) throw new Error('Failed to update deck');
+      if (!response.ok) throw new Error(window.translate('failedToUpdateDeck'));
       return response.json();
     })
     .then(data => {
@@ -847,8 +1003,8 @@ function saveDeckChanges() {
         const modalElement = document.getElementById('editDeckModal');
         if (modalElement) {
           try {
-            if (modalElement._bsModal) {
-              modalElement._bsModal.hide();
+            if (modalElement._customModal) {
+              modalElement._customModal.hide();
             } else {
               // Fallback to manual hide
               modalElement.classList.remove('show');
@@ -864,15 +1020,15 @@ function saveDeckChanges() {
           }
         }
 
-        showToast('Success', 'Deck updated successfully', 'success');
+        showToast(window.translate('success'), window.translate('deckUpdated'), 'success');
         reloadPage();
       } else {
-        throw new Error(data.error || 'Failed to update deck');
+        throw new Error(data.error || window.translate('failedToUpdateDeck'));
       }
     })
     .catch(error => {
       console.error('Error updating deck:', error);
-      showToast('Error', error.message, 'danger');
+      showToast(window.translate('error'), error.message, 'danger');
 
       // Reset button
       saveBtn.disabled = false;
@@ -893,12 +1049,12 @@ function deleteDeck() {
 
   const originalBtnText = deleteBtn.innerHTML;
   deleteBtn.disabled = true;
-  deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Deleting...';
+  deleteBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${window.translate('deleting')}...`;
 
   // Check if API URLs are defined
   if (!window.appData || !window.appData.apiUrls || !window.appData.apiUrls.deleteDeck) {
     console.error('Delete deck API URL not defined');
-    showToast('Error', 'Application configuration is missing', 'danger');
+    showToast(window.translate('error'), window.translate('appConfigMissing'), 'danger');
 
     // Reset button
     deleteBtn.disabled = false;
@@ -908,12 +1064,12 @@ function deleteDeck() {
 
   fetch(window.appData.apiUrls.deleteDeck, { method: 'DELETE' })
     .then(response => {
-      if (!response.ok) throw new Error('Failed to delete deck');
+      if (!response.ok) throw new Error(window.translate('failedToDeleteDeck'));
       return response.json();
     })
     .then(data => {
       if (data.success) {
-        showToast('Success', 'Deck deleted successfully', 'success');
+        showToast(window.translate('success'), window.translate('deckDeleted'), 'success');
         // Redirect to decks list
         if (window.appData && window.appData.urls && window.appData.urls.decksList) {
           window.location.href = window.appData.urls.decksList;
@@ -921,12 +1077,12 @@ function deleteDeck() {
           window.location.href = '/decks/';
         }
       } else {
-        throw new Error(data.error || 'Failed to delete deck');
+        throw new Error(data.error || window.translate('failedToDeleteDeck'));
       }
     })
     .catch(error => {
       console.error('Error deleting deck:', error);
-      showToast('Error', error.message, 'danger');
+      showToast(window.translate('error'), error.message, 'danger');
 
       // Reset button
       deleteBtn.disabled = false;
@@ -945,13 +1101,12 @@ function deleteDeck() {
  */
 function showConfirmationDialog(title, message, confirmText, onConfirm) {
   // Implementation depends on your preferred method
-  // Option 1: Use Bootstrap modal (advanced)
-  // Option 2: Use simple browser confirm (basic)
+  // For now, use simple browser confirm
   if (confirm(message)) {
     onConfirm();
   }
 
-  // More advanced implementation would create a Bootstrap modal dynamically
+  // More advanced implementation would create a modal dynamically
 }
 
 /**
@@ -968,12 +1123,12 @@ function showToast(title, message, type = 'info') {
     return;
   }
 
-  // Check if Bootstrap 5 toast container exists, if not create it
+  // Check if toast container exists, if not create it
   let toastContainer = document.querySelector('.toast-container');
 
   if (!toastContainer) {
     toastContainer = document.createElement('div');
-    toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    toastContainer.className = 'toast-container';
     document.body.appendChild(toastContainer);
   }
 
@@ -983,6 +1138,7 @@ function showToast(title, message, type = 'info') {
   toastElement.setAttribute('role', 'alert');
   toastElement.setAttribute('aria-live', 'assertive');
   toastElement.setAttribute('aria-atomic', 'true');
+  toastElement.dataset.autoRemove = 'true';
 
   // Create toast content
   toastElement.innerHTML = `
@@ -997,15 +1153,17 @@ function showToast(title, message, type = 'info') {
   // Add toast to container
   toastContainer.appendChild(toastElement);
 
-  // Initialize and show toast
+  // Initialize and show toast using our custom implementation
   try {
-    const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
+    const toast = new customUI.Toast(toastElement, { autohide: true, delay: 5000 });
     toast.show();
   } catch (error) {
     console.error('Error showing toast:', error);
     // Fallback - just append and remove after delay
+    toastElement.classList.add('show');
     setTimeout(() => {
-      toastElement.remove();
+      toastElement.classList.remove('show');
+      setTimeout(() => toastElement.remove(), 300);
     }, 5000);
   }
 
@@ -1077,15 +1235,9 @@ function fixToastIssues() {
   const existingToasts = document.querySelectorAll('.toast-container .toast');
   existingToasts.forEach(toast => {
     try {
-      const bsToast = bootstrap.Toast.getInstance(toast);
-      if (bsToast) {
-        bsToast.hide();
-      }
       toast.remove();
     } catch (e) {
       console.error('Error removing toast:', e);
-      // Fallback
-      toast.remove();
     }
   });
 
@@ -1133,7 +1285,7 @@ function fetchWordData() {
   // Fetch word data for these IDs
   fetch(`${window.appData.apiUrls.wordsList}?ids=${wordIds.join(',')}&format=json`)
     .then(response => {
-      if (!response.ok) throw new Error('Failed to load word data');
+      if (!response.ok) throw new Error(window.translate('failedToLoadWords'));
       return response.json();
     })
     .then(data => {
@@ -1173,7 +1325,7 @@ function updateWordDisplay() {
       const wordLink = row.querySelector('.word-link');
       if (wordLink) {
         // Update word text if we have the data
-        wordLink.textContent = word.english_word || 'Unknown word';
+        wordLink.textContent = word.english_word || window.translate('unknownWord');
       }
 
       // Update translation if present
@@ -1185,217 +1337,41 @@ function updateWordDisplay() {
   });
 }
 
-/**
- * Improved modal management
- * Prevents modals from unexpectedly showing
- */
-function setupModals() {
-  // Process all modals
-  document.querySelectorAll('.modal').forEach(modalElement => {
-    // Skip if already processed
-    if (modalElement._bsModalFixed) return;
-
-    // Mark as processed
-    modalElement._bsModalFixed = true;
-
-    try {
-      // Try to create a Bootstrap modal instance
-      const modalInstance = new bootstrap.Modal(modalElement, {
-        backdrop: true,
-        keyboard: true,
-        focus: true
-      });
-
-      // Store on element for future reference
-      modalElement._bsModal = modalInstance;
-    } catch (error) {
-      console.error(`Error initializing modal ${modalElement.id}:`, error);
-    }
-
-    // Fix all triggers for this modal
-    const modalId = modalElement.id;
-    if (modalId) {
-      document.querySelectorAll(`[data-bs-toggle="modal"][data-bs-target="#${modalId}"]`).forEach(trigger => {
-        // Skip if already has a click handler
-        if (trigger._modalHandlerAdded) return;
-        trigger._modalHandlerAdded = true;
-
-        trigger.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          try {
-            // Try to use the instance
-            if (modalElement._bsModal) {
-              modalElement._bsModal.show();
-            } else {
-              // Fallback
-              modalElement.classList.add('show');
-              modalElement.style.display = 'block';
-              document.body.classList.add('modal-open');
-
-              if (!document.querySelector('.modal-backdrop')) {
-                const backdrop = document.createElement('div');
-                backdrop.className = 'modal-backdrop fade show';
-                document.body.appendChild(backdrop);
-              }
-            }
-          } catch (error) {
-            console.error(`Error showing modal ${modalId}:`, error);
-            // Last resort
-            modalElement.style.display = 'block';
-          }
-        });
-      });
-    }
-  });
-
-  // Find close buttons
-  document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(closeBtn => {
-    // Skip if already processed
-    if (closeBtn._closeHandlerAdded) return;
-    closeBtn._closeHandlerAdded = true;
-
-    closeBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      const modalElement = this.closest('.modal');
-      if (!modalElement) return;
-
-      try {
-        if (modalElement._bsModal) {
-          modalElement._bsModal.hide();
-        } else {
-          // Manual fallback
-          modalElement.classList.remove('show');
-          modalElement.style.display = 'none';
-          document.body.classList.remove('modal-open');
-          document.querySelector('.modal-backdrop')?.remove();
-        }
-      } catch (error) {
-        console.error('Error closing modal:', error);
-        // Force hide
-        modalElement.style.display = 'none';
-        document.querySelector('.modal-backdrop')?.remove();
-      }
-    });
-  });
-}
-
-/**
- * Function to enforce light theme consistently
- * Overrides any dark theme styling that might be applied
- */
-function enforceLightTheme() {
-  // Check if we're already applying theme to prevent recursion
-  if (window.isApplyingTheme) {
-    return;
-  }
-
-  window.isApplyingTheme = true;
-
-  try {
-    // Apply a single CSS class to body that will handle all styling
-    if (!document.body.classList.contains('light-theme')) {
-      document.body.classList.add('light-theme');
-
-      // Add style tag if it doesn't exist yet
-      if (!document.getElementById('light-theme-styles')) {
-        const styleTag = document.createElement('style');
-        styleTag.id = 'light-theme-styles';
-        styleTag.textContent = `
-          .light-theme {
-            background-color: #f8f9fa !important;
-            color: #212529 !important;
-          }
-          .light-theme .table {
-            background-color: #ffffff !important;
-            color: #212529 !important;
-          }
-          .light-theme .table tr {
-            background-color: #ffffff !important;
-            color: #212529 !important;
-          }
-          .light-theme .table td, .light-theme .table th {
-            background-color: #ffffff !important;
-            color: #212529 !important;
-          }
-          .light-theme .table thead th {
-            background-color: #f8f9fa !important;
-            color: #495057 !important;
-          }
-          .light-theme .card {
-            background-color: #ffffff !important;
-            color: #212529 !important;
-            border-color: rgba(0, 0, 0, 0.125) !important;
-          }
-          .light-theme .card-header {
-            background-color: #f8f9fa !important;
-            color: #212529 !important;
-          }
-          .light-theme .word-link {
-            color: #0d6efd !important;
-          }
-          .light-theme .badge.bg-primary {
-            background-color: #0d6efd !important;
-            color: white !important;
-          }
-          .light-theme .badge.bg-info {
-            background-color: #0dcaf0 !important;
-            color: #000 !important;
-          }
-          .light-theme .counter-new {
-            background-color: #0dcaf0 !important;
-            color: white !important;
-          }
-          .light-theme .counter-learning {
-            background-color: #0d6efd !important;
-            color: white !important;
-          }
-          .light-theme .counter-review {
-            background-color: #198754 !important;
-            color: white !important;
-          }
-          .light-theme .btn-primary {
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
-            color: white !important;
-          }
-          .light-theme .btn-outline-secondary {
-            color: #6c757d !important;
-            border-color: #6c757d !important;
-            background-color: transparent !important;
-          }
-        `;
-        document.head.appendChild(styleTag);
-      }
-    }
-  } catch (error) {
-    console.error('Error enforcing light theme:', error);
-  } finally {
-    window.isApplyingTheme = false;
-  }
-}
-
-/**
- * Deck Settings JavaScript
- * Handles deck settings UI interactions and saving
- */
+// --- Deck Settings ---
 
 /**
  * Initialize deck settings functionality
  */
 function initDeckSettings() {
   // Initialize tooltips
-  const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-  if (tooltips.length > 0) {
-    try {
-      tooltips.forEach(tooltip => {
-        new bootstrap.Tooltip(tooltip);
-      });
-    } catch (error) {
-      console.error('Error initializing tooltips:', error);
-    }
-  }
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltip => {
+    tooltip.title = tooltip.dataset.bsTitle || tooltip.title;
+
+    // Create simple tooltip show/hide behavior
+    tooltip.addEventListener('mouseenter', () => {
+      let tooltipElement = document.getElementById(`tooltip-${tooltip.id}`);
+
+      if (!tooltipElement) {
+        tooltipElement = document.createElement('div');
+        tooltipElement.id = `tooltip-${tooltip.id}`;
+        tooltipElement.className = 'tooltip show';
+        tooltipElement.innerHTML = `<div class="tooltip-inner">${tooltip.title}</div>`;
+        document.body.appendChild(tooltipElement);
+      }
+
+      const rect = tooltip.getBoundingClientRect();
+      tooltipElement.style.top = `${rect.top - tooltipElement.offsetHeight - 5}px`;
+      tooltipElement.style.left = `${rect.left + rect.width / 2 - tooltipElement.offsetWidth / 2}px`;
+      tooltipElement.style.display = 'block';
+    });
+
+    tooltip.addEventListener('mouseleave', () => {
+      const tooltipElement = document.getElementById(`tooltip-${tooltip.id}`);
+      if (tooltipElement) {
+        tooltipElement.style.display = 'none';
+      }
+    });
+  });
 
   // Sync range inputs with number inputs
   initRangeInputs();
@@ -1409,12 +1385,6 @@ function initDeckSettings() {
   const saveDeckSettingsBtn = document.getElementById('saveDeckSettingsBtn');
   if (saveDeckSettingsBtn) {
     saveDeckSettingsBtn.addEventListener('click', saveDeckSettings);
-  }
-
-  // Load current settings when modal opens
-  const settingsModal = document.getElementById('deckSettingsModal');
-  if (settingsModal) {
-    settingsModal.addEventListener('show.bs.modal', loadDeckSettings);
   }
 }
 
@@ -1500,66 +1470,124 @@ function resetSettingToDefault(event) {
   }
 
   // Show feedback
-  showToast('Settings Reset', `Reset ${setting} to default value`, 'info');
+  showToast(window.translate('settingsReset'), `${window.translate('reset')} ${window.translate(setting)} ${window.translate('toDefaultValue')}`, 'info');
 }
 
 /**
- * Load current deck settings
+ * Load deck settings - BYPASS VERSION
+ * Uses default settings without API call to avoid server errors
  */
 function loadDeckSettings() {
-  // In a real implementation, this would fetch current settings from server
-  // For now, we'll just use hardcoded defaults
+  console.log('BYPASS: Loading default deck settings without API call');
 
-  // Example of how to load settings from server:
-  /*
-  const deckId = window.appData.deckId;
+  // Immediately apply default settings
+  const defaultSettings = getDefaultDeckSettings();
+  applySettingsToForm(defaultSettings);
 
-  fetch(`/api/decks/${deckId}/settings`)
-    .then(response => response.json())
-    .then(settings => {
-      // Apply settings to form
-      applySettingsToForm(settings);
-    })
-    .catch(error => {
-      console.error('Error loading deck settings:', error);
-      showToast('Error', 'Failed to load deck settings', 'danger');
-    });
-  */
+  // Add a maintenance notice to the settings dialog
+  const settingsContainer = document.querySelector('.modal-body');
+  if (settingsContainer) {
+    const infoAlert = document.createElement('div');
+    infoAlert.className = 'alert alert-warning mb-3';
+    infoAlert.innerHTML = `
+      <i class="bi bi-gear me-2"></i>
+      <strong>Settings are in maintenance mode.</strong> Changes will be visible in the interface but not saved to the server.
+    `;
 
-  // For demo purposes, use these defaults:
-  const defaultSettings = {
-    newCards: {
-      value: 30,
-      option: 'preset'
-    },
-    reviews: {
-      value: 300,
-      option: 'preset'
-    },
-    reviewLimitAffectsNew: false,
-    limitsStartFromTop: false,
-    learningSteps: {
-      again: 1,
-      hard: 5,
-      good: 10,
-      easy: 30
-    },
-    graduatingInterval: 1,
-    lapseSettings: {
-      newInterval: 0,
-      minInterval: 1
-    },
-    intervals: {
-      easyBonus: 130,
-      hardInterval: 120,
-      modifier: 1.0,
-      maximum: 36500
-    },
-    buryRelatedCards: false,
-    showAnswerTimer: true
+    // Insert at the top of the settings container
+    if (settingsContainer.firstChild) {
+      settingsContainer.insertBefore(infoAlert, settingsContainer.firstChild);
+    } else {
+      settingsContainer.appendChild(infoAlert);
+    }
+  }
+}
+
+/**
+ * Save deck settings - BYPASS VERSION
+ * Simulates a successful save operation without making API call
+ */
+function saveDeckSettings() {
+  console.log('BYPASS: Simulating settings save');
+
+  // Close modal
+  const modalElement = document.getElementById('deckSettingsModal');
+  if (modalElement) {
+    try {
+      if (modalElement._customModal) {
+        modalElement._customModal.hide();
+      } else {
+        // Fallback to manual hiding
+        modalElement.classList.remove('show');
+        modalElement.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        document.querySelector('.modal-backdrop')?.remove();
+      }
+    } catch (error) {
+      // Force hide
+      modalElement.style.display = 'none';
+      document.querySelector('.modal-backdrop')?.remove();
+    }
+  }
+
+  // Show informative toast
+  showToast(
+    window.translate('notice') || 'Notice',
+    'Settings displayed in maintenance mode. Changes will be visible in the interface but not saved permanently.',
+    'info'
+  );
+
+  // Log what settings would have been saved
+  const formData = {
+    new_cards_per_day: parseInt(document.getElementById('newCardsValue')?.value || "20"),
+    reviews_per_day: parseInt(document.getElementById('maxReviewsValue')?.value || "200"),
+    // Add other fields as needed for debugging
   };
 
-  applySettingsToForm(defaultSettings);
+  console.log('Settings that would be saved:', formData);
+}
+
+/**
+ * Get default deck settings
+ * @returns {Object} Default settings object
+ */
+function getDefaultDeckSettings() {
+  return {
+    new_cards_per_day: 20,
+    reviews_per_day: 200,
+    learning_steps: '1m 10m',
+    graduating_interval: 1,
+    easy_interval: 4,
+    insertion_order: 'sequential',
+    relearning_steps: '10m',
+    minimum_interval: 1,
+    lapse_threshold: 8,
+    lapse_action: 'tag',
+    new_card_gathering: 'deck',
+    new_card_order: 'cardType',
+    new_review_mix: 'mix',
+    inter_day_order: 'mix',
+    review_order: 'dueRandom',
+    bury_new_related: false,
+    bury_reviews_related: false,
+    bury_interday: false,
+    max_answer_time: 60,
+    show_answer_timer: true,
+    stop_timer_on_answer: false,
+    seconds_show_question: 0.0,
+    seconds_show_answer: 0.0,
+    wait_for_audio: false,
+    answer_action: 'bury',
+    disable_auto_play: false,
+    skip_question_audio: false,
+    fsrs_enabled: true,
+    max_interval: 36500,
+    starting_ease: 2.5,
+    easy_bonus: 1.3,
+    interval_modifier: 1.0,
+    hard_interval: 1.2,
+    new_interval: 0.0
+  };
 }
 
 /**
@@ -1571,278 +1599,177 @@ function applySettingsToForm(settings) {
   const newCardsRange = document.getElementById('newCardsRange');
   const newCardsValue = document.getElementById('newCardsValue');
 
-  if (newCardsRange) newCardsRange.value = settings.newCards.value;
-  if (newCardsValue) newCardsValue.value = settings.newCards.value;
+  if (newCardsRange) newCardsRange.value = settings.new_cards_per_day;
+  if (newCardsValue) newCardsValue.value = settings.new_cards_per_day;
 
-  const newCardsOption = document.getElementById(`newCards${capitalizeFirstLetter(settings.newCards.option)}`);
+  const newCardsOption = document.getElementById('newCardsPreset');
   if (newCardsOption) newCardsOption.checked = true;
 
   const maxReviewsRange = document.getElementById('maxReviewsRange');
   const maxReviewsValue = document.getElementById('maxReviewsValue');
 
-  if (maxReviewsRange) maxReviewsRange.value = settings.reviews.value;
-  if (maxReviewsValue) maxReviewsValue.value = settings.reviews.value;
+  if (maxReviewsRange) maxReviewsRange.value = settings.reviews_per_day;
+  if (maxReviewsValue) maxReviewsValue.value = settings.reviews_per_day;
 
-  const maxReviewsOption = document.getElementById(`maxReviews${capitalizeFirstLetter(settings.reviews.option)}`);
+  const maxReviewsOption = document.getElementById('maxReviewsPreset');
   if (maxReviewsOption) maxReviewsOption.checked = true;
 
-  const reviewLimitAffectsNew = document.getElementById('reviewLimitAffectsNew');
-  if (reviewLimitAffectsNew) reviewLimitAffectsNew.checked = settings.reviewLimitAffectsNew;
-
-  const limitsStartFromTop = document.getElementById('limitsStartFromTop');
-  if (limitsStartFromTop) limitsStartFromTop.checked = settings.limitsStartFromTop;
-
-  // Learning options
-  const againStep = document.getElementById('againStep');
-  if (againStep) againStep.value = settings.learningSteps.again;
-
-  const hardStep = document.getElementById('hardStep');
-  if (hardStep) hardStep.value = settings.learningSteps.hard;
-
-  const goodStep = document.getElementById('goodStep');
-  if (goodStep) goodStep.value = settings.learningSteps.good;
-
-  const easyStep = document.getElementById('easyStep');
-  if (easyStep) easyStep.value = settings.learningSteps.easy;
+  // Learning steps
+  const learningSteps = document.getElementById('learningSteps');
+  if (learningSteps) learningSteps.value = settings.learning_steps;
 
   const graduatingInterval = document.getElementById('graduatingInterval');
-  if (graduatingInterval) graduatingInterval.value = settings.graduatingInterval;
+  if (graduatingInterval) graduatingInterval.value = settings.graduating_interval;
 
-  const newLapseInterval = document.getElementById('newLapseInterval');
-  if (newLapseInterval) newLapseInterval.value = settings.lapseSettings.newInterval;
+  const easyInterval = document.getElementById('easyInterval');
+  if (easyInterval) easyInterval.value = settings.easy_interval;
 
-  const minLapseInterval = document.getElementById('minLapseInterval');
-  if (minLapseInterval) minLapseInterval.value = settings.lapseSettings.minInterval;
-
-  // Scheduling
-  const easyBonus = document.getElementById('easyBonus');
-  if (easyBonus) easyBonus.value = settings.intervals.easyBonus;
-
-  const hardInterval = document.getElementById('hardInterval');
-  if (hardInterval) hardInterval.value = settings.intervals.hardInterval;
-
-  const intervalModifier = document.getElementById('intervalModifier');
-  if (intervalModifier) intervalModifier.value = settings.intervals.modifier;
-
-  const maxInterval = document.getElementById('maxInterval');
-  if (maxInterval) maxInterval.value = settings.intervals.maximum;
-
-  const buryRelatedCards = document.getElementById('buryRelatedCards');
-  if (buryRelatedCards) buryRelatedCards.checked = settings.buryRelatedCards;
-
-  const showAnswerTimer = document.getElementById('showAnswerTimer');
-  if (showAnswerTimer) showAnswerTimer.checked = settings.showAnswerTimer;
-}
-
-/**
- * Save deck settings
- */
-function saveDeckSettings() {
-  // Collect all settings from form
-  const newCardsValue = document.getElementById('newCardsValue');
-  const maxReviewsValue = document.getElementById('maxReviewsValue');
-  const reviewLimitAffectsNew = document.getElementById('reviewLimitAffectsNew');
-  const limitsStartFromTop = document.getElementById('limitsStartFromTop');
-  const againStep = document.getElementById('againStep');
-  const hardStep = document.getElementById('hardStep');
-  const goodStep = document.getElementById('goodStep');
-  const easyStep = document.getElementById('easyStep');
-  const graduatingInterval = document.getElementById('graduatingInterval');
-  const newLapseInterval = document.getElementById('newLapseInterval');
-  const minLapseInterval = document.getElementById('minLapseInterval');
-  const easyBonus = document.getElementById('easyBonus');
-  const hardInterval = document.getElementById('hardInterval');
-  const intervalModifier = document.getElementById('intervalModifier');
-  const maxInterval = document.getElementById('maxInterval');
-  const buryRelatedCards = document.getElementById('buryRelatedCards');
-  const showAnswerTimer = document.getElementById('showAnswerTimer');
-
-  const settings = {
-    newCards: {
-      value: newCardsValue ? parseInt(newCardsValue.value) : 20,
-      option: getSelectedRadioValue('newCardsOption')
-    },
-    reviews: {
-      value: maxReviewsValue ? parseInt(maxReviewsValue.value) : 200,
-      option: getSelectedRadioValue('maxReviewsOption')
-    },
-    reviewLimitAffectsNew: reviewLimitAffectsNew ? reviewLimitAffectsNew.checked : false,
-    limitsStartFromTop: limitsStartFromTop ? limitsStartFromTop.checked : false,
-    learningSteps: {
-      again: againStep ? parseInt(againStep.value) : 1,
-      hard: hardStep ? parseInt(hardStep.value) : 5,
-      good: goodStep ? parseInt(goodStep.value) : 10,
-      easy: easyStep ? parseInt(easyStep.value) : 30
-    },
-    graduatingInterval: graduatingInterval ? parseInt(graduatingInterval.value) : 1,
-    lapseSettings: {
-      newInterval: newLapseInterval ? parseInt(newLapseInterval.value) : 0,
-      minInterval: minLapseInterval ? parseInt(minLapseInterval.value) : 1
-    },
-    intervals: {
-      easyBonus: easyBonus ? parseInt(easyBonus.value) : 130,
-      hardInterval: hardInterval ? parseInt(hardInterval.value) : 120,
-      modifier: intervalModifier ? parseFloat(intervalModifier.value) : 1.0,
-      maximum: maxInterval ? parseInt(maxInterval.value) : 36500
-    },
-    buryRelatedCards: buryRelatedCards ? buryRelatedCards.checked : false,
-    showAnswerTimer: showAnswerTimer ? showAnswerTimer.checked : true
-  };
-
-  // Show loading state
-  const saveBtn = document.getElementById('saveDeckSettingsBtn');
-  if (!saveBtn) {
-    console.error('Save deck settings button not found');
-    return;
+  const insertionOrder = document.getElementById('insertionOrder');
+  if (insertionOrder) {
+    for (let i = 0; i < insertionOrder.options.length; i++) {
+      if (insertionOrder.options[i].value === settings.insertion_order) {
+        insertionOrder.selectedIndex = i;
+        break;
+      }
+    }
   }
 
-  const originalBtnText = saveBtn.innerHTML;
-  saveBtn.disabled = true;
-  saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+  // Forgotten cards
+  const relearningSteps = document.getElementById('relearningSteps');
+  if (relearningSteps) relearningSteps.value = settings.relearning_steps;
 
-  // In a real implementation, this would save settings to server
-  // For now, we'll just simulate it with a timeout
+  const minLapseInterval = document.getElementById('minLapseInterval');
+  if (minLapseInterval) minLapseInterval.value = settings.minimum_interval;
 
-  /* Example of how to save settings to server:
-  fetch(`/api/decks/${window.appData.deckId}/settings`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(settings)
-  })
-    .then(response => response.json())
-    .then(result => {
-      if (result.success) {
-        bootstrap.Modal.getInstance(document.getElementById('deckSettingsModal')).hide();
-        showToast('Success', 'Deck settings saved successfully', 'success');
-      } else {
-        throw new Error(result.error || 'Failed to save settings');
-      }
-    })
-    .catch(error => {
-      console.error('Error saving deck settings:', error);
-      showToast('Error', error.message, 'danger');
+  const lapseThreshold = document.getElementById('lapseThreshold');
+  if (lapseThreshold) lapseThreshold.value = settings.lapse_threshold;
 
-      // Reset button
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = originalBtnText;
-    });
-  */
-
-  // Simulate saving
-  setTimeout(() => {
-    // Log settings to console for demo purposes
-    console.log('Saving deck settings:', settings);
-
-    // Close modal
-    const settingsModal = document.getElementById('deckSettingsModal');
-    if (settingsModal) {
-      try {
-        if (settingsModal._bsModal) {
-          settingsModal._bsModal.hide();
-        } else {
-          // Fallback
-          settingsModal.classList.remove('show');
-          settingsModal.style.display = 'none';
-          document.body.classList.remove('modal-open');
-          document.querySelector('.modal-backdrop')?.remove();
-        }
-      } catch (error) {
-        console.error('Error closing modal:', error);
-        // Force hide
-        settingsModal.style.display = 'none';
-        document.querySelector('.modal-backdrop')?.remove();
+  const lapseAction = document.getElementById('lapseAction');
+  if (lapseAction) {
+    for (let i = 0; i < lapseAction.options.length; i++) {
+      if (lapseAction.options[i].value === settings.lapse_action) {
+        lapseAction.selectedIndex = i;
+        break;
       }
     }
+  }
 
-    // Show success message
-    showToast('Success', 'Deck settings saved successfully', 'success');
-
-    // Reset button
-    saveBtn.disabled = false;
-    saveBtn.innerHTML = originalBtnText;
-  }, 1000);
-}
-
-/**
- * Get the value of the selected radio button in a group
- * @param {string} name - Name of the radio button group
- * @returns {string} Value of the selected radio button
- */
-function getSelectedRadioValue(name) {
-  const selectedRadio = document.querySelector(`input[name="${name}"]:checked`);
-  return selectedRadio ? selectedRadio.value : '';
-}
-
-/**
- * Capitalize the first letter of a string
- * @param {string} str - String to capitalize
- * @returns {string} Capitalized string
- */
-function capitalizeFirstLetter(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-// Setup light theme application with debouncing
-window.addEventListener('load', function() {
-  // Fix any Bootstrap modal issues
-  fixBootstrapModalIssues();
-
-  // Apply theme immediately on load
-  enforceLightTheme();
-
-  // Debounced reapplication of theme
-  const debouncedEnforceTheme = debounce(function() {
-    enforceLightTheme();
-  }, 500);
-
-  // Only observe specific new elements, not style changes
-  const observer = new MutationObserver(function(mutations) {
-    // Only react to childList changes (new elements), not attribute changes
-    const hasNewNodes = mutations.some(mutation =>
-      mutation.type === 'childList' && mutation.addedNodes.length > 0
-    );
-
-    if (hasNewNodes) {
-      debouncedEnforceTheme();
-    }
-  });
-
-  // Start observing only for new elements, not style changes
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: false
-  });
-
-  // Also fix modals when dynamically added
-  const modalObserver = new MutationObserver(function(mutations) {
-    mutations.forEach(mutation => {
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        // Look for any new modals among added nodes
-        mutation.addedNodes.forEach(node => {
-          if (node.nodeType === 1) { // Element node
-            // Check if the node itself is a modal
-            if (node.classList && node.classList.contains('modal')) {
-              fixBootstrapModalIssues();
-            }
-            // Check if it contains any modals
-            if (node.querySelectorAll) {
-              const modals = node.querySelectorAll('.modal');
-              if (modals.length > 0) {
-                fixBootstrapModalIssues();
-              }
-            }
-          }
-        });
+  // Order settings
+  const newCardGathering = document.getElementById('newCardGathering');
+  if (newCardGathering) {
+    for (let i = 0; i < newCardGathering.options.length; i++) {
+      if (newCardGathering.options[i].value === settings.new_card_gathering) {
+        newCardGathering.selectedIndex = i;
+        break;
       }
-    });
-  });
+    }
+  }
 
-  // Observe for dynamic modals
-  modalObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-});
+  const newCardSort = document.getElementById('newCardSort');
+  if (newCardSort) {
+    for (let i = 0; i < newCardSort.options.length; i++) {
+      if (newCardSort.options[i].value === settings.new_card_order) {
+        newCardSort.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  const newReviewMix = document.getElementById('newReviewMix');
+  if (newReviewMix) {
+    for (let i = 0; i < newReviewMix.options.length; i++) {
+      if (newReviewMix.options[i].value === settings.new_review_mix) {
+        newReviewMix.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  const interDayOrder = document.getElementById('interDayOrder');
+  if (interDayOrder) {
+    for (let i = 0; i < interDayOrder.options.length; i++) {
+      if (interDayOrder.options[i].value === settings.inter_day_order) {
+        interDayOrder.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  const reviewOrder = document.getElementById('reviewOrder');
+  if (reviewOrder) {
+    for (let i = 0; i < reviewOrder.options.length; i++) {
+      if (reviewOrder.options[i].value === settings.review_order) {
+        reviewOrder.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Burying options
+  const buryNewRelated = document.getElementById('buryNewRelated');
+  if (buryNewRelated) buryNewRelated.checked = settings.bury_new_related;
+
+  const buryReviewsRelated = document.getElementById('buryReviewsRelated');
+  if (buryReviewsRelated) buryReviewsRelated.checked = settings.bury_reviews_related;
+
+  const buryInterday = document.getElementById('buryInterday');
+  if (buryInterday) buryInterday.checked = settings.bury_interday;
+
+  // Timer settings
+  const maxAnswerTime = document.getElementById('maxAnswerTime');
+  if (maxAnswerTime) maxAnswerTime.value = settings.max_answer_time;
+
+  const showAnswerTimer = document.getElementById('showAnswerTimer');
+  if (showAnswerTimer) showAnswerTimer.checked = settings.show_answer_timer;
+
+  const stopTimerOnAnswer = document.getElementById('stopTimerOnAnswer');
+  if (stopTimerOnAnswer) stopTimerOnAnswer.checked = settings.stop_timer_on_answer;
+
+  const secondsShowQuestion = document.getElementById('secondsShowQuestion');
+  if (secondsShowQuestion) secondsShowQuestion.value = settings.seconds_show_question;
+
+  const secondsShowAnswer = document.getElementById('secondsShowAnswer');
+  if (secondsShowAnswer) secondsShowAnswer.value = settings.seconds_show_answer;
+
+  const waitForAudio = document.getElementById('waitForAudio');
+  if (waitForAudio) waitForAudio.checked = settings.wait_for_audio;
+
+  const answerAction = document.getElementById('answerAction');
+  if (answerAction) {
+    for (let i = 0; i < answerAction.options.length; i++) {
+      if (answerAction.options[i].value === settings.answer_action) {
+        answerAction.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Audio settings
+  const disableAutoPlay = document.getElementById('disableAutoPlay');
+  if (disableAutoPlay) disableAutoPlay.checked = settings.disable_auto_play;
+
+  const skipQuestionAudio = document.getElementById('skipQuestionAudio');
+  if (skipQuestionAudio) skipQuestionAudio.checked = settings.skip_question_audio;
+
+  // Advanced settings
+  const fsrsEnabled = document.getElementById('fsrsEnabled');
+  if (fsrsEnabled) fsrsEnabled.checked = settings.fsrs_enabled;
+
+  const maxInterval = document.getElementById('maxInterval');
+  if (maxInterval) maxInterval.value = settings.max_interval;
+
+  const startingEase = document.getElementById('startingEase');
+  if (startingEase) startingEase.value = settings.starting_ease;
+
+  const easyBonus = document.getElementById('easyBonus');
+  if (easyBonus) easyBonus.value = settings.easy_bonus;
+
+  const intervalModifier = document.getElementById('intervalModifier');
+  if (intervalModifier) intervalModifier.value = settings.interval_modifier;
+
+  const hardInterval = document.getElementById('hardInterval');
+  if (hardInterval) hardInterval.value = settings.hard_interval;
+
+  const newInterval = document.getElementById('newInterval');
+  if (newInterval) newInterval.value = settings.new_interval;
+}

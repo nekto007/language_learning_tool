@@ -508,6 +508,7 @@ class SRSService:
     def get_deck_card_counts(self, deck_id: int) -> Dict[str, int]:
         """
         Get card counts by category for a deck.
+        Only counts cards that are due today or earlier.
 
         Args:
             deck_id (int): Deck ID
@@ -515,7 +516,34 @@ class SRSService:
         Returns:
             Dict[str, int]: Dictionary with counts for each category
         """
-        return self.srs_repo.get_deck_card_counts(deck_id, self.NEW_CARDS_PER_DAY)
+        today = date.today()
+
+        # Get all cards in the deck
+        cards = self.srs_repo.get_cards_by_deck(deck_id)
+
+        # Initialize counters
+        new_count = 0
+        learning_count = 0
+        review_count = 0
+
+        for card in cards:
+            # Skip cards that are scheduled for future dates
+            if card.next_review_date and card.next_review_date > today:
+                continue
+
+            # Count cards based on their status
+            if card.interval == 0 and card.repetitions == 0:
+                new_count += 1
+            elif card.repetitions > 0 and card.repetitions < self.LEARNED_THRESHOLD:
+                learning_count += 1
+            else:
+                review_count += 1
+
+        return {
+            'new': new_count,
+            'learning': learning_count,
+            'review': review_count
+        }
 
     def get_filtered_cards(self, deck_id: int, filter_type: str) -> List[DeckCard]:
         """
@@ -537,9 +565,13 @@ class SRSService:
                 limit=self.NEW_CARDS_PER_DAY
             )
         elif filter_type == 'learning':
+            # Only cards that are in learning phase AND due today
             return self.srs_repo.get_cards_by_deck_filtered(
                 deck_id,
-                filters={'repetitions_gt': 0, 'next_review_date_gt': today.isoformat()}
+                filters={
+                    'repetitions_gt': 0,
+                    'next_review_date_lte': today.isoformat()
+                }
             )
         elif filter_type == 'review':
             return self.srs_repo.get_cards_by_deck_filtered(
@@ -577,6 +609,81 @@ class SRSService:
             'total_learning': total_learning,
             'total_review': total_review
         }
+
+    def get_all_deck_cards(self, deck_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all cards from a deck, regardless of review schedule.
+        Used for extra review sessions.
+
+        Args:
+            deck_id (int): Deck ID
+
+        Returns:
+            List[Dict[str, Any]]: List of cards with complete data
+        """
+        try:
+            # Get all cards in the deck - ensure we're getting everything
+            cards = self.srs_repo.get_cards_by_deck(deck_id)
+
+            logger.info(f"Found {len(cards)} cards in deck {deck_id} for extra session")
+
+            if not cards:
+                logger.warning(f"No cards found in deck {deck_id} for extra session")
+                return []
+
+            # Process cards to add word data
+            result = []
+            for card in cards:
+                # Convert card to dictionary
+                if hasattr(card, 'to_dict'):
+                    card_dict = card.to_dict()
+                else:
+                    card_dict = dict(vars(card))
+
+                # Get word data directly from database to ensure it works
+                try:
+                    import sqlite3
+                    from config.settings import DB_FILE
+
+                    conn = sqlite3.connect(DB_FILE)
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+
+                    cursor.execute(
+                        "SELECT * FROM collection_words WHERE id = ?",
+                        (card.word_id,)
+                    )
+
+                    word_data = cursor.fetchone()
+                    conn.close()
+
+                    if word_data:
+                        word_dict = dict(word_data)
+                        logger.info(f"Found word data for word_id {card.word_id}: {word_dict.get('english_word')}")
+                    else:
+                        word_dict = {'english_word': f'Word {card.word_id}', 'russian_word': ''}
+                        logger.warning(f"No word data found for word_id {card.word_id}")
+                except Exception as e:
+                    logger.error(f"Error getting word data via direct DB access: {e}")
+                    word_dict = {'english_word': f'Word {card.word_id}', 'russian_word': ''}
+
+                # Add word data to card dictionary
+                card_dict.update({
+                    'english_word': word_dict.get('english_word', ''),
+                    'russian_word': word_dict.get('russian_word', ''),
+                    'sentences': word_dict.get('sentences', ''),
+                    'get_download': word_dict.get('get_download', 0)
+                })
+
+                result.append(card_dict)
+
+            logger.info(f"Processed {len(result)} cards with word data for extra session")
+            return result
+        except Exception as e:
+            logger.error(f"Error getting all deck cards: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
 
     def get_detailed_user_statistics(self, user_id: int) -> Dict[str, Any]:
         """

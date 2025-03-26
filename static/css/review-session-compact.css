@@ -1,0 +1,198 @@
+/* Compact Review Session CSS
+ * This style overrides flashcard-styles.css to create a more compact layout
+ */
+
+:root {
+  /* Reduced spacing scale */
+  --compact-space-1: 0.2rem;
+  --compact-space-2: 0.4rem;
+  --compact-space-3: 0.6rem;
+  --compact-space-4: 0.8rem;
+  --compact-space-5: 1.2rem;
+
+  /* Reduced typography scale */
+  --compact-font-base: 0.875rem;    /* 14px */
+  --compact-font-sm: 0.75rem;       /* 12px */
+  --compact-font-xs: 0.625rem;      /* 10px */
+  --compact-font-lg: 1rem;          /* 16px */
+  --compact-font-xl: 1.25rem;       /* 20px */
+}
+
+/* Reduced container padding */
+.container-fluid, .container {
+  padding: 10px 15px;
+}
+
+/* Reduced main container vertical spacing */
+.container .mt-4 {
+  margin-top: 0.6rem !important;
+}
+
+/* Compact header */
+.d-flex.justify-content-between.mb-3 {
+  margin-bottom: 0.5rem !important;
+  align-items: center;
+}
+
+/* Deck title */
+h5.mb-0 {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Progress indicator */
+.progress {
+  height: 6px;
+  margin: 6px 0;
+}
+
+/* Progress text */
+#progressText {
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+/* Remaining card badge */
+.badge.bg-primary {
+  font-size: 0.9rem;
+  width: 35px;
+  height: 35px;
+}
+
+/* Exit button */
+#exitBtn {
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+
+/* Card Container - reduced height */
+#cardContainer {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Card body - reduced padding and min-height */
+#cardContainer .card-body {
+  padding: 1.5rem;
+  min-height: 350px;
+}
+
+/* Word styling - smaller font */
+.word-text {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+}
+
+/* Russian word styling - smaller font */
+#russianWord {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+/* Example container - reduced margin */
+#exampleContainer, #englishExampleContainer {
+  margin: 1rem 0;
+}
+
+/* Example text - reduced size */
+#exampleText, #englishExampleText {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+/* Example container padding */
+#exampleContainer .card-body, #englishExampleContainer .card-body {
+  padding: 0.8rem;
+}
+
+/* Button styling - more compact */
+.difficulty-btn {
+  min-width: 70px;
+  border-radius: 6px;
+  padding: 0.6rem 0.4rem;
+  font-size: 0.875rem;
+}
+
+.difficulty-btn small {
+  font-size: 0.7rem;
+  margin-top: 0.2rem;
+}
+
+/* Show Answer button */
+#showAnswerBtn {
+  padding: 0.6rem 1.5rem;
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+}
+
+/* Audio button */
+#playAudioBtn {
+  padding: 0.4rem 0.8rem;
+  margin-top: 0.8rem;
+  font-size: 0.75rem;
+}
+
+/* Reduce vertical spacing */
+#cardFront, #cardBack {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+/* Adjust spacing for answer buttons */
+.d-flex.justify-content-between.mt-5 {
+  margin-top: 1.5rem !important;
+  gap: 0.4rem;
+}
+
+/* Compact styling for examples */
+.example-english {
+  margin-bottom: 0.3rem;
+}
+
+/* Loading indicator */
+#loadingContainer {
+  padding: 1.5rem 0;
+}
+
+/* Session complete modal */
+#sessionCompleteModal .modal-body {
+  padding: 1rem;
+}
+
+#sessionCompleteModal .mb-4 {
+  margin-bottom: 0.8rem !important;
+}
+
+#sessionCompleteModal .mb-2 {
+  margin-bottom: 0.4rem !important;
+}
+
+#sessionCompleteModal .mt-4 {
+  margin-top: 0.8rem !important;
+}
+
+#sessionCompleteIcon {
+  font-size: 3rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 576px) {
+  .word-text {
+    font-size: 1.8rem;
+  }
+
+  #russianWord {
+    font-size: 1.5rem;
+  }
+
+  .difficulty-btn {
+    min-width: 60px;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.8rem;
+  }
+
+  #cardContainer .card-body {
+    padding: 1rem;
+    min-height: 300px;
+  }
+}
