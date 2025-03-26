@@ -7,6 +7,9 @@ import logging
 import os
 import sys
 
+import click
+from flask.cli import cli
+
 from config.settings import (
     COLLECTIONS_TABLE, DB_FILE, MAX_PAGES, MEDIA_FOLDER, PHRASAL_VERB_FILE, PHRASAL_VERB_TABLE, TRANSLATE_FILE,
 )
@@ -634,8 +637,7 @@ def update_word_status(args: argparse.Namespace) -> None:
     file_path = args.file
 
     # Check status validity
-    if status not in [Word.STATUS_NEW, Word.STATUS_KNOWN, Word.STATUS_QUEUED,
-                      Word.STATUS_ACTIVE, Word.STATUS_MASTERED]:
+    if status not in [Word.STATUS_NEW, Word.STATUS_STUDYING, Word.STATUS_STUDIED]:
         logger.error(f"Invalid status: {status}")
         logger.info(f"Available statuses: {Word.STATUS_LABELS}")
         return
