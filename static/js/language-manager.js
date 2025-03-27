@@ -10,6 +10,35 @@ class LanguageManager {
     // Translation dictionaries
     this.translations = {
       en: {
+        // Words list page
+        'allWords': 'All Words',
+        'wordsFrom': 'Words from',
+        'backToDashboard': 'Back to Dashboard',
+        'find': 'Find',
+        'reset': 'Reset',
+        'bulkActions': 'Bulk Actions',
+        'markSelectedAs': 'Mark selected as:',
+        'createAnkiCards': 'Create Anki Cards',
+        'importToDeck': 'Import to Deck',
+        'createNewDeck': 'Create New Deck',
+        'existingDecks': 'Existing Decks',
+        'showWordsWithoutTranslation': 'Show words without translation',
+        'selectedCount': 'selected',
+        'ofWords': 'of',
+        'words': 'words',
+        'english': 'English',
+        'pronunciation': 'Pronunciation',
+        'status': 'Status',
+        'frequency': 'Frequency',
+        'available': 'Available',
+        'none': 'None',
+        'playPronunciation': 'Play pronunciation',
+        'changeStatus': 'Change status',
+        'viewDetails': 'View Details',
+        'noResultsFound': 'No results found for query',
+        'foundMatching': 'Found',
+        'wordsMatchingQuery': 'words matching the query',
+
         // Navigation
         'decks': 'Decks',
         'statistics': 'Statistics',
@@ -253,6 +282,35 @@ class LanguageManager {
         'noCards': 'No cards to review'
       },
       ru: {
+        // Words list page
+        'allWords': 'Все слова',
+        'wordsFrom': 'Слова из',
+        'backToDashboard': 'Назад к панели',
+        'find': 'Найти',
+        'reset': 'Сбросить',
+        'bulkActions': 'Групповые действия',
+        'markSelectedAs': 'Отметить выбранные как:',
+        'createAnkiCards': 'Создать карточки Anki',
+        'importToDeck': 'Импорт в колоду',
+        'createNewDeck': 'Создать новую колоду',
+        'existingDecks': 'Существующие колоды',
+        'showWordsWithoutTranslation': 'Показать слова без перевода',
+        'selectedCount': 'выбрано',
+        'ofWords': 'из',
+        'words': 'слов',
+        'english': 'Английский',
+        'pronunciation': 'Произношение',
+        'status': 'Статус',
+        'frequency': 'Частота',
+        'available': 'Доступно',
+        'none': 'Нет',
+        'playPronunciation': 'Воспроизвести произношение',
+        'changeStatus': 'Изменить статус',
+        'viewDetails': 'Просмотр деталей',
+        'noResultsFound': 'Нет результатов для запроса',
+        'foundMatching': 'Найдено',
+        'wordsMatchingQuery': 'слов, соответствующих запросу',
+
         // Navigation
         'decks': 'Колоды',
         'statistics': 'Статистика',
@@ -512,7 +570,7 @@ class LanguageManager {
       this.currentLang = 'ru';
     }
 
-    console.log(`Language detected from browser: ${browserLang}, using: ${this.currentLang}`);
+    // console.log(`Language detected from browser: ${browserLang}, using: ${this.currentLang}`);
 
     // Set HTML lang attribute
     document.documentElement.lang = this.currentLang;
@@ -1106,4 +1164,13 @@ class LanguageManager {
 }
 
 // Export for use in main app
-export { LanguageManager };
+if (typeof module !== 'undefined' && module.exports) {
+  // Для CommonJS
+  module.exports = { LanguageManager };
+} else if (typeof define === 'function' && define.amd) {
+  // Для AMD
+  define([], function() { return { LanguageManager }; });
+} else {
+  // Для глобального объекта window
+  window.LanguageManager = LanguageManager;
+}
