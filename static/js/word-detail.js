@@ -1,41 +1,15 @@
 /**
  * Word Detail Page JavaScript
- * Handles audio, theme toggle, status changes, and deck management
+ * Handles audio, status changes, and deck management
  */
 
 // Initialize the page when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-  initThemeToggle();
   initAudioPlayer();
   initStatusButtons();
   initDeckButtons();
+  initModals();
 });
-
-/**
- * Initialize theme toggle functionality
- */
-function initThemeToggle() {
-  const themeToggle = document.getElementById('themeToggle');
-  if (!themeToggle) return;
-
-  // Check for saved theme preference or use system preference
-  const savedTheme = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  // Set initial theme
-  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-    document.documentElement.setAttribute('data-bs-theme', 'dark');
-  }
-
-  // Toggle theme on button click
-  themeToggle.addEventListener('click', function() {
-    const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-    document.documentElement.setAttribute('data-bs-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-  });
-}
 
 /**
  * Initialize custom audio player
@@ -158,6 +132,72 @@ function initDeckButtons() {
 }
 
 /**
+ * Initialize modals
+ */
+function initModals() {
+  // Get all elements with modal dismiss attributes
+  const dismissButtons = document.querySelectorAll('[data-bs-dismiss="modal"]');
+
+  dismissButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const modalId = this.closest('.modal').id;
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.remove('show');
+      }
+    });
+  });
+
+  // Close modal when clicking outside
+  document.addEventListener('click', function(e) {
+    const openModal = document.querySelector('.modal.show');
+    if (openModal && e.target === openModal) {
+      openModal.classList.remove('show');
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const openModal = document.querySelector('.modal.show');
+      if (openModal) {
+        openModal.classList.remove('show');
+      }
+    }
+  });
+}
+
+/**
+ * Show a modal by ID
+ * @param {string} modalId - The ID of the modal to show
+ */
+function showModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('show');
+
+    // Focus the first input
+    const firstInput = modal.querySelector('input, select, button:not([data-bs-dismiss="modal"])');
+    if (firstInput) {
+      setTimeout(() => {
+        firstInput.focus();
+      }, 100);
+    }
+  }
+}
+
+/**
+ * Hide a modal by ID
+ * @param {string} modalId - The ID of the modal to hide
+ */
+function hideModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('show');
+  }
+}
+
+/**
  * Load available decks for the Add to Deck modal
  */
 async function loadDecks() {
@@ -187,8 +227,7 @@ async function loadDecks() {
       });
 
       // Show modal
-      const modal = new bootstrap.Modal(document.getElementById('addToDeckModal'));
-      modal.show();
+      showModal('addToDeckModal');
     } else {
       showToast(data.error || 'Error loading decks', 'danger');
     }
@@ -228,18 +267,15 @@ async function addToDeck() {
     const data = await response.json();
 
     if (data.success) {
-      // Close modal and reload page
-      const modal = bootstrap.Modal.getInstance(document.getElementById('addToDeckModal'));
-      if (modal) {
-        modal.hide();
-      }
+      // Close modal
+      hideModal('addToDeckModal');
 
       showToast('Word successfully added to deck', 'success');
 
       // Reload page after a short delay to show the toast
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
     } else {
       showToast(data.error || 'Failed to add word to deck', 'danger');
     }
@@ -277,7 +313,7 @@ async function removeFromDeck(cardId) {
       // Reload page after a short delay to show the toast
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
     } else {
       showToast(data.error || 'Failed to remove word from deck', 'danger');
     }
@@ -315,7 +351,7 @@ async function updateWordStatus(wordId, statusId) {
       // Reload page after a short delay to show the toast
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
     } else {
       showToast(data.error || 'Failed to update word status', 'danger');
     }
@@ -327,9 +363,9 @@ async function updateWordStatus(wordId, statusId) {
 
 /**
  * Show a toast notification
- * Using Bootstrap 5 toast, creates temporary toast if needed
+ * Creates a custom toast notification without Bootstrap dependency
  * @param {string} message - Message to display
- * @param {string} type - Bootstrap color type (success, danger, warning, info)
+ * @param {string} type - Color type (success, danger, warning, info)
  */
 function showToast(message, type = 'info') {
   // Check for existing toast container
@@ -338,7 +374,7 @@ function showToast(message, type = 'info') {
   // Create container if it doesn't exist
   if (!toastContainer) {
     toastContainer = document.createElement('div');
-    toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    toastContainer.className = 'toast-container';
     document.body.appendChild(toastContainer);
   }
 
@@ -347,34 +383,54 @@ function showToast(message, type = 'info') {
 
   // Create toast element
   const toast = document.createElement('div');
-  toast.className = `toast align-items-center text-white bg-${type} border-0`;
+  toast.className = `toast bg-${type}`;
   toast.setAttribute('role', 'alert');
-  toast.setAttribute('aria-live', 'assertive');
-  toast.setAttribute('aria-atomic', 'true');
   toast.setAttribute('id', toastId);
-  toast.innerHTML = `
-    <div class="d-flex">
-      <div class="toast-body">
-        ${message}
-      </div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" 
-              data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  `;
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'btn-close';
+  dismissBtn.setAttribute('aria-label', 'Close');
+  dismissBtn.innerHTML = '&times;';
+
+  const toastBody = document.createElement('div');
+  toastBody.className = 'toast-body';
+  toastBody.textContent = message;
+
+  const flexContainer = document.createElement('div');
+  flexContainer.className = 'd-flex';
+  flexContainer.style.display = 'flex';
+  flexContainer.style.justifyContent = 'space-between';
+  flexContainer.style.alignItems = 'center';
+
+  flexContainer.appendChild(toastBody);
+  flexContainer.appendChild(dismissBtn);
+
+  toast.appendChild(flexContainer);
 
   // Add to container
   toastContainer.appendChild(toast);
 
-  // Initialize and show toast
-  const bsToast = new bootstrap.Toast(toast, {
-    delay: 3000,
-    autohide: true
+  // Add event listener for close button
+  dismissBtn.addEventListener('click', function() {
+    removeToast(toast);
   });
 
-  bsToast.show();
+  // Auto-hide after delay
+  setTimeout(() => {
+    removeToast(toast);
+  }, 3000);
+}
 
-  // Remove from DOM after hiding
-  toast.addEventListener('hidden.bs.toast', function() {
+/**
+ * Remove a toast with animation
+ * @param {HTMLElement} toast - The toast element to remove
+ */
+function removeToast(toast) {
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateX(100%)';
+  toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+
+  setTimeout(() => {
     toast.remove();
-  });
+  }, 300);
 }
