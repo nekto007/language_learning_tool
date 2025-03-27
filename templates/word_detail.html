@@ -7,32 +7,29 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container">
   <!-- Word Header -->
   <div class="word-header">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div class="d-flex align-items-center">
-        <h1 class="word-header__title mb-0">{{ word.english_word }}</h1>
-        <span class="status-badge status-badge--{{ word.status }} ms-3">
-          {{ status_labels[word.status] }}
-        </span>
-      </div>
-      <div class="d-flex gap-3 align-items-center">
-        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode" title="Toggle dark/light mode"></button>
-        <a href="{{ request.referrer or url_for('words_list') }}" class="btn btn--outline-secondary">
-          <i class="bi bi-arrow-left me-2"></i>Back
-        </a>
-      </div>
+    <div class="d-flex align-items-center">
+      <h1 class="word-header__title">{{ word.english_word }}</h1>
+      <span class="status-badge">{{ status_labels[word.status] }}</span>
     </div>
+    <a href="{{ request.referrer or url_for('words_list') }}" class="back-button">
+      <i class="bi bi-arrow-left"></i>
+      Back
+    </a>
   </div>
 
   <div class="row">
     <!-- Left Column -->
     <div class="col-lg-8">
       <!-- Word Details Card -->
-      <div class="card shadow-sm mb-4">
+      <div class="card">
         <div class="card__header">
-          <h2 class="card__title h5 mb-0"><i class="bi bi-info-circle me-2"></i>Word Details</h2>
+          <div class="card__header-icon">
+            <i class="bi bi-info-circle"></i>
+          </div>
+          <h2 class="card__title">Word Details</h2>
         </div>
         <div class="card__body">
           <div class="detail-grid">
@@ -50,7 +47,7 @@
             <div class="detail-item">
               <div class="detail-item__label">Level</div>
               <div class="detail-item__value">
-                <span class="badge badge--info">{{ word.level }}</span>
+                <span class="level-badge">{{ word.level }}</span>
               </div>
             </div>
             {% endif %}
@@ -59,9 +56,9 @@
               <div class="detail-item__label">In Brown Corpus <a href="https://en.wikipedia.org/wiki/Brown_Corpus" class="text-decoration-none" aria-label="Information about Brown Corpus">(?)</a></div>
               <div class="detail-item__value">
                 {% if word.brown == 1 %}
-                <span class="badge badge--success"><i class="bi bi-check me-1"></i>Yes</span>
+                <span class="yes-badge"><i class="bi bi-check"></i>Yes</span>
                 {% else %}
-                <span class="badge badge--secondary"><i class="bi bi-x me-1"></i>No</span>
+                <span class="no-badge"><i class="bi bi-x"></i>No</span>
                 {% endif %}
               </div>
             </div>
@@ -84,7 +81,7 @@
                   </audio>
                 </div>
                 {% else %}
-                <span class="badge badge--danger"><i class="bi bi-volume-mute me-1"></i>Not available</span>
+                <span class="badge badge--danger"><i class="bi bi-volume-mute"></i> Not available</span>
                 {% endif %}
               </div>
             </div>
@@ -92,7 +89,7 @@
 
           {% if word.sentences %}
           <div class="mt-4">
-            <h3 class="h6 mb-3">Example Sentences</h3>
+            <h3 class="detail-item__label">Example Sentences</h3>
             <div class="example-sentences">
               {{ word.sentences|safe }}
             </div>
@@ -103,13 +100,16 @@
 
       <!-- Books Card -->
       {% if books %}
-      <div class="card shadow-sm mb-4">
+      <div class="card">
         <div class="card__header">
-          <h2 class="card__title h5 mb-0"><i class="bi bi-book me-2"></i>Books containing this word</h2>
+          <div class="card__header-icon">
+            <i class="bi bi-book"></i>
+          </div>
+          <h2 class="card__title">Books containing this word</h2>
         </div>
         <div class="card__body">
           <div class="table-responsive">
-            <table class="table books-table">
+            <table class="table">
               <thead>
                 <tr>
                   <th>Book</th>
@@ -125,8 +125,8 @@
                     <span class="frequency-badge">{{ book.frequency }}</span>
                   </td>
                   <td>
-                    <a href="{{ url_for('words_list', book_id=book.id) }}" class="btn btn--sm btn--primary">
-                      <i class="bi bi-eye me-1"></i>View Words
+                    <a href="{{ url_for('words_list', book_id=book.id) }}" class="btn btn--view btn--sm">
+                      <i class="bi bi-eye btn-icon"></i>View Words
                     </a>
                   </td>
                 </tr>
@@ -139,12 +139,17 @@
       {% endif %}
 
       <!-- Learning Card -->
-      <div class="card shadow-sm mb-4">
-        <div class="card__header d-flex justify-content-between align-items-center">
-          <h2 class="card__title h5 mb-0"><i class="bi bi-layers me-2"></i>Learning</h2>
-          <button type="button" class="btn btn--primary btn--sm" id="addToDeckBtn" {% if word.status != 3 %}style="display: none;"{% endif %}>
-            <i class="bi bi-plus-lg me-1"></i> Add to Deck
+      <div class="card">
+        <div class="card__header">
+          <div class="card__header-icon">
+            <i class="bi bi-layers"></i>
+          </div>
+          <h2 class="card__title">Learning</h2>
+          {% if word.status == 3 %}
+          <button type="button" class="btn btn--primary btn--sm" id="addToDeckBtn" style="margin-left: auto;">
+            <i class="bi bi-plus-lg btn-icon"></i>Add to Deck
           </button>
+          {% endif %}
         </div>
         <div class="card__body">
           {% if decks %}
@@ -203,11 +208,11 @@
                       <td class="text-center">
                         {% if 'card_id' in deck %}
                           <button type="button" class="btn btn--danger btn--sm js-remove-from-deck" data-card-id="{{ deck.card_id }}">
-                            <i class="bi bi-trash me-1"></i>Remove
+                            <i class="bi bi-trash btn-icon"></i>Remove
                           </button>
                         {% else %}
                           <button type="button" class="btn btn--danger btn--sm" disabled>
-                            <i class="bi bi-trash me-1"></i>Remove
+                            <i class="bi bi-trash btn-icon"></i>Remove
                           </button>
                         {% endif %}
                       </td>
@@ -217,16 +222,16 @@
               </table>
             </div>
           {% else %}
-            <div class="text-center py-4">
+            <div class="empty-state">
               {% if word.status == 3 %}
                 <p>This word has "Active" status but has not been added to any deck yet.</p>
                 <button type="button" class="btn btn--primary" id="addToDeckBtn">
-                  <i class="bi bi-plus-lg me-1"></i> Add to Deck
+                  <i class="bi bi-plus-lg btn-icon"></i> Add to Deck
                 </button>
               {% else %}
                 <p>To learn this word using spaced repetition, set its status to "Active".</p>
-                <button type="button" class="btn btn--primary" id="makeActiveBtn">
-                  <i class="bi bi-play-fill me-1"></i> Start Learning
+                <button type="button" class="btn--start-learning" id="makeActiveBtn">
+                  <i class="bi bi-play-fill"></i> Start Learning
                 </button>
               {% endif %}
             </div>
@@ -237,48 +242,56 @@
 
     <!-- Right Column -->
     <div class="col-lg-4">
-      <!-- Status Change Card -->
-      <div class="card shadow-sm mb-4">
+      <!-- Status Card -->
+      <div class="card">
         <div class="card__header">
-          <h2 class="card__title h5 mb-0"><i class="bi bi-arrow-repeat me-2"></i>Change Status</h2>
+          <div class="card__header-icon">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <h2 class="card__title">Change Status</h2>
         </div>
-        <div class="card__body p-0">
-          <div class="list-group list-group-flush">
-            {% for status_id, label in status_labels.items() %}
-            <button
-              class="status-item {% if word.status == status_id %}status-item--active{% endif %} js-update-status"
-              data-word-id="{{ word.id }}"
-              data-status="{{ status_id }}"
-            >
-              <div class="status-item__icon">
-                {% if status_id == 0 %}
-                <i class="bi bi-plus-circle"></i>
-                {% elif status_id == 1 %}
-                <i class="bi bi-check-circle"></i>
-                {% elif status_id == 2 %}
-                <i class="bi bi-clock"></i>
-                {% elif status_id == 3 %}
-                <i class="bi bi-star"></i>
-                {% elif status_id == 4 %}
-                <i class="bi bi-mortarboard"></i>
-                {% endif %}
+        <div class="card__body">
+          <div class="status-options">
+            <div class="status-option {% if word.status == 1 %}active{% endif %} js-update-status" data-word-id="{{ word.id }}" data-status="1">
+              <div class="status-option__icon">
+                <i class="bi bi-tag"></i>
               </div>
-              <div class="status-item__content">
-                <span class="status-item__label">{{ label }}</span>
-                {% if word.status == status_id %}
-                <span class="status-item__current">Current</span>
-                {% endif %}
+              <div class="status-option__content">
+                <div class="status-option__label">New</div>
+                <div class="status-option__description">{% if word.status == 1 %}Current{% else %}Mark as new{% endif %}</div>
               </div>
-            </button>
-            {% endfor %}
+            </div>
+
+            <div class="status-option {% if word.status == 2 %}active{% endif %} js-update-status" data-word-id="{{ word.id }}" data-status="2">
+              <div class="status-option__icon">
+                <i class="bi bi-book"></i>
+              </div>
+              <div class="status-option__content">
+                <div class="status-option__label">Studying</div>
+                <div class="status-option__description">{% if word.status == 2 %}Current{% else %}Mark as studying{% endif %}</div>
+              </div>
+            </div>
+
+            <div class="status-option {% if word.status == 3 %}active{% endif %} js-update-status" data-word-id="{{ word.id }}" data-status="3">
+              <div class="status-option__icon">
+                <i class="bi bi-check"></i>
+              </div>
+              <div class="status-option__content">
+                <div class="status-option__label">Studied</div>
+                <div class="status-option__description">{% if word.status == 3 %}Current{% else %}Mark as studied{% endif %}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- External Resources Card -->
-      <div class="card shadow-sm mb-4">
+      <div class="card">
         <div class="card__header">
-          <h2 class="card__title h5 mb-0"><i class="bi bi-link-45deg me-2"></i>External Resources</h2>
+          <div class="card__header-icon">
+            <i class="bi bi-link-45deg"></i>
+          </div>
+          <h2 class="card__title">External Resources</h2>
         </div>
         <div class="card__body">
           <div class="resource-list">
@@ -349,12 +362,12 @@
 </div>
 
 <!-- Add to Deck Modal -->
-<div class="modal fade" id="addToDeckModal" tabindex="-1" aria-labelledby="addToDeckModalLabel" aria-hidden="true">
+<div class="modal" id="addToDeckModal" tabindex="-1" aria-labelledby="addToDeckModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="addToDeckModalLabel">Add to Deck</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <p>Choose a deck to add this word to:</p>
