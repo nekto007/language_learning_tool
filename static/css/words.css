@@ -2,6 +2,127 @@
  * Words List Page Specific Styling
  */
 
+:root {
+  --primary-color: #4958E5;
+  --primary-color-rgb: 73, 88, 229;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --info-color: #17a2b8;
+  --warning-color: #ffc107;
+
+  /* Light theme variables */
+  --bg-color: #f8f9fa;
+  --card-bg: #ffffff;
+  --text-color: #212529;
+  --text-muted: #6c757d;
+  --border-color: #dee2e6;
+  --hover-bg: #f1f3f9;
+
+  /* Table colors */
+  --table-header-bg: #f8f9fa;
+  --table-row-bg: #ffffff;
+  --table-row-alt-bg: #f9f9f9;
+  --table-row-hover-bg: #f1f3f9;
+}
+
+/* Force light theme on html element */
+html {
+  data-bs-theme: "light" !important;
+}
+
+/* Override Bootstrap dark theme */
+[data-bs-theme="dark"] {
+  --bs-body-color: var(--text-color) !important;
+  --bs-body-bg: var(--bg-color) !important;
+  --bs-border-color: var(--border-color) !important;
+}
+
+/* Words table light styling */
+.words-table {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+.words-table th {
+  background-color: var(--table-header-bg);
+  color: var(--text-color);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.words-table td {
+  background-color: var(--table-row-bg);
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.words-table tr:nth-child(even) td {
+  background-color: var(--table-row-alt-bg);
+}
+
+.words-table tr:hover td {
+  background-color: var(--table-row-hover-bg);
+}
+
+/* Style the status badges consistently */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+}
+
+/* Remove the dark theme from modals */
+.modal-content {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+/* Make sure the selection bar is light */
+.selection-bar {
+  background-color: var(--table-header-bg);
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Ensure form controls are light themed */
+.form-control, .form-select, .input-group {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+/* Fix button styling */
+.btn-icon {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.btn-icon:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary-color);
+}
+
+/* Ensure dropdown menus are light */
+.dropdown-menu {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+.dropdown-item {
+  color: var(--text-color);
+}
+
+.dropdown-item:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary-color);
+}
+
 /* Search Container */
 .search-container {
   position: relative;
