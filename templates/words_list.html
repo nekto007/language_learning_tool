@@ -19,18 +19,18 @@
     <div class="col-12">
         <!-- Page header with title and back button -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="mb-0">
+            <h1 class="mb-0" data-i18n="allWords">
                 {% if book_title %}
-                    Words from "{{ book_title }}"
+                    <span data-i18n="wordsFrom">Words from</span> "{{ book_title }}"
                 {% elif status is not none %}
-                    {{ status_labels[status] }} Words
+                    {{ status_labels[status] }} <span data-i18n="words">Words</span>
                 {% else %}
-                    All Words
+                    <span data-i18n="allWords">All Words</span>
                 {% endif %}
             </h1>
 
             <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+                <i class="bi bi-arrow-left me-1"></i> <span data-i18n="backToDashboard">Back to Dashboard</span>
             </a>
         </div>
 
@@ -48,13 +48,13 @@
                                 </span>
                                 <input type="text" name="search" id="searchInput" class="form-control"
                                        placeholder="Search words or translations..." value="{{ search_query }}">
-                                <button class="btn btn-primary" type="submit">
+                                <button class="btn btn-primary" type="submit" data-i18n="find">
                                     Find
                                 </button>
                                 {% if search_query %}
                                     <a href="{{ url_for('words_list', status=status, book_id=book_id, page=1, show_all=show_all) }}"
                                        class="btn btn-outline-secondary">
-                                        <i class="bi bi-x"></i> Reset
+                                        <i class="bi bi-x"></i> <span data-i18n="reset">Reset</span>
                                     </a>
                                 {% endif %}
                             </div>
@@ -73,22 +73,22 @@
                             <!-- Bulk actions dropdown -->
                             <div class="dropdown me-2">
                                 <button type="button" class="btn btn-primary dropdown-toggle" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-list-check me-1"></i> Bulk Actions
+                                    <i class="bi bi-list-check me-1"></i> <span data-i18n="bulkActions">Bulk Actions</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bulkActionsBtn">
-                                    <li><h6 class="dropdown-header">Mark selected as:</h6></li>
+                                    <li><h6 class="dropdown-header" data-i18n="markSelectedAs">Mark selected as:</h6></li>
                                     {% for status_id, label in status_labels.items() %}
                                     <li>
                                         <a class="dropdown-item status-action-item" href="#" data-status="{{ status_id }}">
                                             <span class="status-dot status-{{ status_id }}"></span>
-                                            {{ label }}
+                                            <span data-i18n="{{ label|lower }}">{{ label }}</span>
                                         </a>
                                     </li>
                                     {% endfor %}
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <a class="dropdown-item" href="#" id="createAnkiBtn">
-                                            <i class="bi bi-card-text me-1"></i> Create Anki Cards
+                                            <i class="bi bi-card-text me-1"></i> <span data-i18n="createAnkiCards">Create Anki Cards</span>
                                         </a>
                                     </li>
                                 </ul>
@@ -97,16 +97,16 @@
                             <!-- Import to SRS Deck dropdown -->
                             <div class="dropdown">
                                 <button class="btn btn-primary dropdown-toggle" type="button" id="importToDeckDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-stack me-1"></i> Import to Deck
+                                    <i class="bi bi-stack me-1"></i> <span data-i18n="importToDeck">Import to Deck</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="importToDeckDropdown">
-                                    <li><a class="dropdown-item" href="#" id="createNewDeckBtn">Create New Deck</a></li>
+                                    <li><a class="dropdown-item" href="#" id="createNewDeckBtn" data-i18n="createNewDeck">Create New Deck</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Existing Decks</h6></li>
+                                    <li><h6 class="dropdown-header" data-i18n="existingDecks">Existing Decks</h6></li>
                                     <li><div id="existingDecksContainer" class="px-2" style="max-height: 200px; overflow-y: auto;">
                                         <div class="text-center py-2">
                                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                            <span class="ms-2">Loading decks...</span>
+                                            <span class="ms-2" data-i18n="loadingDecks">Loading decks...</span>
                                         </div>
                                     </div></li>
                                 </ul>
@@ -151,7 +151,7 @@
                     <!-- Show words without translation toggle -->
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="showAllToggle" {% if show_all %}checked{% endif %}>
-                        <label class="form-check-label" for="showAllToggle">
+                        <label class="form-check-label" for="showAllToggle" data-i18n="showWordsWithoutTranslation">
                             Show words without translation
                         </label>
                     </div>
@@ -163,11 +163,11 @@
                 <!-- Selection bar -->
                 <div class="selection-bar">
                     <div>
-                        <span class="selected-count" id="selectedCount">0 selected</span>
+                        <span class="selected-count" id="selectedCount">0 <span data-i18n="selectedCount">selected</span></span>
                     </div>
                     <div>
                         <span class="badge bg-primary rounded-pill">
-                            {{ words|length }} of {{ total_words }} words
+                            {{ words|length }} <span data-i18n="ofWords">of</span> {{ total_words }} <span data-i18n="words">words</span>
                         </span>
                     </div>
                 </div>
@@ -177,19 +177,19 @@
                     <table class="table table-striped table-hover words-table mb-0">
                         <thead>
                             <tr>
-                                <th style="width: 40px;">
+                                <th>
                                     <div class="form-check">
                                         <input type="checkbox" class="form-check-input" id="selectAll">
                                     </div>
                                 </th>
-                                <th>English</th>
-                                <th>Translation</th>
-                                <th>Pronunciation</th>
-                                <th>Status</th>
+                                <th data-i18n="english">English</th>
+                                <th data-i18n="translation">Translation</th>
+                                <th data-i18n="pronunciation">Pronunciation</th>
+                                <th data-i18n="status">Status</th>
                                 {% if book_id %}
-                                <th>Frequency</th>
+                                <th data-i18n="frequency">Frequency</th>
                                 {% endif %}
-                                <th>Actions</th>
+                                <th data-i18n="actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -206,21 +206,19 @@
                                     <td>
                                         {% if word.get_download == 1 %}
                                             <span class="badge bg-success rounded-pill">
-                                                <i class="bi bi-volume-up"></i> Available
+                                                <i class="bi bi-volume-up"></i> <span data-i18n="available">Available</span>
                                             </span>
                                         {% else %}
                                             <span class="badge bg-secondary rounded-pill">
-                                                <i class="bi bi-volume-mute"></i> None
+                                                <i class="bi bi-volume-mute"></i> <span data-i18n="none">None</span>
                                             </span>
                                         {% endif %}
                                     </td>
                                     <td>
                                         <span class="status-badge status-{{ word.status }}">
-                                            {% if word.status == 0 %}New
-                                            {% elif word.status == 1 %}Available
-                                            {% elif word.status == 2 %}Queued
-                                            {% elif word.status == 3 %}Active
-                                            {% elif word.status == 4 %}Learned
+                                            {% if word.status == 0 %}<span data-i18n="new">New</span>
+                                            {% elif word.status == 1 %}<span data-i18n="studying">Studying</span>
+                                            {% elif word.status == 2 %}<span data-i18n="studied">Studied</span>
                                             {% endif %}
                                         </span>
                                     </td>
@@ -236,18 +234,24 @@
                                     {% endif %}
                                     <td>
                                         <div class="action-buttons">
+                                            {% if word.get_download == 1 %}
                                             <button type="button" class="btn btn-sm btn-icon play-pronunciation"
                                                     data-word="{{ word.english_word }}"
-                                                    data-bs-toggle="tooltip" title="Play pronunciation"
+                                                    data-bs-toggle="tooltip" data-i18n-title="playPronunciation" title="Play pronunciation"
                                                     {% if word.get_download != 1 %}disabled{% endif %}>
                                                 <i class="bi bi-volume-up"></i>
                                             </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-sm btn-icon play-pronunciation">
+                                                <i class="bi bi-volume-mute"></i>
+                                            </button>
+                                            {% endif %}
                                             <div class="dropdown d-inline-block">
                                                 <button class="btn btn-sm btn-icon dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                                     <i class="bi bi-three-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end status-dropdown">
-                                                    <li><h6 class="dropdown-header">Change status</h6></li>
+                                                    <li><h6 class="dropdown-header" data-i18n="changeStatus">Change status</h6></li>
                                                     {% for status_id, label in status_labels.items() %}
                                                     <li>
                                                         <a class="dropdown-item status-action {% if word.status == status_id %}active{% endif %}"
@@ -264,7 +268,7 @@
                                                         <a class="dropdown-item view-details"
                                                            href="#"
                                                            data-word-id="{{ word.id }}">
-                                                            <i class="bi bi-info-circle me-2"></i> View Details
+                                                            <i class="bi bi-info-circle me-2"></i> <span data-i18n="viewDetails">View Details</span>
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -283,9 +287,9 @@
                 <div class="search-results-info">
                     <i class="bi bi-info-circle me-2"></i>
                     {% if total_words > 0 %}
-                        Found {{ total_words }} words matching the query "<strong>{{ search_query }}</strong>"
+                        <span data-i18n="foundMatching">Found</span> {{ total_words }} <span data-i18n="wordsMatchingQuery">words matching the query</span> "<strong>{{ search_query }}</strong>"
                     {% else %}
-                        No results found for query "<strong>{{ search_query }}</strong>"
+                        <span data-i18n="noResultsFound">No results found for query</span> "<strong>{{ search_query }}</strong>"
                     {% endif %}
                 </div>
                 {% endif %}
@@ -329,8 +333,8 @@
                     <div class="empty-state-icon">
                         <i class="bi bi-journal-x"></i>
                     </div>
-                    <h4>No words found</h4>
-                    <p>Try adjusting your search criteria or adding new words.</p>
+                    <h4 data-i18n="noWordsFound">No words found</h4>
+                    <p data-i18n="adjustSearchCriteria">Try adjusting your search criteria or adding new words.</p>
                 </div>
                 {% endif %}
             </div>
@@ -343,7 +347,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="wordDetailModalLabel">Word Details</h5>
+                <h5 class="modal-title" id="wordDetailModalLabel" data-i18n="wordDetails">Word Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -351,7 +355,7 @@
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <p class="mt-2">Loading word details...</p>
+                    <p class="mt-2" data-i18n="loadingWordDetails">Loading word details...</p>
                 </div>
             </div>
         </div>
@@ -462,29 +466,29 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="createDeckModalLabel">Create New Deck</h5>
+                <h5 class="modal-title" id="createDeckModalLabel" data-i18n="createNewDeck">Create New Deck</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="createDeckForm">
                     <div class="mb-3">
-                        <label for="deckNameInput" class="form-label">Deck Name</label>
+                        <label for="deckNameInput" class="form-label" data-i18n="deckName">Deck Name</label>
                         <input type="text" class="form-control" id="deckNameInput" required>
                     </div>
                     <div class="mb-3">
-                        <label for="deckDescriptionInput" class="form-label">Description (optional)</label>
+                        <label for="deckDescriptionInput" class="form-label" data-i18n="description">Description (optional)</label>
                         <textarea class="form-control" id="deckDescriptionInput" rows="3"></textarea>
                     </div>
                     <div class="mb-3">
                         <div class="alert alert-info">
-                            <small>A new deck will be created with <span id="selectedWordsCount">0</span> selected words.</small>
+                            <small><span data-i18n="newDeckWithSelected">A new deck will be created with</span> <span id="selectedWordsCount">0</span> <span data-i18n="selectedWords">selected words.</span></small>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="createDeckWithWordsBtn">Create Deck</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" id="createDeckWithWordsBtn" data-i18n="createDeck">Create Deck</button>
             </div>
         </div>
     </div>
@@ -495,25 +499,25 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="importToDeckModalLabel">Import to Deck</h5>
+                <h5 class="modal-title" id="importToDeckModalLabel" data-i18n="importToDeck">Import to Deck</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label for="targetDeckSelect" class="form-label">Select Deck</label>
+                    <label for="targetDeckSelect" class="form-label" data-i18n="selectDeck">Select Deck</label>
                     <select class="form-select" id="targetDeckSelect" required>
-                        <option value="" disabled selected>Choose a deck for import</option>
+                        <option value="" disabled selected data-i18n="chooseDeckForImport">Choose a deck for import</option>
                     </select>
                 </div>
                 <div class="mb-3">
                     <div class="alert alert-info">
-                        <small>Selected words (<span id="importWordsCount">0</span>) will be added to the specified deck. Duplicate words will be skipped.</small>
+                        <small><span data-i18n="selectedWordsWillBeAdded">Selected words will be added to the specified deck. Duplicate words will be skipped.</span> (<span id="importWordsCount">0</span>)</small>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="importWordsToDeckBtn">Import</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" id="importWordsToDeckBtn" data-i18n="import">Import</button>
             </div>
         </div>
     </div>
@@ -521,6 +525,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/pronunciation-player.js') }}"></script>
+<!-- Подключаем основные скрипты -->
 <script src="{{ url_for('static', filename='js/word-selection.js') }}"></script>
 <script src="{{ url_for('static', filename='js/word-status.js') }}"></script>
 <script src="{{ url_for('static', filename='js/anki-export.js') }}"></script>
@@ -533,4 +539,8 @@
         {% endfor %}
     };
 </script>
+
+<!-- Подключаем язык в последнюю очередь -->
+<script src="{{ url_for('static', filename='js/language-manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/language-init.js') }}"></script>
 {% endblock %}
