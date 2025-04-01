@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ word.english_word }} - English Learning App{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('words.word_list') }}">Words</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ word.english_word }}</li>
+            </ol>
+        </nav>
+        <h1 class="mb-0">{{ word.english_word }}</h1>
+        {% if word.level %}
+        <span class="badge bg-{{ {
+            'A1': 'success',
+            'A2': 'success',
+            'B1': 'info',
+            'B2': 'info',
+            'C1': 'warning',
+            'C2': 'warning'
+        }[word.level] }}">{{ word.level }}</span>
+        {% endif %}
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="statusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                Set Status:
+                <span class="badge bg-{{ {
+                    0: 'secondary',
+                    1: 'success',
+                    2: 'primary',
+                    3: 'info',
+                    4: 'warning'
+                }[status] }}">
+                    {{ {
+                        0: 'New',
+                        1: 'Known',
+                        2: 'Queued',
+                        3: 'Active',
+                        4: 'Mastered'
+                    }[status] }}
+                </span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="statusDropdown">
+                <li>
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
+                        <button type="submit" class="dropdown-item">Mark as Known</button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
+                        <button type="submit" class="dropdown-item">Add to Queue</button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
+                        <button type="submit" class="dropdown-item">Set Active</button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
+                        <button type="submit" class="dropdown-item">Mark as Mastered</button>
+                    </form>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=0) }}" method="POST">
+                        <button type="submit" class="dropdown-item">Reset Status</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Word Details -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-bold">English:</div>
+                    <div class="col-md-9">
+                        {{ word.english_word }}
+                        {% if word.get_download and word.listening %}
+                        <button class="btn btn-sm btn-outline-secondary ms-2" id="playPronunciation">
+                            <i class="bi bi-volume-up"></i> Listen
+                        </button>
+                        <audio id="pronunciationAudio" style="display: none;">
+                            <source src="{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-bold">Russian:</div>
+                    <div class="col-md-9">{{ word.russian_word }}</div>
+                </div>
+
+                {% if word.level %}
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-bold">Level:</div>
+                    <div class="col-md-9">{{ word.level }}</div>
+                </div>
+                {% endif %}
+
+                {% if word.sentences %}
+                <div class="row mb-4">
+                    <div class="col-md-3 fw-bold">Examples:</div>
+                    <div class="col-md-9">
+                        {% for sentence in word.sentences.split('<br>') %}
+                        <p class="mb-1">{{ sentence }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
+                        Export to Anki
+                    </button>
+                    <a href="https://www.google.com/search?q=define:{{ word.english_word }}" target="_blank" class="btn btn-outline-secondary">
+                        Search Online
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Books containing this word -->
+        {% if books %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Books Containing This Word</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for book, frequency in books %}
+                    <a href="/books/{{ book.id }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ book.title }}</h6>
+                            <span class="badge bg-primary rounded-pill">{{ frequency }} times</span>
+                        </div>
+                        <small class="text-muted">Click to view book details</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Related Phrasal Verbs -->
+        {% if phrasal_verbs %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Related Phrasal Verbs</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for pv in phrasal_verbs %}
+                    <li class="list-group-item">
+                        <h6 class="mb-1">{{ pv.phrasal_verb }}</h6>
+                        <p class="mb-1">{{ pv.russian_translate }}</p>
+                        {% if pv.using %}
+                        <small class="text-muted d-block mb-2">Usage: {{ pv.using }}</small>
+                        {% endif %}
+                        {% if pv.sentence %}
+                        <small class="text-muted d-block">Example: {{ pv.sentence }}</small>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <!-- Next Steps -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Next Steps</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-secondary">Back to Word List</a>
+
+                    {% if status == 0 %}
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
+                        <button type="submit" class="btn btn-primary w-100">Add to Learning Queue</button>
+                    </form>
+                    {% elif status == 1 %}
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
+                        <button type="submit" class="btn btn-primary w-100">Start Active Learning</button>
+                    </form>
+                    {% elif status == 2 %}
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
+                        <button type="submit" class="btn btn-primary w-100">Start Learning Now</button>
+                    </form>
+                    {% elif status == 3 %}
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
+                        <button type="submit" class="btn btn-primary w-100">Mark as Mastered</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Similar Words (placeholder) -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Similar Words</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Similar words feature coming soon...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportModalLabel">Export to Anki</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="exportForm">
+                    <div class="mb-3">
+                        <label for="deckName" class="form-label">Deck Name</label>
+                        <input type="text" class="form-control" id="deckName" value="English Words - {{ word.english_word }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cardFormat" class="form-label">Card Format</label>
+                        <select class="form-select" id="cardFormat">
+                            <option value="basic">Basic (Front: English, Back: Russian)</option>
+                            <option value="reversed">Reversed (Both directions)</option>
+                            <option value="cloze">Cloze Deletion (from example sentences)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="includePronunciation" checked>
+                        <label class="form-check-label" for="includePronunciation">Include pronunciation audio</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="includeExamples" checked>
+                        <label class="form-check-label" for="includeExamples">Include example sentences</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="updateStatus" checked>
+                        <label class="form-check-label" for="updateStatus">Set exported words to "Active" status</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="exportSubmitBtn">Export</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Pronunciation playback
+        const playPronunciation = document.getElementById('playPronunciation');
+        const pronunciationAudio = document.getElementById('pronunciationAudio');
+
+        if (playPronunciation && pronunciationAudio) {
+            playPronunciation.addEventListener('click', function() {
+                pronunciationAudio.play();
+            });
+        }
+
+        // Export to Anki
+        const exportSubmitBtn = document.getElementById('exportSubmitBtn');
+
+        if (exportSubmitBtn) {
+            exportSubmitBtn.addEventListener('click', function() {
+                const deckName = document.getElementById('deckName').value;
+                const cardFormat = document.getElementById('cardFormat').value;
+                const includePronunciation = document.getElementById('includePronunciation').checked;
+                const includeExamples = document.getElementById('includeExamples').checked;
+                const updateStatus = document.getElementById('updateStatus').checked;
+
+                if (!deckName) {
+                    alert('Please enter a deck name.');
+                    return;
+                }
+
+                // Create a form and submit it
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/api/export-anki';
+                form.style.display = 'none';
+
+                // Add parameters as hidden fields
+                const params = {
+                    deckName: deckName,
+                    cardFormat: cardFormat,
+                    includePronunciation: includePronunciation,
+                    includeExamples: includeExamples,
+                    updateStatus: updateStatus,
+                    wordIds: [{{ word.id }}]
+                };
+
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'exportData';
+                input.value = JSON.stringify(params);
+                form.appendChild(input);
+
+                document.body.appendChild(form);
+                form.submit();
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -6,7 +6,9 @@ import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 
 from config.settings import DB_FILE
-from src.db.models import Book, PhrasalVerb, Word
+# from src.db.models import Book, PhrasalVerb, Word
+from app.words.models import PhrasalVerb, CollectionWords as Word
+from app.books.models import Book
 
 logger = logging.getLogger(__name__)
 

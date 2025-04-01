@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/study.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('study.index') }}">Study</a></li>
+                    <li class="breadcrumb-item active">Quiz</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Study progress -->
+    <div class="row mb-3 study-progress-container">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Quiz Progress</h5>
+                            <small class="text-muted" id="progress-text">Question 0 of 0</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <span id="correct-count" class="badge bg-success me-1">0</span>
+                                <span id="incorrect-count" class="badge bg-danger">0</span>
+                            </div>
+                            <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">
+                                End Quiz
+                            </button>
+                        </div>
+                    </div>
+                    <div class="progress mt-2">
+                        <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz container -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div id="loading-indicator" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading your quiz...</p>
+            </div>
+
+            <div id="quiz-container" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 id="question-title" class="mb-4 text-center"></h3>
+
+                        <div id="options-container" class="mb-4">
+                            <!-- Options will be added dynamically -->
+                        </div>
+
+                        <div id="explanation-container" class="mt-4" style="display: none;">
+                            <div id="explanation" class="alert"></div>
+                            <div class="text-center mt-3">
+                                <button id="next-question-btn" class="btn btn-primary">Next Question</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Complete -->
+            <div id="session-complete" class="card text-center p-4" style="display: none;">
+                <h3 class="mb-4">Quiz Complete!</h3>
+
+                <div class="row justify-content-center mb-4">
+                    <div class="col-md-8">
+                        <div class="progress mb-3">
+                            <div id="final-progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                        </div>
+
+                        <div class="session-stats">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h4 id="stats-total">0</h4>
+                                    <p>Questions</p>
+                                </div>
+                                <div class="col-4">
+                                    <h4 id="stats-percentage">0%</h4>
+                                    <p>Score</p>
+                                </div>
+                                <div class="col-4">
+                                    <h4 id="stats-time">0 min</h4>
+                                    <p>Time Spent</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('study.index') }}" class="btn btn-primary me-2">Return to Dashboard</a>
+                    <a href="{{ url_for('study.quiz') }}" class="btn btn-outline-success">Start New Quiz</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Audio element for pronunciation -->
+<audio id="word-audio" src=""></audio>
+
+<!-- Invisible input to store session data -->
+<input type="hidden" id="session-id" value="{{ session_id }}">
+<input type="hidden" id="word-source" value="{{ word_source }}">
+<input type="hidden" id="max-words" value="{{ max_words }}">
+<input type="hidden" id="include-audio" value="{{ settings.include_audio|int }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Session variables
+    const sessionId = document.getElementById('session-id').value;
+    const wordSource = document.getElementById('word-source').value;
+    const maxWords = document.getElementById('max-words').value;
+    const includeAudio = document.getElementById('include-audio').value === '1';
+
+    // Elements
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const quizContainer = document.getElementById('quiz-container');
+    const optionsContainer = document.getElementById('options-container');
+    const questionTitle = document.getElementById('question-title');
+    const explanationContainer = document.getElementById('explanation-container');
+    const explanation = document.getElementById('explanation');
+    const nextQuestionBtn = document.getElementById('next-question-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const correctCount = document.getElementById('correct-count');
+    const incorrectCount = document.getElementById('incorrect-count');
+    const wordAudio = document.getElementById('word-audio');
+    const sessionComplete = document.getElementById('session-complete');
+    const endSessionBtn = document.getElementById('end-session-btn');
+
+    // Stats elements
+    const statsTotal = document.getElementById('stats-total');
+    const statsPercentage = document.getElementById('stats-percentage');
+    const statsTime = document.getElementById('stats-time');
+    const finalProgressBar = document.getElementById('final-progress-bar');
+
+    // Quiz data
+    let studyItems = [];
+    let currentItemIndex = 0;
+    let currentOptions = [];
+    let stats = {
+        correct: 0,
+        incorrect: 0,
+        total: 0
+    };
+
+    // Load study items
+    function loadStudyItems() {
+        const url = `/study/api/get-study-items?source=${wordSource}&limit=${maxWords}`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Received data:", data);
+                studyItems = data;
+                if (studyItems.length > 0) {
+                    loadingIndicator.style.display = 'none';
+                    quizContainer.style.display = 'block';
+                    showCurrentQuestion();
+                } else {
+                    loadingIndicator.innerHTML = '<p>No words available for quiz. Try a different word source.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading study items:', error);
+                loadingIndicator.innerHTML = `<p>Error loading quiz questions: ${error.message}. Please try again.</p>`;
+            });
+    }
+
+    // Generate random quiz options
+    function generateOptions(correctItem) {
+        // Get 3 random incorrect options
+        let options = [];
+        let availableItems = [...studyItems].filter(item => item.word_id !== correctItem.word_id);
+
+        // Shuffle available items
+        for (let i = availableItems.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [availableItems[i], availableItems[j]] = [availableItems[j], availableItems[i]];
+        }
+
+        // Take up to 3 items for wrong answers
+        const wrongOptions = availableItems.slice(0, 3);
+
+        // Add the correct option and all wrong options
+        options.push({
+            word_id: correctItem.word_id,
+            text: correctItem.translation,
+            isCorrect: true
+        });
+
+        wrongOptions.forEach(item => {
+            options.push({
+                word_id: item.word_id,
+                text: item.translation,
+                isCorrect: false
+            });
+        });
+
+        // Shuffle all options
+        for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [options[i], options[j]] = [options[j], options[i]];
+        }
+
+        return options;
+    }
+
+    // Show current question
+    function showCurrentQuestion() {
+        if (currentItemIndex >= studyItems.length) {
+            completeSession();
+            return;
+        }
+
+        const currentItem = studyItems[currentItemIndex];
+
+        // Update progress
+        updateProgress();
+
+        // Reset question state
+        explanationContainer.style.display = 'none';
+        optionsContainer.innerHTML = '';
+
+        // Set question
+        {#questionTitle.textContent = `What is the meaning of "${currentItem.word}"?`;#}
+        const translatedText = "{{ _('What is the meaning of') }}";
+        questionTitle.textContent = `${translatedText} "${currentItem.word}"?`;
+
+        // Generate and display options
+        currentOptions = generateOptions(currentItem);
+
+        currentOptions.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.className = 'btn btn-outline-primary w-100 mb-2 p-3 text-start';
+            button.textContent = option.text;
+            button.dataset.index = index;
+            button.addEventListener('click', () => selectOption(index));
+            optionsContainer.appendChild(button);
+        });
+
+        // Setup audio if available
+        if (currentItem.audio_url && includeAudio) {
+            wordAudio.src = currentItem.audio_url;
+            wordAudio.onerror = function() {
+                console.log('Error loading audio:', wordAudio.src);
+            };
+            wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
+        }
+    }
+
+    // Handle option selection
+    function selectOption(index) {
+        const selectedOption = currentOptions[index];
+        const currentItem = studyItems[currentItemIndex];
+        const buttons = optionsContainer.querySelectorAll('button');
+
+        // Disable all buttons
+        buttons.forEach(btn => {
+            btn.disabled = true;
+        });
+
+        // Highlight correct and incorrect answers
+        buttons.forEach((btn, btnIndex) => {
+            if (currentOptions[btnIndex].isCorrect) {
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+            }
+
+            if (btnIndex === index && !selectedOption.isCorrect) {
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-danger');
+            }
+        });
+
+        // Update stats
+        if (selectedOption.isCorrect) {
+            stats.correct++;
+            correctCount.textContent = stats.correct;
+            explanation.className = 'alert alert-success';
+            explanation.innerHTML = `<strong>Correct!</strong> "${currentItem.word}" means "${currentItem.translation}".`;
+        } else {
+            stats.incorrect++;
+            incorrectCount.textContent = stats.incorrect;
+            explanation.className = 'alert alert-danger';
+            explanation.innerHTML = `<strong>Incorrect.</strong> "${currentItem.word}" means "${currentItem.translation}".`;
+        }
+        stats.total++;
+
+        // Show explanation and next button
+        explanationContainer.style.display = 'block';
+
+        // Update study item in database
+        fetch('/study/api/update-study-item', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                word_id: currentItem.word_id,
+                quality: selectedOption.isCorrect ? 4 : 1,
+                session_id: sessionId
+            })
+        })
+        .catch(error => {
+            console.error('Error updating study item:', error);
+        });
+    }
+
+    // Move to next question
+    function nextQuestion() {
+        currentItemIndex++;
+        showCurrentQuestion();
+    }
+
+    // Update progress display
+    function updateProgress() {
+        const total = studyItems.length;
+        const current = currentItemIndex + 1;
+        const percentage = total > 0 ? Math.round((currentItemIndex / total) * 100) : 0;
+
+        progressBar.style.width = `${percentage}%`;
+        progressBar.setAttribute('aria-valuenow', percentage);
+        progressText.textContent = `Question ${current} of ${total}`;
+    }
+
+    // Complete the quiz session
+    function completeSession() {
+        fetch('/study/api/complete-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: sessionId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show completion screen with stats
+                quizContainer.style.display = 'none';
+                sessionComplete.style.display = 'block';
+
+                // Update stats display
+                statsTotal.textContent = data.stats.words_studied;
+                statsPercentage.textContent = `${data.stats.percentage}%`;
+                statsTime.textContent = `${data.stats.duration} min`;
+                finalProgressBar.style.width = `${data.stats.percentage}%`;
+            }
+        })
+        .catch(error => {
+            console.error('Error completing session:', error);
+        });
+    }
+
+    // Event listeners
+    nextQuestionBtn.addEventListener('click', nextQuestion);
+
+    endSessionBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to end this quiz?')) {
+            completeSession();
+        }
+    });
+
+    // Start loading quiz items
+    loadStudyItems();
+});
+</script>
+<script>
+    const translations = {
+        meaningOf: "{{ _('What is the meaning of \"%s\"?') }}"
+    };
+</script>
+{% endblock %}

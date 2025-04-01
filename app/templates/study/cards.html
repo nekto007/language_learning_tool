@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Flashcards') }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/study.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('study.index') }}">{{ _('Study') }}</a></li>
+                    <li class="breadcrumb-item active">{{ _('Flashcards') }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Study progress -->
+    <div class="row mb-3 study-progress-container">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">{{ _('Study Progress') }}</h5>
+                            <small class="text-muted" id="progress-text">Card 0 of 0</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <span id="correct-count" class="badge bg-success me-1">0</span>
+                                <span id="incorrect-count" class="badge bg-danger">0</span>
+                            </div>
+                            <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">
+                                {{ _('End Session') }}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="progress mt-2">
+                        <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flashcard container -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div id="loading-indicator" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading your study session...</p>
+            </div>
+
+            <div id="flashcard-container" style="display: none;">
+                <div id="flashcard" class="card flashcard">
+                    <div class="card-body">
+                        <!-- Card Front -->
+                        <div id="card-front" class="flashcard-side">
+                            <div class="text-end mb-2">
+{#                                <small class="text-muted card-status"></small>#}
+                            </div>
+                            <h2 id="word" class="text-center mb-4"></h2>
+                            <div id="pronunciation" class="text-center mb-3">
+                                <button id="play-audio-btn" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-volume-up"></i> Pronounce
+                                </button>
+                            </div>
+                            <div id="hint-container" class="text-center mt-4" style="display: none;">
+                                <p class="hint-text">Hint: <span id="hint-text"></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Card Back -->
+                        <div id="card-back" class="flashcard-side" style="display: none;">
+                            <div class="text-end mb-2">
+{#                                <small class="text-muted card-status">Back</small>#}
+                            </div>
+                            <h2 id="back-word" class="text-center mb-3"></h2>
+
+                            <div class="card-section mb-3">
+                                <h5 class="card-subtitle">{{ _('Translation') }}</h5>
+                                <p id="translation" class="mb-0"></p>
+                            </div>
+                            <div class="card-section" id="examples-section">
+                                <h5 class="card-subtitle">{{ _('Examples') }}</h5>
+                                <div id="examples" class="mb-0"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card Controls -->
+                <div id="card-controls">
+                    <!-- Front side controls (Reveal button) -->
+                    <div id="front-controls" class="text-center mt-4">
+                        <button id="show-answer-btn" class="btn btn-primary">{{ _('Show Answer') }}</button>
+                    </div>
+
+                    <!-- Back side controls (rating buttons) -->
+                    <div id="back-controls" class="text-center mt-4" style="display: none;">
+                        <p class="mb-2">{{ _('How well did you know this?') }}</p>
+                        <div class="btn-group">
+                            <button data-rating="0" class="btn btn-danger rating-btn">{{ _('Again') }}</button>
+                            <button data-rating="1" class="btn btn-warning rating-btn">{{ _('Hard') }}</button>
+                            <button data-rating="3" class="btn btn-info rating-btn">{{ _('Good') }}</button>
+                            <button data-rating="5" class="btn btn-success rating-btn">{{ _('Easy') }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Complete -->
+            <div id="session-complete" class="card text-center p-4" style="display: none;">
+                <h3 class="mb-4">{{ _('Study Session Complete!') }}</h3>
+
+                <div class="row justify-content-center mb-4">
+                    <div class="col-md-8">
+                        <div class="progress mb-3">
+                            <div id="final-progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                        </div>
+
+                        <div class="session-stats">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h4 id="stats-total">0</h4>
+                                    <p>{{ _('Words Studied') }}</p>
+                                </div>
+                                <div class="col-4">
+                                    <h4 id="stats-percentage">0%</h4>
+                                    <p>{{ _('Accuracy') }}</p>
+                                </div>
+                                <div class="col-4">
+                                    <h4 id="stats-time">0 min</h4>
+                                    <p>{{ _('Time Spent') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('study.index') }}" class="btn btn-primary me-2">{{ _('Return to Dashboard') }}</a>
+                    <a href="{{ url_for('study.cards') }}" class="btn btn-outline-success">{{ _('Start New Session') }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Audio element for pronunciation -->
+<audio id="word-audio" src=""></audio>
+
+<!-- Invisible input to store session data -->
+<input type="hidden" id="session-id" value="{{ session_id }}">
+<input type="hidden" id="word-source" value="{{ word_source }}">
+<input type="hidden" id="max-words" value="{{ max_words }}">
+<input type="hidden" id="include-audio" value="{{ settings.include_audio|int }}">
+<input type="hidden" id="include-translations" value="{{ settings.include_translations|int }}">
+<input type="hidden" id="include-examples" value="{{ settings.include_examples|safe }}">
+<input type="hidden" id="show-hint-time" value="{{ settings.show_hint_time }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Session variables
+    const sessionId = document.getElementById('session-id').value;
+    const wordSource = document.getElementById('word-source').value;
+    const maxWords = document.getElementById('max-words').value;
+    const includeAudio = document.getElementById('include-audio').value === '1';
+    const includeTranslations = document.getElementById('include-translations').value === '1';
+    const includeExamples = document.getElementById('include-examples').value === '1';
+    const showHintTime = parseInt(document.getElementById('show-hint-time').value);
+
+    // Elements
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const flashcardContainer = document.getElementById('flashcard-container');
+    const cardFront = document.getElementById('card-front');
+    const cardBack = document.getElementById('card-back');
+    const frontControls = document.getElementById('front-controls');
+    const backControls = document.getElementById('back-controls');
+    const showAnswerBtn = document.getElementById('show-answer-btn');
+    const ratingBtns = document.querySelectorAll('.rating-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const correctCount = document.getElementById('correct-count');
+    const incorrectCount = document.getElementById('incorrect-count');
+    const wordAudio = document.getElementById('word-audio');
+    const playAudioBtn = document.getElementById('play-audio-btn');
+    const hintContainer = document.getElementById('hint-container');
+    const hintText = document.getElementById('hint-text');
+    const sessionComplete = document.getElementById('session-complete');
+    const endSessionBtn = document.getElementById('end-session-btn');
+
+    // Stats elements
+    const statsTotal = document.getElementById('stats-total');
+    const statsPercentage = document.getElementById('stats-percentage');
+    const statsTime = document.getElementById('stats-time');
+    const finalProgressBar = document.getElementById('final-progress-bar');
+
+    // Study session data
+    let studyItems = [];
+    let currentItemIndex = 0;
+    let stats = {
+        correct: 0,
+        incorrect: 0,
+        total: 0
+    };
+    let hintTimer = null;
+
+    // Load study items
+    function loadStudyItems() {
+        const url = `/study/api/get-study-items?source=${wordSource}&limit=${maxWords}`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Received data:", data);
+                studyItems = data;
+                if (studyItems.length > 0) {
+                    loadingIndicator.style.display = 'none';
+                    flashcardContainer.style.display = 'block';
+                    showCurrentCard();
+                } else {
+                    loadingIndicator.innerHTML = '<p>No words available for study. Try a different word source.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading study items:', error);
+                loadingIndicator.innerHTML = `<p>Error loading study items: ${error.message}. Please try again.</p>`;
+            });
+    }
+
+    // Show current flashcard
+    function showCurrentCard() {
+        if (currentItemIndex >= studyItems.length) {
+            completeSession();
+            return;
+        }
+
+        const currentItem = studyItems[currentItemIndex];
+
+        // Update progress
+        updateProgress();
+
+        // Reset card state
+        cardFront.style.display = 'block';
+        cardBack.style.display = 'none';
+        frontControls.style.display = 'block';
+        backControls.style.display = 'none';
+        hintContainer.style.display = 'none';
+        clearTimeout(hintTimer);
+
+        // Update card content
+        document.getElementById('word').textContent = currentItem.word;
+        document.getElementById('back-word').textContent = currentItem.word;
+        document.getElementById('translation').textContent = currentItem.translation || 'Not available';
+        document.getElementById('examples').innerHTML = currentItem.examples || 'Not available';
+        document.getElementById('examples-section').style.display = 'block';
+
+        // Show/hide elements based on settings
+        if (!includeTranslations) {
+            document.getElementById('translation').parentNode.style.display = 'none';
+        } else {
+            document.getElementById('translation').parentNode.style.display = 'block';
+        }
+
+        // Set hint content and timer
+        if (showHintTime > 0) {
+            // Create hint (first letter and length)
+            const wordLength = currentItem.word.length;
+            const hint = `${currentItem.word[0]}${'_'.repeat(wordLength - 1)} (${wordLength} letters)`;
+            hintText.textContent = hint;
+
+            // Set timer for hint
+            hintTimer = setTimeout(() => {
+                hintContainer.style.display = 'block';
+            }, showHintTime * 1000);
+        }
+
+        // Setup audio
+        if (currentItem.audio_url) {
+            wordAudio.src = currentItem.audio_url;
+            playAudioBtn.style.display = 'inline-block';
+
+            // Add error handling for audio loading
+            wordAudio.onerror = function() {
+                console.log('Error loading audio:', wordAudio.src);
+                playAudioBtn.style.display = 'none';
+            };
+
+            // Auto-play audio if setting is enabled
+            if (includeAudio) {
+                setTimeout(() => {
+                    wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
+                }, 500);
+            }
+        } else {
+            playAudioBtn.style.display = 'none';
+        }
+    }
+
+    // Show card answer
+    function showAnswer() {
+        cardFront.style.display = 'none';
+        cardBack.style.display = 'block';
+        frontControls.style.display = 'none';
+        backControls.style.display = 'block';
+        clearTimeout(hintTimer);
+    }
+
+    // Rate current card and move to next
+    function rateCard(rating) {
+        const currentItem = studyItems[currentItemIndex];
+
+        // Update stats
+        if (rating >= 3) {
+            stats.correct++;
+            correctCount.textContent = stats.correct;
+        } else {
+            stats.incorrect++;
+            incorrectCount.textContent = stats.incorrect;
+        }
+        stats.total++;
+
+        // Update study item in database
+        fetch('/study/api/update-study-item', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                word_id: currentItem.word_id,
+                quality: rating,
+                session_id: sessionId
+            })
+        })
+        .catch(error => {
+            console.error('Error updating study item:', error);
+        });
+
+        // Move to next card
+        currentItemIndex++;
+        showCurrentCard();
+    }
+
+    // Update progress display
+    function updateProgress() {
+        const total = studyItems.length;
+        const current = currentItemIndex + 1;
+        const percentage = total > 0 ? Math.round((currentItemIndex / total) * 100) : 0;
+
+        progressBar.style.width = `${percentage}%`;
+        progressBar.setAttribute('aria-valuenow', percentage);
+        progressText.textContent = `${translations.card} ${current} ${translations.of} ${total}`;
+    }
+
+    // Complete the study session
+    function completeSession() {
+        fetch('/study/api/complete-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: sessionId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show completion screen with stats
+                flashcardContainer.style.display = 'none';
+                sessionComplete.style.display = 'block';
+
+                // Update stats display
+                statsTotal.textContent = data.stats.words_studied;
+                statsPercentage.textContent = `${data.stats.percentage}%`;
+                statsTime.textContent = `${data.stats.duration} min`;
+                finalProgressBar.style.width = `${data.stats.percentage}%`;
+            }
+        })
+        .catch(error => {
+            console.error('Error completing session:', error);
+        });
+    }
+
+    // Event listeners
+    showAnswerBtn.addEventListener('click', showAnswer);
+
+    ratingBtns.forEach(button => {
+        button.addEventListener('click', function() {
+            const rating = parseInt(this.dataset.rating);
+            rateCard(rating);
+        });
+    });
+
+    playAudioBtn.addEventListener('click', function() {
+        wordAudio.play();
+    });
+
+    endSessionBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to end this study session?')) {
+            completeSession();
+        }
+    });
+
+    // Start loading study items
+    loadStudyItems();
+});
+</script>
+<script>
+    // Переводы интерфейса для JavaScript
+    const translations = {
+        showAnswer: "{{ _('Show Answer') }}",
+        front: "{{ _('Front') }}",
+        back: "{{ _('Back') }}",
+        howWellDidYouKnow: "{{ _('How well did you know this?') }}",
+        again: "{{ _('Again') }}",
+        hard: "{{ _('Hard') }}",
+        good: "{{ _('Good') }}",
+        easy: "{{ _('Easy') }}",
+        pronounce: "{{ _('Pronounce') }}",
+        hint: "{{ _('Hint:') }}",
+        translation: "{{ _('Translation') }}",
+        definition: "{{ _('Definition') }}",
+        examples: "{{ _('Examples') }}",
+        notAvailable: "{{ _('Not available') }}",
+        loading: "{{ _('Loading your study session...') }}",
+        noWords: "{{ _('No words available for study. Try a different word source.') }}",
+        errorLoading: "{{ _('Error loading study items. Please try again.') }}",
+        confirmEndSession: "{{ _('Are you sure you want to end this study session?') }}",
+        card: "{{ _('Card') }}",
+        of: "{{ _('of') }}"
+    };
+</script>
+{% endblock %}

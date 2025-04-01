@@ -1,0 +1,138 @@
+/* Flashcard Styles */
+.flashcard {
+    min-height: 400px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 30px;
+    perspective: 1000px;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+    overflow: hidden;
+}
+
+.flashcard:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.flashcard-side {
+    padding: 2rem;
+    height: 100%;
+}
+
+/* Card front side styles */
+#card-front {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#word {
+    font-size: 2.5rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+}
+
+/* Card back side styles */
+.card-subtitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.3rem;
+}
+
+.card-section {
+    margin-bottom: 1.5rem;
+}
+
+/* Hint styles */
+.hint-text {
+    color: #6c757d;
+    font-style: italic;
+    border-top: 1px dashed #ddd;
+    padding-top: 1rem;
+}
+
+/* Rating buttons */
+#back-controls .btn-group {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.rating-btn {
+    flex: 1;
+    margin: 0 5px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.rating-btn:first-child {
+    margin-left: 0;
+}
+
+.rating-btn:last-child {
+    margin-right: 0;
+}
+
+.rating-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Study progress */
+.study-progress-container {
+    position: sticky;
+    top: 10px;
+    z-index: 100;
+}
+
+/* Session complete screen */
+#session-complete {
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: #f8f9fa;
+}
+
+.session-stats h4 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Animation for card flip - optional enhancement */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+#card-front, #card-back {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Media queries for responsive design */
+@media (max-width: 768px) {
+    .flashcard {
+        min-height: 300px;
+    }
+
+    #word {
+        font-size: 2rem;
+    }
+
+    .flashcard-side {
+        padding: 1.5rem;
+    }
+
+    #back-controls .btn-group {
+        flex-direction: column;
+    }
+
+    .rating-btn {
+        margin: 5px 0;
+    }
+}

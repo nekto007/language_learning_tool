@@ -6,13 +6,17 @@ services:
     restart: always
     container_name: language_learning_tool_web
     ports:
-      - "5001:5000"  # Изменено с 5000 на 5001 для внешнего порта
+      - "5001:5000"  # Changed from 5000 to 5001 for external port
     volumes:
       - ./data:/app/data
-      - ./media:/app/media
-      - ./static:/app/static
+      - ./app/static/audio:/app/app/static/audio
+      - ./instance:/app/instance
     env_file:
       - .env
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
     networks:
       - app_network
 
@@ -25,8 +29,8 @@ services:
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
-      - ./static:/var/www/html/static
-      - ./media:/var/www/html/media
+      - ./app/static:/var/www/html/static
+      - ./app/static/audio:/var/www/html/media
     depends_on:
       - web
     networks:

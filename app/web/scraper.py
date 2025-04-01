@@ -9,7 +9,7 @@ import requests
 from requests.exceptions import RequestException
 
 from config.settings import MAX_RETRIES, REQUEST_TIMEOUT, USER_AGENT
-from src.nlp.processor import process_html_content
+from app.nlp.processor import process_html_content
 
 logger = logging.getLogger(__name__)
 

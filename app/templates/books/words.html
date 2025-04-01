@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Words from {{ book.title }} - English Learning App{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}">Books</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Words</li>
+            </ol>
+        </nav>
+        <h1 class="mb-0">Words from "{{ book.title }}"</h1>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group">
+            <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">Export to Anki</a>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('books.book_words', book_id=book.id) }}" class="row g-3">
+            <!-- Status Filter -->
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="" {% if status is none %}selected{% endif %}>All Statuses</option>
+                    <option value="0" {% if status == 0 %}selected{% endif %}>New</option>
+                    <option value="1" {% if status == 1 %}selected{% endif %}>Known</option>
+                    <option value="2" {% if status == 2 %}selected{% endif %}>Queued</option>
+                    <option value="3" {% if status == 3 %}selected{% endif %}>Active</option>
+                    <option value="4" {% if status == 4 %}selected{% endif %}>Mastered</option>
+                </select>
+            </div>
+
+            <!-- Sort By -->
+            <div class="col-md-3">
+                <label for="sort" class="form-label">Sort By</label>
+                <select name="sort" id="sort" class="form-select">
+                    <option value="frequency" {% if sort_by == 'frequency' %}selected{% endif %}>Frequency</option>
+                    <option value="english_word" {% if sort_by == 'english_word' %}selected{% endif %}>Word</option>
+                    <option value="level" {% if sort_by == 'level' %}selected{% endif %}>Level</option>
+                </select>
+            </div>
+
+            <!-- Sort Order -->
+            <div class="col-md-3">
+                <label for="order" class="form-label">Order</label>
+                <select name="order" id="order" class="form-select">
+                    <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending</option>
+                    <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                </select>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">{{ _('Apply Filters') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Words List -->
+<div class="card">
+    <div class="card-body">
+        {% if book_words %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>
+                            <div class="form-check">
+                                <input class="form-check-input select-all" type="checkbox" id="selectAll">
+                            </div>
+                        </th>
+                        <th>Word</th>
+                        <th>Translation</th>
+                        <th>Frequency</th>
+                        <th>Level</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for word, frequency in book_words %}
+                    <tr>
+                        <td>
+                            <div class="form-check">
+                                <input class="form-check-input word-checkbox" type="checkbox" value="{{ word.id }}">
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('words.word_details', word_id=word.id) }}">{{ word.english_word }}</a>
+                            {% if word.get_download %}
+                            <i class="bi bi-volume-up text-muted ms-1"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ word.russian_word }}</td>
+                        <td><span class="badge bg-secondary">{{ frequency }}</span></td>
+                        <td>
+                            {% if word.level %}
+                            <span class="badge bg-{{ {
+                                'A1': 'success',
+                                'A2': 'success',
+                                'B1': 'info',
+                                'B2': 'info',
+                                'C1': 'warning',
+                                'C2': 'warning'
+                            }[word.level] }}">{{ word.level }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ {
+                                0: 'secondary',
+                                1: 'success',
+                                2: 'primary',
+                                3: 'info',
+                                4: 'warning'
+                            }[word_statuses[word.id]] }}">
+                                {{ {
+                                    0: 'New',
+                                    1: 'Known',
+                                    2: 'Queued',
+                                    3: 'Active',
+                                    4: 'Mastered'
+                                }[word_statuses[word.id]] }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="statusDropdown{{ word.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Status
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">Mark as Known</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">Add to Queue</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">Set Active</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">Mark as Mastered</button>
+                                        </form>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=0) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">Reset Status</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="mt-3 mb-3">
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Bulk Actions
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
+                    <li><a class="dropdown-item bulk-action" data-status="1" href="#">Mark as Known</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">Add to Queue</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="3" href="#">Set Active</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="4" href="#">Mark as Mastered</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item bulk-action" data-status="0" href="#">Reset Status</a></li>
+                </ul>
+            </div>
+
+            <button class="btn btn-outline-primary ms-2" id="bulkExportBtn">Export Selected</button>
+        </div>
+
+        <!-- Pagination -->
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=pagination.prev_num, status=status, sort=sort_by, order=sort_order) }}">Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=page_num, status=status, sort=sort_by, order=sort_order) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=pagination.next_num, status=status, sort=sort_by, order=sort_order) }}">Next</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Next</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% else %}
+        <div class="text-center py-5">
+            <p class="mb-0">No words found matching your criteria. Try adjusting your filters.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportModalLabel">Export to Anki</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="exportForm">
+                    <div class="mb-3">
+                        <label for="deckName" class="form-label">Deck Name</label>
+                        <input type="text" class="form-control" id="deckName" value="Words from {{ book.title }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cardFormat" class="form-label">Card Format</label>
+                        <select class="form-select" id="cardFormat">
+                            <option value="basic">Basic (Front: English, Back: Russian)</option>
+                            <option value="reversed">Reversed (Both directions)</option>
+                            <option value="cloze">Cloze Deletion (from example sentences)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="includePronunciation" checked>
+                        <label class="form-check-label" for="includePronunciation">Include pronunciation audio</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="includeExamples" checked>
+                        <label class="form-check-label" for="includeExamples">Include example sentences</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="updateStatus" checked>
+                        <label class="form-check-label" for="updateStatus">Set exported words to "Active" status</label>
+                    </div>
+                    <div id="exportWordsCount" class="alert alert-info">
+                        No words selected for export.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="exportSubmitBtn" disabled>Export</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

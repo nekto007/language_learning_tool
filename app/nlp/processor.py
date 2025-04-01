@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from nltk.corpus import wordnet
 from nltk.stem import WordNetLemmatizer
 
-from src.nlp.setup import initialize_nltk
+from app.nlp.setup import initialize_nltk
 
 logger = logging.getLogger(__name__)
 
