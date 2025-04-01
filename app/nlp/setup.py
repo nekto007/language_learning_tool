@@ -16,6 +16,7 @@ REQUIRED_RESOURCES = [
     "averaged_perceptron_tagger",
     "wordnet",
     "words",
+    "brown",
 ]
 
 
