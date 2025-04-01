@@ -2,61 +2,38 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Установка зависимостей
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
+
+# Install Python dependencies including gunicorn explicitly
 RUN pip install --no-cache-dir -r requirements.txt
-# Устанавливаем gunicorn явно
-RUN pip install gunicorn
+RUN pip install --no-cache-dir gunicorn
 
-# Загрузка ресурсов NLTK
-RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('averaged_perceptron_tagger'); nltk.download('wordnet'); nltk.download('words')"
-
-# Копирование кода приложения
+# Copy project files
 COPY . .
 
-# Создадим директории для данных и медиа
-RUN mkdir -p /app/data /app/media
+# Create directories for data
+RUN mkdir -p app/static/audio
+RUN mkdir -p instance
 
-# Переменные окружения
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV FLASK_APP=app.py
-ENV DATABASE_PATH=/app/data/language_learning.db
+# Set environment variables
+ENV FLASK_APP=run.py
+ENV FLASK_ENV=production
+ENV PYTHONPATH=/app
 
-# Открываем порт для Flask
+# Create non-root user for security
+RUN adduser --disabled-password --gecos '' appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Export port
 EXPOSE 5000
 
-# Создаем скрипт для инициализации базы данных
-RUN echo '#!/bin/bash\n\
-# Создаем директории, если их нет\n\
-mkdir -p /app/data\n\
-touch /app/data/language_learning.db\n\
-chmod 666 /app/data/language_learning.db\n\
-echo "Created empty database file"' > /app/init_db.sh && chmod +x /app/init_db.sh
-
-# Создаем скрипт запуска
-RUN echo '#!/bin/bash\n\
-# Экспортируем переменные окружения для базы данных\n\
-export DATABASE_PATH=/app/data/language_learning.db\n\
-\n\
-# Проверяем, существует ли база данных\n\
-if [ ! -f /app/data/language_learning.db ]; then\n\
-  echo "Initializing database..."\n\
-  # Создаем пустой файл базы данных\n\
-  mkdir -p /app/data\n\
-  touch /app/data/language_learning.db\n\
-  chmod 666 /app/data/language_learning.db\n\
-  echo "Created empty database file"\n\
-fi\n\
-\n\
-# Запускаем Flask приложение\n\
-echo "Starting Flask application..."\n\
-if command -v gunicorn &> /dev/null; then\n\
-  exec gunicorn --bind 0.0.0.0:5000 app:app\n\
-else\n\
-  echo "Gunicorn not found, using Flask development server"\n\
-  exec flask run --host=0.0.0.0 --port=5000\n\
-fi' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
-# Запуск через entrypoint
-CMD ["/app/entrypoint.sh"]
+# Run application with gunicorn (using the full path to ensure it's found)
+CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "run:app"]

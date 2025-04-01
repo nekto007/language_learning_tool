@@ -1,11 +1,14 @@
 """
 Helper functions for the project.
 """
+import copy
 import logging
 import os
 from collections import Counter
 from datetime import datetime
 from typing import Dict, List, Optional
+
+from flask import request
 
 logger = logging.getLogger(__name__)
 
@@ -176,3 +179,32 @@ def parse_csv_line(line: str, delimiter: str = ";") -> List[str]:
         List[str]: List of values.
     """
     return [value.strip() for value in line.split(delimiter)]
+
+
+def url_params_with_updated_args(**updates):
+    """
+    Generate a dictionary of URL parameters based on current request args,
+    but with specified parameters updated or removed.
+
+    Usage:
+    url_for('endpoint', **url_params_with_updated_args(page=2, sort='name'))
+
+    Args:
+        **updates: Parameters to update. Use None to remove a parameter.
+
+    Returns:
+        dict: Updated URL parameters
+    """
+    args = copy.deepcopy(request.args.to_dict(flat=True))
+
+    # Update/add parameters
+    for key, value in updates.items():
+        if value is None:
+            # Remove parameter if value is None
+            if key in args:
+                del args[key]
+        else:
+            # Add or update parameter
+            args[key] = value
+
+    return args

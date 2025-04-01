@@ -1,0 +1,462 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Words - English Learning App') }}{% endblock %}
+
+{% block content %}
+<div class="book-list-page">
+  <div class="row mb-4">
+      <div class="col-md-8">
+          <h1>{{ _('Words') }}</h1>
+      </div>
+      <div class="col-md-4 text-end">
+          <div class="btn-group">
+              <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">{{ _('Export to Anki') }}</a>
+          </div>
+      </div>
+  </div>
+</div>
+<!-- Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('words.word_list') }}" class="row g-3">
+            <!-- Search -->
+            <div class="col-md-4">
+                {{ search_form.search.label(class="form-label") }}
+                {{ search_form.search(class="form-control", placeholder=_('Search words...')) }}
+            </div>
+
+            <!-- Status Filter -->
+            <div class="col-md-3">
+                {{ filter_form.status.label(class="form-label") }}
+                {{ filter_form.status(class="form-select") }}
+            </div>
+
+            <!-- Book Filter -->
+            <div class="col-md-3">
+                {{ filter_form.book_id.label(class="form-label") }}
+                {{ filter_form.book_id(class="form-select") }}
+            </div>
+
+            <!-- Submit Button -->
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">{{ _('Apply Filters') }}</button>
+            </div>
+
+            <!-- Letter Filter -->
+            <div class="col-12">
+                <div class="letter-filter d-flex flex-wrap gap-1 mt-2">
+                    <a href="{{ url_for('words.word_list') }}" class="btn btn-sm {{ 'btn-primary' if not filter_form.letter.data else 'btn-outline-secondary' }}">{{ _('All') }}</a>
+                    {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
+                    <a href="{{ url_for('words.word_list', letter=letter) }}" class="btn btn-sm {{ 'btn-primary' if filter_form.letter.data == letter else 'btn-outline-secondary' }}">{{ letter }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Word List -->
+<div class="card">
+    <div class="card-body">
+        {% if words %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAll">
+                                </div>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('words.word_list', **url_params(sort='english_word', order='desc' if sort_field == 'english_word' and sort_order == 'asc' else 'asc')) }}">
+                                    {{ _('ENGLISH WORD') }}
+                                    {% if sort_field == 'english_word' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>{{ _('RUSSIAN TRANSLATION') }}</th>
+                            <th>
+                                <a href="{{ url_for('words.word_list', **url_params(sort='level', order='desc' if sort_field == 'level' and sort_order == 'asc' else 'asc')) }}">
+                                    {{ _('LEVEL') }}
+                                    {% if sort_field == 'level' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>{{ _('STATUS') }}</th>
+                            <th>{{ _('ACTIONS') }}</th>
+                        </tr>
+                    </thead>
+                <tbody>
+                    {% for word in words %}
+                    <tr>
+                        <td>
+                            <div class="form-check">
+                                <input class="form-check-input word-checkbox" type="checkbox" value="{{ word.id }}">
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('words.word_details', word_id=word.id) }}">{{ word.english_word }}</a>
+                            {% if word.get_download %}
+                            <i class="bi bi-volume-up text-muted ms-1"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ word.russian_word }}</td>
+                        <td>
+                            {% if word.level %}
+                            <span class="badge bg-{{ {
+                                'A1': 'success',
+                                'A2': 'success',
+                                'B1': 'info',
+                                'B2': 'info',
+                                'C1': 'warning',
+                                'C2': 'warning'
+                            }[word.level] }}">{{ word.level }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ {
+                                0: 'secondary',
+                                1: 'success',
+                                2: 'primary',
+                                3: 'info',
+                                4: 'warning'
+                            }[word_statuses[word.id]] }}">
+                                {{ _({
+                                    0: 'New',
+                                    1: 'Known',
+                                    2: 'Queued',
+                                    3: 'Active',
+                                    4: 'Mastered'
+                                }[word_statuses[word.id]]) }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="statusDropdown{{ word.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    {{ _('Status') }}
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
+                                        </form>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=0) }}" method="POST">
+                                            <button type="submit" class="dropdown-item">{{ _('Reset Status') }}</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="mt-3 mb-3">
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    {{ _('Bulk Actions') }}
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
+                    <li><a class="dropdown-item bulk-action" data-status="1" href="#">{{ _('Mark as Known') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">{{ _('Add to Queue') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="3" href="#">{{ _('Set Active') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="4" href="#">{{ _('Mark as Mastered') }}</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item bulk-action" data-status="0" href="#">{{ _('Reset Status') }}</a></li>
+                </ul>
+            </div>
+
+            <button class="btn btn-outline-primary ms-2" id="bulkExportBtn">{{ _('Export Selected') }}</button>
+        </div>
+
+        <!-- Pagination -->
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('words.word_list', **url_params(page=pagination.prev_num)) }}">{{ _('Previous') }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">{{ _('Previous') }}</span>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                    <a class="page-link" href="{{ url_for('words.word_list', **url_params(page=page_num)) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('words.word_list', **url_params(page=pagination.next_num)) }}">{{ _('Next') }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">{{ _('Next') }}</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% else %}
+        <div class="text-center py-5">
+            <p class="mb-0">{{ _('No words found matching your criteria. Try adjusting your filters or search terms.') }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportModalLabel">{{ _('Export to Anki') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="exportForm">
+                    <div class="mb-3">
+                        <label for="deckName" class="form-label">{{ _('Deck Name') }}</label>
+                        <input type="text" class="form-control" id="deckName" value="English Words">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cardFormat" class="form-label">{{ _('Card Format') }}</label>
+                        <select class="form-select" id="cardFormat">
+                            <option value="basic">{{ _('Basic (Front: English, Back: Russian)') }}</option>
+                            <option value="reversed">{{ _('Reversed (Both directions)') }}</option>
+                            <option value="cloze">{{ _('Cloze Deletion (from example sentences)') }}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="includePronunciation" checked>
+                        <label class="form-check-label" for="includePronunciation">{{ _('Include pronunciation audio') }}</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="includeExamples" checked>
+                        <label class="form-check-label" for="includeExamples">{{ _('Include example sentences') }}</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="updateStatus" checked>
+                        <label class="form-check-label" for="updateStatus">{{ _('Set exported words to "Active" status') }}</label>
+                    </div>
+                    <div id="exportWordsCount" class="alert alert-info">
+                        {{ _('No words selected for export.') }}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="exportSubmitBtn" disabled>{{ _('Export') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Action Form (hidden) -->
+<form id="bulkActionForm" method="POST" action="/api/batch-update-status" style="display: none;">
+    <input type="hidden" name="status" id="bulkActionStatus">
+    <input type="hidden" name="word_ids" id="bulkActionWordIds">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Переводы для JavaScript
+    const translations = {
+        selectWord: "{{ _('Please select at least one word.') }}",
+        errorOccurred: "{{ _('An error occurred. Please try again.') }}",
+        selectWordExport: "{{ _('Please select at least one word to export.') }}",
+        wordsSelected: "{{ _('word(s) selected for export.') }}",
+        enterDeckName: "{{ _('Please enter a deck name.') }}",
+        error: "{{ _('Error:') }}"
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select all checkbox functionality
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const wordCheckboxes = document.querySelectorAll('.word-checkbox');
+
+        selectAllCheckbox.addEventListener('change', function() {
+            wordCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateExportButton();
+        });
+
+        wordCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectAllCheckbox();
+                updateExportButton();
+            });
+        });
+
+        function updateSelectAllCheckbox() {
+            const checkedCount = document.querySelectorAll('.word-checkbox:checked').length;
+            selectAllCheckbox.checked = checkedCount === wordCheckboxes.length && wordCheckboxes.length > 0;
+        }
+
+        // Bulk actions
+        const bulkActions = document.querySelectorAll('.bulk-action');
+        bulkActions.forEach(action => {
+            action.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const status = this.dataset.status;
+                const selectedWordIds = getSelectedWordIds();
+
+                if (selectedWordIds.length === 0) {
+                    alert(translations.selectWord);
+                    return;
+                }
+
+                // Submit via AJAX
+                fetch('/api/batch-update-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        word_ids: selectedWordIds,
+                        status: parseInt(status)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload the page to show updated statuses
+                        window.location.reload();
+                    } else {
+                        alert(translations.error + ' ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(translations.errorOccurred);
+                });
+            });
+        });
+
+        // Export functionality
+        const bulkExportBtn = document.getElementById('bulkExportBtn');
+        const exportSubmitBtn = document.getElementById('exportSubmitBtn');
+        const exportWordsCount = document.getElementById('exportWordsCount');
+
+        bulkExportBtn.addEventListener('click', function() {
+            const selectedWordIds = getSelectedWordIds();
+
+            if (selectedWordIds.length === 0) {
+                alert(translations.selectWordExport);
+                return;
+            }
+
+            // Show the number of selected words in the modal
+            exportWordsCount.textContent = `${selectedWordIds.length} ${translations.wordsSelected}`;
+            exportSubmitBtn.disabled = false;
+
+            // Show the export modal
+            const exportModal = new bootstrap.Modal(document.getElementById('exportModal'));
+            exportModal.show();
+        });
+
+        exportSubmitBtn.addEventListener('click', function() {
+            const selectedWordIds = getSelectedWordIds();
+            const deckName = document.getElementById('deckName').value;
+            const cardFormat = document.getElementById('cardFormat').value;
+            const includePronunciation = document.getElementById('includePronunciation').checked;
+            const includeExamples = document.getElementById('includeExamples').checked;
+            const updateStatus = document.getElementById('updateStatus').checked;
+
+            if (!deckName) {
+                alert(translations.enterDeckName);
+                return;
+            }
+
+            // Create a form and submit it
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/api/export-anki';
+            form.style.display = 'none';
+
+            // Add parameters as hidden fields
+            const params = {
+                deckName: deckName,
+                cardFormat: cardFormat,
+                includePronunciation: includePronunciation,
+                includeExamples: includeExamples,
+                updateStatus: updateStatus,
+                wordIds: selectedWordIds
+            };
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'exportData';
+            input.value = JSON.stringify(params);
+            form.appendChild(input);
+
+            document.body.appendChild(form);
+            form.submit();
+        });
+
+        function getSelectedWordIds() {
+            const checkboxes = document.querySelectorAll('.word-checkbox:checked');
+            return Array.from(checkboxes).map(checkbox => parseInt(checkbox.value));
+        }
+
+        function updateExportButton() {
+            const selectedCount = document.querySelectorAll('.word-checkbox:checked').length;
+            if (selectedCount > 0) {
+                bulkExportBtn.disabled = false;
+            } else {
+                bulkExportBtn.disabled = true;
+            }
+        }
+
+        // Initialize state
+        updateExportButton();
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Let main.js handle all the checkbox and bulk action functionality
+        console.log("Word list page loaded, main.js will handle functionality");
+
+        // The setupTable function from main.js will set up the select all checkbox
+        // The setupWordListPage function will set up the bulk actions
+    });
+</script>
+
+{% endblock %}

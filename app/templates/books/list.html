@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Books - English Learning App{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>Books Collection</h1>
+        <p class="text-muted">Browse books and texts for learning English vocabulary.</p>
+    </div>
+</div>
+
+<!-- Book List -->
+<div class="card">
+    <div class="card-body">
+        {% if books %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Words</th>
+                        <th>Progress</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for book in books %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">{{ book.unique_words }}</span>
+                                <small class="text-muted">({{ book.total_words }} occurrences)</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% set stats = book_stats[book.id] %}
+                            {% set progress = ((stats['known'] + stats['mastered']) / stats['total'] * 100) | int if stats['total'] > 0 else 0 %}
+                            <div class="progress" style="width: 100%; height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ (stats['known'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: {{ (stats['mastered'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
+                                <div class="progress-bar bg-info" role="progressbar" style="width: {{ (stats['active'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (stats['queued'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">{{ progress }}% learned</small>
+                                <small class="text-muted">{{ stats['known'] + stats['mastered'] }}/{{ stats['total'] }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, **request.args) }}">Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                    <a class="page-link" href="{{ url_for('books.book_list', page=page_num, **request.args) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, **request.args) }}">Next</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Next</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% else %}
+        <div class="text-center py-5">
+            <p class="text-muted mb-3">No books have been added yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

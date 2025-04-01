@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Flask application initialization
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(16)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///language_learning.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///word.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Database initialization

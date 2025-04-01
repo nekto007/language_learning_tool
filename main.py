@@ -11,17 +11,21 @@ import click
 from flask.cli import cli
 
 from config.settings import (
-    COLLECTIONS_TABLE, DB_FILE, MAX_PAGES, MEDIA_FOLDER, PHRASAL_VERB_FILE, PHRASAL_VERB_TABLE, TRANSLATE_FILE,
+    COLLECTIONS_TABLE, DB_FILE, MAX_PAGES, MEDIA_FOLDER, PHRASAL_VERB_FILE, PHRASAL_VERB_TABLE, TRANSLATE_FILE
 )
-from src.audio.forvo_api import ForvoAPIClient
-from src.audio.forvo_downloader import ForvoDownloader
-from src.audio.manager import AudioManager
-from src.db.models import Book, DBInitializer, Word
-from src.db.repository import DatabaseRepository
-from src.nlp.processor import prepare_word_data
-from src.nlp.setup import download_nltk_resources, initialize_nltk
-from src.utils.helpers import create_backup, setup_logging
-from src.web.scraper import WebScraper
+from app.words.models import CollectionWords as Word
+from app.books.models import Book
+from app.utils.helpers import setup_logging, create_backup
+from app.nlp.setup import download_nltk_resources, initialize_nltk
+from app.nlp.processor import prepare_word_data
+from app.web.scraper import WebScraper
+from app.repository import DatabaseRepository
+# from src.audio.forvo_api import ForvoAPIClient
+# from src.audio.forvo_downloader import ForvoDownloader
+# from src.audio.manager import AudioManager
+# from src.db.models import DBInitializer
+# from src.db.repository import DatabaseRepository
+# from src.web.scraper import WebScraper
 
 logger = logging.getLogger(__name__)
 

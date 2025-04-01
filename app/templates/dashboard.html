@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - English Learning App{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Welcome, {{ current_user.username }}!</h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Word Statistics -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Your Word Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: {{ progress }}%;" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">{{ progress }}%</div>
+                </div>
+                <div class="row">
+                    <div class="col-6 col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">New</h6>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[0] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Known</h6>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[1] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Queued</h6>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[2] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Active</h6>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[3] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Mastered</h6>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[4] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Total</h6>
+                                <p class="card-text fw-bold fs-4">{{ total_words }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">Browse Words</a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('words.word_list', status=2) }}" class="btn btn-secondary d-block">Queued Words</a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('words.word_list', status=3) }}" class="btn btn-info d-block">Active Words</a>
+                    </div>
+                    <div class="col-6">
+                        <a href="#" class="btn btn-outline-primary d-block">Export to Anki</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Studied -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recently Studied Words</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% if recent_words %}
+                        {% for word in recent_words %}
+                        <a href="{{ url_for('words.word_details', word_id=word.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ word.english_word }}</h6>
+                                <small>{{ word.level or 'N/A' }}</small>
+                            </div>
+                            <p class="mb-1">{{ word.russian_word }}</p>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No words studied yet. Start browsing the word list to begin learning!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
