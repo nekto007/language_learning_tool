@@ -1,0 +1,2581 @@
+# Russian translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-03-31 22:28+0300\n"
+"PO-Revision-Date: 2025-04-02 13:24+0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ru\n"
+"Language-Team: ru <LL@li.org>\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: app/study/routes.py:63
+msgid "Your study settings have been updated!"
+msgstr "Ваши настройки обучения были обновлены!"
+
+#: app/study/routes.py:145
+msgid "This study mode is not implemented yet."
+msgstr "Этот режим исследования пока не реализован."
+
+#: app/study/routes.py:148
+msgid "Invalid form data."
+msgstr "Недопустимые данные формы."
+
+#: app/templates/base.html:6 app/templates/base.html:19
+#: app/templates/base.html:97
+msgid "English Learning App"
+msgstr "Изучение английского языка"
+
+#: app/templates/base.html:27
+msgid "Dashboard"
+msgstr "Дашборд"
+
+#: app/templates/base.html:30 app/templates/study/index.html:105
+msgid "Words"
+msgstr "Слова"
+
+#: app/templates/base.html:33
+msgid "Study"
+msgstr "Обучение"
+
+#: app/templates/base.html:36
+msgid "Books"
+msgstr "Книги"
+
+#: app/templates/base.html:47
+msgid "Profile"
+msgstr "Профиль"
+
+#: app/templates/base.html:49
+msgid "Logout"
+msgstr "Выход из системы"
+
+#: app/templates/base.html:54
+msgid "Login"
+msgstr "Вход в систему"
+
+#: app/templates/base.html:57
+msgid "Register"
+msgstr "Регистрация"
+
+#: app/templates/study/cards.html:438
+msgid "Show Answer"
+msgstr "Показать ответ"
+
+#: app/templates/study/cards.html:439
+msgid "Front"
+msgstr ""
+
+#: app/templates/study/cards.html:440
+msgid "Back"
+msgstr ""
+
+#: app/templates/study/cards.html:441
+msgid "How well did you know this?"
+msgstr "Насколько хорошо вы это знаете?"
+
+#: app/templates/study/cards.html:442
+msgid "Again"
+msgstr "Снова"
+
+#: app/templates/study/cards.html:443
+msgid "Hard"
+msgstr "Тяжело"
+
+#: app/templates/study/cards.html:444
+msgid "Good"
+msgstr "Хорошо"
+
+#: app/templates/study/cards.html:445
+msgid "Easy"
+msgstr "Легко"
+
+#: app/templates/study/cards.html:446
+msgid "Pronounce"
+msgstr "Произношение"
+
+#: app/templates/study/cards.html:447
+msgid "Hint:"
+msgstr "Подсказка:"
+
+#: app/templates/study/cards.html:448
+msgid "Translation"
+msgstr "Перевод"
+
+#: app/templates/study/cards.html:449
+msgid "Definition"
+msgstr "Определение"
+
+#: app/templates/study/cards.html:450
+msgid "Examples"
+msgstr "Примеры"
+
+#: app/templates/study/cards.html:451
+msgid "Not available"
+msgstr "Не доступно"
+
+#: app/templates/study/cards.html:452
+msgid "Loading your study session..."
+msgstr "Загрузка учебного занятия..."
+
+#: app/templates/study/cards.html:453
+msgid "No words available for study. Try a different word source."
+msgstr ""
+"Нет слов, доступных для изучения. Попробуйте использовать другой источник"
+" слов."
+
+#: app/templates/study/cards.html:454
+msgid "Error loading study items. Please try again."
+msgstr "Ошибка при загрузке учебных предметов. Пожалуйста, попробуйте еще раз."
+
+#: app/templates/study/cards.html:455
+msgid "Are you sure you want to end this study session?"
+msgstr "Вы уверены, что хотите закончить это занятие?"
+
+#: app/templates/study/cards.html:456
+msgid "Card"
+msgstr "Карточка"
+
+#: app/templates/study/cards.html:457
+msgid "of"
+msgstr "из"
+
+#: app/templates/study/index.html:3 app/templates/study/index.html:7
+msgid "Study Dashboard"
+msgstr "Дашборд для обучения"
+
+#: app/templates/study/index.html:17
+msgid "Due for Review"
+msgstr "К просмотру"
+
+#: app/templates/study/index.html:19
+msgid "words"
+msgstr "слова"
+
+#: app/templates/study/index.html:26
+msgid "Total Words"
+msgstr "Всего слов"
+
+#: app/templates/study/index.html:28
+msgid "in your collection"
+msgstr "в вашей коллекции"
+
+#: app/templates/study/index.html:35
+msgid "Progress"
+msgstr "Прогресс"
+
+#: app/templates/study/index.html:41
+msgid "of vocabulary learned"
+msgstr "количества изученных слов"
+
+#: app/templates/study/index.html:50
+msgid "Start a Study Session"
+msgstr "Начните занятия"
+
+#: app/templates/study/index.html:59
+msgid "Choose how you want to study your words"
+msgstr "Выберите, как вы хотите изучать свои слова"
+
+#: app/templates/study/index.html:67
+msgid "Select which words to study"
+msgstr "Выберите слова для изучения"
+
+#: app/templates/study/index.html:74
+msgid "Number of words to include"
+msgstr "Количество слов для включения"
+
+#: app/templates/study/index.html:80
+msgid "Start Session"
+msgstr "Начало сеанса"
+
+#: app/templates/study/index.html:82
+msgid "Settings"
+msgstr "Настройки"
+
+#: app/templates/study/index.html:92
+msgid "Recent Study Sessions"
+msgstr "Последние учебные сессии"
+
+#: app/templates/study/index.html:94
+msgid "View All Stats"
+msgstr "Посмотреть всю статистику"
+
+#: app/templates/study/index.html:103
+msgid "Date"
+msgstr "Дата"
+
+#: app/templates/study/index.html:104
+msgid "Type"
+msgstr "Тип"
+
+#: app/templates/study/index.html:106
+msgid "Correct"
+msgstr "Правильно"
+
+#: app/templates/study/index.html:107
+msgid "Score"
+msgstr "Результат"
+
+#: app/templates/study/index.html:108
+msgid "Time"
+msgstr "Время"
+
+#: app/templates/study/index.html:123
+msgid "min"
+msgstr "мин"
+
+#: app/templates/study/index.html:131
+msgid "You haven't completed any study sessions yet."
+msgstr "Вы еще не прошли ни одной учебной сессии."
+
+#: app/templates/study/index.html:132
+msgid "Start studying to see your progress!"
+msgstr "Начните заниматься, чтобы увидеть свой прогресс!"
+
+#: app/templates/study/index.html:144
+msgid "Study Tips"
+msgstr "Советы по обучению"
+
+#: app/templates/study/index.html:150
+msgid "Study regularly to improve retention"
+msgstr "Регулярно занимайтесь, чтобы повысить успеваемость"
+
+#: app/templates/study/index.html:154
+msgid "Use spaced repetition for better results"
+msgstr "Используйте интервальное повторение для достижения лучших результатов"
+
+#: app/templates/study/index.html:158
+msgid "Create associations with new vocabulary"
+msgstr "Создавайте ассоциации с новой лексикой"
+
+#: app/templates/study/index.html:162
+msgid "Review difficult words more frequently"
+msgstr "Чаще просматривайте трудные слова"
+
+#: app/templates/study/index.html:166
+msgid "Practice using words in context"
+msgstr "Тренируйтесь использовать слова в контексте"
+
+#: app/templates/study/index.html:175
+msgid "Quick Actions"
+msgstr "Быстрые действия"
+
+#: app/templates/study/index.html:180
+msgid "Quick Review (10 Due Words)"
+msgstr "Краткий обзор (10 нужных слов)"
+
+#: app/templates/study/index.html:183
+msgid "Learn 5 New Words"
+msgstr "Выучите 5 новых слов"
+
+#: app/templates/study/index.html:186
+msgid "Practice Difficult Words"
+msgstr "Отрабатывайте трудные слова"
+
+#: app/templates/study/index.html:189
+msgid "Browse All Words"
+msgstr "Просмотреть все слова"
+
+msgid "ENGLISH WORD"
+msgstr "АНГЛИЙСКОЕ СЛОВО"
+
+msgid "easy"
+msgstr "легко"
+
+msgid "New"
+msgstr "Новые"
+
+msgid "Study Mode"
+msgstr "Режим обучения"
+
+msgid "Words Source"
+msgstr "Источник слов"
+
+msgid "Quiz"
+msgstr ""
+
+msgid "Next"
+msgstr "Следующая"
+
+msgid "Matching Game"
+msgstr "Игра на соответствие"
+
+msgid "Quiz Mode"
+msgstr "Режим викторины"
+
+msgid "Flashcards (Anki-style)"
+msgstr "Флэшкарты (в стиле Анки)"
+
+msgid "Show"
+msgstr ""
+
+msgid "next"
+msgstr ""
+
+msgid "Number of Words"
+msgstr "Количество слов"
+
+msgid "From a Book"
+msgstr "Из книги"
+
+msgid "Book"
+msgstr "Книга"
+
+msgid "Difficult Words"
+msgstr "Трудные слова"
+
+msgid "Mixed (New & Review)"
+msgstr "Микс (Новые и Знакомые)"
+
+msgid "play"
+msgstr ""
+
+msgid "word"
+msgstr ""
+
+msgid "New Words"
+msgstr "Новые слова"
+
+msgid "Cards"
+msgstr "Карточки"
+
+msgid "POST"
+msgstr ""
+
+msgid "card"
+msgstr ""
+
+msgid "else"
+msgstr ""
+
+msgid "form"
+msgstr ""
+
+msgid "Auto"
+msgstr ""
+
+msgid "Hint"
+msgstr ""
+
+msgid "back"
+msgstr ""
+
+msgid "time"
+msgstr ""
+
+msgid "quiz"
+msgstr ""
+
+msgid "Word"
+msgstr ""
+
+msgid "none"
+msgstr ""
+
+msgid "good"
+msgstr ""
+
+msgid "null"
+msgstr ""
+
+msgid "hard"
+msgstr ""
+
+msgid "show"
+msgstr ""
+
+msgid "anki"
+msgstr ""
+
+msgid "role"
+msgstr ""
+
+msgid "hint"
+msgstr ""
+
+msgid "0 min"
+msgstr ""
+
+msgid "label"
+msgstr ""
+
+msgid "block"
+msgstr ""
+
+msgid "error"
+msgstr ""
+
+msgid "final"
+msgstr ""
+
+msgid "items"
+msgstr ""
+
+msgid "let i"
+msgstr ""
+
+msgid "known"
+msgstr ""
+
+msgid "Title"
+msgstr ""
+
+msgid "title"
+msgstr ""
+
+msgid "style"
+msgstr ""
+
+msgid "Basic"
+msgstr ""
+
+msgid "catch"
+msgstr ""
+
+msgid "LEVEL"
+msgstr "УРОВЕНЬ"
+
+msgid "class"
+msgstr ""
+
+msgid "total"
+msgstr ""
+
+msgid "value"
+msgstr ""
+
+msgid "Usage"
+msgstr ""
+
+msgid "means"
+msgstr ""
+
+msgid "width"
+msgstr ""
+
+msgid "study"
+msgstr ""
+
+msgid "Level"
+msgstr ""
+
+msgid "alert"
+msgstr ""
+
+msgid "1 day"
+msgstr ""
+
+msgid "false"
+msgstr ""
+
+msgid "front"
+msgstr ""
+
+msgid "again"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "input"
+msgstr ""
+
+msgid "audio"
+msgstr ""
+
+msgid "endif"
+msgstr ""
+
+msgid "stats"
+msgstr ""
+
+msgid "limit"
+msgstr ""
+
+msgid "count"
+msgstr ""
+
+msgid "times"
+msgstr ""
+
+msgid "Order"
+msgstr ""
+
+msgid "start"
+msgstr ""
+
+msgid "batch"
+msgstr ""
+
+msgid "check"
+msgstr ""
+
+msgid "fetch"
+msgstr ""
+
+msgid "click"
+msgstr ""
+
+msgid "index"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid "Known"
+msgstr "Знакомые"
+
+msgid "length"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Queued"
+msgstr "В очереди"
+
+msgid "filter"
+msgstr ""
+
+msgid "source"
+msgstr ""
+
+msgid "Listen"
+msgstr ""
+
+msgid "Active"
+msgstr "Активные"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "update"
+msgstr ""
+
+msgid "answer"
+msgstr ""
+
+msgid "letter"
+msgstr ""
+
+msgid "hidden"
+msgstr ""
+
+msgid "STATUS"
+msgstr "СТАТУС"
+
+msgid "100 mb"
+msgstr ""
+
+msgid "ACTIONS"
+msgstr "ДЕЙСТВИЯ"
+
+msgid "Export"
+msgstr ""
+
+msgid "method"
+msgstr ""
+
+msgid "queued"
+msgstr ""
+
+msgid "danger"
+msgstr ""
+
+msgid "inline"
+msgstr ""
+
+msgid "rating"
+msgstr ""
+
+msgid "Rating"
+msgstr ""
+
+msgid "active"
+msgstr ""
+
+msgid "return"
+msgstr ""
+
+msgid "3 text"
+msgstr ""
+
+msgid "select"
+msgstr ""
+
+msgid "export"
+msgstr ""
+
+msgid "button"
+msgstr ""
+
+msgid "status"
+msgstr "статус"
+
+msgid "params"
+msgstr ""
+
+msgid "noWords"
+msgstr ""
+
+msgid "headers"
+msgstr ""
+
+msgid "outline"
+msgstr ""
+
+msgid "const j"
+msgstr ""
+
+msgid "learned"
+msgstr ""
+
+msgid "primary"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "Actions"
+msgstr ""
+
+msgid "loading"
+msgstr ""
+
+msgid "correct"
+msgstr ""
+
+msgid "word_id"
+msgstr ""
+
+msgid "Content"
+msgstr ""
+
+msgid "confirm"
+msgstr ""
+
+msgid "Example"
+msgstr ""
+
+msgid "quality"
+msgstr ""
+
+msgid "btn btn"
+msgstr ""
+
+msgid "letters"
+msgstr "букв(ы)"
+
+msgid "Sort By"
+msgstr ""
+
+msgid "Welcome"
+msgstr ""
+
+msgid "success"
+msgstr ""
+
+msgid "Russian"
+msgstr "Русский"
+
+msgid "include"
+msgstr ""
+
+msgid "checked"
+msgstr ""
+
+msgid "Meaning"
+msgstr ""
+
+msgid "message"
+msgstr ""
+
+msgid "section"
+msgstr ""
+
+msgid "options"
+msgstr ""
+
+msgid "Loading"
+msgstr ""
+
+msgid "warning"
+msgstr ""
+
+msgid "Русский"
+msgstr ""
+
+msgid "wordIds"
+msgstr ""
+
+msgid "word.id"
+msgstr ""
+
+msgid "session"
+msgstr ""
+
+msgid "30 days"
+msgstr ""
+
+msgid "control"
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "current"
+msgstr ""
+
+msgid "0 else 0"
+msgstr ""
+
+msgid "checkbox"
+msgstr ""
+
+msgid "badge bg"
+msgstr ""
+
+msgid "progress"
+msgstr ""
+
+msgid "examples"
+msgstr ""
+
+msgid "rateCard"
+msgstr ""
+
+msgid "pv.using"
+msgstr ""
+
+msgid "complete"
+msgstr ""
+
+msgid "controls"
+msgstr ""
+
+msgid "valuemin"
+msgstr ""
+
+msgid "valuemax"
+msgstr ""
+
+msgid "Duration"
+msgstr ""
+
+msgid "Accuracy"
+msgstr ""
+
+msgid "function"
+msgstr ""
+
+msgid "parseInt"
+msgstr ""
+
+msgid "Added on"
+msgstr ""
+
+msgid "interval"
+msgstr ""
+
+msgid "mastered"
+msgstr ""
+
+msgid "page_num"
+msgstr ""
+
+msgid "Previous"
+msgstr "Предыдущая"
+
+msgid "maxWords"
+msgstr ""
+
+msgid "Question"
+msgstr ""
+
+msgid "valuenow"
+msgstr ""
+
+msgid "All Books"
+msgstr "Все книги"
+
+msgid "btnIndex"
+msgstr ""
+
+msgid "Elements"
+msgstr ""
+
+msgid "Reversed"
+msgstr ""
+
+msgid "View All"
+msgstr ""
+
+msgid "endblock"
+msgstr ""
+
+msgid "response"
+msgstr ""
+
+msgid "sentence"
+msgstr ""
+
+msgid "question"
+msgstr ""
+
+msgid "deckName"
+msgstr ""
+
+msgid "Mastered"
+msgstr "Изученные"
+
+msgid "End Quiz"
+msgstr ""
+
+msgid "hintTimer"
+msgstr ""
+
+msgid "Ascending"
+msgstr ""
+
+msgid "incorrect"
+msgstr ""
+
+msgid "Deck Name"
+msgstr ""
+
+msgid "You haven"
+msgstr ""
+
+msgid "_'.repeat"
+msgstr ""
+
+msgid "const url"
+msgstr ""
+
+msgid "Questions"
+msgstr ""
+
+msgid "Frequency"
+msgstr ""
+
+msgid "let stats"
+msgstr ""
+
+msgid "Quiz data"
+msgstr ""
+
+msgid "pronounce"
+msgstr "произношение"
+
+msgid "secondary"
+msgstr ""
+
+msgid "indicator"
+msgstr ""
+
+msgid "container"
+msgstr ""
+
+msgid "frequency"
+msgstr ""
+
+msgid "flashcard"
+msgstr "флэшкарта"
+
+msgid "selectAll"
+msgstr ""
+
+msgid "isCorrect"
+msgstr ""
+
+msgid "sessionId"
+msgstr ""
+
+msgid "primary w"
+msgstr ""
+
+msgid "Incorrect"
+msgstr ""
+
+msgid "definition"
+msgstr ""
+
+msgid "form.email"
+msgstr ""
+
+msgid "Set Status"
+msgstr ""
+
+msgid "Statistics"
+msgstr ""
+
+msgid "input.type"
+msgstr ""
+
+msgid "input.name"
+msgstr ""
+
+msgid "const form"
+msgstr ""
+
+msgid "wordLength"
+msgstr ""
+
+msgid "Words from"
+msgstr ""
+
+msgid "Next Steps"
+msgstr ""
+
+msgid "Login here"
+msgstr ""
+
+msgid "data.error"
+msgstr ""
+
+msgid "Math.round"
+msgstr ""
+
+msgid "showAnswer"
+msgstr ""
+
+msgid "book.title"
+msgstr ""
+
+msgid "checkboxes"
+msgstr ""
+
+msgid "setTimeout"
+msgstr ""
+
+msgid "Set Active"
+msgstr "На обучении"
+
+msgid "span class"
+msgstr ""
+
+msgid "exportData"
+msgstr ""
+
+msgid "const hint"
+msgstr ""
+
+msgid "word.level"
+msgstr ""
+
+msgid "Time Spent"
+msgstr ""
+
+msgid "studyItems"
+msgstr ""
+
+msgid "word_stats"
+msgstr ""
+
+msgid "Flashcards"
+msgstr "Флэшкарты"
+
+msgid "session_id"
+msgstr ""
+
+msgid "Math.floor"
+msgstr ""
+
+msgid "percentage"
+msgstr ""
+
+msgid "wordSource"
+msgstr ""
+
+msgid "cardFormat"
+msgstr ""
+
+msgid "HTTP error"
+msgstr ""
+
+msgid "Descending"
+msgstr ""
+
+msgid "Next steps"
+msgstr ""
+
+msgid "capitalize"
+msgstr ""
+
+msgid "total_words"
+msgstr ""
+
+msgid "application"
+msgstr ""
+
+msgid "form.submit"
+msgstr ""
+
+msgid "Next Review"
+msgstr ""
+
+msgid "stats.total"
+msgstr ""
+
+msgid "Card 0 of 0"
+msgstr ""
+
+msgid "correctItem"
+msgstr ""
+
+msgid "total_items"
+msgstr ""
+
+msgid "progressbar"
+msgstr ""
+
+msgid "explanation"
+msgstr ""
+
+msgid "form.action"
+msgstr ""
+
+msgid "Math.random"
+msgstr ""
+
+msgid "End Session"
+msgstr "Окончание сеанса"
+
+msgid "response.ok"
+msgstr ""
+
+msgid "Create hint"
+msgstr ""
+
+msgid "option.text"
+msgstr ""
+
+msgid "const total"
+msgstr ""
+
+msgid "const input"
+msgstr ""
+
+msgid "occurrences"
+msgstr ""
+
+msgid "textContent"
+msgstr ""
+
+msgid "pv.sentence"
+msgstr ""
+
+msgid "Performance"
+msgstr ""
+
+msgid "exportModal"
+msgstr ""
+
+msgid "alert alert"
+msgstr ""
+
+msgid "input.value"
+msgstr ""
+
+msgid "translation"
+msgstr ""
+
+msgid "Card Format"
+msgstr ""
+
+msgid "let options"
+msgstr ""
+
+msgid "form.method"
+msgstr ""
+
+msgid "console.log"
+msgstr ""
+
+msgid "Setup audio"
+msgstr ""
+
+msgid "block title"
+msgstr ""
+
+msgid "currentItem"
+msgstr ""
+
+msgid "Search words"
+msgstr "Поиск слов"
+
+msgid "Search words..."
+msgstr "Поиск слов..."
+
+msgid "Search"
+msgstr "Поиск"
+
+msgid "includeAudio"
+msgstr ""
+
+msgid "const button"
+msgstr ""
+
+msgid "showHintTime"
+msgstr ""
+
+msgid "btn.disabled"
+msgstr ""
+
+msgid "const params"
+msgstr ""
+
+msgid "View Details"
+msgstr ""
+
+msgid "Mastery Rate"
+msgstr ""
+
+msgid "translations"
+msgstr ""
+
+msgid "Browse Words"
+msgstr "Просмотреть слова"
+
+msgid "Queued Words"
+msgstr "Слова в очереди"
+
+msgid "Reset Status"
+msgstr "Сбросить статус"
+
+msgid "Quick Review"
+msgstr "Быстрый обзор"
+
+msgid "status_stats"
+msgstr ""
+
+msgid "Unique Words"
+msgstr ""
+
+msgid "const status"
+msgstr ""
+
+msgid "Set question"
+msgstr ""
+
+msgid "item.word_id"
+msgstr ""
+
+msgid "notAvailable"
+msgstr ""
+
+msgid "Add to Queue"
+msgstr "Добавить в очередь"
+
+msgid "errorLoading"
+msgstr ""
+
+msgid "10 Due Words"
+msgstr ""
+
+msgid "Active Words"
+msgstr ""
+
+msgid "Bulk Actions"
+msgstr "Массовое действие"
+
+msgid "Study Streak"
+msgstr ""
+
+msgid "options.push"
+msgstr ""
+
+msgid "checkedCount"
+msgstr ""
+
+msgid "All Statuses"
+msgstr ""
+
+msgid "study_streak"
+msgstr ""
+
+msgid "data.success"
+msgstr ""
+
+msgid "clearTimeout"
+msgstr ""
+
+msgid "selectOption"
+msgstr ""
+
+msgid "How it works"
+msgstr ""
+
+msgid "Update stats"
+msgstr ""
+
+msgid "Bulk actions"
+msgstr ""
+
+msgid "Daily Limits"
+msgstr ""
+
+msgid "Back to Study"
+msgstr ""
+
+msgid "error.message"
+msgstr ""
+
+msgid "let hintTimer"
+msgstr ""
+
+msgid "Next Question"
+msgstr "Следующий вопрос"
+
+msgid "Mark as Known"
+msgstr "Отметить как известное"
+
+msgid "wordAudio.src"
+msgstr ""
+
+msgid "response.json"
+msgstr ""
+
+msgid "Register here"
+msgstr ""
+
+msgid "Search Online"
+msgstr ""
+
+msgid "bulkExportBtn"
+msgstr ""
+
+msgid "Quiz Progress"
+msgstr ""
+
+msgid "Similar Words"
+msgstr ""
+
+msgid "Apply Filters"
+msgstr "Применить фильтры"
+
+msgid "word_statuses"
+msgstr ""
+
+msgid "Received data"
+msgstr ""
+
+msgid "form.username"
+msgstr ""
+
+msgid "selectedCount"
+msgstr ""
+
+msgid "console.error"
+msgstr ""
+
+msgid "Words Studied"
+msgstr ""
+
+msgid "style.display"
+msgstr ""
+
+msgid "stats.correct"
+msgstr ""
+
+msgid "option, index"
+msgstr ""
+
+msgid "form.password"
+msgstr ""
+
+msgid "btn, btnIndex"
+msgstr ""
+
+msgid "English, Back"
+msgstr ""
+
+msgid "Quiz Complete"
+msgstr ""
+
+msgid "const buttons"
+msgstr ""
+
+msgid "const current"
+msgstr ""
+
+msgid "play prevented"
+msgstr ""
+
+msgid "All"
+msgstr "Все"
+
+msgid "View All Words"
+msgstr "Посмотреть все слова"
+
+msgid "const hintText"
+msgstr ""
+
+msgid "options.length"
+msgstr ""
+
+msgid "Perfect recall"
+msgstr ""
+
+msgid "let studyItems"
+msgstr ""
+
+msgid "Excellent work"
+msgstr ""
+
+msgid "mastered_items"
+msgstr ""
+
+msgid "Start New Quiz"
+msgstr ""
+
+msgid "loadStudyItems"
+msgstr ""
+
+msgid "wordAudio.play"
+msgstr ""
+
+msgid "availableItems"
+msgstr ""
+
+msgid "Cloze Deletion"
+msgstr ""
+
+msgid "Stats elements"
+msgstr ""
+
+msgid "checkbox.value"
+msgstr ""
+
+msgid "JSON.stringify"
+msgstr ""
+
+msgid "Short interval"
+msgstr ""
+
+msgid "form.max_words"
+msgstr ""
+
+msgid "currentOptions"
+msgstr ""
+
+msgid "return options"
+msgstr ""
+
+msgid "updateProgress"
+msgstr ""
+
+msgid "Mastered Words"
+msgstr ""
+
+msgid "View New Words"
+msgstr ""
+
+msgid "const cardBack"
+msgstr ""
+
+msgid "Study Progress"
+msgstr "Прогресс в изучении"
+
+msgid "const maxWords"
+msgstr ""
+
+msgid "Study Settings"
+msgstr ""
+
+msgid "form.password2"
+msgstr ""
+
+msgid "completeSession"
+msgstr ""
+
+msgid "translations.of"
+msgstr ""
+
+msgid "form.csrf_token"
+msgstr ""
+
+msgid "const sessionId"
+msgstr ""
+
+msgid "due_items_count"
+msgstr ""
+
+msgid "buttons.forEach"
+msgstr ""
+
+msgid "Submit via AJAX"
+msgstr ""
+
+msgid "response.status"
+msgstr ""
+
+msgid "throw new Error"
+msgstr ""
+
+msgid "selectedWordIds"
+msgstr ""
+
+msgid "includeExamples"
+msgstr ""
+
+msgid "pv.phrasal_verb"
+msgstr ""
+
+msgid "Both directions"
+msgstr ""
+
+msgid "Update progress"
+msgstr ""
+
+msgid "generateOptions"
+msgstr ""
+
+msgid "const statsTime"
+msgstr ""
+
+msgid "Event listeners"
+msgstr ""
+
+msgid "const wordAudio"
+msgstr ""
+
+msgid "exportSubmitBtn"
+msgstr ""
+
+msgid "Export Selected"
+msgstr "Экспортировать выбранное"
+
+msgid "Question 0 of 0"
+msgstr ""
+
+msgid "stats.incorrect"
+msgstr ""
+
+msgid "form.hidden_tag"
+msgstr ""
+
+msgid "Book Statistics"
+msgstr ""
+
+msgid "showCurrentCard"
+msgstr ""
+
+msgid "const cardFront"
+msgstr ""
+
+msgid "Longer interval"
+msgstr ""
+
+msgid "click', function"
+msgstr ""
+
+msgid "form.appendChild"
+msgstr ""
+
+msgid "form.email.label"
+msgstr ""
+
+msgid "form.remember_me"
+msgstr ""
+
+msgid "Please try again"
+msgstr ""
+
+msgid "Review Due Words"
+msgstr ""
+
+msgid "currentItemIndex"
+msgstr ""
+
+msgid "const percentage"
+msgstr ""
+
+msgid "Load study items"
+msgstr ""
+
+msgid "book.total_words"
+msgstr ""
+
+msgid "Study Statistics"
+msgstr ""
+
+msgid "button.className"
+msgstr ""
+
+msgid "const wordSource"
+msgstr ""
+
+msgid "Books Collection"
+msgstr ""
+
+msgid "e.preventDefault"
+msgstr ""
+
+msgid "word.level or 'N"
+msgstr ""
+
+msgid "Initialize state"
+msgstr ""
+
+msgid "form.word_source"
+msgstr ""
+
+msgid "checkbox.checked"
+msgstr ""
+
+msgid "consecutive days"
+msgstr ""
+
+msgid "const cardFormat"
+msgstr ""
+
+msgid "const wordLength"
+msgstr ""
+
+msgid "const checkboxes"
+msgstr ""
+
+msgid "session.duration"
+msgstr ""
+
+msgid "item.translation"
+msgstr ""
+
+msgid "Reset card state"
+msgstr ""
+
+msgid "exportModal.show"
+msgstr ""
+
+msgid "currentItem.word"
+msgstr ""
+
+msgid "exportWordsCount"
+msgstr ""
+
+msgid "Show card answer"
+msgstr "Показать карточку с ответом"
+
+msgid "Mark as Mastered"
+msgstr "Отметить как освоенное"
+
+msgid "const statsTotal"
+msgstr ""
+
+msgid "const ratingBtns"
+msgstr ""
+
+msgid "form.session_type"
+msgstr ""
+
+msgid "Loading your quiz"
+msgstr ""
+
+msgid "wordAudio.onerror"
+msgstr ""
+
+msgid "const exportModal"
+msgstr ""
+
+msgid "View Queued Words"
+msgstr ""
+
+msgid "playPronunciation"
+msgstr ""
+
+msgid "return Array.from"
+msgstr ""
+
+msgid "Study Preferences"
+msgstr ""
+
+msgid "Back to Word List"
+msgstr ""
+
+msgid "translations.card"
+msgstr ""
+
+msgid "studyItems.length"
+msgstr ""
+
+msgid "change', function"
+msgstr ""
+
+msgid "confirmEndSession"
+msgstr ""
+
+msgid "word.russian_word"
+msgstr ""
+
+msgid "View Active Words"
+msgstr ""
+
+msgid "const currentItem"
+msgstr ""
+
+msgid "Move to next card"
+msgstr ""
+
+msgid "book.unique_words"
+msgstr ""
+
+msgid "Learning Progress"
+msgstr ""
+
+msgid "howWellDidYouKnow"
+msgstr ""
+
+msgid "const progressBar"
+msgstr ""
+
+msgid "const bulkActions"
+msgstr ""
+
+msgid "Start New Session"
+msgstr "Начать новую сессию"
+
+msgid "const explanation"
+msgstr ""
+
+msgid "btn.classList.add"
+msgstr ""
+
+msgid "Session variables"
+msgstr ""
+
+msgid "function rateCard"
+msgstr ""
+
+msgid "word.english_word"
+msgstr ""
+
+msgid "const updateStatus"
+msgstr ""
+
+msgid "let availableItems"
+msgstr ""
+
+msgid "form.style.display"
+msgstr ""
+
+msgid "const backControls"
+msgstr ""
+
+msgid "Set timer for hint"
+msgstr ""
+
+msgid "getSelectedWordIds"
+msgstr ""
+
+msgid "const includeAudio"
+msgstr ""
+
+msgid "const correctCount"
+msgstr ""
+
+msgid "const progressText"
+msgstr ""
+
+msgid "ratingBtns.forEach"
+msgstr ""
+
+msgid "Start Learning Now"
+msgstr ""
+
+msgid "0 to disable hints"
+msgstr ""
+
+msgid "filter_form.status"
+msgstr ""
+
+msgid "const translations"
+msgstr ""
+
+msgid "faster progression"
+msgstr ""
+
+msgid "const checkedCount"
+msgstr ""
+
+msgid "pronunciationAudio"
+msgstr ""
+
+msgid "const playAudioBtn"
+msgstr ""
+
+msgid "form.include_audio"
+msgstr ""
+
+msgid "learned_percentage"
+msgstr ""
+
+msgid "mastery_percentage"
+msgstr ""
+
+msgid "let currentOptions"
+msgstr ""
+
+msgid "const showHintTime"
+msgstr ""
+
+msgid "button.textContent"
+msgstr ""
+
+msgid "const wrongOptions"
+msgstr ""
+
+msgid "click', showAnswer"
+msgstr ""
+
+msgid "search_form.search"
+msgstr ""
+
+msgid "updateExportButton"
+msgstr ""
+
+msgid "Study session data"
+msgstr ""
+
+msgid "this.dataset.rating"
+msgstr ""
+
+msgid "const bulkExportBtn"
+msgstr ""
+
+msgid "Difficulty Settings"
+msgstr ""
+
+msgid "includeTranslations"
+msgstr ""
+
+msgid "Words in Collection"
+msgstr ""
+
+msgid "const showAnswerBtn"
+msgstr ""
+
+msgid "Disable all buttons"
+msgstr ""
+
+msgid "bulkActions.forEach"
+msgstr ""
+
+msgid "correctItem.word_id"
+msgstr ""
+
+msgid "const endSessionBtn"
+msgstr ""
+
+msgid "selected for export"
+msgstr ""
+
+msgid "Update card content"
+msgstr ""
+
+msgid "RUSSIAN TRANSLATION"
+msgstr "РУССКИЙ ПЕРЕВОД"
+
+msgid "Most Frequent Words"
+msgstr "Самые часто встречающиеся слова"
+
+msgid "Shuffle all options"
+msgstr ""
+
+msgid "Return to Dashboard"
+msgstr "Вернуться к Дашборду"
+
+msgid "Error loading audio"
+msgstr ""
+
+msgid "form.password.label"
+msgstr ""
+
+msgid "currentItem.examples"
+msgstr ""
+
+msgid "pv.russian_translate"
+msgstr ""
+
+msgid "Your Word Statistics"
+msgstr ""
+
+msgid "let currentItemIndex"
+msgstr ""
+
+msgid "Update stats display"
+msgstr ""
+
+msgid "Reset question state"
+msgstr ""
+
+msgid "form.reviews_per_day"
+msgstr ""
+
+msgid "includePronunciation"
+msgstr ""
+
+msgid "wrongOptions.forEach"
+msgstr ""
+
+msgid "btn.classList.remove"
+msgstr ""
+
+msgid "button.dataset.index"
+msgstr ""
+
+msgid "click', nextQuestion"
+msgstr ""
+
+msgid "Export functionality"
+msgstr ""
+
+msgid "const selectedOption"
+msgstr ""
+
+msgid "form.password2.label"
+msgstr ""
+
+msgid "hintText.textContent"
+msgstr ""
+
+msgid "session.session_type"
+msgstr ""
+
+msgid "const incorrectCount"
+msgstr ""
+
+msgid "return response.json"
+msgstr ""
+
+msgid "availableItems.slice"
+msgstr ""
+
+msgid "const wordCheckboxes"
+msgstr ""
+
+msgid "Move to next question"
+msgstr ""
+
+msgid "Start Active Learning"
+msgstr ""
+
+msgid "const selectedWordIds"
+msgstr ""
+
+msgid "Study Recommendations"
+msgstr ""
+
+msgid "form.include_examples"
+msgstr ""
+
+msgid "wordCheckboxes.length"
+msgstr ""
+
+msgid "function selectOption"
+msgstr ""
+
+msgid "Show current question"
+msgstr ""
+
+msgid "function nextQuestion"
+msgstr ""
+
+msgid "const sessionComplete"
+msgstr ""
+
+msgid "currentItem.audio_url"
+msgstr ""
+
+msgid "const statsPercentage"
+msgstr ""
+
+msgid "Add to Learning Queue"
+msgstr "Добавить в очередь на обучение"
+
+msgid "session.words_studied"
+msgstr ""
+
+msgid "const nextQuestionBtn"
+msgstr ""
+
+msgid "statsTime.textContent"
+msgstr ""
+
+msgid "Word Status Breakdown"
+msgstr ""
+
+msgid "Related Phrasal Verbs"
+msgstr ""
+
+msgid "explanation.className"
+msgstr ""
+
+msgid "explanation.innerHTML"
+msgstr ""
+
+msgid "availableItems.length"
+msgstr ""
+
+msgid "const exportSubmitBtn"
+msgstr ""
+
+msgid "Don't have an account"
+msgstr ""
+
+msgid "current_user.username"
+msgstr ""
+
+msgid "Show the export modal"
+msgstr ""
+
+msgid "data.stats.percentage"
+msgstr ""
+
+msgid "const includeExamples"
+msgstr ""
+
+msgid "valuenow', percentage"
+msgstr ""
+
+msgid "currentItem.definition"
+msgstr ""
+
+msgid "const loadingIndicator"
+msgstr ""
+
+msgid "const finalProgressBar"
+msgstr ""
+
+msgid "document.createElement"
+msgstr ""
+
+msgid "selectedWordIds.length"
+msgstr ""
+
+msgid "Recently Studied Words"
+msgstr ""
+
+msgid "Study Session Complete"
+msgstr ""
+
+msgid "const optionsContainer"
+msgstr ""
+
+msgid "wordCheckboxes.forEach"
+msgstr ""
+
+msgid "const exportWordsCount"
+msgstr ""
+
+msgid "Pronunciation playback"
+msgstr ""
+
+msgid "currentOptions.forEach"
+msgstr ""
+
+msgid "cardBack.style.display"
+msgstr ""
+
+msgid "Show current flashcard"
+msgstr "Показать текущую флэшкарту"
+
+msgid "What is the meaning of"
+msgstr "Что означает"
+
+msgid "window.location.reload"
+msgstr ""
+
+msgid "bulkExportBtn.disabled"
+msgstr ""
+
+msgid "from example sentences"
+msgstr ""
+
+msgid "statsTotal.textContent"
+msgstr ""
+
+msgid "Add New Words to Queue"
+msgstr ""
+
+msgid "form.new_words_per_day"
+msgstr ""
+
+msgid "form.remember_me.label"
+msgstr ""
+
+msgid "progressBar.style.width"
+msgstr ""
+
+msgid "Add More Words to Study"
+msgstr ""
+
+msgid "pronunciationAudio.play"
+msgstr ""
+
+msgid "updateSelectAllCheckbox"
+msgstr ""
+
+msgid "const selectAllCheckbox"
+msgstr ""
+
+msgid "function updateProgress"
+msgstr ""
+
+msgid "function loadStudyItems"
+msgstr ""
+
+msgid "cardFront.style.display"
+msgstr ""
+
+msgid "About Spaced Repetition"
+msgstr ""
+
+msgid "document.getElementById"
+msgstr ""
+
+msgid "action.addEventListener"
+msgstr ""
+
+msgid "Already have an account"
+msgstr ""
+
+msgid "correctItem.translation"
+msgstr ""
+
+msgid "first letter and length"
+msgstr ""
+
+msgid "Update progress display"
+msgstr ""
+
+msgid "Handle option selection"
+msgstr ""
+
+msgid "const playPronunciation"
+msgstr ""
+
+msgid "button.addEventListener"
+msgstr ""
+
+msgid "Shuffle available items"
+msgstr ""
+
+msgid "currentItem.translation"
+msgstr ""
+
+msgid "currentItem.word.length"
+msgstr ""
+
+msgid "session.correct_answers"
+msgstr ""
+
+msgid "progressBar.setAttribute"
+msgstr ""
+
+msgid "parentNode.style.display"
+msgstr ""
+
+msgid "progressText.textContent"
+msgstr ""
+
+msgid "Please enter a deck name"
+msgstr ""
+
+msgid "form.include_audio.label"
+msgstr ""
+
+msgid "Start loading quiz items"
+msgstr ""
+
+msgid "search_form.search.label"
+msgstr ""
+
+msgid "exportSubmitBtn.disabled"
+msgstr ""
+
+msgid "correctCount.textContent"
+msgstr ""
+
+msgid "const pronunciationAudio"
+msgstr ""
+
+msgid "filter_form.status.label"
+msgstr ""
+
+msgid "selectedOption.isCorrect"
+msgstr ""
+
+msgid "function showCurrentCard"
+msgstr ""
+
+msgid "data.stats.words_studied"
+msgstr ""
+
+msgid "Setup audio if available"
+msgstr ""
+
+msgid "Error completing session"
+msgstr ""
+
+msgid "Incorrect but recognized"
+msgstr ""
+
+msgid "Based on your statistics"
+msgstr ""
+
+msgid "function generateOptions"
+msgstr ""
+
+msgid "session.incorrect_answers"
+msgstr ""
+
+msgid "document.body.appendChild"
+msgstr ""
+
+msgid "Error updating study item"
+msgstr ""
+
+msgid "Include example sentences"
+msgstr ""
+
+msgid "document.addEventListener"
+msgstr ""
+
+msgid "selectAllCheckbox.checked"
+msgstr ""
+
+msgid "Start loading study items"
+msgstr ""
+
+msgid "filter_form.book_id.label"
+msgstr ""
+
+msgid "Complete the quiz session"
+msgstr ""
+
+msgid "questionTitle.textContent"
+msgstr ""
+
+msgid "book.scrape_date.strftime"
+msgstr ""
+
+msgid "checkbox.addEventListener"
+msgstr ""
+
+msgid "form.max_words.label.text"
+msgstr ""
+
+msgid "document.querySelectorAll"
+msgstr ""
+
+msgid "form.include_translations"
+msgstr ""
+
+msgid "form.show_hint_time.label"
+msgstr ""
+
+msgid "Error loading study items"
+msgstr ""
+
+msgid "const includeTranslations"
+msgstr ""
+
+msgid "Standard interval increase"
+msgstr ""
+
+msgid "How well did you know this"
+msgstr ""
+
+msgid "Loading your study session"
+msgstr ""
+
+msgid "Books Containing This Word"
+msgstr ""
+
+msgid "optionsContainer.innerHTML"
+msgstr ""
+
+msgid "Set hint content and timer"
+msgstr ""
+
+msgid "const explanationContainer"
+msgstr ""
+
+msgid "backControls.style.display"
+msgstr ""
+
+msgid "const includePronunciation"
+msgstr ""
+
+msgid "loadingIndicator.innerHTML"
+msgstr ""
+
+msgid "Click to view book details"
+msgstr ""
+
+msgid "Complete the study session"
+msgstr ""
+
+msgid "playAudioBtn.style.display"
+msgstr ""
+
+msgid "incorrectCount.textContent"
+msgstr ""
+
+msgid "form.reviews_per_day.label"
+msgstr ""
+
+msgid "statsPercentage.textContent"
+msgstr ""
+
+msgid "hintContainer.style.display"
+msgstr ""
+
+msgid "quizContainer.style.display"
+msgstr ""
+
+msgid "Include pronunciation audio"
+msgstr ""
+
+msgid "form.include_examples.label"
+msgstr ""
+
+msgid "Create a form and submit it"
+msgstr ""
+
+msgid "DOMContentLoaded', function"
+msgstr ""
+
+msgid "You're just getting started"
+msgstr ""
+
+msgid "form.word_source.label.text"
+msgstr ""
+
+msgid "function getSelectedWordIds"
+msgstr ""
+
+msgid "function updateExportButton"
+msgstr ""
+
+msgid "You're making good progress"
+msgstr ""
+
+msgid "session.start_time.strftime"
+msgstr ""
+
+msgid "if book.scrape_date else 'N"
+msgstr ""
+
+msgid "frontControls.style.display"
+msgstr ""
+
+msgid "Here's how the ratings work"
+msgstr ""
+
+msgid "Correct with some difficulty"
+msgstr ""
+
+msgid "optionsContainer.appendChild"
+msgstr ""
+
+msgid "Generate random quiz options"
+msgstr ""
+
+msgid "No words selected for export"
+msgstr ""
+
+msgid "Generate and display options"
+msgstr ""
+
+msgid "function showCurrentQuestion"
+msgstr ""
+
+msgid "finalProgressBar.style.width"
+msgstr ""
+
+msgid "form.session_type.label.text"
+msgstr ""
+
+msgid "form.new_words_per_day.label"
+msgstr ""
+
+msgid "Error loading quiz questions"
+msgstr ""
+
+msgid "No books have been added yet"
+msgstr ""
+
+msgid "exportWordsCount.textContent"
+msgstr ""
+
+msgid "No words found for this book"
+msgstr ""
+
+msgid "playAudioBtn.addEventListener"
+msgstr ""
+
+msgid "sessionComplete.style.display"
+msgstr ""
+
+msgid "Update study item in database"
+msgstr ""
+
+msgid "bulkExportBtn.addEventListener"
+msgstr ""
+
+msgid "endSessionBtn.addEventListener"
+msgstr ""
+
+msgid "Get 3 random incorrect options"
+msgstr ""
+
+msgid "loadingIndicator.style.display"
+msgstr ""
+
+msgid "session.performance_percentage"
+msgstr ""
+
+msgid "showAnswerBtn.addEventListener"
+msgstr ""
+
+msgid "Complete blackout, wrong answer"
+msgstr ""
+
+msgid "Please select at least one word"
+msgstr ""
+
+msgid "form.include_translations.label"
+msgstr ""
+
+msgid "Add parameters as hidden fields"
+msgstr ""
+
+msgid "hide elements based on settings"
+msgstr ""
+
+msgid "flashcardContainer.style.display"
+msgstr ""
+
+msgid "Show explanation and next button"
+msgstr ""
+
+msgid "Review again in the same session"
+msgstr ""
+
+msgid "play audio if setting is enabled"
+msgstr ""
+
+msgid "function updateSelectAllCheckbox"
+msgstr ""
+
+msgid "exportSubmitBtn.addEventListener"
+msgstr ""
+
+msgid "nextQuestionBtn.addEventListener"
+msgstr ""
+
+msgid "Select all checkbox functionality"
+msgstr ""
+
+msgid "optionsContainer.querySelectorAll"
+msgstr ""
+
+msgid "Difficult words appear more often"
+msgstr ""
+
+msgid "Similar words feature coming soon"
+msgstr ""
+
+msgid "Show completion screen with stats"
+msgstr ""
+
+msgid "Rate current card and move to next"
+msgstr ""
+
+msgid "selectAllCheckbox.addEventListener"
+msgstr ""
+
+msgid "t completed any study sessions yet"
+msgstr ""
+
+msgid "playPronunciation.addEventListener"
+msgstr ""
+
+msgid "Переводы интерфейса для JavaScript"
+msgstr ""
+
+msgid "explanationContainer.style.display"
+msgstr ""
+
+msgid "elif session.performance_percentage"
+msgstr ""
+
+msgid "Show example sentences during study"
+msgstr ""
+
+msgid "Start studying to see your progress"
+msgstr ""
+
+msgid "Show word translations during study"
+msgstr ""
+
+msgid "An error occurred. Please try again"
+msgstr ""
+
+msgid "Time in seconds before hints appear"
+msgstr ""
+
+msgid "Take up to 3 items for wrong answers"
+msgstr "Возьмите до 3 пунктов за неправильные ответы"
+
+msgid "Add error handling for audio loading"
+msgstr ""
+
+msgid "Set exported words to \"Active\" status"
+msgstr ""
+
+msgid "Are you sure you want to end this quiz"
+msgstr ""
+
+msgid "Highlight correct and incorrect answers"
+msgstr ""
+
+msgid "Reload the page to show updated statuses"
+msgstr ""
+
+msgid "Maximum number of reviews to do each day"
+msgstr ""
+
+msgid "Please select at least one word to export"
+msgstr ""
+
+msgid "Error loading study items. Please try again"
+msgstr ""
+
+msgid "Add the correct option and all wrong options"
+msgstr ""
+
+msgid "Intervals between reviews increase gradually"
+msgstr ""
+
+msgid "Maximum number of new words to learn each day"
+msgstr ""
+
+msgid "Words you know well are shown less frequently"
+msgstr ""
+
+msgid "Show the number of selected words in the modal"
+msgstr ""
+
+msgid "The system adapts to your learning performance"
+msgstr ""
+
+msgid "Your browser does not support the audio element"
+msgstr ""
+
+msgid "Are you sure you want to end this study session"
+msgstr ""
+
+msgid "This application uses a spaced repetition system"
+msgstr ""
+
+msgid "Regular study  is key to making progress. Even just 10"
+msgstr ""
+
+msgid "Browse books and texts for learning English vocabulary"
+msgstr ""
+
+msgid "The algorithm adjusts to your actual learning progress"
+msgstr ""
+
+msgid "No words available for quiz. Try a different word source"
+msgstr ""
+
+msgid "similar to Anki to help you learn vocabulary efficiently"
+msgstr ""
+
+msgid "Word list page loaded, main.js will handle functionality"
+msgstr ""
+
+msgid "Automatically play word pronunciation when showing cards"
+msgstr ""
+
+msgid "No words available for study. Try a different word source"
+msgstr ""
+
+msgid "Be honest with your ratings for the best learning results"
+msgstr ""
+
+msgid "The setupWordListPage function will set up the bulk actions"
+msgstr ""
+
+msgid "Let main.js handle all the checkbox and bulk action functionality"
+msgstr ""
+
+msgid "No words found matching your criteria. Try adjusting your filters"
+msgstr ""
+
+msgid "No words studied yet. Start browsing the word list to begin learning"
+msgstr ""
+
+msgid "Focus on learning a few words at a time and reviewing them regularly"
+msgstr ""
+
+msgid "Continue regular reviews and gradually add new words to your collection"
+msgstr ""
+
+msgid "The setupTable function from main.js will set up the select all checkbox"
+msgstr ""
+
+msgid ""
+"Start adding words to your study collection to see personalized "
+"recommendations"
+msgstr ""
+
+msgid ""
+"You haven't completed any study sessions yet. Start studying to see your "
+"progress"
+msgstr ""
+
+msgid ""
+"No words found matching your criteria. Try adjusting your filters or "
+"search terms"
+msgstr ""
+
+msgid ""
+"15 minutes daily will lead to significant improvements in your vocabulary"
+" over time"
+msgstr ""
+
+msgid ""
+"This app uses a spaced repetition algorithm similar to Anki to help you "
+"efficiently memorize vocabulary"
+msgstr ""
+
+msgid ""
+"You've mastered most of your collection. Consider adding more challenging"
+" words or focusing on using these words in context"
+msgstr ""
+
+msgid "Export to Anki"
+msgstr "Экспорт в Anki"
+
+msgid ""
+"No words found matching your criteria. Try adjusting your filters or "
+"search terms."
+msgstr ""
+"Не найдено ни одного слова, соответствующего вашим критериям. Попробуйте "
+"изменить фильтры или условия поиска."
+
