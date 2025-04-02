@@ -171,6 +171,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch(url)
             .then(response => {
+                if (response.status === 204) {
+                    // No content - no words available for this source
+                    throw new Error('no_words');
+                }
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
@@ -184,13 +188,101 @@ document.addEventListener('DOMContentLoaded', function() {
                     quizContainer.style.display = 'block';
                     showCurrentQuestion();
                 } else {
-                    loadingIndicator.innerHTML = '<p>No words available for quiz. Try a different word source.</p>';
+                    showNoWordsMessage();
                 }
             })
             .catch(error => {
-                console.error('Error loading study items:', error);
-                loadingIndicator.innerHTML = `<p>Error loading quiz questions: ${error.message}. Please try again.</p>`;
+                console.error('Error loading quiz items:', error);
+
+                if (error.message === 'no_words') {
+                    showNoWordsMessage();
+                } else {
+                    loadingIndicator.innerHTML = `<p>Error loading quiz questions: ${error.message}. Please try again.</p>`;
+                }
             });
+    }
+
+    // Display a helpful message when no words are available
+    function showNoWordsMessage() {
+        const wordSourceText = getWordSourceDisplayText();
+        const actionButton = getActionButtonForWordSource();
+
+        loadingIndicator.innerHTML = `
+            <div class="alert alert-info">
+                <h4>No words available for quiz!</h4>
+                <p>There are currently no words available in "${wordSourceText}".</p>
+                <hr>
+                <div class="d-flex flex-column gap-3">
+                    <p>${getWordSourceGuidanceText()}</p>
+                    ${actionButton}
+                    <a href="${window.location.pathname}?word_source=all&max_words=${maxWords}" class="btn btn-outline-secondary">
+                        <i class="fas fa-sync"></i> Try "Mixed (New & Review)" instead
+                    </a>
+                    <a href="/study" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Return to Study Dashboard
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+
+    // Helper to get display text for word source
+    function getWordSourceDisplayText() {
+        switch (wordSource) {
+            case 'due': return 'Due for Review';
+            case 'new': return 'New Words';
+            case 'difficult': return 'Difficult Words';
+            case 'queue': return 'Words in Queue';
+            case 'all': return 'Mixed (New & Review)';
+            case 'book': return 'From a Book';
+            default: return wordSource;
+        }
+    }
+
+    // Helper to get guidance text based on word source
+    function getWordSourceGuidanceText() {
+        switch (wordSource) {
+            case 'due':
+                return 'Words become due for review based on the spaced repetition schedule. Continue studying other words to build your review queue.';
+            case 'new':
+                return 'You have already added all available words to your study collection. Check back later when new words are added to the system.';
+            case 'difficult':
+                return 'Words appear here when you have a performance percentage below 70%. Keep studying to identify difficult words.';
+            case 'queue':
+                return 'Add words to your queue by going to the Word List and changing their status to "In Queue".';
+            case 'book':
+                return 'Select a book from your collection first to see words from that book.';
+            case 'all':
+                return 'There are no words available for review or learning. Add some words to your queue to get started.';
+            default:
+                return 'Try selecting a different word source or check back later.';
+        }
+    }
+
+    // Helper to get appropriate action button based on word source
+    function getActionButtonForWordSource() {
+        switch (wordSource) {
+            case 'queue':
+                return `
+                    <a href="/words/word_list" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Go to Word List to Add Words to Queue
+                    </a>
+                `;
+            case 'new':
+                return `
+                    <a href="/words/word_list?filter=not_studied" class="btn btn-success">
+                        <i class="fas fa-search"></i> Check for More Words
+                    </a>
+                `;
+            case 'book':
+                return `
+                    <a href="/books" class="btn btn-success">
+                        <i class="fas fa-book"></i> Select a Book
+                    </a>
+                `;
+            default:
+                return '';
+        }
     }
 
     // Generate random quiz options
