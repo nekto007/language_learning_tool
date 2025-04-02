@@ -3,6 +3,7 @@ Settings module for application configuration.
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Path to the project directory
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,10 +40,9 @@ PHRASAL_VERB_TABLE = "phrasal_verb"
 
 # Web scraper settings
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-REQUEST_TIMEOUT = os.environ.get("REQUEST_TIMEOUT", 10)
-MAX_RETRIES = os.environ.get("MAX_RETRIES", 3)
-MAX_PAGES = os.environ.get("MAX_PAGES", 100)
-
+REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", 10))
+MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
+MAX_PAGES = int(os.environ.get("MAX_PAGES", 100))
 
 # Flask Config class
 class Config:
