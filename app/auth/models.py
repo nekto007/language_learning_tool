@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -15,8 +15,9 @@ class User(db.Model, UserMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(64), unique=True, nullable=False)
     email = Column(String(120), unique=True)
-    password_hash = Column(String(128), nullable=False)
-    salt = Column(String(32), nullable=False)
+    # Changed from String to Text for unlimited length
+    password_hash = Column(Text, nullable=False)
+    salt = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)

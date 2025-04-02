@@ -17,6 +17,8 @@ REQUIRED_RESOURCES = [
     "wordnet",
     "words",
     "brown",
+    "punkt_tab",
+    "averaged_perceptron_tagger_eng",
 ]
 
 

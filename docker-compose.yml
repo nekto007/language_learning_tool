@@ -1,27 +1,56 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15
+    container_name: language_learning_tool_db
+    restart: always
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppassword
+      POSTGRES_DB: language_learning_tool
+    ports:
+      - "5432:5432"  # Expose PostgreSQL port for external tools (optional)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d  # Add initialization scripts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d language_learning_tool"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: always
     container_name: language_learning_tool_web
+    depends_on:
+      db:
+        condition: service_healthy  # Wait for database to be ready
     ports:
-      - "5001:5000"  # Changed from 5000 to 5001 for external port
+      - "5001:5000"
     volumes:
-      - ./data:/app/data
       - ./app/static/audio:/app/app/static/audio
-      - ./instance:/app/instance
     env_file:
       - .env
     environment:
       - FLASK_APP=run.py
       - FLASK_ENV=production
       - PYTHONPATH=/app
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword
+      - POSTGRES_DB=language_learning_tool
     networks:
       - app_network
 
   nginx:
-    image: nginx:1.27
+    image: nginx:1.25  # Updated from 1.27 to latest stable version
     container_name: language_learning_tool_nginx
     ports:
       - "80:80"
@@ -35,6 +64,9 @@ services:
       - web
     networks:
       - app_network
+
+volumes:
+  pgdata:
 
 networks:
   app_network:
