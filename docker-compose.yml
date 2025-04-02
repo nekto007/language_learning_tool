@@ -5,17 +5,21 @@ services:
     image: postgres:15
     container_name: language_learning_tool_db
     restart: always
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD: apppassword
-      POSTGRES_DB: language_learning_tool
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGDATABASE: ${POSTGRES_DB}
     ports:
       - "5432:5432"  # Expose PostgreSQL port for external tools (optional)
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d  # Add initialization scripts
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U appuser -d language_learning_tool"]
+      test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,13 +43,13 @@ services:
       - .env
     environment:
       - FLASK_APP=run.py
-      - FLASK_ENV=production
+      - FLASK_ENV=${FLASK_ENV}
       - PYTHONPATH=/app
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=appuser
-      - POSTGRES_PASSWORD=apppassword
-      - POSTGRES_DB=language_learning_tool
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     networks:
       - app_network
 
@@ -53,8 +57,8 @@ services:
     image: nginx:1.25  # Updated from 1.27 to latest stable version
     container_name: language_learning_tool_nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "81:80"
+      - "8443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
