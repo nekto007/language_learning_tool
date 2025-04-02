@@ -1,12 +1,13 @@
 """
-Repository for working with SQLite database.
+Repository for working with PostgreSQL database.
 """
 import logging
-import sqlite3
+import psycopg2
+from psycopg2.extras import DictCursor
 from typing import Any, Dict, List, Optional, Tuple
+import os
 
-from config.settings import DB_FILE
-# from src.db.models import Book, PhrasalVerb, Word
+from config.settings import DB_CONFIG
 from app.words.models import PhrasalVerb, CollectionWords as Word
 from app.books.models import Book
 
@@ -16,23 +17,23 @@ logger = logging.getLogger(__name__)
 class DatabaseRepository:
     """Repository for working with the database."""
 
-    def __init__(self, db_path: str = DB_FILE):
+    def __init__(self, db_config: Dict = None):
         """
         Initializes the repository.
 
         Args:
-            db_path (str, optional): Path to the database file.
+            db_config (Dict, optional): Database configuration.
         """
-        self.db_path = db_path
+        self.db_config = db_config or DB_CONFIG
 
-    def get_connection(self) -> sqlite3.Connection:
+    def get_connection(self):
         """
         Gets a connection to the database.
 
         Returns:
-            sqlite3.Connection: Connection object.
+            Connection: PostgreSQL connection object.
         """
-        return sqlite3.connect(self.db_path)
+        return psycopg2.connect(**self.db_config)
 
     def execute_query(
             self, query: str, parameters: Tuple = (), fetch: bool = False
@@ -50,13 +51,13 @@ class DatabaseRepository:
         """
         try:
             with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query, parameters)
+                with conn.cursor() as cursor:
+                    cursor.execute(query, parameters)
 
-                if fetch:
-                    return cursor.fetchall()
-                return None
-        except sqlite3.Error as e:
+                    if fetch:
+                        return cursor.fetchall()
+                    return None
+        except psycopg2.Error as e:
             logger.error(f"Database error: {e}")
             raise
 
@@ -71,17 +72,30 @@ class DatabaseRepository:
             int: ID of the inserted book.
         """
         query = """
-            INSERT OR IGNORE INTO book (title) VALUES (?)
+            INSERT INTO book (title) 
+            VALUES (%s)
+            ON CONFLICT (title) DO NOTHING
+            RETURNING id
         """
-        self.execute_query(query, (book.title,))
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(query, (book.title,))
+                    result = cursor.fetchone()
 
-        # Get book ID
-        query = "SELECT id FROM book WHERE title = ?"
-        result = self.execute_query(query, (book.title,), fetch=True)
+                    if result:
+                        return result[0]
 
-        if result and result[0]:
-            return result[0][0]
-        return 0
+                    # If no row was returned, get the existing book id
+                    cursor.execute("SELECT id FROM book WHERE title = %s", (book.title,))
+                    result = cursor.fetchone()
+
+                    if result:
+                        return result[0]
+            return 0
+        except psycopg2.Error as e:
+            logger.error(f"Error inserting/updating book: {e}")
+            return 0
 
     def insert_or_update_word(self, word: Word) -> int:
         """
@@ -93,65 +107,66 @@ class DatabaseRepository:
         Returns:
             int: ID of the inserted word.
         """
-        # Check if word exists
-        check_query = "SELECT id FROM collection_words WHERE english_word = ?"
-        result = self.execute_query(check_query, (word.english_word,), fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Check if word exists
+                    cursor.execute("SELECT id FROM collection_words WHERE english_word = %s", (word.english_word,))
+                    result = cursor.fetchone()
 
-        if result and result[0]:
-            word_id = result[0][0]
+                    if result:
+                        word_id = result[0]
 
-            # Update word
-            update_query = """
-                UPDATE collection_words
-                SET listening = COALESCE(?, listening),
-                    russian_word = COALESCE(?, russian_word),
-                    sentences = COALESCE(?, sentences),
-                    level = COALESCE(?, level),
-                    brown = COALESCE(?, brown),
-                    get_download = COALESCE(?, get_download)
-                WHERE id = ?
-            """
-            self.execute_query(
-                update_query,
-                (
-                    word.listening,
-                    word.russian_word,
-                    word.sentences,
-                    word.level,
-                    word.brown,
-                    word.get_download,
-                    word_id,
-                ),
-            )
-        else:
-            # Insert new word
-            insert_query = """
-                INSERT INTO collection_words
-                (english_word, listening, russian_word, sentences, level, brown, get_download)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            self.execute_query(
-                insert_query,
-                (
-                    word.english_word,
-                    word.listening,
-                    word.russian_word,
-                    word.sentences,
-                    word.level,
-                    word.brown,
-                    word.get_download,
-                ),
-            )
+                        # Update word (only update non-NULL values)
+                        update_query = """
+                            UPDATE collection_words
+                            SET listening = COALESCE(%s, listening),
+                                russian_word = COALESCE(%s, russian_word),
+                                sentences = COALESCE(%s, sentences),
+                                level = COALESCE(%s, level),
+                                brown = COALESCE(%s, brown),
+                                get_download = COALESCE(%s, get_download)
+                            WHERE id = %s
+                        """
+                        cursor.execute(
+                            update_query,
+                            (
+                                word.listening,
+                                word.russian_word,
+                                word.sentences,
+                                word.level,
+                                word.brown,
+                                word.get_download,
+                                word_id,
+                            ),
+                        )
+                    else:
+                        # Insert new word
+                        insert_query = """
+                            INSERT INTO collection_words
+                            (english_word, listening, russian_word, sentences, level, brown, get_download)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id
+                        """
+                        cursor.execute(
+                            insert_query,
+                            (
+                                word.english_word,
+                                word.listening,
+                                word.russian_word,
+                                word.sentences,
+                                word.level,
+                                word.brown,
+                                word.get_download,
+                            ),
+                        )
+                        result = cursor.fetchone()
+                        word_id = result[0] if result else 0
 
-            # Get ID of the new word
-            result = self.execute_query(
-                "SELECT id FROM collection_words WHERE english_word = ?",
-                (word.english_word,),
-                fetch=True,
-            )
-            word_id = result[0][0] if result and result[0] else 0
-
-        return word_id
+                    return word_id
+        except psycopg2.Error as e:
+            logger.error(f"Error inserting/updating word: {e}")
+            return 0
 
     def link_word_to_book(self, word_id: int, book_id: int, frequency: int) -> None:
         """
@@ -163,11 +178,16 @@ class DatabaseRepository:
             frequency (int): Frequency of the word in the book.
         """
         query = """
-            INSERT OR REPLACE INTO word_book_link
+            INSERT INTO word_book_link
             (word_id, book_id, frequency)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (word_id, book_id) DO UPDATE
+            SET frequency = %s
         """
-        self.execute_query(query, (word_id, book_id, frequency))
+        try:
+            self.execute_query(query, (word_id, book_id, frequency, frequency))
+        except psycopg2.Error as e:
+            logger.error(f"Error linking word to book: {e}")
 
     def insert_or_update_phrasal_verb(self, verb: PhrasalVerb) -> int:
         """
@@ -179,65 +199,66 @@ class DatabaseRepository:
         Returns:
             int: ID of the inserted phrasal verb.
         """
-        # Check if phrasal verb exists
-        check_query = "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?"
-        result = self.execute_query(check_query, (verb.phrasal_verb,), fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Check if phrasal verb exists
+                    cursor.execute("SELECT id FROM phrasal_verb WHERE phrasal_verb = %s", (verb.phrasal_verb,))
+                    result = cursor.fetchone()
 
-        if result and result[0]:
-            verb_id = result[0][0]
+                    if result:
+                        verb_id = result[0]
 
-            # Update phrasal verb
-            update_query = """
-                UPDATE phrasal_verb
-                SET russian_translate = COALESCE(?, russian_translate),
-                    "using" = COALESCE(?, "using"),
-                    sentence = COALESCE(?, sentence),
-                    word_id = COALESCE(?, word_id),
-                    listening = COALESCE(?, listening),
-                    get_download = COALESCE(?, get_download)
-                WHERE id = ?
-            """
-            self.execute_query(
-                update_query,
-                (
-                    verb.russian_translate,
-                    verb.using,
-                    verb.sentence,
-                    verb.word_id,
-                    verb.listening,
-                    verb.get_download,
-                    verb_id,
-                ),
-            )
-        else:
-            # Insert new phrasal verb
-            insert_query = """
-                INSERT INTO phrasal_verb
-                (phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            self.execute_query(
-                insert_query,
-                (
-                    verb.phrasal_verb,
-                    verb.russian_translate,
-                    verb.using,
-                    verb.sentence,
-                    verb.word_id,
-                    verb.listening,
-                    verb.get_download,
-                ),
-            )
+                        # Update phrasal verb
+                        update_query = """
+                            UPDATE phrasal_verb
+                            SET russian_translate = COALESCE(%s, russian_translate),
+                                "using" = COALESCE(%s, "using"),
+                                sentence = COALESCE(%s, sentence),
+                                word_id = COALESCE(%s, word_id),
+                                listening = COALESCE(%s, listening),
+                                get_download = COALESCE(%s, get_download)
+                            WHERE id = %s
+                        """
+                        cursor.execute(
+                            update_query,
+                            (
+                                verb.russian_translate,
+                                verb.using,
+                                verb.sentence,
+                                verb.word_id,
+                                verb.listening,
+                                verb.get_download,
+                                verb_id,
+                            ),
+                        )
+                    else:
+                        # Insert new phrasal verb
+                        insert_query = """
+                            INSERT INTO phrasal_verb
+                            (phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id
+                        """
+                        cursor.execute(
+                            insert_query,
+                            (
+                                verb.phrasal_verb,
+                                verb.russian_translate,
+                                verb.using,
+                                verb.sentence,
+                                verb.word_id,
+                                verb.listening,
+                                verb.get_download,
+                            ),
+                        )
+                        result = cursor.fetchone()
+                        verb_id = result[0] if result else 0
 
-            # Get ID of the new phrasal verb
-            result = self.execute_query(
-                "SELECT id FROM phrasal_verb WHERE phrasal_verb = ?",
-                (verb.phrasal_verb,),
-                fetch=True,
-            )
-            verb_id = result[0][0] if result and result[0] else 0
-
-        return verb_id
+                    return verb_id
+        except psycopg2.Error as e:
+            logger.error(f"Error inserting/updating phrasal verb: {e}")
+            return 0
 
     def get_word_by_english(self, english_word: str) -> Optional[Word]:
         """
@@ -249,20 +270,20 @@ class DatabaseRepository:
         Returns:
             Optional[Word]: Word object or None.
         """
-        query = "SELECT * FROM collection_words WHERE english_word = ?"
-        result = self.execute_query(query, (english_word,), fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    query = "SELECT * FROM collection_words WHERE english_word = %s"
+                    cursor.execute(query, (english_word,))
+                    result = cursor.fetchone()
 
-        if not result:
+                    if not result:
+                        return None
+
+                    return Word.from_dict(dict(result))
+        except psycopg2.Error as e:
+            logger.error(f"Error getting word: {e}")
             return None
-
-        # Convert result row to dictionary
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download'
-        ]
-        data = dict(zip(columns, result[0]))
-
-        return Word.from_dict(data)
 
     def get_words_by_filter(self, **filters) -> List[Word]:
         """
@@ -274,32 +295,28 @@ class DatabaseRepository:
         Returns:
             List[Word]: List of Word objects.
         """
-        # Build query with filters
-        query = "SELECT * FROM collection_words"
-        params = []
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    # Build query with filters
+                    query = "SELECT * FROM collection_words WHERE 1=1"
+                    params = []
 
-        for key, value in filters.items():
-            if value is not None:
-                query += f" AND {key} = ?"
-                params.append(value)
+                    for key, value in filters.items():
+                        if value is not None:
+                            query += f" AND {key} = %s"
+                            params.append(value)
 
-        result = self.execute_query(query, tuple(params), fetch=True)
+                    cursor.execute(query, tuple(params))
+                    results = cursor.fetchall()
 
-        if not result:
+                    if not results:
+                        return []
+
+                    return [Word.from_dict(dict(row)) for row in results]
+        except psycopg2.Error as e:
+            logger.error(f"Error getting words by filter: {e}")
             return []
-
-        # Convert results to Word objects
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download'
-        ]
-
-        words = []
-        for row in result:
-            data = dict(zip(columns, row))
-            words.append(Word.from_dict(data))
-
-        return words
 
     def get_words_by_book(self, book_id: int) -> List[Dict[str, Any]]:
         """
@@ -311,25 +328,26 @@ class DatabaseRepository:
         Returns:
             List[Dict[str, Any]]: List of dictionaries with word information.
         """
-        query = """
-            SELECT cw.*, wbl.frequency
-            FROM collection_words cw
-            JOIN word_book_link wbl ON cw.id = wbl.word_id
-            WHERE wbl.book_id = ?
-            ORDER BY wbl.frequency DESC
-        """
-        result = self.execute_query(query, (book_id,), fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    query = """
+                        SELECT cw.*, wbl.frequency
+                        FROM collection_words cw
+                        JOIN word_book_link wbl ON cw.id = wbl.word_id
+                        WHERE wbl.book_id = %s
+                        ORDER BY wbl.frequency DESC
+                    """
+                    cursor.execute(query, (book_id,))
+                    results = cursor.fetchall()
 
-        if not result:
+                    if not results:
+                        return []
+
+                    return [dict(row) for row in results]
+        except psycopg2.Error as e:
+            logger.error(f"Error getting words by book: {e}")
             return []
-
-        # Convert results to dictionaries
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download', 'frequency'
-        ]
-
-        return [dict(zip(columns, row)) for row in result]
 
     def update_download_status(self, table_name: str, column_name: str, media_folder: str) -> int:
         """
@@ -346,30 +364,42 @@ class DatabaseRepository:
         import os
 
         # Get list of words/phrases for which files are not downloaded
-        query = f"SELECT {column_name} FROM {table_name} WHERE get_download = 0"
-        result = self.execute_query(query, fetch=True)
+        query = f"SELECT {column_name} FROM {table_name} WHERE (get_download = 0 or get_download isnull)"
+        print('query', query)
 
-        if not result:
+        try:
+            result = self.execute_query(query, fetch=True)
+            print('result', result)
+            if not result:
+                return 0
+
+            words = [row[0] for row in result]
+            print('words', words)
+            updated_count = 0
+
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Check file presence and update status for each word
+                    for word in words:
+                        print('word', word)
+                        word_modified = word.replace(" ", "_").lower()
+                        print('word_modified', word_modified)
+                        print('media_folder', media_folder)
+                        file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
+
+                        status = 1 if os.path.isfile(file_path) else 0
+                        print('status', status)
+                        if status == 1:
+                            # Update status in database
+                            update_query = f"UPDATE {table_name} SET get_download = %s WHERE {column_name} = %s"
+                            print('update_query', update_query)
+                            cursor.execute(update_query, (status, word))
+                            updated_count += 1
+
+            return updated_count
+        except psycopg2.Error as e:
+            logger.error(f"Error updating download status: {e}")
             return 0
-
-        words = [row[0] for row in result]
-        updated_count = 0
-
-        # Check file presence and update status
-        for word in words:
-            word_modified = word.replace(" ", "_").lower()
-            file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
-
-            status = 1 if os.path.isfile(file_path) else 0
-
-            # Update status in database
-            update_query = f"UPDATE {table_name} SET get_download = ? WHERE {column_name} = ?"
-            self.execute_query(update_query, (status, word))
-
-            if status == 1:
-                updated_count += 1
-
-        return updated_count
 
     def process_translate_file(self, translate_file: str, table_name: str = "collection_words") -> int:
         """
@@ -391,49 +421,49 @@ class DatabaseRepository:
         processed_count = 0
 
         try:
-            with open(translate_file, "r", encoding="utf-8") as file:
-                for line in file:
-                    line = line.strip()
-                    if not line:
-                        continue
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    with open(translate_file, "r", encoding="utf-8") as file:
+                        for line in file:
+                            line = line.strip()
+                            if not line:
+                                continue
 
-                    parts = line.split(";")
+                            parts = line.split(";")
 
-                    if len(parts) == 5:
-                        english_word, russian_translate, english_sentence, russian_sentence, level = parts
+                            if len(parts) == 5:
+                                english_word, russian_translate, english_sentence, russian_sentence, level = parts
 
-                        # Form path to audio file
-                        sound_file = english_word.replace(" ", "_").lower()
-                        listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
+                                # Form path to audio file
+                                sound_file = english_word.replace(" ", "_").lower()
+                                listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
 
-                        # Update information in database
-                        update_query = f"""
-                            UPDATE {table_name}
-                            SET russian_word = ?,
-                                sentences = ?,
-                                level = ?,
-                                listening = ?
-                            WHERE english_word = ?
-                        """
-                        self.execute_query(
-                            update_query,
-                            (
-                                russian_translate,
-                                f"{english_sentence}<br>{russian_sentence}",
-                                level,
-                                listening,
-                                english_word.lower(),
-                            ),
-                        )
-
-                        processed_count += 1
-                    else:
-                        logger.warning(f"Invalid line format: {line}")
-        except Exception as e:
+                                # Update information in database
+                                update_query = f"""
+                                    UPDATE {table_name}
+                                    SET russian_word = %s,
+                                        sentences = %s,
+                                        level = %s,
+                                        listening = %s
+                                    WHERE english_word = %s
+                                """
+                                cursor.execute(
+                                    update_query,
+                                    (
+                                        russian_translate,
+                                        f"{english_sentence}<br>{russian_sentence}",
+                                        level,
+                                        listening,
+                                        english_word.lower(),
+                                    ),
+                                )
+                                processed_count += 1
+                            else:
+                                logger.warning(f"Invalid line format: {line}")
+            return processed_count
+        except (psycopg2.Error, Exception) as e:
             logger.error(f"Error processing translate file: {e}")
             raise
-
-        return processed_count
 
     def process_phrasal_verb_file(self, phrasal_verb_file: str) -> int:
         """
@@ -454,60 +484,61 @@ class DatabaseRepository:
         processed_count = 0
 
         try:
-            with open(phrasal_verb_file, "r", encoding="utf-8") as file:
-                for line in file:
-                    line = line.strip()
-                    if not line:
-                        continue
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    with open(phrasal_verb_file, "r", encoding="utf-8") as file:
+                        for line in file:
+                            line = line.strip()
+                            if not line:
+                                continue
 
-                    parts = line.split(";")
+                            parts = line.split(";")
 
-                    if len(parts) == 5:
-                        phrasal_verb, russian_translate, using, english_sentence, russian_sentence = parts
+                            if len(parts) == 5:
+                                phrasal_verb, russian_translate, using, english_sentence, russian_sentence = parts
 
-                        # Get base verb (first word)
-                        english_word = phrasal_verb.split(" ")[0]
+                                # Get base verb (first word)
+                                english_word = phrasal_verb.split(" ")[0]
 
-                        # Get base verb ID
-                        query = "SELECT id FROM collection_words WHERE english_word = ?"
-                        result = self.execute_query(query, (english_word,), fetch=True)
+                                # Get base verb ID
+                                cursor.execute("SELECT id FROM collection_words WHERE english_word = %s", (english_word,))
+                                result = cursor.fetchone()
 
-                        if not result:
-                            logger.warning(f"Base word not found: {english_word}")
-                            continue
+                                if not result:
+                                    logger.warning(f"Base word not found: {english_word}")
+                                    continue
 
-                        word_id = result[0][0]
+                                word_id = result[0]
 
-                        # Form path to audio file
-                        sound_file = phrasal_verb.lower().replace(" ", "_")
-                        listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
+                                # Form path to audio file
+                                sound_file = phrasal_verb.lower().replace(" ", "_")
+                                listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
 
-                        # Insert phrasal verb
-                        insert_query = """
-                            INSERT OR IGNORE INTO phrasal_verb
-                            (phrasal_verb, russian_translate, "using", sentence, word_id, listening)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """
-                        self.execute_query(
-                            insert_query,
-                            (
-                                phrasal_verb,
-                                russian_translate,
-                                using,
-                                f"{english_sentence}<br>{russian_sentence}",
-                                word_id,
-                                listening,
-                            ),
-                        )
-
-                        processed_count += 1
-                    else:
-                        logger.warning(f"Invalid line format: {line}")
-        except Exception as e:
+                                # Insert phrasal verb
+                                insert_query = """
+                                    INSERT INTO phrasal_verb
+                                    (phrasal_verb, russian_translate, "using", sentence, word_id, listening)
+                                    VALUES (%s, %s, %s, %s, %s, %s)
+                                    ON CONFLICT (phrasal_verb) DO NOTHING
+                                """
+                                cursor.execute(
+                                    insert_query,
+                                    (
+                                        phrasal_verb,
+                                        russian_translate,
+                                        using,
+                                        f"{english_sentence}<br>{russian_sentence}",
+                                        word_id,
+                                        listening,
+                                    ),
+                                )
+                                processed_count += 1
+                            else:
+                                logger.warning(f"Invalid line format: {line}")
+            return processed_count
+        except (psycopg2.Error, Exception) as e:
             logger.error(f"Error processing phrasal verb file: {e}")
             raise
-
-        return processed_count
 
     def update_schema_if_needed(self) -> None:
         """
@@ -515,28 +546,23 @@ class DatabaseRepository:
         """
         try:
             with self.get_connection() as conn:
-                cursor = conn.cursor()
+                with conn.cursor() as cursor:
+                    # Check if learning_status column exists
+                    cursor.execute("""
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'collection_words' AND column_name = 'learning_status'
+                    """)
+                    result = cursor.fetchone()
 
-                # Check schema version
-                cursor.execute("PRAGMA user_version")
-                # current_version = cursor.fetchone()[0]
-
-                # Check for new learning_status field
-                cursor.execute("PRAGMA table_info(collection_words)")
-                columns = [column[1] for column in cursor.fetchall()]
-
-                # If learning_status field is missing, add it
-                if "learning_status" not in columns:
-                    logger.info("Updating database schema: adding learning_status column")
-                    cursor.execute("ALTER TABLE collection_words ADD COLUMN learning_status INTEGER DEFAULT 0")
-                    cursor.execute(
-                        "CREATE INDEX IF NOT EXISTS idx_collection_words_learning_status ON"
-                        " collection_words(learning_status)")
-                    cursor.execute("PRAGMA user_version = 2")
-                    logger.info("Database schema updated to version 2")
-
-                conn.commit()
-        except sqlite3.Error as e:
+                    # If learning_status field is missing, add it
+                    if not result:
+                        logger.info("Updating database schema: adding learning_status column")
+                        cursor.execute("ALTER TABLE collection_words ADD COLUMN learning_status INTEGER DEFAULT 0")
+                        cursor.execute(
+                            "CREATE INDEX IF NOT EXISTS idx_collection_words_learning_status ON"
+                            " collection_words(learning_status)")
+                        logger.info("Database schema updated to include learning_status")
+        except psycopg2.Error as e:
             logger.error(f"Error checking/updating schema: {e}")
 
     def update_word_status(self, word_id: int, status: int) -> bool:
@@ -552,14 +578,14 @@ class DatabaseRepository:
         """
         query = """
             UPDATE collection_words
-            SET learning_status = ?
-            WHERE id = ?
+            SET learning_status = %s
+            WHERE id = %s
         """
         try:
             self.execute_query(query, (status, word_id))
             logger.info(f"Updated learning status for word ID {word_id} to {status}")
             return True
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             logger.error(f"Error updating learning status: {e}")
             return False
 
@@ -576,14 +602,14 @@ class DatabaseRepository:
         """
         query = """
             UPDATE collection_words
-            SET learning_status = ?
-            WHERE english_word = ?
+            SET learning_status = %s
+            WHERE english_word = %s
         """
         try:
             self.execute_query(query, (status, english_word))
             logger.info(f"Updated learning status for word '{english_word}' to {status}")
             return True
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             logger.error(f"Error updating learning status: {e}")
             return False
 
@@ -597,28 +623,20 @@ class DatabaseRepository:
         Returns:
             List[Word]: List of Word objects.
         """
-        query = "SELECT * FROM collection_words WHERE learning_status = ?"
-        result = self.execute_query(query, (status,), fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    query = "SELECT * FROM collection_words WHERE learning_status = %s"
+                    cursor.execute(query, (status,))
+                    results = cursor.fetchall()
 
-        if not result:
+                    if not results:
+                        return []
+
+                    return [Word.from_dict(dict(row)) for row in results]
+        except psycopg2.Error as e:
+            logger.error(f"Error getting words by status: {e}")
             return []
-
-        # Convert results to Word objects
-        columns = [
-            'id', 'english_word', 'russian_word', 'listening',
-            'sentences', 'level', 'brown', 'get_download', 'learning_status'
-        ]
-
-        words = []
-        for row in result:
-            # Handle case when learning_status column is missing in result
-            if len(row) == 8:
-                row = row + (0,)  # Add default value for learning_status
-
-            data = dict(zip(columns, row))
-            words.append(Word.from_dict(data))
-
-        return words
 
     def batch_update_word_status(self, english_words: List[str], status: int) -> int:
         """
@@ -636,22 +654,20 @@ class DatabaseRepository:
 
         try:
             with self.get_connection() as conn:
-                cursor = conn.cursor()
-                updated_count = 0
+                with conn.cursor() as cursor:
+                    updated_count = 0
 
-                # Update status for each word
-                for word in english_words:
-                    cursor.execute(
-                        "UPDATE collection_words SET learning_status = ? WHERE english_word = ?",
-                        (status, word)
-                    )
-                    updated_count += cursor.rowcount
-
-                conn.commit()
+                    # PostgreSQL doesn't support parameterized IN clause directly, so we loop
+                    for word in english_words:
+                        cursor.execute(
+                            "UPDATE collection_words SET learning_status = %s WHERE english_word = %s",
+                            (status, word)
+                        )
+                        updated_count += cursor.rowcount
 
                 logger.info(f"Batch updated learning status to {status} for {updated_count} words")
                 return updated_count
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             logger.error(f"Error batch updating learning status: {e}")
             return 0
 
@@ -669,8 +685,8 @@ class DatabaseRepository:
         """
         query = """
             UPDATE book
-            SET total_words = ?, unique_words = ?, scrape_date = datetime('now')
-            WHERE id = ?
+            SET total_words = %s, unique_words = %s, scrape_date = NOW()
+            WHERE id = %s
         """
         try:
             self.execute_query(query, (total_words, unique_words, book_id))
@@ -690,19 +706,20 @@ class DatabaseRepository:
         Returns:
             Optional[Book]: Book object or None if book not found.
         """
-        query = "SELECT * FROM book WHERE id = ?"
-        result = self.execute_query(query, (book_id,), fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    query = "SELECT * FROM book WHERE id = %s"
+                    cursor.execute(query, (book_id,))
+                    result = cursor.fetchone()
 
-        if not result:
+                    if not result:
+                        return None
+
+                    return Book.from_dict(dict(result))
+        except psycopg2.Error as e:
+            logger.error(f"Error getting book: {e}")
             return None
-
-        # Convert result row to dictionary
-        columns = [
-            'id', 'title', 'total_words', 'unique_words', 'scrape_date'
-        ]
-        data = dict(zip(columns, result[0]))
-
-        return Book.from_dict(data)
 
     def get_books_with_stats(self) -> List[Dict[str, Any]]:
         """
@@ -711,32 +728,25 @@ class DatabaseRepository:
         Returns:
             List[Dict[str, Any]]: List of dictionaries with book data.
         """
-        query = """
-            SELECT b.id, b.title, b.total_words, b.unique_words, b.scrape_date,
-                   COUNT(DISTINCT wbl.word_id) as linked_words,
-                   SUM(wbl.frequency) as word_occurrences
-            FROM book b
-            LEFT JOIN word_book_link wbl ON b.id = wbl.book_id
-            GROUP BY b.id, b.title
-            ORDER BY b.title
-        """
-        result = self.execute_query(query, fetch=True)
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    query = """
+                        SELECT b.id, b.title, b.total_words, b.unique_words, b.scrape_date,
+                            COUNT(DISTINCT wbl.word_id) as linked_words,
+                            SUM(wbl.frequency) as word_occurrences
+                        FROM book b
+                        LEFT JOIN word_book_link wbl ON b.id = wbl.book_id
+                        GROUP BY b.id, b.title
+                        ORDER BY b.title
+                    """
+                    cursor.execute(query)
+                    results = cursor.fetchall()
 
-        if not result:
+                    if not results:
+                        return []
+
+                    return [dict(row) for row in results]
+        except psycopg2.Error as e:
+            logger.error(f"Error getting books with stats: {e}")
             return []
-
-        # Convert results to dictionaries
-        books = []
-        for row in result:
-            book = {
-                'id': row[0],
-                'title': row[1],
-                'total_words': row[2],
-                'unique_words': row[3],
-                'scrape_date': row[4],
-                'linked_words': row[5],
-                'word_occurrences': row[6]
-            }
-            books.append(book)
-
-        return books

@@ -5,35 +5,36 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    libc6-dev \
+    libpq-dev \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Install Python dependencies
 COPY requirements.txt .
-
-# Install Python dependencies including gunicorn explicitly
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir gunicorn
 
-# Copy project files
-COPY . .
+# Копируем только необходимые файлы и директории
+# Не копируем аудиофайлы
+COPY run.py .
+COPY main.py .
+COPY babel.cfg .
+COPY cli.py .
+COPY app app/
+COPY config config/
+# Добавляем другие нужные файлы/папки, если необходимо
 
-# Create directories for data
-RUN mkdir -p app/static/audio
-RUN mkdir -p instance
+# Создаем директорию для аудио файлов, но НЕ копируем сами файлы
+# Они будут монтироваться через volume
+RUN mkdir -p /app/app/static/audio
 
 # Set environment variables
-ENV FLASK_APP=run.py
-ENV FLASK_ENV=production
-ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    FLASK_APP=run.py \
+    FLASK_ENV=production
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser
-RUN chown -R appuser:appuser /app
-USER appuser
+# Set permissions
+RUN chmod -R 755 /app
 
-# Export port
-EXPOSE 5000
-
-# Run application with gunicorn (using the full path to ensure it's found)
-CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "run:app"]
+# Run application
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "run:app"]

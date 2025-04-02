@@ -60,20 +60,25 @@ def create_app(config_class=Config):
         from app.auth.models import User
         return User.query.get(int(user_id))
 
-    # Create database tables and configure SQLite
+    # Create database tables and configure PostgreSQL
     with app.app_context():
         try:
             # Create tables
             db.create_all()
 
-            # Enable SQLite optimizations
-            if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
-                db.session.execute("PRAGMA foreign_keys = ON")
-                db.session.execute("PRAGMA journal_mode = WAL")
-                db.session.execute("PRAGMA synchronous = NORMAL")
-                db.session.commit()
+            # Set up database specific configurations
+            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+                # PostgreSQL specific optimizations
+                db.session.execute("SET synchronous_commit = OFF")  # Improves performance, slightly less durable
+                db.session.execute("SET statement_timeout = '30s'")  # Prevents long-running queries
+                db.session.execute("SET idle_in_transaction_session_timeout = '60s'")  # Prevents idle transactions
 
-                app.logger.info("SQLite optimizations enabled")
+                # Enable connection pooling
+                db.engine.pool_size = 10
+                db.engine.max_overflow = 20
+
+                app.logger.info("PostgreSQL optimizations enabled")
+
         except Exception as e:
             app.logger.error(f"Error initializing database: {e}")
 
