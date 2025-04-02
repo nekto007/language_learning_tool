@@ -97,17 +97,17 @@ class DatabaseRepository:
             logger.error(f"Error inserting/updating book: {e}")
             return 0
 
-    def bulk_insert_or_update_words(self, words_data):
+    def bulk_insert_or_update_words(self, words_batch):
         """
         Выполняет пакетную вставку или обновление слов.
 
         Args:
-            words_data: Список кортежей (english_word, listening, brown)
+            words_batch: Список объектов Word (CollectionWords)
 
         Returns:
             Dict[str, int]: Словарь с соответствием {english_word: word_id}
         """
-        if not words_data:
+        if not words_batch:
             return {}
 
         word_id_map = {}
@@ -115,7 +115,7 @@ class DatabaseRepository:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
                     # Подготовка списка английских слов для проверки существования
-                    english_words = [word[0] for word in words_data]
+                    english_words = [word.english_word for word in words_batch]
 
                     # Получение существующих слов одним запросом
                     placeholders = ','.join(['%s'] * len(english_words))
@@ -129,17 +129,20 @@ class DatabaseRepository:
                     words_to_insert = []
                     words_to_update = []
 
-                    for english_word, listening, brown in words_data:
-                        if english_word in existing_words:
+                    for word in words_batch:
+                        if word.english_word in existing_words:
                             # Слово существует, подготовка к обновлению
                             words_to_update.append((
-                                listening, None, None, None, brown, None, existing_words[english_word]
+                                word.listening, word.russian_word, word.sentences,
+                                word.level, word.brown, word.get_download,
+                                existing_words[word.english_word]
                             ))
-                            word_id_map[english_word] = existing_words[english_word]
+                            word_id_map[word.english_word] = existing_words[word.english_word]
                         else:
                             # Новое слово, подготовка к вставке
                             words_to_insert.append((
-                                english_word, listening, None, None, None, brown, None
+                                word.english_word, word.listening, word.russian_word,
+                                word.sentences, word.level, word.brown, word.get_download
                             ))
 
                     # Пакетное обновление существующих слов
@@ -197,6 +200,58 @@ class DatabaseRepository:
                     cursor.executemany(query, link_data)
         except psycopg2.Error as e:
             logger.error(f"Error bulk linking words to book: {e}")
+
+    # Этот метод может быть использован в вашем коде для замены медленного цикла
+    def process_batch_from_original_format(self, word_data, book_id, batch_size=500):
+        """
+        Обрабатывает пакет данных в оригинальном формате и связывает слова с книгой.
+
+        Args:
+            word_data: Список кортежей (english_word, listening, brown, frequency)
+            book_id: ID книги
+            batch_size: Размер пакета для обработки
+
+        Returns:
+            int: Количество обработанных слов
+        """
+        total_processed = 0
+        batch_num = 0
+        words_batch = []
+        frequency_map = {}
+
+        for idx, (english_word, listening, brown, frequency) in enumerate(word_data):
+            word = Word(
+                english_word=english_word,
+                listening=listening,
+                brown=brown,
+            )
+            words_batch.append(word)
+            frequency_map[english_word] = frequency
+
+            # Когда набрали полный пакет или это последний элемент
+            if len(words_batch) >= batch_size or idx == len(word_data) - 1:
+                batch_num += 1
+                # Вставляем/обновляем слова пакетом
+                word_id_map = self.bulk_insert_or_update_words(words_batch)
+
+                # Подготавливаем данные для связывания
+                link_data = []
+                for eng_word, word_id in word_id_map.items():
+                    if word_id:
+                        link_data.append((word_id, book_id, frequency_map[eng_word]))
+
+                # Связываем с книгой
+                if link_data:
+                    self.bulk_link_words_to_book(link_data)
+                    total_processed += len(link_data)
+
+                print(f"Processed batch {batch_num}, words: {len(words_batch)}, linked: {len(link_data)}")
+
+                # Очищаем пакеты для следующей итерации
+                words_batch = []
+                frequency_map = {}
+
+        return total_processed
 
     def insert_or_update_word(self, word: Word) -> int:
         """
