@@ -39,9 +39,9 @@ PHRASAL_VERB_TABLE = "phrasal_verb"
 
 # Web scraper settings
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-REQUEST_TIMEOUT = 30
-MAX_RETRIES = 3
-MAX_PAGES = 10
+REQUEST_TIMEOUT = os.environ.get("REQUEST_TIMEOUT", 10)
+MAX_RETRIES = os.environ.get("MAX_RETRIES", 3)
+MAX_PAGES = os.environ.get("MAX_PAGES", 100)
 
 
 # Flask Config class
