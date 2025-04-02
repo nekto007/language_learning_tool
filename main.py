@@ -338,10 +338,6 @@ def get_download_words(args: argparse.Namespace) -> None:
         except Exception as e:
             logger.error(f"Error saving words to file: {e}")
 
-    # Print list of words
-    for word in words:
-        print(word)
-
     logger.info(f"Found {len(words)} words for download")
 
 

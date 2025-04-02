@@ -365,34 +365,26 @@ class DatabaseRepository:
 
         # Get list of words/phrases for which files are not downloaded
         query = f"SELECT {column_name} FROM {table_name} WHERE (get_download = 0 or get_download isnull)"
-        print('query', query)
 
         try:
             result = self.execute_query(query, fetch=True)
-            print('result', result)
             if not result:
                 return 0
 
             words = [row[0] for row in result]
-            print('words', words)
             updated_count = 0
 
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
                     # Check file presence and update status for each word
                     for word in words:
-                        print('word', word)
                         word_modified = word.replace(" ", "_").lower()
-                        print('word_modified', word_modified)
-                        print('media_folder', media_folder)
                         file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
 
                         status = 1 if os.path.isfile(file_path) else 0
-                        print('status', status)
                         if status == 1:
                             # Update status in database
                             update_query = f"UPDATE {table_name} SET get_download = %s WHERE {column_name} = %s"
-                            print('update_query', update_query)
                             cursor.execute(update_query, (status, word))
                             updated_count += 1
 
