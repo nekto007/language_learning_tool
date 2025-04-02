@@ -193,6 +193,46 @@ def get_study_items():
 
         return jsonify(items[:limit])
 
+    elif word_source == 'queue':
+        # Get words with "In Queue" status (status=1) from user_word_status
+        from sqlalchemy import text
+
+        # Query to get words in queue for the current user
+        sql = text("""
+                SELECT cw.id, cw.english_word, cw.russian_word, cw.sentences, cw.get_download
+                FROM collection_words cw
+                JOIN user_word_status uws ON cw.id = uws.word_id
+                WHERE uws.user_id = :user_id AND uws.status = 2
+                ORDER BY uws.last_updated DESC
+                LIMIT :limit
+            """)
+
+        result = db.session.execute(sql, {'user_id': current_user.id, 'limit': limit})
+
+        # Convert to study items format
+        items = []
+        for row in result:
+            audio_url = None
+            if row.get_download == 1:
+                audio_url = url_for('static', filename=f'audio/pronunciation_en_{row.english_word}.mp3')
+
+            items.append({
+                'id': None,
+                'word_id': row.id,
+                'word': row.english_word,
+                'translation': row.russian_word,
+                'definition': '',
+                'examples': row.sentences,
+                'audio_url': audio_url,
+                'is_new': True
+            })
+
+        # If no items found, return empty list with message
+        if not items:
+            return jsonify([]), 204  # No Content status
+
+        return jsonify(items)
+
     elif word_source == 'difficult':
         # Words with low performance
         study_items = StudyItem.query.filter_by(user_id=current_user.id) \

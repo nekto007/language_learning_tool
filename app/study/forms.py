@@ -1,7 +1,7 @@
-from flask_wtf import FlaskForm
-from wtforms import IntegerField, BooleanField, SelectField, SubmitField
-from wtforms.validators import DataRequired, NumberRange
 from flask_babel import lazy_gettext as _l
+from flask_wtf import FlaskForm
+from wtforms import BooleanField, IntegerField, SelectField, SubmitField
+from wtforms.validators import DataRequired, NumberRange
 
 
 class StudySettingsForm(FlaskForm):
@@ -47,10 +47,11 @@ class StudySessionForm(FlaskForm):
                                   ('due', _l('Due for Review')),
                                   ('new', _l('New Words')),
                                   ('difficult', _l('Difficult Words')),
+                                  ('queue', _l('Words in Queue')),
                                   ('all', _l('Mixed (New & Review)')),
                                   ('book', _l('From a Book'))
                               ],
-                              default='all')
+                              default='queue')
 
     max_words = IntegerField(_l('Number of Words'),
                              validators=[NumberRange(min=1, max=100)],
