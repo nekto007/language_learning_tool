@@ -97,6 +97,107 @@ class DatabaseRepository:
             logger.error(f"Error inserting/updating book: {e}")
             return 0
 
+    def bulk_insert_or_update_words(self, words_data):
+        """
+        Выполняет пакетную вставку или обновление слов.
+
+        Args:
+            words_data: Список кортежей (english_word, listening, brown)
+
+        Returns:
+            Dict[str, int]: Словарь с соответствием {english_word: word_id}
+        """
+        if not words_data:
+            return {}
+
+        word_id_map = {}
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Подготовка списка английских слов для проверки существования
+                    english_words = [word[0] for word in words_data]
+
+                    # Получение существующих слов одним запросом
+                    placeholders = ','.join(['%s'] * len(english_words))
+                    cursor.execute(
+                        f"SELECT id, english_word FROM collection_words WHERE english_word IN ({placeholders})",
+                        english_words
+                    )
+                    existing_words = {row[1]: row[0] for row in cursor.fetchall()}
+
+                    # Разделение на новые и существующие слова
+                    words_to_insert = []
+                    words_to_update = []
+
+                    for english_word, listening, brown in words_data:
+                        if english_word in existing_words:
+                            # Слово существует, подготовка к обновлению
+                            words_to_update.append((
+                                listening, None, None, None, brown, None, existing_words[english_word]
+                            ))
+                            word_id_map[english_word] = existing_words[english_word]
+                        else:
+                            # Новое слово, подготовка к вставке
+                            words_to_insert.append((
+                                english_word, listening, None, None, None, brown, None
+                            ))
+
+                    # Пакетное обновление существующих слов
+                    if words_to_update:
+                        update_query = """
+                            UPDATE collection_words
+                            SET listening = COALESCE(%s, listening),
+                                russian_word = COALESCE(%s, russian_word),
+                                sentences = COALESCE(%s, sentences),
+                                level = COALESCE(%s, level),
+                                brown = COALESCE(%s, brown),
+                                get_download = COALESCE(%s, get_download)
+                            WHERE id = %s
+                        """
+                        cursor.executemany(update_query, words_to_update)
+
+                    # Пакетная вставка новых слов
+                    if words_to_insert:
+                        insert_query = """
+                            INSERT INTO collection_words
+                            (english_word, listening, russian_word, sentences, level, brown, get_download)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id, english_word
+                        """
+                        for word_data in words_to_insert:
+                            cursor.execute(insert_query, word_data)
+                            id, english_word = cursor.fetchone()
+                            word_id_map[english_word] = id
+
+            return word_id_map
+        except psycopg2.Error as e:
+            logger.error(f"Error bulk inserting/updating words: {e}")
+            return word_id_map
+
+    def bulk_link_words_to_book(self, link_data):
+        """
+        Выполняет пакетную связь слов с книгой.
+
+        Args:
+            link_data: Список кортежей (word_id, book_id, frequency)
+        """
+        if not link_data:
+            return
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    query = """
+                        INSERT INTO word_book_link
+                        (word_id, book_id, frequency)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (word_id, book_id) DO UPDATE
+                        SET frequency = EXCLUDED.frequency
+                    """
+                    cursor.executemany(query, link_data)
+        except psycopg2.Error as e:
+            logger.error(f"Error bulk linking words to book: {e}")
+
     def insert_or_update_word(self, word: Word) -> int:
         """
         Inserts or updates a word in the database.
