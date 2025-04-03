@@ -540,8 +540,9 @@ class DatabaseRepository:
                         status = 1 if os.path.isfile(file_path) else 0
                         if status == 1:
                             # Update status in database
-                            update_query = f"UPDATE {table_name} SET get_download = %s WHERE {column_name} = %s"
-                            cursor.execute(update_query, (status, word))
+                            listening = f"[sound:pronunciation_en_{word_modified}.mp3]"
+                            update_query = f"UPDATE {table_name} SET get_download = %s, listening = %s WHERE {column_name} = %s"
+                            cursor.execute(update_query, (status, listening, word))
                             updated_count += 1
 
             return updated_count
