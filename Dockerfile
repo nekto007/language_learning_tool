@@ -27,6 +27,7 @@ COPY config config/
 # Они будут монтироваться через volume
 RUN mkdir -p /app/app/temp
 RUN mkdir -p /app/app/static/audio
+RUN mkdir -p /app/app/static/uploads/covers
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
