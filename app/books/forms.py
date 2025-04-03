@@ -12,6 +12,18 @@ class BookContentForm(FlaskForm):
     """
     title = StringField('Title', validators=[DataRequired(), Length(max=255)])
 
+    author = StringField('Author', validators=[Optional(), Length(max=255)])
+
+    level = SelectField('Book Level', choices=[
+        ('', 'Not specified'),
+        ('A1', 'A1 - Beginner'),
+        ('A2', 'A2 - Elementary'),
+        ('B1', 'B1 - Intermediate'),
+        ('B2', 'B2 - Upper Intermediate'),
+        ('C1', 'C1 - Advanced'),
+        ('C2', 'C2 - Proficiency')
+    ], default='')
+
     cover_image = FileField('Book Cover', validators=[
         Optional(),
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Only image files are allowed!')

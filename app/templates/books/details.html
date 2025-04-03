@@ -12,12 +12,32 @@
             </ol>
         </nav>
         <h1 class="mb-0">{{ book.title }}</h1>
+
+        <!-- Author and level information -->
+        <div class="d-flex align-items-center mt-2 mb-1">
+            {% if book.author %}
+                <span class="me-3"><i class="fas fa-user me-1"></i> {{ book.author }}</span>
+            {% endif %}
+
+            {% if book.level %}
+                <span class="badge bg-primary me-2">{{ book.level }}</span>
+            {% endif %}
+        </div>
+
         <p class="text-muted">Added on {{ book.scrape_date.strftime('%B %d, %Y') if book.scrape_date else 'N/A' }}</p>
     </div>
     <div class="col-md-4 text-end">
-        <form action="{{ url_for('books.add_book_to_queue', book_id=book.id) }}" method="POST">
-            <button type="submit" class="btn btn-primary">Add New Words to Queue</button>
-        </form>
+        <div class="btn-group">
+            <form action="{{ url_for('books.add_book_to_queue', book_id=book.id) }}" method="POST">
+                <button type="submit" class="btn btn-primary">Add New Words to Queue</button>
+            </form>
+
+            <!-- Edit Book Info button for admins -->
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Content</a>
+            <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Info</a>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -28,8 +48,6 @@
             <div class="card-body text-center">
                 {% if book.cover_image %}
                 <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-fluid book-cover">
-{#app/static/uploads/covers/#}
-
                 {% else %}
                 <div class="no-cover-large">
                     <i class="fas fa-book fa-4x mb-3"></i>
@@ -37,10 +55,12 @@
                 </div>
                 {% endif %}
 
-                <!-- Cover Upload Form -->
+                <!-- Cover Upload Form - Only visible to admins -->
+                {% if current_user.is_authenticated and current_user.is_admin %}
                 <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-bs-toggle="modal" data-bs-target="#coverUploadModal">
                     {% if book.cover_image %}Change Cover{% else %}Add Cover{% endif %}
                 </button>
+                {% endif %}
             </div>
         </div>
 
@@ -50,6 +70,28 @@
                 <h5 class="mb-0">Book Statistics</h5>
             </div>
             <div class="card-body">
+                <!-- Book metadata -->
+                <div class="mb-3">
+                    {% if book.author or book.level %}
+                        <h6 class="mb-2">Book Information</h6>
+                        <ul class="list-group mb-3">
+                            {% if book.author %}
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Author</span>
+                                <span>{{ book.author }}</span>
+                            </li>
+                            {% endif %}
+
+                            {% if book.level %}
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Level</span>
+                                <span class="badge bg-primary">{{ book.level }}</span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    {% endif %}
+                </div>
+
                 <div class="row">
                     <div class="col-6 mb-3">
                         <div class="stat-card p-3 bg-light rounded">
@@ -136,7 +178,11 @@
                 <div class="d-grid gap-2">
                     <!-- Added Read Book button for reading functionality -->
                     <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">Read Book</a>
+
+                    <!-- Edit button only for admins -->
+                    {% if current_user.is_authenticated and current_user.is_admin %}
                     <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Content</a>
+                    {% endif %}
 
                     <!-- Existing buttons -->
                     <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-outline-primary">View All Words</a>
@@ -274,16 +320,19 @@
             </div>
             <div class="card-body">
                 <p class="text-center text-muted">This book has no content yet.</p>
+                {% if current_user.is_authenticated and current_user.is_admin %}
                 <div class="d-grid">
                     <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-primary">Add Content</a>
                 </div>
+                {% endif %}
             </div>
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- Cover Upload Modal -->
+<!-- Cover Upload Modal - Only included for admin users -->
+{% if current_user.is_authenticated and current_user.is_admin %}
 <div class="modal fade" id="coverUploadModal" tabindex="-1" aria-labelledby="coverUploadModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -311,6 +360,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 {% block scripts %}
 {{ super() }}

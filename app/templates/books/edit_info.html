@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit {{ book.title }} Info - English Learning App{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Edit Book Information</h3>
+                    <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Book
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control") }}
+                            {% if form.title.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.title.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.author.label(class="form-label") }}
+                            {{ form.author(class="form-control", placeholder="Enter author name") }}
+                            {% if form.author.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.author.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.level.label(class="form-label") }}
+                            {{ form.level(class="form-select") }}
+                            {% if form.level.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.level.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Select the language level of this book according to the CEFR scale.
+                            </div>
+                        </div>
+
+                        <!-- Hide other fields that we don't need for basic info editing -->
+                        <div class="d-none">
+                            {{ form.content }}
+                            {{ form.file }}
+                            {{ form.format_type }}
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-secondary">Cancel</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
