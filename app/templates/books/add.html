@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Add Book') }} - English Learning App{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .format-card {
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+    }
+
+    .format-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .format-card.selected {
+        border-color: var(--primary-color);
+        border-width: 2px;
+    }
+
+    .format-radio {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .supported-formats {
+        display: inline-block;
+        font-size: 0.8rem;
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+    }
+
+    .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 0.35rem;
+        padding: 2rem;
+        text-align: center;
+        transition: background-color 0.3s;
+        margin-bottom: 1.5rem;
+    }
+
+    .upload-area:hover, .upload-area.dragover {
+        background-color: var(--light-color);
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+    }
+
+    #file-name {
+        margin-top: 1rem;
+        font-weight: bold;
+    }
+
+    .cover-upload-container {
+        border: 1px solid var(--border-color);
+        border-radius: 0.35rem;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .cover-preview {
+        max-width: 200px;
+        max-height: 300px;
+        margin: 1rem auto;
+        box-shadow: 0 0.15rem 1.75rem rgba(0, 0, 0, 0.1);
+        display: none;
+    }
+
+    .cover-placeholder {
+        width: 150px;
+        height: 225px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: var(--light-color);
+        border-radius: 0.35rem;
+        color: var(--secondary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 offset-lg-1">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">{{ _('Add New Book') }}</h3>
+                    <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> {{ _('Back to Books') }}
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-4">
+                                    {{ form.title.label(class="form-label") }}
+                                    {{ form.title(class="form-control", placeholder=_("Enter book title")) }}
+                                    {% if form.title.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.title.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <!-- Book Cover Upload -->
+                                <div class="mb-4">
+                                    <label class="form-label">{{ _('Book Cover (Optional)') }}</label>
+                                    <div class="cover-upload-container">
+                                        <div id="cover-preview-container">
+                                            <div class="cover-placeholder" id="cover-placeholder">
+                                                <i class="fas fa-image fa-3x mb-2"></i>
+                                                <p>{{ _('No cover selected') }}</p>
+                                            </div>
+                                            <img src="" alt="Cover preview" id="cover-preview" class="cover-preview">
+                                        </div>
+                                        <div class="mt-3">
+                                            {{ form.cover_image(class="form-control", accept="image/*") }}
+                                        </div>
+                                        <small class="form-text text-muted mt-2">
+                                            {{ _('Recommended size: 400×600px. Max size: 5MB') }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">{{ _('Upload Book File') }}</label>
+                            <div class="supported-formats">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {{ _('Supported formats') }}: TXT, FB2, EPUB, PDF, DOCX
+                            </div>
+
+                            <div class="upload-area" id="drop-area">
+                                <div class="upload-icon">
+                                    <i class="fas fa-file-upload"></i>
+                                </div>
+                                <p>{{ _('Drag and drop your file here or click to select') }}</p>
+                                {{ form.file(class="form-control-file d-none", id="hidden-file-input") }}
+                                <button type="button" id="browse-button" class="btn btn-primary">
+                                    <i class="fas fa-folder-open me-1"></i> {{ _('Browse Files') }}
+                                </button>
+                                <div id="file-name"></div>
+                            </div>
+
+                            {% if form.file.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.file.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">{{ _('Formatting Style') }}</label>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="format-auto" class="card format-card h-100 p-3" id="card-auto">
+                                        <input type="radio" name="format_type" id="format-auto" value="auto" class="format-radio" {% if form.format_type.data == 'auto' %}checked{% endif %}>
+                                        <h5>{{ _('Original Formatting') }}</h5>
+                                        <p class="text-muted small">{{ _('Preserve the original formatting from the source file.') }}</p>
+                                    </label>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="format-simple" class="card format-card h-100 p-3" id="card-simple">
+                                        <input type="radio" name="format_type" id="format-simple" value="simple" class="format-radio" {% if form.format_type.data == 'simple' %}checked{% endif %}>
+                                        <h5>{{ _('Simple Formatting') }}</h5>
+                                        <p class="text-muted small">{{ _('Basic formatting with paragraphs only, no special elements.') }}</p>
+                                    </label>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="format-enhanced" class="card format-card h-100 p-3" id="card-enhanced">
+                                        <input type="radio" name="format_type" id="format-enhanced" value="enhanced" class="format-radio" {% if form.format_type.data == 'enhanced' %}checked{% endif %}>
+                                        <h5>{{ _('Enhanced Reading') }}</h5>
+                                        <p class="text-muted small">{{ _('Optimized for language learning with improved typography and readability.') }}</p>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 d-none">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(class="form-control", rows=10) }}
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('books.book_list') }}" class="btn btn-secondary">{{ _('Cancel') }}</a>
+                            {{ form.submit(class="btn btn-primary ms-2") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Drag and drop functionality for book file
+        const dropArea = document.getElementById('drop-area');
+        const hiddenFileInput = document.getElementById('hidden-file-input');
+        const browseButton = document.getElementById('browse-button');
+        const fileNameDisplay = document.getElementById('file-name');
+        const contentInput = document.getElementById('content');
+        const titleInput = document.getElementById('title');
+
+        // Cover image preview functionality
+        const coverInput = document.getElementById('cover_image');
+        const coverPreview = document.getElementById('cover-preview');
+        const coverPlaceholder = document.getElementById('cover-placeholder');
+
+        // Format selection cards
+        const formatCards = document.querySelectorAll('.format-card');
+        const formatRadios = document.querySelectorAll('.format-radio');
+
+        // Handle cover image selection
+        if (coverInput) {
+            coverInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        coverPreview.src = e.target.result;
+                        coverPreview.style.display = 'block';
+                        coverPlaceholder.style.display = 'none';
+                    }
+
+                    reader.readAsDataURL(file);
+                } else {
+                    coverPreview.style.display = 'none';
+                    coverPlaceholder.style.display = 'flex';
+                }
+            });
+        }
+
+        // Handle file selection via button
+        browseButton.addEventListener('click', function() {
+            hiddenFileInput.click();
+        });
+
+        // Handle file selection
+        hiddenFileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+
+        // Prevent default behavior for drag events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area when file is dragged over
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropArea.classList.add('dragover');
+        }
+
+        function unhighlight() {
+            dropArea.classList.remove('dragover');
+        }
+
+        // Handle dropped files
+        dropArea.addEventListener('drop', function(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            handleFiles(files);
+        });
+
+        // Process files
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                displayFileName(file);
+
+                // Set title if empty
+                if (!titleInput.value) {
+                    const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+                    titleInput.value = fileName.replace(/[-_]/g, ' '); // Replace underscores and hyphens with spaces
+                }
+
+                // For txt files, show preview
+                if (file.name.toLowerCase().endsWith('.txt')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        contentInput.value = e.target.result;
+                    }
+                    reader.readAsText(file);
+                } else {
+                    contentInput.value = "Content will be processed after upload...";
+                }
+            }
+        }
+
+        function displayFileName(file) {
+            fileNameDisplay.innerHTML = `
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-file me-2"></i>
+                    <strong>${file.name}</strong> (${formatFileSize(file.size)})
+                </div>
+            `;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Format selection
+        formatCards.forEach(card => {
+            card.addEventListener('click', function() {
+                formatCards.forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+
+                // Find the radio inside this card and check it
+                const radio = this.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                }
+            });
+        });
+
+        // Check initial selection
+        formatRadios.forEach(radio => {
+            if (radio.checked) {
+                const card = document.getElementById('card-' + radio.value);
+                if (card) {
+                    card.classList.add('selected');
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

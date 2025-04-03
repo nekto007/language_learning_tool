@@ -23,6 +23,27 @@
 
 <div class="row">
     <div class="col-md-4">
+        <!-- Book Cover -->
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                {% if book.cover_image %}
+                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-fluid book-cover">
+{#app/static/uploads/covers/#}
+
+                {% else %}
+                <div class="no-cover-large">
+                    <i class="fas fa-book fa-4x mb-3"></i>
+                    <p>No cover available</p>
+                </div>
+                {% endif %}
+
+                <!-- Cover Upload Form -->
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-bs-toggle="modal" data-bs-target="#coverUploadModal">
+                    {% if book.cover_image %}Change Cover{% else %}Add Cover{% endif %}
+                </button>
+            </div>
+        </div>
+
         <!-- Book Statistics -->
         <div class="card mb-4">
             <div class="card-header">
@@ -84,6 +105,28 @@
             </div>
         </div>
 
+        <!-- Reading Progress - Added for book reading functionality -->
+        {% if current_user.is_authenticated %}
+            {% set reading_progress = current_user.reading_progress.filter_by(book_id=book.id).first() %}
+            {% if reading_progress %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Your Reading Progress</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <i class="bi bi-clock"></i> Last read: {{ reading_progress.last_read.strftime('%d %B %Y at %H:%M') }}
+                    </p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">
+                            Continue Reading
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+
         <!-- Actions -->
         <div class="card">
             <div class="card-header">
@@ -91,6 +134,11 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+                    <!-- Added Read Book button for reading functionality -->
+                    <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">Read Book</a>
+                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Content</a>
+
+                    <!-- Existing buttons -->
                     <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-outline-primary">View All Words</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" class="btn btn-outline-secondary">View New Words</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" class="btn btn-outline-primary">View Queued Words</a>
@@ -204,6 +252,91 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Book Preview - Added for book reading functionality -->
+        {% if book.content %}
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Book Preview</h5>
+                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">Read Full Book</a>
+            </div>
+            <div class="card-body">
+                <div class="book-preview" style="max-height: 200px; overflow: hidden; position: relative;">
+                    {{ book.content[:500]|safe }}
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(transparent, white);"></div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Book Content</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-center text-muted">This book has no content yet.</p>
+                <div class="d-grid">
+                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-primary">Add Content</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+
+<!-- Cover Upload Modal -->
+<div class="modal fade" id="coverUploadModal" tabindex="-1" aria-labelledby="coverUploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="coverUploadModalLabel">{% if book.cover_image %}Change Book Cover{% else %}Add Book Cover{% endif %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('books.upload_cover', book_id=book.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="coverImageFile" class="form-label">Select Image File</label>
+                        <input class="form-control" type="file" id="coverImageFile" name="cover_image" accept="image/*">
+                        <div class="form-text">Recommended size is 400x600 pixels. Max file size: 5MB.</div>
+                    </div>
+                    <div id="coverPreview" class="text-center mt-3" style="display: none;">
+                        <h6>Preview</h6>
+                        <img src="" alt="Cover preview" class="img-fluid preview-img" style="max-height: 300px;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Cover</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Image preview for cover upload
+    document.addEventListener('DOMContentLoaded', function() {
+        const coverInput = document.getElementById('coverImageFile');
+        const coverPreview = document.getElementById('coverPreview');
+        const previewImg = document.querySelector('.preview-img');
+
+        if (coverInput) {
+            coverInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        coverPreview.style.display = 'block';
+                    }
+
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
 {% endblock %}

@@ -72,10 +72,66 @@
                 </div>
             </div>
         </div>
+
+        <!-- Recently Read Books - New section -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Your Reading Activity</h5>
+                <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">View All Books</a>
+            </div>
+            <div class="card-body">
+                {% if current_user.get_reading_progress_count() > 0 %}
+                <div class="list-group">
+                    {% for progress in current_user.get_recent_reading_progress(3) %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <h6 class="mb-1">{{ progress.book.title }}</h6>
+                            <small class="text-muted">{{ progress.last_read.strftime('%d %b %Y') }}</small>
+                        </div>
+
+                        {% set reading_position = progress.position %}
+                        {% set total_length = 100 %}  <!-- Replace with actual book length calculation -->
+                        {% set percent_read = (reading_position / total_length * 100)|int if total_length > 0 else 0 %}
+
+                        <div class="progress mt-2 mb-2" style="height: 5px;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ percent_read }}%;"
+                                aria-valuenow="{{ percent_read }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ percent_read }}% completed</small>
+                            <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}" class="btn btn-sm btn-primary">
+                                Continue Reading
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if current_user.get_reading_progress_count() > 3 %}
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary btn-sm">
+                        View All Books ({{ current_user.get_reading_progress_count() }})
+                    </a>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-book fa-3x mb-3 text-muted"></i>
+                    <p class="text-muted">You haven't started reading any books yet.</p>
+                    <a href="{{ url_for('books.book_list') }}" class="btn btn-primary">
+                        Find Books to Read
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Right Column -->
     <div class="col-md-6">
+        <!-- Quick Actions -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">Quick Actions</h5>
@@ -83,17 +139,55 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6">
-                        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">Browse Words</a>
+                        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">
+                            <i class="fas fa-list me-1"></i> Browse Words
+                        </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('words.word_list', status=2) }}" class="btn btn-secondary d-block">Queued Words</a>
+                        <a href="{{ url_for('words.word_list', status=2) }}" class="btn btn-secondary d-block">
+                            <i class="fas fa-hourglass-start me-1"></i> Queued Words
+                        </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('words.word_list', status=3) }}" class="btn btn-info d-block">Active Words</a>
+                        <a href="{{ url_for('words.word_list', status=3) }}" class="btn btn-info d-block">
+                            <i class="fas fa-sync me-1"></i> Active Words
+                        </a>
                     </div>
                     <div class="col-6">
-                        <a href="#" class="btn btn-outline-primary d-block">Export to Anki</a>
+                        <a href="{{ url_for('study.index') }}" class="btn btn-success d-block">
+                            <i class="fas fa-graduation-cap me-1"></i> Study Now
+                        </a>
                     </div>
+
+                    <!-- New buttons for reading functionality -->
+                    <div class="col-6">
+                        <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary d-block">
+                            <i class="fas fa-book me-1"></i> Find Books
+                        </a>
+                    </div>
+
+                    {% if current_user.get_reading_progress_count() > 0 %}
+                    {% set last_book = current_user.get_last_read_book() %}
+                    {% if last_book %}
+                    <div class="col-6">
+                        <a href="{{ url_for('books.read_book', book_id=last_book.book_id) }}" class="btn btn-outline-success d-block">
+                            <i class="fas fa-book-reader me-1"></i> Continue Reading
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="col-6">
+                        <a href="#" class="btn btn-outline-secondary d-block">
+                            <i class="fas fa-file-export me-1"></i> Export to Anki
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="col-6">
+                        <a href="#" class="btn btn-outline-secondary d-block">
+                            <i class="fas fa-file-export me-1"></i> Export to Anki
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -118,6 +212,50 @@
                     {% else %}
                         <p class="text-muted">No words studied yet. Start browsing the word list to begin learning!</p>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reading Stats Section - New section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Reading Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-4 text-center">
+                        <div class="h2 mb-0 fw-bold">{{ current_user.get_reading_progress_count() }}</div>
+                        <div class="small text-muted">Books</div>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="h2 mb-0 fw-bold">
+                            {% set last_read = current_user.get_last_read_book() %}
+                            {% if last_read %}
+                                {{ (last_read.last_read - last_read.last_read.replace(hour=0, minute=0, second=0)).seconds // 60 }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted">Minutes Read</div>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="h2 mb-0 fw-bold">
+                            {% set found_words = 0 %}
+                            {% for progress in current_user.reading_progress %}
+                                {% set found_words = found_words + progress.book.words|length %}
+                            {% endfor %}
+                            {{ found_words }}
+                        </div>
+                        <div class="small text-muted">Vocab Found</div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="text-center">
+                    <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-chart-line me-1"></i> View Detailed Stats
+                    </a>
                 </div>
             </div>
         </div>

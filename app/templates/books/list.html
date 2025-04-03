@@ -18,17 +18,39 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th style="width: 100px;">Cover</th>
                         <th>Title</th>
                         <th>Words</th>
                         <th>Progress</th>
-                        <th>Details</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for book in books %}
                     <tr>
                         <td>
+                            <div class="book-cover-thumbnail">
+                                {% if book.cover_image %}
+                                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-thumbnail">
+                                {% else %}
+                                <div class="no-cover">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
                             <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
+
+                            {# Добавляем индикатор последнего чтения, если есть #}
+                            {% if current_user.is_authenticated %}
+                                {% set progress = current_user.reading_progress.filter_by(book_id=book.id).first() %}
+                                {% if progress %}
+                                <div>
+                                    <small class="text-muted">Last read: {{ progress.last_read.strftime('%d.%m.%Y') }}</small>
+                                </div>
+                                {% endif %}
+                            {% endif %}
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
@@ -51,7 +73,11 @@
                             </div>
                         </td>
                         <td>
-                            <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                            <div class="btn-group">
+                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">Details</a>
+                                {# Добавляем кнопку для чтения книги #}
+                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">Read</a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

@@ -61,34 +61,42 @@
         {% if words %}
         <div class="table-responsive">
             <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="selectAll">
-                                </div>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('words.word_list', **url_params(sort='english_word', order='desc' if sort_field == 'english_word' and sort_order == 'asc' else 'asc')) }}">
-                                    {{ _('ENGLISH WORD') }}
-                                    {% if sort_field == 'english_word' %}
-                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                                    {% endif %}
-                                </a>
-                            </th>
-                            <th>{{ _('RUSSIAN TRANSLATION') }}</th>
-                            <th>
-                                <a href="{{ url_for('words.word_list', **url_params(sort='level', order='desc' if sort_field == 'level' and sort_order == 'asc' else 'asc')) }}">
-                                    {{ _('LEVEL') }}
-                                    {% if sort_field == 'level' %}
-                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                                    {% endif %}
-                                </a>
-                            </th>
-                            <th>{{ _('STATUS') }}</th>
-                            <th>{{ _('ACTIONS') }}</th>
-                        </tr>
-                    </thead>
+                <thead>
+                    <tr>
+                        <th width="40">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="selectAll">
+                            </div>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('words.word_list', **url_params(sort='english_word', order='desc' if sort_field == 'english_word' and sort_order == 'asc' else 'asc')) }}">
+                                {{ _('ENGLISH WORD') }}
+                                {% if sort_field == 'english_word' %}
+                                <i class="fas fa-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th width="50" class="text-center">{{ _('AUDIO') }}</th>
+                        <th>{{ _('RUSSIAN TRANSLATION') }}</th>
+                        <th>
+                            <a href="{{ url_for('words.word_list', **url_params(sort='level', order='desc' if sort_field == 'level' and sort_order == 'asc' else 'asc')) }}">
+                                {{ _('LEVEL') }}
+                                {% if sort_field == 'level' %}
+                                <i class="fas fa-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('words.word_list', **url_params(sort='status', order='desc' if sort_field == 'status' and sort_order == 'asc' else 'asc')) }}">
+                                {{ _('STATUS') }}
+                                {% if sort_field == 'status' %}
+                                <i class="fas fa-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>{{ _('ACTIONS') }}</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for word in words %}
                     <tr>
@@ -99,8 +107,12 @@
                         </td>
                         <td>
                             <a href="{{ url_for('words.word_details', word_id=word.id) }}">{{ word.english_word }}</a>
-                            {% if word.get_download %}
-                            <i class="bi bi-volume-up text-muted ms-1"></i>
+                        </td>
+                        <td class="text-center">
+                            {% if word.get_download and word.listening %}
+                            <span class="word-pronunciation" data-audio="{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}" title="{{ _('Listen to pronunciation') }}">
+                                <i class="fas fa-volume-up"></i>
+                            </span>
                             {% endif %}
                         </td>
                         <td>{{ word.russian_word }}</td>
@@ -286,6 +298,9 @@
     </div>
 </div>
 
+<!-- Audio Element (Hidden) -->
+<audio id="wordAudio" style="display: none;"></audio>
+
 <!-- Bulk Action Form (hidden) -->
 <form id="bulkActionForm" method="POST" action="/api/batch-update-status" style="display: none;">
     <input type="hidden" name="status" id="bulkActionStatus">
@@ -306,6 +321,32 @@
     };
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Word pronunciation functionality
+        const wordAudio = document.getElementById('wordAudio');
+        const pronunciationButtons = document.querySelectorAll('.word-pronunciation');
+
+        pronunciationButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Get the audio source from the data attribute
+                const audioSrc = this.getAttribute('data-audio');
+
+                // Set the audio source and play
+                wordAudio.src = audioSrc;
+                wordAudio.play();
+
+                // Visual feedback - add a class to show it's playing
+                this.classList.add('playing');
+
+                // Remove the class when audio ends
+                wordAudio.onended = () => {
+                    this.classList.remove('playing');
+                };
+            });
+        });
+
         // Select all checkbox functionality
         const selectAllCheckbox = document.getElementById('selectAll');
         const wordCheckboxes = document.querySelectorAll('.word-checkbox');
@@ -449,14 +490,4 @@
         updateExportButton();
     });
 </script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Let main.js handle all the checkbox and bulk action functionality
-        console.log("Word list page loaded, main.js will handle functionality");
-
-        // The setupTable function from main.js will set up the select all checkbox
-        // The setupWordListPage function will set up the bulk actions
-    });
-</script>
-
 {% endblock %}
