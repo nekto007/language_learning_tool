@@ -7,26 +7,37 @@
     <div class="col-md-8">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('words.word_list') }}">Words</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('words.word_list') }}">{{ _('Words') }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">{{ word.english_word }}</li>
             </ol>
         </nav>
-        <h1 class="mb-0">{{ word.english_word }}</h1>
-        {% if word.level %}
-        <span class="badge bg-{{ {
-            'A1': 'success',
-            'A2': 'success',
-            'B1': 'info',
-            'B2': 'info',
-            'C1': 'warning',
-            'C2': 'warning'
-        }[word.level] }}">{{ word.level }}</span>
-        {% endif %}
+        <div class="d-flex align-items-center">
+            <h1 class="mb-0 me-2">{{ word.english_word }}</h1>
+            {% if word.get_download and word.listening %}
+            <button class="btn btn-outline-primary btn-sm" id="playPronunciation" title="{{ _('Listen to pronunciation') }}">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            <audio id="pronunciationAudio" style="display: none;">
+                <source src="{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+            {% endif %}
+            {% if word.level %}
+            <span class="badge bg-{{ {
+                'A1': 'success',
+                'A2': 'success',
+                'B1': 'info',
+                'B2': 'info',
+                'C1': 'warning',
+                'C2': 'warning'
+            }[word.level] }} ms-2">{{ word.level }}</span>
+            {% endif %}
+        </div>
     </div>
     <div class="col-md-4 text-end">
         <div class="dropdown">
             <button class="btn btn-outline-primary dropdown-toggle" type="button" id="statusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                Set Status:
+                {{ _('Set Status') }}:
                 <span class="badge bg-{{ {
                     0: 'secondary',
                     1: 'success',
@@ -34,40 +45,40 @@
                     3: 'info',
                     4: 'warning'
                 }[status] }}">
-                    {{ {
+                    {{ _({
                         0: 'New',
                         1: 'Known',
                         2: 'Queued',
                         3: 'Active',
                         4: 'Mastered'
-                    }[status] }}
+                    }[status]) }}
                 </span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="statusDropdown">
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
-                        <button type="submit" class="dropdown-item">Mark as Known</button>
+                        <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
                     </form>
                 </li>
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                        <button type="submit" class="dropdown-item">Add to Queue</button>
+                        <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
                     </form>
                 </li>
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                        <button type="submit" class="dropdown-item">Set Active</button>
+                        <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
                     </form>
                 </li>
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
-                        <button type="submit" class="dropdown-item">Mark as Mastered</button>
+                        <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                     </form>
                 </li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=0) }}" method="POST">
-                        <button type="submit" class="dropdown-item">Reset Status</button>
+                        <button type="submit" class="dropdown-item">{{ _('Reset Status') }}</button>
                     </form>
                 </li>
             </ul>
@@ -79,41 +90,33 @@
     <div class="col-md-8">
         <!-- Word Details -->
         <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{{ _('Word Information') }}</h5>
+            </div>
             <div class="card-body">
                 <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">English:</div>
-                    <div class="col-md-9">
-                        {{ word.english_word }}
-                        {% if word.get_download and word.listening %}
-                        <button class="btn btn-sm btn-outline-secondary ms-2" id="playPronunciation">
-                            <i class="bi bi-volume-up"></i> Listen
-                        </button>
-                        <audio id="pronunciationAudio" style="display: none;">
-                            <source src="{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}" type="audio/mpeg">
-                            Your browser does not support the audio element.
-                        </audio>
-                        {% endif %}
-                    </div>
+                    <div class="col-md-3 fw-bold">{{ _('English') }}:</div>
+                    <div class="col-md-9">{{ word.english_word }}</div>
                 </div>
 
                 <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Russian:</div>
+                    <div class="col-md-3 fw-bold">{{ _('Russian') }}:</div>
                     <div class="col-md-9">{{ word.russian_word }}</div>
                 </div>
 
                 {% if word.level %}
                 <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Level:</div>
+                    <div class="col-md-3 fw-bold">{{ _('Level') }}:</div>
                     <div class="col-md-9">{{ word.level }}</div>
                 </div>
                 {% endif %}
 
                 {% if word.sentences %}
                 <div class="row mb-4">
-                    <div class="col-md-3 fw-bold">Examples:</div>
+                    <div class="col-md-3 fw-bold">{{ _('Examples') }}:</div>
                     <div class="col-md-9">
                         {% for sentence in word.sentences.split('<br>') %}
-                        <p class="mb-1">{{ sentence }}</p>
+                        <div class="example-sentence mb-2 p-2 bg-light rounded">{{ sentence }}</div>
                         {% endfor %}
                     </div>
                 </div>
@@ -121,10 +124,10 @@
 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-start">
                     <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
-                        Export to Anki
+                        <i class="fas fa-file-export me-1"></i> {{ _('Export to Anki') }}
                     </button>
                     <a href="https://www.google.com/search?q=define:{{ word.english_word }}" target="_blank" class="btn btn-outline-secondary">
-                        Search Online
+                        <i class="fas fa-search me-1"></i> {{ _('Search Online') }}
                     </a>
                 </div>
             </div>
@@ -134,17 +137,17 @@
         {% if books %}
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Books Containing This Word</h5>
+                <h5 class="mb-0">{{ _('Books Containing This Word') }}</h5>
             </div>
             <div class="card-body">
                 <div class="list-group">
                     {% for book, frequency in books %}
-                    <a href="/books/{{ book.id }}" class="list-group-item list-group-item-action">
+                    <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">{{ book.title }}</h6>
-                            <span class="badge bg-primary rounded-pill">{{ frequency }} times</span>
+                            <span class="badge bg-primary rounded-pill">{{ frequency }} {{ _('times') }}</span>
                         </div>
-                        <small class="text-muted">Click to view book details</small>
+                        <small class="text-muted">{{ _('Click to view book details') }}</small>
                     </a>
                     {% endfor %}
                 </div>
@@ -156,7 +159,7 @@
         {% if phrasal_verbs %}
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Related Phrasal Verbs</h5>
+                <h5 class="mb-0">{{ _('Related Phrasal Verbs') }}</h5>
             </div>
             <div class="card-body">
                 <ul class="list-group">
@@ -165,10 +168,10 @@
                         <h6 class="mb-1">{{ pv.phrasal_verb }}</h6>
                         <p class="mb-1">{{ pv.russian_translate }}</p>
                         {% if pv.using %}
-                        <small class="text-muted d-block mb-2">Usage: {{ pv.using }}</small>
+                        <small class="text-muted d-block mb-2">{{ _('Usage') }}: {{ pv.using }}</small>
                         {% endif %}
                         {% if pv.sentence %}
-                        <small class="text-muted d-block">Example: {{ pv.sentence }}</small>
+                        <small class="text-muted d-block">{{ _('Example') }}: {{ pv.sentence }}</small>
                         {% endif %}
                     </li>
                     {% endfor %}
@@ -176,46 +179,130 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Read in Context - New Section -->
+        {% if books %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">{{ _('Read in Context') }}</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ _('Explore this word in context by reading books that contain it:') }}</p>
+                <div class="row g-3">
+                    {% for book, frequency in books[:3] %}
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ book.title }}</h6>
+                                <p class="card-text small">{{ _('Contains') }} {{ frequency }} {{ _('occurrences') }}</p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary w-100">
+                                    <i class="fas fa-book-reader me-1"></i> {{ _('Read Book') }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <div class="col-md-4">
-        <!-- Next Steps -->
+        <!-- Current Status -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Next Steps</h5>
+                <h5 class="mb-0">{{ _('Learning Status') }}</h5>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-secondary">Back to Word List</a>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="status-indicator status-{{ status }} me-2"></div>
+                    <span class="fw-bold">{{ _({
+                        0: 'New Word',
+                        1: 'Known Word',
+                        2: 'In Learning Queue',
+                        3: 'Active Learning',
+                        4: 'Mastered Word'
+                    }[status]) }}</span>
+                </div>
 
+                <p class="small text-muted mb-3">
+                    {% if status == 0 %}
+                    {{ _('This word is new to your collection. Add it to your learning queue to start studying it.') }}
+                    {% elif status == 1 %}
+                    {{ _('You marked this word as known. You can change its status if you want to study it.') }}
+                    {% elif status == 2 %}
+                    {{ _('This word is in your learning queue. It will be included in your next study session.') }}
+                    {% elif status == 3 %}
+                    {{ _('You are actively learning this word. Keep practicing to master it!') }}
+                    {% elif status == 4 %}
+                    {{ _('Congratulations! You have mastered this word.') }}
+                    {% endif %}
+                </p>
+
+                <div class="d-grid">
                     {% if status == 0 %}
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                        <button type="submit" class="btn btn-primary w-100">Add to Learning Queue</button>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-1"></i> {{ _('Add to Learning Queue') }}
+                        </button>
                     </form>
                     {% elif status == 1 %}
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                        <button type="submit" class="btn btn-primary w-100">Start Active Learning</button>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-graduation-cap me-1"></i> {{ _('Start Active Learning') }}
+                        </button>
                     </form>
                     {% elif status == 2 %}
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                        <button type="submit" class="btn btn-primary w-100">Start Learning Now</button>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-play me-1"></i> {{ _('Start Learning Now') }}
+                        </button>
                     </form>
                     {% elif status == 3 %}
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
-                        <button type="submit" class="btn btn-primary w-100">Mark as Mastered</button>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-check me-1"></i> {{ _('Mark as Mastered') }}
+                        </button>
                     </form>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Similar Words (placeholder) -->
-        <div class="card">
+        <!-- Next Steps -->
+        <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Similar Words</h5>
+                <h5 class="mb-0">{{ _('Quick Actions') }}</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">Similar words feature coming soon...</p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> {{ _('Back to Word List') }}
+                    </a>
+
+                    <a href="{{ url_for('study.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-graduation-cap me-1"></i> {{ _('Go to Study') }}
+                    </a>
+
+                    {% if books %}
+                    <a href="{{ url_for('books.book_details', book_id=books[0][0].id) }}" class="btn btn-outline-info">
+                        <i class="fas fa-book me-1"></i> {{ _('View in Book') }}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Similar Words -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ _('Similar Words') }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ _('Similar words feature coming soon...') }}</p>
             </div>
         </div>
     </div>
@@ -226,40 +313,40 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="exportModalLabel">Export to Anki</h5>
+                <h5 class="modal-title" id="exportModalLabel">{{ _('Export to Anki') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="exportForm">
                     <div class="mb-3">
-                        <label for="deckName" class="form-label">Deck Name</label>
+                        <label for="deckName" class="form-label">{{ _('Deck Name') }}</label>
                         <input type="text" class="form-control" id="deckName" value="English Words - {{ word.english_word }}">
                     </div>
                     <div class="mb-3">
-                        <label for="cardFormat" class="form-label">Card Format</label>
+                        <label for="cardFormat" class="form-label">{{ _('Card Format') }}</label>
                         <select class="form-select" id="cardFormat">
-                            <option value="basic">Basic (Front: English, Back: Russian)</option>
-                            <option value="reversed">Reversed (Both directions)</option>
-                            <option value="cloze">Cloze Deletion (from example sentences)</option>
+                            <option value="basic">{{ _('Basic (Front: English, Back: Russian)') }}</option>
+                            <option value="reversed">{{ _('Reversed (Both directions)') }}</option>
+                            <option value="cloze">{{ _('Cloze Deletion (from example sentences)') }}</option>
                         </select>
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="includePronunciation" checked>
-                        <label class="form-check-label" for="includePronunciation">Include pronunciation audio</label>
+                        <label class="form-check-label" for="includePronunciation">{{ _('Include pronunciation audio') }}</label>
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="includeExamples" checked>
-                        <label class="form-check-label" for="includeExamples">Include example sentences</label>
+                        <label class="form-check-label" for="includeExamples">{{ _('Include example sentences') }}</label>
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="updateStatus" checked>
-                        <label class="form-check-label" for="updateStatus">Set exported words to "Active" status</label>
+                        <label class="form-check-label" for="updateStatus">{{ _('Set exported words to "Active" status') }}</label>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="exportSubmitBtn">Export</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="exportSubmitBtn">{{ _('Export') }}</button>
             </div>
         </div>
     </div>
@@ -275,7 +362,18 @@
 
         if (playPronunciation && pronunciationAudio) {
             playPronunciation.addEventListener('click', function() {
+                // Change button appearance when playing
+                this.classList.add('active');
+                this.innerHTML = '<i class="fas fa-volume-up fa-beat"></i>';
+
+                // Play the audio
                 pronunciationAudio.play();
+
+                // Reset button when audio ends
+                pronunciationAudio.onended = () => {
+                    this.classList.remove('active');
+                    this.innerHTML = '<i class="fas fa-volume-up"></i>';
+                };
             });
         }
 
@@ -291,7 +389,7 @@
                 const updateStatus = document.getElementById('updateStatus').checked;
 
                 if (!deckName) {
-                    alert('Please enter a deck name.');
+                    alert('{{ _("Please enter a deck name.") }}');
                     return;
                 }
 

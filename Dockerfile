@@ -25,6 +25,7 @@ COPY config config/
 
 # Создаем директорию для аудио файлов, но НЕ копируем сами файлы
 # Они будут монтироваться через volume
+RUN mkdir -p /app/app/temp
 RUN mkdir -p /app/app/static/audio
 
 # Set environment variables

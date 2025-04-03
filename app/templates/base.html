@@ -16,7 +16,9 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('words.dashboard') }}">{{ _('English Learning App') }}</a>
+            <a class="navbar-brand" href="{{ url_for('words.dashboard') }}">
+                <i class="fas fa-language me-2"></i>{{ _('English Learning App') }}
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -24,16 +26,78 @@
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'words.dashboard' %}active{% endif %}" href="{{ url_for('words.dashboard') }}">{{ _('Dashboard') }}</a>
+                        <a class="nav-link {% if request.endpoint == 'words.dashboard' %}active{% endif %}" href="{{ url_for('words.dashboard') }}">
+                            <i class="fas fa-home me-1"></i>{{ _('Dashboard') }}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'words.word_list' %}active{% endif %}" href="{{ url_for('words.word_list') }}">{{ _('Words') }}</a>
+                        <a class="nav-link {% if request.endpoint == 'words.word_list' %}active{% endif %}" href="{{ url_for('words.word_list') }}">
+                            <i class="fas fa-list me-1"></i>{{ _('Words') }}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint.startswith('study.') %}active{% endif %}" href="{{ url_for('study.index') }}">{{ _('Study') }}</a>
+                        <a class="nav-link {% if request.endpoint.startswith('study.') %}active{% endif %}" href="{{ url_for('study.index') }}">
+                            <i class="fas fa-graduation-cap me-1"></i>{{ _('Study') }}
+                        </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'books.book_list' %}active{% endif %}" href="{{ url_for('books.book_list') }}">{{ _('Books') }}</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-book me-1"></i>{{ _('Books') }}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="booksDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('books.book_list') }}">{{ _('All Books') }}</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <!-- Читаемые книги (до 3-х последних) -->
+                            {% if current_user.reading_progress.count() > 0 %}
+                                <li><h6 class="dropdown-header">{{ _('Continue Reading') }}</h6></li>
+                                {% for progress in current_user.reading_progress.order_by('last_read').limit(3) %}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('books.read_book', book_id=progress.book_id) }}">
+                                        <i class="fas fa-bookmark me-1"></i>{{ progress.book.title|truncate(25) }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                                {% if current_user.reading_progress.count() > 3 %}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('books.book_list') }}">
+                                        <i class="fas fa-ellipsis-h me-1"></i>{{ _('More Books') }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endif %}
+                        </ul>
+                    </li>
+                    <!-- Добавляем новый раздел Reading -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint == 'books.read_book' %}active{% endif %}" href="#" id="readingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-book-reader me-1"></i>{{ _('Reading') }}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="readingDropdown">
+                            {% if current_user.reading_progress.count() > 0 %}
+                                {% set last_book = current_user.reading_progress.order_by('last_read').first() %}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('books.read_book', book_id=last_book.book_id) }}">
+                                        <i class="fas fa-book-open me-1"></i>{{ _('Continue Reading') }}
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('books.book_list') }}">
+                                    <i class="fas fa-search me-1"></i>{{ _('Find New Book') }}
+                                </a>
+                            </li>
+                            {% if current_user.reading_progress.count() > 0 %}
+                                <li><h6 class="dropdown-header">{{ _('My Books') }}</h6></li>
+                                {% for progress in current_user.reading_progress.order_by('last_read').limit(5) %}
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('books.read_book', book_id=progress.book_id) }}">
+                                        {{ progress.book.title|truncate(25) }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            {% endif %}
+                        </ul>
                     </li>
                     {% endif %}
                 </ul>
@@ -41,10 +105,11 @@
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ current_user.username }}
+                            <i class="fas fa-user me-1"></i>{{ current_user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" href="#">{{ _('Profile') }}</a></li>
+                            <li><a class="dropdown-item" href="#">{{ _('Settings') }}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('Logout') }}</a></li>
                         </ul>
@@ -92,9 +157,33 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-light py-3 mt-5">
-        <div class="container text-center">
-            <p class="mb-0">&copy; 2025 {{ _('English Learning App') }}</p>
+    <footer class="bg-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>{{ _('Quick Links') }}</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('words.dashboard') }}" class="text-decoration-none">{{ _('Dashboard') }}</a></li>
+                        <li><a href="{{ url_for('words.word_list') }}" class="text-decoration-none">{{ _('Words') }}</a></li>
+                        <li><a href="{{ url_for('study.index') }}" class="text-decoration-none">{{ _('Study') }}</a></li>
+                        <li><a href="{{ url_for('books.book_list') }}" class="text-decoration-none">{{ _('Books') }}</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    {% if current_user.is_authenticated %}
+                    <h5>{{ _('Your Stats') }}</h5>
+                    <ul class="list-unstyled">
+                        <li>{{ _('Books Reading') }}: {{ current_user.reading_progress.count() }}</li>
+                        <li>{{ _('Words Learning') }}: {{ current_user.words|length }}</li>
+                        <li>{{ _('Last Login') }}: {{ current_user.last_login.strftime('%d.%m.%Y') if current_user.last_login else 'N/A' }}</li>
+                    </ul>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <p class="mb-0">&copy; 2025 {{ _('English Learning App') }}</p>
+                    <small class="text-muted">{{ _('Improve your English vocabulary') }}</small>
+                </div>
+            </div>
         </div>
     </footer>
 

@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, desc
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -23,6 +23,9 @@ class User(db.Model, UserMixin):
     active = Column(Boolean, default=True)
 
     words = relationship("CollectionWords", secondary="user_word_status", back_populates="users")
+    # Добавление отношения к прогрессу чтения
+    reading_progress = relationship("ReadingProgress", back_populates="user", lazy="dynamic",
+                                    cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('idx_user_username', 'username'),
@@ -70,6 +73,21 @@ class User(db.Model, UserMixin):
             db.session.execute(stmt)
 
         db.session.commit()
+
+    # Новые методы для работы с прогрессом чтения
+    def get_recent_reading_progress(self, limit=3):
+        """Получить последние записи прогресса чтения, отсортированные по дате"""
+        from app.books.models import ReadingProgress
+        return self.reading_progress.order_by(desc(ReadingProgress.last_read)).limit(limit).all()
+
+    def get_last_read_book(self):
+        """Получить книгу, которую пользователь читал последней"""
+        from app.books.models import ReadingProgress
+        return self.reading_progress.order_by(desc(ReadingProgress.last_read)).first()
+
+    def get_reading_progress_count(self):
+        """Получить количество книг, которые читает пользователь"""
+        return self.reading_progress.count()
 
     # Flask-Login properties
     @property
