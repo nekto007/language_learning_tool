@@ -8,6 +8,15 @@
         <h1>Books Collection</h1>
         <p class="text-muted">Browse books and texts for learning English vocabulary.</p>
     </div>
+
+    <!-- Add Book button - only visible to admins -->
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="col-md-4 text-end">
+        <a href="{{ url_for('books.add_book') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add New Book
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Book List -->
@@ -19,8 +28,46 @@
                 <thead>
                     <tr>
                         <th style="width: 100px;">Cover</th>
-                        <th>Title</th>
-                        <th>Words</th>
+                        <th>
+                            <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc') }}">
+                                Title
+                                {% if sort_by == 'title' %}
+                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fas fa-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc') }}">
+                                Author
+                                {% if sort_by == 'author' %}
+                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fas fa-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc') }}">
+                                Level
+                                {% if sort_by == 'level' %}
+                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fas fa-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc') }}">
+                                Words
+                                {% if sort_by == 'unique_words' %}
+                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="fas fa-sort"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th>Progress</th>
                         <th>Actions</th>
                     </tr>
@@ -52,6 +99,14 @@
                                 {% endif %}
                             {% endif %}
                         </td>
+                        <td>{{ book.author or '-' }}</td>
+                        <td>
+                            {% if book.level %}
+                                <span class="badge bg-primary">{{ book.level }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="d-flex align-items-center">
                                 <span class="me-2">{{ book.unique_words }}</span>
@@ -75,8 +130,10 @@
                         <td>
                             <div class="btn-group">
                                 <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">Details</a>
-                                {# Добавляем кнопку для чтения книги #}
                                 <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">Read</a>
+                                {% if current_user.is_authenticated and current_user.is_admin %}
+                                <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -87,43 +144,49 @@
 
         <!-- Pagination -->
         <nav>
-            <ul class="pagination justify-content-center">
-                {% if pagination.has_prev %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, **request.args) }}">Previous</a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">Previous</span>
-                </li>
-                {% endif %}
+          <ul class="pagination justify-content-center">
+              {% if pagination.has_prev %}
+              <li class="page-item">
+                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order) }}">Previous</a>
+              </li>
+              {% else %}
+              <li class="page-item disabled">
+                  <span class="page-link">Previous</span>
+              </li>
+              {% endif %}
 
-                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                {% if page_num %}
-                <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
-                    <a class="page-link" href="{{ url_for('books.book_list', page=page_num, **request.args) }}">{{ page_num }}</a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">…</span>
-                </li>
-                {% endif %}
-                {% endfor %}
+              {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+              {% if page_num %}
+              <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                  <!-- Remove **request.args to avoid duplicate parameters -->
+                  <a class="page-link" href="{{ url_for('books.book_list', page=page_num, sort=sort_by, order=sort_order) }}">{{ page_num }}</a>
+              </li>
+              {% else %}
+              <li class="page-item disabled">
+                  <span class="page-link">…</span>
+              </li>
+              {% endif %}
+              {% endfor %}
 
-                {% if pagination.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, **request.args) }}">Next</a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">Next</span>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
+              {% if pagination.has_next %}
+              <li class="page-item">
+                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order) }}">Next</a>
+              </li>
+              {% else %}
+              <li class="page-item disabled">
+                  <span class="page-link">Next</span>
+              </li>
+              {% endif %}
+          </ul>
+      </nav>
         {% else %}
         <div class="text-center py-5">
             <p class="text-muted mb-3">No books have been added yet.</p>
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <a href="{{ url_for('books.add_book') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add First Book
+            </a>
+            {% endif %}
         </div>
         {% endif %}
     </div>

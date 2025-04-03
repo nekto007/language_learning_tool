@@ -21,6 +21,7 @@ class User(db.Model, UserMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)  # New field for admin rights
 
     words = relationship("CollectionWords", secondary="user_word_status", back_populates="users")
     # Добавление отношения к прогрессу чтения

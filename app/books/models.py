@@ -11,6 +11,8 @@ class Book(db.Model):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), unique=True, nullable=False)
+    author = Column(String(255), nullable=True)  # New field for book author
+    level = Column(String(2), nullable=True)  # New field for book level (A1, A2, B1, B2, C1, C2)
     total_words = Column(Integer, default=0)
     unique_words = Column(Integer, default=0)
     scrape_date = Column(DateTime, default=datetime.utcnow)

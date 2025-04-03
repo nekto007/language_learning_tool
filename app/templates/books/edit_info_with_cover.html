@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit {{ book.title }} - English Learning App{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Edit Book Information</h3>
+                    <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Book
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    {{ form.title.label(class="form-label") }}
+                                    {{ form.title(class="form-control") }}
+                                    {% if form.title.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.title.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.author.label(class="form-label") }}
+                                    {{ form.author(class="form-control", placeholder="Enter author name") }}
+                                    {% if form.author.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.author.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    {{ form.level.label(class="form-label") }}
+                                    {{ form.level(class="form-select") }}
+                                    {% if form.level.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.level.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Select the language level of this book according to the CEFR scale.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Book Cover</label>
+                                    <div class="text-center mb-3">
+                                        {% if book.cover_image %}
+                                            <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Current cover" class="img-thumbnail" style="max-height: 200px;">
+                                        {% else %}
+                                            <div class="p-3 bg-light rounded text-center">
+                                                <i class="fas fa-book fa-3x mb-2 text-muted"></i>
+                                                <p class="mb-0 text-muted">No cover</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <p class="small text-muted mb-1">Change cover (optional):</p>
+                                    {{ form.cover_image(class="form-control") }}
+                                    {% if form.cover_image.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.cover_image.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hide other fields that we don't need for basic info editing -->
+                        <div class="d-none">
+                            {{ form.content }}
+                            {{ form.file }}
+                            {{ form.format_type }}
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                            <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-secondary">Cancel</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const coverInput = document.getElementById('cover_image');
+
+        if (coverInput) {
+            coverInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    // Display file name
+                    const fileName = this.files[0].name;
+                    const fileSize = Math.round(this.files[0].size / 1024); // Size in KB
+
+                    const infoElement = document.createElement('div');
+                    infoElement.className = 'alert alert-info mt-2';
+                    infoElement.innerHTML = `Selected: <strong>${fileName}</strong> (${fileSize} KB)`;
+
+                    // Remove any previous info
+                    const previousInfo = this.parentElement.querySelector('.alert');
+                    if (previousInfo) {
+                        previousInfo.remove();
+                    }
+
+                    this.parentElement.appendChild(infoElement);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

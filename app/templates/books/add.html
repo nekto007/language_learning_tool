@@ -116,6 +116,35 @@
                                         </div>
                                     {% endif %}
                                 </div>
+
+                                <!-- Author Field -->
+                                <div class="mb-4">
+                                    {{ form.author.label(class="form-label") }}
+                                    {{ form.author(class="form-control", placeholder=_("Enter author name")) }}
+                                    {% if form.author.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.author.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Level Field -->
+                                <div class="mb-4">
+                                    {{ form.level.label(class="form-label") }}
+                                    {{ form.level(class="form-select") }}
+                                    {% if form.level.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.level.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        {{ _('Select the language level of this book (CEFR scale)') }}
+                                    </small>
+                                </div>
                             </div>
 
                             <div class="col-md-4">

@@ -9,13 +9,18 @@ from datetime import datetime
 from PIL import Image
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
 from sqlalchemy import desc, func
 from werkzeug.utils import secure_filename
+from wtforms.fields.choices import SelectField
+from wtforms.fields.simple import StringField, SubmitField
+from wtforms.validators import DataRequired, Length, Optional
 
 from app.books.forms import BookContentForm
 from app.books.models import Book, ReadingProgress
 from app.books.parsers import process_uploaded_book
 from app.utils.db import db, user_word_status, word_book_link
+from app.utils.decorators import admin_required
 from app.words.models import CollectionWords
 
 books = Blueprint('books', __name__)
@@ -112,6 +117,7 @@ def save_cover_image(file):
 
 @books.route('/add', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def add_book():
     """
     Страница для добавления новой книги
@@ -123,6 +129,8 @@ def add_book():
             # Создаем новую книгу с основными данными
             new_book = Book(
                 title=form.title.data,
+                author=form.author.data,  # Add author field
+                level=form.level.data,  # Add level field
                 scrape_date=datetime.utcnow()
             )
 
@@ -183,6 +191,7 @@ def add_book():
 
 @books.route('/content/<int:book_id>', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def edit_book_content(book_id):
     """
     Страница для редактирования содержимого книги
@@ -194,6 +203,8 @@ def edit_book_content(book_id):
         try:
             # Обновляем основные данные книги
             book.title = form.title.data
+            book.author = form.author.data  # Update author field
+            book.level = form.level.data  # Update level field
 
             # Процесс обложки книги - проверяем, что файл действительно загружен
             if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
@@ -264,6 +275,7 @@ def edit_book_content(book_id):
 
 @books.route('/upload-cover/<int:book_id>', methods=['POST'])
 @login_required
+@admin_required
 def upload_cover(book_id):
     """
     API для загрузки обложки книги
@@ -443,8 +455,22 @@ def book_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
+    # Get sorting parameters
+    sort_by = request.args.get('sort', 'title')
+    sort_order = request.args.get('order', 'asc')
+
     # Get books with word counts
     query = db.select(Book).order_by(Book.title)
+
+    # Apply sorting based on parameters
+    if sort_by == 'title':
+        query = query.order_by(Book.title.desc() if sort_order == 'desc' else Book.title)
+    elif sort_by == 'author':
+        query = query.order_by(Book.author.desc() if sort_order == 'desc' else Book.author)
+    elif sort_by == 'level':
+        query = query.order_by(Book.level.desc() if sort_order == 'desc' else Book.level)
+    elif sort_by == 'unique_words':
+        query = query.order_by(Book.unique_words.desc() if sort_order == 'desc' else Book.unique_words)
 
     # Execute paginated query
     pagination = db.paginate(
@@ -710,3 +736,105 @@ def add_book_to_queue(book_id):
 
     flash(f'Added {len(word_ids)} words from "{book.title}" to your learning queue.', 'success')
     return redirect(url_for('books.book_details', book_id=book_id))
+
+
+@books.route('/edit-info/<int:book_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_book_info(book_id):
+    """
+    Quick edit for book info (title, author, level) without file uploads
+    """
+    book = Book.query.get_or_404(book_id)
+
+    # Create a simplified form with just the fields we need
+    class BookInfoForm(FlaskForm):
+        title = StringField('Title', validators=[DataRequired(), Length(max=255)])
+        author = StringField('Author', validators=[Optional(), Length(max=255)])
+        level = SelectField('Book Level', choices=[
+            ('', 'Not specified'),
+            ('A1', 'A1 - Beginner'),
+            ('A2', 'A2 - Elementary'),
+            ('B1', 'B1 - Intermediate'),
+            ('B2', 'B2 - Upper Intermediate'),
+            ('C1', 'C1 - Advanced'),
+            ('C2', 'C2 - Proficiency')
+        ], default='')
+        submit = SubmitField('Save Changes')
+
+    form = BookInfoForm()
+
+    if request.method == 'GET':
+        # Pre-populate the form with existing values
+        form.title.data = book.title
+        form.author.data = book.author
+        form.level.data = book.level
+
+    if form.validate_on_submit():
+        try:
+            # Update basic book info
+            book.title = form.title.data
+            book.author = form.author.data
+            book.level = form.level.data
+
+            # Save changes
+            db.session.commit()
+            flash('Book information updated successfully!', 'success')
+            return redirect(url_for('books.book_details', book_id=book.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating book information: {str(e)}', 'danger')
+
+    return render_template('books/edit_info.html', form=form, book=book)
+
+
+@books.route('/edit-info-with-cover/<int:book_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_book_info_with_cover(book_id):
+    """
+    Edit for book info including cover image upload
+    """
+    book = Book.query.get_or_404(book_id)
+    form = BookContentForm(obj=book)
+
+    # We'll ignore the file and content fields
+    if request.method == 'GET':
+        # Pre-populate the form with existing values
+        form.title.data = book.title
+        form.author.data = book.author
+        form.level.data = book.level
+
+    if form.validate_on_submit():
+        try:
+            # Update basic book info
+            book.title = form.title.data
+            book.author = form.author.data
+            book.level = form.level.data
+
+            # Process cover image if uploaded
+            if form.cover_image.data and hasattr(form.cover_image.data, 'filename') and form.cover_image.data.filename:
+                cover_filename = save_cover_image(form.cover_image.data)
+                if cover_filename:
+                    # Remove old cover if exists
+                    if book.cover_image:
+                        old_cover_path = os.path.join('app/static', book.cover_image)
+                        if os.path.exists(old_cover_path):
+                            try:
+                                os.remove(old_cover_path)
+                            except Exception as e:
+                                logger.error(f"Error removing old cover: {str(e)}")
+
+                    book.cover_image = cover_filename
+
+            # Save changes
+            db.session.commit()
+            flash('Book information updated successfully!', 'success')
+            return redirect(url_for('books.book_details', book_id=book.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating book information: {str(e)}', 'danger')
+
+    return render_template('books/edit_info_with_cover.html', form=form, book=book)
