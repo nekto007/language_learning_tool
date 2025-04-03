@@ -1,0 +1,174 @@
+/* Файл: static/css/study-guide.css */
+
+/* Подложка для гида */
+.study-guide-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3); /* Более прозрачная подложка */
+  z-index: 9998;
+  pointer-events: none;
+}
+
+/* Подсветка активного элемента */
+.highlight-element {
+  position: relative;
+  z-index: 9999;
+  box-shadow: 0 0 0 3px #4e73df, 0 0 0 6px rgba(78, 115, 223, 0.3);
+  border-radius: 4px;
+  transition: box-shadow 0.3s ease;
+  pointer-events: auto;
+}
+
+/* Стиль подсказки */
+.study-guide-tooltip {
+  position: fixed;
+  z-index: 10000;
+  width: 300px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  pointer-events: auto;
+  border: 2px solid #4e73df;
+  transition: all 0.2s ease;
+  cursor: move; /* Указатель на возможность перетаскивания */
+  max-width: 90vw; /* Максимальная ширина - 90% от ширины экрана */
+  opacity: 0.95; /* Немного прозрачности */
+}
+
+/* Стиль при перетаскивании */
+.study-guide-tooltip.dragging {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+
+.tooltip-header {
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.step-indicator {
+  float: right;
+  font-size: 12px;
+  background-color: #ebf5ff;
+  color: #4e73df;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-top: 2px;
+}
+
+.tooltip-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #2a4365;
+  padding-right: 45px;
+}
+
+.study-guide-tooltip p {
+  margin-bottom: 10px;
+  color: #4a5568;
+  line-height: 1.4;
+  font-size: 14px;
+}
+
+.move-hint {
+  font-size: 12px;
+  color: #718096;
+  font-style: italic;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.tooltip-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+/* Индикатор прогресса (точки) */
+.progress-dots {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10000;
+  background-color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #e2e8f0;
+  transition: background-color 0.3s ease;
+}
+
+.dot.active {
+  background-color: #4e73df;
+}
+
+/* Кнопка помощи */
+.help-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9997;
+}
+
+.help-button button {
+  width: 50px;
+  height: 50px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Состояние отключенной кнопки */
+.study-guide-tooltip button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Улучшенная анимация при показе подсказки */
+.study-guide-tooltip {
+  animation: tooltip-appear 0.3s ease-out;
+}
+
+@keyframes tooltip-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+}
+
+/* Медиазапросы для адаптивности */
+@media (max-width: 768px) {
+  .study-guide-tooltip {
+    width: 260px;
+    font-size: 14px;
+  }
+
+  .progress-dots {
+    bottom: 15px;
+  }
+
+  .help-button {
+    bottom: 15px;
+    right: 15px;
+  }
+
+  .help-button button {
+    width: 40px;
+    height: 40px;
+  }
+}
