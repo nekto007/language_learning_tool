@@ -22,6 +22,8 @@ from app.books.parsers import process_uploaded_book
 from app.utils.db import db, user_word_status, word_book_link
 from app.utils.decorators import admin_required
 from app.words.models import CollectionWords
+from app.books.processors import enqueue_book_processing, get_processing_status
+
 
 books = Blueprint('books', __name__)
 
@@ -129,8 +131,8 @@ def add_book():
             # Создаем новую книгу с основными данными
             new_book = Book(
                 title=form.title.data,
-                author=form.author.data,  # Add author field
-                level=form.level.data,  # Add level field
+                author=form.author.data,
+                level=form.level.data,
                 scrape_date=datetime.utcnow()
             )
 
@@ -179,7 +181,21 @@ def add_book():
             # Сохраняем книгу в базу данных
             db.session.add(new_book)
             db.session.commit()
-            flash('Book added successfully! You can now read it or edit its content.', 'success')
+
+            # НОВЫЙ КОД: Ставим задачу на обработку слов в очередь
+            if new_book.content:
+                processing_result = enqueue_book_processing(new_book.id, new_book.content)
+
+                if processing_result.get("async", False):
+                    flash(f'Book added successfully! Word processing has been queued in background.', 'success')
+                elif processing_result.get("sync", False) and processing_result.get("status") == "success":
+                    flash(f'Book added successfully! Words were processed immediately.', 'success')
+                else:
+                    flash(f'Book added successfully! Word processing: {processing_result.get("message", "scheduled")}',
+                          'success')
+            else:
+                flash('Book added successfully! No content to process.', 'success')
+
             return redirect(url_for('books.book_details', book_id=new_book.id))
 
         except Exception as e:
@@ -203,10 +219,10 @@ def edit_book_content(book_id):
         try:
             # Обновляем основные данные книги
             book.title = form.title.data
-            book.author = form.author.data  # Update author field
-            book.level = form.level.data  # Update level field
+            book.author = form.author.data
+            book.level = form.level.data
 
-            # Процесс обложки книги - проверяем, что файл действительно загружен
+            # Процесс обложки книги
             if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
                 cover_filename = save_cover_image(form.cover_image.data)
                 if cover_filename:
@@ -221,10 +237,13 @@ def edit_book_content(book_id):
 
                     book.cover_image = cover_filename
 
-            # Обработка файла содержимого книги - тоже проверяем наличие файла
+            # Обработка файла содержимого книги
+            content_changed = False
+            old_content = book.content
+
             if form.file.data and hasattr(form.file.data, 'filename'):
                 try:
-                    # Обрабатываем файл с помощью функции из parsers.py
+                    # Обрабатываем файл
                     result = process_uploaded_book(
                         file=form.file.data,
                         title=form.title.data,
@@ -235,6 +254,7 @@ def edit_book_content(book_id):
                     book.content = result['content']
                     book.total_words = result['word_count']
                     book.unique_words = result['unique_words']
+                    content_changed = True
 
                 except Exception as e:
                     flash(f'Error processing file: {str(e)}', 'danger')
@@ -244,22 +264,41 @@ def edit_book_content(book_id):
                 # Если контент был отредактирован вручную
                 content = form.content.data
 
-                # Преобразуем простой текст в HTML с форматированием абзацев, если это не HTML
-                if not content.strip().startswith('<'):
-                    content_html = '<p>' + '</p><p>'.join(content.split('\n\n')) + '</p>'
-                    content_html = content_html.replace('\n', '<br>')
-                else:
-                    content_html = content
+                # Проверяем, изменился ли контент
+                if content != old_content:
+                    # Преобразуем простой текст в HTML с форматированием абзацев, если это не HTML
+                    if not content.strip().startswith('<'):
+                        content_html = '<p>' + '</p><p>'.join(content.split('\n\n')) + '</p>'
+                        content_html = content_html.replace('\n', '<br>')
+                    else:
+                        content_html = content
 
-                # Подсчитываем статистику слов
-                words = re.findall(r'\b[a-zA-Z]+\b', re.sub(r'<[^>]+>', '', content).lower())
-                book.content = content_html
-                book.total_words = len(words)
-                book.unique_words = len(set(words))
+                    # Подсчитываем статистику слов
+                    words = re.findall(r'\b[a-zA-Z]+\b', re.sub(r'<[^>]+>', '', content).lower())
+                    book.content = content_html
+                    book.total_words = len(words)
+                    book.unique_words = len(set(words))
+                    content_changed = True
 
             # Сохраняем изменения
             db.session.commit()
-            flash('Book content updated successfully!', 'success')
+
+            # НОВЫЙ КОД: Ставим задачу на обработку слов, если контент изменился
+            if content_changed and book.content:
+                processing_result = enqueue_book_processing(book.id, book.content)
+
+                if processing_result.get("async", False):
+                    flash('Book content updated successfully! Word processing has been queued in background.',
+                          'success')
+                elif processing_result.get("sync", False) and processing_result.get("status") == "success":
+                    flash('Book content updated successfully! Words were processed immediately.', 'success')
+                else:
+                    flash(
+                        f'Book content updated successfully! Word processing: {processing_result.get("message", "scheduled")}',
+                        'success')
+            else:
+                flash('Book content updated successfully! No changes to process.', 'success')
+
             return redirect(url_for('books.book_details', book_id=book.id))
 
         except Exception as e:
@@ -271,6 +310,49 @@ def edit_book_content(book_id):
         form.content.data = book.content
 
     return render_template('books/add.html', form=form, book=book, is_edit=True)
+
+
+@books.route('/api/processing-status/<int:book_id>')
+@login_required
+def check_processing_status(book_id):
+    """
+    API для проверки статуса обработки слов книги
+    """
+    # Проверяем, что пользователь имеет доступ к книге
+    book = Book.query.get_or_404(book_id)
+
+    # Получаем статус обработки
+    status = get_processing_status(book_id)
+
+    return jsonify(status)
+
+
+@books.route('/reprocess-words/<int:book_id>', methods=['POST'])
+@login_required
+@admin_required
+def reprocess_book_words(book_id):
+    """
+    Запускает повторную обработку слов для существующей книги
+    """
+    book = Book.query.get_or_404(book_id)
+
+    if not book.content:
+        flash('This book has no content to process.', 'warning')
+        return redirect(url_for('books.book_details', book_id=book_id))
+
+    # Запускаем обработку слов
+    processing_result = enqueue_book_processing(book.id, book.content)
+
+    if processing_result.get("status") == "already_processing":
+        flash('This book is already being processed.', 'info')
+    elif processing_result.get("async", False):
+        flash('Word processing has been queued in background.', 'success')
+    elif processing_result.get("sync", False) and processing_result.get("status") == "success":
+        flash('Words were processed successfully!', 'success')
+    else:
+        flash(f'Word processing: {processing_result.get("message", "started")}', 'info')
+
+    return redirect(url_for('books.book_details', book_id=book_id))
 
 
 @books.route('/upload-cover/<int:book_id>', methods=['POST'])
