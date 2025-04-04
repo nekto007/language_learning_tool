@@ -146,6 +146,9 @@
                 </div>
             </div>
         </div>
+        <div id="processing-status" data-book-id="{{ book.id }}" class="card mb-4">
+            <!-- Статус обработки слов будет отображаться здесь через JavaScript -->
+        </div>
 
         <!-- Reading Progress - Added for book reading functionality -->
         {% if current_user.is_authenticated %}
@@ -189,6 +192,13 @@
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" class="btn btn-outline-secondary">View New Words</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" class="btn btn-outline-primary">View Queued Words</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=3) }}" class="btn btn-outline-info">View Active Words</a>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <form action="{{ url_for('books.reprocess_book_words', book_id=book.id) }}" method="POST" class="mt-2">
+                        <button type="submit" class="btn btn-outline-secondary d-block w-100">
+                            <i class="fas fa-sync-alt me-1"></i> Reprocess Book Words
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -364,6 +374,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/book_processing.js') }}"></script>
 <script>
     // Image preview for cover upload
     document.addEventListener('DOMContentLoaded', function() {

@@ -8,6 +8,12 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from werkzeug.utils import secure_filename
 
+from app.books.models import Book
+from app.nlp.processor import prepare_word_data, process_text
+from app.nlp.setup import download_nltk_resources, initialize_nltk
+from app.repository import DatabaseRepository
+from app.words.models import CollectionWords as Word
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,7 +133,6 @@ def parse_fb2(file_path, format_type):
         namespace = ''
         if root.tag.startswith('{'):
             namespace = root.tag.split('}')[0] + '}'
-
         # Извлекаем текст из body
         body = root.find('.//' + namespace + 'body')
         if body is None:
@@ -136,7 +141,6 @@ def parse_fb2(file_path, format_type):
         html_parts = []
         word_count = 0
         unique_words = set()
-
         # Перебираем секции и получаем текст
         for section in body.findall('.//' + namespace + 'section'):
             # Проверяем, есть ли заголовок
@@ -161,7 +165,6 @@ def parse_fb2(file_path, format_type):
 
         # Формируем HTML контент
         html_content = ''.join(html_parts)
-
         return html_content, word_count, len(unique_words)
 
     except Exception as e:
@@ -384,7 +387,6 @@ def process_uploaded_book(file, title, format_type='enhanced'):
         # Удаляем временный файл
         if os.path.exists(temp_path):
             os.remove(temp_path)
-
         return {
             'content': html_content,
             'word_count': word_count,

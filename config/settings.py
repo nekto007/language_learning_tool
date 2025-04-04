@@ -43,6 +43,24 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", 10))
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", 3))
 MAX_PAGES = int(os.environ.get("MAX_PAGES", 100))
+# Максимальное время обработки книги (в секундах)
+MAX_PROCESSING_TIME = 300  # 5 минут
+
+# Максимальное количество одновременных задач обработки
+MAX_CONCURRENT_PROCESSING = 2
+
+# Интервал очистки старых записей о статусе (в секундах)
+STATUS_CLEANUP_INTERVAL = 3600  # 1 час
+
+# Максимальный возраст записи о статусе до удаления (в секундах)
+MAX_STATUS_AGE = 86400  # 24 часа
+
+# Максимальный размер книги для асинхронной обработки (в символах)
+# Книги меньшего размера обрабатываются синхронно
+MAX_SYNC_PROCESSING_SIZE = 50000  # ~50 KB
+
+# Таймаут для блокирующих операций при синхронной обработке (в секундах)
+SYNC_PROCESSING_TIMEOUT = 30
 
 # Flask Config class
 class Config:
