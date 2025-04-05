@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import threading
 import uuid
 from datetime import datetime
 
@@ -182,19 +183,28 @@ def add_book():
             db.session.add(new_book)
             db.session.commit()
 
-            # НОВЫЙ КОД: Ставим задачу на обработку слов в очередь
+            # ВАЖНО: Теперь запускаем обработку слов в отдельном потоке без ожидания
             if new_book.content:
-                processing_result = enqueue_book_processing(new_book.id, new_book.content)
+                # Сохраняем ID книги и запускаем обработку асинхронно в отдельном потоке
+                book_id = new_book.id
 
-                if processing_result.get("async", False):
-                    flash(f'Book added successfully! Word processing has been queued in background.', 'success')
-                elif processing_result.get("sync", False) and processing_result.get("status") == "success":
-                    flash(f'Book added successfully! Words were processed immediately.', 'success')
-                else:
-                    flash(f'Book added successfully! Word processing: {processing_result.get("message", "scheduled")}',
-                          'success')
+                # Используем исключительно threading.Thread с daemon=True
+                def start_processing():
+                    try:
+                        # Используем простую постановку в очередь
+                        enqueue_book_processing(book_id, new_book.content)
+                    except Exception as e:
+                        logger.error(f"Ошибка при запуске обработки слов: {str(e)}")
+
+                # Запускаем поток и не ждем его завершения
+                processing_thread = threading.Thread(target=start_processing)
+                processing_thread.daemon = True
+                processing_thread.start()
+
+                # Сразу возвращаем ответ пользователю
+                flash('Book added successfully! Word processing has been started in the background.', 'success')
             else:
-                flash('Book added successfully! No content to process.', 'success')
+                flash('Book added successfully!', 'success')
 
             return redirect(url_for('books.book_details', book_id=new_book.id))
 
@@ -205,6 +215,7 @@ def add_book():
     return render_template('books/add.html', form=form)
 
 
+# 2. Аналогично модифицируем метод edit_book_content
 @books.route('/content/<int:book_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -283,21 +294,28 @@ def edit_book_content(book_id):
             # Сохраняем изменения
             db.session.commit()
 
-            # НОВЫЙ КОД: Ставим задачу на обработку слов, если контент изменился
+            # ВАЖНО: Теперь запускаем обработку слов в отдельном потоке без ожидания
             if content_changed and book.content:
-                processing_result = enqueue_book_processing(book.id, book.content)
+                # Запускаем обработку асинхронно в отдельном потоке
+                book_content = book.content  # Сохраняем копию контента
 
-                if processing_result.get("async", False):
-                    flash('Book content updated successfully! Word processing has been queued in background.',
-                          'success')
-                elif processing_result.get("sync", False) and processing_result.get("status") == "success":
-                    flash('Book content updated successfully! Words were processed immediately.', 'success')
-                else:
-                    flash(
-                        f'Book content updated successfully! Word processing: {processing_result.get("message", "scheduled")}',
-                        'success')
+                def start_processing():
+                    try:
+                        # Используем простую постановку в очередь
+                        enqueue_book_processing(book_id, book_content)
+                    except Exception as e:
+                        logger.error(f"Ошибка при запуске обработки слов: {str(e)}")
+
+                # Запускаем поток и не ждем его завершения
+                processing_thread = threading.Thread(target=start_processing)
+                processing_thread.daemon = True
+                processing_thread.start()
+
+                # Сразу возвращаем ответ пользователю
+                flash('Book content updated successfully! Word processing has been started in the background.',
+                      'success')
             else:
-                flash('Book content updated successfully! No changes to process.', 'success')
+                flash('Book content updated successfully!', 'success')
 
             return redirect(url_for('books.book_details', book_id=book.id))
 

@@ -56,6 +56,7 @@ def get_app():
 def extract_words_from_html_content(html_content: str) -> List[str]:
     """
     Извлекает слова из HTML-контента книги.
+    Оптимизировано для больших книг с контролем памяти.
 
     Args:
         html_content (str): HTML-контент книги
@@ -68,19 +69,60 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
         download_nltk_resources()
         english_vocab, brown_words, stop_words = initialize_nltk()
 
-        # Удаляем HTML-теги
-        soup = BeautifulSoup(html_content, "html.parser")
-        text = soup.get_text()
+        # Извлекаем текст порциями, если контент большой
+        chunk_size = 100000  # Примерно 100KB на чанк
+        all_words = []
 
-        # Проверяем, что текст не пустой
-        if not text or len(text.strip()) < 10:
-            logger.warning("HTML-контент не содержит текста или слишком короткий для обработки")
-            return []
+        if len(html_content) > chunk_size * 3:  # Если книга очень большая (>300KB)
+            logger.info(f"Большой HTML контент ({len(html_content)} байт), обрабатываем по частям")
 
-        # Обрабатываем текст
-        words = process_text(text, english_vocab, stop_words)
+            # Используем BeautifulSoup для разбиения на параграфы
+            soup = BeautifulSoup(html_content, "html.parser")
+            paragraphs = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
 
-        return words
+            # Обрабатываем параграфы группами
+            current_chunk = ""
+            for paragraph in paragraphs:
+                paragraph_text = paragraph.get_text()
+
+                # Если добавление этого параграфа превысит размер чанка, обрабатываем текущий чанк
+                if len(current_chunk) + len(paragraph_text) > chunk_size:
+                    # Обрабатываем текущий чанк
+                    words = process_text(current_chunk, english_vocab, stop_words)
+                    all_words.extend(words)
+
+                    # Сбрасываем чанк
+                    current_chunk = paragraph_text
+
+                    # Принудительная сборка мусора для освобождения памяти
+                    import gc
+                    gc.collect()
+                else:
+                    # Добавляем параграф к текущему чанку
+                    current_chunk += " " + paragraph_text
+
+            # Обрабатываем последний чанк, если он не пустой
+            if current_chunk.strip():
+                words = process_text(current_chunk, english_vocab, stop_words)
+                all_words.extend(words)
+        else:
+            # Для небольших книг обрабатываем весь текст сразу
+            soup = BeautifulSoup(html_content, "html.parser")
+            text = soup.get_text()
+
+            # Проверяем, что текст не пустой
+            if not text or len(text.strip()) < 10:
+                logger.warning("HTML-контент не содержит текста или слишком короткий для обработки")
+                return []
+
+            # Обрабатываем текст
+            all_words = process_text(text, english_vocab, stop_words)
+
+        # Очистка памяти перед возвратом результата
+        import gc
+        gc.collect()
+
+        return all_words
     except Exception as e:
         logger.error(f"Ошибка при извлечении слов из HTML-контента: {str(e)}")
         return []
@@ -89,7 +131,7 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
 def process_book_words(book_id: int, html_content: str) -> Dict:
     """
     Обрабатывает слова из книги, создает связи слово-книга и обновляет статистику.
-    Использует пакетную обработку для оптимизации производительности.
+    Оптимизировано для больших книг с контролем памяти.
 
     Args:
         book_id (int): ID книги
@@ -126,7 +168,7 @@ def process_book_words(book_id: int, html_content: str) -> Dict:
                     logger.error(f"Ошибка при проверке существования книги {book_id}: {str(db_err)}")
                     return {"status": "error", "message": f"Database error: {str(db_err)}"}
 
-                # Извлекаем слова из контента
+                # Извлекаем слова из контента с оптимизированной функцией
                 all_words = extract_words_from_html_content(html_content)
 
                 if not all_words:
@@ -143,28 +185,49 @@ def process_book_words(book_id: int, html_content: str) -> Dict:
                 download_nltk_resources()
                 _, brown_words, _ = initialize_nltk()
 
-                # Подготовка данных для вставки
-                word_data = prepare_word_data(all_words, brown_words)
+                # Подготовка данных для вставки с обработкой по частям
+                # Разбиваем слова на группы по 5000 для обработки
+                batch_size = 5000
+                total_added = 0
 
-                # Создание репозитория для работы с БД
+                for i in range(0, len(all_words), batch_size):
+                    batch = all_words[i:i + batch_size]
+                    word_data_batch = prepare_word_data(batch, brown_words)
+
+                    # Создание репозитория для работы с БД
+                    repo = DatabaseRepository()
+
+                    # Обрабатываем пакет слов
+                    batch_added = repo.process_batch_from_original_format(word_data_batch, book_id, batch_size=500)
+                    total_added += batch_added
+
+                    # Обновляем статус
+                    processed_percent = min(100, int((i + len(batch)) / len(all_words) * 100))
+                    processing_status[book_id] = {
+                        **processing_status.get(book_id, {}),
+                        "status": "processing",
+                        "progress": processed_percent,
+                        "message": f"Processing words: {processed_percent}% complete",
+                        "words_processed_so_far": total_added
+                    }
+
+                    # Принудительная сборка мусора
+                    import gc
+                    gc.collect()
+
+                # Обновляем статистику книги в конце
                 repo = DatabaseRepository()
-
-                # Обновляем статистику книги
                 repo.update_book_stats(book_id, total_words, unique_words)
-
-                # Используем метод пакетной обработки из репозитория
-                # Этот метод оптимизирован для больших объемов данных
-                words_added = repo.process_batch_from_original_format(word_data, book_id, batch_size=500)
 
                 elapsed_time = time.time() - start_time
                 logger.info(
-                    f"Завершена обработка {words_added} слов для книги ID {book_id} за {elapsed_time:.2f} секунд")
+                    f"Завершена обработка {total_added} слов для книги ID {book_id} за {elapsed_time:.2f} секунд")
 
                 return {
                     "status": "success",
                     "total_words": total_words,
                     "unique_words": unique_words,
-                    "words_added": words_added,
+                    "words_added": total_added,
                     "elapsed_time": elapsed_time
                 }
 
