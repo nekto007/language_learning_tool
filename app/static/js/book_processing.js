@@ -35,19 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateStatusDisplay(data);
 
-        // Если обработка завершена или произошла ошибка, останавливаем опрос через некоторое время
+        // Если обработка завершена или произошла ошибка, останавливаем опрос
         if (['success', 'error', 'timeout'].includes(data.status)) {
-          // Для успешной обработки перезагружаем страницу
-          if (data.status === 'success') {
-            setTimeout(() => {
-              window.location.reload();
-            }, 3000); // Даем пользователю время увидеть сообщение об успехе
-          } else {
-            // Для ошибок просто останавливаем опрос через 1 минуту
-            setTimeout(() => {
-              clearInterval(checkInterval);
-            }, 60000);
-          }
+          clearInterval(checkInterval);
         }
 
         // Увеличиваем счетчик попыток
@@ -97,13 +87,36 @@ document.addEventListener('DOMContentLoaded', function() {
         statusIcon = 'fas fa-cogs fa-spin';
         statusTitle = 'Word Processing In Progress';
         statusClass = 'primary';
+
+        // Показываем прогресс-бар с процентами, если они доступны
+        let progressBar = '';
+        if (data.progress !== undefined) {
+          progressBar = `
+            <div class="progress mt-2">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                   style="width: ${data.progress}%" aria-valuenow="${data.progress}" aria-valuemin="0" aria-valuemax="100">
+                ${data.progress}%
+              </div>
+            </div>`;
+        } else {
+          progressBar = `
+            <div class="progress mt-2">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                   style="width: 100%"></div>
+            </div>`;
+        }
+
+        // Добавляем информацию о промежуточных результатах, если доступна
+        let wordsInfo = '';
+        if (data.words_processed_so_far) {
+          wordsInfo = `<p class="small mt-2">Words processed so far: ${data.words_processed_so_far}</p>`;
+        }
+
         statusContent = `
-          <p>Processing words from the book...</p>
+          <p>${data.message || 'Processing words from the book...'}</p>
           ${data.book_size ? `<p class="small">Book size: ${formatFileSize(data.book_size)}</p>` : ''}
-          <div class="progress mt-2">
-            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
-                 style="width: 100%"></div>
-          </div>
+          ${progressBar}
+          ${wordsInfo}
           <small class="text-muted mt-2 d-block">Started at: ${formatDateTime(data.started_at)}</small>
         `;
         break;
@@ -120,8 +133,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <li>Words processed: ${data.words_added ? formatNumber(data.words_added) : 'N/A'}</li>
             <li>Processing time: ${data.elapsed_time ? formatTime(data.elapsed_time) : 'N/A'}</li>
           </ul>
-          <div class="alert alert-info mt-2">
-            <i class="fas fa-sync-alt fa-spin"></i> Reloading page to show updated data...
+          <div class="mt-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="window.location.reload()">
+              <i class="fas fa-sync-alt"></i> Refresh page to see updated data
+            </button>
           </div>
         `;
         break;
