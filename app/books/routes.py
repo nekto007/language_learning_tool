@@ -23,8 +23,7 @@ from app.books.parsers import process_uploaded_book
 from app.utils.db import db, user_word_status, word_book_link
 from app.utils.decorators import admin_required
 from app.words.models import CollectionWords
-from app.books.processors import enqueue_book_processing, get_processing_status
-
+from app.books.processors import enqueue_book_processing, get_processing_status, process_book_words
 
 books = Blueprint('books', __name__)
 
@@ -192,7 +191,7 @@ def add_book():
                 def start_processing():
                     try:
                         # Используем простую постановку в очередь
-                        enqueue_book_processing(book_id, new_book.content)
+                        process_book_words(new_book.id, new_book.content)
                     except Exception as e:
                         logger.error(f"Ошибка при запуске обработки слов: {str(e)}")
 
@@ -328,21 +327,6 @@ def edit_book_content(book_id):
         form.content.data = book.content
 
     return render_template('books/add.html', form=form, book=book, is_edit=True)
-
-
-@books.route('/api/processing-status/<int:book_id>')
-@login_required
-def check_processing_status(book_id):
-    """
-    API для проверки статуса обработки слов книги
-    """
-    # Проверяем, что пользователь имеет доступ к книге
-    book = Book.query.get_or_404(book_id)
-
-    # Получаем статус обработки
-    status = get_processing_status(book_id)
-
-    return jsonify(status)
 
 
 @books.route('/reprocess-words/<int:book_id>', methods=['POST'])
@@ -555,14 +539,15 @@ def book_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
-    # Get sorting parameters
+    # Получаем параметры сортировки
     sort_by = request.args.get('sort', 'title')
     sort_order = request.args.get('order', 'asc')
 
-    # Get books with word counts
-    query = db.select(Book).order_by(Book.title)
+    # Строим базовый запрос к книгам
+    # Важно! Удаляем любую жестко закодированную сортировку
+    query = db.select(Book)
 
-    # Apply sorting based on parameters
+    # Применяем сортировку в зависимости от параметров
     if sort_by == 'title':
         query = query.order_by(Book.title.desc() if sort_order == 'desc' else Book.title)
     elif sort_by == 'author':
@@ -571,8 +556,13 @@ def book_list():
         query = query.order_by(Book.level.desc() if sort_order == 'desc' else Book.level)
     elif sort_by == 'unique_words':
         query = query.order_by(Book.unique_words.desc() if sort_order == 'desc' else Book.unique_words)
+    else:
+        # Применяем сортировку по умолчанию, если параметр неизвестен
+        query = query.order_by(Book.title)
+        sort_by = 'title'
+        sort_order = 'asc'
 
-    # Execute paginated query
+    # Выполняем пагинированный запрос
     pagination = db.paginate(
         query,
         page=page,
@@ -634,7 +624,9 @@ def book_list():
         'books/list.html',
         books=book_items,
         pagination=pagination,
-        book_stats=book_stats
+        book_stats=book_stats,
+        sort_by=sort_by,
+        sort_order=sort_order
     )
 
 
