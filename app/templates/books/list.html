@@ -26,52 +26,56 @@
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
-                    <tr>
-                        <th style="width: 100px;">Cover</th>
-                        <th>
-                            <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc') }}">
-                                Title
-                                {% if sort_by == 'title' %}
-                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="fas fa-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc') }}">
-                                Author
-                                {% if sort_by == 'author' %}
-                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="fas fa-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc') }}">
-                                Level
-                                {% if sort_by == 'level' %}
-                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="fas fa-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc') }}">
-                                Words
-                                {% if sort_by == 'unique_words' %}
-                                    <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                                {% else %}
-                                    <i class="fas fa-sort"></i>
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>Progress</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+                  <tr>
+                      <th style="width: 100px;" class="align-middle">COVER</th>
+                      <th class="align-middle">
+                          <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc') }}"
+                             class="d-flex align-items-center text-decoration-none">
+                              <span class="me-1">TITLE</span>
+                              {% if sort_by == 'title' %}
+                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                              {% else %}
+                                  <i class="fas fa-sort text-muted"></i>
+                              {% endif %}
+                          </a>
+                      </th>
+                      <th class="align-middle">
+                          <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc') }}"
+                             class="d-flex align-items-center text-decoration-none">
+                              <span class="me-1">AUTHOR</span>
+                              {% if sort_by == 'author' %}
+                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                              {% else %}
+                                  <i class="fas fa-sort text-muted"></i>
+                              {% endif %}
+                          </a>
+                      </th>
+                      <th class="align-middle">
+                          <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc') }}"
+                             class="d-flex align-items-center text-decoration-none">
+                              <span class="me-1">LEVEL</span>
+                              {% if sort_by == 'level' %}
+                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                              {% else %}
+                                  <i class="fas fa-sort text-muted"></i>
+                              {% endif %}
+                          </a>
+                      </th>
+                      <th class="align-middle">
+                          <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc') }}"
+                             class="d-flex align-items-center text-decoration-none">
+                              <span class="me-1">WORDS</span>
+                              {% if sort_by == 'unique_words' %}
+                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                              {% else %}
+                                  <i class="fas fa-sort text-muted"></i>
+                              {% endif %}
+                          </a>
+                      </th>
+                      <th class="align-middle">PROGRESS</th>
+                      <th class="align-middle">ACTIONS</th>
+                  </tr>
+              </thead>
                 <tbody>
                     {% for book in books %}
                     <tr>
