@@ -19,6 +19,115 @@
     {% endif %}
 </div>
 
+<!-- Search and Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('books.book_list') }}" class="mb-3">
+            <div class="row g-3 align-items-center">
+                <!-- Search Box -->
+                <div class="col-12 col-md-6">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" placeholder="Search by title or author..."
+                               value="{{ request.args.get('search', '') }}">
+                        <button class="btn btn-outline-primary" type="submit">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        {% if request.args.get('search') %}
+                        <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Level Filter -->
+                <div class="col-12 col-md-6">
+                    <div class="d-flex justify-content-end">
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
+                               class="btn btn-outline-secondary {{ 'active' if not request.args.get('level') else '' }}">
+                                All Levels
+                            </a>
+                            {% for level_value, level_name in [
+                                ('A1', 'A1'), ('A2', 'A2'),
+                                ('B1', 'B1'), ('B2', 'B2'),
+                                ('C1', 'C1'), ('C2', 'C2')
+                            ] %}
+                            <a href="{{ url_for('books.book_list', level=level_value, search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
+                               class="btn btn-outline-{{ 'primary' if level_value.startswith('A') else 'info' if level_value.startswith('B') else 'warning' }} {{ 'active' if request.args.get('level') == level_value else '' }}">
+                                {{ level_name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Alphabetical Index -->
+        <div class="alpha-index mb-0">
+            <div class="d-flex flex-wrap justify-content-center">
+                <!-- Show all option -->
+                <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
+                   class="btn btn-sm {{ 'btn-primary' if not request.args.get('letter') else 'btn-outline-secondary' }} m-1">
+                    All
+                </a>
+
+                <!-- Letter buttons -->
+                {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                <a href="{{ url_for('books.book_list', letter=letter, search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
+                   class="btn btn-sm {{ 'btn-primary' if request.args.get('letter') == letter else 'btn-outline-secondary' }} m-1">
+                    {{ letter }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Filters Display -->
+{% if request.args.get('search') or request.args.get('level') or request.args.get('letter') %}
+<div class="mb-3">
+    <h6>Active filters:</h6>
+    <div class="d-flex flex-wrap">
+        {% if request.args.get('search') %}
+        <span class="badge bg-primary m-1 p-2">
+            Search: "{{ request.args.get('search') }}"
+            <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
+               class="text-white ms-1 text-decoration-none">
+                <i class="fas fa-times-circle"></i>
+            </a>
+        </span>
+        {% endif %}
+
+        {% if request.args.get('level') %}
+        <span class="badge bg-{{ 'success' if request.args.get('level').startswith('A') else 'info' if request.args.get('level').startswith('B') else 'warning' }} m-1 p-2">
+            Level: {{ request.args.get('level') }}
+            <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
+               class="text-white ms-1 text-decoration-none">
+                <i class="fas fa-times-circle"></i>
+            </a>
+        </span>
+        {% endif %}
+
+        {% if request.args.get('letter') %}
+        <span class="badge bg-secondary m-1 p-2">
+            Starting with: {{ request.args.get('letter') }}
+            <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
+               class="text-white ms-1 text-decoration-none">
+                <i class="fas fa-times-circle"></i>
+            </a>
+        </span>
+        {% endif %}
+
+        <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-danger m-1">
+            <i class="fas fa-times"></i> Clear All Filters
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <!-- Book List -->
 <div class="card">
     <div class="card-body">
@@ -29,7 +138,7 @@
                   <tr>
                       <th style="width: 100px;" class="align-middle">COVER</th>
                       <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc') }}"
+                          <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
                               <span class="me-1">TITLE</span>
                               {% if sort_by == 'title' %}
@@ -40,7 +149,7 @@
                           </a>
                       </th>
                       <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc') }}"
+                          <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
                               <span class="me-1">AUTHOR</span>
                               {% if sort_by == 'author' %}
@@ -51,7 +160,7 @@
                           </a>
                       </th>
                       <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc') }}"
+                          <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
                               <span class="me-1">LEVEL</span>
                               {% if sort_by == 'level' %}
@@ -62,7 +171,7 @@
                           </a>
                       </th>
                       <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc') }}"
+                          <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
                               <span class="me-1">WORDS</span>
                               {% if sort_by == 'unique_words' %}
@@ -106,7 +215,7 @@
                         <td>{{ book.author or '-' }}</td>
                         <td>
                             {% if book.level %}
-                                <span class="badge bg-primary">{{ book.level }}</span>
+                                <span class="badge bg-{{ 'success' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }}">{{ book.level }}</span>
                             {% else %}
                                 -
                             {% endif %}
@@ -151,7 +260,7 @@
           <ul class="pagination justify-content-center">
               {% if pagination.has_prev %}
               <li class="page-item">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order) }}">Previous</a>
+                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">Previous</a>
               </li>
               {% else %}
               <li class="page-item disabled">
@@ -162,8 +271,7 @@
               {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
               {% if page_num %}
               <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
-                  <!-- Remove **request.args to avoid duplicate parameters -->
-                  <a class="page-link" href="{{ url_for('books.book_list', page=page_num, sort=sort_by, order=sort_order) }}">{{ page_num }}</a>
+                  <a class="page-link" href="{{ url_for('books.book_list', page=page_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">{{ page_num }}</a>
               </li>
               {% else %}
               <li class="page-item disabled">
@@ -174,7 +282,7 @@
 
               {% if pagination.has_next %}
               <li class="page-item">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order) }}">Next</a>
+                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">Next</a>
               </li>
               {% else %}
               <li class="page-item disabled">
@@ -185,14 +293,30 @@
       </nav>
         {% else %}
         <div class="text-center py-5">
-            <p class="text-muted mb-3">No books have been added yet.</p>
-            {% if current_user.is_authenticated and current_user.is_admin %}
-            <a href="{{ url_for('books.add_book') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Add First Book
-            </a>
-            {% endif %}
+            <p class="text-muted mb-3">No books found matching your criteria.</p>
+            <div class="d-flex justify-content-center">
+                <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-undo"></i> Clear Filters
+                </a>
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                <a href="{{ url_for('books.add_book') }}" class="btn btn-primary ms-2">
+                    <i class="fas fa-plus"></i> Add Book
+                </a>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
     </div>
 </div>
+
+<!-- Add some custom CSS for the alphabetical index -->
+<style>
+    .alpha-index .btn {
+        min-width: 36px;
+    }
+
+    .badge a:hover {
+        opacity: 0.8;
+    }
+</style>
 {% endblock %}

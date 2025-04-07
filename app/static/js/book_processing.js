@@ -13,62 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxRetries = 120; // Максимальное количество попыток (10 минут при интервале 5 секунд)
   let statusVisible = false; // Флаг видимости элемента
 
-  function checkProcessingStatus() {
-    fetch(`/api/processing-status/${bookId}`)
-      .then(response => response.json())
-      .then(data => {
-        if (!data || data.status === 'unknown') {
-          // Скрываем элемент, если нет активной обработки
-          if (statusVisible) {
-            processingStatusElement.style.display = 'none';
-            statusVisible = false;
-          }
-          clearInterval(checkInterval);
-          return;
-        }
-
-        // Если есть статус обработки, показываем элемент
-        if (!statusVisible) {
-          processingStatusElement.style.display = 'block';
-          statusVisible = true;
-        }
-
-        updateStatusDisplay(data);
-
-        // Если обработка завершена или произошла ошибка, останавливаем опрос
-        if (['success', 'error', 'timeout'].includes(data.status)) {
-          clearInterval(checkInterval);
-        }
-
-        // Увеличиваем счетчик попыток
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          clearInterval(checkInterval);
-          updateStatusDisplay({
-            status: 'error',
-            message: 'Status check timed out. The processing may still be running in the background.'
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error checking processing status:', error);
-        processingStatusElement.innerHTML = `
-          <div class="card-header">
-            <h5 class="mb-0">Word Processing Status</h5>
-          </div>
-          <div class="card-body">
-            <div class="alert alert-danger">
-              <i class="fas fa-exclamation-triangle"></i> Error checking status: ${error.message}
-            </div>
-          </div>
-        `;
-        // Останавливаем опрос после нескольких ошибок
-        if (retryCount > 5) {
-          clearInterval(checkInterval);
-        }
-      });
-  }
-
   function updateStatusDisplay(data) {
     let statusIcon, statusTitle, statusClass, statusContent;
 
@@ -118,26 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
           ${progressBar}
           ${wordsInfo}
           <small class="text-muted mt-2 d-block">Started at: ${formatDateTime(data.started_at)}</small>
-        `;
-        break;
-
-      case 'success':
-        statusIcon = 'fas fa-check-circle';
-        statusTitle = 'Word Processing Complete';
-        statusClass = 'success';
-        statusContent = `
-          <p>Processing completed successfully!</p>
-          <ul class="mt-2 mb-2">
-            <li>Total words: ${data.total_words ? formatNumber(data.total_words) : 'N/A'}</li>
-            <li>Unique words: ${data.unique_words ? formatNumber(data.unique_words) : 'N/A'}</li>
-            <li>Words processed: ${data.words_added ? formatNumber(data.words_added) : 'N/A'}</li>
-            <li>Processing time: ${data.elapsed_time ? formatTime(data.elapsed_time) : 'N/A'}</li>
-          </ul>
-          <div class="mt-2">
-            <button class="btn btn-sm btn-outline-primary" onclick="window.location.reload()">
-              <i class="fas fa-sync-alt"></i> Refresh page to see updated data
-            </button>
-          </div>
         `;
         break;
 

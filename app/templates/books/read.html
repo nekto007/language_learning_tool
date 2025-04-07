@@ -18,10 +18,10 @@
     </div>
 
     <!-- Book header with cover -->
-    <div class="book-header d-flex align-items-center mb-4">
+    <div class="book-header d-flex align-items-center mb-4" style="display: none">
         {% if book.cover_image %}
         <div class="book-cover-container me-3">
-            <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="book-cover-reading">
+            <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ _('Cover for') }} {{ book.title }}" class="book-cover-reading">
         </div>
         {% endif %}
         <div class="book-info-reading">
@@ -31,7 +31,7 @@
 
     <!-- Reading toolbar -->
     <div class="reading-toolbar">
-        <div class="d-flex align-items-center">
+        <div class="d-flex align-items-center flex-wrap">
             <div class="font-size-control">
                 <button class="font-size-btn" id="decrease-font" title="{{ _('Decrease font size') }}">
                     <i class="fas fa-minus"></i>
@@ -44,15 +44,19 @@
 
             <div class="btn-group ms-3">
                 <button id="font-serif" class="btn btn-sm btn-outline-secondary active" title="{{ _('Serif font') }}">
-                    Serif
+                    {{ _('Serif') }}
                 </button>
                 <button id="font-sans" class="btn btn-sm btn-outline-secondary" title="{{ _('Sans-serif font') }}">
-                    Sans
+                    {{ _('Sans') }}
                 </button>
             </div>
 
             <button id="toggle-dark-mode" class="btn btn-sm btn-outline-secondary ms-3" title="{{ _('Toggle dark mode') }}">
                 <i class="fas fa-moon"></i>
+            </button>
+
+            <button id="contents-btn" class="btn btn-sm btn-outline-secondary ms-3" data-bs-toggle="modal" data-bs-target="#contentsModal" title="{{ _('Table of contents') }}">
+                <i class="fas fa-list"></i> {{ _('Contents') }}
             </button>
         </div>
 
@@ -136,543 +140,36 @@
     </div>
 </div>
 
+<!-- Contents Modal -->
+<div class="modal fade" id="contentsModal" tabindex="-1" aria-labelledby="contentsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contentsModalLabel">{{ _('Table of Contents') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="contents-container">
+                    <!-- Table of contents will be generated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Audio Element (Hidden) -->
 <audio id="wordAudio" style="display: none;"></audio>
 {% endblock %}
 
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reader.css') }}">
+{% endblock %}
+
 {% block scripts %}
 {{ super() }}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Elements
-    const bookContent = document.getElementById('book-content');
-    const bookId = bookContent.getAttribute('data-book-id');
-    const savedPosition = parseInt(bookContent.getAttribute('data-position'));
-    const progressBar = document.getElementById('reading-progress');
-    const progressBarTop = document.getElementById('reading-progress-top');
-    const progressPercent = document.getElementById('progress-percent');
-    const saveButton = document.getElementById('save-position');
-    const statusMessage = document.getElementById('status-message');
-    const fontSizeValue = document.getElementById('font-size-value');
-    const increaseFontBtn = document.getElementById('increase-font');
-    const decreaseFontBtn = document.getElementById('decrease-font');
-    const toggleDarkModeBtn = document.getElementById('toggle-dark-mode');
-    const fontSerifBtn = document.getElementById('font-serif');
-    const fontSansBtn = document.getElementById('font-sans');
-    const addBookmarkBtn = document.getElementById('add-bookmark');
-    const bookmarksContainer = document.getElementById('bookmarks-container');
-    const noBookmarksMsg = document.getElementById('no-bookmarks');
-
-    // Settings
-    let currentFontSize = 18; // Default font size
-    let isDarkMode = false;
-    let bookmarks = JSON.parse(localStorage.getItem(`book_bookmarks_${bookId}`) || '[]');
-
-    // Process book content to make words interactive
-    processBookContent();
-
-    // Restore saved reading position
-    if (savedPosition > 0) {
-        restoreReadingPosition(savedPosition);
-    }
-
-    // Update progress indicators
-    updateProgressBar();
-
-    // Initialize bookmarks
-    updateBookmarksList();
-
-    // НОВАЯ ФУНКЦИЯ: Очистка текста от лишних тегов и классов
-    function sanitizeContent() {
-        // Получаем весь текст из контейнера
-        let content = bookContent.innerHTML;
-
-        // Удаляем классы и лишние атрибуты, но сохраняем теги абзацев и заголовков
-        content = content.replace(/class="[^"]*"/g, '');
-
-        // Заменяем отображаемый текст вида "Translation not available" на пустую строку
-        content = content.replace(/<div[^>]*>Translation not available<\/div>/g, '');
-
-        // Обновляем содержимое
-        bookContent.innerHTML = content;
-    }
-
-    function processBookContent() {
-        // Очистка HTML от лишних тегов
-        sanitizeContent();
-
-        // Получаем весь текст и оборачиваем слова в span
-        const paragraphs = bookContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-        paragraphs.forEach(paragraph => {
-            let content = paragraph.innerHTML;
-            // Заменяем английские слова на span с классом word
-            content = content.replace(/(\b[a-zA-Z]{2,}\b)/g, '<span class="word">$1</span>');
-            paragraph.innerHTML = content;
-        });
-
-        // Добавляем обработчики для слов
-        const words = document.querySelectorAll('.word');
-        words.forEach(word => {
-            word.addEventListener('mouseenter', showTranslation);
-            word.addEventListener('mouseleave', hideTranslation);
-        });
-
-        // Улучшаем форматирование текста
-        fixTextFormatting();
-
-        // Восстанавливаем настройки чтения
-        restoreReadingSettings();
-    }
-
-    // НОВАЯ ФУНКЦИЯ: Улучшение форматирования текста
-    function fixTextFormatting() {
-        // Добавляем стили для улучшения внешнего вида
-        const styleElement = document.createElement('style');
-        styleElement.textContent = `
-            #book-content p, #book-content h1, #book-content h2, #book-content h3, #book-content h4, #book-content h5, #book-content h6 {
-                white-space: normal !important;
-                word-spacing: normal !important;
-                text-align: justify;
-                line-height: 1.6;
-                margin-bottom: 1rem;
-            }
-
-            #book-content p {
-                text-indent: 1.5em;
-            }
-
-            #book-content .word {
-                display: inline;
-                cursor: pointer;
-                position: relative;
-                white-space: normal !important;
-                word-spacing: normal !important;
-            }
-
-            #book-content .word:hover {
-                background-color: rgba(78, 115, 223, 0.1);
-                border-radius: 3px;
-            }
-        `;
-        document.head.appendChild(styleElement);
-    }
-
-    // Font size controls
-    increaseFontBtn.addEventListener('click', function() {
-        if (currentFontSize < 32) { // Max font size
-            currentFontSize += 2;
-            bookContent.style.fontSize = currentFontSize + 'px';
-            fontSizeValue.textContent = currentFontSize + 'px';
-            saveReadingSettings();
-        }
-    });
-
-    decreaseFontBtn.addEventListener('click', function() {
-        if (currentFontSize > 12) { // Min font size
-            currentFontSize -= 2;
-            bookContent.style.fontSize = currentFontSize + 'px';
-            fontSizeValue.textContent = currentFontSize + 'px';
-            saveReadingSettings();
-        }
-    });
-
-    // Font family toggle
-    fontSerifBtn.addEventListener('click', function() {
-        bookContent.style.fontFamily = 'Georgia, serif';
-        fontSerifBtn.classList.add('active');
-        fontSansBtn.classList.remove('active');
-        saveReadingSettings();
-    });
-
-    fontSansBtn.addEventListener('click', function() {
-        bookContent.style.fontFamily = 'Nunito, sans-serif';
-        fontSansBtn.classList.add('active');
-        fontSerifBtn.classList.remove('active');
-        saveReadingSettings();
-    });
-
-    // Dark mode toggle
-    toggleDarkModeBtn.addEventListener('click', function() {
-        isDarkMode = !isDarkMode;
-        if (isDarkMode) {
-            bookContent.classList.add('dark-mode');
-            toggleDarkModeBtn.innerHTML = '<i class="fas fa-sun"></i>';
-        } else {
-            bookContent.classList.remove('dark-mode');
-            toggleDarkModeBtn.innerHTML = '<i class="fas fa-moon"></i>';
-        }
-        saveReadingSettings();
-    });
-
-    // Save position button
-    saveButton.addEventListener('click', function() {
-        saveReadingPosition();
-    });
-
-    // Bookmark functionality
-    addBookmarkBtn.addEventListener('click', function() {
-        const position = getCurrentPosition();
-        const context = getContextAtPosition(position);
-
-        // Show in modal
-        document.getElementById('bookmarkContext').textContent = context;
-
-        // Show modal
-        const bookmarkModal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
-        bookmarkModal.show();
-    });
-
-    // Save bookmark
-    document.getElementById('saveBookmarkBtn').addEventListener('click', function() {
-        const position = getCurrentPosition();
-        const name = document.getElementById('bookmarkName').value.trim() ||
-                     `{{ _('Position') }} ${Math.round((position / (document.body.scrollHeight - window.innerHeight)) * 100)}%`;
-        const context = getContextAtPosition(position);
-
-        // Add to bookmarks array
-        bookmarks.push({
-            name: name,
-            position: position,
-            context: context,
-            created: new Date().toISOString()
-        });
-
-        // Save to localStorage
-        localStorage.setItem(`book_bookmarks_${bookId}`, JSON.stringify(bookmarks));
-
-        // Close modal
-        bootstrap.Modal.getInstance(document.getElementById('bookmarkModal')).hide();
-
-        // Update bookmarks list
-        updateBookmarksList();
-
-        // Show success message
-        showStatusMessage(`{{ _('Bookmark added') }}: ${name}`, 'success');
-    });
-
-    // Auto-save position when scrolling stops
-    let scrollTimeout;
-    window.addEventListener('scroll', function() {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(function() {
-            saveReadingPosition(true); // true = silent save (no notification)
-            updateProgressBar();
-        }, 1000);
-    });
-
-    // ОБНОВЛЁННАЯ ФУНКЦИЯ: отображение перевода
-    function showTranslation(event) {
-        const word = event.target;
-        const wordText = word.textContent.toLowerCase();
-
-        // Удаляем существующие подсказки, если есть
-        const existingTooltips = word.querySelectorAll('.word-tooltip');
-        existingTooltips.forEach(tooltip => tooltip.remove());
-
-        // Создаем новую подсказку
-        const tooltip = document.createElement('div');
-        tooltip.className = 'word-tooltip';
-        tooltip.textContent = '{{ _("Loading...") }}';
-        word.appendChild(tooltip);
-
-        // Устанавливаем позицию подсказки
-        positionTooltip(tooltip, word);
-
-        // Отображаем подсказку
-        tooltip.style.display = 'block';
-
-        // Запрашиваем перевод
-        fetch(`/api/word-translation/${wordText}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.translation) {
-                    // Создаем индикатор статуса
-                    const statusDot = document.createElement('span');
-                    statusDot.className = `word-status status-${data.status || 0}`;
-
-                    // Обновляем содержимое подсказки
-                    tooltip.innerHTML = '';
-                    tooltip.appendChild(statusDot);
-                    tooltip.append(data.translation);
-
-                    // Добавляем кнопку "Add to learning" только если слово не изучается
-                    if (data.status === 0) {
-                        const addButton = document.createElement('span');
-                        addButton.className = 'add-to-learning';
-                        addButton.innerHTML = '<i class="fas fa-plus"></i> {{ _("Learn") }}';
-                        addButton.title = '{{ _("Add to learning queue") }}';
-                        addButton.dataset.wordId = data.id;
-
-                        addButton.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            addToLearning(data.id, wordText, this);
-                        });
-
-                        tooltip.appendChild(addButton);
-                    }
-                } else {
-                    tooltip.textContent = '{{ _("Translation not available") }}';
-                }
-
-                // Переустанавливаем позицию после обновления содержимого
-                positionTooltip(tooltip, word);
-            })
-            .catch(error => {
-                tooltip.textContent = '{{ _("Error loading translation") }}';
-            });
-    }
-
-    // НОВАЯ ФУНКЦИЯ: позиционирование подсказки
-    function positionTooltip(tooltip, word) {
-        // Получаем размеры и позицию слова
-        const wordRect = word.getBoundingClientRect();
-
-        // Устанавливаем начальное положение подсказки над словом
-        tooltip.style.position = 'absolute';
-        tooltip.style.left = '50%';
-        tooltip.style.transform = 'translateX(-50%)';
-        tooltip.style.bottom = '100%';
-        tooltip.style.marginBottom = '5px';
-
-        // Проверяем, выходит ли подсказка за пределы экрана по ширине
-        setTimeout(() => {
-            const tooltipRect = tooltip.getBoundingClientRect();
-
-            // Проверка на выход за левый край экрана
-            if (tooltipRect.left < 0) {
-                tooltip.style.left = '0';
-                tooltip.style.transform = 'translateX(0)';
-            }
-
-            // Проверка на выход за правый край экрана
-            if (tooltipRect.right > window.innerWidth) {
-                tooltip.style.left = 'auto';
-                tooltip.style.right = '0';
-                tooltip.style.transform = 'translateX(0)';
-            }
-        }, 0);
-    }
-
-    function hideTranslation(event) {
-        const tooltip = event.target.querySelector('.word-tooltip');
-        if (tooltip) {
-            tooltip.remove();
-        }
-    }
-
-    function addToLearning(wordId, wordText, buttonElement) {
-        fetch('/api/add-to-learning', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ word_id: wordId }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showStatusMessage(data.message, 'success');
-
-                // Update status indicator in tooltip
-                if (data.new_status) {
-                    const tooltipElement = buttonElement.parentNode;
-                    const statusDot = tooltipElement.querySelector('.word-status');
-                    if (statusDot) {
-                        statusDot.className = `word-status status-${data.new_status}`;
-                    }
-
-                    // Remove "Learn" button since word is now in queue
-                    buttonElement.remove();
-                }
-            } else {
-                showStatusMessage(data.error, 'error');
-            }
-        })
-        .catch(error => {
-            showStatusMessage('{{ _("Error adding word to learning queue") }}', 'error');
-        });
-    }
-
-    function getCurrentPosition() {
-        // Get current scroll position
-        return window.scrollY;
-    }
-
-    function restoreReadingPosition(position) {
-        // Scroll to saved position
-        window.scrollTo(0, position);
-    }
-
-    function saveReadingPosition(silent = false) {
-        const position = getCurrentPosition();
-
-        fetch('/api/save-progress', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                book_id: bookId,
-                position: position
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && !silent) {
-                showStatusMessage('{{ _("Progress saved") }}', 'success');
-            }
-            updateProgressBar();
-        })
-        .catch(error => {
-            if (!silent) {
-                showStatusMessage('{{ _("Error saving progress") }}', 'error');
-            }
-        });
-    }
-
-    function saveReadingSettings() {
-        // Save font size, font family and dark mode preference to localStorage
-        const settings = {
-            fontSize: currentFontSize,
-            fontFamily: bookContent.style.fontFamily || 'Georgia, serif',
-            darkMode: isDarkMode
-        };
-        localStorage.setItem(`book_settings_${bookId}`, JSON.stringify(settings));
-    }
-
-    function restoreReadingSettings() {
-        // Restore settings from localStorage if available
-        const savedSettings = localStorage.getItem(`book_settings_${bookId}`);
-        if (savedSettings) {
-            try {
-                const settings = JSON.parse(savedSettings);
-
-                // Restore font size
-                if (settings.fontSize) {
-                    currentFontSize = settings.fontSize;
-                    bookContent.style.fontSize = currentFontSize + 'px';
-                    fontSizeValue.textContent = currentFontSize + 'px';
-                }
-
-                // Restore font family
-                if (settings.fontFamily) {
-                    bookContent.style.fontFamily = settings.fontFamily;
-                    if (settings.fontFamily.includes('Nunito')) {
-                        fontSansBtn.classList.add('active');
-                        fontSerifBtn.classList.remove('active');
-                    } else {
-                        fontSerifBtn.classList.add('active');
-                        fontSansBtn.classList.remove('active');
-                    }
-                }
-
-                // Restore dark mode
-                if (settings.darkMode) {
-                    isDarkMode = settings.darkMode;
-                    if (isDarkMode) {
-                        bookContent.classList.add('dark-mode');
-                        toggleDarkModeBtn.innerHTML = '<i class="fas fa-sun"></i>';
-                    }
-                }
-            } catch (e) {
-                console.error("Error restoring reading settings:", e);
-            }
-        }
-    }
-
-    function updateProgressBar() {
-        const position = getCurrentPosition();
-        const totalHeight = document.body.scrollHeight - window.innerHeight;
-        const percentage = (position / totalHeight) * 100;
-
-        progressBar.style.width = percentage + '%';
-        progressBarTop.style.width = percentage + '%';
-
-        // Update progress information
-        progressPercent.textContent = Math.round(percentage) + '%';
-    }
-
-    function showStatusMessage(message, type) {
-        statusMessage.textContent = message;
-        statusMessage.className = 'ms-3 text-' + (type === 'error' ? 'danger' : 'success');
-
-        // Remove message after 3 seconds
-        setTimeout(() => {
-            statusMessage.textContent = '';
-        }, 3000);
-    }
-
-    function getContextAtPosition(position) {
-        // Get the element near the current position
-        let elements = document.elementsFromPoint(window.innerWidth / 2, 200);
-        let contextElement = null;
-
-        // Find the first paragraph or heading element
-        for (let element of elements) {
-            if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(element.tagName)) {
-                contextElement = element;
-                break;
-            }
-        }
-
-        // If no paragraph or heading found, use the book content element
-        if (!contextElement) {
-            contextElement = bookContent;
-        }
-
-        // Get text content without HTML tags
-        let context = contextElement.textContent.trim();
-
-        // Limit length
-        if (context.length > 100) {
-            context = context.substring(0, 100) + '...';
-        }
-
-        return context;
-    }
-
-    function updateBookmarksList() {
-        // Clear existing bookmarks
-        while (bookmarksContainer.firstChild) {
-            bookmarksContainer.removeChild(bookmarksContainer.firstChild);
-        }
-
-        // Show message if no bookmarks
-        if (bookmarks.length === 0) {
-            bookmarksContainer.appendChild(noBookmarksMsg);
-            return;
-        }
-
-        // Add bookmarks to list
-        bookmarks.forEach((bookmark, index) => {
-            const bookmarkItem = document.createElement('li');
-            bookmarkItem.className = 'bookmark-item';
-            bookmarkItem.innerHTML = `
-                <span class="bookmark-text" title="${bookmark.context}">${bookmark.name}</span>
-                <span class="remove-bookmark" data-index="${index}"><i class="fas fa-times"></i></span>
-            `;
-
-            // Add click handler to bookmark
-            bookmarkItem.addEventListener('click', function(e) {
-                if (!e.target.closest('.remove-bookmark')) {
-                    restoreReadingPosition(bookmark.position);
-                }
-            });
-
-            bookmarksContainer.appendChild(bookmarkItem);
-        });
-
-        // Add event listeners for removing bookmarks
-        document.querySelectorAll('.remove-bookmark').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const index = parseInt(this.dataset.index);
-                bookmarks.splice(index, 1);
-                localStorage.setItem(`book_bookmarks_${bookId}`, JSON.stringify(bookmarks));
-                updateBookmarksList();
-            });
-        });
-    }
-});
-</script>
+<script src="{{ url_for('static', filename='js/reader.js') }}"></script>
 {% endblock %}

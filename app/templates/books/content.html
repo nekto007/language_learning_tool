@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Book Content: {{ book.title }}{% endblock %}
+{% block title %}{{ _('Book Content') }}: {{ book.title }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -8,7 +8,7 @@
         <div class="col-md-10 offset-md-1">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="mb-0">Edit Book Content: {{ book.title }}</h3>
+                    <h3 class="mb-0">{{ _('Edit Book Content') }}: {{ book.title }}</h3>
                 </div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
@@ -17,7 +17,7 @@
                         <div class="mb-3">
                             {{ form.file.label(class="form-label") }}
                             {{ form.file(class="form-control") }}
-                            <small class="form-text text-muted">Upload a text file with the book content. The file will overwrite any existing content.</small>
+                            <small class="form-text text-muted">{{ _('Upload a text file with the book content. The file will overwrite any existing content.') }}</small>
                             {% if form.file.errors %}
                                 <div class="text-danger">
                                     {% for error in form.file.errors %}
@@ -30,7 +30,7 @@
                         <div class="mb-3">
                             {{ form.content.label(class="form-label") }}
                             {{ form.content(class="form-control", rows=20) }}
-                            <small class="form-text text-muted">Paste the book content here. If you upload a file, this field will be filled with its content.</small>
+                            <small class="form-text text-muted">{{ _('Paste the book content here. If you upload a file, this field will be filled with its content.') }}</small>
                             {% if form.content.errors %}
                                 <div class="text-danger">
                                     {% for error in form.content.errors %}
@@ -43,10 +43,10 @@
                         <div class="d-flex justify-content-between">
                             <div>
                                 {{ form.submit(class="btn btn-primary") }}
-                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-secondary">Cancel</a>
+                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-secondary">{{ _('Cancel') }}</a>
                             </div>
                             <div>
-                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-outline-primary">Preview</a>
+                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-outline-primary">{{ _('Preview') }}</a>
                             </div>
                         </div>
                     </form>

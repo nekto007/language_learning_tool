@@ -27,3 +27,6 @@ ebooklib==0.18.0        # Для работы с EPUB файлами
 PyPDF2==3.0.1           # Для работы с PDF файлами
 python-docx==1.1.2      # Для работы с DOCX файлами
 lxml==5.3.1             # Требуется для ebooklib и beautifulsoup4
+pymorphy2==0.9.1
+pymorphy2-dicts-ru==2.4.417127.4579844
+setuptools==78.1.0

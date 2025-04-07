@@ -1,8 +1,10 @@
 # app/books/routes.py
 
+import inspect
 import logging
 import os
 import re
+import sys
 import threading
 import uuid
 from datetime import datetime
@@ -20,12 +22,18 @@ from wtforms.validators import DataRequired, Length, Optional
 from app.books.forms import BookContentForm
 from app.books.models import Book, ReadingProgress
 from app.books.parsers import process_uploaded_book
+from app.books.processors import enqueue_book_processing, process_book_words
 from app.utils.db import db, user_word_status, word_book_link
 from app.utils.decorators import admin_required
 from app.words.models import CollectionWords
-from app.books.processors import enqueue_book_processing, get_processing_status, process_book_words
 
 books = Blueprint('books', __name__)
+
+project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_dir not in sys.path:
+    sys.path.append(project_dir)
+
+morph = None
 
 logger = logging.getLogger(__name__)
 
@@ -468,29 +476,497 @@ def save_progress():
     return jsonify({'success': True})
 
 
+def get_word_base_form(word):
+    """
+    Simple function to get the base form of a word without using NLTK
+    Returns a tuple (base_form, form_type) or (None, None) if not found
+    """
+    word = word.lower().strip()
+
+    # Dictionary of irregular verbs (past -> base form)
+    irregular_verbs = {
+        # Past forms -> base form
+        'went': 'go', 'saw': 'see', 'ate': 'eat', 'drank': 'drink',
+        'spoke': 'speak', 'drove': 'drive', 'flew': 'fly', 'grew': 'grow',
+        'knew': 'know', 'ran': 'run', 'came': 'come', 'took': 'take',
+        'gave': 'give', 'found': 'find', 'thought': 'think', 'told': 'tell',
+        'became': 'become', 'felt': 'feel', 'stood': 'stand', 'heard': 'hear',
+        'brought': 'bring', 'bought': 'buy', 'caught': 'catch', 'taught': 'teach',
+        'sold': 'sell', 'built': 'build', 'sent': 'send', 'spent': 'spend',
+        'fell': 'fall', 'met': 'meet', 'paid': 'pay', 'said': 'say',
+        'understood': 'understand', 'kept': 'keep', 'left': 'leave',
+
+        # Past participle forms -> base form
+        'gone': 'go', 'seen': 'see', 'eaten': 'eat', 'drunk': 'drink',
+        'spoken': 'speak', 'driven': 'drive', 'flown': 'fly', 'grown': 'grow',
+        'known': 'know', 'run': 'run', 'come': 'come', 'taken': 'take',
+        'given': 'give', 'found': 'find', 'thought': 'think', 'told': 'tell',
+        'become': 'become', 'felt': 'feel', 'stood': 'stand', 'heard': 'hear',
+        'brought': 'bring', 'bought': 'buy', 'caught': 'catch', 'taught': 'teach',
+        'sold': 'sell', 'built': 'build', 'sent': 'send', 'spent': 'spend',
+        'fallen': 'fall', 'met': 'meet', 'paid': 'pay', 'said': 'say',
+        'understood': 'understand', 'kept': 'keep', 'left': 'leave',
+    }
+
+    # Check for irregular verbs
+    if word in irregular_verbs:
+        return irregular_verbs[word], 'past_tense'
+
+    # Check for regular patterns:
+
+    # 1. Check for -ing form
+    if word.endswith('ing') and len(word) > 4:
+        # Try removing 'ing'
+        base_form = word[:-3]
+        # Try with 'e' (writing -> write)
+        base_form_e = base_form + 'e'
+        # Try with doubled consonant (running -> run)
+        base_form_single = base_form[:-1] if len(base_form) >= 2 and base_form[-1] == base_form[-2] else None
+
+        return (base_form, 'continuous') if base_form else (None, None)
+
+    # 2. Check for -ed form
+    if word.endswith('ed') and len(word) > 3:
+        # Try removing 'ed'
+        base_form = word[:-2]
+        # Try with 'e' (liked -> like)
+        base_form_e = word[:-1]  # Just remove 'd'
+        # Try with doubled consonant (stopped -> stop)
+        base_form_single = base_form[:-1] if len(base_form) >= 2 and base_form[-1] == base_form[-2] else None
+
+        return (base_form, 'past_tense') if base_form else (None, None)
+
+    # 3. Check for plural nouns
+    if word.endswith('s') and not word.endswith('ss') and len(word) > 2:
+        # Regular plural (cars -> car)
+        base_form = word[:-1]
+
+        # Check for -es (boxes -> box)
+        if word.endswith('es'):
+            base_form_es = word[:-2]
+            # Special case for -ies (flies -> fly)
+            if word.endswith('ies'):
+                base_form_ies = word[:-3] + 'y'
+                return base_form_ies, 'plural'
+
+            return base_form_es, 'plural'
+
+        return base_form, 'plural'
+
+    # 4. Check for adjective comparatives and superlatives
+    if word.endswith('er') and len(word) > 3:
+        # Comparative (bigger -> big)
+        base_form = word[:-2]
+        # Check for doubled consonant
+        if len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+            base_form = base_form[:-1]
+        # Special case for -ier (easier -> easy)
+        if word.endswith('ier'):
+            base_form = word[:-3] + 'y'
+
+        return base_form, 'comparative'
+
+    if word.endswith('est') and len(word) > 4:
+        # Superlative (biggest -> big)
+        base_form = word[:-3]
+        # Check for doubled consonant
+        if len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+            base_form = base_form[:-1]
+        # Special case for -iest (easiest -> easy)
+        if word.endswith('iest'):
+            base_form = word[:-4] + 'y'
+
+        return base_form, 'superlative'
+
+    # No transformation found
+    return None, None
+
+
+def patch_inspect_module():
+    """
+    Добавляет обратную совместимость с inspect.getargspec для pymorphy2
+    """
+    try:
+        # Проверяем, есть ли getargspec в модуле inspect
+        if not hasattr(inspect, 'getargspec'):
+            logger.info("Применяем патч для inspect.getargspec")
+
+            # Создаем совместимую версию getargspec на основе getfullargspec
+            def getargspec_compat(func):
+                full = inspect.getfullargspec(func)
+                return inspect.ArgSpec(
+                    args=full.args,
+                    varargs=full.varargs,
+                    keywords=full.varkw,
+                    defaults=full.defaults
+                )
+
+            # Добавляем в модуль inspect
+            inspect.getargspec = getargspec_compat
+
+            # Создаем класс для совместимости
+            if not hasattr(inspect, 'ArgSpec'):
+                inspect.ArgSpec = collections.namedtuple(
+                    'ArgSpec', ['args', 'varargs', 'keywords', 'defaults']
+                )
+
+            logger.info("Патч для inspect.getargspec успешно применен")
+            return True
+        else:
+            logger.info("inspect.getargspec уже присутствует")
+            return True
+    except Exception as e:
+        logger.error(f"Ошибка при применении патча inspect.getargspec: {str(e)}")
+        return False
+
+
+# Патчим модуль inspect для совместимости с pymorphy2
+if sys.version_info >= (3, 11):
+    try:
+        import collections
+
+        patch_result = patch_inspect_module()
+        logger.info(f"Результат патча inspect: {patch_result}")
+    except Exception as e:
+        logger.error(f"Ошибка при попытке применить патч: {str(e)}")
+
+# Глобальная переменная для хранения анализатора
+morph = None
+
+
+def setup_morphology():
+    """
+    Настройка инструментов морфологического анализа с обходом проблем совместимости
+    """
+    global morph
+
+    try:
+        # Проверяем версию Python
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        logger.info(f"Версия Python: {python_version}")
+
+        # Пробуем импортировать pymorphy2
+        import pymorphy2
+        logger.info(f"Pymorphy2 версия: {pymorphy2.__version__}")
+
+        # Пробуем создать анализатор
+        try:
+            morph = pymorphy2.MorphAnalyzer()
+            logger.info("Pymorphy2 инициализирован успешно")
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка при создании MorphAnalyzer: {str(e)}")
+            logger.error("Попробуем использовать нашу реализацию без pymorphy2")
+            return False
+
+    except ImportError as e:
+        logger.warning(f"Ошибка импорта pymorphy2: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"Неизвестная ошибка при инициализации pymorphy2: {str(e)}")
+        return False
+
+
+# Словарь для хранения английских неправильных глаголов
+irregular_verbs = {
+    # Past forms -> base form
+    'went': 'go', 'saw': 'see', 'ate': 'eat', 'drank': 'drink',
+    'spoke': 'speak', 'drove': 'drive', 'flew': 'fly', 'grew': 'grow',
+    'knew': 'know', 'ran': 'run', 'came': 'come', 'took': 'take',
+    'gave': 'give', 'found': 'find', 'thought': 'think', 'told': 'tell',
+    'became': 'become', 'felt': 'feel', 'stood': 'stand', 'heard': 'hear',
+    'brought': 'bring', 'bought': 'buy', 'caught': 'catch', 'taught': 'teach',
+    # Past participle forms -> base form
+    'gone': 'go', 'seen': 'see', 'eaten': 'eat', 'drunk': 'drink',
+    'spoken': 'speak', 'driven': 'drive', 'flown': 'fly', 'grown': 'grow',
+    'known': 'know', 'run': 'run', 'come': 'come', 'taken': 'take',
+    'given': 'give', 'found': 'find', 'thought': 'think', 'told': 'tell'
+}
+
+# Запускаем инициализацию при импорте модуля
+pymorphy2_available = setup_morphology()
+logger.info(f"Pymorphy2 доступен: {pymorphy2_available}")
+# Если pymorphy2 недоступен, предупреждаем пользователя
+if not pymorphy2_available:
+    logger.warning("Работа без pymorphy2: анализ русской морфологии будет ограничен")
+
+
 @books.route('/api/word-translation/<word>')
 @login_required
 def get_word_translation(word):
     """
-    API for getting word translation
+    API для получения перевода слова с определением его формы
+    Работает полностью без использования pymorphy2, но с продвинутым
+    анализом форм слов на основе правил
     """
+    # Логгируем запрос для отладки
+    logger.debug(f"Запрос перевода слова: {word}")
+
     word = word.lower().strip()
+    original_word = word
+
+    # Сначала пробуем найти точное совпадение в базе
     word_entry = CollectionWords.query.filter_by(english_word=word).first()
 
-    if word_entry:
-        # Get word status for the user
-        status = current_user.get_word_status(word_entry.id)
+    # Отслеживаем, используем ли мы другую форму слова
+    word_form_info = None
 
-        return jsonify({
-            'word': word,
-            'translation': word_entry.russian_word,
+    # Если слово не найдено, пробуем найти его базовую форму
+    if not word_entry:
+        logger.debug(f"Слово '{word}' не найдено в базе, пробуем определить форму")
+
+        # Проверяем на неправильные глаголы
+        if word in irregular_verbs:
+            base_form = irregular_verbs[word]
+            logger.debug(f"Найден неправильный глагол: {word} -> {base_form}")
+            word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+            if word_entry:
+                word_form_info = {'type': 'past_tense', 'base_form': base_form}
+
+        # Если всё ещё не нашли, используем морфологические правила
+        if not word_entry:
+            logger.debug(f"Используем морфологические правила для '{word}'")
+
+            # 1. Проверяем на формы -ing
+            if word.endswith('ing') and len(word) > 4:
+                # Пробуем удалить 'ing'
+                base_form = word[:-3]
+                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+
+                # Пробуем с 'e' (writing -> write)
+                if not word_entry:
+                    base_form_e = base_form + 'e'
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_e).first()
+                    if word_entry:
+                        base_form = base_form_e
+
+                # Пробуем с двойными согласными (running -> run)
+                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+                    base_form_single = base_form[:-1]
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
+                    if word_entry:
+                        base_form = base_form_single
+
+                if word_entry:
+                    logger.debug(f"Нашли -ing форму: {word} -> {base_form}")
+                    word_form_info = {'type': 'continuous', 'base_form': base_form}
+
+            # 2. Проверяем на формы -ed
+            if not word_entry and word.endswith('ed') and len(word) > 3:
+                # Пробуем удалить 'ed'
+                base_form = word[:-2]
+                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+
+                # Пробуем с 'e' (liked -> like)
+                if not word_entry:
+                    base_form_e = word[:-1]  # Убираем только 'd'
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_e).first()
+                    if word_entry:
+                        base_form = base_form_e
+
+                # Пробуем с двойными согласными (stopped -> stop)
+                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+                    base_form_single = base_form[:-1]
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
+                    if word_entry:
+                        base_form = base_form_single
+
+                if word_entry:
+                    logger.debug(f"Нашли -ed форму: {word} -> {base_form}")
+                    word_form_info = {'type': 'past_tense', 'base_form': base_form}
+
+            # 3. Проверяем на множественное число
+            if not word_entry and word.endswith('s') and not word.endswith('ss') and len(word) > 2:
+                # Регулярное множественное число (cars -> car)
+                base_form = word[:-1]
+                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+
+                # Проверяем на -es (boxes -> box)
+                if not word_entry and word.endswith('es'):
+                    base_form_es = word[:-2]
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_es).first()
+                    if word_entry:
+                        base_form = base_form_es
+
+                # Проверяем на -ies (flies -> fly)
+                if not word_entry and word.endswith('ies'):
+                    base_form_ies = word[:-3] + 'y'
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_ies).first()
+                    if word_entry:
+                        base_form = base_form_ies
+
+                if word_entry:
+                    logger.debug(f"Нашли множественное число: {word} -> {base_form}")
+                    word_form_info = {'type': 'plural', 'base_form': base_form}
+
+            # 4. Проверяем на сравнительную и превосходную степени прилагательных
+            if not word_entry and word.endswith('er') and len(word) > 3:
+                # Сравнительная степень (bigger -> big)
+                base_form = word[:-2]
+                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+
+                # Проверяем на двойную согласную
+                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+                    base_form_single = base_form[:-1]
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
+                    if word_entry:
+                        base_form = base_form_single
+
+                # Проверяем на -ier (easier -> easy)
+                if not word_entry and word.endswith('ier'):
+                    base_form_y = word[:-3] + 'y'
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_y).first()
+                    if word_entry:
+                        base_form = base_form_y
+
+                if word_entry:
+                    logger.debug(f"Нашли сравнительную степень: {word} -> {base_form}")
+                    word_form_info = {'type': 'comparative', 'base_form': base_form}
+
+            if not word_entry and word.endswith('est') and len(word) > 4:
+                # Превосходная степень (biggest -> big)
+                base_form = word[:-3]
+                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+
+                # Проверяем на двойную согласную
+                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+                    base_form_single = base_form[:-1]
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
+                    if word_entry:
+                        base_form = base_form_single
+
+                # Проверяем на -iest (easiest -> easy)
+                if not word_entry and word.endswith('iest'):
+                    base_form_y = word[:-4] + 'y'
+                    word_entry = CollectionWords.query.filter_by(english_word=base_form_y).first()
+                    if word_entry:
+                        base_form = base_form_y
+
+                if word_entry:
+                    logger.debug(f"Нашли превосходную степень: {word} -> {base_form}")
+                    word_form_info = {'type': 'superlative', 'base_form': base_form}
+
+    # Возвращаем перевод с дополнительной информацией о форме слова, если она есть
+    if word_entry:
+        # Получаем статус слова для пользователя
+        status = current_user.get_word_status(word_entry.id)
+        russian_translation = word_entry.russian_word
+
+        # Добавляем продвинутые правила для русских слов без использования pymorphy2
+        translation_variants = []
+
+        # Пытаемся создать формы для русских слов на основе расширенных правил
+        if russian_translation:
+            # Разбиваем перевод на отдельные слова (если есть несколько через запятую)
+            rus_words = [w.strip() for w in russian_translation.split(',')]
+
+            for rus_word in rus_words:
+                if not rus_word or len(rus_word) < 3:
+                    continue  # Пропускаем слишком короткие слова
+
+                # Используем правила для существительных
+                if rus_word.endswith('а'):
+                    # Женский род, первое склонение
+                    if len(translation_variants) < 3:
+                        plural = rus_word[:-1] + 'ы'  # стена -> стены
+                        if rus_word[-2] in 'гкхжшщч':
+                            plural = rus_word[:-1] + 'и'  # книга -> книги
+                        translation_variants.append(f"{plural} (мн.ч.)")
+
+                elif rus_word.endswith('я'):
+                    # Женский род, первое склонение с мягким знаком
+                    if len(translation_variants) < 3:
+                        plural = rus_word[:-1] + 'и'  # неделя -> недели
+                        translation_variants.append(f"{plural} (мн.ч.)")
+
+                elif rus_word.endswith('ь'):
+                    # Мужской или женский род, третье склонение
+                    if len(translation_variants) < 3:
+                        plural = rus_word[:-1] + 'и'  # дверь -> двери
+                        translation_variants.append(f"{plural} (мн.ч.)")
+
+                elif rus_word.endswith('й'):
+                    # Мужской род с й на конце
+                    if len(translation_variants) < 3:
+                        plural = rus_word[:-1] + 'и'  # музей -> музеи
+                        translation_variants.append(f"{plural} (мн.ч.)")
+
+                elif rus_word.endswith('о') or rus_word.endswith('е'):
+                    # Средний род
+                    if len(translation_variants) < 3:
+                        if rus_word.endswith('о'):
+                            plural = rus_word[:-1] + 'а'  # окно -> окна
+                        else:
+                            plural = rus_word[:-1] + 'я'  # поле -> поля
+                        translation_variants.append(f"{plural} (мн.ч.)")
+
+                # Добавляем правила для глаголов
+                elif rus_word.endswith('ть'):
+                    # Это может быть глагол в инфинитиве
+                    if len(translation_variants) < 3:
+                        # Прошедшее время, мужской род
+                        past_m = rus_word[:-2] + 'л'  # делать -> делал
+                        translation_variants.append(f"{past_m} (прош. м.р.)")
+
+                        # Настоящее время, 1-е лицо ед. число
+                        if rus_word.endswith('ать'):
+                            pres_1 = rus_word[:-3] + 'аю'  # делать -> делаю
+                            translation_variants.append(f"{pres_1} (наст.)")
+                        elif rus_word.endswith('ять'):
+                            pres_1 = rus_word[:-3] + 'яю'  # гулять -> гуляю
+                            translation_variants.append(f"{pres_1} (наст.)")
+                        elif rus_word.endswith('еть'):
+                            pres_1 = rus_word[:-3] + 'ею'  # болеть -> болею
+                            translation_variants.append(f"{pres_1} (наст.)")
+                        elif rus_word.endswith('ить'):
+                            pres_1 = rus_word[:-3] + 'лю'  # любить -> люблю
+                            translation_variants.append(f"{pres_1} (наст.)")
+
+                # Ограничиваем количество вариантов до 3
+                if len(translation_variants) >= 3:
+                    break
+
+        # Определяем текст для отображения информации о форме
+        form_text = None
+        if word_form_info:
+            # Форматируем информацию о форме для отображения
+            form_type = word_form_info['type']
+            if form_type == 'past_tense':
+                form_text = 'прошедшее время от'
+            elif form_type == 'verb_form':
+                form_text = 'форма глагола'
+            elif form_type == 'plural':
+                form_text = 'множественное число от'
+            elif form_type == 'comparative':
+                form_text = 'сравнительная степень от'
+            elif form_type == 'superlative':
+                form_text = 'превосходная степень от'
+            elif form_type == 'continuous':
+                form_text = 'длительная форма от'
+
+        # Формируем JSON-ответ
+        response = {
+            'word': original_word,
+            'translation': russian_translation,
             'in_dictionary': True,
             'id': word_entry.id,
-            'status': status
-        })
+            'status': status,
+            'is_form': word_form_info is not None,
+            'form_text': form_text,
+            'base_form': word_form_info['base_form'] if word_form_info else None,
+        }
+
+        # Добавляем варианты перевода, если они есть
+        if translation_variants:
+            response['translation_variants'] = translation_variants
+
+        # Логируем успешный перевод
+        logger.debug(f"Перевод найден: {response}")
+        return jsonify(response)
     else:
+        logger.debug(f"Перевод не найден для слова: {original_word}")
         return jsonify({
-            'word': word,
+            'word': original_word,
             'translation': None,
             'in_dictionary': False
         })
@@ -539,15 +1015,37 @@ def book_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
-    # Получаем параметры сортировки
+    # Get sorting parameters
     sort_by = request.args.get('sort', 'title')
     sort_order = request.args.get('order', 'asc')
 
-    # Строим базовый запрос к книгам
-    # Важно! Удаляем любую жестко закодированную сортировку
+    # Get filter parameters
+    search_query = request.args.get('search', '')
+    level_filter = request.args.get('level', '')
+    letter_filter = request.args.get('letter', '')
+
+    # Build base query
     query = db.select(Book)
 
-    # Применяем сортировку в зависимости от параметров
+    # Apply filters
+    if search_query:
+        search_term = f"%{search_query}%"
+        # Search in both title and author
+        query = query.where(
+            db.or_(
+                Book.title.ilike(search_term),
+                Book.author.ilike(search_term)
+            )
+        )
+
+    if level_filter:
+        query = query.where(Book.level == level_filter)
+
+    if letter_filter:
+        # Filter by first letter of title
+        query = query.where(Book.title.ilike(f"{letter_filter}%"))
+
+    # Apply sorting
     if sort_by == 'title':
         query = query.order_by(Book.title.desc() if sort_order == 'desc' else Book.title)
     elif sort_by == 'author':
@@ -557,12 +1055,12 @@ def book_list():
     elif sort_by == 'unique_words':
         query = query.order_by(Book.unique_words.desc() if sort_order == 'desc' else Book.unique_words)
     else:
-        # Применяем сортировку по умолчанию, если параметр неизвестен
+        # Default sorting
         query = query.order_by(Book.title)
         sort_by = 'title'
         sort_order = 'asc'
 
-    # Выполняем пагинированный запрос
+    # Execute paginated query
     pagination = db.paginate(
         query,
         page=page,
@@ -782,8 +1280,21 @@ def book_words(book_id):
 
     # Get word statuses
     word_statuses = {}
-    for word, _ in book_words:
+
+    # Fix: Handle different possible data structures returned by pagination
+    for item in book_words:
+        if isinstance(item, tuple) and len(item) >= 2:
+            # If it's a tuple (word, frequency), use the word from first position
+            word = item[0]
+        else:
+            # If it's just a CollectionWords object
+            word = item
+
+        # Add the word status to our dictionary
         word_statuses[word.id] = current_user.get_word_status(word.id)
+
+    # At this point, we have the data needed for the template
+    # No modification to book_words is necessary because we'll handle the structure in the template
 
     return render_template(
         'books/words.html',

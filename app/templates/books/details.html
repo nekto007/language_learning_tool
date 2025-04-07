@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ book.title }} - English Learning App{% endblock %}
+{% block title %}{{ book.title }} - {{ _('English Learning App') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-8">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}">Books</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}">{{ _('Books') }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">{{ book.title }}</li>
             </ol>
         </nav>
@@ -24,18 +24,18 @@
             {% endif %}
         </div>
 
-        <p class="text-muted">Added on {{ book.scrape_date.strftime('%B %d, %Y') if book.scrape_date else 'N/A' }}</p>
+        <p class="text-muted">{{ _('Added on') }} {{ book.scrape_date.strftime('%B %d, %Y') if book.scrape_date else _('N/A') }}</p>
     </div>
     <div class="col-md-4 text-end">
         <div class="btn-group">
             <form action="{{ url_for('books.add_book_to_queue', book_id=book.id) }}" method="POST">
-                <button type="submit" class="btn btn-primary">Add New Words to Queue</button>
+                <button type="submit" class="btn btn-primary">{{ _('Add New Words to Queue') }}</button>
             </form>
 
             <!-- Edit Book Info button for admins -->
             {% if current_user.is_authenticated and current_user.is_admin %}
-            <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Content</a>
-            <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Info</a>
+            <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">{{ _('Edit Book Content') }}</a>
+            <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-outline-secondary">{{ _('Edit Book Info') }}</a>
             {% endif %}
         </div>
     </div>
@@ -47,18 +47,18 @@
         <div class="card mb-4">
             <div class="card-body text-center">
                 {% if book.cover_image %}
-                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-fluid book-cover">
+                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ _('Cover for') }} {{ book.title }}" class="img-fluid book-cover">
                 {% else %}
                 <div class="no-cover-large">
                     <i class="fas fa-book fa-4x mb-3"></i>
-                    <p>No cover available</p>
+                    <p>{{ _('No cover available') }}</p>
                 </div>
                 {% endif %}
 
                 <!-- Cover Upload Form - Only visible to admins -->
                 {% if current_user.is_authenticated and current_user.is_admin %}
                 <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-bs-toggle="modal" data-bs-target="#coverUploadModal">
-                    {% if book.cover_image %}Change Cover{% else %}Add Cover{% endif %}
+                    {% if book.cover_image %}{{ _('Change Cover') }}{% else %}{{ _('Add Cover') }}{% endif %}
                 </button>
                 {% endif %}
             </div>
@@ -67,24 +67,24 @@
         <!-- Book Statistics -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Book Statistics</h5>
+                <h5 class="mb-0">{{ _('Book Statistics') }}</h5>
             </div>
             <div class="card-body">
                 <!-- Book metadata -->
                 <div class="mb-3">
                     {% if book.author or book.level %}
-                        <h6 class="mb-2">Book Information</h6>
+                        <h6 class="mb-2">{{ _('Book Information') }}</h6>
                         <ul class="list-group mb-3">
                             {% if book.author %}
                             <li class="list-group-item d-flex justify-content-between">
-                                <span>Author</span>
+                                <span>{{ _('Author') }}</span>
                                 <span>{{ book.author }}</span>
                             </li>
                             {% endif %}
 
                             {% if book.level %}
                             <li class="list-group-item d-flex justify-content-between">
-                                <span>Level</span>
+                                <span>{{ _('Level') }}</span>
                                 <span class="badge bg-primary">{{ book.level }}</span>
                             </li>
                             {% endif %}
@@ -95,19 +95,19 @@
                 <div class="row">
                     <div class="col-6 mb-3">
                         <div class="stat-card p-3 bg-light rounded">
-                            <h6 class="card-title">Total Words</h6>
+                            <h6 class="card-title">{{ _('Total Words') }}</h6>
                             <p class="card-text text-primary">{{ book.total_words }}</p>
                         </div>
                     </div>
                     <div class="col-6 mb-3">
                         <div class="stat-card p-3 bg-light rounded">
-                            <h6 class="card-title">Unique Words</h6>
+                            <h6 class="card-title">{{ _('Unique Words') }}</h6>
                             <p class="card-text text-primary">{{ book.unique_words }}</p>
                         </div>
                     </div>
                 </div>
 
-                <h6 class="mt-3 mb-2">Learning Progress</h6>
+                <h6 class="mt-3 mb-2">{{ _('Learning Progress') }}</h6>
                 <div class="progress mb-3">
                     <div class="progress-bar bg-success" role="progressbar" style="width: {{ (word_stats['known'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['known'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
                     <div class="progress-bar bg-warning" role="progressbar" style="width: {{ (word_stats['mastered'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['mastered'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
@@ -115,31 +115,31 @@
                     <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (word_stats['queued'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['queued'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
                 </div>
                 <div class="d-flex justify-content-between">
-                    <small class="text-muted">{{ progress }}% learned</small>
+                    <small class="text-muted">{{ progress }}% {{ _('learned') }}</small>
                     <small class="text-muted">{{ word_stats['known'] + word_stats['mastered'] }}/{{ word_stats['total'] }}</small>
                 </div>
 
                 <div class="mt-4">
-                    <h6>Word Status Breakdown</h6>
+                    <h6>{{ _('Word Status Breakdown') }}</h6>
                     <div class="list-group">
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>New</span>
+                            <span>{{ _('New') }}</span>
                             <span class="badge bg-secondary rounded-pill">{{ word_stats['new'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Known</span>
+                            <span>{{ _('Known') }}</span>
                             <span class="badge bg-success rounded-pill">{{ word_stats['known'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Queued</span>
+                            <span>{{ _('Queued') }}</span>
                             <span class="badge bg-primary rounded-pill">{{ word_stats['queued'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Active</span>
+                            <span>{{ _('Active') }}</span>
                             <span class="badge bg-info rounded-pill">{{ word_stats['active'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>Mastered</span>
+                            <span>{{ _('Mastered') }}</span>
                             <span class="badge bg-warning rounded-pill">{{ word_stats['mastered'] }}</span>
                         </div>
                     </div>
@@ -156,15 +156,15 @@
             {% if reading_progress %}
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Your Reading Progress</h5>
+                    <h5 class="mb-0">{{ _('Your Reading Progress') }}</h5>
                 </div>
                 <div class="card-body">
                     <p>
-                        <i class="bi bi-clock"></i> Last read: {{ reading_progress.last_read.strftime('%d %B %Y at %H:%M') }}
+                        <i class="bi bi-clock"></i> {{ _('Last read') }}: {{ reading_progress.last_read.strftime('%d %B %Y at %H:%M') }}
                     </p>
                     <div class="d-grid">
                         <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">
-                            Continue Reading
+                            {{ _('Continue Reading') }}
                         </a>
                     </div>
                 </div>
@@ -175,27 +175,27 @@
         <!-- Actions -->
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Actions</h5>
+                <h5 class="mb-0">{{ _('Actions') }}</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <!-- Added Read Book button for reading functionality -->
-                    <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">Read Book</a>
+                    <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">{{ _('Read Book') }}</a>
 
                     <!-- Edit button only for admins -->
                     {% if current_user.is_authenticated and current_user.is_admin %}
-                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">Edit Book Content</a>
+                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-secondary">{{ _('Edit Book Content') }}</a>
                     {% endif %}
 
                     <!-- Existing buttons -->
-                    <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-outline-primary">View All Words</a>
-                    <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" class="btn btn-outline-secondary">View New Words</a>
-                    <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" class="btn btn-outline-primary">View Queued Words</a>
-                    <a href="{{ url_for('books.book_words', book_id=book.id, status=3) }}" class="btn btn-outline-info">View Active Words</a>
+                    <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-outline-primary">{{ _('View All Words') }}</a>
+                    <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" class="btn btn-outline-secondary">{{ _('View New Words') }}</a>
+                    <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" class="btn btn-outline-primary">{{ _('View Queued Words') }}</a>
+                    <a href="{{ url_for('books.book_words', book_id=book.id, status=3) }}" class="btn btn-outline-info">{{ _('View Active Words') }}</a>
                     {% if current_user.is_authenticated and current_user.is_admin %}
                     <form action="{{ url_for('books.reprocess_book_words', book_id=book.id) }}" method="POST" class="mt-2">
                         <button type="submit" class="btn btn-outline-secondary d-block w-100">
-                            <i class="fas fa-sync-alt me-1"></i> Reprocess Book Words
+                            <i class="fas fa-sync-alt me-1"></i> {{ _('Reprocess Book Words') }}
                         </button>
                     </form>
                     {% endif %}
@@ -208,8 +208,8 @@
         <!-- Most Frequent Words -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Most Frequent Words</h5>
-                <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">View All</a>
+                <h5 class="mb-0">{{ _('Most Frequent Words') }}</h5>
+                <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">{{ _('View All') }}</a>
             </div>
             <div class="card-body">
                 {% if frequent_words %}
@@ -217,12 +217,12 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Word</th>
-                                <th>Translation</th>
-                                <th>Frequency</th>
-                                <th>Level</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>{{ _('Word') }}</th>
+                                <th>{{ _('Translation') }}</th>
+                                <th>{{ _('Frequency') }}</th>
+                                <th>{{ _('Level') }}</th>
+                                <th>{{ _('Status') }}</th>
+                                <th>{{ _('Actions') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -247,7 +247,7 @@
                                         'C2': 'warning'
                                     }[word.level] }}">{{ word.level }}</span>
                                     {% else %}
-                                    <span class="badge bg-secondary">N/A</span>
+                                    <span class="badge bg-secondary">{{ _('N/A') }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -259,38 +259,38 @@
                                         4: 'warning'
                                     }[word_statuses[word.id]] }}">
                                         {{ {
-                                            0: 'New',
-                                            1: 'Known',
-                                            2: 'Queued',
-                                            3: 'Active',
-                                            4: 'Mastered'
+                                            0: _('New'),
+                                            1: _('Known'),
+                                            2: _('Queued'),
+                                            3: _('Active'),
+                                            4: _('Mastered')
                                         }[word_statuses[word.id]] }}
                                     </span>
                                 </td>
                                 <td>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="statusDropdown{{ word.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                            Status
+                                            {{ _('Status') }}
                                         </button>
                                         <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
                                             <li>
                                                 <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">Mark as Known</button>
+                                                    <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
                                                 </form>
                                             </li>
                                             <li>
                                                 <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">Add to Queue</button>
+                                                    <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
                                                 </form>
                                             </li>
                                             <li>
                                                 <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">Set Active</button>
+                                                    <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
                                                 </form>
                                             </li>
                                             <li>
                                                 <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">Mark as Mastered</button>
+                                                    <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                                                 </form>
                                             </li>
                                         </ul>
@@ -303,7 +303,7 @@
                 </div>
                 {% else %}
                 <div class="text-center py-5">
-                    <p class="text-muted">No words found for this book.</p>
+                    <p class="text-muted">{{ _('No words found for this book.') }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -313,8 +313,8 @@
         {% if book.content %}
         <div class="card mt-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Book Preview</h5>
-                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">Read Full Book</a>
+                <h5 class="mb-0">{{ _('Book Preview') }}</h5>
+                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read Full Book') }}</a>
             </div>
             <div class="card-body">
                 <div class="book-preview" style="max-height: 200px; overflow: hidden; position: relative;">
@@ -326,13 +326,13 @@
         {% else %}
         <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">Book Content</h5>
+                <h5 class="mb-0">{{ _('Book Content') }}</h5>
             </div>
             <div class="card-body">
-                <p class="text-center text-muted">This book has no content yet.</p>
+                <p class="text-center text-muted">{{ _('This book has no content yet.') }}</p>
                 {% if current_user.is_authenticated and current_user.is_admin %}
                 <div class="d-grid">
-                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-primary">Add Content</a>
+                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="btn btn-outline-primary">{{ _('Add Content') }}</a>
                 </div>
                 {% endif %}
             </div>
@@ -347,24 +347,24 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="coverUploadModalLabel">{% if book.cover_image %}Change Book Cover{% else %}Add Book Cover{% endif %}</h5>
+                <h5 class="modal-title" id="coverUploadModalLabel">{% if book.cover_image %}{{ _('Change Book Cover') }}{% else %}{{ _('Add Book Cover') }}{% endif %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="{{ url_for('books.upload_cover', book_id=book.id) }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="coverImageFile" class="form-label">Select Image File</label>
+                        <label for="coverImageFile" class="form-label">{{ _('Select Image File') }}</label>
                         <input class="form-control" type="file" id="coverImageFile" name="cover_image" accept="image/*">
-                        <div class="form-text">Recommended size is 400x600 pixels. Max file size: 5MB.</div>
+                        <div class="form-text">{{ _('Recommended size is 400x600 pixels. Max file size: 5MB.') }}</div>
                     </div>
                     <div id="coverPreview" class="text-center mt-3" style="display: none;">
-                        <h6>Preview</h6>
-                        <img src="" alt="Cover preview" class="img-fluid preview-img" style="max-height: 300px;">
+                        <h6>{{ _('Preview') }}</h6>
+                        <img src="" alt="{{ _('Cover preview') }}" class="img-fluid preview-img" style="max-height: 300px;">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Cover</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ _('Save Cover') }}</button>
                 </div>
             </form>
         </div>
