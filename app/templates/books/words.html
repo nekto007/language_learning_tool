@@ -1,22 +1,22 @@
 {% extends 'base.html' %}
 
-{% block title %}Words from {{ book.title }} - English Learning App{% endblock %}
+{% block title %}{{ _('Words from') }} {{ book.title }} - {{ _('English Learning App') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-8">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}">Books</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}">{{ _('Books') }}</a></li>
                 <li class="breadcrumb-item"><a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Words</li>
+                <li class="breadcrumb-item active" aria-current="page">{{ _('Words') }}</li>
             </ol>
         </nav>
-        <h1 class="mb-0">Words from "{{ book.title }}"</h1>
+        <h1 class="mb-0">{{ _('Words from') }} "{{ book.title }}"</h1>
     </div>
     <div class="col-md-4 text-end">
         <div class="btn-group">
-            <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">Export to Anki</a>
+            <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">{{ _('Export to Anki') }}</a>
         </div>
     </div>
 </div>
@@ -27,33 +27,33 @@
         <form method="GET" action="{{ url_for('books.book_words', book_id=book.id) }}" class="row g-3">
             <!-- Status Filter -->
             <div class="col-md-3">
-                <label for="status" class="form-label">Status</label>
+                <label for="status" class="form-label">{{ _('Status') }}</label>
                 <select name="status" id="status" class="form-select">
-                    <option value="" {% if status is none %}selected{% endif %}>All Statuses</option>
-                    <option value="0" {% if status == 0 %}selected{% endif %}>New</option>
-                    <option value="1" {% if status == 1 %}selected{% endif %}>Known</option>
-                    <option value="2" {% if status == 2 %}selected{% endif %}>Queued</option>
-                    <option value="3" {% if status == 3 %}selected{% endif %}>Active</option>
-                    <option value="4" {% if status == 4 %}selected{% endif %}>Mastered</option>
+                    <option value="" {% if status is none %}selected{% endif %}>{{ _('All Statuses') }}</option>
+                    <option value="0" {% if status == 0 %}selected{% endif %}>{{ _('New') }}</option>
+                    <option value="1" {% if status == 1 %}selected{% endif %}>{{ _('Known') }}</option>
+                    <option value="2" {% if status == 2 %}selected{% endif %}>{{ _('Queued') }}</option>
+                    <option value="3" {% if status == 3 %}selected{% endif %}>{{ _('Active') }}</option>
+                    <option value="4" {% if status == 4 %}selected{% endif %}>{{ _('Mastered') }}</option>
                 </select>
             </div>
 
             <!-- Sort By -->
             <div class="col-md-3">
-                <label for="sort" class="form-label">Sort By</label>
+                <label for="sort" class="form-label">{{ _('Sort By') }}</label>
                 <select name="sort" id="sort" class="form-select">
-                    <option value="frequency" {% if sort_by == 'frequency' %}selected{% endif %}>Frequency</option>
-                    <option value="english_word" {% if sort_by == 'english_word' %}selected{% endif %}>Word</option>
-                    <option value="level" {% if sort_by == 'level' %}selected{% endif %}>Level</option>
+                    <option value="frequency" {% if sort_by == 'frequency' %}selected{% endif %}>{{ _('Frequency') }}</option>
+                    <option value="english_word" {% if sort_by == 'english_word' %}selected{% endif %}>{{ _('Word') }}</option>
+                    <option value="level" {% if sort_by == 'level' %}selected{% endif %}>{{ _('Level') }}</option>
                 </select>
             </div>
 
             <!-- Sort Order -->
             <div class="col-md-3">
-                <label for="order" class="form-label">Order</label>
+                <label for="order" class="form-label">{{ _('Order') }}</label>
                 <select name="order" id="order" class="form-select">
-                    <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending</option>
-                    <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                    <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>{{ _('Descending') }}</option>
+                    <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>{{ _('Ascending') }}</option>
                 </select>
             </div>
 
@@ -78,16 +78,23 @@
                                 <input class="form-check-input select-all" type="checkbox" id="selectAll">
                             </div>
                         </th>
-                        <th>Word</th>
-                        <th>Translation</th>
-                        <th>Frequency</th>
-                        <th>Level</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>{{ _('Word') }}</th>
+                        <th>{{ _('Translation') }}</th>
+                        <th>{{ _('Frequency') }}</th>
+                        <th>{{ _('Level') }}</th>
+                        <th>{{ _('Status') }}</th>
+                        <th>{{ _('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for word, frequency in book_words %}
+                    {% for item in book_words %}
+                    {% if item is iterable and (item is not string) and (item is not mapping) %}
+                        {% set word = item[0] %}
+                        {% set frequency = item[1] %}
+                    {% else %}
+                        {% set word = item %}
+                        {% set frequency = 0 %}
+                    {% endif %}
                     <tr>
                         <td>
                             <div class="form-check">
@@ -113,7 +120,7 @@
                                 'C2': 'warning'
                             }[word.level] }}">{{ word.level }}</span>
                             {% else %}
-                            <span class="badge bg-secondary">N/A</span>
+                            <span class="badge bg-secondary">{{ _('N/A') }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -125,44 +132,44 @@
                                 4: 'warning'
                             }[word_statuses[word.id]] }}">
                                 {{ {
-                                    0: 'New',
-                                    1: 'Known',
-                                    2: 'Queued',
-                                    3: 'Active',
-                                    4: 'Mastered'
+                                    0: _('New'),
+                                    1: _('Known'),
+                                    2: _('Queued'),
+                                    3: _('Active'),
+                                    4: _('Mastered')
                                 }[word_statuses[word.id]] }}
                             </span>
                         </td>
                         <td>
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="statusDropdown{{ word.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Status
+                                    {{ _('Status') }}
                                 </button>
                                 <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">Mark as Known</button>
+                                            <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
                                         </form>
                                     </li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">Add to Queue</button>
+                                            <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
                                         </form>
                                     </li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">Set Active</button>
+                                            <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
                                         </form>
                                     </li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">Mark as Mastered</button>
+                                            <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                                         </form>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=0) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">Reset Status</button>
+                                            <button type="submit" class="dropdown-item">{{ _('Reset Status') }}</button>
                                         </form>
                                     </li>
                                 </ul>
@@ -178,19 +185,19 @@
         <div class="mt-3 mb-3">
             <div class="dropdown d-inline-block">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    Bulk Actions
+                    {{ _('Bulk Actions') }}
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
-                    <li><a class="dropdown-item bulk-action" data-status="1" href="#">Mark as Known</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">Add to Queue</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="3" href="#">Set Active</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="4" href="#">Mark as Mastered</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="1" href="#">{{ _('Mark as Known') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">{{ _('Add to Queue') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="3" href="#">{{ _('Set Active') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="4" href="#">{{ _('Mark as Mastered') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item bulk-action" data-status="0" href="#">Reset Status</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="0" href="#">{{ _('Reset Status') }}</a></li>
                 </ul>
             </div>
 
-            <button class="btn btn-outline-primary ms-2" id="bulkExportBtn">Export Selected</button>
+            <button class="btn btn-outline-primary ms-2" id="bulkExportBtn">{{ _('Export Selected') }}</button>
         </div>
 
         <!-- Pagination -->
@@ -198,11 +205,11 @@
             <ul class="pagination justify-content-center">
                 {% if pagination.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=pagination.prev_num, status=status, sort=sort_by, order=sort_order) }}">Previous</a>
+                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=pagination.prev_num, status=status, sort=sort_by, order=sort_order) }}">{{ _('Previous') }}</a>
                 </li>
                 {% else %}
                 <li class="page-item disabled">
-                    <span class="page-link">Previous</span>
+                    <span class="page-link">{{ _('Previous') }}</span>
                 </li>
                 {% endif %}
 
@@ -220,18 +227,18 @@
 
                 {% if pagination.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=pagination.next_num, status=status, sort=sort_by, order=sort_order) }}">Next</a>
+                    <a class="page-link" href="{{ url_for('books.book_words', book_id=book.id, page=pagination.next_num, status=status, sort=sort_by, order=sort_order) }}">{{ _('Next') }}</a>
                 </li>
                 {% else %}
                 <li class="page-item disabled">
-                    <span class="page-link">Next</span>
+                    <span class="page-link">{{ _('Next') }}</span>
                 </li>
                 {% endif %}
             </ul>
         </nav>
         {% else %}
         <div class="text-center py-5">
-            <p class="mb-0">No words found matching your criteria. Try adjusting your filters.</p>
+            <p class="mb-0">{{ _('No words found matching your criteria. Try adjusting your filters.') }}</p>
         </div>
         {% endif %}
     </div>
@@ -242,43 +249,43 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="exportModalLabel">Export to Anki</h5>
+                <h5 class="modal-title" id="exportModalLabel">{{ _('Export to Anki') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="exportForm">
                     <div class="mb-3">
-                        <label for="deckName" class="form-label">Deck Name</label>
-                        <input type="text" class="form-control" id="deckName" value="Words from {{ book.title }}">
+                        <label for="deckName" class="form-label">{{ _('Deck Name') }}</label>
+                        <input type="text" class="form-control" id="deckName" value="{{ _('Words from') }} {{ book.title }}">
                     </div>
                     <div class="mb-3">
-                        <label for="cardFormat" class="form-label">Card Format</label>
+                        <label for="cardFormat" class="form-label">{{ _('Card Format') }}</label>
                         <select class="form-select" id="cardFormat">
-                            <option value="basic">Basic (Front: English, Back: Russian)</option>
-                            <option value="reversed">Reversed (Both directions)</option>
-                            <option value="cloze">Cloze Deletion (from example sentences)</option>
+                            <option value="basic">{{ _('Basic (Front: English, Back: Russian)') }}</option>
+                            <option value="reversed">{{ _('Reversed (Both directions)') }}</option>
+                            <option value="cloze">{{ _('Cloze Deletion (from example sentences)') }}</option>
                         </select>
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="includePronunciation" checked>
-                        <label class="form-check-label" for="includePronunciation">Include pronunciation audio</label>
+                        <label class="form-check-label" for="includePronunciation">{{ _('Include pronunciation audio') }}</label>
                     </div>
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="includeExamples" checked>
-                        <label class="form-check-label" for="includeExamples">Include example sentences</label>
+                        <label class="form-check-label" for="includeExamples">{{ _('Include example sentences') }}</label>
                     </div>
-                    <div class="mb-3 form-check">
+                                      <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="updateStatus" checked>
-                        <label class="form-check-label" for="updateStatus">Set exported words to "Active" status</label>
+                        <label class="form-check-label" for="updateStatus">{{ _('Set exported words to "Active" status') }}</label>
                     </div>
                     <div id="exportWordsCount" class="alert alert-info">
-                        No words selected for export.
+                        {{ _('No words selected for export.') }}
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="exportSubmitBtn" disabled>Export</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" id="exportSubmitBtn" disabled>{{ _('Export') }}</button>
             </div>
         </div>
     </div>

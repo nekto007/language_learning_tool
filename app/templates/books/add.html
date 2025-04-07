@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Add Book') }} - English Learning App{% endblock %}
+{% block title %}{{ _('Add Book') }} - {{ _('English Learning App') }}{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -157,7 +157,7 @@
                                                 <i class="fas fa-image fa-3x mb-2"></i>
                                                 <p>{{ _('No cover selected') }}</p>
                                             </div>
-                                            <img src="" alt="Cover preview" id="cover-preview" class="cover-preview">
+                                            <img src="" alt="{{ _('Cover preview') }}" id="cover-preview" class="cover-preview">
                                         </div>
                                         <div class="mt-3">
                                             {{ form.cover_image(class="form-control", accept="image/*") }}
@@ -218,7 +218,7 @@
                                 <div class="col-md-4 mb-3">
                                     <label for="format-enhanced" class="card format-card h-100 p-3" id="card-enhanced">
                                         <input type="radio" name="format_type" id="format-enhanced" value="enhanced" class="format-radio" {% if form.format_type.data == 'enhanced' %}checked{% endif %}>
-                                        <h5>{{ _('Enhanced Reading') }}</h5>
+                                        <h5>{{ _('Enhanced Formatting') }}</h5>
                                         <p class="text-muted small">{{ _('Optimized for language learning with improved typography and readability.') }}</p>
                                     </label>
                                 </div>
@@ -349,7 +349,7 @@
                     }
                     reader.readAsText(file);
                 } else {
-                    contentInput.value = "Content will be processed after upload...";
+                    contentInput.value = "{{ _('Content will be processed after upload...') }}";
                 }
             }
         }
@@ -364,9 +364,9 @@
         }
 
         function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
+            if (bytes === 0) return '{{ _('0 Bytes') }}';
             const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const sizes = ['{{ _('Bytes') }}', '{{ _('KB') }}', '{{ _('MB') }}', '{{ _('GB') }}'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }

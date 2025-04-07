@@ -1,0 +1,522 @@
+/* Основные стили для интерфейса чтения */
+
+/* Контейнер для чтения */
+.reading-container {
+    max-width: 1000px;
+    margin: 0 auto 70px;
+}
+
+/* Содержимое книги */
+#book-content {
+    font-family: 'Georgia', serif;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 6px;
+    border: 1px solid #e3e6f0;
+    box-shadow: 0 0.15rem 1.75rem rgba(0, 0, 0, 0.03);
+    color: #333;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Содержимое книги в темном режиме */
+#book-content.dark-mode {
+    background-color: #2c2c2c;
+    color: #f0f0f0;
+}
+
+/* Базовые стили для параграфов в книге */
+#book-content p {
+    text-align: justify;
+    text-indent: 1.5em;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+/* Стили для заголовков в книге */
+#book-content h1, #book-content h2, #book-content h3,
+#book-content h4, #book-content h5, #book-content h6 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    line-height: 1.3;
+}
+
+#book-content h1 { font-size: 1.8rem; }
+#book-content h2 { font-size: 1.5rem; }
+#book-content h3 { font-size: 1.3rem; }
+
+/* Автоматически созданные главы */
+.generated-chapter {
+    padding-top: 1rem;
+    margin-top: 2rem;
+    border-top: 1px solid #e3e6f0;
+}
+
+#book-content.dark-mode .generated-chapter {
+    border-top-color: #444;
+}
+
+/* Стили для интерактивных слов */
+.word {
+    cursor: pointer;
+    position: relative;
+    display: inline;
+}
+
+.word:hover {
+    background-color: rgba(78, 115, 223, 0.1);
+    border-radius: 3px;
+}
+
+/* Подсказка с переводом */
+.word-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    z-index: 1000;
+    white-space: nowrap;
+    font-size: 14px;
+    box-shadow: 0 0.15rem 1.75rem rgba(0, 0, 0, 0.15);
+    min-width: 150px;
+    text-align: center;
+    pointer-events: auto;
+    display: block;
+}
+
+.word-tooltip:after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+/* Кнопка добавления слова в изучение */
+.add-to-learning {
+    margin-left: 10px;
+    cursor: pointer;
+    color: #1cc88a;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.add-to-learning:hover {
+    color: #169c6c;
+}
+
+/* Индикаторы статуса слова */
+.word-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-0 { background-color: #858796; } /* Новое */
+.status-1 { background-color: #1cc88a; } /* Известное */
+.status-2 { background-color: #4e73df; } /* В очереди */
+.status-3 { background-color: #36b9cc; } /* Активное */
+.status-4 { background-color: #f6c23e; } /* Изучено */
+
+/* Панель инструментов для чтения */
+.reading-toolbar {
+    padding: 12px 15px;
+    background-color: #f8f9fc;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    box-shadow: 0 0.15rem 0.35rem rgba(0, 0, 0, 0.05);
+}
+
+/* Контроль размера шрифта */
+.font-size-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.font-size-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background-color: #fff;
+    color: #4e73df;
+    border: 1px solid #e3e6f0;
+}
+
+.font-size-btn:hover {
+    background-color: #4e73df;
+    color: white;
+}
+
+#font-size-value {
+    min-width: 40px;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Индикатор прогресса чтения */
+.progress {
+    height: 5px !important;
+}
+
+/* Нижняя панель управления */
+#reading-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #fff;
+    border-top: 1px solid #e3e6f0;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    box-shadow: 0 -0.15rem 1.75rem rgba(0, 0, 0, 0.03);
+}
+
+.reading-progress-bar {
+    height: 5px;
+    background-color: #f8f9fc;
+    margin-bottom: 10px;
+    width: 220px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.reading-progress-value {
+    height: 100%;
+    background-color: #4e73df;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* Стили для закладок */
+.bookmark-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+/* Стили для оглавления */
+.table-of-contents {
+    padding: 15px 0;
+}
+
+.toc-list {
+    margin: 0;
+    padding: 0;
+}
+
+.toc-item {
+    margin-bottom: 10px;
+}
+
+.toc-link {
+    text-decoration: none;
+    color: #4e73df;
+    display: block;
+    padding: 5px 0;
+}
+
+.toc-link:hover {
+    color: #2e59d9;
+    text-decoration: none;
+}
+
+.toc-level-h1 { font-weight: 700; }
+.toc-level-h2 { padding-left: 15px; }
+.toc-level-h3 { padding-left: 30px; }
+.toc-level-h4 { padding-left: 45px; }
+.toc-level-h5 { padding-left: 60px; }
+.toc-level-h6 { padding-left: 75px; }
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 767.98px) {
+    #book-content {
+        padding: 20px 15px;
+        font-size: 16px;
+    }
+
+    .reading-toolbar {
+        padding: 10px;
+    }
+
+    #reading-controls {
+        padding: 8px 10px;
+    }
+
+    .reading-progress-bar {
+        width: 150px;
+    }
+
+    .bookmark-text {
+        max-width: 150px;
+    }
+}
+
+#book-content.page-mode {
+    height: 70vh;
+    overflow: hidden;
+    border: 1px solid #e3e6f0;
+    border-radius: 6px;
+    box-shadow: 0 0.15rem 0.35rem rgba(0, 0, 0, 0.05);
+    margin-bottom: 0;
+}
+
+#book-content.dark-mode.page-mode {
+    background-color: #2c2c2c;
+    border-color: #444;
+}
+
+.page-navigation {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.page-container {
+    padding: 10px 0;
+}
+
+/* Альтернативный режим с отдельной областью прокрутки */
+#book-content.scroll-container {
+    height: 70vh;
+    overflow-y: auto;
+    border: 1px solid #e3e6f0;
+    border-radius: 6px;
+    box-shadow: 0 0.15rem 0.35rem rgba(0, 0, 0, 0.05);
+    scroll-behavior: smooth;
+    padding: 20px;
+}
+
+#book-content.dark-mode.scroll-container {
+    background-color: #2c2c2c;
+    border-color: #444;
+}
+
+/* Стилизация полосы прокрутки */
+#book-content.scroll-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+#book-content.scroll-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+#book-content.scroll-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+#book-content.scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+#book-content.dark-mode.scroll-container::-webkit-scrollbar-track {
+    background: #333;
+}
+
+#book-content.dark-mode.scroll-container::-webkit-scrollbar-thumb {
+    background: #666;
+}
+
+#book-content.dark-mode.scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #888;
+}
+
+/* Стили для оглавления */
+.toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.toc-item {
+    margin-bottom: 8px;
+}
+
+.toc-level-h1 { font-weight: 700; }
+.toc-level-h2 { padding-left: 15px; }
+.toc-level-h3 { padding-left: 30px; }
+.toc-level-h4 { padding-left: 45px; }
+.toc-level-h5 { padding-left: 60px; }
+.toc-level-h6 { padding-left: 75px; }
+
+.toc-link {
+    color: #4e73df;
+    text-decoration: none;
+    display: block;
+    padding: 5px 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.toc-link:hover {
+    background-color: rgba(78, 115, 223, 0.1);
+    padding-left: 8px;
+}
+
+/* Адаптивность */
+@media (max-width: 767.98px) {
+    #book-content.page-mode,
+    #book-content.scroll-container {
+        height: 60vh;
+    }
+}
+
+/* Улучшенные стили для подсказки со словом */
+.word-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 10px 12px;
+    border-radius: 6px;
+    z-index: 1000;
+    white-space: normal;
+    font-size: 14px;
+    box-shadow: 0 0.15rem 1.75rem rgba(0, 0, 0, 0.25);
+    min-width: 200px;
+    max-width: 280px;
+    text-align: center;
+    pointer-events: auto;
+    display: block;
+    line-height: 1.4;
+}
+
+.word-tooltip:after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+/* Информация о форме слова */
+.word-form-info {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 6px;
+    font-style: italic;
+    border-bottom: 1px dotted #555;
+    padding-bottom: 6px;
+}
+
+/* Основной перевод */
+.translation-text {
+    font-weight: 500;
+    padding: 3px 0;
+    font-size: 16px;
+}
+
+/* Варианты перевода от pymorphy2 */
+.translation-variants {
+    margin-top: 6px;
+    border-top: 1px dotted #555;
+    padding-top: 6px;
+    font-size: 13px;
+}
+
+.translation-variant {
+    color: #bbb;
+    margin: 3px 0;
+    font-style: italic;
+}
+
+/* Кнопка добавления в обучение */
+.add-to-learning {
+    margin-top: 6px;
+    margin-left: 0;
+    display: block;
+    padding: 4px 8px;
+    background-color: rgba(28, 200, 138, 0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #1cc88a;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.add-to-learning:hover {
+    background-color: rgba(28, 200, 138, 0.25);
+    color: #1cc88a;
+}
+
+/* Стили для индикатора статуса слова */
+.word-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+/* Тёмный режим для подсказки */
+#book-content.dark-mode .word-tooltip {
+    background-color: #444;
+    color: #f0f0f0;
+}
+
+#book-content.dark-mode .word-tooltip:after {
+    border-color: #444 transparent transparent transparent;
+}
+
+#book-content.dark-mode .word-form-info {
+    color: #bbb;
+    border-bottom-color: #666;
+}
+
+#book-content.dark-mode .translation-variants {
+    border-top-color: #666;
+}
+
+#book-content.dark-mode .translation-variant {
+    color: #ccc;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 767.98px) {
+    .word-tooltip {
+        min-width: 180px;
+        max-width: 240px;
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    .translation-text {
+        font-size: 15px;
+    }
+
+    .translation-variants {
+        font-size: 12px;
+    }
+}

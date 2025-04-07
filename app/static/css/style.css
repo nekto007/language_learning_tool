@@ -900,3 +900,83 @@ footer {
     padding: 2px 8px;
     font-size: 0.8rem;
 }
+
+.alpha-index .btn {
+    min-width: 35px;
+    margin: 2px;
+    font-weight: 500;
+}
+
+.alpha-index .btn-primary {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Badge styling */
+.badge {
+    font-size: 0.85rem;
+    font-weight: normal;
+}
+
+.badge a {
+    text-decoration: none;
+    color: white;
+}
+
+.badge a:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Book level badges */
+.badge.bg-success {  /* A1-A2 */
+    background-color: #28a745 !important;
+}
+
+.badge.bg-info {  /* B1-B2 */
+    background-color: #17a2b8 !important;
+}
+
+.badge.bg-warning {  /* C1-C2 */
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+.badge.bg-warning a {
+    color: #212529;
+}
+
+/* Filter section */
+.filter-section {
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Book cover thumbnails */
+.book-cover-thumbnail {
+    width: 60px;
+    height: 85px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.book-cover-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-cover {
+    width: 60px;
+    height: 85px;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 1.5rem;
+}
