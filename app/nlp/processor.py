@@ -85,7 +85,7 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     # Filter only alphabetic characters and convert to lowercase
     words = [word.lower() for word in words if word.isalpha()]
     # Remove stop words
-    words = [word for word in words if word not in stop_words]
+    # words = [word for word in words if word not in stop_words]
 
     return words
 
