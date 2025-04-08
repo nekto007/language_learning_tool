@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 from flask_login import current_user
+from sqlalchemy import func, or_
+
+from app.api.auth import api_login_required
 from app.utils.db import db
 from app.words.models import CollectionWords
-from app.api.auth import api_login_required
-from sqlalchemy import func, or_
 
 api_words = Blueprint('api_words', __name__)
 

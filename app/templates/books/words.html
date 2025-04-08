@@ -31,10 +31,8 @@
                 <select name="status" id="status" class="form-select">
                     <option value="" {% if status is none %}selected{% endif %}>{{ _('All Statuses') }}</option>
                     <option value="0" {% if status == 0 %}selected{% endif %}>{{ _('New') }}</option>
-                    <option value="1" {% if status == 1 %}selected{% endif %}>{{ _('Known') }}</option>
-                    <option value="2" {% if status == 2 %}selected{% endif %}>{{ _('Queued') }}</option>
-                    <option value="3" {% if status == 3 %}selected{% endif %}>{{ _('Active') }}</option>
-                    <option value="4" {% if status == 4 %}selected{% endif %}>{{ _('Mastered') }}</option>
+                    <option value="1" {% if status == 1 %}selected{% endif %}>{{ _('Learning') }}</option>
+                    <option value="2" {% if status == 2 %}selected{% endif %}>{{ _('Mastered') }}</option>
                 </select>
             </div>
 
@@ -126,17 +124,13 @@
                         <td>
                             <span class="badge bg-{{ {
                                 0: 'secondary',
-                                1: 'success',
-                                2: 'primary',
-                                3: 'info',
-                                4: 'warning'
+                                1: 'primary',
+                                2: 'success'
                             }[word_statuses[word.id]] }}">
                                 {{ {
                                     0: _('New'),
-                                    1: _('Known'),
-                                    2: _('Queued'),
-                                    3: _('Active'),
-                                    4: _('Mastered')
+                                    1: _('Learning'),
+                                    2: _('Mastered')
                                 }[word_statuses[word.id]] }}
                             </span>
                         </td>
@@ -148,21 +142,11 @@
                                 <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
+                                            <button type="submit" class="dropdown-item">{{ _('Add to Learning') }}</button>
                                         </form>
                                     </li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
-                                        </form>
-                                    </li>
-                                    <li>
-                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                                            <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
-                                        </form>
-                                    </li>
-                                    <li>
-                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
                                             <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                                         </form>
                                     </li>
@@ -188,10 +172,8 @@
                     {{ _('Bulk Actions') }}
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
-                    <li><a class="dropdown-item bulk-action" data-status="1" href="#">{{ _('Mark as Known') }}</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">{{ _('Add to Queue') }}</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="3" href="#">{{ _('Set Active') }}</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="4" href="#">{{ _('Mark as Mastered') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="1" href="#">{{ _('Add to Learning') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">{{ _('Mark as Mastered') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item bulk-action" data-status="0" href="#">{{ _('Reset Status') }}</a></li>
                 </ul>

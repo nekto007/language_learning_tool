@@ -1,11 +1,12 @@
-from flask import Blueprint, request, jsonify, send_file
+import os
+import tempfile
+
+from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user
-from app.utils.db import db
-from app.words.models import CollectionWords
+
 from app.api.auth import api_login_required
 from app.utils.anki_export import create_anki_package
-import tempfile
-import os
+from app.words.models import CollectionWords
 
 api_anki = Blueprint('api_anki', __name__)
 

@@ -281,12 +281,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper to get display text for word source
     function getWordSourceDisplayText() {
         switch (wordSource) {
-            case 'due': return 'Due for Review';
             case 'new': return 'New Words';
-            case 'difficult': return 'Difficult Words';
-            case 'queue': return 'Words in Queue';
+            case 'learning': return 'Words in Learning';
             case 'all': return 'Mixed (New & Review)';
-            case 'book': return 'From a Book';
             default: return wordSource;
         }
     }
@@ -294,16 +291,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper to get guidance text based on word source
 function getWordSourceGuidanceText() {
     switch (wordSource) {
-        case 'due':
-            return 'Words become due for review based on the spaced repetition schedule. Continue studying other words to build your review queue.';
         case 'new':
             return 'You have already added all available words to your study collection. Check back later when new words are added to the system.';
-        case 'difficult':
-            return 'Words appear here when you have a performance percentage below 70%. Keep studying to identify difficult words.';
-        case 'queue':
-            return 'Add words to your queue by going to the Word List and changing their status to "In Queue".';
-        case 'book':
-            return 'Select a book from your collection first to see words from that book.';
+        case 'learning':
+            return 'Add words to your queue by going to the Word List and changing their status to "In Learning".';
         case 'all':
             return 'There are no words available for review or learning. Add some words to your queue to get started.';
         default:
@@ -314,22 +305,16 @@ function getWordSourceGuidanceText() {
     // Helper to get appropriate action button based on word source
     function getActionButtonForWordSource() {
         switch (wordSource) {
-            case 'queue':
+            case 'learning':
                 return `
                     <a href="/words/word_list" class="btn btn-success">
-                        <i class="fas fa-plus"></i> Go to Word List to Add Words to Queue
+                        <i class="fas fa-plus"></i> Go to Word List to Add Words to Learning
                     </a>
                 `;
             case 'new':
                 return `
                     <a href="/words/word_list?filter=not_studied" class="btn btn-success">
                         <i class="fas fa-search"></i> Check for More Words
-                    </a>
-                `;
-            case 'book':
-                return `
-                    <a href="/books" class="btn btn-success">
-                        <i class="fas fa-book"></i> Select a Book
                     </a>
                 `;
             default:

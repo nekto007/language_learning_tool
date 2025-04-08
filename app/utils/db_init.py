@@ -1,9 +1,7 @@
-from app.utils.db import db
-from app.auth.models import User
-from app.words.models import CollectionWords
-from app.books.models import Book
 from datetime import datetime
-import os
+
+from app.auth.models import User
+from app.utils.db import db
 
 
 def init_db(app):

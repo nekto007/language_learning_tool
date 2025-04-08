@@ -32,7 +32,7 @@
                     <div class="col-6 col-md-4 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">Known</h6>
+                                <h6 class="card-title">Learning</h6>
                                 <p class="card-text fw-bold fs-4">{{ status_stats[1] }}</p>
                             </div>
                         </div>
@@ -40,24 +40,8 @@
                     <div class="col-6 col-md-4 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">Queued</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[2] }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-4 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">Active</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[3] }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-4 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
                                 <h6 class="card-title">Mastered</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[4] }}</p>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[2] }}</p>
                             </div>
                         </div>
                     </div>
@@ -144,13 +128,8 @@
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('words.word_list', status=2) }}" class="btn btn-secondary d-block">
-                            <i class="fas fa-hourglass-start me-1"></i> Queued Words
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{{ url_for('words.word_list', status=3) }}" class="btn btn-info d-block">
-                            <i class="fas fa-sync me-1"></i> Active Words
+                        <a href="{{ url_for('words.word_list', status=1) }}" class="btn btn-secondary d-block">
+                            <i class="fas fa-hourglass-start me-1"></i> Learning Words
                         </a>
                     </div>
                     <div class="col-6">

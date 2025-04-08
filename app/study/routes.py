@@ -1,13 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
-from flask_login import login_required, current_user
-from app.study.models import StudyItem, StudySession, StudySettings
-from app.study.forms import StudySettingsForm, StudySessionForm
-# Import CollectionWords model
-from app.words.models import CollectionWords
-from app.utils.db import db
 from datetime import datetime
+
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
-import random
+from flask_login import current_user, login_required
+
+from app.study.forms import StudySessionForm, StudySettingsForm
+from app.study.models import StudyItem, StudySession, StudySettings
+from app.utils.db import db
+from app.words.models import CollectionWords
 
 study = Blueprint('study', __name__, template_folder='templates')
 
@@ -162,9 +162,7 @@ def get_study_items():
     query = StudyItem.query.filter_by(user_id=current_user.id)
 
     # Filter based on word source
-    if word_source == 'due':
-        query = query.filter(StudyItem.next_review <= datetime.utcnow())
-    elif word_source == 'new':
+    if word_source == 'new':
         # Get words that don't have study items yet
         existing_word_ids = db.session.query(StudyItem.word_id) \
             .filter_by(user_id=current_user.id).subquery()
@@ -193,8 +191,8 @@ def get_study_items():
 
         return jsonify(items[:limit])
 
-    elif word_source == 'queue':
-        # Get words with "In Queue" status (status=1) from user_word_status
+    elif word_source == 'learning':
+        # Get words with "In Learning" status (status=1) from user_word_status
         from sqlalchemy import text
 
         # Query to get words in queue for the current user
@@ -202,7 +200,7 @@ def get_study_items():
                 SELECT cw.id, cw.english_word, cw.russian_word, cw.sentences, cw.get_download
                 FROM collection_words cw
                 JOIN user_word_status uws ON cw.id = uws.word_id
-                WHERE uws.user_id = :user_id AND uws.status = 2
+                WHERE uws.user_id = :user_id AND uws.status = 1
                 ORDER BY uws.last_updated DESC
                 LIMIT :limit
             """)
@@ -232,18 +230,6 @@ def get_study_items():
             return jsonify([]), 204  # No Content status
 
         return jsonify(items)
-
-    elif word_source == 'difficult':
-        # Words with low performance
-        study_items = StudyItem.query.filter_by(user_id=current_user.id) \
-            .filter(StudyItem.performance_percentage < 70) \
-            .order_by(StudyItem.performance_percentage).limit(limit).all()
-
-    elif word_source == 'book':
-        # This would require additional logic to get words from a specific book
-        flash('Book-specific study is not implemented yet.', 'warning')
-        return jsonify([])
-
     else:  # 'all' - mix of due and new
         # Get due items first
         due_items = query.filter(StudyItem.next_review <= datetime.utcnow()) \

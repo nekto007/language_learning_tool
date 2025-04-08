@@ -8,8 +8,8 @@ from typing import List, Optional
 import requests
 from requests.exceptions import RequestException
 
-from config.settings import MAX_RETRIES, REQUEST_TIMEOUT, USER_AGENT
 from app.nlp.processor import process_html_content
+from config.settings import MAX_RETRIES, REQUEST_TIMEOUT, USER_AGENT
 
 logger = logging.getLogger(__name__)
 

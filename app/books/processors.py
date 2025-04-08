@@ -1,42 +1,33 @@
 # app/books/processors.py
 
+import contextlib
 import logging
-import re
+import queue
 import threading
 import time
-import queue
-from typing import Dict, List, Set, Tuple, Optional
-import contextlib
+from typing import Dict, List
 
 from bs4 import BeautifulSoup
-from flask import current_app
 
 from app.books.models import Book
-from config.settings import (
-    MAX_PROCESSING_TIME, MAX_CONCURRENT_PROCESSING,
-    STATUS_CLEANUP_INTERVAL, MAX_STATUS_AGE,
-    MAX_SYNC_PROCESSING_SIZE, SYNC_PROCESSING_TIMEOUT
-)
-from app.nlp.setup import download_nltk_resources, initialize_nltk
 from app.nlp.processor import prepare_word_data, process_text
-from app.words.models import CollectionWords as Word
+from app.nlp.setup import download_nltk_resources, initialize_nltk
 from app.repository import DatabaseRepository
-from app.utils.db import db
+from config.settings import (
+    MAX_CONCURRENT_PROCESSING, MAX_PROCESSING_TIME, MAX_STATUS_AGE, MAX_SYNC_PROCESSING_SIZE, STATUS_CLEANUP_INTERVAL,
+    SYNC_PROCESSING_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
-# Очередь для хранения задач обработки книг
 processing_queue = queue.Queue()
-# Словарь для хранения статуса обработки для каждой книги
 processing_status = {}
-# Флаг, указывающий, запущен ли обработчик
 worker_running = False
-# Семафор для ограничения числа одновременных задач
 processing_semaphore = threading.Semaphore(MAX_CONCURRENT_PROCESSING)
-# Таймер для очистки старых записей
 cleanup_timer = None
 
 flask_app = None
+
 
 def get_app():
     """
@@ -47,7 +38,6 @@ def get_app():
     """
     global flask_app
     if flask_app is None:
-        # Импортируем здесь для предотвращения циклических импортов
         from app import create_app
         flask_app = create_app()
     return flask_app

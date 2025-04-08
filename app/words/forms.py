@@ -16,10 +16,8 @@ class WordFilterForm(FlaskForm):
     status = SelectField(_l('Status'), choices=[
         (-1, _l('All')),
         (0, _l('New')),
-        (1, _l('Known')),
-        (2, _l('Queued')),
-        (3, _l('Active')),
-        (4, _l('Mastered'))
+        (1, _l('Learning')),
+        (2, _l('Mastered'))
     ], coerce=int, validators=[Optional()])
 
     letter = StringField(_l('Letter'), validators=[Optional()])

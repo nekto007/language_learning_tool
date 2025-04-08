@@ -44,14 +44,11 @@ class StudySessionForm(FlaskForm):
 
     word_source = SelectField(_l('Words Source'),
                               choices=[
-                                  ('due', _l('Due for Review')),
                                   ('new', _l('New Words')),
-                                  ('difficult', _l('Difficult Words')),
-                                  ('queue', _l('Words in Queue')),
-                                  ('all', _l('Mixed (New & Review)')),
-                                  ('book', _l('From a Book'))
+                                  ('learning', _l('Words in Learning')),
+                                  ('all', _l('Mixed (New & Review)'))
                               ],
-                              default='queue')
+                              default='learning')
 
     max_words = IntegerField(_l('Number of Words'),
                              validators=[NumberRange(min=1, max=100)],

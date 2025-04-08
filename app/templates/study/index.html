@@ -176,14 +176,8 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('study.cards', word_source='due', max_words=10) }}" class="btn btn-outline-primary">
-                            <i class="fas fa-bolt me-2"></i> {{ _('Quick Review (10 Due Words)') }}
-                        </a>
                         <a href="{{ url_for('study.cards', word_source='new', max_words=5) }}" class="btn btn-outline-success">
                             <i class="fas fa-plus me-2"></i> {{ _('Learn 5 New Words') }}
-                        </a>
-                        <a href="{{ url_for('study.quiz', word_source='difficult', max_words=10) }}" class="btn btn-outline-warning">
-                            <i class="fas fa-fire me-2"></i> {{ _('Practice Difficult Words') }}
                         </a>
                         <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-book me-2"></i> {{ _('Browse All Words') }}
