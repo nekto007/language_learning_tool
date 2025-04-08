@@ -1,6 +1,7 @@
-import genanki
-import random
 import hashlib
+import os
+
+import genanki
 
 
 def create_anki_package(words, output_file, deck_name, card_format, include_pronunciation=False,

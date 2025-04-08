@@ -41,37 +41,23 @@
                 <span class="badge bg-{{ {
                     0: 'secondary',
                     1: 'success',
-                    2: 'primary',
-                    3: 'info',
-                    4: 'warning'
+                    2: 'primary'
                 }[status] }}">
                     {{ _({
                         0: 'New',
-                        1: 'Known',
-                        2: 'Queued',
-                        3: 'Active',
-                        4: 'Mastered'
+                        1: 'Learning',
+                        2: 'Mastered'
                     }[status]) }}
                 </span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="statusDropdown">
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
-                        <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
+                        <button type="submit" class="dropdown-item">{{ _('Add to Learning') }}</button>
                     </form>
                 </li>
                 <li>
                     <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                        <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
-                    </form>
-                </li>
-                <li>
-                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                        <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
-                    </form>
-                </li>
-                <li>
-                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
                         <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                     </form>
                 </li>
@@ -221,10 +207,8 @@
                     <div class="status-indicator status-{{ status }} me-2"></div>
                     <span class="fw-bold">{{ _({
                         0: 'New Word',
-                        1: 'Known Word',
-                        2: 'In Learning Queue',
-                        3: 'Active Learning',
-                        4: 'Mastered Word'
+                        1: 'In Learning',
+                        2: 'Mastered Word'
                     }[status]) }}</span>
                 </div>
 
@@ -232,37 +216,21 @@
                     {% if status == 0 %}
                     {{ _('This word is new to your collection. Add it to your learning queue to start studying it.') }}
                     {% elif status == 1 %}
-                    {{ _('You marked this word as known. You can change its status if you want to study it.') }}
-                    {% elif status == 2 %}
                     {{ _('This word is in your learning queue. It will be included in your next study session.') }}
-                    {% elif status == 3 %}
-                    {{ _('You are actively learning this word. Keep practicing to master it!') }}
-                    {% elif status == 4 %}
+                    {% elif status == 2 %}
                     {{ _('Congratulations! You have mastered this word.') }}
                     {% endif %}
                 </p>
 
                 <div class="d-grid">
                     {% if status == 0 %}
-                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-plus me-1"></i> {{ _('Add to Learning Queue') }}
+                            <i class="fas fa-plus me-1"></i> {{ _('Add to Learning') }}
                         </button>
                     </form>
                     {% elif status == 1 %}
-                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-graduation-cap me-1"></i> {{ _('Start Active Learning') }}
-                        </button>
-                    </form>
-                    {% elif status == 2 %}
-                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-play me-1"></i> {{ _('Start Learning Now') }}
-                        </button>
-                    </form>
-                    {% elif status == 3 %}
-                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
+                    <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-check me-1"></i> {{ _('Mark as Mastered') }}
                         </button>

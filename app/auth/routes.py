@@ -43,8 +43,6 @@ def reset_request():
         user = User.query.filter_by(email=form.email.data).first()
         token = get_reset_token(user.id)
 
-        # Here you'd normally send an email with the token
-        # For now, we'll just display the reset link on the page
         reset_url = url_for('auth.reset_password', token=token, _external=True)
 
         flash(f'A password reset link has been created. For testing: {reset_url}', 'info')

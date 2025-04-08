@@ -1,9 +1,10 @@
 from flask import Blueprint, jsonify
 from flask_login import current_user
-from app.utils.db import db
-from app.books.models import Book
-from app.api.auth import api_login_required
 from sqlalchemy import func
+
+from app.api.auth import api_login_required
+from app.books.models import Book
+from app.utils.db import db
 
 api_books = Blueprint('api_books', __name__)
 
@@ -52,18 +53,14 @@ def get_book(book_id):
     # Convert to dictionary
     word_stats = {
         'new': 0,
-        'known': 0,
-        'queued': 0,
-        'active': 0,
+        'learning': 0,
         'mastered': 0
     }
 
     status_map = {
         0: 'new',
-        1: 'known',
-        2: 'queued',
-        3: 'active',
-        4: 'mastered'
+        1: 'learning',
+        2: 'mastered'
     }
 
     for status, count in word_stats_result:

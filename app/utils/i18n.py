@@ -1,4 +1,4 @@
-from flask import request, session, g
+from flask import g, request, session
 from flask_babel import Babel
 
 babel = Babel()

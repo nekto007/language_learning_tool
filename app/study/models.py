@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
-from app.utils.db import db
-from flask_login import current_user
-import math
+
+from sqlalchemy import Float, cast
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import cast, Float
+
+from app.utils.db import db
 
 
 class StudyItem(db.Model):

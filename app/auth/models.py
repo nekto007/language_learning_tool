@@ -15,16 +15,14 @@ class User(db.Model, UserMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(64), unique=True, nullable=False)
     email = Column(String(120), unique=True)
-    # Changed from String to Text for unlimited length
     password_hash = Column(Text, nullable=False)
     salt = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)  # New field for admin rights
+    is_admin = Column(Boolean, default=False)
 
     words = relationship("CollectionWords", secondary="user_word_status", back_populates="users")
-    # Добавление отношения к прогрессу чтения
     reading_progress = relationship("ReadingProgress", back_populates="user", lazy="dynamic",
                                     cascade="all, delete-orphan")
 
@@ -75,22 +73,17 @@ class User(db.Model, UserMixin):
 
         db.session.commit()
 
-    # Новые методы для работы с прогрессом чтения
     def get_recent_reading_progress(self, limit=3):
-        """Получить последние записи прогресса чтения, отсортированные по дате"""
         from app.books.models import ReadingProgress
         return self.reading_progress.order_by(desc(ReadingProgress.last_read)).limit(limit).all()
 
     def get_last_read_book(self):
-        """Получить книгу, которую пользователь читал последней"""
         from app.books.models import ReadingProgress
         return self.reading_progress.order_by(desc(ReadingProgress.last_read)).first()
 
     def get_reading_progress_count(self):
-        """Получить количество книг, которые читает пользователь"""
         return self.reading_progress.count()
 
-    # Flask-Login properties
     @property
     def is_active(self):
         return self.active

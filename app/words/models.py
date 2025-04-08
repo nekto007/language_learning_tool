@@ -1,7 +1,7 @@
-from app.utils.db import db
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
+from app.utils.db import db
 
 
 class CollectionWords(db.Model):

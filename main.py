@@ -70,7 +70,7 @@ def parse_arguments():
     status_parser = subparsers.add_parser("update-status",
                                           help="Update learning status for words")
     status_parser.add_argument("--status", type=int, required=True,
-                               help="Learning status (0=New, 1=Known, 2=Queued, 3=Active, 4=Mastered)")
+                               help="Learning status (0=New, 1=Learning, 2=Mastered)")
     status_parser.add_argument("--word", help="Single word to update")
     status_parser.add_argument("--file", help="File with words (one per line)")
     status_parser.add_argument("--pattern", help="SQL LIKE pattern for word selection (e.g., 's%')")
@@ -79,7 +79,7 @@ def parse_arguments():
     list_parser = subparsers.add_parser("list-words",
                                         help="List words by learning status")
     list_parser.add_argument("--status", type=int,
-                             help="Learning status (0=New, 1=Known, 2=Queued, 3=Active, 4=Mastered)")
+                             help="Learning status (0=New, 1=Learning, 2=Mastered)")
     list_parser.add_argument("--output", help="Output file for word list")
 
     # Command to display statistics on word statuses
@@ -354,7 +354,7 @@ def update_word_status(args: argparse.Namespace) -> None:
     file_path = args.file
 
     # Check status validity
-    if status not in [Word.STATUS_NEW, Word.STATUS_STUDYING, Word.STATUS_STUDIED]:
+    if status not in [Word.STATUS_NEW, Word.STATUS_LEARNING, Word.STATUS_MASTERED]:
         logger.error(f"Invalid status: {status}")
         logger.info(f"Available statuses: {Word.STATUS_LABELS}")
         return
@@ -424,7 +424,7 @@ def list_words_by_status(args: argparse.Namespace) -> None:
     output_file = args.output
 
     # Check status validity
-    if status is not None and status not in [Word.STATUS_NEW, Word.STATUS_STUDYING, Word.STATUS_STUDIED]:
+    if status is not None and status not in [Word.STATUS_NEW, Word.STATUS_LEARNING, Word.STATUS_MASTERED]:
         logger.error(f"Invalid status: {status}")
         logger.info(f"Available statuses: {Word.STATUS_LABELS}")
         return

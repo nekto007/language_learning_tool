@@ -109,10 +109,8 @@
 
                 <h6 class="mt-3 mb-2">{{ _('Learning Progress') }}</h6>
                 <div class="progress mb-3">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ (word_stats['known'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['known'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
-                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ (word_stats['mastered'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['mastered'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
-                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ (word_stats['active'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['active'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
-                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (word_stats['queued'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['queued'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ (word_stats['mastered'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['mastered'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (word_stats['learning'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['queued'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
                 </div>
                 <div class="d-flex justify-content-between">
                     <small class="text-muted">{{ progress }}% {{ _('learned') }}</small>
@@ -127,20 +125,12 @@
                             <span class="badge bg-secondary rounded-pill">{{ word_stats['new'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ _('Known') }}</span>
-                            <span class="badge bg-success rounded-pill">{{ word_stats['known'] }}</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ _('Queued') }}</span>
-                            <span class="badge bg-primary rounded-pill">{{ word_stats['queued'] }}</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ _('Active') }}</span>
-                            <span class="badge bg-info rounded-pill">{{ word_stats['active'] }}</span>
+                            <span>{{ _('Learning') }}</span>
+                            <span class="badge bg-primary rounded-pill">{{ word_stats['learning'] }}</span>
                         </div>
                         <div class="list-group-item d-flex justify-content-between align-items-center">
                             <span>{{ _('Mastered') }}</span>
-                            <span class="badge bg-warning rounded-pill">{{ word_stats['mastered'] }}</span>
+                            <span class="badge bg-success rounded-pill">{{ word_stats['mastered'] }}</span>
                         </div>
                     </div>
                 </div>
@@ -190,8 +180,7 @@
                     <!-- Existing buttons -->
                     <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-outline-primary">{{ _('View All Words') }}</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" class="btn btn-outline-secondary">{{ _('View New Words') }}</a>
-                    <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" class="btn btn-outline-primary">{{ _('View Queued Words') }}</a>
-                    <a href="{{ url_for('books.book_words', book_id=book.id, status=3) }}" class="btn btn-outline-info">{{ _('View Active Words') }}</a>
+                    <a href="{{ url_for('books.book_words', book_id=book.id, status=1) }}" class="btn btn-outline-primary">{{ _('View Learning Words') }}</a>
                     {% if current_user.is_authenticated and current_user.is_admin %}
                     <form action="{{ url_for('books.reprocess_book_words', book_id=book.id) }}" method="POST" class="mt-2">
                         <button type="submit" class="btn btn-outline-secondary d-block w-100">
@@ -253,17 +242,13 @@
                                 <td>
                                     <span class="badge bg-{{ {
                                         0: 'secondary',
-                                        1: 'success',
-                                        2: 'primary',
-                                        3: 'info',
-                                        4: 'warning'
+                                        1: 'primary',
+                                        2: 'success'
                                     }[word_statuses[word.id]] }}">
                                         {{ {
                                             0: _('New'),
-                                            1: _('Known'),
-                                            2: _('Queued'),
-                                            3: _('Active'),
-                                            4: _('Mastered')
+                                            1: _('Learning'),
+                                            2: _('Mastered')
                                         }[word_statuses[word.id]] }}
                                     </span>
                                 </td>
@@ -275,21 +260,11 @@
                                         <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
                                             <li>
                                                 <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">{{ _('Mark as Known') }}</button>
+                                                    <button type="submit" class="dropdown-item">{{ _('Add to Learning') }}</button>
                                                 </form>
                                             </li>
                                             <li>
                                                 <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">{{ _('Add to Queue') }}</button>
-                                                </form>
-                                            </li>
-                                            <li>
-                                                <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
-                                                    <button type="submit" class="dropdown-item">{{ _('Set Active') }}</button>
-                                                </form>
-                                            </li>
-                                            <li>
-                                                <form action="{{ url_for('words.update_word_status', word_id=word.id, status=4) }}" method="POST">
                                                     <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                                                 </form>
                                             </li>

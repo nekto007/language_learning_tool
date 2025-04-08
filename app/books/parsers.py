@@ -8,12 +8,6 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from werkzeug.utils import secure_filename
 
-from app.books.models import Book
-from app.nlp.processor import prepare_word_data, process_text
-from app.nlp.setup import download_nltk_resources, initialize_nltk
-from app.repository import DatabaseRepository
-from app.words.models import CollectionWords as Word
-
 logger = logging.getLogger(__name__)
 
 

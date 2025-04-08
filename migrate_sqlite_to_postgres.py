@@ -20,7 +20,7 @@ pg_cursor = pg_conn.cursor()
 
 try:
     # Получаем данные из SQLite
-    sqlite_cursor.execute("SELECT english_word, russian_word, listening, sentences, level FROM collection_words")
+    sqlite_cursor.execute("SELECT english_word, russian_word, listening, sentences, level FROM collections_word")
     data = sqlite_cursor.fetchall()
 
     print(f"Found {len(data)} records to transfer")

@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify
-from flask_login import login_user, current_user
+import functools
+from datetime import datetime
+
+from flask import Blueprint, jsonify, request
+from flask_login import current_user, login_user
+
 from app.auth.models import User
 from app.utils.db import db
-from datetime import datetime
-import functools
 
 api_auth = Blueprint('api_auth', __name__)
 

@@ -1,9 +1,11 @@
 # app/books/models.py
 
-from app.utils.db import db
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, UniqueConstraint, Index
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.utils.db import db
 
 
 class Book(db.Model):
@@ -11,13 +13,13 @@ class Book(db.Model):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(255), unique=True, nullable=False)
-    author = Column(String(255), nullable=True)  # New field for book author
-    level = Column(String(2), nullable=True)  # New field for book level (A1, A2, B1, B2, C1, C2)
+    author = Column(String(255), nullable=True)
+    level = Column(String(2), nullable=True)
     total_words = Column(Integer, default=0)
     unique_words = Column(Integer, default=0)
     scrape_date = Column(DateTime, default=datetime.utcnow)
     content = Column(Text)
-    cover_image = Column(String(255))  # Stores the filename of the cover image
+    cover_image = Column(String(255))
 
     words = relationship("CollectionWords", secondary="word_book_link", back_populates="books")
 
