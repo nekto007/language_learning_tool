@@ -57,35 +57,47 @@ class StudyItem(db.Model):
             4 - Correct response with some hesitation
             5 - Perfect response
         """
-        # Update repetition count
-        self.repetitions += 1
-
         # Update correct/incorrect count
         if quality >= 3:
             self.correct_count += 1
         else:
             self.incorrect_count += 1
 
+        # Update SM-2 algorithm parameters
+        old_ease_factor = self.ease_factor
+
         # Implement SM-2 algorithm (Anki-like)
         if quality < 3:
             # If response was wrong, start over
             self.repetitions = 0
             self.interval = 0
+            # EF decreases but should not go below 1.3
+            self.ease_factor = max(1.3, old_ease_factor - 0.20)
         else:
+            self.repetitions += 1
             # Update ease factor
-            self.ease_factor += 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)
+            self.ease_factor = max(1.3, old_ease_factor - 0.8 + (0.28 * quality) - (0.02 * quality * quality))
 
             # Make sure ease factor doesn't go below 1.3
-            if self.ease_factor < 1.3:
-                self.ease_factor = 1.3
-
-            # Calculate new interval
             if self.repetitions == 1:
+                # First correct repetition
                 self.interval = 1
             elif self.repetitions == 2:
+                # Second correct repetition
                 self.interval = 6
             else:
-                self.interval = round(self.interval * self.ease_factor)
+                # For subsequent repetitions, calculate based on previous interval and ease factor
+                if quality == 3:
+                    # "Трудно" button (Hard) - apply penalty
+                    hard_penalty = 0.8  # 20% penalty for difficult cards
+                    self.interval = max(1, round(self.interval * self.ease_factor * hard_penalty))
+                elif quality == 4:
+                    # "Хорошо" button (Good) - standard calculation
+                    self.interval = max(1, round(self.interval * self.ease_factor))
+                elif quality == 5:
+                    # "Легко" button (Easy) - apply bonus
+                    easy_bonus = 1.3  # 30% bonus for easy cards
+                    self.interval = max(1, round(self.interval * self.ease_factor * easy_bonus))
 
         # Update review dates
         self.last_reviewed = datetime.utcnow()
@@ -105,6 +117,11 @@ class StudyItem(db.Model):
             return 0
         delta = self.next_review - datetime.utcnow()
         return max(0, delta.days)
+
+    @property
+    def is_mastered(self):
+        """Check if the word is considered "mastered" (interval >= 30 days)"""
+        return self.interval >= 30
 
     @hybrid_property
     def performance_percentage(self):

@@ -2,110 +2,170 @@
 
 {% block title %}{{ _('Study Dashboard') }}{% endblock %}
 {% block content %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/study-guide.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/study-guide.css') }}">
 <div class="container mt-4">
-    <h1 class="mb-4">{{ _('Study Dashboard') }}</h1>
+    <h1 class="text-center mb-5" style="font-size: 2.5rem; color: #333;">{{ _('Дашборд для обучения') }}</h1>
 
-    <div class="row">
-        <!-- Left column: Stats and session starter -->
-        <div class="col-md-8">
-            <!-- Stats cards -->
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ _('Due for Review') }}</h5>
-                            <h2 class="card-text text-primary">{{ due_items_count }}</h2>
-                            <p class="card-text text-muted">{{ _('words') }}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ _('Total Words') }}</h5>
-                            <h2 class="card-text text-success">{{ total_items }}</h2>
-                            <p class="card-text text-muted">{{ _('in your collection') }}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ _('Progress') }}</h5>
-                            <div class="progress mt-2 mb-2">
-                                <div class="progress-bar bg-info" role="progressbar" style="width: {{ learned_percentage }}%">
-                                    {{ learned_percentage }}%
-                                </div>
-                            </div>
-                            <p class="card-text text-muted">{{ _('of vocabulary learned') }}</p>
-                        </div>
-                    </div>
+    <!-- Stats cards in one row - wider blocks -->
+    <div class="row mb-5 g-4 justify-content-center">
+        <div class="col-md-4">
+            <div class="card text-center h-100">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">{{ _('К просмотру') }}</h5>
+                    <h2 class="card-text text-primary" style="font-size: 3rem; font-weight: 500;">{{ due_items_count }}</h2>
+                    <p class="card-text text-muted">{{ _('слова') }}</p>
                 </div>
             </div>
-
-            <!-- Start Study Session Card -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ _('Start a Study Session') }}</h5>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center h-100">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">{{ _('Всего слов') }}</h5>
+                    <h2 class="card-text text-success" style="font-size: 3rem; font-weight: 500;">{{ total_items }}</h2>
+                    <p class="card-text text-muted">{{ _('в вашей коллекции') }}</p>
                 </div>
-                <div class="card-body">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center h-100">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">{{ _('Прогресс') }}</h5>
+                    <div class="progress mt-4 mb-4" style="height: 15px;">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ learned_percentage }}%">
+                            {{ learned_percentage }}%
+                        </div>
+                    </div>
+                    <p class="card-text text-muted">{{ _('количества изученных слов') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Study Session Card -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header py-3">
+                    <h5 class="mb-0">{{ _('Начните занятия') }}</h5>
+                </div>
+                <div class="card-body p-4">
                     <form method="POST" action="{{ url_for('study.start_session') }}">
                         {{ form.csrf_token }}
 
-                        <div class="form-group mb-3">
-                            <label>{{ _(form.session_type.label.text) }}</label>
-                            {{ form.session_type(class="form-control") }}
-                            <small class="form-text text-muted">{{ _('Choose how you want to study your words') }}</small>
+                        <div class="mb-4">
+                            <label class="form-label">{{ _('Режим обучения') }}</label>
+                            {{ form.session_type(class="form-select form-control") }}
+                            <small class="form-text text-muted">{{ _('Выберите, как вы хотите изучать свои слова') }}</small>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label>{{ _(form.word_source.label.text) }}</label>
-                                    {{ form.word_source(class="form-control") }}
-                                    <small class="form-text text-muted">{{ _('Select which words to study') }}</small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label>{{ _(form.max_words.label.text) }}</label>
-                                    {{ form.max_words(class="form-control") }}
-                                    <small class="form-text text-muted">{{ _('Number of words to include') }}</small>
-                                </div>
-                            </div>
+                        <div class="mb-4">
+                            <label class="form-label">{{ _('Источник слов') }}</label>
+                            {{ form.word_source(class="form-select form-control") }}
+                            <small class="form-text text-muted">{{ _('Выберите слова для изучения') }}</small>
                         </div>
 
-                        <div class="mt-3">
-                            {{ form.submit(class="btn btn-primary", value=_('Start Session')) }}
-                            <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary ms-2">
-                                <i class="fas fa-cog"></i> {{ _('Settings') }}
+                        <div class="d-flex justify-content-between mt-4">
+                            {{ form.submit(class="btn btn-primary px-4 py-2", value=_('Начало сеанса')) }}
+                            <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary px-4 py-2">
+                                <i class="fas fa-cog me-2"></i> {{ _('Настройки') }}
                             </a>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Recent Sessions -->
+    <!-- Study Tips Card -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-12">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ _('Recent Study Sessions') }}</h5>
-                    <a href="{{ url_for('study.stats') }}" class="btn btn-sm btn-outline-primary">
-                        {{ _('View All Stats') }}
+                <div class="card-header py-3">
+                    <h5 class="mb-0">{{ _('Советы по обучению') }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ _('Регулярно занимайтесь, чтобы повысить успеваемость') }}
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ _('Используйте интервальное повторение для достижения лучших результатов') }}
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ _('Создавайте ассоциации с новой лексикой') }}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ _('Чаще просматривайте трудные слова') }}
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ _('Тренируйтесь использовать слова в контексте') }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header py-3">
+                    <h5 class="mb-0">{{ _('Быстрые действия') }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('study.cards', word_source='new') }}" class="btn btn-outline-success w-100 py-2">
+                                <i class="fas fa-plus me-2"></i> {{ _('Выучите 5 новых слов') }}
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-secondary w-100 py-2">
+                                <i class="fas fa-book me-2"></i> {{ _('Просмотреть все слова') }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0">{{ _('Последние учебные сессии') }}</h5>
+                    <a href="{{ url_for('study.stats') }}" class="btn btn-sm btn-outline-primary px-3">
+                        {{ _('Посмотреть всю статистику') }}
                     </a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     {% if recent_sessions %}
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>{{ _('Date') }}</th>
-                                        <th>{{ _('Type') }}</th>
-                                        <th>{{ _('Words') }}</th>
-                                        <th>{{ _('Correct') }}</th>
-                                        <th>{{ _('Score') }}</th>
-                                        <th>{{ _('Time') }}</th>
+                                        <th>{{ _('Дата') }}</th>
+                                        <th>{{ _('Тип') }}</th>
+                                        <th>{{ _('Слова') }}</th>
+                                        <th>{{ _('Правильно') }}</th>
+                                        <th>{{ _('Оценка') }}</th>
+                                        <th>{{ _('Время') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -120,7 +180,7 @@
                                                 {{ session.performance_percentage }}%
                                             </span>
                                         </td>
-                                        <td>{{ session.duration }} {{ _('min') }}</td>
+                                        <td>{{ session.duration }} {{ _('мин') }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -128,61 +188,10 @@
                         </div>
                     {% else %}
                         <p class="text-center text-muted my-4">
-                            {{ _('You haven\'t completed any study sessions yet.') }}
-                            {{ _('Start studying to see your progress!') }}
+                            {{ _('Вы еще не завершили ни одной учебной сессии.') }}
+                            {{ _('Начните обучение, чтобы увидеть свой прогресс!') }}
                         </p>
                     {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Right column: Quick tips and tools -->
-        <div class="col-md-4">
-            <!-- Study Tips -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ _('Study Tips') }}</h5>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            {{ _('Study regularly to improve retention') }}
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            {{ _('Use spaced repetition for better results') }}
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            {{ _('Create associations with new vocabulary') }}
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            {{ _('Review difficult words more frequently') }}
-                        </li>
-                        <li class="list-group-item">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            {{ _('Practice using words in context') }}
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ _('Quick Actions') }}</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('study.cards', word_source='new', max_words=5) }}" class="btn btn-outline-success">
-                            <i class="fas fa-plus me-2"></i> {{ _('Learn 5 New Words') }}
-                        </a>
-                        <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-book me-2"></i> {{ _('Browse All Words') }}
-                        </a>
-                    </div>
                 </div>
             </div>
         </div>
