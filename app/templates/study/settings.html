@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Study Settings{% endblock %}
+{% block title %}{{ _('Study Settings') }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -8,23 +8,23 @@
         <div class="col-md-8 mx-auto">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h2 class="mb-0">Study Settings</h2>
+                    <h2 class="mb-0">{{ _('Study Settings') }}</h2>
                     <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Study
+                        <i class="fas fa-arrow-left"></i> {{ _('Back to Study') }}
                     </a>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('study.settings') }}">
                         {{ form.csrf_token }}
 
-                        <h4 class="mt-3 mb-3">Daily Limits</h4>
+                        <h4 class="mt-3 mb-3">{{ _('Daily Limits') }}</h4>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
                                     <label>{{ form.new_words_per_day.label }}</label>
                                     {{ form.new_words_per_day(class="form-control") }}
                                     <small class="form-text text-muted">
-                                        Maximum number of new words to learn each day
+                                        {{ _('Maximum number of new words to learn each day') }}
                                     </small>
                                 </div>
                             </div>
@@ -33,20 +33,20 @@
                                     <label>{{ form.reviews_per_day.label }}</label>
                                     {{ form.reviews_per_day(class="form-control") }}
                                     <small class="form-text text-muted">
-                                        Maximum number of reviews to do each day
+                                        {{ _('Maximum number of reviews to do each day') }}
                                     </small>
                                 </div>
                             </div>
                         </div>
 
-                        <h4 class="mt-4 mb-3">Study Preferences</h4>
+                        <h4 class="mt-4 mb-3">{{ _('Study Preferences') }}</h4>
                         <div class="form-check mb-3">
                             {{ form.include_translations(class="form-check-input") }}
                             <label class="form-check-label">
                                 {{ form.include_translations.label }}
                             </label>
                             <small class="form-text text-muted d-block">
-                                Show word translations during study
+                                {{ _('Show word translations during study') }}
                             </small>
                         </div>
 
@@ -56,7 +56,7 @@
                                 {{ form.include_examples.label }}
                             </label>
                             <small class="form-text text-muted d-block">
-                                Show example sentences during study
+                                {{ _('Show example sentences during study') }}
                             </small>
                         </div>
 
@@ -66,16 +66,14 @@
                                 {{ form.include_audio.label }}
                             </label>
                             <small class="form-text text-muted d-block">
-                                Automatically play word pronunciation when showing cards
+                                {{ _('Automatically play word pronunciation when showing cards') }}
                             </small>
                         </div>
-
-                        <h4 class="mt-4 mb-3">Difficulty Settings</h4>
                         <div class="form-group mb-3">
                             <label>{{ form.show_hint_time.label }}</label>
                             {{ form.show_hint_time(class="form-control") }}
                             <small class="form-text text-muted">
-                                Time in seconds before hints appear (0 to disable hints)
+                                {{ _('Time in seconds before hints appear (0 to disable hints)') }}
                             </small>
                         </div>
 
@@ -88,51 +86,49 @@
 
             <div class="card mt-4">
                 <div class="card-header">
-                    <h4 class="mb-0">About Spaced Repetition</h4>
+                    <h4 class="mb-0">{{ _('About Spaced Repetition') }}</h4>
                 </div>
                 <div class="card-body">
                     <p>
-                        This app uses a spaced repetition algorithm similar to Anki to help you efficiently memorize vocabulary.
-                        Here's how the ratings work:
+                        {{ _('This app uses a spaced repetition algorithm similar to Anki to help you efficiently memorize vocabulary. Here\'s how the ratings work:') }}
                     </p>
 
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
-                                    <th>Rating</th>
-                                    <th>Meaning</th>
-                                    <th>Next Review</th>
+                                    <th>{{ _('Rating') }}</th>
+                                    <th>{{ _('Meaning') }}</th>
+                                    <th>{{ _('Next Review') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>Again (0)</td>
-                                    <td>Complete blackout, wrong answer</td>
-                                    <td>Review again in the same session</td>
+                                    <td>{{ _('Again (0)') }}</td>
+                                    <td>{{ _('Complete blackout, wrong answer') }}</td>
+                                    <td>{{ _('Review again in the same session') }}</td>
                                 </tr>
                                 <tr>
-                                    <td>Hard (1-2)</td>
-                                    <td>Incorrect but recognized</td>
-                                    <td>Short interval (1 day)</td>
+                                    <td>{{ _('Hard (1-2)') }}</td>
+                                    <td>{{ _('Incorrect but recognized') }}</td>
+                                    <td>{{ _('Short interval (1 day)') }}</td>
                                 </tr>
                                 <tr>
-                                    <td>Good (3)</td>
-                                    <td>Correct with some difficulty</td>
-                                    <td>Standard interval increase</td>
+                                    <td>{{ _('Good (3)') }}</td>
+                                    <td>{{ _('Correct with some difficulty') }}</td>
+                                    <td>{{ _('Standard interval increase') }}</td>
                                 </tr>
                                 <tr>
-                                    <td>Easy (4-5)</td>
-                                    <td>Perfect recall</td>
-                                    <td>Longer interval (faster progression)</td>
+                                    <td>{{ _('Easy (4-5)') }}</td>
+                                    <td>{{ _('Perfect recall') }}</td>
+                                    <td>{{ _('Longer interval (faster progression)') }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
                     <p class="mt-3">
-                        <strong>Tip:</strong> Be honest with your ratings for the best learning results.
-                        The algorithm adjusts to your actual learning progress.
+                        <strong>{{ _('Tip') }}:</strong> {{ _('Be honest with your ratings for the best learning results. The algorithm adjusts to your actual learning progress.') }}
                     </p>
                 </div>
             </div>
