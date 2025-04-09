@@ -112,7 +112,7 @@ def word_list():
 
     # Apply letter filter if provided
     if letter:
-        query = query.where(CollectionWords.english_word.like(f"{letter}%"))
+        query = query.where(CollectionWords.english_word.ilike(f"{letter}%"))
 
     # Apply book filter if provided
     if book_id:
