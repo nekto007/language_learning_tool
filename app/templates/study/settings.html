@@ -90,46 +90,74 @@
                 </div>
                 <div class="card-body">
                     <p>
-                        {{ _('This app uses a spaced repetition algorithm similar to Anki to help you efficiently memorize vocabulary. Here\'s how the ratings work:') }}
+                        {{ _('This app uses an enhanced SM-2 spaced repetition algorithm (similar to Anki) to help you efficiently memorize vocabulary. The system adjusts the interval between reviews based on how well you know each word.') }}
                     </p>
 
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
-                                    <th>{{ _('Rating') }}</th>
+                                    <th>{{ _('Button') }}</th>
+                                    <th>{{ _('Quality') }}</th>
                                     <th>{{ _('Meaning') }}</th>
-                                    <th>{{ _('Next Review') }}</th>
+                                    <th>{{ _('Effect on Next Review') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>{{ _('Again (0)') }}</td>
-                                    <td>{{ _('Complete blackout, wrong answer') }}</td>
-                                    <td>{{ _('Review again in the same session') }}</td>
+                                    <td><span class="badge bg-danger">{{ _('Again') }}</span></td>
+                                    <td>0-2</td>
+                                    <td>{{ _('Incorrect answer or complete blackout') }}</td>
+                                    <td>{{ _('Resets interval to 0, decreases ease factor by 0.20') }}</td>
                                 </tr>
                                 <tr>
-                                    <td>{{ _('Hard (1-2)') }}</td>
-                                    <td>{{ _('Incorrect but recognized') }}</td>
-                                    <td>{{ _('Short interval (1 day)') }}</td>
+                                    <td><span class="badge bg-warning text-dark">{{ _('Hard') }}</span></td>
+                                    <td>3</td>
+                                    <td>{{ _('Correct but with significant difficulty') }}</td>
+                                    <td>{{ _('Applies 20%% penalty to interval calculation') }}</td>
                                 </tr>
                                 <tr>
-                                    <td>{{ _('Good (3)') }}</td>
-                                    <td>{{ _('Correct with some difficulty') }}</td>
-                                    <td>{{ _('Standard interval increase') }}</td>
+                                    <td><span class="badge bg-primary">{{ _('Good') }}</span></td>
+                                    <td>4</td>
+                                    <td>{{ _('Correct with some hesitation') }}</td>
+                                    <td>{{ _('Standard interval increase based on ease factor') }}</td>
                                 </tr>
                                 <tr>
-                                    <td>{{ _('Easy (4-5)') }}</td>
-                                    <td>{{ _('Perfect recall') }}</td>
-                                    <td>{{ _('Longer interval (faster progression)') }}</td>
+                                    <td><span class="badge bg-success">{{ _('Easy') }}</span></td>
+                                    <td>5</td>
+                                    <td>{{ _('Perfect recall, no hesitation') }}</td>
+                                    <td>{{ _('Applies 30%% bonus to interval calculation') }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <p class="mt-3">
-                        <strong>{{ _('Tip') }}:</strong> {{ _('Be honest with your ratings for the best learning results. The algorithm adjusts to your actual learning progress.') }}
+                    <h5 class="mt-4">{{ _('How the algorithm works') }}</h5>
+                    <p>
+                        {{ _('For each card, the system tracks:') }}
                     </p>
+                    <ul>
+                        <li>{{ _('Ease Factor (EF) - starts at 2.5 and adjusts based on your performance') }}</li>
+                        <li>{{ _('Interval - number of days until the next review') }}</li>
+                        <li>{{ _('Repetitions - number of times you\'ve successfully reviewed the card') }}</li>
+                    </ul>
+
+                    <p>
+                        {{ _('When you first learn a card and answer correctly:') }}
+                    </p>
+                    <ul>
+                        <li>{{ _('1st correct review: Next interval = 1 day') }}</li>
+                        <li>{{ _('2nd correct review: Next interval = 6 days') }}</li>
+                        <li>{{ _('Subsequent reviews: Interval is calculated based on previous interval, ease factor, and your response quality') }}</li>
+                    </ul>
+
+                    <p>
+                        {{ _('A word is considered "mastered" when its interval reaches 30 days or more.') }}
+                    </p>
+
+                    <div class="alert alert-info mt-3">
+                        <strong>{{ _('Tip') }}:</strong> {{ _('Be honest with your ratings for the best learning results. Consistently using "Easy" for words you find difficult will lead to forgetting. Similarly, using "Hard" for words you know well will slow down your progress unnecessarily.') }}
+                    </div>
                 </div>
             </div>
         </div>

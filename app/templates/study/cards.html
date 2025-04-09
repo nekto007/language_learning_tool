@@ -3,526 +3,1094 @@
 {% block title %}{{ _('Flashcards') }}{% endblock %}
 
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/study.css') }}">
+<style>
+    body {
+        background-color: #f5f5f5;
+    }
+
+    .progress-container {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .progress-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .card-counter {
+        color: #666;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .progress-stats {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .stat-counter {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        color: white;
+    }
+
+    .stat-correct {
+        background-color: #4CAF50;
+    }
+
+    .stat-incorrect {
+        background-color: #F44336;
+    }
+
+    .progress-bar {
+        height: 10px;
+        background-color: #eeeeee;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background-color: #4CAF50;
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+
+    .card-container {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        padding: 40px 30px;
+        margin-bottom: 20px;
+        min-height: 400px;
+        position: relative;
+    }
+
+    .word-title {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .pronunciation-btn {
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 8px 20px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 auto 30px;
+    }
+
+    .pronunciation-btn:hover {
+        background-color: #f9f9f9;
+    }
+
+    .hint-text {
+        margin: 30px 0;
+        color: #666;
+        font-size: 1.1rem;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .hint-text.visible {
+        opacity: 1;
+    }
+
+    .card-section {
+        margin: 15px 0;
+        text-align: center;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        color: #666;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .translation-text {
+        font-size: 1.3rem;
+        margin: 10px 0;
+        text-align: center;
+        color: red;
+    }
+
+    .example-text {
+        margin: 5px 0;
+        text-align: center;
+    }
+
+    .example-translation {
+        margin-top: 5px;
+        color: #666;
+        text-align: center;
+    }
+
+    .show-answer-btn {
+        background-color: #5B7FFF;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 12px 30px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        margin: 30px auto 0;
+        display: block;
+    }
+
+    .show-answer-btn:hover {
+        background-color: #4A6FEF;
+    }
+
+    .rating-container {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .rating-btn {
+        flex: 1;
+        max-width: 200px;
+        padding: 15px 10px;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        font-size: 1rem;
+        cursor: pointer;
+        text-align: center;
+    }
+
+    .btn-again {
+        background-color: #F44336;
+    }
+
+    .btn-hard {
+        background-color: #FFC107;
+    }
+
+    .btn-good {
+        background-color: #4FC3F7;
+    }
+
+    .btn-easy {
+        background-color: #4CAF50;
+    }
+
+    .how-well-text {
+        text-align: center;
+        margin-bottom: 15px;
+        color: #666;
+    }
+
+    .end-session-btn {
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 8px 20px;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .end-session-btn:hover {
+        background-color: #f9f9f9;
+    }
+
+    .divider {
+        width: 100%;
+        height: 1px;
+        background-color: #eeeeee;
+        margin: 20px auto;
+        max-width: 500px;
+    }
+
+    .center-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dash-separator {
+        display: block;
+        text-align: center;
+        margin: 5px 0;
+        color: #999;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row mb-3">
-        <div class="col">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('study.index') }}">{{ _('Study') }}</a></li>
-                    <li class="breadcrumb-item active">{{ _('Flashcards') }}</li>
-                </ol>
-            </nav>
+<div class="container mt-4" id="flashcard-app">
+    <!-- Progress bar and stats -->
+    <div class="progress-container">
+        <div class="progress-header">
+            <div>
+                <h2 class="progress-title">{{ _('Study Progress') }}</h2>
+                <p class="card-counter" id="card-counter">{{ _('Card 1 of 20') }}</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="progress-stats">
+                    <span class="stat-counter stat-correct" id="correct-counter">0</span>
+                    <span class="stat-counter stat-incorrect" id="incorrect-counter">0</span>
+                </div>
+                <button id="end-session-btn" class="end-session-btn">{{ _('End Session') }}</button>
+            </div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
         </div>
     </div>
 
-    <!-- Study progress -->
-    <div class="row mb-3 study-progress-container">
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">{{ _('Study Progress') }}</h5>
-                            <small class="text-muted" id="progress-text">Card 0 of 0</small>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <div class="me-3">
-                                <span id="correct-count" class="badge bg-success me-1">0</span>
-                                <span id="incorrect-count" class="badge bg-danger">0</span>
-                            </div>
-                            <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">
-                                {{ _('End Session') }}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="progress mt-2">
-                        <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                </div>
-            </div>
+    <!-- Loading spinner -->
+    <div id="loading-spinner" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">{{ _('Loading...') }}</span>
         </div>
+        <p class="mt-2 text-muted">{{ _('Loading cards...') }}</p>
     </div>
 
-    <!-- Flashcard container -->
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div id="loading-indicator" class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Loading your study session...</p>
+    <!-- Cards container -->
+    <div id="flashcard-view" style="display: none;">
+        <!-- Front side (question) -->
+        <div id="card-front" class="card-container center-container">
+            <h1 id="front-word" class="word-title"></h1>
+
+            <div class="center-container">
+                <button id="front-audio-btn" class="pronunciation-btn">
+                    <i class="fas fa-volume-up"></i> {{ _('Pronunciation') }}
+                </button>
             </div>
 
-            <div id="flashcard-container" style="display: none;">
-                <div id="flashcard" class="card flashcard">
-                    <div class="card-body">
-                        <!-- Card Front -->
-                        <div id="card-front" class="flashcard-side">
-                            <div class="text-end mb-2">
-{#                                <small class="text-muted card-status"></small>#}
-                            </div>
-                            <h2 id="word" class="text-center mb-4"></h2>
-                            <div id="pronunciation" class="text-center mb-3">
-                                <button id="play-audio-btn" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-volume-up"></i> {{ _('Pronounce') }}
-                                </button>
-                            </div>
-                            <div id="hint-container" class="text-center mt-4" style="display: none;">
-                                <p class="hint-text">{{ _('Hint:') }} <span id="hint-text"></span></p>
-                            </div>
-                        </div>
+            <p id="hint-text" class="hint-text"></p>
 
-                        <!-- Card Back -->
-                        <div id="card-back" class="flashcard-side" style="display: none;">
-                            <div class="text-end mb-2">
-{#                                <small class="text-muted card-status">Back</small>#}
-                            </div>
-                            <h2 id="back-word" class="text-center mb-3"></h2>
-                            <div id="pronunciation" class="text-center mb-3">
-                                <button id="play-audio-btn" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-volume-up"></i> {{ _('Pronounce') }}
-                                </button>
-                            </div>
-                            <div class="card-section mb-3">
-                                <h5 class="card-subtitle">{{ _('Translation') }}</h5>
-                                <p id="translation" class="mb-0"></p>
-                            </div>
-                            <div class="card-section" id="examples-section">
-                                <h5 class="card-subtitle">{{ _('Examples') }}</h5>
-                                <div id="examples" class="mb-0"></div>
-                            </div>
-                        </div>
+            <button id="show-answer-btn" class="show-answer-btn">
+                {{ _('Show Answer') }}
+            </button>
+        </div>
+
+        <!-- Back side (answer) -->
+        <div id="card-back" class="card-container center-container" style="display: none;">
+            <h1 id="back-word" class="word-title"></h1>
+
+            <div class="center-container">
+                <button id="back-audio-btn" class="pronunciation-btn">
+                    <i class="fas fa-volume-up"></i> {{ _('Pronunciation') }}
+                </button>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="card-section">
+                <div class="section-title">{{ _('Translation') }}</div>
+                <div id="translation-text" class="translation-text"></div>
+            </div>
+
+            <div id="examples-container" class="card-section">
+                <div class="section-title">{{ _('Examples') }}</div>
+                <div id="example-text" class="example-text"></div>
+                <div id="example-translation" class="example-translation"></div>
+            </div>
+
+{#            <p class="how-well-text">{{ _('How well did you know this?') }}</p>#}
+
+            <div class="rating-container">
+                <button type="button" class="rating-btn btn-again" data-rating="0">
+                    {{ _('Again') }}
+                </button>
+                <button type="button" class="rating-btn btn-hard" data-rating="1">
+                    {{ _('Hard') }}
+                </button>
+                <button type="button" class="rating-btn btn-good" data-rating="3">
+                    {{ _('Good') }}
+                </button>
+                <button type="button" class="rating-btn btn-easy" data-rating="5">
+                    {{ _('Easy') }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Сообщение о завершении дневного лимита -->
+        <div id="daily-limit-message" class="card-container text-center" style="display: none;">
+            <h2 class="mb-4 text-success">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                {{ _('Hooray! You\'re done for today.') }}
+            </h2>
+
+            <div class="mb-4">{{ _('Today\'s study limit has been reached. There are still new cards, but the daily limit is exhausted. You can increase the limit in the settings, but please keep in mind that the more new cards you see, the more you\'ll need to review in the near future.') }}</div>
+            <div class="mt-4">
+                <div class="d-flex justify-content-center gap-3 mb-4">
+                    <div class="text-center">
+                        <h4 id="new-cards-stats" class="mb-2">0 / 0</h4>
+                        <p class="text-muted">{{ _('New cards') }}</p>
                     </div>
-                </div>
-
-                <!-- Card Controls -->
-                <div id="card-controls">
-                    <!-- Front side controls (Reveal button) -->
-                    <div id="front-controls" class="text-center mt-4">
-                        <button id="show-answer-btn" class="btn btn-primary">{{ _('Show Answer') }}</button>
-                    </div>
-
-                    <!-- Back side controls (rating buttons) -->
-                    <div id="back-controls" class="text-center mt-4" style="display: none;">
-                        <p class="mb-2">{{ _('How well did you know this?') }}</p>
-                        <div class="btn-group">
-                            <button data-rating="0" class="btn btn-danger rating-btn">{{ _('Again') }}</button>
-                            <button data-rating="1" class="btn btn-warning rating-btn">{{ _('Hard') }}</button>
-                            <button data-rating="3" class="btn btn-info rating-btn">{{ _('Good') }}</button>
-                            <button data-rating="5" class="btn btn-success rating-btn">{{ _('Easy') }}</button>
-                        </div>
+                    <div class="text-center">
+                        <h4 id="reviews-stats" class="mb-2">0 / 0</h4>
+                        <p class="text-muted">{{ _('Reviews') }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Session Complete -->
-            <div id="session-complete" class="card text-center p-4" style="display: none;">
-                <h3 class="mb-4">{{ _('Study Session Complete!') }}</h3>
+            <div class="mt-4">
+                <a href="{{ url_for('study.cards', word_source='new') }}?extra_study=true" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i> {{ _('Start Extra Study') }}
+                </a>
 
-                <div class="row justify-content-center mb-4">
-                    <div class="col-md-8">
-                        <div class="progress mb-3">
-                            <div id="final-progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
-                        </div>
+                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
+                    {{ _('Return to Dashboard') }}
+                </a>
 
-                        <div class="session-stats">
-                            <div class="row text-center">
-                                <div class="col-4">
-                                    <h4 id="stats-total">0</h4>
-                                    <p>{{ _('Words Studied') }}</p>
-                                </div>
-                                <div class="col-4">
-                                    <h4 id="stats-percentage">0%</h4>
-                                    <p>{{ _('Accuracy') }}</p>
-                                </div>
-                                <div class="col-4">
-                                    <h4 id="stats-time">0 min</h4>
-                                    <p>{{ _('Time Spent') }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-cog"></i> {{ _('Settings') }}
+                </a>
+            </div>
+        </div>
+
+        <!-- No cards message -->
+        <div id="no-cards-message" class="alert alert-info text-center" style="display: none;">
+            <h4>{{ _('No Cards Available') }}</h4>
+            <p>{{ _('There are no words matching your study criteria.') }}</p>
+            <a href="{{ url_for('study.index') }}" class="btn btn-primary mt-2">
+                {{ _('Return to Study Dashboard') }}
+            </a>
+        </div>
+
+        <!-- Session complete message -->
+        <div id="session-complete" class="card-container text-center" style="display: none;">
+            <h2 class="mb-4">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                {{ _('Session Complete!') }}
+            </h2>
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <h2 id="stats-words" class="text-primary">0</h2>
+                    <p class="text-muted">{{ _('Cards Studied') }}</p>
                 </div>
-
-                <div class="mt-4">
-                    <a href="{{ url_for('study.index') }}" class="btn btn-primary me-2">{{ _('Return to Dashboard') }}</a>
-                    <a href="{{ url_for('study.cards') }}" class="btn btn-outline-success">{{ _('Start New Session') }}</a>
+                <div class="col-md-4">
+                    <h2 id="stats-correct" class="text-success">0</h2>
+                    <p class="text-muted">{{ _('Correct Answers') }}</p>
                 </div>
+                <div class="col-md-4">
+                    <h2 id="stats-score" class="text-warning">0%</h2>
+                    <p class="text-muted">{{ _('Score') }}</p>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <a href="{{ url_for('study.index') }}" class="btn btn-primary">
+                    {{ _('Back to Study') }}
+                </a>
+                <a href="{{ url_for('study.cards') }}" class="btn btn-outline-secondary ms-2">
+                    {{ _('Start New Session') }}
+                </a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Audio element for pronunciation -->
-<audio id="word-audio" src=""></audio>
-
-<!-- Invisible input to store session data -->
-<input type="hidden" id="session-id" value="{{ session_id }}">
-<input type="hidden" id="word-source" value="{{ word_source }}">
-<input type="hidden" id="max-words" value="{{ max_words }}">
-<input type="hidden" id="include-audio" value="{{ settings.include_audio|int }}">
-<input type="hidden" id="include-translations" value="{{ settings.include_translations|int }}">
-<input type="hidden" id="include-examples" value="{{ settings.include_examples|safe }}">
-<input type="hidden" id="show-hint-time" value="{{ settings.show_hint_time }}">
+<!-- Audio element (hidden) -->
+<audio id="word-audio" style="display: none;"></audio>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Session variables
-    const sessionId = document.getElementById('session-id').value;
-    const wordSource = document.getElementById('word-source').value;
-    const maxWords = document.getElementById('max-words').value;
-    const includeAudio = document.getElementById('include-audio').value === '1';
-    const includeTranslations = document.getElementById('include-translations').value === '1';
-    const includeExamples = document.getElementById('include-examples').value === '1';
-    const showHintTime = parseInt(document.getElementById('show-hint-time').value);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Config from server
+        const sessionId = {{ session_id }};
+        const wordSource = '{{ word_source }}';
+        const showTranslations = {{ settings.include_translations|lower }};
+        const showExamples = {{ settings.include_examples|lower }};
+        const playAudio = {{ settings.include_audio|lower }};
+        const hintTime = 5; // Фиксированное время показа подсказки - 5 секунд
 
-    // Elements
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const flashcardContainer = document.getElementById('flashcard-container');
-    const cardFront = document.getElementById('card-front');
-    const cardBack = document.getElementById('card-back');
-    const frontControls = document.getElementById('front-controls');
-    const backControls = document.getElementById('back-controls');
-    const showAnswerBtn = document.getElementById('show-answer-btn');
-    const ratingBtns = document.querySelectorAll('.rating-btn');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-    const correctCount = document.getElementById('correct-count');
-    const incorrectCount = document.getElementById('incorrect-count');
-    const wordAudio = document.getElementById('word-audio');
-    const playAudioBtn = document.getElementById('play-audio-btn');
-    const hintContainer = document.getElementById('hint-container');
-    const hintText = document.getElementById('hint-text');
-    const sessionComplete = document.getElementById('session-complete');
-    const endSessionBtn = document.getElementById('end-session-btn');
+        // App state
+        let originalCards = []; // Original cards from API
+        let cards = [];         // Processed cards with both directions
+        let currentCardIndex = 0;
+        let sessionStartTime = Date.now();
+        let sessionStats = {
+            total: 0,
+            correct: 0,
+            incorrect: 0
+        };
+        let hintTimeout = null;
 
-    // Stats elements
-    const statsTotal = document.getElementById('stats-total');
-    const statsPercentage = document.getElementById('stats-percentage');
-    const statsTime = document.getElementById('stats-time');
-    const finalProgressBar = document.getElementById('final-progress-bar');
+        // DOM elements
+        const flashcardView = document.getElementById('flashcard-view');
+        const cardFront = document.getElementById('card-front');
+        const cardBack = document.getElementById('card-back');
+        const frontWord = document.getElementById('front-word');
+        const backWord = document.getElementById('back-word');
+        const frontAudioBtn = document.getElementById('front-audio-btn');
+        const backAudioBtn = document.getElementById('back-audio-btn');
+        const translationText = document.getElementById('translation-text');
+        const examplesContainer = document.getElementById('examples-container');
+        const exampleText = document.getElementById('example-text');
+        const exampleTranslation = document.getElementById('example-translation');
+        const hintText = document.getElementById('hint-text');
+        const cardCounter = document.getElementById('card-counter');
+        const correctCounter = document.getElementById('correct-counter');
+        const incorrectCounter = document.getElementById('incorrect-counter');
+        const progressFill = document.getElementById('progress-fill');
+        const showAnswerBtn = document.getElementById('show-answer-btn');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const noCardsMessage = document.getElementById('no-cards-message');
+        const dailyLimitMessage = document.getElementById('daily-limit-message');
+        const sessionComplete = document.getElementById('session-complete');
+        const wordAudio = document.getElementById('word-audio');
+        const endSessionBtn = document.getElementById('end-session-btn');
+        const newCardsStats = document.getElementById('new-cards-stats');
+        const reviewsStats = document.getElementById('reviews-stats');
 
-    // Study session data
-    let studyItems = [];
-    let currentItemIndex = 0;
-    let stats = {
-        correct: 0,
-        incorrect: 0,
-        total: 0
-    };
-    let hintTimer = null;
+        // Stats elements
+        const statsWords = document.getElementById('stats-words');
+        const statsCorrect = document.getElementById('stats-correct');
+        const statsScore = document.getElementById('stats-score');
 
-    // Load study items
-    function loadStudyItems() {
-        const url = `/study/api/get-study-items?source=${wordSource}&limit=${maxWords}`;
+        // Fetch cards from the API
+        async function fetchCards() {
+            try {
+                // Проверяем, запрошено ли дополнительное занятие
+                const extraStudy = new URLSearchParams(window.location.search).get('extra_study') === 'true';
 
-        fetch(url)
-            .then(response => {
-                if (response.status === 204) {
-                    // No content - no words available for this source
-                    throw new Error('no_words');
-                }
+                // Добавляем параметр в запрос, если это дополнительное занятие
+                const url = `/study/api/get-study-items?source=${wordSource}${extraStudy ? '&extra_study=true' : ''}`;
+
+                console.log('Fetching cards from:', url);
+                const response = await fetch(url);
+
+                console.log('API Response status:', response.status);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    throw new Error('Failed to fetch cards');
                 }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Received data:", data);
-                studyItems = data;
-                if (studyItems.length > 0) {
-                    loadingIndicator.style.display = 'none';
-                    flashcardContainer.style.display = 'block';
-                    showCurrentCard();
-                } else {
-                    showNoWordsMessage();
+
+                const data = await response.json();
+                console.log('API response data:', data);
+
+                // Проверяем статус ответа
+                if (data.status === 'daily_limit_reached') {
+                    console.log('Daily limit reached. Showing message.');
+                    showDailyLimitMessage(data.stats);
+                    // Устанавливаем флаг, что сообщение показано
+                    window.noCardsMessageShown = true;
+                    return [];
                 }
-            })
-            .catch(error => {
-                console.error('Error loading study items:', error);
 
-                if (error.message === 'no_words') {
-                    showNoWordsMessage();
-                } else {
-                    loadingIndicator.innerHTML = `<p>Error loading study items: ${error.message}. Please try again.</p>`;
+                if (data.status === 'success' && (!data.items || data.items.length === 0)) {
+                    console.log('No items in selected source. Checking stats.');
+
+                    // Проверяем, есть ли еще доступный лимит для изучения
+                    const remainingNewCards = data.stats.new_cards_limit - data.stats.new_cards_today;
+                    const remainingReviews = data.stats.reviews_limit - data.stats.reviews_today;
+
+                    if (remainingNewCards > 0 || remainingReviews > 0) {
+                        // Если еще есть лимит для изучения, показываем сообщение о том,
+                        // что в этом источнике нет карточек, но можно попробовать другие источники
+                        showNoCardsInSourceMessage(data.stats);
+                        // Устанавливаем флаг, что сообщение показано
+                        window.noCardsMessageShown = true;
+                    } else {
+                        // Если лимиты исчерпаны, показываем стандартное сообщение об отсутствии карточек
+                        showNoCardsMessage();
+                        // Устанавливаем флаг, что сообщение показано
+                        window.noCardsMessageShown = true;
+                    }
+                    return [];
                 }
-            });
-    }
-    // Display a helpful message when no words are available
-    function showNoWordsMessage() {
-        const wordSourceText = getWordSourceDisplayText();
-        const actionButton = getActionButtonForWordSource();
 
-        loadingIndicator.innerHTML = `
-            <div class="alert alert-info">
-                <h4>No words available for study!</h4>
-                <p>There are currently no words available in "${wordSourceText}".</p>
-                <hr>
-                <div class="d-flex flex-column gap-3">
-                    <p>${getWordSourceGuidanceText()}</p>
-                    ${actionButton}
-                    <a href="${window.location.pathname}?word_source=all&max_words=${maxWords}" class="btn btn-outline-secondary">
-                        <i class="fas fa-sync"></i> Try "Mixed (New & Review)" instead
-                    </a>
-                    <a href="/study" class="btn btn-primary">
-                        <i class="fas fa-arrow-left"></i> Return to Study Dashboard
-                    </a>
-                </div>
-            </div>
-        `;
-    }
+                // Применяем фильтрацию к полученным карточкам
+                const filteredData = data.items.filter(card => card.translation && card.translation.trim() !== '');
+                console.log('After filtering for translations:', filteredData.length);
 
-    // Helper to get display text for word source
-    function getWordSourceDisplayText() {
-        switch (wordSource) {
-            case 'new': return 'New Words';
-            case 'learning': return 'Words in Learning';
-            case 'all': return 'Mixed (New & Review)';
-            default: return wordSource;
-        }
-    }
-
-    // Helper to get guidance text based on word source
-function getWordSourceGuidanceText() {
-    switch (wordSource) {
-        case 'new':
-            return 'You have already added all available words to your study collection. Check back later when new words are added to the system.';
-        case 'learning':
-            return 'Add words to your queue by going to the Word List and changing their status to "In Learning".';
-        case 'all':
-            return 'There are no words available for review or learning. Add some words to your queue to get started.';
-        default:
-            return 'Try selecting a different word source or check back later.';
-    }
-}
-
-    // Helper to get appropriate action button based on word source
-    function getActionButtonForWordSource() {
-        switch (wordSource) {
-            case 'learning':
-                return `
-                    <a href="/words/word_list" class="btn btn-success">
-                        <i class="fas fa-plus"></i> Go to Word List to Add Words to Learning
-                    </a>
-                `;
-            case 'new':
-                return `
-                    <a href="/words/word_list?filter=not_studied" class="btn btn-success">
-                        <i class="fas fa-search"></i> Check for More Words
-                    </a>
-                `;
-            default:
-                return '';
-        }
-    }
-    // Show current flashcard
-    function showCurrentCard() {
-        if (currentItemIndex >= studyItems.length) {
-            completeSession();
-            return;
+                return filteredData;
+            } catch (error) {
+                console.error('Error fetching cards:', error);
+                showNoCardsMessage();
+                // Устанавливаем флаг, что сообщение показано
+                window.noCardsMessageShown = true;
+                return [];
+            }
         }
 
-        const currentItem = studyItems[currentItemIndex];
+        function showNoCardsInSourceMessage(stats) {
+            console.log('Showing no cards in source message with stats:', stats);
 
-        // Update progress
-        updateProgress();
+            // Сначала скрываем все контейнеры
+            loadingSpinner.style.display = 'none';
+            if (cardFront) cardFront.style.display = 'none';
+            if (cardBack) cardBack.style.display = 'none';
+            if (noCardsMessage) noCardsMessage.style.display = 'none';
+            if (sessionComplete) sessionComplete.style.display = 'none';
+            if (dailyLimitMessage) dailyLimitMessage.style.display = 'none';
 
-        // Reset card state
-        cardFront.style.display = 'block';
-        cardBack.style.display = 'none';
-        frontControls.style.display = 'block';
-        backControls.style.display = 'none';
-        hintContainer.style.display = 'none';
-        clearTimeout(hintTimer);
+            // Показываем flashcardView, так как в нем находится наше сообщение
+            flashcardView.style.display = 'block';
 
-        // Update card content
-        document.getElementById('word').textContent = currentItem.word;
-        document.getElementById('back-word').textContent = currentItem.word;
-        document.getElementById('translation').textContent = currentItem.translation || 'Not available';
-        document.getElementById('examples').innerHTML = currentItem.examples || 'Not available';
-        document.getElementById('examples-section').style.display = 'block';
+            // Находим элемент сообщения
+            const noCardsInSourceMessage = document.getElementById('no-cards-in-source-message');
 
-        // Show/hide elements based on settings
-        if (!includeTranslations) {
-            document.getElementById('translation').parentNode.style.display = 'none';
-        } else {
-            document.getElementById('translation').parentNode.style.display = 'block';
-        }
+            if (noCardsInSourceMessage) {
+                console.log('Found no-cards-in-source-message element, displaying it');
 
-        // Set hint content and timer
-        if (showHintTime > 0 && currentItem.translation !== 'Not available') {
-            // Create hint (first letter and length)
-            const firstWord = currentItem.translation.split(',')[0].trim();
-            const wordLength = firstWord.length;
-            const hint = `${firstWord[0]}${'_'.repeat(wordLength - 1)} (${wordLength} {{ _('letters') }})`;
-            hintText.textContent = hint;
+                // Обновляем статистику
+                const availableNewCards = document.getElementById('available-new-cards');
+                if (availableNewCards) {
+                    const remaining = stats.new_cards_limit - stats.new_cards_today;
+                    availableNewCards.textContent = `${remaining} / ${stats.new_cards_limit}`;
+                }
 
-            // Set timer for hint
-            hintTimer = setTimeout(() => {
-                hintContainer.style.display = 'block';
-            }, showHintTime * 1000);
-        }
+                const availableReviews = document.getElementById('available-reviews');
+                if (availableReviews) {
+                    const remaining = stats.reviews_limit - stats.reviews_today;
+                    availableReviews.textContent = `${remaining} / ${stats.reviews_limit}`;
+                }
 
-        // Setup audio
-        if (currentItem.audio_url) {
-            wordAudio.src = currentItem.audio_url;
-            playAudioBtn.style.display = 'inline-block';
-
-            // Add error handling for audio loading
-            wordAudio.onerror = function() {
-                console.log('Error loading audio:', wordAudio.src);
-                playAudioBtn.style.display = 'none';
-            };
-
-            // Auto-play audio if setting is enabled
-            if (includeAudio) {
+                // Показываем сообщение и используем setTimeout для небольшой задержки
+                // чтобы убедиться, что DOM полностью обновлен
                 setTimeout(() => {
+                    noCardsInSourceMessage.style.display = 'block';
+                    console.log('Message display style set to block');
+
+                    // Дополнительная защита: повторно проверим через 100мс
+                    setTimeout(() => {
+                        if (noCardsInSourceMessage.style.display !== 'block') {
+                            console.log('Message was hidden, showing again');
+                            noCardsInSourceMessage.style.display = 'block';
+                        }
+                    }, 100);
+                }, 50);
+            } else {
+                console.log('Could not find no-cards-in-source-message element');
+                // Если элемент не найден, показываем сообщение в noCardsMessage
+                if (noCardsMessage) {
+                    noCardsMessage.innerHTML = `
+                        <h4>{{ _('No Cards in This Section') }}</h4>
+                        <p>{{ _('There are no available words to study in the selected source.') }}</p>
+                        <div class="alert alert-info my-3">
+                            <p>{{ _('You still have your daily limit available. Try selecting a different card source or start learning new words.') }}</p>
+                        </div>
+                        <div class="mt-4">
+                            <a href="{{ url_for('study.cards', word_source='new') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i> {{ _('Study New Words') }}
+                            </a>
+                            <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary ms-2">
+                                <i class="fas fa-random me-2"></i> {{ _('Mixed Mode') }}
+                            </a>
+                            <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
+                                {{ _('Back to Study') }}
+                            </a>
+                        </div>
+                    `;
+
+                    // Используем setTimeout для показа, чтобы избежать конфликтов с другим кодом
+                    setTimeout(() => {
+                        noCardsMessage.style.display = 'block';
+                        console.log('Fallback message displayed');
+                    }, 50);
+                }
+            }
+
+            // Предотвращаем дальнейшую инициализацию карточек
+            // Это важно! Добавляем флаг, что мы уже показали сообщение
+            window.noCardsMessageShown = true;
+        }
+
+
+        // Create alternating cards (eng-rus, rus-eng) from original cards
+        function createAlternatingCards(originalCards) {
+            if (!originalCards || originalCards.length === 0) {
+                console.log('No original cards to process');
+                return [];
+            }
+
+            console.log('Creating alternating cards from:', originalCards.length, 'original cards');
+            const alternatingCards = [];
+
+            // Process each original card
+            for (const card of originalCards) {
+                // Create eng-rus card
+                alternatingCards.push({
+                    ...card,
+                    direction: 'eng-to-rus'
+                });
+
+                // Create rus-eng card
+                alternatingCards.push({
+                    ...card,
+                    direction: 'rus-to-eng'
+                });
+            }
+
+            console.log('Created', alternatingCards.length, 'alternating cards');
+            // Shuffle the cards while keeping pairs of the same word separated
+            return shuffleCards(alternatingCards);
+        }
+
+        // Shuffle cards while keeping same words apart from each other
+        function shuffleCards(cards) {
+            if (!cards || cards.length === 0) {
+                console.log('No cards to shuffle');
+                return [];
+            }
+
+            // Group cards by word_id
+            const cardsByWordId = {};
+            for (const card of cards) {
+                if (!cardsByWordId[card.word_id]) {
+                    cardsByWordId[card.word_id] = [];
+                }
+                cardsByWordId[card.word_id].push(card);
+            }
+
+            // Create shuffled word_id array
+            const wordIds = Object.keys(cardsByWordId);
+            for (let i = wordIds.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [wordIds[i], wordIds[j]] = [wordIds[j], wordIds[i]];
+            }
+
+            // Rebuild cards array with alternating directions
+            const shuffledCards = [];
+            const directions = ['eng-to-rus', 'rus-to-eng'];
+            let directionIndex = 0;
+
+            for (const wordId of wordIds) {
+                const cardsForWord = cardsByWordId[wordId];
+                // Find card with current direction
+                const engToRusCard = cardsForWord.find(c => c.direction === 'eng-to-rus');
+                const rusToEngCard = cardsForWord.find(c => c.direction === 'rus-to-eng');
+
+                // Add current direction first
+                const currentDirection = directions[directionIndex % 2];
+                if (currentDirection === 'eng-to-rus') {
+                    shuffledCards.push(engToRusCard);
+                    shuffledCards.push(rusToEngCard);
+                } else {
+                    shuffledCards.push(rusToEngCard);
+                    shuffledCards.push(engToRusCard);
+                }
+
+                // Alternate starting direction for next word
+                directionIndex++;
+            }
+
+            console.log('Shuffled cards:', shuffledCards.length);
+            return shuffledCards;
+        }
+
+        // Format hint with first letter and underscores showing the length of the word
+        function formatHint(word) {
+            if (!word || word.length === 0) return '';
+
+            // If there are multiple translations separated by commas, take the first one
+            let targetWord = word;
+            if (word.includes(',')) {
+                targetWord = word.split(',')[0].trim();
+            }
+
+            const firstChar = targetWord.charAt(0).toLowerCase();
+            const underscores = '_'.repeat(8); // Just show fixed number of underscores like in the screenshot
+            const letterCount = targetWord.length;
+
+            // Format for Russian word endings
+            let letterForm = '{{ _("letters") }}';
+            const lastDigit = letterCount % 10;
+
+            if (letterCount % 100 >= 11 && letterCount % 100 <= 19) {
+                letterForm = '{{ _("letters") }}';
+            } else if (lastDigit === 1) {
+                letterForm = '{{ _("letter") }}';
+            } else if (lastDigit >= 2 && lastDigit <= 4) {
+                letterForm = '{{ _("letters_2-4") }}';
+            }
+
+            return `{{ _("Hint:") }} ${firstChar}${underscores} (${letterCount} ${letterForm})`;
+        }
+
+        // Show daily limit reached message
+        function showDailyLimitMessage(stats) {
+            loadingSpinner.style.display = 'none';
+            flashcardView.style.display = 'block';
+            cardFront.style.display = 'none';
+            cardBack.style.display = 'none';
+            noCardsMessage.style.display = 'none';
+            sessionComplete.style.display = 'none';
+
+            // Обновляем статистику
+            if (newCardsStats) {
+                newCardsStats.textContent = `${stats.new_cards_today} / ${stats.new_cards_limit}`;
+            }
+
+            if (reviewsStats) {
+                reviewsStats.textContent = `${stats.reviews_today} / ${stats.reviews_limit}`;
+            }
+
+            // Показываем сообщение о дневном лимите
+            dailyLimitMessage.style.display = 'block';
+        }
+
+        // Initialize the flashcard app
+        async function initApp() {
+            console.log('Initializing flashcard app');
+
+            try {
+                // Fetch original cards
+                originalCards = await fetchCards();
+                console.log('Fetched original cards:', originalCards ? originalCards.length : 0);
+
+                // Проверяем флаг - если сообщение уже показано, прекращаем инициализацию
+                if (window.noCardsMessageShown) {
+                    console.log('Message already shown, stopping initialization');
+                    return;
+                }
+
+                if (!originalCards || originalCards.length === 0) {
+                    console.log('No cards available');
+                    return;
+                }
+
+                // Create alternating cards
+                cards = createAlternatingCards(originalCards);
+                console.log('Created cards array with length:', cards ? cards.length : 0);
+
+                if (!cards || cards.length === 0) {
+                    console.log('No cards after processing');
+                    return;
+                }
+
+                // Update UI
+                loadingSpinner.style.display = 'none';
+                flashcardView.style.display = 'block';
+
+                // Show first card
+                showCard(0);
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                loadingSpinner.style.display = 'none';
+                noCardsMessage.style.display = 'block';
+            }
+        }
+
+        // Display a card
+        function showCard(index) {
+            console.log('Showing card at index:', index, 'out of', cards.length);
+
+            if (!cards || cards.length === 0) {
+                console.log('No cards to show');
+                showNoCardsMessage();
+                return;
+            }
+
+            if (index >= cards.length) {
+                console.log('End of cards reached, completing session');
+                completeSession();
+                return;
+            }
+
+            const card = cards[index];
+            currentCardIndex = index;
+
+            // Update progress
+            const progress = ((index + 1) / cards.length) * 100;
+            progressFill.style.width = `${progress}%`;
+            cardCounter.textContent = `{{ _('Card') }} ${index + 1} {{ _('of') }} ${cards.length}`;
+
+            // Reset card state
+            cardFront.style.display = 'flex';
+            cardBack.style.display = 'none';
+            showAnswerBtn.style.display = 'block';
+            hintText.classList.remove('visible');
+
+            // Clear previous hint timeout
+            if (hintTimeout) {
+                clearTimeout(hintTimeout);
+            }
+
+            // Configure audio buttons
+            const hasAudio = card.audio_url !== null;
+
+            if (hasAudio && playAudio) {
+                frontAudioBtn.style.display = card.direction === 'eng-to-rus' ? 'inline-flex' : 'none';
+                backAudioBtn.style.display = 'inline-flex';
+                wordAudio.src = card.audio_url;
+            } else {
+                frontAudioBtn.style.display = 'none';
+                backAudioBtn.style.display = 'none';
+            }
+
+            // Set card content based on direction
+            if (card.direction === 'eng-to-rus') {
+                frontWord.textContent = card.word; // English
+                backWord.textContent = card.word; // English
+                translationText.textContent = card.translation; // Russian
+
+                // Set hint for Russian translation
+                hintText.textContent = formatHint(card.translation);
+
+                // Auto-play audio if enabled
+                if (hasAudio && playAudio) {
                     wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
-                }, 500);
+                }
+            } else {
+                frontWord.textContent = card.translation; // Russian
+                backWord.textContent = card.translation; // Russian
+                translationText.textContent = card.word; // English
+
+                // Set hint for English word
+                hintText.textContent = formatHint(card.word);
             }
-        } else {
-            playAudioBtn.style.display = 'none';
-        }
-    }
 
-    // Show card answer
-    function showAnswer() {
-        cardFront.style.display = 'none';
-        cardBack.style.display = 'block';
-        frontControls.style.display = 'none';
-        backControls.style.display = 'block';
-        clearTimeout(hintTimer);
-    }
+            // Show hint after 5 seconds
+            hintTimeout = setTimeout(() => {
+                hintText.classList.add('visible');
+            }, hintTime * 1000);
 
-    // Rate current card and move to next
-    function rateCard(rating) {
-        const currentItem = studyItems[currentItemIndex];
+            // Set example if available
+            if (showExamples && card.examples) {
+                const example = extractExampleParts(card.examples);
 
-        // Update stats
-        if (rating >= 3) {
-            stats.correct++;
-            correctCount.textContent = stats.correct;
-        } else {
-            stats.incorrect++;
-            incorrectCount.textContent = stats.incorrect;
-        }
-        stats.total++;
-
-        // Update study item in database
-        fetch('/study/api/update-study-item', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                word_id: currentItem.word_id,
-                quality: rating,
-                session_id: sessionId
-            })
-        })
-        .catch(error => {
-            console.error('Error updating study item:', error);
-        });
-
-        // Move to next card
-        currentItemIndex++;
-        showCurrentCard();
-    }
-
-    // Update progress display
-    function updateProgress() {
-        const total = studyItems.length;
-        const current = currentItemIndex + 1;
-        const percentage = total > 0 ? Math.round((currentItemIndex / total) * 100) : 0;
-
-        progressBar.style.width = `${percentage}%`;
-        progressBar.setAttribute('aria-valuenow', percentage);
-        progressText.textContent = `${translations.card} ${current} ${translations.of} ${total}`;
-    }
-
-    // Complete the study session
-    function completeSession() {
-        fetch('/study/api/complete-session', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                session_id: sessionId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show completion screen with stats
-                flashcardContainer.style.display = 'none';
-                sessionComplete.style.display = 'block';
-
-                // Update stats display
-                statsTotal.textContent = data.stats.words_studied;
-                statsPercentage.textContent = `${data.stats.percentage}%`;
-                statsTime.textContent = `${data.stats.duration} min`;
-                finalProgressBar.style.width = `${data.stats.percentage}%`;
+                exampleText.textContent = example.en;
+                exampleTranslation.textContent = example.ru;
+                examplesContainer.style.display = 'block';
+            } else {
+                examplesContainer.style.display = 'none';
             }
-        })
-        .catch(error => {
-            console.error('Error completing session:', error);
-        });
-    }
-
-    // Event listeners
-    showAnswerBtn.addEventListener('click', showAnswer);
-
-    ratingBtns.forEach(button => {
-        button.addEventListener('click', function() {
-            const rating = parseInt(this.dataset.rating);
-            rateCard(rating);
-        });
-    });
-
-    playAudioBtn.addEventListener('click', function() {
-        wordAudio.play();
-    });
-
-    endSessionBtn.addEventListener('click', function() {
-        if (confirm('Are you sure you want to end this study session?')) {
-            completeSession();
         }
-    });
 
-    // Start loading study items
-    loadStudyItems();
-});
-</script>
-<script>
-    // Переводы интерфейса для JavaScript
-    const translations = {
-        showAnswer: "{{ _('Show Answer') }}",
-        front: "{{ _('Front') }}",
-        back: "{{ _('Back') }}",
-        howWellDidYouKnow: "{{ _('How well did you know this?') }}",
-        again: "{{ _('Again') }}",
-        hard: "{{ _('Hard') }}",
-        good: "{{ _('Good') }}",
-        easy: "{{ _('Easy') }}",
-        pronounce: "{{ _('Pronounce') }}",
-        hint: "{{ _('Hint:') }}",
-        translation: "{{ _('Translation') }}",
-        definition: "{{ _('Definition') }}",
-        examples: "{{ _('Examples') }}",
-        notAvailable: "{{ _('Not available') }}",
-        loading: "{{ _('Loading your study session...') }}",
-        noWords: "{{ _('No words available for study. Try a different word source.') }}",
-        errorLoading: "{{ _('Error loading study items. Please try again.') }}",
-        confirmEndSession: "{{ _('Are you sure you want to end this study session?') }}",
-        card: "{{ _('Card') }}",
-        of: "{{ _('of') }}"
-    };
+        // Extract English and Russian parts from examples
+        function extractExampleParts(examples) {
+            if (!examples) return { en: '', ru: '' };
+
+            // Replace HTML tags with nothing
+            const cleanedExamples = examples.replace(/<[^>]*>/g, '');
+
+            // Split by newlines first
+            let lines = cleanedExamples.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length >= 2) {
+                return {
+                    en: lines[0].trim(),
+                    ru: lines[1].trim()
+                };
+            }
+
+            // Check if there's a dash at the beginning of a line
+            lines = cleanedExamples.split(/\n\s*-\s*/).filter(line => line.trim() !== '');
+            if (lines.length >= 2) {
+                return {
+                    en: lines[0].trim(),
+                    ru: lines[1].trim()
+                };
+            }
+
+            // If no obvious separator found, try to detect if there's English and Russian text
+            // This is a simplified approach - assumes English has Latin characters and Russian has Cyrillic
+            const hasCyrillic = /[А-Яа-я]/.test(cleanedExamples);
+            const hasLatin = /[A-Za-z]/.test(cleanedExamples);
+
+            if (hasCyrillic && hasLatin) {
+                // Try to split by common punctuation that might separate examples
+                const parts = cleanedExamples.split(/[;.]\s*/).filter(part => part.trim() !== '');
+
+                // Find first part with Latin and first part with Cyrillic
+                const enPart = parts.find(part => /[A-Za-z]/.test(part)) || '';
+                const ruPart = parts.find(part => /[А-Яа-я]/.test(part)) || '';
+
+                return {
+                    en: enPart.trim(),
+                    ru: ruPart.trim()
+                };
+            }
+
+            // If nothing else works, just return the whole text
+            return {
+                en: cleanedExamples.trim(),
+                ru: ''
+            };
+        }
+
+        // Flip card to show answer
+        function flipCard() {
+            console.log('Flipping card');
+            cardFront.style.display = 'none';
+            cardBack.style.display = 'flex';
+
+            // Clear hint timeout
+            if (hintTimeout) {
+                clearTimeout(hintTimeout);
+                hintTimeout = null;
+            }
+
+            // Play audio on card flip for rus-to-eng mode
+            const card = cards[currentCardIndex];
+            if (card.direction === 'rus-to-eng' && card.audio_url && playAudio) {
+                wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
+            }
+        }
+
+        // Rate a card and move to the next
+        async function rateCard(quality) {
+            console.log('Rating card with quality:', quality);
+            if (!cards || currentCardIndex >= cards.length) {
+                console.error('Cannot rate card - invalid card index');
+                return;
+            }
+
+            const card = cards[currentCardIndex];
+
+            try {
+                // Send rating to server
+                const response = await fetch('/study/api/update-study-item', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        word_id: card.word_id,
+                        quality: quality,
+                        session_id: sessionId
+                    }),
+                });
+
+                const data = await response.json();
+                console.log('Rating response:', data);
+
+                // Update session stats
+                sessionStats.total++;
+
+                if (quality >= 3) {
+                    sessionStats.correct++;
+                    correctCounter.textContent = sessionStats.correct;
+                } else {
+                    sessionStats.incorrect++;
+                    incorrectCounter.textContent = sessionStats.incorrect;
+                }
+
+                // Move to next card
+                showCard(currentCardIndex + 1);
+
+            } catch (error) {
+                console.error('Error rating card:', error);
+                alert('{{ _("Failed to save your rating. Please try again.") }}');
+            }
+        }
+
+        // Complete the study session
+        async function completeSession() {
+            console.log('Completing session, session ID:', sessionId);
+            try {
+                const response = await fetch('/study/api/complete-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId
+                    }),
+                });
+
+                const data = await response.json();
+                console.log('Session completion response:', data);
+
+                if (data.success) {
+                    // Hide flashcard and show completion screen
+                    cardFront.style.display = 'none';
+                    cardBack.style.display = 'none';
+                    sessionComplete.style.display = 'flex';
+
+                    // Update stats display
+                    statsWords.textContent = data.stats.words_studied;
+                    statsCorrect.textContent = data.stats.correct;
+                    statsScore.textContent = data.stats.percentage + '%';
+                }
+
+            } catch (error) {
+                console.error('Error completing session:', error);
+                // На случай ошибки всё равно перенаправим на главную страницу
+                window.location.href = '{{ url_for("study.index") }}';
+            }
+        }
+
+        // Show "no cards" message
+        function showNoCardsMessage() {
+            console.log('Showing no cards message');
+            loadingSpinner.style.display = 'none';
+            noCardsMessage.style.display = 'block';
+        }
+
+        // Event Listeners
+        showAnswerBtn.addEventListener('click', function() {
+            flipCard();
+        });
+
+        // Audio button clicks
+        frontAudioBtn.addEventListener('click', function(e) {
+            wordAudio.play();
+        });
+
+        backAudioBtn.addEventListener('click', function(e) {
+            wordAudio.play();
+        });
+
+        // Rating buttons
+        document.querySelectorAll('.rating-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const rating = parseInt(this.getAttribute('data-rating'));
+                rateCard(rating);
+            });
+        });
+
+        // End session early
+        endSessionBtn.addEventListener('click', function() {
+            console.log('End session button clicked');
+            if (confirm('{{ _("Are you sure you want to end the session?") }}')) {
+                try {
+                    completeSession();
+                } catch(e) {
+                    console.error('Error in complete session:', e);
+                    // Если что-то пошло не так, просто перенаправим на главную
+                    window.location.href = '{{ url_for("study.index") }}';
+                }
+            }
+        });
+
+        // Add emergency exit button handler
+        // Если кнопка выше не сработает, эта должна
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Shift+X для экстренного выхода
+            if (e.ctrlKey && e.shiftKey && e.key === 'X') {
+                console.log('Emergency exit triggered');
+                window.location.href = '{{ url_for("study.index") }}';
+            }
+        });
+
+        // Initialize the app
+        console.log('Starting application initialization');
+        initApp();
+    });
 </script>
 {% endblock %}

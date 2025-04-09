@@ -11,12 +11,12 @@ class StudySettingsForm(FlaskForm):
     new_words_per_day = IntegerField(_l('New Words Per Day'),
                                      validators=[DataRequired(),
                                                  NumberRange(min=1, max=50)],
-                                     default=5)
+                                     default=20)
 
     reviews_per_day = IntegerField(_l('Reviews Per Day'),
                                    validators=[DataRequired(),
-                                               NumberRange(min=5, max=200)],
-                                   default=20)
+                                               NumberRange(min=5, max=500)],
+                                   default=200)
 
     include_translations = BooleanField(_l('Show Translations'), default=True)
     include_examples = BooleanField(_l('Show Examples'), default=True)
@@ -49,9 +49,5 @@ class StudySessionForm(FlaskForm):
                                   ('all', _l('Mixed (New & Review)'))
                               ],
                               default='learning')
-
-    max_words = IntegerField(_l('Number of Words'),
-                             validators=[NumberRange(min=1, max=100)],
-                             default=20)
 
     submit = SubmitField(_l('Start Session'))
