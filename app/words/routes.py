@@ -2,6 +2,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 
+from app.study.models import GameScore
 from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
@@ -49,8 +50,20 @@ def dashboard():
         .limit(5)
     ).scalars().all()
 
+    user_best_matching = GameScore.query.filter_by(
+        user_id=current_user.id,
+        game_type='matching'
+    ).order_by(GameScore.score.desc()).first()
+
+    user_best_quiz = GameScore.query.filter_by(
+        user_id=current_user.id,
+        game_type='quiz'
+    ).order_by(GameScore.score.desc()).first()
+
     return render_template(
         'dashboard.html',
+        user_best_matching=user_best_matching,
+        user_best_quiz=user_best_quiz,
         status_stats=status_stats,
         total_words=total_words,
         progress=progress,
