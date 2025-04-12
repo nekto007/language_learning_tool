@@ -994,11 +994,11 @@ def add_to_learning():
 
     # If the word is not yet queued for learning (status 0), add it (status 2)
     if current_status == 0:
-        current_user.set_word_status(word_id, 2)  # 2 = queued for learning
+        current_user.set_word_status(word_id, 1)  # 1 = queued for learning
         return jsonify({
             'success': True,
             'message': 'Word added to learning queue',
-            'new_status': 2
+            'new_status': 1
         })
     else:
         # Word already has a status
@@ -1095,24 +1095,16 @@ def book_list():
         stats = {
             'total': book.unique_words,
             'new': book.unique_words,  # Default all to new, we'll subtract known words
-            'known': 0,
-            'queued': 0,
-            'active': 0,
+            'learning': 0,
             'mastered': 0
         }
 
         # Update with actual status counts
         for count, status in word_status_counts:
             if status == 1:
-                stats['known'] = count
+                stats['learning'] = count
                 stats['new'] -= count
             elif status == 2:
-                stats['queued'] = count
-                stats['new'] -= count
-            elif status == 3:
-                stats['active'] = count
-                stats['new'] -= count
-            elif status == 4:
                 stats['mastered'] = count
                 stats['new'] -= count
 
@@ -1153,30 +1145,22 @@ def book_details(book_id):
     word_stats = {
         'total': book.unique_words,
         'new': book.unique_words,  # Default all to new, we'll subtract known words
-        'known': 0,
-        'queued': 0,
-        'active': 0,
+        'learning': 0,
         'mastered': 0
     }
 
     # Update with actual status counts
     for status, count in status_counts:
         if status == 1:
-            word_stats['known'] = count
+            word_stats['learning'] = count
             word_stats['new'] -= count
         elif status == 2:
-            word_stats['queued'] = count
-            word_stats['new'] -= count
-        elif status == 3:
-            word_stats['active'] = count
-            word_stats['new'] -= count
-        elif status == 4:
             word_stats['mastered'] = count
             word_stats['new'] -= count
 
     # Calculate progress percentage
     if book.unique_words > 0:
-        progress = int(((word_stats['known'] + word_stats['mastered']) / book.unique_words) * 100)
+        progress = int(((word_stats['mastered']) / book.unique_words) * 100)
     else:
         progress = 0
 
@@ -1313,7 +1297,7 @@ def book_words(book_id):
 def add_book_to_queue(book_id):
     book = Book.query.get_or_404(book_id)
 
-    # Get words from this book that are not already in queue, active, or mastered
+    # Get words from this book that are not already in learning or mastered
     words_query = db.select(
         CollectionWords.id
     ).join(
@@ -1327,15 +1311,14 @@ def add_book_to_queue(book_id):
         (user_word_status.c.user_id == current_user.id)
     ).where(
         (user_word_status.c.status.is_(None)) |
-        (user_word_status.c.status == 0) |
-        (user_word_status.c.status == 1)  # Include "known" words too
+        (user_word_status.c.status == 0)
     )
 
     word_ids = [row[0] for row in db.session.execute(words_query).all()]
 
-    # Add words to queue (status 2)
+    # Add words to learning (status 1)
     for word_id in word_ids:
-        current_user.set_word_status(word_id, 2)
+        current_user.set_word_status(word_id, 1)
 
     flash(f'Added {len(word_ids)} words from "{book.title}" to your learning queue.', 'success')
     return redirect(url_for('books.book_details', book_id=book_id))
