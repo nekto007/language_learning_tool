@@ -35,10 +35,43 @@
                             <i class="fas fa-list me-1"></i>{{ _('Words') }}
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint.startswith('study.') %}active{% endif %}" href="{{ url_for('study.index') }}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('study.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-graduation-cap me-1"></i>{{ _('Study') }}
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="studyDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('study.index') }}">
+                                    <i class="fas fa-home me-1"></i>{{ _('Study Dashboard') }}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('study.cards', word_source='learning') }}">
+                                    <i class="fas fa-sticky-note me-1"></i>{{ _('Flashcards') }}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('study.quiz', word_source='learning') }}">
+                                    <i class="fas fa-question-circle me-1"></i>{{ _('Quiz') }}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('study.matching', word_source='learning') }}">
+                                    <i class="fas fa-th me-1"></i>{{ _('Matching Game') }}
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('study.leaderboard') }}">
+                                    <i class="fas fa-trophy me-1"></i>{{ _('Leaderboard') }}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('study.settings') }}">
+                                    <i class="fas fa-cog me-1"></i>{{ _('Study Settings') }}
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
