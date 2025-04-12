@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Leaderboard') }}{% endblock %}
+
+{% block styles %}
+<style>
+    .leaderboard-container {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+
+    .leaderboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .leaderboard-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .nav-tabs {
+        margin-bottom: 25px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .nav-tabs .nav-link {
+        color: #555;
+        font-weight: 500;
+        padding: 10px 20px;
+        border: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #5B7FFF;
+        background-color: transparent;
+        border-bottom: 3px solid #5B7FFF;
+    }
+
+    .nav-tabs .nav-link:hover:not(.active) {
+        border-bottom: 3px solid #e0e0e0;
+    }
+
+    .difficulty-selector {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .difficulty-btn {
+        border: 2px solid #e0e0e0;
+        background-color: white;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .difficulty-btn:hover {
+        background-color: #f9f9f9;
+    }
+
+    .difficulty-btn.active {
+        background-color: #5B7FFF;
+        border-color: #5B7FFF;
+        color: white;
+    }
+
+    .leaderboard-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .leaderboard-table th {
+        background-color: #f8f9fa;
+        padding: 15px;
+        font-weight: 600;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .leaderboard-table td {
+        padding: 15px;
+        border-bottom: 1px solid #e9ecef;
+        vertical-align: middle;
+    }
+
+    .leaderboard-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .rank-cell {
+        width: 70px;
+        text-align: center;
+    }
+
+    .rank-number {
+        display: inline-block;
+        width: 36px;
+        height: 36px;
+        line-height: 36px;
+        border-radius: 50%;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .rank-1 {
+        background-color: #FFD700;
+        color: #333;
+    }
+
+    .rank-2 {
+        background-color: #C0C0C0;
+        color: #333;
+    }
+
+    .rank-3 {
+        background-color: #CD7F32;
+        color: white;
+    }
+
+    .player-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        font-weight: bold;
+    }
+
+    .player-name {
+        font-weight: 500;
+    }
+
+    .score-cell {
+        font-weight: bold;
+        color: #5B7FFF;
+        text-align: center;
+    }
+
+    .details-cell {
+        color: #666;
+        text-align: center;
+    }
+
+    .date-cell {
+        color: #999;
+        font-size: 0.9rem;
+        text-align: right;
+    }
+
+    .user-row {
+        background-color: #f0f7ff;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        color: #ddd;
+    }
+
+    .user-best-section {
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .user-best-title {
+        font-size: 1.2rem;
+        font-weight: 500;
+        margin-bottom: 15px;
+        color: #333;
+    }
+
+    .user-best-details {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .user-best-rank {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .user-rank-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #5B7FFF;
+    }
+
+    .user-rank-label {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .user-best-stats {
+        display: flex;
+        gap: 20px;
+    }
+
+    .user-best-stat {
+        text-align: center;
+    }
+
+    .user-best-stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .user-best-stat-label {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .loading {
+        text-align: center;
+        padding: 30px;
+        color: #999;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: #5B7FFF;
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 10px;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="leaderboard-container">
+        <div class="leaderboard-header">
+            <h1 class="leaderboard-title">{{ _('Leaderboard') }}</h1>
+            <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> {{ _('Back to Study') }}
+            </a>
+        </div>
+
+        <ul class="nav nav-tabs" id="leaderboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="matching-tab" data-bs-toggle="tab" data-bs-target="#matching" type="button">
+                    <i class="fas fa-th me-2"></i>{{ _('Matching Game') }}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz" type="button">
+                    <i class="fas fa-question-circle me-2"></i>{{ _('Quiz') }}
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="leaderboardTabContent">
+            <!-- Matching Game Leaderboard -->
+            <div class="tab-pane fade show active" id="matching" role="tabpanel">
+                <div class="difficulty-selector">
+                    <button type="button" class="difficulty-btn active" data-difficulty="easy">{{ _('Easy') }}</button>
+                    <button type="button" class="difficulty-btn" data-difficulty="medium">{{ _('Medium') }}</button>
+                    <button type="button" class="difficulty-btn" data-difficulty="hard">{{ _('Hard') }}</button>
+                </div>
+
+                <!-- User's personal best -->
+                <div id="matching-user-best" class="user-best-section" style="display: none;">
+                    <h3 class="user-best-title">{{ _('Your Personal Best') }}</h3>
+                    <div class="user-best-details">
+                        <div class="user-best-rank">
+                            <div class="user-rank-number" id="matching-user-rank">-</div>
+                            <div class="user-rank-label">{{ _('Rank') }}</div>
+                        </div>
+                        <div class="user-best-stats">
+                            <div class="user-best-stat">
+                                <div class="user-best-stat-value" id="matching-user-score">-</div>
+                                <div class="user-best-stat-label">{{ _('Score') }}</div>
+                            </div>
+                            <div class="user-best-stat">
+                                <div class="user-best-stat-value" id="matching-user-pairs">-</div>
+                                <div class="user-best-stat-label">{{ _('Pairs') }}</div>
+                            </div>
+                            <div class="user-best-stat">
+                                <div class="user-best-stat-value" id="matching-user-time">-</div>
+                                <div class="user-best-stat-label">{{ _('Time') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matching game leaderboard table -->
+                <div class="table-responsive">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-cell">{{ _('Rank') }}</th>
+                                <th>{{ _('Player') }}</th>
+                                <th class="score-cell">{{ _('Score') }}</th>
+                                <th class="details-cell">{{ _('Pairs') }}</th>
+                                <th class="details-cell">{{ _('Moves') }}</th>
+                                <th class="details-cell">{{ _('Time') }}</th>
+                                <th class="date-cell">{{ _('Date') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matching-leaderboard">
+                            <tr>
+                                <td colspan="7" class="loading">
+                                    <div class="loading-spinner"></div>
+                                    <div>{{ _('Loading leaderboard...') }}</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quiz Leaderboard -->
+            <div class="tab-pane fade" id="quiz" role="tabpanel">
+                <!-- User's personal best -->
+                <div id="quiz-user-best" class="user-best-section" style="display: none;">
+                    <h3 class="user-best-title">{{ _('Your Personal Best') }}</h3>
+                    <div class="user-best-details">
+                        <div class="user-best-rank">
+                            <div class="user-rank-number" id="quiz-user-rank">-</div>
+                            <div class="user-rank-label">{{ _('Rank') }}</div>
+                        </div>
+                        <div class="user-best-stats">
+                            <div class="user-best-stat">
+                                <div class="user-best-stat-value" id="quiz-user-score">-</div>
+                                <div class="user-best-stat-label">{{ _('Score') }}</div>
+                            </div>
+                            <div class="user-best-stat">
+                                <div class="user-best-stat-value" id="quiz-user-correct">-</div>
+                                <div class="user-best-stat-label">{{ _('Correct') }}</div>
+                            </div>
+                            <div class="user-best-stat">
+                                <div class="user-best-stat-value" id="quiz-user-time">-</div>
+                                <div class="user-best-stat-label">{{ _('Time') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiz leaderboard table -->
+                <div class="table-responsive">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-cell">{{ _('Rank') }}</th>
+                                <th>{{ _('Player') }}</th>
+                                <th class="score-cell">{{ _('Score') }}</th>
+                                <th class="details-cell">{{ _('Correct') }}</th>
+                                <th class="details-cell">{{ _('Time') }}</th>
+                                <th class="date-cell">{{ _('Date') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quiz-leaderboard">
+                            <tr>
+                                <td colspan="6" class="loading">
+                                    <div class="loading-spinner"></div>
+                                    <div>{{ _('Loading leaderboard...') }}</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Current game type and difficulty
+        let currentGameType = 'matching';
+        let currentDifficulty = 'easy';
+
+        // Load initial leaderboards
+        loadLeaderboard(currentGameType, currentDifficulty);
+
+        // Tab change handler
+        document.querySelectorAll('#leaderboardTabs .nav-link').forEach(tab => {
+            tab.addEventListener('click', function() {
+                currentGameType = this.id.split('-')[0];
+
+                if (currentGameType === 'matching') {
+                    // For matching, we need to use the current difficulty
+                    loadLeaderboard(currentGameType, currentDifficulty);
+                } else {
+                    // For quiz, no difficulty needed
+                    loadLeaderboard(currentGameType);
+                }
+            });
+        });
+
+        // Difficulty buttons for matching game
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Update active button
+                document.querySelectorAll('.difficulty-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+
+                // Update current difficulty and load leaderboard
+                currentDifficulty = this.getAttribute('data-difficulty');
+                loadLeaderboard('matching', currentDifficulty);
+            });
+        });
+
+        // Function to load leaderboard data
+        function loadLeaderboard(gameType, difficulty = null) {
+            // Show loading state
+            document.getElementById(`${gameType}-leaderboard`).innerHTML = `
+                <tr>
+                    <td colspan="${gameType === 'matching' ? 7 : 6}" class="loading">
+                        <div class="loading-spinner"></div>
+                        <div>{{ _('Loading leaderboard...') }}</div>
+                    </td>
+                </tr>
+            `;
+
+            // Hide user best section initially
+            document.getElementById(`${gameType}-user-best`).style.display = 'none';
+
+            // Build API URL
+            const url = `/study/api/leaderboard/${gameType}${difficulty ? `?difficulty=${difficulty}` : ''}`;
+
+            // Fetch leaderboard data
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update leaderboard table
+                        updateLeaderboardTable(gameType, data.leaderboard);
+
+                        // Update user's personal best if available
+                        if (data.user_best) {
+                            updateUserBest(gameType, data.user_best);
+                        }
+                    } else {
+                        throw new Error('API returned error status');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading leaderboard:', error);
+                    document.getElementById(`${gameType}-leaderboard`).innerHTML = `
+                        <tr>
+                            <td colspan="${gameType === 'matching' ? 7 : 6}" class="text-center text-danger p-4">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                {{ _('Failed to load leaderboard. Please try again.') }}
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        // Function to update leaderboard table
+        function updateLeaderboardTable(gameType, leaderboard) {
+            const tableBody = document.getElementById(`${gameType}-leaderboard`);
+
+            if (!leaderboard || leaderboard.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="${gameType === 'matching' ? 7 : 6}" class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div>{{ _('No scores recorded yet. Be the first to play!') }}</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            leaderboard.forEach((entry, index) => {
+                const rank = entry.rank;
+                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                const formattedTime = formatTime(entry.time_taken);
+
+                if (gameType === 'matching') {
+                    html += `
+                        <tr ${entry.is_current_user ? 'class="user-row"' : ''}>
+                            <td class="rank-cell">
+                                <span class="rank-number ${rankClass}">${rank}</span>
+                            </td>
+                            <td>
+                                <div class="player-cell">
+                                    <div class="player-avatar">${entry.username.charAt(0).toUpperCase()}</div>
+                                    <div class="player-name">${entry.username}</div>
+                                </div>
+                            </td>
+                            <td class="score-cell">${entry.score}</td>
+                            <td class="details-cell">${entry.pairs_matched}/${entry.total_pairs}</td>
+                            <td class="details-cell">${entry.moves}</td>
+                            <td class="details-cell">${formattedTime}</td>
+                            <td class="date-cell">${entry.date}</td>
+                        </tr>
+                    `;
+                } else {
+                    html += `
+                        <tr ${entry.is_current_user ? 'class="user-row"' : ''}>
+                            <td class="rank-cell">
+                                <span class="rank-number ${rankClass}">${rank}</span>
+                            </td>
+                            <td>
+                                <div class="player-cell">
+                                    <div class="player-avatar">${entry.username.charAt(0).toUpperCase()}</div>
+                                    <div class="player-name">${entry.username}</div>
+                                </div>
+                            </td>
+                            <td class="score-cell">${entry.score}%</td>
+                            <td class="details-cell">${entry.correct_answers}/${entry.total_questions}</td>
+                            <td class="details-cell">${formattedTime}</td>
+                            <td class="date-cell">${entry.date}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            tableBody.innerHTML = html;
+        }
+
+        // Function to update user's personal best section
+        function updateUserBest(gameType, userBest) {
+            // Show user best section
+            document.getElementById(`${gameType}-user-best`).style.display = 'block';
+
+            // Set user rank
+            document.getElementById(`${gameType}-user-rank`).textContent = userBest.rank;
+
+            // Set user score (add % for quiz)
+            document.getElementById(`${gameType}-user-score`).textContent =
+                gameType === 'quiz' ? `${userBest.score}%` : userBest.score;
+
+            // Format time
+            const formattedTime = formatTime(userBest.time_taken);
+
+            if (gameType === 'matching') {
+                // Update matching-specific stats
+                document.getElementById('matching-user-pairs').textContent =
+                    `${userBest.pairs_matched}/${userBest.total_pairs}`;
+                document.getElementById('matching-user-time').textContent = formattedTime;
+            } else {
+                // Update quiz-specific stats
+                document.getElementById('quiz-user-correct').textContent =
+                    `${userBest.correct_answers}/${userBest.total_questions}`;
+                document.getElementById('quiz-user-time').textContent = formattedTime;
+            }
+        }
+
+        // Helper function to format time
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+    });
+</script>
+{% endblock %}

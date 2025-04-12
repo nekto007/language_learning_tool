@@ -211,3 +211,48 @@ class StudySettings(db.Model):
             db.session.add(settings)
             db.session.commit()
         return settings
+
+
+class GameScore(db.Model):
+    """
+    Model to track high scores and leaderboards for games
+    """
+    __tablename__ = 'game_scores'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    game_type = db.Column(db.String(20), nullable=False)  # 'matching', 'quiz', etc.
+    difficulty = db.Column(db.String(20), nullable=True)  # 'easy', 'medium', 'hard'
+    score = db.Column(db.Integer, default=0)
+    time_taken = db.Column(db.Integer, default=0)  # В секундах
+    pairs_matched = db.Column(db.Integer, default=0)
+    total_pairs = db.Column(db.Integer, default=0)
+    moves = db.Column(db.Integer, default=0)
+    correct_answers = db.Column(db.Integer, default=0)
+    total_questions = db.Column(db.Integer, default=0)
+    date_achieved = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship
+    user = db.relationship('User', backref=db.backref('game_scores', lazy='dynamic', cascade='all, delete-orphan'))
+
+    @classmethod
+    def get_leaderboard(cls, game_type, difficulty=None, limit=10):
+        """Get leaderboard for a game type"""
+        query = cls.query.filter_by(game_type=game_type)
+
+        if difficulty:
+            query = query.filter_by(difficulty=difficulty)
+
+        return query.order_by(cls.score.desc()).limit(limit).all()
+
+    def get_rank(self):
+        """Get rank of this score in leaderboard"""
+        query = GameScore.query.filter(
+            GameScore.game_type == self.game_type,
+            GameScore.score > self.score
+        )
+
+        if self.difficulty:
+            query = query.filter_by(difficulty=self.difficulty)
+
+        return query.count() + 1
