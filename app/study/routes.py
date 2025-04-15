@@ -235,12 +235,46 @@ def get_study_items():
                 'is_new': True
             })
 
-    # Получаем просроченные карточки для повторения, если лимит не исчерпан
-    if word_source in ['all', 'learning'] and review_limit > 0:
-        # Получаем карточки для повторения
+    # Получаем слова в зависимости от источника
+    if word_source == 'learning' and review_limit > 0:
+        # Import user_word_status table
+        from app.utils.db import user_word_status
+
+        # Получаем слова со статусом 1 (learning) - по аналогии с другими режимами
+        learning_words_query = db.session.query(CollectionWords) \
+            .join(
+            user_word_status,
+            (CollectionWords.id == user_word_status.c.word_id) &
+            (user_word_status.c.user_id == current_user.id)
+        ) \
+            .filter(
+            user_word_status.c.status == 1,  # Status 1 = learning
+            CollectionWords.russian_word != None,
+            CollectionWords.russian_word != ''
+        ) \
+            .order_by(CollectionWords.id).limit(review_limit)
+
+        learning_words = learning_words_query.all()
+
+        # Добавляем слова в результат
+        for word in learning_words:
+            result_items.append({
+                'id': None,  # Здесь могла бы быть привязка к StudyItem, но используем None
+                'word_id': word.id,
+                'word': word.english_word,
+                'translation': word.russian_word,
+                'definition': '',
+                'examples': word.sentences,
+                'audio_url': url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+                if hasattr(word, 'get_download') and word.get_download == 1 else None,
+                'is_new': False
+            })
+    elif word_source == 'all' and review_limit > 0:
+        # Для режима "all" продолжаем использовать существующую логику с просроченными карточками
         due_items = StudyItem.query.filter_by(user_id=current_user.id) \
             .filter(StudyItem.next_review <= datetime.utcnow().date() + timedelta(days=1)) \
             .order_by(StudyItem.next_review).limit(review_limit).all()
+
         # Добавляем карточки для повторения
         for item in due_items:
             word = item.word
