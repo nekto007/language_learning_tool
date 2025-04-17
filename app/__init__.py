@@ -40,6 +40,12 @@ def create_app(config_class=Config):
     from app.books.routes import books as books_blueprint
     app.register_blueprint(books_blueprint)
 
+    from app.admin.routes import admin as admin_blueprint
+    app.register_blueprint(admin_blueprint)
+
+    from app.reminders.routes import reminders as reminders_blueprint
+    app.register_blueprint(reminders_blueprint)
+
     from app.study.routes import study as study_blueprint
     app.register_blueprint(study_blueprint, url_prefix='/study')
 
