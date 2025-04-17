@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пора вернуться к изучению английского!</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .content {
+            padding: 20px;
+            text-align: center;
+        }
+        .mascot {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .message {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #444;
+        }
+        .submessage {
+            font-size: 18px;
+            margin: 20px 0;
+            color: #555;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #4a90e2;
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            margin: 20px 0;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+        }
+        .footer a {
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='media/llt_logo.png', _external=True) }}" alt="LLT English" width="200">
+        </div>
+
+        <div class="content">
+            <div class="message">Давно не виделись!</div>
+
+            <div class="submessage">
+                {% if user.last_login %}
+                    Вы не занимались английским с {{ user.last_login.strftime('%d.%m.%Y') }}.
+                {% else %}
+                    Вы еще не начали заниматься английским.
+                {% endif %}
+            </div>
+
+            <div class="submessage">Всего 5 минут в день — и ваш английский будет на высоте!</div>
+
+            <a href="{{ url_for('study.index', _external=True) }}" class="cta-button">ВЕРНУТЬСЯ К ОБУЧЕНИЮ</a>
+        </div>
+
+        <div class="footer">
+            <p>Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
+            <p>Если вы не хотите получать напоминания, <a href="{{ url_for('study.settings', _external=True) }}">измените настройки уведомлений</a>.</p>
+        </div>
+    </div>
+</body>
+</html>
