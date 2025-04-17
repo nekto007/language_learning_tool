@@ -84,8 +84,9 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     words = nltk.word_tokenize(text)
     # Filter only alphabetic characters and convert to lowercase
     words = [word.lower() for word in words if word.isalpha()]
+    stop_words = ["i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don"]
     # Remove stop words
-    # words = [word for word in words if word not in stop_words]
+    words = [word for word in words if word not in stop_words]
 
     return words
 

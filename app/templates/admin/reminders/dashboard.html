@@ -1,0 +1,317 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Управление напоминаниями{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Управление напоминаниями</h1>
+            <p class="text-muted">Отправляйте персонализированные напоминания неактивным пользователям</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Фильтр неактивных пользователей</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('reminders.reminder_dashboard') }}" class="form-inline">
+                        <div class="form-group mb-2">
+                            <label for="inactive_days" class="mr-2">Не активны более</label>
+                            <select name="inactive_days" id="inactive_days" class="form-control mr-2">
+                                <option value="3" {% if inactive_days == 3 %}selected{% endif %}>3 дней</option>
+                                <option value="7" {% if inactive_days == 7 %}selected{% endif %}>7 дней</option>
+                                <option value="14" {% if inactive_days == 14 %}selected{% endif %}>14 дней</option>
+                                <option value="30" {% if inactive_days == 30 %}selected{% endif %}>30 дней</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary">Применить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Неактивные пользователи</h5>
+                    <span class="badge badge-pill badge-primary">{{ inactive_users|length }} пользователей</span>
+                </div>
+                <div class="card-body">
+                    {% if inactive_users %}
+                        <form method="POST" action="{{ url_for('reminders.send_reminders') }}">
+                            <div class="mb-4">
+                                <div class="form-group">
+                                    <label for="reminder_template">Выберите шаблон напоминания:</label>
+                                    <select name="reminder_template" id="reminder_template" class="form-control">
+                                        <option value="default">Стандартное напоминание</option>
+                                        <option value="friendly">Дружелюбное сообщение от лисенка</option>
+                                        <option value="achievement">Мотивационное (достижения)</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <a href="#" data-toggle="modal" data-target="#previewModal">Предварительный просмотр шаблонов</a>
+                                    </small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="custom_subject">Тема письма:</label>
+                                    <input type="text" name="custom_subject" id="custom_subject" class="form-control"
+                                           value="Пора вернуться к изучению английского!">
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" id="select-all" class="custom-control-input">
+                                                    <label for="select-all" class="custom-control-label"></label>
+                                                </div>
+                                            </th>
+                                            <th>Пользователь</th>
+                                            <th>Email</th>
+                                            <th>Последний вход</th>
+                                            <th>Дней неактивности</th>
+                                            <th>Прогресс</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user in inactive_users %}
+                                        <tr>
+                                            <td>
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" name="user_ids" value="{{ user.id }}"
+                                                           id="user-{{ user.id }}" class="custom-control-input user-checkbox">
+                                                    <label for="user-{{ user.id }}" class="custom-control-label"></label>
+                                                </div>
+                                            </td>
+                                            <td>{{ user.username }}</td>
+                                            <td>{{ user.email }}</td>
+                                            <td>
+                                                {% if user.last_login %}
+                                                    {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                                                {% else %}
+                                                    <span class="text-muted">Никогда</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if user.last_login %}
+                                                    {{ ((now - user.last_login).total_seconds() / 86400)|round|int }} дней
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% set progress = user.get_reading_progress_count() %}
+                                                {% if progress > 0 %}
+                                                    <div class="progress">
+                                                        <div class="progress-bar" role="progressbar" style="width: 25%;"
+                                                             aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted">Нет прогресса</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary" id="send-reminders">Отправить напоминания</button>
+                                <span class="ml-2 text-muted" id="selected-count">Выбрано: 0 пользователей</span>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Нет неактивных пользователей за выбранный период.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">История отправленных напоминаний</h5>
+                </div>
+                <div class="card-body">
+                    {% if reminders_sent %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Пользователь</th>
+                                        <th>Тема</th>
+                                        <th>Шаблон</th>
+                                        <th>Отправлено</th>
+                                        <th>Кем отправлено</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for reminder in reminders_sent %}
+                                    <tr>
+                                        <td>{{ reminder.id }}</td>
+                                        <td>{{ reminder.user.username }}</td>
+                                        <td>{{ reminder.subject }}</td>
+                                        <td>{{ reminder.template }}</td>
+                                        <td>{{ reminder.sent_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                        <td>
+                                            {% if reminder.sent_by %}
+                                                {% set admin_user = get_user_by_id(reminder.sent_by) %}
+                                                {% if admin_user %}
+                                                    {{ admin_user.username }}
+                                                {% else %}
+                                                    Администратор ID: {{ reminder.sent_by }}
+                                                {% endif %}
+                                            {% else %}
+                                                Система
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            История отправленных напоминаний пуста.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Template Preview -->
+<div class="modal fade" id="previewModal" tabindex="-1" role="dialog" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Предварительный просмотр шаблонов</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" id="previewTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="default-tab" data-toggle="tab" href="#default" role="tab"
+                           aria-controls="default" aria-selected="true">Стандартное</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="friendly-tab" data-toggle="tab" href="#friendly" role="tab"
+                           aria-controls="friendly" aria-selected="false">Дружелюбное</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="achievement-tab" data-toggle="tab" href="#achievement" role="tab"
+                           aria-controls="achievement" aria-selected="false">Мотивационное</a>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3" id="previewTabsContent">
+                    <div class="tab-pane fade show active" id="default" role="tabpanel" aria-labelledby="default-tab">
+                        <div class="embed-responsive embed-responsive-1by1">
+                            <iframe class="embed-responsive-item" src="{{ url_for('reminders.preview_template', template_name='default') }}"></iframe>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="friendly" role="tabpanel" aria-labelledby="friendly-tab">
+                        <div class="embed-responsive embed-responsive-1by1">
+                            <iframe class="embed-responsive-item" src="{{ url_for('reminders.preview_template', template_name='friendly') }}"></iframe>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="achievement" role="tabpanel" aria-labelledby="achievement-tab">
+                        <div class="embed-responsive embed-responsive-1by1">
+                            <iframe class="embed-responsive-item" src="{{ url_for('reminders.preview_template', template_name='achievement') }}"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select all checkbox functionality
+        const selectAllCheckbox = document.getElementById('select-all');
+        const userCheckboxes = document.querySelectorAll('.user-checkbox');
+        const selectedCountSpan = document.getElementById('selected-count');
+        const sendRemindersButton = document.getElementById('send-reminders');
+
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                userCheckboxes.forEach(checkbox => {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+                updateSelectedCount();
+            });
+        }
+
+        userCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateSelectedCount();
+
+                // Update "select all" checkbox state
+                if (document.querySelectorAll('.user-checkbox:checked').length === userCheckboxes.length) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (document.querySelectorAll('.user-checkbox:checked').length === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    selectAllCheckbox.indeterminate = true;
+                }
+            });
+        });
+
+        function updateSelectedCount() {
+            const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
+            selectedCountSpan.textContent = `Выбрано: ${selectedCount} пользователей`;
+
+            // Disable send button if no users selected
+            if (sendRemindersButton) {
+                sendRemindersButton.disabled = selectedCount === 0;
+            }
+        }
+
+        // Initialize selected count
+        updateSelectedCount();
+
+        // Form submission confirmation
+        const reminderForm = document.querySelector('form[action*="send_reminders"]');
+        if (reminderForm) {
+            reminderForm.addEventListener('submit', function(e) {
+                const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
+                if (selectedCount === 0) {
+                    e.preventDefault();
+                    alert('Выберите хотя бы одного пользователя для отправки напоминания.');
+                    return false;
+                }
+
+                if (!confirm(`Вы уверены, что хотите отправить напоминания ${selectedCount} пользователям?`)) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
