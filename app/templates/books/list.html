@@ -5,15 +5,15 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-8">
-        <h1>Books Collection</h1>
-        <p class="text-muted">Browse books and texts for learning English vocabulary.</p>
+        <h1>{{ _('Books Collection') }}</h1>
+        <p class="text-muted">{{ _('Browse books and texts for learning English vocabulary.') }}</p>
     </div>
 
     <!-- Add Book button - only visible to admins -->
     {% if current_user.is_authenticated and current_user.is_admin %}
     <div class="col-md-4 text-end">
         <a href="{{ url_for('books.add_book') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add New Book
+            <i class="fas fa-plus"></i> {{ _('Add New Book') }}
         </a>
     </div>
     {% endif %}
@@ -27,10 +27,10 @@
                 <!-- Search Box -->
                 <div class="col-12 col-md-6">
                     <div class="input-group">
-                        <input type="text" name="search" class="form-control" placeholder="Search by title or author..."
+                        <input type="text" name="search" class="form-control" placeholder="{{ _('Search by title or author...') }}"
                                value="{{ request.args.get('search', '') }}">
                         <button class="btn btn-outline-primary" type="submit">
-                            <i class="fas fa-search"></i> Search
+                            <i class="fas fa-search"></i> {{ _('Search') }}
                         </button>
                         {% if request.args.get('search') %}
                         <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
@@ -47,7 +47,7 @@
                         <div class="btn-group" role="group">
                             <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
                                class="btn btn-outline-secondary {{ 'active' if not request.args.get('level') else '' }}">
-                                All Levels
+                                {{ _('All Levels') }}
                             </a>
                             {% for level_value, level_name in [
                                 ('A1', 'A1'), ('A2', 'A2'),
@@ -71,7 +71,7 @@
                 <!-- Show all option -->
                 <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
                    class="btn btn-sm {{ 'btn-primary' if not request.args.get('letter') else 'btn-outline-secondary' }} m-1">
-                    All
+                    {{ _('All') }}
                 </a>
 
                 <!-- Letter buttons -->
@@ -122,7 +122,7 @@
         {% endif %}
 
         <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-danger m-1">
-            <i class="fas fa-times"></i> Clear All Filters
+            <i class="fas fa-times"></i> {{ _('Clear All Filters') }}
         </a>
     </div>
 </div>
@@ -136,11 +136,11 @@
             <table class="table table-hover">
                 <thead>
                   <tr>
-                      <th style="width: 100px;" class="align-middle">COVER</th>
+                      <th style="width: 100px;" class="align-middle">{{ _('COVER') }}</th>
                       <th class="align-middle">
                           <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">TITLE</span>
+                              <span class="me-1">{{ _('TITLE') }}</span>
                               {% if sort_by == 'title' %}
                                   <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
                               {% else %}
@@ -151,7 +151,7 @@
                       <th class="align-middle">
                           <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">AUTHOR</span>
+                              <span class="me-1">{{ _('AUTHOR') }}</span>
                               {% if sort_by == 'author' %}
                                   <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
                               {% else %}
@@ -162,7 +162,7 @@
                       <th class="align-middle">
                           <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">LEVEL</span>
+                              <span class="me-1">{{ _('LEVEL') }}</span>
                               {% if sort_by == 'level' %}
                                   <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
                               {% else %}
@@ -173,7 +173,7 @@
                       <th class="align-middle">
                           <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
                              class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">WORDS</span>
+                              <span class="me-1">{{ _('WORDS') }}</span>
                               {% if sort_by == 'unique_words' %}
                                   <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
                               {% else %}
@@ -181,8 +181,8 @@
                               {% endif %}
                           </a>
                       </th>
-                      <th class="align-middle">PROGRESS</th>
-                      <th class="align-middle">ACTIONS</th>
+                      <th class="align-middle">{{ _('PROGRESS') }}</th>
+                      <th class="align-middle">{{ _('ACTIONS') }}</th>
                   </tr>
               </thead>
                 <tbody>
@@ -207,7 +207,7 @@
                                 {% set progress = current_user.reading_progress.filter_by(book_id=book.id).first() %}
                                 {% if progress %}
                                 <div>
-                                    <small class="text-muted">Last read: {{ progress.last_read.strftime('%d.%m.%Y') }}</small>
+                                    <small class="text-muted">{{ _('Last read') }}: {{ progress.last_read.strftime('%d.%m.%Y') }}</small>
                                 </div>
                                 {% endif %}
                             {% endif %}
@@ -222,8 +222,8 @@
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
-                                <span class="me-2">{{ book.unique_words }}</span>
-                                <small class="text-muted">({{ book.total_words }} occurrences)</small>
+                                <span class="me-2">{{ book.unique_words }} {{ _('unique words') }}</span>
+                                <small class="text-muted">({{ book.total_words }} {{ _('words') }})</small>
                             </div>
                         </td>
                         <td>
@@ -234,16 +234,16 @@
                                 <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (stats['learning'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
                             </div>
                             <div class="d-flex justify-content-between mt-1">
-                                <small class="text-muted">{{ progress }}% learned</small>
+                                <small class="text-muted">{{ progress }}% {{ _('learned') }}</small>
                                 <small class="text-muted">{{ stats['mastered'] }}/{{ stats['total'] }}</small>
                             </div>
                         </td>
                         <td>
                             <div class="btn-group">
-                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">Details</a>
-                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">Read</a>
+                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">{{ _('Details') }}</a>
+                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
                                 {% if current_user.is_authenticated and current_user.is_admin %}
-                                <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-sm btn-outline-secondary">{{ _('Edit') }}</a>
                                 {% endif %}
                             </div>
                         </td>
@@ -258,11 +258,11 @@
           <ul class="pagination justify-content-center">
               {% if pagination.has_prev %}
               <li class="page-item">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">Previous</a>
+                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">{{ _('Previous') }}</a>
               </li>
               {% else %}
               <li class="page-item disabled">
-                  <span class="page-link">Previous</span>
+                  <span class="page-link">{{ _('Previous') }}</span>
               </li>
               {% endif %}
 
@@ -280,25 +280,25 @@
 
               {% if pagination.has_next %}
               <li class="page-item">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">Next</a>
+                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">{{ _('Next') }}</a>
               </li>
               {% else %}
               <li class="page-item disabled">
-                  <span class="page-link">Next</span>
+                  <span class="page-link">{{ _('Next') }}</span>
               </li>
               {% endif %}
           </ul>
       </nav>
         {% else %}
         <div class="text-center py-5">
-            <p class="text-muted mb-3">No books found matching your criteria.</p>
+            <p class="text-muted mb-3">{{ _('No books found matching your criteria.') }}</p>
             <div class="d-flex justify-content-center">
                 <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-undo"></i> Clear Filters
+                    <i class="fas fa-undo"></i> {{ _('Clear Filters') }}
                 </a>
                 {% if current_user.is_authenticated and current_user.is_admin %}
                 <a href="{{ url_for('books.add_book') }}" class="btn btn-primary ms-2">
-                    <i class="fas fa-plus"></i> Add Book
+                    <i class="fas fa-plus"></i> {{ _('Add Book') }}
                 </a>
                 {% endif %}
             </div>
