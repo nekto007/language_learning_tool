@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Раскройте свой потенциал с LLT English!</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .content {
+            padding: 20px;
+            text-align: center;
+        }
+        .mascot {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .message {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #444;
+        }
+        .submessage {
+            font-size: 18px;
+            margin: 20px 0;
+            color: #555;
+            line-height: 1.6;
+        }
+        .achievement {
+            background-color: #fff9e6;
+            border: 1px solid #ffe0a3;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .achievement-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e6a100;
+            margin-bottom: 10px;
+        }
+        .achievement-icon {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+        .achievement-description {
+            font-size: 16px;
+            color: #666;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #5cb85c;
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .benefits {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin: 30px 0;
+        }
+        .benefit {
+            flex-basis: 48%;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .benefit-title {
+            font-weight: bold;
+            color: #4a90e2;
+            margin-bottom: 5px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+        }
+        .footer a {
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='images/logo.png', _external=True) }}" alt="LLT English" width="200">
+        </div>
+
+        <div class="content">
+            <div class="message">{{ user.username }}, откройте свой новый потенциал!</div>
+
+            <div class="submessage">
+                Изучение английского языка открывает множество возможностей.
+                Не упускайте шанс стать лучше с каждым днем!
+            </div>
+
+            <div class="achievement">
+                <div class="achievement-title">Следующее достижение ждет вас!</div>
+                <div class="achievement-icon">🏆</div>
+                <div class="achievement-description">
+                    {% if user.words|selectattr('status', 'eq', 2)|list|length > 0 %}
+                        Вы уже изучили {{ user.words|selectattr('status', 'eq', 2)|list|length }} слов!
+                        Ваша следующая цель - 100 слов. Осталось всего {{ 100 - user.words|selectattr('status', 'eq', 2)|list|length }} слов!
+                    {% else %}
+                        Начните свое путешествие к свободному владению английским языком уже сегодня!
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mascot">
+                <img src="{{ url_for('static', filename='media/llt_logo.png', _external=True) }}" alt="Лисенок" width="150">
+            </div>
+
+            <div class="submessage">
+                Регулярные занятия - ключ к успеху в изучении языка.
+                Начните заниматься прямо сейчас!
+            </div>
+
+            <a href="{{ url_for('study.index', _external=True) }}" class="cta-button">ПРОДОЛЖИТЬ ОБУЧЕНИЕ</a>
+
+            <div class="benefits">
+                <div class="benefit">
+                    <div class="benefit-title">Прогресс каждый день</div>
+                    <div>Всего 5 минут занятий ежедневно значительно улучшат ваши навыки</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Персональный подход</div>
+                    <div>Изучайте слова и фразы, которые важны именно для вас</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Удобный формат</div>
+                    <div>Занимайтесь в любое время и в любом месте</div>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-title">Мотивация</div>
+                    <div>Система достижений поможет не сбиться с пути</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© {{ now.year }} LLT English. Все права защищены.</p>
+            <p>Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
+            <p><a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> | <a href="{{ url_for('study.settings', token=unsubscribe_token, _external=True) }}">Отписаться</a></p>
+        </div>
+    </div>
+</body>
+</html>
