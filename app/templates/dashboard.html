@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12">
-        <h1 class="mb-4">Welcome, {{ current_user.username }}!</h1>
+        <h1 class="mb-4">{{ _('Welcome,') }} {{ current_user.username }}!</h1>
     </div>
 </div>
 
@@ -14,7 +14,7 @@
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Your Word Statistics</h5>
+                <h5 class="mb-0">{{ _('Your Word Statistics') }}</h5>
             </div>
             <div class="card-body">
                 <div class="progress mb-3">
@@ -24,7 +24,7 @@
                     <div class="col-6 col-md-4 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">New</h6>
+                                <h6 class="card-title">{{ _('New') }}</h6>
                                 <p class="card-text fw-bold fs-4">{{ status_stats[0] }}</p>
                             </div>
                         </div>
@@ -32,7 +32,7 @@
                     <div class="col-6 col-md-4 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">Learning</h6>
+                                <h6 class="card-title">{{ _('Learning') }}</h6>
                                 <p class="card-text fw-bold fs-4">{{ status_stats[1] }}</p>
                             </div>
                         </div>
@@ -40,7 +40,7 @@
                     <div class="col-6 col-md-4 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">Mastered</h6>
+                                <h6 class="card-title">{{ _('Mastered') }}</h6>
                                 <p class="card-text fw-bold fs-4">{{ status_stats[2] }}</p>
                             </div>
                         </div>
@@ -48,7 +48,7 @@
                     <div class="col-6 col-md-4 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">Total</h6>
+                                <h6 class="card-title">{{ _('Total') }}</h6>
                                 <p class="card-text fw-bold fs-4">{{ total_words }}</p>
                             </div>
                         </div>
@@ -60,8 +60,8 @@
         <!-- Recently Read Books - New section -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Your Reading Activity</h5>
-                <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">View All Books</a>
+                <h5 class="mb-0">{{ _('Your Reading Activity') }}</h5>
+                <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">{{ _('View All Books') }}</a>
             </div>
             <div class="card-body">
                 {% if current_user.get_reading_progress_count() > 0 %}
@@ -83,9 +83,9 @@
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">{{ percent_read }}% completed</small>
+                            <small class="text-muted">{{ percent_read }}% {{ _('completed') }}</small>
                             <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}" class="btn btn-sm btn-primary">
-                                Continue Reading
+                                {{ _('Continue Reading') }}
                             </a>
                         </div>
                     </div>
@@ -95,7 +95,7 @@
                 {% if current_user.get_reading_progress_count() > 3 %}
                 <div class="text-center mt-3">
                     <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary btn-sm">
-                        View All Books ({{ current_user.get_reading_progress_count() }})
+                        {{ _('View All Books') }} ({{ current_user.get_reading_progress_count() }})
                     </a>
                 </div>
                 {% endif %}
@@ -103,9 +103,9 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-book fa-3x mb-3 text-muted"></i>
-                    <p class="text-muted">You haven't started reading any books yet.</p>
+                    <p class="text-muted">{{ _('You have not started reading any books yet.') }}</p>
                     <a href="{{ url_for('books.book_list') }}" class="btn btn-primary">
-                        Find Books to Read
+                        {{ _('Find Books to Read') }}
                     </a>
                 </div>
                 {% endif %}
@@ -118,30 +118,30 @@
         <!-- Quick Actions -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Quick Actions</h5>
+                <h5 class="mb-0">{{ _('Quick Actions') }}</h5>
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6">
                         <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">
-                            <i class="fas fa-list me-1"></i> Browse Words
+                            <i class="fas fa-list me-1"></i> {{ _('Browse Words') }}
                         </a>
                     </div>
                     <div class="col-6">
                         <a href="{{ url_for('words.word_list', status=1) }}" class="btn btn-secondary d-block">
-                            <i class="fas fa-hourglass-start me-1"></i> Learning Words
+                            <i class="fas fa-hourglass-start me-1"></i> {{ _('Learning Words') }}
                         </a>
                     </div>
                     <div class="col-6">
                         <a href="{{ url_for('study.index') }}" class="btn btn-success d-block">
-                            <i class="fas fa-graduation-cap me-1"></i> Study Now
+                            <i class="fas fa-graduation-cap me-1"></i> {{ _('Study Now') }}
                         </a>
                     </div>
 
                     <!-- New buttons for reading functionality -->
                     <div class="col-6">
                         <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary d-block">
-                            <i class="fas fa-book me-1"></i> Find Books
+                            <i class="fas fa-book me-1"></i> {{ _('Find Books') }}
                         </a>
                     </div>
 
@@ -150,20 +150,20 @@
                     {% if last_book %}
                     <div class="col-6">
                         <a href="{{ url_for('books.read_book', book_id=last_book.book_id) }}" class="btn btn-outline-success d-block">
-                            <i class="fas fa-book-reader me-1"></i> Continue Reading
+                            <i class="fas fa-book-reader me-1"></i> {{ _('Continue Reading') }}
                         </a>
                     </div>
                     {% else %}
                     <div class="col-6">
                         <a href="#" class="btn btn-outline-secondary d-block">
-                            <i class="fas fa-file-export me-1"></i> Export to Anki
+                            <i class="fas fa-file-export me-1"></i> {{ _('Export to Anki') }}
                         </a>
                     </div>
                     {% endif %}
                     {% else %}
                     <div class="col-6">
                         <a href="#" class="btn btn-outline-secondary d-block">
-                            <i class="fas fa-file-export me-1"></i> Export to Anki
+                            <i class="fas fa-file-export me-1"></i> {{ _('Export to Anki') }}
                         </a>
                     </div>
                     {% endif %}
@@ -174,7 +174,7 @@
         <!-- Recently Studied -->
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Recently Studied Words</h5>
+                <h5 class="mb-0">{{ _('Recently Studied Words') }}</h5>
             </div>
             <div class="card-body">
                 <div class="list-group">
@@ -189,7 +189,7 @@
                         </a>
                         {% endfor %}
                     {% else %}
-                        <p class="text-muted">No words studied yet. Start browsing the word list to begin learning!</p>
+                        <p class="text-muted">{{ _('No words studied yet. Start browsing the word list to begin learning!') }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -198,13 +198,13 @@
         <!-- Reading Stats Section - New section -->
         <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">Reading Statistics</h5>
+                <h5 class="mb-0">{{ _('Reading Statistics') }}</h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-4 text-center">
                         <div class="h2 mb-0 fw-bold">{{ current_user.get_reading_progress_count() }}</div>
-                        <div class="small text-muted">Books</div>
+                        <div class="small text-muted">{{ _('Books') }}</div>
                     </div>
                     <div class="col-4 text-center">
                         <div class="h2 mb-0 fw-bold">
@@ -215,7 +215,7 @@
                                 0
                             {% endif %}
                         </div>
-                        <div class="small text-muted">Minutes Read</div>
+                        <div class="small text-muted">{{ _('Minutes Read') }}</div>
                     </div>
                     <div class="col-4 text-center">
                         <div class="h2 mb-0 fw-bold">
@@ -225,7 +225,7 @@
                             {% endfor %}
                             {{ found_words }}
                         </div>
-                        <div class="small text-muted">Vocab Found</div>
+                        <div class="small text-muted">{{ _('Vocab Found') }}</div>
                     </div>
                 </div>
 
@@ -233,15 +233,15 @@
 
                 <div class="text-center">
                     <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-chart-line me-1"></i> View Detailed Stats
+                        <i class="fas fa-chart-line me-1"></i> {{ _('View Detailed Stats') }}
                     </a>
                 </div>
             </div>
         </div>
          <div class="card mt-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Game Achievements</h5>
-                <a href="{{ url_for('study.leaderboard') }}" class="btn btn-sm btn-outline-primary">View Leaderboard</a>
+                <h5 class="mb-0">{{ _('Game Achievements') }}</h5>
+                <a href="{{ url_for('study.leaderboard') }}" class="btn btn-sm btn-outline-primary">{{ _('View Leaderboard') }}</a>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -251,7 +251,7 @@
                             <div class="card-header bg-light py-2">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-th me-2 text-primary"></i>
-                                    <h6 class="card-title mb-0">Matching Game</h6>
+                                    <h6 class="card-title mb-0">{{ _('Matching Game') }}</h6>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -259,25 +259,25 @@
                                 <div class="d-flex align-items-center mb-2">
                                     <div class="me-auto">
                                         <span class="badge bg-primary me-1">#{{ user_best_matching.get_rank() }}</span>
-                                        <span class="text-muted">Rank</span>
+                                        <span class="text-muted">{{ _('Rank') }}</span>
                                     </div>
                                     <div class="h4 mb-0 text-primary">{{ user_best_matching.score }}</div>
                                 </div>
                                 <div class="small text-muted mb-2">
-                                    {{ user_best_matching.pairs_matched }}/{{ user_best_matching.total_pairs }} pairs in {{ user_best_matching.moves }} moves
+                                    {{ user_best_matching.pairs_matched }}/{{ user_best_matching.total_pairs }} {{ _('pairs in') }} {{ user_best_matching.moves }} {{ _('moves') }}
                                 </div>
                                 <div class="small text-muted">
-                                    Difficulty: <span class="badge {% if user_best_matching.difficulty == 'easy' %}bg-success{% elif user_best_matching.difficulty == 'medium' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ _('Difficulty') }}: <span class="badge {% if user_best_matching.difficulty == 'easy' %}bg-success{% elif user_best_matching.difficulty == 'medium' %}bg-warning{% else %}bg-danger{% endif %}">
                                         {{ user_best_matching.difficulty|capitalize }}
                                     </span>
                                 </div>
                                 {% else %}
                                 <div class="text-center py-3">
                                     <i class="fas fa-gamepad fa-2x mb-2 text-muted"></i>
-                                    <p class="mb-0 text-muted">You haven't played the matching game yet.</p>
+                                    <p class="mb-0 text-muted">{{ _('You have not played the matching game yet.') }}</p>
                                 </div>
                                 <div class="text-center mt-2">
-                                    <a href="{{ url_for('study.matching', word_source='all') }}" class="btn btn-sm btn-outline-primary">Play Now</a>
+                                    <a href="{{ url_for('study.matching', word_source='all') }}" class="btn btn-sm btn-outline-primary">{{ _('Play Now') }}</a>
                                 </div>
                                 {% endif %}
                             </div>
@@ -290,7 +290,7 @@
                             <div class="card-header bg-light py-2">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-question-circle me-2 text-success"></i>
-                                    <h6 class="card-title mb-0">Quiz</h6>
+                                    <h6 class="card-title mb-0">{{ _('Quiz') }}</h6>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -298,25 +298,25 @@
                                 <div class="d-flex align-items-center mb-2">
                                     <div class="me-auto">
                                         <span class="badge bg-success me-1">#{{ user_best_quiz.get_rank() }}</span>
-                                        <span class="text-muted">Rank</span>
+                                        <span class="text-muted">{{ _('Rank') }}</span>
                                     </div>
                                     <div class="h4 mb-0 text-success">{{ user_best_quiz.score }}%</div>
                                 </div>
                                 <div class="small text-muted">
-                                    {{ user_best_quiz.correct_answers }}/{{ user_best_quiz.total_questions }} correct answers
+                                    {{ user_best_quiz.correct_answers }}/{{ user_best_quiz.total_questions }} {{ _('correct answers') }}
                                 </div>
                                 <div class="small text-muted">
                                     {% set minutes = user_best_quiz.time_taken // 60 %}
                                     {% set seconds = user_best_quiz.time_taken % 60 %}
-                                    Time: {{ minutes }}:{{ '%02d' % seconds }}
+                                    {{ _('Time') }}: {{ minutes }}:{{ '%02d' % seconds }}
                                 </div>
                                 {% else %}
                                 <div class="text-center py-3">
                                     <i class="fas fa-brain fa-2x mb-2 text-muted"></i>
-                                    <p class="mb-0 text-muted">You haven't taken a quiz yet.</p>
+                                    <p class="mb-0 text-muted">{{ _('You have not taken a quiz yet.') }}</p>
                                 </div>
                                 <div class="text-center mt-2">
-                                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="btn btn-sm btn-outline-success">Take Quiz</a>
+                                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="btn btn-sm btn-outline-success">{{ _('Take Quiz') }}</a>
                                 </div>
                                 {% endif %}
                             </div>
@@ -326,7 +326,7 @@
 
                 <div class="text-center mt-2">
                     <a href="{{ url_for('study.leaderboard') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-trophy me-2"></i>View Full Leaderboard
+                        <i class="fas fa-trophy me-2"></i>{{ _('View Full Leaderboard') }}
                     </a>
                 </div>
             </div>
