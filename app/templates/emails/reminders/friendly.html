@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ваш персональный лисенок скучает по вам!</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .content {
+            padding: 20px;
+            text-align: center;
+        }
+        .mascot {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .speech-bubble {
+            position: relative;
+            background: #f0f8ff;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 30px auto;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        .speech-bubble:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border: 20px solid transparent;
+            border-top-color: #f0f8ff;
+            border-bottom: 0;
+            margin-left: -20px;
+            margin-bottom: -20px;
+        }
+        .message {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #444;
+        }
+        .submessage {
+            font-size: 16px;
+            margin: 15px 0;
+            color: #555;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #ff7f2a; /* Оранжевый как лисенок */
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            margin: 20px 0;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.15);
+        }
+        .stats {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .stat-item {
+            margin: 10px 0;
+        }
+        .stat-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .progress-bar {
+            background-color: #eee;
+            height: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        .progress {
+            background-color: #4a90e2;
+            height: 100%;
+            border-radius: 5px;
+            width: 30%; /* Изменяется динамически */
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
+        }
+        .footer a {
+            color: #777;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='images/llt_logo.png', _external=True) }}" alt="LLT English" width="180">
+        </div>
+
+        <div class="content">
+            <div class="mascot">
+                <img src="{{ url_for('static', filename='media/llt_sad.png', _external=True) }}" alt="Грустный лисенок" width="150">
+            </div>
+
+            <div class="speech-bubble">
+                <div class="message">Привет, {{ user.username }}!</div>
+                <div class="submessage">Я так скучаю по нашим занятиям! Давай продолжим изучать английский вместе?</div>
+            </div>
+
+            <div class="submessage">
+                {% if user.last_login %}
+                    Прошло уже {{ (now - user.last_login).days }} дней с вашего последнего занятия.
+                {% else %}
+                    Вы еще не начали свое путешествие в мир английского языка.
+                {% endif %}
+            </div>
+
+            {% if user.words %}
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">Изучено слов:</div>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: {{ (user.words|selectattr('status', 'eq', 2)|list|length / user.words|length * 100)|round }}%"></div>
+                    </div>
+                    <div>{{ user.words|selectattr('status', 'eq', 2)|list|length }} из {{ user.words|length }}</div>
+                </div>
+
+                <div class="stat-item">
+                    <div class="stat-label">Ваш прогресс:</div>
+                    {% if user.last_login %}
+                        <div>Продолжите с того места, где остановились!</div>
+                    {% else %}
+                        <div>Пора начать ваше первое занятие!</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <a href="{{ url_for('study.index', _external=True) }}" class="cta-button">НАЧАТЬ ЗАНЯТИЕ</a>
+
+            <div class="submessage">Всего 5 минут в день — и вы заговорите на английском!</div>
+        </div>
+
+        <div class="footer">
+            <p>© {{ now.year }} LLT English. Все права защищены.</p>
+            <p>Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
+            <p><a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> | <a href="{{ url_for('study.settings', token=unsubscribe_token, _external=True) }}">Отписаться</a></p>
+        </div>
+    </div>
+</body>
+</html>
