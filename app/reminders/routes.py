@@ -157,15 +157,11 @@ def send_reminders():
     now = datetime.utcnow()
 
     for user in users:
-
-        unsubscribe_token = generate_unsubscribe_token(user)
-
         # Формируем HTML-содержимое письма на основе шаблона
         html_content = render_template(
             f'emails/reminders/{reminder_template}.html',
             user=user,
-            now=now,
-            unsubscribe_token=unsubscribe_token
+            now=now
         )
 
         # Отправляем письмо
