@@ -31,24 +31,24 @@ document.addEventListener('DOMContentLoaded', function() {
         bookContent.classList.add('scroll-container');
 
         // Добавляем кнопку для возврата к сохраненной позиции, если ее еще нет
-        if (!document.getElementById('return-to-position')) {
-            const returnButton = document.createElement('button');
-            returnButton.id = 'return-to-position';
-            returnButton.className = 'btn btn-sm btn-outline-primary ms-3';
-            returnButton.innerHTML = '<i class="fas fa-bookmark"></i> Return to Last Position';
-
-            // Вставляем кнопку в панель инструментов
-            const toolbar = document.querySelector('.reading-toolbar');
-            const firstGroup = toolbar.querySelector('.d-flex.align-items-center');
-            if (firstGroup) {
-                firstGroup.appendChild(returnButton);
-            }
-
-            // Обработчик для возврата к позиции
-            returnButton.addEventListener('click', function() {
-                restoreScrollPosition();
-            });
-        }
+        // if (!document.getElementById('return-to-position')) {
+        //     const returnButton = document.createElement('button');
+        //     returnButton.id = 'return-to-position';
+        //     returnButton.className = 'btn btn-sm btn-outline-primary ms-3';
+        //     // returnButton.innerHTML = '<i class="fas fa-bookmark"></i> Return to Last Position';
+        //     // returnButton.innerHTML = returnButton.dataset.translate;
+        //     // Вставляем кнопку в панель инструментов
+        //     const toolbar = document.querySelector('.reading-toolbar');
+        //     const firstGroup = toolbar.querySelector('.d-flex.align-items-center');
+        //     if (firstGroup) {
+        //         firstGroup.appendChild(returnButton);
+        //     }
+        //
+        //     // Обработчик для возврата к позиции
+        //     returnButton.addEventListener('click', function() {
+        //         restoreScrollPosition();
+        //     });
+        // }
 
         // Перемещаем обложку книги в начало контента
         moveBookCoverToContent();
