@@ -236,6 +236,8 @@ def get_study_items():
             })
 
     # Получаем слова в зависимости от источника
+    print('word_source', word_source)
+    print('review_limit', review_limit)
     if word_source == 'learning' and review_limit > 0:
         # Import user_word_status table
         from app.utils.db import user_word_status
@@ -253,9 +255,8 @@ def get_study_items():
             CollectionWords.russian_word != ''
         ) \
             .order_by(CollectionWords.id).limit(review_limit)
-
         learning_words = learning_words_query.all()
-
+        print('learning_words', learning_words)
         # Добавляем слова в результат
         for word in learning_words:
             result_items.append({
@@ -599,7 +600,8 @@ def generate_quiz_questions(words, count):
 def create_multiple_choice_question(word, all_words, direction):
     """Create a multiple choice question"""
     if direction == 'eng_to_rus':
-        question_text = f'What is the translation of "{word.english_word}"?'
+        question_template = _('What is the translation of "{english}"?')
+        question_text = question_template.format(english=word.english_word)
         correct_answer = word.russian_word
 
         # Find distractors (other Russian words)
@@ -612,7 +614,8 @@ def create_multiple_choice_question(word, all_words, direction):
                 if len(distractors) >= 3:
                     break
     else:
-        question_text = f'What is the English word for "{word.russian_word}"?'
+        question_template = _('What is the English word for "{russian}"?')
+        question_text = question_template.format(russian=word.russian_word)
         correct_answer = word.english_word
 
         # Find distractors (other English words)
@@ -634,6 +637,11 @@ def create_multiple_choice_question(word, all_words, direction):
     if direction == 'eng_to_rus' and word.get_download == 1:
         audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
 
+    first_word = correct_answer.split(',')[0]
+    letter_form = _("letters")
+
+    hint = f"{correct_answer[0]}{"_" * len(first_word)} ({len(first_word)} {letter_form})"
+
     return {
         'id': f'mc_{word.id}_{direction}',
         'word_id': word.id,
@@ -641,7 +649,7 @@ def create_multiple_choice_question(word, all_words, direction):
         'text': question_text,
         'options': options,
         'answer': correct_answer,
-        'hint': f'Choose the correct translation',
+        'hint': hint,
         'audio_url': audio_url
     }
 
@@ -668,7 +676,9 @@ def create_true_false_question(word, all_words, direction):
                 russian_word = word.russian_word + 'ский'
             answer = 'false'
 
-        question_text = f'Does "{english_word}" translate to "{russian_word}"?'
+        # question_text = f'Does {english_word} translate to {russian_word}?'
+        question_template = _('Does "{english}" translate to {russian}?')
+        question_text = question_template.format(english=english_word, russian=russian_word)
 
     else:
         russian_word = word.russian_word
@@ -687,12 +697,19 @@ def create_true_false_question(word, all_words, direction):
                 english_word = 'un' + word.english_word
             answer = 'false'
 
-        question_text = f'Does "{russian_word}" translate to "{english_word}"?'
+        # question_text = f'Does "{russian_word}" translate to "{english_word}"?'
+        question_template = _('Does "{russian}" translate to {english}?')
+        question_text = question_template.format(english=english_word, russian=russian_word)
 
     # Audio for English word
     audio_url = None
     # if word.get_download == 1:
     #     audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+
+    first_word = answer.split(',')[0]
+    letter_form = _("letters")
+
+    hint = f"{answer[0]}{"_" * len(first_word)} ({len(first_word)} {letter_form})"
 
     return {
         'id': f'tf_{word.id}_{direction}',
@@ -700,7 +717,7 @@ def create_true_false_question(word, all_words, direction):
         'type': 'true_false',
         'text': question_text,
         'answer': answer,
-        'hint': f'Think about the correct translation',
+        'hint': hint,
         'audio_url': audio_url
     }
 
@@ -708,10 +725,12 @@ def create_true_false_question(word, all_words, direction):
 def create_fill_blank_question(word, direction):
     """Create a fill-in-the-blank question"""
     if direction == 'eng_to_rus':
-        question_text = f'Translate "{word.english_word}" to Russian:'
+        question_template = _('Translate "{english}" to Russian:')
+        question_text = question_template.format(english=word.english_word)
         answer = word.russian_word
     else:
-        question_text = f'Translate "{word.russian_word}" to English:'
+        question_template = _('Translate "{russian}" to English:')
+        question_text = question_template.format(russian=word.russian_word)
         answer = word.english_word
 
     # Get acceptable alternative answers
@@ -727,6 +746,11 @@ def create_fill_blank_question(word, direction):
     if direction == 'eng_to_rus' and word.get_download == 1:
         audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
 
+    first_word = answer.split(',')[0]
+    letter_form = _("letters")
+
+    hint = f"{answer[0]}{"_" * len(first_word)} ({len(first_word)} {letter_form})"
+
     return {
         'id': f'fb_{word.id}_{direction}',
         'word_id': word.id,
@@ -734,7 +758,7 @@ def create_fill_blank_question(word, direction):
         'text': question_text,
         'answer': answer,
         'acceptable_answers': acceptable_answers,
-        'hint': f'Type the translation',
+        'hint': hint,
         'audio_url': audio_url
     }
 
