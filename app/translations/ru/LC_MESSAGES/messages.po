@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2025-04-11 14:03+0300\n"
-"PO-Revision-Date: 2025-04-19 11:57+0300\n"
+"PO-Revision-Date: 2025-04-20 19:10+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
 "Language-Team: ru <LL@li.org>\n"
@@ -1455,4 +1455,28 @@ msgstr "Предыдущая"
 
 msgid "Next"
 msgstr "Следующая"
+
+#, python-brace-format
+msgid "Does \"{english}\" translate to {russian}?"
+msgstr "Переводится ли \"{english}\" как {russian}?"
+
+#, python-brace-format
+msgid "Does \"{russian}\" translate to {english}?"
+msgstr "Переводится ли \"{russian}\" как {english}?"
+
+#, python-brace-format
+msgid "What is the English word for \"{russian}\"?"
+msgstr "Как по-английски называется \"{russian}\"?"
+
+#, python-brace-format
+msgid "What is the translation of \"{english}\"?"
+msgstr "Как переводится \"{english}\"?"
+
+#, python-brace-format
+msgid "Translate \"{english}\" to Russian:"
+msgstr "Переведите \"{english}\" на русский язык:"
+
+#, python-brace-format
+msgid "Translate \"{russian}\" to English:"
+msgstr "Переведите \"{russian}\" на английский язык:"
 
