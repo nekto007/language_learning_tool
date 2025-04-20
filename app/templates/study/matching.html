@@ -612,17 +612,17 @@
         const difficultySettings = {
             easy: {
                 pairs: 6,
-                timeLimit: 120, // 2 minutes
-                hintDuration: 5000 // 5 seconds
+                timeLimit: 60, // 1 minutes
+                hintDuration: 4000 // 4 seconds
             },
             medium: {
                 pairs: 8,
-                timeLimit: 180, // 3 minutes
+                timeLimit: 120, // 2 minutes
                 hintDuration: 3000 // 3 seconds
             },
             hard: {
                 pairs: 12,
-                timeLimit: 240, // 4 minutes
+                timeLimit: 180, // 3 minutes
                 hintDuration: 2000 // 2 seconds
             }
         };
@@ -974,29 +974,68 @@
             }
 
             // Calculate score
-            const timeBonus = Math.max(0, difficultySettings[difficulty].timeLimit - gameSeconds);
-            const moveEfficiency = totalPairs * 2 / moves; // Ideal is 1.0
 
-            let difficultyMultiplier;
-            switch (difficulty) {
-                case 'easy':
-                    difficultyMultiplier = 1;
-                    break;
-                case 'medium':
-                    difficultyMultiplier = 1.5;
-                    break;
-                case 'hard':
-                    difficultyMultiplier = 2;
-                    break;
-                default:
-                    difficultyMultiplier = 1;
+            // Получение настроек уровня сложности
+            const settings = difficultySettings[difficulty] ?? { timeLimit: 60 };
+            const timeLimit = settings.timeLimit;
+
+            // 1. Расчёт бонуса за время
+            const timeBonus = Math.max(0, timeLimit - gameSeconds);
+
+            // 2. Эффективность ходов (избегаем деления на 0)
+            let moveEfficiency = 0;
+
+            if (moves > 0) {
+                moveEfficiency = (totalPairs * 2) / moves;
+
+                // optionally, ограничим нереально высокий результат
+                if (moveEfficiency > 1) {
+                    console.warn('[SCORE] Слишком высокая эффективность — ограничено до 1. moveEfficiency =', moveEfficiency);
+                    moveEfficiency = 1;
+                }
+            } else {
+                console.warn('[SCORE] Деление на 0 при расчёте moveEfficiency. moves =', moves);
             }
 
-            const score = Math.round((
-                (totalPairs * 50) +
-                (timeBonus * 5) +
-                (moveEfficiency * 100)
-            ) * difficultyMultiplier);
+            // 3. Множитель сложности
+            const difficultyMultiplierMap = {
+                easy: 1,
+                medium: 1.5,
+                hard: 2
+            };
+            const difficultyMultiplier = difficultyMultiplierMap[difficulty] ?? 1;
+
+            // 4. Предварительный лог
+            console.log('[SCORE] Расчёт:',
+                {
+                    difficulty,
+                    timeLimit,
+                    gameSeconds,
+                    timeBonus,
+                    totalPairs,
+                    moves,
+                    moveEfficiency,
+                    difficultyMultiplier
+                }
+            );
+
+            // 5. Финальный расчёт score
+            let score = 0;
+
+            if (totalPairs === 0 || moves === 0) {
+                console.warn('[SCORE] 0 пар или 0 ходов. Score = 0.');
+            } else {
+                score = Math.round((
+                    (totalPairs * 5) +
+                    (timeBonus * 5) +
+                    (moveEfficiency * 10)
+                ) * difficultyMultiplier);
+            }
+
+            // 6. Финальный лог результата
+            console.log('[SCORE] Итоговый счёт:', score);
+            //const timeBonus = Math.max(0, difficultySettings[difficulty].timeLimit - gameSeconds);
+
 
             // Send completion to server
             try {
