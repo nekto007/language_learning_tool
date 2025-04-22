@@ -54,8 +54,8 @@ class User(db.Model, UserMixin):
         ).first()
 
         if user_word:
-            from app.utils.db import convert_status_string_to_int
-            return convert_status_string_to_int(user_word.status)
+            from app.utils.db import string_to_status
+            return string_to_status(user_word.status)
 
         # Если не найдено в новой системе, проверяем старую
         from app.utils.db import user_word_status, db
@@ -77,9 +77,9 @@ class User(db.Model, UserMixin):
         """
         # Обновляем новую систему
         from app.study.models import UserWord, UserCardDirection
-        from app.utils.db import convert_status_int_to_string, db
+        from app.utils.db import status_to_string, db
 
-        status_string = convert_status_int_to_string(status)
+        status_string = status_to_string(status)
 
         user_word = UserWord.query.filter_by(user_id=self.id, word_id=word_id).first()
 
