@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.study.forms import StudySessionForm, StudySettingsForm
-from app.study.models import GameScore, StudyItem, StudySession, StudySettings
+from app.study.models import GameScore, StudyItem, StudySession, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -18,26 +18,33 @@ study = Blueprint('study', __name__, template_folder='templates')
 @login_required
 def index():
     """Main study dashboard"""
-    # Get study statistics
-    due_items_count = StudyItem.query.filter_by(user_id=current_user.id) \
-        .filter(StudyItem.next_review <= datetime.utcnow()).count()
+    # Получаем статистику по изучению на основе новых моделей
 
-    total_items = StudyItem.query.filter_by(user_id=current_user.id).count()
+    # Считаем слова, ожидающие повторения
+    due_items_count = UserCardDirection.query \
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+        .filter(
+        UserWord.user_id == current_user.id,
+        UserCardDirection.next_review <= datetime.utcnow()
+    ).count()
 
-    # Get user's recent sessions
+    # Считаем общее количество слов, которые изучает пользователь
+    total_items = UserWord.query.filter_by(user_id=current_user.id).count()
+
+    # Получаем последние сессии
     recent_sessions = StudySession.query.filter_by(user_id=current_user.id) \
         .order_by(StudySession.start_time.desc()).limit(5).all()
 
-    # Get learned words percentage
+    # Получаем процент изученных слов
     total_words = CollectionWords.query.count()
-    learned_words = StudyItem.query.filter_by(user_id=current_user.id).count()
+    learned_words = total_items  # Используем количество слов из UserWord
 
     if total_words > 0:
         learned_percentage = int((learned_words / total_words) * 100)
     else:
         learned_percentage = 0
 
-    # Get study session form
+    # Получаем форму для начала сессии
     form = StudySessionForm()
 
     return render_template(
@@ -144,6 +151,7 @@ def start_session():
 
 # API routes for AJAX calls from study interfaces
 
+# Modified function that properly handles learning words
 @study.route('/api/get-study-items', methods=['GET'])
 @login_required
 def get_study_items():
@@ -151,37 +159,39 @@ def get_study_items():
     word_source = request.args.get('source', 'all')
     extra_study = request.args.get('extra_study', 'false').lower() == 'true'
 
-    # Получаем настройки пользователя
+    # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
-    # Проверяем, были ли достигнуты дневные лимиты
-    # Для этого нам нужно подсчитать, сколько новых карточек и повторений было сделано сегодня
+    # Count how many new cards and reviews were done today
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Получаем количество новых карточек, изученных сегодня
-    new_cards_today = db.session.query(func.count(StudyItem.id)).filter(
-        StudyItem.user_id == current_user.id,
-        StudyItem.last_reviewed >= today_start,
-        StudyItem.repetitions == 1  # Это новая карточка (первое изучение)
+    # Get new cards reviewed today
+    new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(
+            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
+        ),
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.repetitions == 1  # First review
     ).scalar()
 
-    # Получаем количество повторений, сделанных сегодня
-    reviews_today = db.session.query(func.count(StudyItem.id)).filter(
-        StudyItem.user_id == current_user.id,
-        StudyItem.last_reviewed >= today_start,
-        StudyItem.repetitions > 1  # Это повторение (не первое изучение)
+    # Get reviews done today
+    reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(
+            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
+        ),
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.repetitions > 1  # Not first review
     ).scalar()
 
-    # Проверяем, достигнуты ли лимиты
+    # Check if limits reached
     new_cards_limit_reached = new_cards_today >= settings.new_words_per_day
     reviews_limit_reached = reviews_today >= settings.reviews_per_day
 
-    # Если оба лимита достигнуты и не запрошено дополнительное занятие, возвращаем пустой список
-    # с особым статусом, чтобы фронтенд мог показать сообщение о завершении дневной нормы
+    # If both limits reached and not extra study, return empty list with status
     if not extra_study and new_cards_limit_reached and reviews_limit_reached:
         return jsonify({
             'status': 'daily_limit_reached',
-            'message': 'Дневные лимиты достигнуты',
+            'message': 'Daily limits reached',
             'stats': {
                 'new_cards_today': new_cards_today,
                 'reviews_today': reviews_today,
@@ -193,107 +203,121 @@ def get_study_items():
 
     result_items = []
 
-    # Определяем лимиты в зависимости от того, что уже изучено сегодня
-    # Для обычного занятия - оставшиеся лимиты, для дополнительного - можно установить фиксированное число
+    # Determine limits based on what's already studied today
     if extra_study:
-        new_limit = 5  # Фиксированное количество для дополнительного занятия
+        new_limit = 5  # Fixed amount for extra study
         review_limit = 10
     else:
         new_limit = max(0, settings.new_words_per_day - new_cards_today)
         review_limit = max(0, settings.reviews_per_day - reviews_today)
 
-    # Делим лимиты пополам, так как каждое слово создает 2 карточки (eng-rus и rus-eng)
-    new_limit = max(1, new_limit // 2)
-    review_limit = max(1, review_limit // 2)
-
-    # Зависит от запрошенного источника - новые, изучаемые или все
+    # Get new cards if needed
     if word_source in ['new', 'all'] and new_limit > 0:
-        # Получаем слова, которые пользователь еще не изучал
-        existing_word_ids = db.session.query(StudyItem.word_id) \
+        # Get words user hasn't studied yet
+        existing_word_ids = db.session.query(UserWord.word_id) \
             .filter_by(user_id=current_user.id).subquery()
 
         new_words = CollectionWords.query.filter(
             ~CollectionWords.id.in_(existing_word_ids),
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
-        ).order_by(CollectionWords.id).limit(new_limit).all()
+        ).order_by(func.random()).limit(new_limit).all()
 
-        # Добавляем новые слова в результат
+        # Add new words to result
         for word in new_words:
             audio_url = None
-            if word.get_download == 1:
+            if hasattr(word, 'get_download') and word.get_download == 1:
                 audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
 
+            # Add both directions (eng-rus and rus-eng)
+            # English to Russian
             result_items.append({
                 'id': None,
                 'word_id': word.id,
+                'direction': 'eng-rus',
                 'word': word.english_word,
                 'translation': word.russian_word,
-                'definition': '',
                 'examples': word.sentences,
                 'audio_url': audio_url,
                 'is_new': True
             })
 
-    # Получаем слова в зависимости от источника
-    print('word_source', word_source)
-    print('review_limit', review_limit)
-    if word_source == 'learning' and review_limit > 0:
-        # Import user_word_status table
-        from app.utils.db import user_word_status
-
-        # Получаем слова со статусом 1 (learning) - по аналогии с другими режимами
-        learning_words_query = db.session.query(CollectionWords) \
-            .join(
-            user_word_status,
-            (CollectionWords.id == user_word_status.c.word_id) &
-            (user_word_status.c.user_id == current_user.id)
-        ) \
-            .filter(
-            user_word_status.c.status == 1,  # Status 1 = learning
-            CollectionWords.russian_word != None,
-            CollectionWords.russian_word != ''
-        ) \
-            .order_by(CollectionWords.id).limit(review_limit)
-        learning_words = learning_words_query.all()
-        print('learning_words', learning_words)
-        # Добавляем слова в результат
-        for word in learning_words:
+            # Russian to English
             result_items.append({
-                'id': None,  # Здесь могла бы быть привязка к StudyItem, но используем None
+                'id': None,
                 'word_id': word.id,
-                'word': word.english_word,
-                'translation': word.russian_word,
-                'definition': '',
+                'direction': 'rus-eng',
+                'word': word.russian_word,
+                'translation': word.english_word,
                 'examples': word.sentences,
-                'audio_url': url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
-                if hasattr(word, 'get_download') and word.get_download == 1 else None,
-                'is_new': False
+                'audio_url': audio_url,
+                'is_new': True
             })
-    elif word_source == 'all' and review_limit > 0:
-        # Для режима "all" продолжаем использовать существующую логику с просроченными карточками
-        due_items = StudyItem.query.filter_by(user_id=current_user.id) \
-            .filter(StudyItem.next_review <= datetime.utcnow().date() + timedelta(days=1)) \
-            .order_by(StudyItem.next_review).limit(review_limit).all()
 
-        # Добавляем карточки для повторения
-        for item in due_items:
-            word = item.word
+            # Only get up to the limit
+            if len(result_items) >= new_limit * 2:  # x2 because we add both directions
+                break
+
+    # Get cards for review
+    if word_source in ['learning', 'all'] and review_limit > 0:
+        review_query = None
+
+        if word_source == 'learning':
+            # Get directions for words with 'learning' status
+            review_query = UserCardDirection.query \
+                .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+                .filter(
+                UserWord.user_id == current_user.id,
+                UserWord.status == 'learning'
+            )
+        else:
+            # Get due directions
+            review_query = UserCardDirection.query \
+                .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+                .filter(
+                UserWord.user_id == current_user.id,
+                UserCardDirection.next_review <= datetime.utcnow()
+            )
+
+        # Get the direction objects
+        review_directions = review_query.order_by(func.random()).limit(review_limit).all()
+
+        # Add each direction to results
+        for direction in review_directions:
+            user_word = UserWord.query.get(direction.user_word_id)
+            word = user_word.word
+
             if not word or not word.russian_word:
                 continue
 
-            result_items.append({
-                'id': item.id,
-                'word_id': word.id,
-                'word': word.english_word,
-                'translation': word.russian_word,
-                'examples': word.sentences,
-                'audio_url': url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
-                if word.get_download else None,
-                'is_new': False
-            })
+            audio_url = None
+            if hasattr(word, 'get_download') and word.get_download == 1:
+                audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
 
-    # Возвращаем результаты с информацией о статусе
+            if direction.direction == 'eng-rus':
+                result_items.append({
+                    'id': direction.id,
+                    'word_id': word.id,
+                    'direction': 'eng-rus',
+                    'word': word.english_word,
+                    'translation': word.russian_word,
+                    'examples': word.sentences,
+                    'audio_url': audio_url,
+                    'is_new': False
+                })
+            else:
+                result_items.append({
+                    'id': direction.id,
+                    'word_id': word.id,
+                    'direction': 'rus-eng',
+                    'word': word.russian_word,
+                    'translation': word.english_word,
+                    'examples': word.sentences,
+                    'audio_url': audio_url,
+                    'is_new': False
+                })
+
+    # Return results with stats
     return jsonify({
         'status': 'success',
         'stats': {
@@ -312,19 +336,26 @@ def update_study_item():
     """Update study item after review"""
     data = request.json
     word_id = data.get('word_id')
+    direction_str = data.get('direction', 'eng-rus')  # Get direction from request
     quality = int(data.get('quality', 0))  # 0-5 rating
     session_id = data.get('session_id')
 
-    # Get or create study item
-    study_item = StudyItem.query.filter_by(user_id=current_user.id, word_id=word_id).first()
+    # Get or create user word
+    user_word = UserWord.get_or_create(current_user.id, word_id)
 
-    if not study_item:
-        # Create new study item if it doesn't exist
-        study_item = StudyItem(user_id=current_user.id, word_id=word_id)
-        db.session.add(study_item)
+    # Get or create card direction
+    direction = UserCardDirection.query.filter_by(
+        user_word_id=user_word.id,
+        direction=direction_str
+    ).first()
 
-    # Update study item
-    interval = study_item.update_after_review(quality)
+    if not direction:
+        # Create new direction if it doesn't exist
+        direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
+        db.session.add(direction)
+
+    # Update the direction with the review
+    interval = direction.update_after_review(quality)
 
     # Update session statistics if provided
     if session_id:
@@ -341,7 +372,7 @@ def update_study_item():
     return jsonify({
         'success': True,
         'interval': interval,
-        'next_review': study_item.next_review.strftime('%Y-%m-%d')
+        'next_review': direction.next_review.strftime('%Y-%m-%d') if direction.next_review else None
     })
 
 
@@ -375,40 +406,41 @@ def complete_session():
 @login_required
 def stats():
     """Study statistics page"""
-    # Get overall statistics
-    total_items = StudyItem.query.filter_by(user_id=current_user.id).count()
-    mastered_items = StudyItem.query.filter_by(user_id=current_user.id) \
-        .filter(StudyItem.interval >= 30).count()
+    # Статистика на основе новых моделей
+    total_items = UserWord.query.filter_by(user_id=current_user.id).count()
 
-    # Calculate mastery percentage
+    # Считаем "выученные" слова (те, у которых статус 'mastered')
+    mastered_items = UserWord.query.filter_by(
+        user_id=current_user.id,
+        status='mastered'
+    ).count()
+
+    # Вычисляем процент освоения
     if total_items > 0:
         mastery_percentage = int((mastered_items / total_items) * 100)
     else:
         mastery_percentage = 0
 
-    # Get recent sessions
+    # Получаем последние сессии
     recent_sessions = StudySession.query.filter_by(user_id=current_user.id) \
         .order_by(StudySession.start_time.desc()).limit(10).all()
 
-    # Get daily study statistics
+    # Статистика за сегодня
     today = datetime.now().date()
     today_sessions = StudySession.query.filter_by(user_id=current_user.id) \
         .filter(func.date(StudySession.start_time) == today).all()
 
-    # Calculate today's statistics
+    # Подсчёт сегодняшней статистики
     today_words_studied = sum(session.words_studied for session in today_sessions)
     today_time_spent = sum(session.duration for session in today_sessions)
 
-    # Get daily study streak
-    # This would require more complex logic to track consecutive days
-    study_streak = 0
+    # Вычисление прогресса по статусам слов
+    new_words = UserWord.query.filter_by(user_id=current_user.id, status='new').count()
+    learning_words = UserWord.query.filter_by(user_id=current_user.id, status='learning').count()
+    review_words = UserWord.query.filter_by(user_id=current_user.id, status='review').count()
 
-    # Get words by stage (learning vs mastered)
-    new_words = StudyItem.query.filter_by(user_id=current_user.id) \
-        .filter(StudyItem.repetitions == 0).count()
-    learning_words = StudyItem.query.filter_by(user_id=current_user.id) \
-        .filter(StudyItem.repetitions > 0, StudyItem.interval < 30).count()
-    mastered_words = mastered_items  # We already calculated this
+    # Определяем streak (это потребует дополнительной реализации)
+    study_streak = 0  # Требуется более сложная логика для отслеживания последовательных дней
 
     return render_template(
         'study/stats.html',
@@ -421,7 +453,7 @@ def stats():
         today_time_spent=today_time_spent,
         new_words=new_words,
         learning_words=learning_words,
-        mastered_words=mastered_words
+        mastered_words=mastered_items
     )
 
 
@@ -770,23 +802,33 @@ def submit_quiz_answer():
     data = request.json
     session_id = data.get('session_id')
     word_id = data.get('word_id')
+    direction = data.get('direction', 'eng_to_rus')  # Получаем направление из запроса
     is_correct = data.get('is_correct', False)
 
-    # Get or create study item
-    study_item = StudyItem.query.filter_by(user_id=current_user.id, word_id=word_id).first()
+    # Преобразуем direction из формата квиза в формат для UserCardDirection
+    direction_str = 'eng-rus' if direction.startswith('eng') else 'rus-eng'
 
-    if not study_item:
-        # Create new study item if it doesn't exist
-        study_item = StudyItem(user_id=current_user.id, word_id=word_id)
-        db.session.add(study_item)
+    # Получаем или создаем UserWord
+    user_word = UserWord.get_or_create(current_user.id, word_id)
 
-    # Convert boolean correct to quality score (0-5)
+    # Получаем или создаем UserCardDirection
+    dir_obj = UserCardDirection.query.filter_by(
+        user_word_id=user_word.id,
+        direction=direction_str
+    ).first()
+
+    if not dir_obj:
+        # Создаем направление, если оно еще не существует
+        dir_obj = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
+        db.session.add(dir_obj)
+
+    # Преобразуем boolean в качество ответа (0-5)
     quality = 4 if is_correct else 1
 
-    # Update study item
-    interval = study_item.update_after_review(quality)
+    # Обновляем SRS параметры для направления
+    interval = dir_obj.update_after_review(quality)
 
-    # Update session statistics if provided
+    # Обновляем статистику сессии
     if session_id:
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
@@ -801,7 +843,7 @@ def submit_quiz_answer():
     return jsonify({
         'success': True,
         'interval': interval,
-        'next_review': study_item.next_review.strftime('%Y-%m-%d')
+        'next_review': dir_obj.next_review.strftime('%Y-%m-%d') if dir_obj.next_review else None
     })
 
 

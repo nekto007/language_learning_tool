@@ -39,39 +39,123 @@ class User(db.Model, UserMixin):
         return check_password_hash(self.password_hash, password + self.salt)
 
     def get_word_status(self, word_id):
-        from app.utils.db import user_word_status
-        stmt = db.select(user_word_status.c.status).where(
+        """
+        Получает статус слова для пользователя.
+        Работает как с новой, так и со старой системой.
+
+        Возвращает целое число для обратной совместимости:
+        0 = новое, 1 = изучаемое, 2 = на повторении, 3 = изучено
+        """
+        # Сначала проверяем новую систему
+        from app.study.models import UserWord
+        user_word = UserWord.query.filter_by(
+            user_id=self.id,
+            word_id=word_id
+        ).first()
+
+        if user_word:
+            from app.utils.db import convert_status_string_to_int
+            return convert_status_string_to_int(user_word.status)
+
+        # Если не найдено в новой системе, проверяем старую
+        from app.utils.db import user_word_status, db
+        query = db.select([user_word_status.c.status]).where(
             (user_word_status.c.user_id == self.id) &
             (user_word_status.c.word_id == word_id)
         )
-        result = db.session.execute(stmt).scalar()
-        return result if result is not None else 0
+        result = db.session.execute(query).fetchone()
+
+        # Возвращаем статус или 0, если запись не найдена
+        return result[0] if result else 0
 
     def set_word_status(self, word_id, status):
-        from app.utils.db import user_word_status
-        existing = db.session.execute(
-            db.select(user_word_status).where(
-                (user_word_status.c.user_id == self.id) &
-                (user_word_status.c.word_id == word_id)
-            )
-        ).first()
+        """
+        Устанавливает статус слова для пользователя.
+        Обновляет как новую, так и старую систему.
 
-        if existing:
-            stmt = db.update(user_word_status).where(
-                (user_word_status.c.user_id == self.id) &
-                (user_word_status.c.word_id == word_id)
-            ).values(status=status, last_updated=datetime.utcnow())
-            db.session.execute(stmt)
-        else:
-            stmt = db.insert(user_word_status).values(
-                user_id=self.id,
-                word_id=word_id,
-                status=status,
-                last_updated=datetime.utcnow()
+        status: целое число (0 = новое, 1 = изучаемое, 2 = на повторении, 3 = изучено)
+        """
+        # Обновляем новую систему
+        from app.study.models import UserWord, UserCardDirection
+        from app.utils.db import convert_status_int_to_string, db
+
+        status_string = convert_status_int_to_string(status)
+
+        user_word = UserWord.query.filter_by(user_id=self.id, word_id=word_id).first()
+
+        if not user_word and status > 0:  # Создаем запись только если статус не "новое"
+            user_word = UserWord(user_id=self.id, word_id=word_id)
+            db.session.add(user_word)
+            db.session.flush()  # Чтобы получить ID
+
+            # Создаем направления для слова, если статус требует их наличия
+            if status_string != 'mastered':  # Для 'mastered' не создаем направления
+                for direction_str in ['eng-rus', 'rus-eng']:
+                    direction = UserCardDirection(
+                        user_word_id=user_word.id,
+                        direction=direction_str
+                    )
+                    db.session.add(direction)
+
+        # Если статус 0 и запись существует, удаляем её
+        if status == 0 and user_word:
+            # Удаляем связанные направления
+            UserCardDirection.query.filter_by(user_word_id=user_word.id).delete()
+            # Удаляем запись UserWord
+            db.session.delete(user_word)
+        elif user_word:
+            # Устанавливаем статус
+            old_status = user_word.status
+            user_word.status = status_string
+
+            # Если статус изменился с 'mastered' на другой, создаем направления
+            if old_status == 'mastered' and status_string != 'mastered':
+                # Проверяем, есть ли у слова направления
+                directions_count = UserCardDirection.query.filter_by(user_word_id=user_word.id).count()
+                if directions_count == 0:
+                    # Создаем направления, если их нет
+                    for direction_str in ['eng-rus', 'rus-eng']:
+                        direction = UserCardDirection(
+                            user_word_id=user_word.id,
+                            direction=direction_str
+                        )
+                        db.session.add(direction)
+            # Если статус изменился на 'mastered', можно удалить направления (опционально)
+            elif status_string == 'mastered':
+                # Решите, хотите ли вы удалять направления для выученных слов
+                # UserCardDirection.query.filter_by(user_word_id=user_word.id).delete()
+                pass
+
+        # Обновляем старую систему
+        from app.utils.db import user_word_status
+
+        # Проверяем, существует ли запись
+        query = db.select([user_word_status.c.id]).where(
+            (user_word_status.c.user_id == self.id) &
+            (user_word_status.c.word_id == word_id)
+        )
+        result = db.session.execute(query).fetchone()
+
+        if result:
+            # Обновляем существующую запись
+            db.session.execute(
+                user_word_status.update().where(
+                    (user_word_status.c.user_id == self.id) &
+                    (user_word_status.c.word_id == word_id)
+                ).values(status=status)
             )
-            db.session.execute(stmt)
+        elif status > 0:  # Создаем запись только для не-новых слов
+            # Создаем новую запись
+            db.session.execute(
+                user_word_status.insert().values(
+                    user_id=self.id,
+                    word_id=word_id,
+                    status=status
+                )
+            )
 
         db.session.commit()
+        return user_word
 
     def get_recent_reading_progress(self, limit=3):
         from app.books.models import ReadingProgress

@@ -963,7 +963,7 @@
             const card = cards[currentCardIndex];
 
             try {
-                // Send rating to server
+                // Send rating to server with direction
                 const response = await fetch('/study/api/update-study-item', {
                     method: 'POST',
                     headers: {
@@ -971,6 +971,7 @@
                     },
                     body: JSON.stringify({
                         word_id: card.word_id,
+                        direction: card.direction,  // Include the direction
                         quality: quality,
                         session_id: sessionId
                     }),

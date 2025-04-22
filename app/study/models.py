@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import Float, cast
+from sqlalchemy import Float, cast, func
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.utils.db import db
@@ -256,3 +256,207 @@ class GameScore(db.Model):
             query = query.filter_by(difficulty=self.difficulty)
 
         return query.count() + 1
+
+
+class UserWord(db.Model):
+    """
+    Links a user to a word with overall learning status.
+    """
+    __tablename__ = 'user_words'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    word_id = db.Column(db.Integer, db.ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+
+    # Status: new, learning, review, mastered
+    status = db.Column(db.String(20), default='new')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('user_words', lazy='dynamic', cascade='all, delete-orphan'))
+    word = db.relationship('CollectionWords',
+                           backref=db.backref('user_words', lazy='dynamic', cascade='all, delete-orphan'))
+    directions = db.relationship('UserCardDirection', backref='user_word', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'word_id', name='uix_user_word'),
+    )
+
+    def __init__(self, user_id, word_id):
+        self.user_id = user_id
+        self.word_id = word_id
+        self.status = 'new'
+
+    @classmethod
+    def get_or_create(cls, user_id, word_id):
+        """Get existing user_word or create a new one"""
+        user_word = cls.query.filter_by(user_id=user_id, word_id=word_id).first()
+        if not user_word:
+            user_word = cls(user_id=user_id, word_id=word_id)
+            db.session.add(user_word)
+            db.session.commit()
+        return user_word
+
+    @hybrid_property
+    def performance_percentage(self):
+        """Calculate percentage of correct answers across all directions"""
+        directions = UserCardDirection.query.filter_by(user_word_id=self.id).all()
+        total_correct = sum(d.correct_count for d in directions)
+        total_incorrect = sum(d.incorrect_count for d in directions)
+        total = total_correct + total_incorrect
+
+        if total == 0:
+            return 0
+        return round((total_correct / total) * 100)
+
+    @performance_percentage.expression
+    def performance_percentage(cls):
+        """SQL expression for calculating percentage"""
+        return (
+            db.session.query(
+                func.sum(UserCardDirection.correct_count) * 100.0 /
+                func.sum(UserCardDirection.correct_count + UserCardDirection.incorrect_count)
+            )
+            .filter(UserCardDirection.user_word_id == cls.id)
+            .scalar_subquery()
+        )
+
+
+class UserCardDirection(db.Model):
+    """
+    Represents a specific direction (eng→rus or rus→eng) for a user's word.
+    Tracks spaced repetition parameters for each direction separately.
+    """
+    __tablename__ = 'user_card_directions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_word_id = db.Column(db.Integer, db.ForeignKey('user_words.id', ondelete='CASCADE'), nullable=False)
+    direction = db.Column(db.String(10), nullable=False)  # 'eng-rus' or 'rus-eng'
+
+    # Spaced repetition parameters
+    repetitions = db.Column(db.Integer, default=0)
+    ease_factor = db.Column(db.Float, default=2.5)
+    interval = db.Column(db.Integer, default=0)
+    last_reviewed = db.Column(db.DateTime, nullable=True)
+    next_review = db.Column(db.DateTime, nullable=True)
+
+    # Stats
+    correct_count = db.Column(db.Integer, default=0)
+    incorrect_count = db.Column(db.Integer, default=0)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_word_id', 'direction', name='uix_user_word_direction'),
+    )
+
+    def __init__(self, user_word_id, direction):
+        self.user_word_id = user_word_id
+        self.direction = direction
+        self.repetitions = 0
+        self.ease_factor = 2.5
+        self.interval = 0
+        self.correct_count = 0
+        self.incorrect_count = 0
+
+    def update_after_review(self, quality):
+        """
+        Update SRS parameters after review. Similar to StudyItem.update_after_review
+        but tailored for card directions.
+
+        quality: Rating from 0 to 5
+            0 - Complete blackout, wrong answer
+            1-2 - Incorrect response but recognized the word
+            3 - Correct response but with difficulty
+            4 - Correct response with some hesitation
+            5 - Perfect response
+        """
+        # Update correct/incorrect count
+        if quality >= 3:
+            self.correct_count += 1
+        else:
+            self.incorrect_count += 1
+
+        # Update SM-2 algorithm parameters
+        old_ease_factor = self.ease_factor
+
+        # Implement SM-2 algorithm (Anki-like)
+        if quality < 3:
+            # If response was wrong, start over
+            self.repetitions = 0
+            self.interval = 0
+            # EF decreases but should not go below 1.3
+            self.ease_factor = max(1.3, old_ease_factor - 0.20)
+        else:
+            self.repetitions += 1
+            # Update ease factor
+            self.ease_factor = max(1.3, old_ease_factor - 0.8 + (0.28 * quality) - (0.02 * quality * quality))
+
+            # Make sure ease factor doesn't go below 1.3
+            if self.repetitions == 1:
+                # First correct repetition
+                self.interval = 1
+            elif self.repetitions == 2:
+                # Second correct repetition
+                self.interval = 6
+            else:
+                # For subsequent repetitions, calculate based on previous interval and ease factor
+                if quality == 3:
+                    # "Hard" button - apply penalty
+                    hard_penalty = 0.8  # 20% penalty for difficult cards
+                    self.interval = max(1, round(self.interval * self.ease_factor * hard_penalty))
+                elif quality == 4:
+                    # "Good" button - standard calculation
+                    self.interval = max(1, round(self.interval * self.ease_factor))
+                elif quality == 5:
+                    # "Easy" button - apply bonus
+                    easy_bonus = 1.3  # 30% bonus for easy cards
+                    self.interval = max(1, round(self.interval * self.ease_factor * easy_bonus))
+
+        # Update review dates
+        self.last_reviewed = datetime.utcnow()
+        self.next_review = datetime.utcnow() + timedelta(days=self.interval)
+
+        # Update the parent UserWord status if needed
+        self.update_user_word_status()
+
+        return self.interval
+
+    def update_user_word_status(self):
+        """Update the parent UserWord status based on direction progress"""
+        user_word = UserWord.query.get(self.user_word_id)
+
+        # If this is the first review, update status to 'learning'
+        if user_word.status == 'new':
+            user_word.status = 'learning'
+            db.session.commit()
+            return
+
+        # Check if both directions have been reviewed
+        other_direction = 'rus-eng' if self.direction == 'eng-rus' else 'eng-rus'
+        other_card = UserCardDirection.query.filter_by(
+            user_word_id=self.user_word_id,
+            direction=other_direction
+        ).first()
+
+        # If both directions have been reviewed at least once, set to 'review'
+        if other_card and other_card.repetitions > 0 and self.repetitions > 0:
+            if user_word.status == 'learning':
+                user_word.status = 'review'
+                db.session.commit()
+
+            # If both directions have long intervals, set to 'mastered'
+            if other_card.interval >= 30 and self.interval >= 30 and user_word.status == 'review':
+                user_word.status = 'mastered'
+                db.session.commit()
+
+    @property
+    def due_for_review(self):
+        """Check if this direction is due for review"""
+        return self.next_review and datetime.utcnow() >= self.next_review
+
+    @property
+    def days_until_review(self):
+        """Calculate days until next review"""
+        if not self.next_review or self.due_for_review:
+            return 0
+        delta = self.next_review - datetime.utcnow()
+        return max(0, delta.days)

@@ -13,43 +13,55 @@ words = Blueprint('words', __name__)
 @words.route('/')
 @login_required
 def dashboard():
-    # Get user's word statistics
-    from app.utils.db import user_word_status
+    # Получение статистики по словам пользователя на основе новых моделей
+    from app.study.models import UserWord
 
-    status_counts = db.session.execute(
-        db.select(
-            user_word_status.c.status,
-            func.count().label('count')
-        ).where(
-            user_word_status.c.user_id == current_user.id
-        ).group_by(
-            user_word_status.c.status
-        )
+    # Получаем количество слов в каждом статусе
+    status_counts = db.session.query(
+        UserWord.status,
+        func.count(UserWord.id).label('count')
+    ).filter(
+        UserWord.user_id == current_user.id
+    ).group_by(
+        UserWord.status
     ).all()
 
-    # Convert to dictionary for easier access
-    status_stats = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}  # Default values for all statuses
+    # Преобразуем в словарь для более удобного доступа
+    # Используем строковые статусы из новой модели
+    status_stats = {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0}
+    # Для обратной совместимости добавим числовые индексы
+    int_status_stats = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+
     for status, count in status_counts:
         status_stats[status] = count
+        # Преобразуем строковые статусы в числовые для обратной совместимости
+        if status == 'new':
+            int_status_stats[0] = count
+        elif status == 'learning':
+            int_status_stats[1] = count
+        elif status == 'review':
+            int_status_stats[2] = count
+        elif status == 'mastered':
+            int_status_stats[3] = count
 
-    # Get total words count
+    # Общее количество слов
     total_words = CollectionWords.query.count()
 
-    # Calculate progress percentage
+    # Считаем процент прогресса
     progress = 0
     if total_words > 0:
-        learned_words = sum(status_stats.values())
+        learned_words = UserWord.query.filter_by(user_id=current_user.id).count()
         progress = int((learned_words / total_words) * 100)
 
-    # Get recently studied words
-    recent_words = db.session.execute(
-        db.select(CollectionWords)
-        .join(user_word_status, CollectionWords.id == user_word_status.c.word_id)
-        .where(user_word_status.c.user_id == current_user.id)
-        .order_by(user_word_status.c.last_updated.desc())
-        .limit(5)
-    ).scalars().all()
+    # Получаем недавно изученные слова
+    recent_words = db.session.query(CollectionWords) \
+        .join(UserWord, CollectionWords.id == UserWord.word_id) \
+        .filter(UserWord.user_id == current_user.id) \
+        .order_by(UserWord.created_at.desc()) \
+        .limit(5) \
+        .all()
 
+    # Получаем лучшие результаты в играх
     user_best_matching = GameScore.query.filter_by(
         user_id=current_user.id,
         game_type='matching'
@@ -64,7 +76,8 @@ def dashboard():
         'dashboard.html',
         user_best_matching=user_best_matching,
         user_best_quiz=user_best_quiz,
-        status_stats=status_stats,
+        status_stats=int_status_stats,
+        new_status_stats=status_stats,
         total_words=total_words,
         progress=progress,
         recent_words=recent_words
@@ -74,28 +87,28 @@ def dashboard():
 @words.route('/words')
 @login_required
 def word_list():
-    # Get filter parameters
+    # Получение параметров фильтра
     search = request.args.get('search', '')
     status = request.args.get('status', type=int)
     letter = request.args.get('letter', '')
     book_id = request.args.get('book_id', type=int)
 
-    # Get pagination parameters
+    # Параметры пагинации
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
 
-    # Get sorting parameters
+    # Параметры сортировки
     sort_field = request.args.get('sort', 'english_word')
     sort_order = request.args.get('order', 'asc')
 
-    # Create filter forms with the request parameters
+    # Создаем формы фильтров с параметрами запроса
     search_form = WordSearchForm(request.args)
     filter_form = WordFilterForm(request.args)
 
-    # Build query
+    # Формирование запроса
     query = db.select(CollectionWords)
 
-    # Apply search filter if provided
+    # Применяем фильтр поиска, если указан
     if search:
         search_term = f"%{search}%"
         query = query.where(
@@ -105,29 +118,33 @@ def word_list():
             )
         )
 
-    # Apply status filter if provided
-    if status is not None and status != -1:  # -1 means "All statuses"
-        from app.utils.db import user_word_status
-        if status == 0:  # New/Unclassified
-            # Words that don't have a status entry or have status 0
-            subquery = db.select(user_word_status.c.word_id).where(
-                (user_word_status.c.user_id == current_user.id) &
-                (user_word_status.c.status != 0)
-            ).scalar_subquery()
+    # Применяем фильтр статуса, если указан
+    if status is not None and status != -1:  # -1 означает "Все статусы"
+        from app.study.models import UserWord
+        from app.utils.db import convert_status_int_to_string
 
-            query = query.where(CollectionWords.id.not_in(subquery))
+        status_str = convert_status_int_to_string(status)
+
+        if status == 0:  # Новые/Неклассифицированные
+            # Слова, для которых у пользователя еще нет статуса или статус 'new'
+            existing_word_ids = db.session.query(UserWord.word_id).filter(
+                UserWord.user_id == current_user.id
+            ).subquery()
+
+            query = query.where(~CollectionWords.id.in_(existing_word_ids))
         else:
+            # Слова с конкретным статусом
             query = query.join(
-                user_word_status,
-                (CollectionWords.id == user_word_status.c.word_id) &
-                (user_word_status.c.user_id == current_user.id)
-            ).where(user_word_status.c.status == status)
+                UserWord,
+                (CollectionWords.id == UserWord.word_id) &
+                (UserWord.user_id == current_user.id)
+            ).where(UserWord.status == status_str)
 
-    # Apply letter filter if provided
+    # Применяем фильтр по первой букве, если указан
     if letter:
         query = query.where(CollectionWords.english_word.ilike(f"{letter}%"))
 
-    # Apply book filter if provided
+    # Применяем фильтр по книге, если указан
     if book_id:
         from app.utils.db import word_book_link
         query = query.join(
@@ -135,7 +152,7 @@ def word_list():
             CollectionWords.id == word_book_link.c.word_id
         ).where(word_book_link.c.book_id == book_id)
 
-    # Apply sorting
+    # Применяем сортировку
     if sort_field == 'english_word':
         query = query.order_by(
             CollectionWords.english_word.asc() if sort_order == 'asc'
@@ -147,7 +164,7 @@ def word_list():
             else CollectionWords.level.desc()
         )
 
-    # Execute paginated query
+    # Выполняем запрос с пагинацией
     pagination = db.paginate(
         query,
         page=page,
@@ -157,12 +174,12 @@ def word_list():
 
     words = pagination.items
 
-    # Get status for each word
+    # Получаем статус для каждого слова, используя обновленный метод
     word_statuses = {}
     for word in words:
         word_statuses[word.id] = current_user.get_word_status(word.id)
 
-    # Get available books for filter dropdown
+    # Получаем доступные книги для выпадающего списка
     from app.books.models import Book
     books = Book.query.all()
 
@@ -212,10 +229,13 @@ def word_details(word_id):
 @login_required
 def update_word_status(word_id, status):
     word = CollectionWords.query.get_or_404(word_id)
+
+    # Используем обновленный метод set_word_status из модели User
+    # Этот метод должен быть обновлен для работы с новыми моделями
     current_user.set_word_status(word_id, status)
 
     flash(f'Status for word "{word.english_word}" updated successfully.', 'success')
 
-    # Redirect back to the referring page
+    # Перенаправляем обратно на страницу, с которой пришел запрос
     next_page = request.args.get('next') or request.referrer or url_for('words.word_list')
     return redirect(next_page)
