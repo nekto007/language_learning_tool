@@ -25,12 +25,15 @@ def get_words():
 
     # Apply filters
     if status is not None:
-        from app.utils.db import user_word_status
+        from app.study.models import UserWord
+        from app.utils.db import status_to_string
+
+        status_str = status_to_string(status)
         query = query.join(
-            user_word_status,
-            (CollectionWords.id == user_word_status.c.word_id) &
-            (user_word_status.c.user_id == current_user.id)
-        ).where(user_word_status.c.status == status)
+            UserWord,
+            (CollectionWords.id == UserWord.word_id) &
+            (UserWord.user_id == current_user.id)
+        ).filter(UserWord.status == status_str)
 
     if book_id is not None:
         from app.utils.db import word_book_link
@@ -155,6 +158,7 @@ def update_word_status():
         }), 404
 
     try:
+        # Уже используется метод User.set_word_status, который мы обновили
         current_user.set_word_status(word_id, status)
         return jsonify({'success': True})
     except Exception as e:

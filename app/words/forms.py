@@ -17,7 +17,8 @@ class WordFilterForm(FlaskForm):
         (-1, _l('All')),
         (0, _l('New')),
         (1, _l('Learning')),
-        (2, _l('Mastered'))
+        (2, _l('Review')),
+        (3, _l('Mastered'))
     ], coerce=int, validators=[Optional()])
 
     letter = StringField(_l('Letter'), validators=[Optional()])
