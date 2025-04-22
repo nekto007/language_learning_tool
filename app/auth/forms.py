@@ -32,7 +32,7 @@ class RegistrationForm(FlaskForm):
 
 class RequestResetForm(FlaskForm):
     """Form for requesting a password reset."""
-    email = StringField('Email', validators=[
+    email = StringField(_l('Email'), validators=[
         DataRequired(),
         Email(),
         Length(max=120)
