@@ -22,7 +22,13 @@ class User(db.Model, UserMixin):
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
 
-    words = relationship("CollectionWords", secondary="user_word_status", back_populates="users")
+    # # Связь со словами теперь через UserWord
+    # words = relationship("CollectionWords",
+    #                      secondary="user_words",
+    #                      primaryjoin="User.id == UserWord.user_id",
+    #                      secondaryjoin="UserWord.word_id == CollectionWords.id",
+    #                      backref="users")
+
     reading_progress = relationship("ReadingProgress", back_populates="user", lazy="dynamic",
                                     cascade="all, delete-orphan")
 
@@ -41,41 +47,27 @@ class User(db.Model, UserMixin):
     def get_word_status(self, word_id):
         """
         Получает статус слова для пользователя.
-        Работает как с новой, так и со старой системой.
-
-        Возвращает целое число для обратной совместимости:
+        Возвращает целое число для API совместимости:
         0 = новое, 1 = изучаемое, 2 = на повторении, 3 = изучено
         """
-        # Сначала проверяем новую систему
         from app.study.models import UserWord
+        from app.utils.db import string_to_status
+
         user_word = UserWord.query.filter_by(
             user_id=self.id,
             word_id=word_id
         ).first()
 
         if user_word:
-            from app.utils.db import string_to_status
             return string_to_status(user_word.status)
-
-        # Если не найдено в новой системе, проверяем старую
-        from app.utils.db import user_word_status, db
-        query = db.select([user_word_status.c.status]).where(
-            (user_word_status.c.user_id == self.id) &
-            (user_word_status.c.word_id == word_id)
-        )
-        result = db.session.execute(query).fetchone()
-
-        # Возвращаем статус или 0, если запись не найдена
-        return result[0] if result else 0
+        return 0
 
     def set_word_status(self, word_id, status):
         """
         Устанавливает статус слова для пользователя.
-        Обновляет как новую, так и старую систему.
 
         status: целое число (0 = новое, 1 = изучаемое, 2 = на повторении, 3 = изучено)
         """
-        # Обновляем новую систему
         from app.study.models import UserWord, UserCardDirection
         from app.utils.db import status_to_string, db
 
@@ -120,39 +112,6 @@ class User(db.Model, UserMixin):
                             direction=direction_str
                         )
                         db.session.add(direction)
-            # Если статус изменился на 'mastered', можно удалить направления (опционально)
-            elif status_string == 'mastered':
-                # Решите, хотите ли вы удалять направления для выученных слов
-                # UserCardDirection.query.filter_by(user_word_id=user_word.id).delete()
-                pass
-
-        # Обновляем старую систему
-        from app.utils.db import user_word_status
-
-        # Проверяем, существует ли запись
-        query = db.select([user_word_status.c.id]).where(
-            (user_word_status.c.user_id == self.id) &
-            (user_word_status.c.word_id == word_id)
-        )
-        result = db.session.execute(query).fetchone()
-
-        if result:
-            # Обновляем существующую запись
-            db.session.execute(
-                user_word_status.update().where(
-                    (user_word_status.c.user_id == self.id) &
-                    (user_word_status.c.word_id == word_id)
-                ).values(status=status)
-            )
-        elif status > 0:  # Создаем запись только для не-новых слов
-            # Создаем новую запись
-            db.session.execute(
-                user_word_status.insert().values(
-                    user_id=self.id,
-                    word_id=word_id,
-                    status=status
-                )
-            )
 
         db.session.commit()
         return user_word

@@ -121,9 +121,9 @@ def word_list():
     # Применяем фильтр статуса, если указан
     if status is not None and status != -1:  # -1 означает "Все статусы"
         from app.study.models import UserWord
-        from app.utils.db import convert_status_int_to_string
+        from app.utils.db import status_to_string
 
-        status_str = convert_status_int_to_string(status)
+        status_str = status_to_string(status)
 
         if status == 0:  # Новые/Неклассифицированные
             # Слова, для которых у пользователя еще нет статуса или статус 'new'

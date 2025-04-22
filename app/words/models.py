@@ -18,7 +18,6 @@ class CollectionWords(db.Model):
     learning_status = Column(Integer, default=0)
 
     books = relationship("Book", secondary="word_book_link", back_populates="words")
-    users = relationship("User", secondary="user_word_status", back_populates="words")
     phrasal_verbs = relationship("PhrasalVerb", back_populates="base_word")
 
     __table_args__ = (

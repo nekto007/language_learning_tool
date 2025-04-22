@@ -29,11 +29,14 @@ def get_words():
         from app.utils.db import status_to_string
 
         status_str = status_to_string(status)
-        query = query.join(
-            UserWord,
-            (CollectionWords.id == UserWord.word_id) &
-            (UserWord.user_id == current_user.id)
-        ).filter(UserWord.status == status_str)
+
+        # Используем только новую систему
+        new_system_words = db.session.query(UserWord.word_id).filter(
+            UserWord.user_id == current_user.id,
+            UserWord.status == status_str
+        ).subquery()
+
+        query = query.filter(CollectionWords.id.in_(new_system_words))
 
     if book_id is not None:
         from app.utils.db import word_book_link
