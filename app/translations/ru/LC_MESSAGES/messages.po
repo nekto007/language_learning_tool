@@ -1,14 +1,10 @@
-# Russian translations for PROJECT.
-# Copyright (C) 2025 ORGANIZATION
-# This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
-#
+
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2025-04-11 14:03+0300\n"
-"PO-Revision-Date: 2025-04-22 17:25+0300\n"
+"PO-Revision-Date: 2025-04-22 17:44+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
 "Language-Team: ru <LL@li.org>\n"
@@ -1492,4 +1488,23 @@ msgstr "Просматриваемые"
 
 msgid "review"
 msgstr "просматриваемые"
+
+msgid "Forgot password?"
+msgstr "Забыли пароль?"
+
+msgid "Reset Password"
+msgstr "Смена Пароля"
+
+msgid ""
+"Enter your email address and we will send you a link to reset your "
+"password."
+msgstr ""
+"Введите свой адрес электронной почты, и мы отправим вам ссылку для сброса"
+" пароля."
+
+msgid "Please enter and confirm your new password."
+msgstr "Пожалуйста, введите и подтвердите свой новый пароль."
+
+msgid "Set New Password"
+msgstr "Установите новый пароль"
 
