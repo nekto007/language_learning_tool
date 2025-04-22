@@ -134,12 +134,14 @@
                             <span class="badge bg-{{ {
                                 0: 'secondary',
                                 1: 'success',
-                                2: 'primary'
+                                2: 'info',
+                                3: 'primary'
                             }[word_statuses[word.id]] }}">
                                 {{ _({
                                     0: 'New',
                                     1: 'Learning',
-                                    2: 'Mastered'
+                                    2: 'Review',
+                                    3: 'Mastered'
                                 }[word_statuses[word.id]]) }}
                             </span>
                         </td>

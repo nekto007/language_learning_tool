@@ -31,54 +31,53 @@ def get_books():
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
 
-    # Get word stats for this book
-    from app.utils.db import word_book_link, user_word_status
+    # Get word stats for this book using the new UserWord model
+    from app.utils.db import word_book_link
     from app.words.models import CollectionWords
+    from app.study.models import UserWord
 
+    # Получаем статистику слов по статусам
     word_stats_query = db.select(
-        user_word_status.c.status,
+        UserWord.status,
         func.count().label('count')
     ).join(
         word_book_link,
-        user_word_status.c.word_id == word_book_link.c.word_id
+        UserWord.word_id == word_book_link.c.word_id
     ).where(
         (word_book_link.c.book_id == book_id) &
-        (user_word_status.c.user_id == current_user.id)
+        (UserWord.user_id == current_user.id)
     ).group_by(
-        user_word_status.c.status
+        UserWord.status
     )
 
     word_stats_result = db.session.execute(word_stats_query).all()
 
-    # Convert to dictionary
+    # Инициализируем словарь с возможными статусами
     word_stats = {
         'new': 0,
         'learning': 0,
+        'review': 0,
         'mastered': 0
     }
 
-    status_map = {
-        0: 'new',
-        1: 'learning',
-        2: 'mastered'
-    }
-
+    # Заполняем статистику по результатам запроса
     for status, count in word_stats_result:
-        word_stats[status_map[status]] = count
+        if status in word_stats:
+            word_stats[status] = count
 
-    # Count words without status as "new"
+    # Считаем слова без статуса как "new"
     new_words_query = db.select(func.count()).select_from(
         word_book_link.join(
             CollectionWords,
             word_book_link.c.word_id == CollectionWords.id
         ).outerjoin(
-            user_word_status,
-            (word_book_link.c.word_id == user_word_status.c.word_id) &
-            (user_word_status.c.user_id == current_user.id)
+            UserWord,
+            (word_book_link.c.word_id == UserWord.word_id) &
+            (UserWord.user_id == current_user.id)
         )
     ).where(
         (word_book_link.c.book_id == book_id) &
-        (user_word_status.c.id == None)
+        (UserWord.id == None)
     )
 
     new_words_count = db.session.execute(new_words_query).scalar() or 0

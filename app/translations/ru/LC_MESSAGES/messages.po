@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2025-04-11 14:03+0300\n"
-"PO-Revision-Date: 2025-04-20 19:10+0300\n"
+"PO-Revision-Date: 2025-04-22 17:25+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
 "Language-Team: ru <LL@li.org>\n"
@@ -119,7 +119,7 @@ msgid "Learning"
 msgstr "Изучаемые"
 
 msgid "Mastered"
-msgstr "Освоенные"
+msgstr "Выученные"
 
 msgid "Total"
 msgstr "Всего"
@@ -718,7 +718,7 @@ msgid "Words in Collection"
 msgstr "Слов в коллекции"
 
 msgid "Mastered Words"
-msgstr "Освоенные слова"
+msgstr "Выученные слова"
 
 msgid "interval"
 msgstr "интервал"
@@ -822,7 +822,7 @@ msgid ""
 "Excellent work! You've mastered most of your collection. Consider adding "
 "more challenging words or focusing on using these words in context."
 msgstr ""
-"Отличная работа! Вы освоили большую часть своей коллекции. Рассмотрите "
+"Отличная работа! Вы выучили большую часть своей коллекции. Рассмотрите "
 "возможность добавления более сложных слов или сосредоточьтесь на "
 "использовании этих слов в контексте."
 
@@ -1168,6 +1168,13 @@ msgstr ""
 "Не найдено слов, соответствующих вашим критериям. Попробуйте изменить "
 "фильтры."
 
+msgid ""
+"No words found matching your criteria. Try adjusting your filters or "
+"search terms."
+msgstr ""
+"Не найдено ни одного слова, соответствующего вашим критериям. Попробуйте "
+"изменить фильтры или условия поиска."
+
 msgid "Bulk Actions"
 msgstr "Массовые действия"
 
@@ -1399,7 +1406,7 @@ msgid "Save"
 msgstr "Сохранить"
 
 msgid "Mark as Mastered"
-msgstr "Отметить как изученное"
+msgstr "Отметить как выученные"
 
 msgid "Add to Learning"
 msgstr "Добавить к изучению"
@@ -1479,4 +1486,10 @@ msgstr "Переведите \"{english}\" на русский язык:"
 #, python-brace-format
 msgid "Translate \"{russian}\" to English:"
 msgstr "Переведите \"{russian}\" на английский язык:"
+
+msgid "Review"
+msgstr "Просматриваемые"
+
+msgid "review"
+msgstr "просматриваемые"
 

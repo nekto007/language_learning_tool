@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.study.forms import StudySessionForm, StudySettingsForm
-from app.study.models import GameScore, StudyItem, StudySession, StudySettings, UserCardDirection, UserWord
+from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -493,16 +493,16 @@ def get_quiz_questions():
     # Get words based on source
     words = []
 
-    # Import user_word_status table
-    from app.utils.db import user_word_status
+    # Используем новую модель UserWord
+    from app.study.models import UserWord
 
     if word_source in ['new', 'all']:
-        # Get new words (not in study items)
-        existing_word_ids = db.session.query(StudyItem.word_id) \
-            .filter_by(user_id=current_user.id).subquery()
-
+        # Get new words (слова без записи в UserWord)
         new_words = CollectionWords.query.filter(
-            ~CollectionWords.id.in_(existing_word_ids),
+            ~CollectionWords.id.in_(
+                db.session.query(UserWord.word_id)
+                .filter(UserWord.user_id == current_user.id)
+            ),
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
         ).order_by(func.random()).limit(question_count // 2).all()
@@ -510,33 +510,35 @@ def get_quiz_questions():
         words.extend(new_words)
 
     if word_source in ['learning', 'all']:
-        # Modified: Get words with status 1 (learning) if word_source is 'learning'
+        # Modified: Get words with status 'learning' if word_source is 'learning'
         if word_source == 'learning':
-            # Get words being learned (status = 1)
-            learning_words_query = db.session.query(CollectionWords) \
-                .join(
-                user_word_status,
-                (CollectionWords.id == user_word_status.c.word_id) &
-                (user_word_status.c.user_id == current_user.id)
-            ) \
-                .filter(
-                user_word_status.c.status == 1,  # Status 1 = learning
+            # Get words being learned (status = 'learning')
+            learning_words_query = db.session.query(CollectionWords).join(
+                UserWord,
+                (CollectionWords.id == UserWord.word_id) &
+                (UserWord.user_id == current_user.id)
+            ).filter(
+                UserWord.status == 'learning',
                 CollectionWords.russian_word != None,
                 CollectionWords.russian_word != ''
-            ) \
-                .order_by(func.random()) \
-                .limit(question_count - len(words))
+            ).order_by(func.random()).limit(question_count - len(words))
 
             learning_words = learning_words_query.all()
             words.extend(learning_words)
         else:
-            # Get words being learned (in study items)
-            study_items = StudyItem.query.filter_by(user_id=current_user.id) \
-                .order_by(func.random()).limit(question_count - len(words)).all()
+            # Get all words with статусом 'learning' или 'review'
+            reviewed_words_query = db.session.query(CollectionWords).join(
+                UserWord,
+                (CollectionWords.id == UserWord.word_id) &
+                (UserWord.user_id == current_user.id)
+            ).filter(
+                UserWord.status.in_(['learning', 'review']),
+                CollectionWords.russian_word != None,
+                CollectionWords.russian_word != ''
+            ).order_by(func.random()).limit(question_count - len(words))
 
-            for item in study_items:
-                if item.word and item.word.russian_word and item.word not in words:
-                    words.append(item.word)
+            reviewed_words = reviewed_words_query.all()
+            words.extend(reviewed_words)
 
     # Ensure we have words to create questions
     if not words:
@@ -854,91 +856,69 @@ def get_matching_words():
     word_source = request.args.get('source', 'all')
     word_count = min(int(request.args.get('count', 10)), 20)  # Limit max pairs
 
-    # Добавляем отладочную информацию
-    print(f"Запрос слов для matching game, source={word_source}, count={word_count}")
-
     # Get words based on source
     words = []
 
-    # Import user_word_status table
-    from app.utils.db import user_word_status
+    from app.study.models import UserWord
 
     if word_source == 'learning':
-        # Используем только слова со статусом 1 (learning)
+        # Используем только слова со статусом 'learning'
         print("Выбираем слова со статусом 'learning'")
 
-        # Делаем запрос явно через join и фильтр по статусу
-        learning_words_query = db.session.query(CollectionWords) \
-            .join(
-            user_word_status,
-            (CollectionWords.id == user_word_status.c.word_id) &
-            (user_word_status.c.user_id == current_user.id)
-        ) \
-            .filter(
-            user_word_status.c.status == 1,  # Status 1 = learning
+        learning_words_query = db.session.query(CollectionWords).join(
+            UserWord,
+            (CollectionWords.id == UserWord.word_id) &
+            (UserWord.user_id == current_user.id)
+        ).filter(
+            UserWord.status == 'learning',
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
-        ) \
-            .order_by(func.random()) \
-            .limit(word_count)
+        ).order_by(func.random()).limit(word_count)
 
         learning_words = learning_words_query.all()
-        print(f"Найдено {len(learning_words)} слов со статусом 'learning'")
-
-        # Список ID слов для отладки
-        word_ids = [word.id for word in learning_words]
-        print(f"ID слов: {word_ids}")
-
         words.extend(learning_words)
 
     elif word_source == 'new':
-        # Get new words (not in study items)
+        # Get new words (не имеющие записи в UserWord)
         print("Выбираем новые слова")
         new_words = CollectionWords.query.filter(
             ~CollectionWords.id.in_(
-                db.session.query(user_word_status.c.word_id)
-                .filter(user_word_status.c.user_id == current_user.id)
+                db.session.query(UserWord.word_id)
+                .filter(UserWord.user_id == current_user.id)
             ),
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
         ).order_by(func.random()).limit(word_count).all()
 
-        print(f"Найдено {len(new_words)} новых слов")
         words.extend(new_words)
 
     elif word_source == 'all':
         print("Выбираем смешанные слова (new + learning)")
-        # Сначала добавим слова со статусом learning (примерно половину)
-        learning_words_query = db.session.query(CollectionWords) \
-            .join(
-            user_word_status,
-            (CollectionWords.id == user_word_status.c.word_id) &
-            (user_word_status.c.user_id == current_user.id)
-        ) \
-            .filter(
-            user_word_status.c.status == 1,  # Status 1 = learning
+        # Сначала добавим слова со статусом learning
+        learning_words_query = db.session.query(CollectionWords).join(
+            UserWord,
+            (CollectionWords.id == UserWord.word_id) &
+            (UserWord.user_id == current_user.id)
+        ).filter(
+            UserWord.status == 'learning',
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
-        ) \
-            .order_by(func.random()) \
-            .limit(word_count // 2)
+        ).order_by(func.random()).limit(word_count // 2)
 
         learning_words = learning_words_query.all()
-        print(f"Найдено {len(learning_words)} слов со статусом 'learning'")
         words.extend(learning_words)
 
         # Затем добавим новые слова до нужного количества
         if len(words) < word_count:
             new_words = CollectionWords.query.filter(
                 ~CollectionWords.id.in_(
-                    db.session.query(user_word_status.c.word_id)
-                    .filter(user_word_status.c.user_id == current_user.id)
+                    db.session.query(UserWord.word_id)
+                    .filter(UserWord.user_id == current_user.id)
                 ),
                 CollectionWords.russian_word != None,
                 CollectionWords.russian_word != ''
             ).order_by(func.random()).limit(word_count - len(words)).all()
 
-            print(f"Найдено {len(new_words)} новых слов")
             words.extend(new_words)
 
     # Ensure we have words

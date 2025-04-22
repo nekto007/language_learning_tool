@@ -23,7 +23,8 @@ from app.books.forms import BookContentForm
 from app.books.models import Book, ReadingProgress
 from app.books.parsers import process_uploaded_book
 from app.books.processors import enqueue_book_processing, process_book_words
-from app.utils.db import db, user_word_status, word_book_link
+from app.study.models import UserWord
+from app.utils.db import db, word_book_link
 from app.utils.decorators import admin_required
 from app.words.models import CollectionWords
 
@@ -1073,20 +1074,20 @@ def book_list():
     # Get word stats for each book
     book_stats = {}
     for book in book_items:
-        # Get total words assigned to the user from this book
+        # Обновляем запрос статистики на использование новой модели UserWord
         words_status_query = db.select(
             func.count().label('count'),
-            user_word_status.c.status
+            UserWord.status
         ).select_from(
             word_book_link
         ).join(
-            user_word_status,
-            (word_book_link.c.word_id == user_word_status.c.word_id) &
-            (user_word_status.c.user_id == current_user.id)
+            UserWord,
+            (word_book_link.c.word_id == UserWord.word_id) &
+            (UserWord.user_id == current_user.id)
         ).where(
             word_book_link.c.book_id == book.id
         ).group_by(
-            user_word_status.c.status
+            UserWord.status
         )
 
         word_status_counts = db.session.execute(words_status_query).all()
@@ -1094,19 +1095,19 @@ def book_list():
         # Initialize statistics
         stats = {
             'total': book.unique_words,
-            'new': book.unique_words,  # Default all to new, we'll subtract known words
+            'new': book.unique_words,  # По умолчанию все слова считаем новыми, потом вычтем изученные
             'learning': 0,
+            'review': 0,  # Добавляем статус 'review'
             'mastered': 0
         }
 
-        # Update with actual status counts
+        # Обновляем статистику с учетом строковых статусов вместо числовых
         for count, status in word_status_counts:
-            if status == 1:
-                stats['learning'] = count
-                stats['new'] -= count
-            elif status == 2:
-                stats['mastered'] = count
-                stats['new'] -= count
+            if status in stats:
+                stats[status] = count
+                # Если у слова есть статус (кроме 'new'), вычитаем из 'new'
+                if status != 'new':
+                    stats['new'] -= count
 
         book_stats[book.id] = stats
 
@@ -1125,40 +1126,40 @@ def book_list():
 def book_details(book_id):
     book = Book.query.get_or_404(book_id)
 
-    # Get word statistics
+    # Получаем статистику по словам используя новую модель UserWord
     word_stats_query = db.select(
-        user_word_status.c.status,
+        UserWord.status,
         func.count().label('count')
     ).join(
         word_book_link,
-        user_word_status.c.word_id == word_book_link.c.word_id
+        UserWord.word_id == word_book_link.c.word_id
     ).where(
         (word_book_link.c.book_id == book_id) &
-        (user_word_status.c.user_id == current_user.id)
+        (UserWord.user_id == current_user.id)
     ).group_by(
-        user_word_status.c.status
+        UserWord.status
     )
 
     status_counts = db.session.execute(word_stats_query).all()
 
-    # Build stats dictionary
+    # Инициализируем словарь статистики
     word_stats = {
         'total': book.unique_words,
-        'new': book.unique_words,  # Default all to new, we'll subtract known words
+        'new': book.unique_words,  # По умолчанию все слова считаем новыми, потом вычтем изученные
         'learning': 0,
+        'review': 0,   # Добавляем статус 'review'
         'mastered': 0
     }
 
-    # Update with actual status counts
+    # Обновляем статистику с реальными данными
     for status, count in status_counts:
-        if status == 1:
-            word_stats['learning'] = count
-            word_stats['new'] -= count
-        elif status == 2:
-            word_stats['mastered'] = count
-            word_stats['new'] -= count
+        if status in word_stats:
+            word_stats[status] = count
+            # Если у слова есть статус, вычитаем его из 'new'
+            if status != 'new':
+                word_stats['new'] -= count
 
-    # Calculate progress percentage
+    # Расчет процента прогресса
     if book.unique_words > 0:
         progress = int(((word_stats['mastered']) / book.unique_words) * 100)
     else:
@@ -1203,7 +1204,7 @@ def book_words(book_id):
     per_page = request.args.get('per_page', 50, type=int)
     status = request.args.get('status', type=int)
 
-    # Build base query
+    # Базовый запрос
     query = db.select(
         CollectionWords,
         word_book_link.c.frequency
@@ -1214,23 +1215,27 @@ def book_words(book_id):
         word_book_link.c.book_id == book_id
     )
 
-    # Apply status filter if provided
+    # Фильтрация по статусу
     if status is not None:
-        from app.utils.db import user_word_status
-        if status == 0:  # New/Unclassified
-            # Words that don't have a status entry or have status 0
-            subquery = db.select(user_word_status.c.word_id).where(
-                (user_word_status.c.user_id == current_user.id) &
-                (user_word_status.c.status != 0)
+        from app.study.models import UserWord
+        from app.utils.db import status_to_string
+
+        status_str = status_to_string(status)
+
+        if status == 0:  # Новые слова
+            # Слова без записи в UserWord
+            subquery = db.select(UserWord.word_id).where(
+                UserWord.user_id == current_user.id
             ).scalar_subquery()
 
             query = query.where(CollectionWords.id.not_in(subquery))
         else:
+            # Слова с определенным статусом
             query = query.join(
-                user_word_status,
-                (CollectionWords.id == user_word_status.c.word_id) &
-                (user_word_status.c.user_id == current_user.id)
-            ).where(user_word_status.c.status == status)
+                UserWord,
+                (CollectionWords.id == UserWord.word_id) &
+                (UserWord.user_id == current_user.id)
+            ).where(UserWord.status == status_str)
 
     # Apply sorting
     sort_by = request.args.get('sort', 'frequency')
@@ -1297,7 +1302,7 @@ def book_words(book_id):
 def add_book_to_queue(book_id):
     book = Book.query.get_or_404(book_id)
 
-    # Get words from this book that are not already in learning or mastered
+    # Находим слова этой книги, которые еще не в изучении
     words_query = db.select(
         CollectionWords.id
     ).join(
@@ -1306,17 +1311,16 @@ def add_book_to_queue(book_id):
     ).where(
         word_book_link.c.book_id == book_id
     ).outerjoin(
-        user_word_status,
-        (CollectionWords.id == user_word_status.c.word_id) &
-        (user_word_status.c.user_id == current_user.id)
+        UserWord,
+        (CollectionWords.id == UserWord.word_id) &
+        (UserWord.user_id == current_user.id)
     ).where(
-        (user_word_status.c.status.is_(None)) |
-        (user_word_status.c.status == 0)
+        UserWord.id.is_(None)  # Слова без записи в UserWord
     )
 
     word_ids = [row[0] for row in db.session.execute(words_query).all()]
 
-    # Add words to learning (status 1)
+    # Добавляем слова в изучение (статус 1 = 'learning')
     for word_id in word_ids:
         current_user.set_word_status(word_id, 1)
 

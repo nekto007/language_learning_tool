@@ -1,7 +1,5 @@
-from datetime import datetime
-
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 
 db = SQLAlchemy()
 
@@ -16,30 +14,17 @@ word_book_link = db.Table(
     extend_existing=True
 )
 
-# User-Word status relationship table
-user_word_status = db.Table(
-    'user_word_status',
-    Column('id', Integer, primary_key=True, autoincrement=True),
-    Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-    Column('word_id', Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False),
-    Column('status', Integer, default=0, nullable=False),
-    Column('last_updated', DateTime, default=datetime.utcnow, onupdate=datetime.utcnow),
-    UniqueConstraint('user_id', 'word_id', name='uq_user_word'),
-    Index('idx_user_word_status', 'user_id', 'word_id'),
-    Index('idx_user_word_status_status', 'user_id', 'status'),
-    extend_existing=True
-)
 
+# Удаляем определение user_word_status
 
 def status_to_string(status_int):
     """
-    Преобразует цифровой статус в строковый для новой модели UserWord
+    Преобразует цифровой статус в строковый для модели UserWord
 
     0 = 'new' (новое слово)
     1 = 'learning' (изучаемое)
     2 = 'review' (на повторении)
     3 = 'mastered' (изучено)
-    4 = другие значения (по умолчанию 'new')
     """
     status_map = {
         0: 'new',
@@ -50,10 +35,9 @@ def status_to_string(status_int):
     return status_map.get(status_int, 'new')
 
 
-# Функция для преобразования статуса из нового формата (string) в старый формат (int)
 def string_to_status(status_string):
     """
-    Преобразует строковый статус в цифровой для обратной совместимости
+    Преобразует строковый статус в цифровой для API совместимости
 
     'new' = 0
     'learning' = 1
