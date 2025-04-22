@@ -8,6 +8,7 @@ from itsdangerous import URLSafeTimedSerializer
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
 from app.auth.models import User
 from app.utils.db import db
+from app.utils.email_utils import email_sender
 from config.settings import Config
 
 auth = Blueprint('auth', __name__)
@@ -45,7 +46,22 @@ def reset_request():
 
         reset_url = url_for('auth.reset_password', token=token, _external=True)
 
-        flash(f'A password reset link has been created. For testing: {reset_url}', 'info')
+        # Отправляем электронное письмо
+        email_sent = email_sender.send_email(
+            subject="Сброс пароля",
+            to_email=user.email,
+            template_name="password_reset",
+            context={
+                "username": user.username,
+                "reset_url": reset_url
+            }
+        )
+
+        if email_sent:
+            flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
+        else:
+            flash('Возникла проблема при отправке электронного письма. Пожалуйста, попробуйте позже.', 'danger')
+
         return redirect(url_for('auth.login'))
 
     return render_template('auth/reset_request.html', form=form)
@@ -58,12 +74,12 @@ def reset_password(token):
 
     user_id = verify_reset_token(token)
     if user_id is None:
-        flash('That is an invalid or expired token', 'warning')
+        flash('Недействительная или истекшая ссылка для сброса пароля', 'warning')
         return redirect(url_for('auth.reset_request'))
 
     user = User.query.get(user_id)
     if not user:
-        flash('User not found', 'danger')
+        flash('Пользователь не найден', 'danger')
         return redirect(url_for('auth.reset_request'))
 
     form = ResetPasswordForm()
@@ -73,7 +89,7 @@ def reset_password(token):
         user.set_password(form.password.data)
 
         db.session.commit()
-        flash('Your password has been updated! You can now log in with your new password.', 'success')
+        flash('Ваш пароль был обновлен! Теперь вы можете войти с новым паролем.', 'success')
         return redirect(url_for('auth.login'))
 
     return render_template('auth/reset_password.html', form=form)
@@ -90,7 +106,7 @@ def login():
         if user and user.check_password(form.password.data):
             # Check if user is active
             if not user.is_active:
-                flash('Your account is inactive. Please contact an administrator.', 'danger')
+                flash('Ваша учетная запись неактивна. Пожалуйста, обратитесь к администратору.', 'danger')
                 return render_template('auth/login.html', form=form)
 
             # Log in the user
@@ -106,7 +122,7 @@ def login():
                 next_page = url_for('words.dashboard')
             return redirect(next_page)
         else:
-            flash('Invalid username or password', 'danger')
+            flash('Неверное имя пользователя или пароль', 'danger')
 
     return render_template('auth/login.html', form=form)
 
@@ -129,11 +145,11 @@ def register():
             db.session.add(user)
             db.session.commit()
 
-            flash('Registration successful! You can now log in.', 'success')
+            flash('Регистрация успешна! Теперь вы можете войти в систему.', 'success')
             return redirect(url_for('auth.login'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Registration failed. Error: {str(e)}', 'danger')
+            flash(f'Регистрация не удалась. Ошибка: {str(e)}', 'danger')
 
     return render_template('auth/register.html', form=form)
 
@@ -142,5 +158,5 @@ def register():
 @login_required
 def logout():
     logout_user()
-    flash('You have been logged out.', 'info')
+    flash('Вы вышли из системы.', 'info')
     return redirect(url_for('auth.login'))
