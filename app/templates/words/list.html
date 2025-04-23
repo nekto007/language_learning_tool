@@ -157,7 +157,7 @@
                                         </form>
                                     </li>
                                     <li>
-                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=2) }}" method="POST">
+                                        <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
                                             <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                                         </form>
                                     </li>
@@ -184,7 +184,7 @@
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="bulkActionsDropdown">
                     <li><a class="dropdown-item bulk-action" data-status="1" href="#">{{ _('Add to Learning') }}</a></li>
-                    <li><a class="dropdown-item bulk-action" data-status="2" href="#">{{ _('Mark as Mastered') }}</a></li>
+                    <li><a class="dropdown-item bulk-action" data-status="3" href="#">{{ _('Mark as Mastered') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item bulk-action" data-status="0" href="#">{{ _('Reset Status') }}</a></li>
                 </ul>
