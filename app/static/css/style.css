@@ -981,13 +981,13 @@ footer {
     font-size: 1.5rem;
 }
 
-/* Центрирование шапки */
-.navbar .container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-}
+/*!* Центрирование шапки *!*/
+/*.navbar .container {*/
+/*    display: flex;*/
+/*    justify-content: center;*/
+/*    align-items: center;*/
+/*    text-align: center;*/
+/*}*/
 
 /* Добавляем отступ между логотипом и текстом */
 .navbar-brand img {
