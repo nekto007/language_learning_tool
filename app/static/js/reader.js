@@ -32,26 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Добавляем класс для скроллируемого контейнера
         bookContent.classList.add('scroll-container');
 
-        // Добавляем кнопку для возврата к сохраненной позиции, если ее еще нет
-        // if (!document.getElementById('return-to-position')) {
-        //     const returnButton = document.createElement('button');
-        //     returnButton.id = 'return-to-position';
-        //     returnButton.className = 'btn btn-sm btn-outline-primary ms-3';
-        //     // returnButton.innerHTML = '<i class="fas fa-bookmark"></i> Return to Last Position';
-        //     // returnButton.innerHTML = returnButton.dataset.translate;
-        //     // Вставляем кнопку в панель инструментов
-        //     const toolbar = document.querySelector('.reading-toolbar');
-        //     const firstGroup = toolbar.querySelector('.d-flex.align-items-center');
-        //     if (firstGroup) {
-        //         firstGroup.appendChild(returnButton);
-        //     }
-        //
-        //     // Обработчик для возврата к позиции
-        //     returnButton.addEventListener('click', function() {
-        //         restoreScrollPosition();
-        //     });
-        // }
-
         // Перемещаем обложку книги в начало контента
         moveBookCoverToContent();
 
@@ -442,55 +422,173 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Функция для переключения полноэкранного режима
+    // Функция для переключения полноэкранного режима с поддержкой мобильных устройств
     function toggleFullscreen(element) {
+        // Определяем, используется ли мобильное устройство
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
         // Проверяем, активен ли полноэкранный режим
         if (!document.fullscreenElement &&    // Стандартное свойство
             !document.mozFullScreenElement && // Firefox
             !document.webkitFullscreenElement && // Chrome, Safari и Opera
             !document.msFullscreenElement) {  // IE/Edge
 
-            // Запрашиваем полноэкранный режим
-            if (element.requestFullscreen) {
-                element.requestFullscreen();
-            } else if (element.mozRequestFullScreen) { // Firefox
-                element.mozRequestFullScreen();
-            } else if (element.webkitRequestFullscreen) { // Chrome, Safari и Opera
-                element.webkitRequestFullscreen();
-            } else if (element.msRequestFullscreen) { // IE/Edge
-                element.msRequestFullscreen();
+            // Для мобильных устройств используем альтернативный подход "псевдо-полноэкранного режима"
+            if (isMobile) {
+                // Добавляем класс для мобильного псевдо-полноэкранного режима
+                document.body.classList.add('mobile-fullscreen-mode');
+                if (isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                }
+                element.classList.add('mobile-fullscreen');
+
+                // Скрываем ненужные элементы при чтении
+                document.querySelectorAll('header, footer, .breadcrumb, .btn-outline-primary').forEach(el => {
+                    if (el) el.style.display = 'none';
+                });
+                addExitFullscreenButton();
+                // Обновляем кнопку
+                toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                toggleFullscreenBtn.title = 'Exit fullscreen';
+
+                // Прокручиваем в начало содержимого книги для полного погружения
+                window.scrollTo(0, bookContent.offsetTop - 20);
+
+                return; // Выходим из функции, чтобы не выполнять стандартный fullscreen API
             }
 
-            // Меняем иконку на "свернуть"
-            toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            toggleFullscreenBtn.title = 'Exit fullscreen';
+            // Запрашиваем полноэкранный режим для десктопа
+            try {
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.mozRequestFullScreen) { // Firefox
+                    element.mozRequestFullScreen();
+                } else if (element.webkitRequestFullscreen) { // Chrome, Safari и Opera
+                    element.webkitRequestFullscreen();
+                } else if (element.msRequestFullscreen) { // IE/Edge
+                    element.msRequestFullscreen();
+                }
+
+                // Меняем иконку на "свернуть"
+                toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                toggleFullscreenBtn.title = 'Exit fullscreen';
+            } catch (error) {
+                console.error('Fullscreen API error:', error);
+                // При ошибке, пробуем использовать мобильный режим как запасной вариант
+                document.body.classList.add('mobile-fullscreen-mode');
+                if (isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                }
+                element.classList.add('mobile-fullscreen');
+                toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            }
 
         } else {
-            // Выходим из полноэкранного режима
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.mozCancelFullScreen) { // Firefox
-                document.mozCancelFullScreen();
-            } else if (document.webkitExitFullscreen) { // Chrome, Safari и Opera
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) { // IE/Edge
-                document.msExitFullscreen();
+            // Выход из полноэкранного режима
+
+            // Проверяем, активен ли мобильный псевдо-полноэкранный режим
+            if (document.body.classList.contains('mobile-fullscreen-mode')) {
+                // Выход из мобильного псевдо-полноэкранного режима
+                document.body.classList.remove('mobile-fullscreen-mode');
+                document.body.classList.remove('dark-mode');
+                element.classList.remove('mobile-fullscreen');
+
+                const exitBtn = document.getElementById('mobile-exit-fullscreen');
+                if (exitBtn) {
+                    exitBtn.remove();
+                }
+
+                // Восстанавливаем видимость скрытых элементов
+                document.querySelectorAll('header, footer, .breadcrumb, .btn-outline-primary').forEach(el => {
+                    if (el) el.style.display = '';
+                });
+
+                // Меняем иконку обратно на "расширить"
+                toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                toggleFullscreenBtn.title = 'Enter fullscreen';
+
+                return; // Выходим из функции
             }
 
-            // Меняем иконку обратно на "расширить"
+            // Выход из стандартного полноэкранного режима
+            try {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) { // Firefox
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) { // Chrome, Safari и Opera
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { // IE/Edge
+                    document.msExitFullscreen();
+                }
+
+                // Меняем иконку обратно на "расширить"
+                toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                toggleFullscreenBtn.title = 'Enter fullscreen';
+            } catch (error) {
+                console.error('Exiting fullscreen error:', error);
+                // Сброс состояния
+                toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            }
+        }
+    }
+
+    function addExitFullscreenButton() {
+        // Проверяем, существует ли уже кнопка
+        if (document.getElementById('mobile-exit-fullscreen')) {
+            return;
+        }
+
+        // Создаем кнопку выхода
+        const exitButton = document.createElement('button');
+        exitButton.id = 'mobile-exit-fullscreen';
+        exitButton.className = 'mobile-exit-btn';
+        exitButton.innerHTML = '<i class="fas fa-times"></i>';
+        exitButton.title = 'Exit fullscreen';
+
+        // Добавляем обработчик события
+        exitButton.addEventListener('click', function() {
+            // Выход из мобильного псевдо-полноэкранного режима
+            document.body.classList.remove('mobile-fullscreen-mode');
+            document.body.classList.remove('dark-mode');
+            readingContainer.classList.remove('mobile-fullscreen');
+
+            // Восстанавливаем видимость скрытых элементов
+            document.querySelectorAll('header, footer, .breadcrumb, .btn-outline-primary').forEach(el => {
+                if (el) el.style.display = '';
+            });
+
+            // Обновляем кнопку полноэкранного режима
             toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             toggleFullscreenBtn.title = 'Enter fullscreen';
-        }
+
+            // Удаляем кнопку выхода
+            this.remove();
+        });
+
+        // Добавляем кнопку в контейнер для чтения
+        readingContainer.appendChild(exitButton);
     }
 
     // Обновление состояния кнопки полноэкранного режима
     function updateFullscreenButtonState() {
-        if (!document.fullscreenElement &&
-            !document.webkitFullscreenElement &&
-            !document.mozFullScreenElement &&
-            !document.msFullscreenElement) {
+        // Проверяем стандартный полноэкранный режим
+        const isStandardFullscreen = document.fullscreenElement ||
+                                   document.webkitFullscreenElement ||
+                                   document.mozFullScreenElement ||
+                                   document.msFullscreenElement;
+
+        // Проверяем мобильный псевдо-полноэкранный режим
+        const isMobileFullscreen = document.body.classList.contains('mobile-fullscreen-mode');
+
+        if (!isStandardFullscreen && !isMobileFullscreen) {
+            // Если оба режима неактивны, показываем иконку "развернуть"
             toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             toggleFullscreenBtn.title = 'Enter fullscreen';
+        } else {
+            // Если активен любой из режимов, показываем иконку "свернуть"
+            toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            toggleFullscreenBtn.title = 'Exit fullscreen';
         }
     }
 
@@ -726,9 +824,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isDarkMode) {
             bookContent.classList.add('dark-mode');
+            if (document.body.classList.contains('mobile-fullscreen-mode')) {
+                document.body.classList.add('dark-mode');
+            }
             this.innerHTML = '<i class="fas fa-sun"></i>';
         } else {
             bookContent.classList.remove('dark-mode');
+            document.body.classList.remove('dark-mode');
             this.innerHTML = '<i class="fas fa-moon"></i>';
         }
 
@@ -745,6 +847,24 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('webkitfullscreenchange', updateFullscreenButtonState);
     document.addEventListener('mozfullscreenchange', updateFullscreenButtonState);
     document.addEventListener('MSFullscreenChange', updateFullscreenButtonState);
+
+    // Обработчик клавиши Escape для выхода из мобильного псевдо-полноэкранного режима
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.body.classList.contains('mobile-fullscreen-mode')) {
+            document.body.classList.remove('mobile-fullscreen-mode');
+            document.body.classList.remove('dark-mode');
+            readingContainer.classList.remove('mobile-fullscreen');
+
+            // Восстанавливаем видимость скрытых элементов
+            document.querySelectorAll('header, footer, .breadcrumb, .btn-outline-primary').forEach(el => {
+                if (el) el.style.display = '';
+            });
+
+            // Меняем иконку обратно на "расширить"
+            toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            toggleFullscreenBtn.title = 'Enter fullscreen';
+        }
+    });
 
     // Кнопка сохранения позиции
     saveButton.addEventListener('click', function() {
@@ -892,6 +1012,69 @@ document.addEventListener('DOMContentLoaded', function() {
             .content-book-cover {
                 max-width: 200px;
             }
+        }
+        
+        /* Стили для мобильного псевдо-полноэкранного режима */
+        .mobile-fullscreen-mode {
+            overflow: hidden !important;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .mobile-fullscreen-mode .reading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 10px;
+            z-index: 9999;
+            background-color: white;
+            overflow-y: auto;
+            max-width: none;
+        }
+
+        .mobile-fullscreen-mode.dark-mode .reading-container {
+            background-color: #2c2c2c;
+        }
+
+        .mobile-fullscreen-mode .reading-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 9999;
+            background-color: rgba(248, 249, 252, 0.95);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .mobile-fullscreen-mode.dark-mode .reading-toolbar {
+            background-color: rgba(44, 44, 44, 0.95);
+        }
+
+        .mobile-fullscreen-mode #book-content.scroll-container {
+            height: calc(100vh - 170px);
+            max-height: calc(100vh - 170px);
+            margin-bottom: 0;
+        }
+
+        .mobile-fullscreen-mode #reading-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .mobile-fullscreen-mode.dark-mode #reading-controls {
+            background-color: rgba(44, 44, 44, 0.95);
         }
     `;
     document.head.appendChild(containerStyle);

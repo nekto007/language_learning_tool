@@ -601,3 +601,173 @@
     z-index: 9999;
     margin-bottom: 1.5rem;
 }
+
+/* Стили для мобильного псевдо-полноэкранного режима */
+.mobile-fullscreen-mode {
+    overflow: hidden !important;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.mobile-fullscreen-mode .reading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 10px;
+    z-index: 9999;
+    background-color: white;
+    overflow-y: auto;
+    max-width: none;
+}
+
+.mobile-fullscreen-mode.dark-mode .reading-container {
+    background-color: #2c2c2c;
+}
+
+.mobile-fullscreen-mode .reading-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    background-color: rgba(248, 249, 252, 0.95);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.mobile-fullscreen-mode.dark-mode .reading-toolbar {
+    background-color: rgba(44, 44, 44, 0.95);
+}
+
+.mobile-fullscreen-mode #book-content.scroll-container {
+    height: calc(100vh - 170px);
+    max-height: calc(100vh - 170px);
+    margin-bottom: 0;
+}
+
+.mobile-fullscreen-mode #reading-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.mobile-fullscreen-mode.dark-mode #reading-controls {
+    background-color: rgba(44, 44, 44, 0.95);
+}
+
+/* Fix для некоторых мобильных браузеров, где fullscreen API работает некорректно */
+@media (max-width: 767.98px) {
+    .reading-container:-webkit-full-screen,
+    .reading-container:-moz-full-screen,
+    .reading-container:-ms-fullscreen,
+    .reading-container:fullscreen {
+        display: block !important; /* Исправляет проблему с display: none на некоторых мобильных устройствах */
+    }
+
+    /* Увеличиваем размер кнопки для лучшего таргетирования на мобильных устройствах */
+    #toggle-fullscreen {
+        padding: 6px 10px;
+        margin: 0 5px;
+    }
+
+    /* Увеличиваем размер иконки для лучшей видимости */
+    #toggle-fullscreen i {
+        font-size: 1.1rem;
+    }
+
+    /* Фикс для визуального отображения нажатия кнопки на мобильных устройствах */
+    #toggle-fullscreen:active {
+        background-color: #4e73df;
+        color: white;
+        border-color: #4e73df;
+    }
+
+    /* Добавляем больше пространства между кнопками в toolbar на мобильных */
+    .reading-toolbar .btn-group {
+        margin: 0 3px;
+    }
+
+    .reading-toolbar button {
+        margin: 2px;
+        touch-action: manipulation;
+    }
+}
+
+/* Кнопка выхода из полноэкранного режима для мобильных устройств */
+.mobile-exit-btn {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    z-index: 10000;
+    padding: 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    opacity: 0.8;
+}
+
+.mobile-exit-btn:hover,
+.mobile-exit-btn:active {
+    background-color: rgba(0, 0, 0, 0.7);
+    opacity: 1;
+}
+
+/* Стили для тёмного режима */
+.dark-mode .mobile-exit-btn {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: #f0f0f0;
+}
+
+.dark-mode .mobile-exit-btn:hover,
+.dark-mode .mobile-exit-btn:active {
+    background-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Дополнительные стили для лучшей видимости на разных фонах */
+.mobile-exit-btn i {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Бережное размещение кнопки для разных размеров экрана */
+@media (max-width: 480px) {
+    .mobile-exit-btn {
+        top: 10px;
+        right: 10px;
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+}
+
+/* Увеличение активной области для нажатия */
+.mobile-exit-btn::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    bottom: -10px;
+    left: -10px;
+    z-index: -1;
+}
