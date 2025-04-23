@@ -70,6 +70,17 @@ services:
     networks:
       - app_network
 
+  mail:
+    build:
+      context: .
+      dockerfile: Dockerfile.postfix
+    container_name: language_learning_tool_mail
+    restart: always
+    networks:
+      - app_network
+    ports:
+      - "25:25"
+
 volumes:
   pgdata:
 

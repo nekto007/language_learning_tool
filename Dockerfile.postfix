@@ -1,0 +1,8 @@
+FROM alpine:latest
+
+RUN apk add --no-cache postfix mailx
+
+COPY postfix.sh /postfix.sh
+RUN chmod +x /postfix.sh
+
+CMD ["/postfix.sh"]
