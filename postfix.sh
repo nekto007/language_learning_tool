@@ -16,4 +16,9 @@ postconf -e "smtpd_use_tls=yes"
 postconf -e "smtp_tls_security_level = may"
 postconf -e "smtp_tls_note_starttls_offer = yes"
 
+touch /var/log/mail.log
+rsyslogd
+postfix start
+tail -F /var/log/mail.log
+
 exec /usr/sbin/postfix start-fg
