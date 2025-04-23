@@ -20,5 +20,3 @@ touch /var/log/mail.log
 rsyslogd
 postfix start
 tail -F /var/log/mail.log
-
-exec /usr/sbin/postfix start-fg
