@@ -520,3 +520,84 @@
         font-size: 12px;
     }
 }
+
+/* Стили для полноэкранного режима */
+.reading-container:-webkit-full-screen {
+    background-color: white;
+    width: 100vw;
+    height: 100vh;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.reading-container:-moz-full-screen {
+    background-color: white;
+    width: 100vw;
+    height: 100vh;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.reading-container:-ms-fullscreen {
+    background-color: white;
+    width: 100vw;
+    height: 100vh;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.reading-container:fullscreen {
+    background-color: white;
+    width: 100vw;
+    height: 100vh;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+/* Настройка контейнера книги в полноэкранном режиме */
+.reading-container:fullscreen #book-content,
+.reading-container:-webkit-full-screen #book-content,
+.reading-container:-moz-full-screen #book-content,
+.reading-container:-ms-fullscreen #book-content {
+    max-width: 900px;
+    margin: 0 auto;
+    height: calc(100vh - 200px);
+}
+
+/* Настройка нижней панели в полноэкранном режиме */
+.reading-container:fullscreen #reading-controls,
+.reading-container:-webkit-full-screen #reading-controls,
+.reading-container:-moz-full-screen #reading-controls,
+.reading-container:-ms-fullscreen #reading-controls {
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+    left: 0;
+    z-index: 9999;
+}
+
+/* Темный режим в полноэкранном режиме */
+.reading-container:fullscreen #book-content.dark-mode,
+.reading-container:-webkit-full-screen #book-content.dark-mode,
+.reading-container:-moz-full-screen #book-content.dark-mode,
+.reading-container:-ms-fullscreen #book-content.dark-mode {
+    background-color: #2c2c2c;
+}
+
+.reading-container:fullscreen.dark-mode,
+.reading-container:-webkit-full-screen.dark-mode,
+.reading-container:-moz-full-screen.dark-mode,
+.reading-container:-ms-fullscreen.dark-mode {
+    background-color: #2c2c2c;
+}
+
+/* Стили для панели инструментов в полноэкранном режиме */
+.reading-container:fullscreen .reading-toolbar,
+.reading-container:-webkit-full-screen .reading-toolbar,
+.reading-container:-moz-full-screen .reading-toolbar,
+.reading-container:-ms-fullscreen .reading-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    margin-bottom: 1.5rem;
+}

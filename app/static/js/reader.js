@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const increaseFontBtn = document.getElementById('increase-font');
     const decreaseFontBtn = document.getElementById('decrease-font');
     const toggleDarkModeBtn = document.getElementById('toggle-dark-mode');
+    const toggleFullscreenBtn = document.getElementById('toggle-fullscreen');
     const fontSerifBtn = document.getElementById('font-serif');
     const fontSansBtn = document.getElementById('font-sans');
     const addBookmarkBtn = document.getElementById('add-bookmark');
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentsBtn = document.getElementById('contents-btn');
     const bookHeader = document.querySelector('.book-header');
     const bookTitle = document.querySelector('.book-title').textContent;
+    const readingContainer = document.querySelector('.reading-container');
 
     // Настройки
     let currentFontSize = parseInt(fontSizeValue.textContent) || 18;
@@ -440,6 +442,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Функция для переключения полноэкранного режима
+    function toggleFullscreen(element) {
+        // Проверяем, активен ли полноэкранный режим
+        if (!document.fullscreenElement &&    // Стандартное свойство
+            !document.mozFullScreenElement && // Firefox
+            !document.webkitFullscreenElement && // Chrome, Safari и Opera
+            !document.msFullscreenElement) {  // IE/Edge
+
+            // Запрашиваем полноэкранный режим
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.mozRequestFullScreen) { // Firefox
+                element.mozRequestFullScreen();
+            } else if (element.webkitRequestFullscreen) { // Chrome, Safari и Opera
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) { // IE/Edge
+                element.msRequestFullscreen();
+            }
+
+            // Меняем иконку на "свернуть"
+            toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            toggleFullscreenBtn.title = 'Exit fullscreen';
+
+        } else {
+            // Выходим из полноэкранного режима
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) { // Firefox
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) { // Chrome, Safari и Opera
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { // IE/Edge
+                document.msExitFullscreen();
+            }
+
+            // Меняем иконку обратно на "расширить"
+            toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            toggleFullscreenBtn.title = 'Enter fullscreen';
+        }
+    }
+
+    // Обновление состояния кнопки полноэкранного режима
+    function updateFullscreenButtonState() {
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
+            !document.mozFullScreenElement &&
+            !document.msFullscreenElement) {
+            toggleFullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            toggleFullscreenBtn.title = 'Enter fullscreen';
+        }
+    }
+
     // Получение контекста в текущей позиции
     function getContextAtCurrentPosition() {
         // В скроллируемом контейнере находим элемент, который виден в верхней части видимой области
@@ -680,6 +734,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         saveReadingSettings();
     });
+
+    // Переключение полноэкранного режима
+    toggleFullscreenBtn.addEventListener('click', function() {
+        toggleFullscreen(readingContainer);
+    });
+
+    // Слушатели событий для обновления состояния кнопки полноэкранного режима
+    document.addEventListener('fullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButtonState);
 
     // Кнопка сохранения позиции
     saveButton.addEventListener('click', function() {
