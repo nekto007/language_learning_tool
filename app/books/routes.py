@@ -1204,14 +1204,10 @@ def book_words(book_id):
     per_page = request.args.get('per_page', 50, type=int)
     status = request.args.get('status', type=int)
 
-    # Базовый запрос
-    query = db.select(
-        CollectionWords,
-        word_book_link.c.frequency
-    ).join(
+    query = db.session.query(CollectionWords, word_book_link.c.frequency).join(
         word_book_link,
         CollectionWords.id == word_book_link.c.word_id
-    ).where(
+    ).filter(
         word_book_link.c.book_id == book_id
     )
 
@@ -1257,33 +1253,15 @@ def book_words(book_id):
             else CollectionWords.level
         )
 
-    # Execute paginated query
-    pagination = db.paginate(
-        query,
-        page=page,
-        per_page=per_page,
-        error_out=False
-    )
-
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     book_words = pagination.items
 
-    # Get word statuses
     word_statuses = {}
 
-    # Fix: Handle different possible data structures returned by pagination
     for item in book_words:
-        if isinstance(item, tuple) and len(item) >= 2:
-            # If it's a tuple (word, frequency), use the word from first position
-            word = item[0]
-        else:
-            # If it's just a CollectionWords object
-            word = item
+        word = item[0]
 
-        # Add the word status to our dictionary
         word_statuses[word.id] = current_user.get_word_status(word.id)
-
-    # At this point, we have the data needed for the template
-    # No modification to book_words is necessary because we'll handle the structure in the template
 
     return render_template(
         'books/words.html',
