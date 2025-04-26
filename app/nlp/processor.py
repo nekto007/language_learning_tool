@@ -147,6 +147,12 @@ def process_text(text: str, english_vocab: Set[str], stop_words: Set[str]) -> Li
     # Filtering only English words
     english_words = filter_english_words(lemmatized_words, english_vocab)
 
+    stop_words = ["i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don"]
+    # Remove stop words
+    words = [word for word in english_words if word not in stop_words]
+    english_words = words
+
+
     return english_words
 
 
