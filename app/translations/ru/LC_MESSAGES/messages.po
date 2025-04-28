@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2025-04-11 14:03+0300\n"
-"PO-Revision-Date: 2025-04-22 17:49+0300\n"
+"PO-Revision-Date: 2025-04-28 15:10+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
 "Language-Team: ru <LL@li.org>\n"
@@ -957,7 +957,7 @@ msgid "Search:"
 msgstr "Поиск:"
 
 msgid "Search"
-msgstr "Поиск"
+msgstr "Найти"
 
 msgid "Level:"
 msgstr "Уровень:"
@@ -1457,6 +1457,9 @@ msgstr "ЗВУК"
 msgid "RUSSIAN TRANSLATION"
 msgstr "РУССКИЙ ПЕРЕВОД"
 
+msgid "RUSSIAN WORD"
+msgstr "РУССКОЕ СЛОВО"
+
 msgid "Previous"
 msgstr "Предыдущая"
 
@@ -1488,10 +1491,10 @@ msgid "Translate \"{russian}\" to English:"
 msgstr "Переведите \"{russian}\" на английский язык:"
 
 msgid "Review"
-msgstr "Просматриваемые"
+msgstr "Повторяемые"
 
 msgid "review"
-msgstr "просматриваемые"
+msgstr "повторяемые"
 
 msgid "Forgot password?"
 msgstr "Забыли пароль?"
