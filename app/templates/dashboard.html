@@ -10,8 +10,46 @@
 </div>
 
 <div class="row">
+    <div class="col-md-12">
+    <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{{ _('Quick Actions') }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-4">
+                        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">
+                            <i class="fas fa-list me-1"></i> {{ _('Browse Words') }}
+                        </a>
+                    </div>
+                    <div class="col-4">
+                        <a href="{{ url_for('study.index') }}" class="btn btn-success d-block">
+                            <i class="fas fa-graduation-cap me-1"></i> {{ _('Study Now') }}
+                        </a>
+                    </div>
+
+                    <!-- New buttons for reading functionality -->
+                    <div class="col-4">
+                        <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary d-block">
+                            <i class="fas fa-book me-1"></i> {{ _('Find Books') }}
+                        </a>
+                    </div>
+
+                    {% if current_user.get_reading_progress_count() > 0 %}
+                    {% set last_book = current_user.get_last_read_book() %}
+                    {% if last_book %}
+                    <div class="col-4">
+                        <a href="{{ url_for('books.read_book', book_id=last_book.book_id) }}" class="btn btn-outline-success d-block">
+                            <i class="fas fa-book-reader me-1"></i> {{ _('Continue Reading') }}
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     <!-- Word Statistics -->
-    <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">{{ _('Your Word Statistics') }}</h5>
@@ -21,15 +59,7 @@
                     <div class="progress-bar" role="progressbar" style="width: {{ progress }}%;" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">{{ progress }}%</div>
                 </div>
                 <div class="row">
-                    <div class="col-6 col-md-4 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">{{ _('New') }}</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[0] }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-4 mb-3">
+                    <div class="col-6 col-md-3 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">{{ _('Learning') }}</h6>
@@ -37,15 +67,23 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-4 mb-3">
+                    <div class="col-6 col-md-3 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
-                                <h6 class="card-title">{{ _('Mastered') }}</h6>
+                                <h6 class="card-title">{{ _('Review') }}</h6>
                                 <p class="card-text fw-bold fs-4">{{ status_stats[2] }}</p>
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 col-md-4 mb-3">
+                    <div class="col-6 col-md-3 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">{{ _('Mastered') }}</h6>
+                                <p class="card-text fw-bold fs-4">{{ status_stats[3] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3 mb-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
                                 <h6 class="card-title">{{ _('Total') }}</h6>
@@ -53,6 +91,30 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Studied -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ _('Recently Studied Words') }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% if recent_words %}
+                        {% for word in recent_words %}
+                        <a href="{{ url_for('words.word_details', word_id=word.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ word.english_word }}</h6>
+                                <small>{{ word.level or 'N/A' }}</small>
+                            </div>
+                            <p class="mb-1">{{ word.russian_word }}</p>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">{{ _('No words studied yet. Start browsing the word list to begin learning!') }}</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -113,88 +175,7 @@
         </div>
     </div>
 
-    <!-- Right Column -->
-    <div class="col-md-6">
-        <!-- Quick Actions -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('Quick Actions') }}</h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">
-                            <i class="fas fa-list me-1"></i> {{ _('Browse Words') }}
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{{ url_for('words.word_list', status=1) }}" class="btn btn-secondary d-block">
-                            <i class="fas fa-hourglass-start me-1"></i> {{ _('Learning Words') }}
-                        </a>
-                    </div>
-                    <div class="col-6">
-                        <a href="{{ url_for('study.index') }}" class="btn btn-success d-block">
-                            <i class="fas fa-graduation-cap me-1"></i> {{ _('Study Now') }}
-                        </a>
-                    </div>
-
-                    <!-- New buttons for reading functionality -->
-                    <div class="col-6">
-                        <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary d-block">
-                            <i class="fas fa-book me-1"></i> {{ _('Find Books') }}
-                        </a>
-                    </div>
-
-                    {% if current_user.get_reading_progress_count() > 0 %}
-                    {% set last_book = current_user.get_last_read_book() %}
-                    {% if last_book %}
-                    <div class="col-6">
-                        <a href="{{ url_for('books.read_book', book_id=last_book.book_id) }}" class="btn btn-outline-success d-block">
-                            <i class="fas fa-book-reader me-1"></i> {{ _('Continue Reading') }}
-                        </a>
-                    </div>
-                    {% else %}
-                    <div class="col-6">
-                        <a href="#" class="btn btn-outline-secondary d-block">
-                            <i class="fas fa-file-export me-1"></i> {{ _('Export to Anki') }}
-                        </a>
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <div class="col-6">
-                        <a href="#" class="btn btn-outline-secondary d-block">
-                            <i class="fas fa-file-export me-1"></i> {{ _('Export to Anki') }}
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Recently Studied -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('Recently Studied Words') }}</h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    {% if recent_words %}
-                        {% for word in recent_words %}
-                        <a href="{{ url_for('words.word_details', word_id=word.id) }}" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ word.english_word }}</h6>
-                                <small>{{ word.level or 'N/A' }}</small>
-                            </div>
-                            <p class="mb-1">{{ word.russian_word }}</p>
-                        </a>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted">{{ _('No words studied yet. Start browsing the word list to begin learning!') }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
+    <div class="col-md-12">
         <!-- Reading Stats Section - New section -->
         <div class="card mt-4">
             <div class="card-header">
