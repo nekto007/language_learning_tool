@@ -424,7 +424,7 @@
         const showTranslations = {{ settings.include_translations|lower }};
         const showExamples = {{ settings.include_examples|lower }};
         const playAudio = {{ settings.include_audio|lower }};
-        const hintTime = 5; // Фиксированное время показа подсказки - 5 секунд
+        const hintTime = 7; // Фиксированное время показа подсказки - 5 секунд
 
         // App state
         let originalCards = []; // Original cards from API
@@ -632,17 +632,37 @@
 
             // Process each original card
             for (const card of originalCards) {
-                // Create eng-rus card
-                alternatingCards.push({
-                    ...card,
-                    direction: 'eng-to-rus'
-                });
+                const isWordEnglish = /^[A-Za-z\s,]+$/.test(card.word);
+                if (isWordEnglish) {
+                    // Create eng-rus card
+                    alternatingCards.push({
+                        ...card,
+                        direction:  'eng-rus',
+                        word:       card.word,
+                        translation:card.translation
+                    });
 
-                // Create rus-eng card
-                alternatingCards.push({
-                    ...card,
-                    direction: 'rus-to-eng'
-                });
+                    alternatingCards.push({
+                        ...card,
+                        direction:  'rus-eng',
+                        word:       card.translation,
+                        translation:card.word
+                    });
+                } else {
+                    alternatingCards.push({
+                        ...card,
+                        direction: 'rus-eng',
+                        word: card.word,
+                        translation: card.translation
+                    });
+
+                    alternatingCards.push({
+                        ...card,
+                        direction: 'eng-rus',
+                        word: card.translation,
+                        translation: card.word
+                    });
+                }
             }
 
             console.log('Created', alternatingCards.length, 'alternating cards');
@@ -675,18 +695,18 @@
 
             // Rebuild cards array with alternating directions
             const shuffledCards = [];
-            const directions = ['eng-to-rus', 'rus-to-eng'];
+            const directions = ['eng-rus', 'rus-eng'];
             let directionIndex = 0;
 
             for (const wordId of wordIds) {
                 const cardsForWord = cardsByWordId[wordId];
                 // Find card with current direction
-                const engToRusCard = cardsForWord.find(c => c.direction === 'eng-to-rus');
-                const rusToEngCard = cardsForWord.find(c => c.direction === 'rus-to-eng');
+                const engToRusCard = cardsForWord.find(c => c.direction === 'eng-rus');
+                const rusToEngCard = cardsForWord.find(c => c.direction === 'rus-eng');
 
                 // Add current direction first
                 const currentDirection = directions[directionIndex % 2];
-                if (currentDirection === 'eng-to-rus') {
+                if (currentDirection === 'eng-rus') {
                     shuffledCards.push(engToRusCard);
                     shuffledCards.push(rusToEngCard);
                 } else {
@@ -813,7 +833,7 @@
 
             const card = cards[index];
             currentCardIndex = index;
-
+            console.log(card.direction, card.word, card.translation);
             // Update progress
             const progress = ((index + 1) / cards.length) * 100;
             progressFill.style.width = `${progress}%`;
@@ -829,39 +849,37 @@
             if (hintTimeout) {
                 clearTimeout(hintTimeout);
             }
+            frontAudioBtn.hidden = true;  // прячем «произношение» спереди
+            backAudioBtn.hidden  = true;  // и сзади, пока не решим иначе
 
             // Configure audio buttons
             const hasAudio = card.audio_url !== null;
 
-            if (hasAudio && playAudio) {
-                frontAudioBtn.style.display = card.direction === 'eng-to-rus' ? 'inline-flex' : 'none';
-                backAudioBtn.style.display = 'inline-flex';
-                wordAudio.src = card.audio_url;
-            } else {
-                frontAudioBtn.style.display = 'none';
-                backAudioBtn.style.display = 'none';
-            }
+            const isEngToRu = card.direction === 'eng-rus';
 
             // Set card content based on direction
-            if (card.direction === 'eng-to-rus') {
-                frontWord.textContent = card.word; // English
-                backWord.textContent = card.word; // English
-                translationText.textContent = card.translation; // Russian
+            frontWord.textContent = card.word;        // всегда word
+            backWord.textContent  = card.word;        // тоже word
+            translationText.textContent = card.translation;
 
-                // Set hint for Russian translation
-                hintText.textContent = formatHint(card.translation);
+            // подсказка
+            hintText.textContent = formatHint(card.translation);
 
-                // Auto-play audio if enabled
-                if (hasAudio && playAudio) {
-                    wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
+            if (hasAudio && playAudio) {
+                // Всегда показываем кнопку произношения, если есть аудио
+                frontAudioBtn.hidden = true;
+                backAudioBtn.hidden = false;
+
+                if (card.direction === 'eng-rus') {
+                    frontAudioBtn.hidden = false;
+                }
+                // Настраиваем аудио источник
+                if (card.audio_url) {
+                    wordAudio.src = card.audio_url;
                 }
             } else {
-                frontWord.textContent = card.translation; // Russian
-                backWord.textContent = card.translation; // Russian
-                translationText.textContent = card.word; // English
-
-                // Set hint for English word
-                hintText.textContent = formatHint(card.word);
+                frontAudioBtn.hidden = true;
+                backAudioBtn.hidden = true;
             }
 
             // Show hint after 5 seconds
@@ -886,7 +904,9 @@
             if (!examples) return { en: '', ru: '' };
 
             // Replace HTML tags with nothing
-            const cleanedExamples = examples.replace(/<[^>]*>/g, '');
+            // const cleanedExamples = examples.replace(/<[^>]*>/g, '');
+            const withNewlines = examples.replace(/<br\s*\/?>/gi, '\n');
+            const cleanedExamples = withNewlines.replace(/<[^>]*>/g, '');
 
             // Split by newlines first
             let lines = cleanedExamples.split('\n').filter(line => line.trim() !== '');
@@ -945,9 +965,9 @@
                 hintTimeout = null;
             }
 
-            // Play audio on card flip for rus-to-eng mode
+            // Play audio on card flip for rus-eng mode
             const card = cards[currentCardIndex];
-            if (card.direction === 'rus-to-eng' && card.audio_url && playAudio) {
+            if (card.direction === 'rus-eng' && card.audio_url && playAudio) {
                 wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
             }
         }
