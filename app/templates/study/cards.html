@@ -979,15 +979,18 @@
                 console.error('Cannot rate card - invalid card index');
                 return;
             }
-
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta && csrfMeta.content;
             const card = cards[currentCardIndex];
 
             try {
                 // Send rating to server with direction
                 const response = await fetch('/study/api/update-study-item', {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(csrfToken && { 'X-CSRFToken': csrfToken }),
                     },
                     body: JSON.stringify({
                         word_id: card.word_id,
@@ -996,6 +999,7 @@
                         session_id: sessionId
                     }),
                 });
+
 
                 const data = await response.json();
                 console.log('Rating response:', data);
