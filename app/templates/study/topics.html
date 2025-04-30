@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Topics') }} - English Learning App{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h1 class="mb-4">{{ _('Word Topics') }}</h1>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+      {% for topic in topics %}
+        <div class="col">
+          <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">{{ topic.name }}</h5>
+              <span class="badge bg-primary">{{ topic.word_count }} {{ _('words') }}</span>
+            </div>
+            <div class="card-body">
+              {% if topic.description %}
+                <p class="card-text">{{ topic.description }}</p>
+              {% endif %}
+
+              {% if topic.words_in_study > 0 %}
+                <div class="progress mb-3" style="height: 10px;">
+                  <div class="progress-bar" role="progressbar"
+                       style="width: {{ (topic.words_in_study / topic.word_count * 100) | int }}%;"
+                       aria-valuenow="{{ topic.words_in_study }}"
+                       aria-valuemin="0"
+                       aria-valuemax="{{ topic.word_count }}">
+                  </div>
+                </div>
+                <p class="small text-muted mb-3">
+                  {{ _('You are studying') }} {{ topic.words_in_study }}/{{ topic.word_count }} {{ _('words') }}
+                </p>
+              {% endif %}
+
+              <div class="word-cloud">
+                {% for word in topic.words[:5] %}
+                  <span class="badge bg-light text-dark me-1 mb-1">{{ word.english_word }}</span>
+                {% endfor %}
+                {% if topic.word_count > 5 %}
+                  <span class="badge bg-light text-primary">+ {{ topic.word_count - 5 }} {{ _('more') }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="card-footer bg-transparent d-flex justify-content-between">
+              <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="btn btn-outline-primary btn-sm">
+                {{ _('View Words') }}
+              </a>
+
+              <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="add-topic-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success btn-sm add-topic-btn">
+                  <i class="fas fa-plus me-1"></i> {{ _('Add to Study') }}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="col-12">
+          <div class="alert alert-info">
+            {{ _('No topics found.') }}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+      document.addEventListener('DOMContentLoaded', function () {
+          // Обработка форм добавления тем с AJAX
+          const addTopicForms = document.querySelectorAll('.add-topic-form');
+
+          addTopicForms.forEach(form => {
+              form.addEventListener('submit', function (e) {
+                  e.preventDefault();
+
+                  const submitBtn = this.querySelector('.add-topic-btn');
+                  submitBtn.disabled = true;
+                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Adding...") }}';
+
+                  fetch(this.action, {
+                      method: 'POST',
+                      headers: {
+                          'X-Requested-With': 'XMLHttpRequest',
+                          'Content-Type': 'application/x-www-form-urlencoded',
+                      },
+                      body: new URLSearchParams(new FormData(this))
+                  })
+                      .then(response => response.json())
+                      .then(data => {
+                          if (data.success) {
+                              // Показать сообщение об успехе
+                              const toastHtml = `
+                            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                                    <div class="toast-header bg-success text-white">
+                                        <strong class="me-auto">{{ _('Success') }}</strong>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                                    </div>
+                                    <div class="toast-body">
+                                        ${data.message}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                              // Добавить тост в DOM
+                              const toastContainer = document.createElement('div');
+                              toastContainer.innerHTML = toastHtml;
+                              document.body.appendChild(toastContainer);
+
+                              // Инициализировать и показать тост
+                              const toastEl = document.querySelector('.toast');
+                              const toast = new bootstrap.Toast(toastEl, {delay: 3000});
+                              toast.show();
+
+                              // Обновить кнопку
+                              if (data.added_count > 0) {
+                                  submitBtn.classList.remove('btn-success');
+                                  submitBtn.classList.add('btn-outline-success');
+                                  submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> {{ _("Added") }}';
+                                  submitBtn.disabled = true;
+                              } else {
+                                  submitBtn.disabled = false;
+                                  submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add to Study") }}';
+                              }
+
+                              // Перезагрузить страницу через 2 секунды для обновления прогресса
+                              setTimeout(() => {
+                                  location.reload();
+                              }, 2000);
+                          }
+                      })
+                      .catch(error => {
+                          console.error('Error:', error);
+                          submitBtn.disabled = false;
+                          submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add to Study") }}';
+                      });
+              });
+          });
+      });
+  </script>
+{% endblock %}

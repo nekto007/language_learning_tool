@@ -1,0 +1,100 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{{ _('Manage Topics') }} - Admin{% endblock %}
+
+{% block content %}
+  <div class="container-fluid pt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h2">{{ _('Manage Topics') }}</h1>
+      <a href="{{ url_for('admin.create_topic') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> {{ _('Create New Topic') }}
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">{{ _('Topics List') }}</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>{{ _('Name') }}</th>
+              <th>{{ _('Description') }}</th>
+              <th>{{ _('Words Count') }}</th>
+              <th class="text-end">{{ _('Actions') }}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for topic in topics %}
+              <tr>
+                <td>{{ topic.id }}</td>
+                <td>{{ topic.name }}</td>
+                <td>{% if topic.description %}{{ topic.description | truncate(50) }}{% else %}-{% endif %}</td>
+                <td>{{ topic.word_count }}</td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <a href="{{ url_for('admin.topic_words', topic_id=topic.id) }}" class="btn btn-sm btn-info">
+                      <i class="fas fa-list me-1"></i> {{ _('Words') }}
+                    </a>
+                    <a href="{{ url_for('admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary">
+                      <i class="fas fa-edit me-1"></i> {{ _('Edit') }}
+                    </a>
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                            data-bs-target="#deleteTopicModal{{ topic.id }}">
+                      <i class="fas fa-trash me-1"></i> {{ _('Delete') }}
+                    </button>
+                  </div>
+
+                  <!-- Delete Modal -->
+                  <div class="modal fade" id="deleteTopicModal{{ topic.id }}" tabindex="-1"
+                       aria-labelledby="deleteTopicModalLabel{{ topic.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title"
+                              id="deleteTopicModalLabel{{ topic.id }}">{{ _('Confirm Delete') }}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-start">
+                          {{ _('Are you sure you want to delete the topic') }} <strong>{{ topic.name }}</strong>?
+                          <p class="mt-2 text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {{ _('This action will delete all associations between this topic and words.') }}
+                          </p>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary"
+                                  data-bs-dismiss="modal">{{ _('Cancel') }}</button>
+                          <form method="POST" action="{{ url_for('admin.delete_topic', topic_id=topic.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">{{ _('Delete') }}</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="text-center py-4">
+                  <div class="text-muted">
+                    <i class="fas fa-folder-open fa-2x mb-2"></i>
+                    <p>{{ _('No topics created yet.') }}</p>
+                    <a href="{{ url_for('admin.create_topic') }}" class="btn btn-sm btn-primary">
+                      <i class="fas fa-plus me-1"></i> {{ _('Create First Topic') }}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
