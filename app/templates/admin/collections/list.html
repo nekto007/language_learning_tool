@@ -1,0 +1,193 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{{ _('Manage Collections') }} - Admin{% endblock %}
+
+{% block content %}
+  <div class="container-fluid pt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h2">{{ _('Manage Collections') }}</h1>
+      <a href="{{ url_for('admin.create_collection') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> {{ _('Create New Collection') }}
+      </a>
+    </div>
+
+    <!-- Search and filter -->
+    <div class="card mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">{{ _('Search & Filter') }}</h5>
+      </div>
+      <div class="card-body">
+        <form method="GET" class="row g-3">
+          <div class="col-md-4">
+            <div class="input-group">
+              <input type="text" name="search" class="form-control" placeholder="{{ _('Search collections...') }}"
+                     value="{{ request.args.get('search', '') }}">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <select name="topic" class="form-select">
+              <option value="">{{ _('All Topics') }}</option>
+              {% for topic in topics %}
+                <option value="{{ topic.id }}"
+                        {% if request.args.get('topic') == topic.id|string %}selected{% endif %}>{{ topic.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select name="sort" class="form-select">
+              <option value="name"
+                      {% if request.args.get('sort') == 'name' %}selected{% endif %}>{{ _('Sort by Name') }}</option>
+              <option value="word_count"
+                      {% if request.args.get('sort') == 'word_count' %}selected{% endif %}>{{ _('Sort by Word Count') }}</option>
+              <option value="created_at"
+                      {% if request.args.get('sort') == 'created_at' %}selected{% endif %}>{{ _('Sort by Creation Date') }}</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">{{ _('Apply') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">{{ _('Collections List') }}</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>{{ _('Name') }}</th>
+              <th>{{ _('Description') }}</th>
+              <th>{{ _('Topics') }}</th>
+              <th>{{ _('Words Count') }}</th>
+              <th>{{ _('Created By') }}</th>
+              <th>{{ _('Date') }}</th>
+              <th class="text-end">{{ _('Actions') }}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for collection in collections %}
+              <tr>
+                <td>{{ collection.id }}</td>
+                <td>{{ collection.name }}</td>
+                <td>
+                  {% if collection.description %}{{ collection.description | truncate(50) }}{% else %}-{% endif %}</td>
+                <td>
+                  {% for topic in collection.topics[:2] %}
+                    <span class="badge bg-secondary">{{ topic.name }}</span>
+                  {% endfor %}
+                  {% if collection.topics|length > 2 %}
+                    <span class="badge bg-light text-dark">+{{ collection.topics|length - 2 }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ collection.word_count }}</td>
+                <td>{{ collection.creator_name }}</td>
+                <td>{{ collection.created_at.strftime('%Y-%m-%d') if collection.created_at else '-' }}</td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <a href="{{ url_for('admin.edit_collection', collection_id=collection.id) }}"
+                       class="btn btn-sm btn-primary">
+                      <i class="fas fa-edit me-1"></i> {{ _('Edit') }}
+                    </a>
+                    <button type="button" class="btn btn-sm btn-danger"
+                            data-toggle="modal"
+                            data-target="#deleteCollectionModal{{ collection.id }}">
+                      <i class="fas fa-trash me-1"></i> {{ _('Delete') }}
+                    </button>
+                  </div>
+
+                  <!-- Delete Modal -->
+                  <div class="modal fade" id="deleteCollectionModal{{ collection.id }}" tabindex="-1"
+                       aria-labelledby="deleteCollectionModalLabel{{ collection.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title"
+                              id="deleteCollectionModalLabel{{ collection.id }}">{{ _('Confirm Delete') }}</h5>
+                          <button type="button" class="close" data-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-start">
+                          {{ _('Are you sure you want to delete the collection') }}
+                          <strong>{{ collection.name }}</strong>?
+                          <p class="mt-2 text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {{ _('This action will delete all associations between this collection and words.') }}
+                          </p>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary"
+                                  data-dismiss="modal">{{ _('Cancel') }}</button>
+                          <form method="POST"
+                                action="{{ url_for('admin.delete_collection', collection_id=collection.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">{{ _('Delete') }}</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="8" class="text-center py-4">
+                  <div class="text-muted">
+                    <i class="fas fa-folder-open fa-2x mb-2"></i>
+                    <p>{{ _('No collections found.') }}</p>
+                    <a href="{{ url_for('admin.create_collection') }}" class="btn btn-sm btn-primary">
+                      <i class="fas fa-plus me-1"></i> {{ _('Create First Collection') }}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      {% if pagination and pagination.pages > 1 %}
+        <div class="card-footer bg-light">
+          <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+              <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('admin.collection_list', page=pagination.prev_num, **request.args) if pagination.has_prev else '#' }}">
+                  <i class="fas fa-chevron-left"></i>
+                </a>
+              </li>
+
+              {% for p in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if p %}
+                  <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link"
+                       href="{{ url_for('admin.collection_list', page=p, **request.args) }}">{{ p }}</a>
+                  </li>
+                {% else %}
+                  <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                  </li>
+                {% endif %}
+              {% endfor %}
+
+              <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                <a class="page-link"
+                   href="{{ url_for('admin.collection_list', page=pagination.next_num, **request.args) if pagination.has_next else '#' }}">
+                  <i class="fas fa-chevron-right"></i>
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

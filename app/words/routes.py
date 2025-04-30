@@ -15,6 +15,7 @@ words = Blueprint('words', __name__)
 def dashboard():
     # Получение статистики по словам пользователя на основе новых моделей
     from app.study.models import UserWord
+    from app.words.models import Collection
 
     # Получаем количество слов в каждом статусе
     status_counts = db.session.query(
@@ -72,6 +73,18 @@ def dashboard():
         game_type='quiz'
     ).order_by(GameScore.score.desc()).first()
 
+    recent_collections = Collection.query.order_by(Collection.created_at.desc()).limit(3).all()
+
+    for collection in recent_collections:
+        # Количество слов в коллекции
+        # collection.word_count = len(collection.words)
+
+        # Количество слов, которые пользователь уже изучает
+        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
+        user_word_ids = [id[0] for id in user_word_ids]
+
+        collection.words_in_study = sum(1 for word in collection.words if word.id in user_word_ids)
+
     return render_template(
         'dashboard.html',
         user_best_matching=user_best_matching,
@@ -80,7 +93,8 @@ def dashboard():
         new_status_stats=status_stats,
         total_words=total_words,
         progress=progress,
-        recent_words=recent_words
+        recent_words=recent_words,
+        recent_collections=recent_collections
     )
 
 

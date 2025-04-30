@@ -7,6 +7,7 @@ from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
 from app.utils.i18n import init_babel
 from config.settings import Config
+from flask_wtf.csrf import CSRFProtect
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
@@ -17,7 +18,7 @@ login_manager.login_message_category = 'info'
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
-
+    csrf = CSRFProtect(app)
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -60,6 +61,9 @@ def create_app(config_class=Config):
 
     from app.api.anki import api_anki as api_anki_blueprint
     app.register_blueprint(api_anki_blueprint, url_prefix='/api')
+
+    from app.api.topics_collections import api_topics_collections
+    app.register_blueprint(api_topics_collections, url_prefix='/api')
 
     @login_manager.user_loader
     def load_user(user_id):

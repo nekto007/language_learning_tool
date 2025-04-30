@@ -1,0 +1,555 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{{ _('Manage Words in Topic') }} - Admin{% endblock %}
+
+{% block content %}
+  <div class="container-fluid pt-4">
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.topic_list') }}">{{ _('Topics') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ topic.name }}</li>
+          </ol>
+        </nav>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <h1 class="h2">{{ _('Manage Words in Topic') }}: {{ topic.name }}</h1>
+
+          <a href="{{ url_for('admin.edit_topic', topic_id=topic.id) }}" class="btn btn-primary">
+            <i class="fas fa-edit me-1"></i> {{ _('Edit Topic') }}
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ _('Words in Topic') }} ({{ topic_words|length }})</h5>
+
+            <div class="input-group input-group-sm" style="width: 200px;">
+              <input type="text" id="search-topic-words" class="form-control" placeholder="{{ _('Search...') }}">
+              <button class="btn btn-outline-secondary" type="button">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-hover mb-0">
+              <thead class="table-light sticky-top">
+              <tr>
+                <th>{{ _('English') }}</th>
+                <th>{{ _('Russian') }}</th>
+                <th>{{ _('Level') }}</th>
+                <th class="text-end">{{ _('Action') }}</th>
+              </tr>
+              </thead>
+              <tbody id="topic-words-container">
+              {% for word in topic_words %}
+                <tr data-word-id="{{ word.id }}" data-word-english="{{ word.english_word|lower }}">
+                  <td>{{ word.english_word }}</td>
+                  <td>{{ word.russian_word }}</td>
+                  <td>
+                    {% if word.level %}
+                      <span class="badge {% if word.level == 'A1' %}bg-success{% elif word.level == 'A2' %}bg-info{% elif word.level == 'B1' %}bg-primary{% elif word.level == 'B2' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ word.level }}
+                                    </span>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-danger remove-word-btn" data-word-id="{{ word.id }}">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              {% else %}
+                <tr id="no-topic-words">
+                  <td colspan="4" class="text-center py-3">
+                    <div class="text-muted">{{ _('No words in this topic yet.') }}</div>
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ _('Available Words') }}</h5>
+
+            <div class="input-group input-group-sm" style="width: 200px;">
+              <input type="text" id="search-available-words" class="form-control" placeholder="{{ _('Search...') }}">
+              <button class="btn btn-outline-secondary" type="button">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-hover mb-0">
+              <thead class="table-light sticky-top">
+              <tr>
+                <th>{{ _('English') }}</th>
+                <th>{{ _('Russian') }}</th>
+                <th>{{ _('Level') }}</th>
+                <th class="text-end">{{ _('Action') }}</th>
+              </tr>
+              </thead>
+              <tbody id="available-words-container">
+              {% for word in available_words %}
+                <tr data-word-id="{{ word.id }}" data-word-english="{{ word.english_word|lower }}">
+                  <td>{{ word.english_word }}</td>
+                  <td>{{ word.russian_word }}</td>
+                  <td>
+                    {% if word.level %}
+                      <span class="badge {% if word.level == 'A1' %}bg-success{% elif word.level == 'A2' %}bg-info{% elif word.level == 'B1' %}bg-primary{% elif word.level == 'B2' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ word.level }}
+                                    </span>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-success add-word-btn" data-word-id="{{ word.id }}">
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-center py-3">
+                    <div class="text-muted">{{ _('No available words to add.') }}</div>
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-4">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header bg-light">
+            <h5 class="mb-0">{{ _('Bulk Add Words') }}</h5>
+          </div>
+          <div class="card-body">
+            <form id="bulk-add-form" class="row g-3">
+              <div class="col-md-10">
+                <textarea id="bulk-words" class="form-control" rows="3"
+                          placeholder="{{ _('Enter words separated by commas or new lines (e.g. experience, skills, internship)') }}"></textarea>
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">{{ _('Add Words') }}</button>
+              </div>
+            </form>
+
+            <div class="mt-3" id="bulk-results" style="display: none;">
+              <h6>{{ _('Results') }}:</h6>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="alert alert-success" role="alert">
+                    <span id="words-added-count">0</span> {{ _('words added') }}
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="alert alert-warning" role="alert">
+                    <span id="words-existing-count">0</span> {{ _('already in topic') }}
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="alert alert-danger" role="alert">
+                    <span id="words-not-found-count">0</span> {{ _('not found') }}
+                  </div>
+                </div>
+              </div>
+              <div id="words-not-found-list" class="small text-danger mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+      document.addEventListener('DOMContentLoaded', function () {
+          const topicId = {{ topic.id }};
+          const topicWordsContainer = document.getElementById('topic-words-container');
+          const availableWordsContainer = document.getElementById('available-words-container');
+          const noTopicWordsRow = document.getElementById('no-topic-words');
+
+          const searchTopicWords = document.getElementById('search-topic-words');
+          const searchAvailableWords = document.getElementById('search-available-words');
+
+          const bulkAddForm = document.getElementById('bulk-add-form');
+          const bulkWordsInput = document.getElementById('bulk-words');
+          const bulkResults = document.getElementById('bulk-results');
+          const wordsAddedCount = document.getElementById('words-added-count');
+          const wordsExistingCount = document.getElementById('words-existing-count');
+          const wordsNotFoundCount = document.getElementById('words-not-found-count');
+          const wordsNotFoundList = document.getElementById('words-not-found-list');
+
+          // Функция фильтрации слов по поисковому запросу
+          function filterWords(container, searchTerm) {
+              const rows = container.querySelectorAll('tr[data-word-id]');
+              const normalizedSearchTerm = searchTerm.toLowerCase();
+
+              rows.forEach(row => {
+                  const wordEnglish = row.getAttribute('data-word-english');
+                  if (wordEnglish.includes(normalizedSearchTerm)) {
+                      row.style.display = '';
+                  } else {
+                      row.style.display = 'none';
+                  }
+              });
+          }
+
+          // Поиск по словам в теме
+          searchTopicWords.addEventListener('input', function () {
+              filterWords(topicWordsContainer, this.value);
+          });
+
+          // Поиск по доступным словам
+          searchAvailableWords.addEventListener('input', function () {
+              filterWords(availableWordsContainer, this.value);
+          });
+
+          // Обработчик добавления слова в тему
+          function setupAddWordButtons() {
+              const addButtons = document.querySelectorAll('.add-word-btn');
+              addButtons.forEach(button => {
+                  button.addEventListener('click', function () {
+                      const wordId = this.getAttribute('data-word-id');
+                      addWordToTopic(wordId, this);
+                  });
+              });
+          }
+
+          // Обработчик удаления слова из темы
+          function setupRemoveWordButtons() {
+              const removeButtons = document.querySelectorAll('.remove-word-btn');
+              removeButtons.forEach(button => {
+                  button.addEventListener('click', function () {
+                      const wordId = this.getAttribute('data-word-id');
+                      removeWordFromTopic(wordId, this);
+                  });
+              });
+          }
+
+          // Функция добавления слова в тему
+          function addWordToTopic(wordId, button) {
+              button.disabled = true;
+              button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+              const csrf = document
+                      .querySelector('meta[name="csrf-token"]')
+                      .getAttribute('content');
+              fetch(`/admin/topics/${topicId}/add_word/${wordId}`, {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'Content-Type': 'application/json',
+                      'X-CSRFToken': csrf
+                  },
+                  body: JSON.stringify({})
+              })
+                  .then(async res => {
+                      const isJson = res.headers.get('content-type')?.includes('application/json');
+                      if (!isJson) throw new Error('Non-JSON response');
+                      return res.json();
+                  })
+                  .then(data => {
+                      if (data.success) {
+                          // Перемещаем строку из правой таблицы в левую
+                          const row = button.closest('tr');
+                          const wordEnglish = row.querySelector('td:first-child').textContent;
+                          const wordRussian = row.querySelector('td:nth-child(2)').textContent;
+                          const wordLevel = row.querySelector('td:nth-child(3)').innerHTML;
+
+                          // Создаем новую строку для таблицы слов в теме
+                          const newRow = document.createElement('tr');
+                          newRow.setAttribute('data-word-id', wordId);
+                          newRow.setAttribute('data-word-english', wordEnglish.toLowerCase());
+                          newRow.innerHTML = `
+                        <td>${wordEnglish}</td>
+                        <td>${wordRussian}</td>
+                        <td>${wordLevel}</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-danger remove-word-btn" data-word-id="${wordId}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </td>
+                    `;
+
+                          // Добавляем обработчик для новой кнопки удаления
+                          const removeBtn = newRow.querySelector('.remove-word-btn');
+                          removeBtn.addEventListener('click', function () {
+                              const wordId = this.getAttribute('data-word-id');
+                              removeWordFromTopic(wordId, this);
+                          });
+
+                          // Скрываем сообщение "нет слов", если оно есть
+                          if (noTopicWordsRow) {
+                              noTopicWordsRow.style.display = 'none';
+                          }
+
+                          // Добавляем строку в таблицу слов темы
+                          topicWordsContainer.appendChild(newRow);
+
+                          // Удаляем строку из таблицы доступных слов
+                          row.remove();
+                      } else {
+                          // Восстанавливаем кнопку при ошибке
+                          button.disabled = false;
+                          button.innerHTML = '<i class="fas fa-plus"></i>';
+
+                          // Показываем сообщение об ошибке
+                          alert(data.message || '{{ _("Error adding word to topic") }}');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error:', error);
+                      button.disabled = false;
+                      button.innerHTML = '<i class="fas fa-plus"></i>';
+                      alert('{{ _("An error occurred. Please try again.") }}');
+                  });
+          }
+
+          // Функция удаления слова из темы
+          function removeWordFromTopic(wordId, button) {
+              button.disabled = true;
+              button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+              const csrf = document
+                      .querySelector('meta[name="csrf-token"]')
+                      .getAttribute('content');
+
+              fetch(`/admin/topics/${topicId}/remove_word/${wordId}`, {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'Content-Type': 'application/json',
+                      'X-CSRFToken': csrf
+                  },
+                  body: JSON.stringify({})
+              })
+                  .then(async res => {
+                      const isJson = res.headers.get('content-type')?.includes('application/json');
+                      if (!isJson) throw new Error('Non-JSON response');
+                      return res.json();
+                  })
+                  .then(data => {
+                      if (data.success) {
+                          // Перемещаем строку из левой таблицы в правую
+                          const row = button.closest('tr');
+                          const wordEnglish = row.querySelector('td:first-child').textContent;
+                          const wordRussian = row.querySelector('td:nth-child(2)').textContent;
+                          const wordLevel = row.querySelector('td:nth-child(3)').innerHTML;
+
+                          // Создаем новую строку для таблицы доступных слов
+                          const newRow = document.createElement('tr');
+                          newRow.setAttribute('data-word-id', wordId);
+                          newRow.setAttribute('data-word-english', wordEnglish.toLowerCase());
+                          newRow.innerHTML = `
+                        <td>${wordEnglish}</td>
+                        <td>${wordRussian}</td>
+                        <td>${wordLevel}</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-success add-word-btn" data-word-id="${wordId}">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </td>
+                    `;
+
+                          // Добавляем обработчик для новой кнопки добавления
+                          const addBtn = newRow.querySelector('.add-word-btn');
+                          addBtn.addEventListener('click', function () {
+                              const wordId = this.getAttribute('data-word-id');
+                              addWordToTopic(wordId, this);
+                          });
+
+                          // Добавляем строку в таблицу доступных слов
+                          availableWordsContainer.appendChild(newRow);
+
+                          // Проверяем, нужно ли показать сообщение "нет слов в теме"
+                          row.remove();
+                          if (topicWordsContainer.querySelectorAll('tr[data-word-id]').length === 0) {
+                              if (noTopicWordsRow) {
+                                  noTopicWordsRow.style.display = '';
+                              } else {
+                                  const rowEmpty = document.createElement('tr');
+                                  rowEmpty.id = 'no-topic-words';
+                                  rowEmpty.innerHTML =
+                                      `<td colspan="4" class="text-center py-3 text-muted">
+                                          {{ _('No words in this topic yet.') }}
+                                       </td>`;
+                                  topicWordsContainer.appendChild(rowEmpty);
+                              }
+                          }
+                      } else {
+                          // Восстанавливаем кнопку при ошибке
+                          button.disabled = false;
+                          button.innerHTML = '<i class="fas fa-times"></i>';
+
+                          // Показываем сообщение об ошибке
+                          alert(data.message || '{{ _("Error removing word from topic") }}');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Error:', error);
+                      button.disabled = false;
+                      button.innerHTML = '<i class="fas fa-times"></i>';
+                      alert('{{ _("An error occurred. Please try again.") }}');
+                  });
+          }
+
+          // Массовое добавление слов
+          // Массовое добавление слов
+          bulkAddForm.addEventListener('submit', function (e) {
+              e.preventDefault();
+
+              // Получаем введенные слова
+              const wordsText = bulkWordsInput.value.trim();
+              if (!wordsText) {
+                  alert('{{ _("Please enter words to add") }}');
+                  return;
+              }
+
+              // Разбиваем введенный текст на слова
+              const wordsArray = wordsText.split(/[\s,;]+/)
+                  .map(word => word.trim())
+                  .filter(word => word); // Удаляем пустые строки
+
+              if (wordsArray.length === 0) {
+                  alert('{{ _("Please enter valid words to add") }}');
+                  return;
+              }
+
+              // Отправляем запрос
+              this.querySelector('button[type="submit"]').disabled = true;
+              this.querySelector('button[type="submit"]').innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Processing...") }}';
+
+              const results = {
+                  added: 0,
+                  existing: 0,
+                  notFound: []
+              };
+
+              // Функция для добавления слова в тему через форму
+              function addWordViaFetch(wordId, word) {
+                  const csrf = document
+                      .querySelector('meta[name="csrf-token"]')
+                      .getAttribute('content');
+
+                  return fetch(`/admin/topics/${topicId}/add_word/${wordId}`, {
+                      method: 'POST',
+                      credentials: 'same-origin',
+                      headers: {
+                          'X-Requested-With': 'XMLHttpRequest',
+                          'Content-Type': 'application/json',
+                          'X-CSRFToken': csrf
+                      },
+                      body: JSON.stringify({})
+                  })
+                      .then(async res => {
+                          const isJson = res.headers.get('content-type')?.includes('application/json');
+                          if (!isJson) throw new Error('Non-JSON response');
+                          return res.json();
+                      })
+                      .then(data => {
+                          if (data.success) {
+                              results.added++;
+                          } else if (data.message === 'already_exists') {
+                              results.existing++;
+                          } else {
+                              results.notFound.push(word);
+                          }
+                      })
+                      .catch(err => {
+                          console.error(`Error adding "${word}":`, err);
+                          results.notFound.push(word);
+                      });
+              }
+
+              // Функция для последовательной обработки слов
+              async function processWords() {
+                  for (let i = 0; i < wordsArray.length; i++) {
+                      const word = wordsArray[i];
+                      console.log(`Processing word: "${word}" (${i + 1}/${wordsArray.length})`);
+
+                      try {
+                          // Поиск слова
+                          const response = await fetch('/api/search?term=' + encodeURIComponent(word));
+                          const data = await response.json();
+
+                          console.log('Search result for word "' + word + '":', data);
+
+                          // Проверяем, найдено ли слово
+                          if (data && data.length > 0) {
+                              const foundWord = data[0];
+                              console.log(`Found word "${word}" with ID: ${foundWord.id}`);
+
+                              // Добавляем слово через форму
+                              await addWordViaFetch(foundWord.id, word);
+                          } else {
+                              // Слово не найдено
+                              console.log(`Word "${word}" not found in database`);
+                              results.notFound.push(word);
+                          }
+                      } catch (error) {
+                          console.error(`Error processing word "${word}":`, error);
+                          results.notFound.push(word);
+                      }
+                  }
+
+                  // Обновляем интерфейс с результатами
+                  console.log('All words processed. Results:', results);
+                  wordsAddedCount.textContent = results.added;
+                  wordsExistingCount.textContent = results.existing;
+                  wordsNotFoundCount.textContent = results.notFound.length;
+
+                  if (results.notFound.length > 0) {
+                      wordsNotFoundList.textContent = `{{ _("Words not found") }}: ${results.notFound.join(', ')}`;
+                      wordsNotFoundList.style.display = 'block';
+                  } else {
+                      wordsNotFoundList.style.display = 'none';
+                  }
+
+                  bulkResults.style.display = 'block';
+
+                  // Если добавлены слова, перезагружаем страницу
+                  if (results.added > 0) {
+                      console.log(`Reloading page in 2 seconds (added ${results.added} words)`);
+                      setTimeout(() => {
+                          location.reload();
+                      }, 2000);
+                  } else {
+                      // Иначе восстанавливаем кнопку
+                      bulkAddForm.querySelector('button[type="submit"]').disabled = false;
+                      bulkAddForm.querySelector('button[type="submit"]').textContent = '{{ _("Add Words") }}';
+                  }
+              }
+
+              // Запускаем обработку
+              processWords();
+          });
+
+          // Инициализация обработчиков кнопок
+          setupAddWordButtons();
+          setupRemoveWordButtons();
+      });
+  </script>
+{% endblock %}

@@ -15,6 +15,8 @@ def get_words():
     # Get query parameters
     status = request.args.get('status', type=int)
     book_id = request.args.get('book_id', type=int)
+    topic_id = request.args.get('topic_id', type=int)
+    collection_id = request.args.get('collection_id', type=int)
     letter = request.args.get('letter')
     search = request.args.get('search')
     page = request.args.get('page', 1, type=int)
@@ -30,7 +32,6 @@ def get_words():
 
         status_str = status_to_string(status)
 
-        # Используем только новую систему
         new_system_words = db.session.query(UserWord.word_id).filter(
             UserWord.user_id == current_user.id,
             UserWord.status == status_str
@@ -44,6 +45,20 @@ def get_words():
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
         ).where(word_book_link.c.book_id == book_id)
+
+    if topic_id is not None:
+        from app.words.models import TopicWord
+        query = query.join(
+            TopicWord,
+            CollectionWords.id == TopicWord.word_id
+        ).where(TopicWord.topic_id == topic_id)
+
+    if collection_id is not None:
+        from app.words.models import CollectionWordLink
+        query = query.join(
+            CollectionWordLink,
+            CollectionWords.id == CollectionWordLink.word_id
+        ).where(CollectionWordLink.collection_id == collection_id)
 
     if letter:
         query = query.where(CollectionWords.english_word.like(f"{letter}%"))
@@ -117,6 +132,34 @@ def get_word(word_id):
     # Get user's status for this word
     status = current_user.get_word_status(word_id)
 
+    from app.words.models import Topic, TopicWord
+    topics_query = db.select(Topic).join(
+        TopicWord, Topic.id == TopicWord.topic_id
+    ).where(
+        TopicWord.word_id == word_id
+    ).order_by(Topic.name)
+
+    topics = db.session.execute(topics_query).scalars().all()
+
+    topics_list = [{
+        'id': topic.id,
+        'name': topic.name
+    } for topic in topics]
+
+    from app.words.models import Collection, CollectionWordLink
+    collections_query = db.select(Collection).join(
+        CollectionWordLink, Collection.id == CollectionWordLink.collection_id
+    ).where(
+        CollectionWordLink.word_id == word_id
+    ).order_by(Collection.name)
+
+    collections = db.session.execute(collections_query).scalars().all()
+
+    collections_list = [{
+        'id': collection.id,
+        'name': collection.name
+    } for collection in collections]
+
     return jsonify({
         'id': word.id,
         'english_word': word.english_word,
@@ -127,7 +170,9 @@ def get_word(word_id):
         'brown': word.brown,
         'get_download': word.get_download,
         'status': status,
-        'books': books
+        'books': books,
+        'topics': topics_list,
+        'collections': collections_list
     })
 
 
@@ -224,3 +269,42 @@ def batch_update_status():
             'error': str(e),
             'status_code': 500
         }), 500
+
+
+@api_words.route('/search')
+def search_words():
+    """API для поиска слов (используется в административном интерфейсе)"""
+    term = request.args.get('term', '')
+
+    # Отладочная информация
+    print(f"Search API called with term: '{term}'")
+
+    if not term or len(term) < 2:
+        print(f"Search term too short: '{term}'")
+        return jsonify([])
+
+    try:
+        # Поиск слов по частичному совпадению
+        search_term = f"{term}"
+        search_term_lower = search_term.lower()
+        words = CollectionWords.query.filter(
+            or_(
+                CollectionWords.english_word  == search_term_lower,
+                CollectionWords.russian_word  == search_term_lower
+            )
+        ).order_by(CollectionWords.english_word).limit(50).all()
+
+        # Форматируем результат
+        result = [{
+            'id': word.id,
+            'english_word': word.english_word,
+            'russian_word': word.russian_word,
+            'level': word.level
+        } for word in words]
+
+        print(f"Search results for '{term}': {len(result)} words found")
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error in search API: {str(e)}")
+        # Вместо простого повторного вызова исключения, отправляем понятный ответ с ошибкой
+        return jsonify({"error": str(e)}), 500

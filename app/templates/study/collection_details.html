@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ collection.name }} - {{ _('Collection Details') }}{% endblock %}
+
+{% block content %}
+  <div class="container mt-4">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('study.collections') }}">{{ _('Collections') }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ collection.name }}</li>
+      </ol>
+    </nav>
+
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h3 class="mb-0">{{ collection.name }}</h3>
+        <span class="badge bg-light text-primary">{{ collection.words|length }} {{ _('words') }}</span>
+      </div>
+      <div class="card-body">
+        {% if collection.description %}
+          <div class="mb-4">
+            <h5>{{ _('Description') }}</h5>
+            <p>{{ collection.description }}</p>
+          </div>
+        {% endif %}
+
+        <div class="mb-4">
+          <h5>{{ _('Topics') }}</h5>
+          <div>
+            {% for topic in topics %}
+              <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}"
+                 class="badge bg-secondary text-decoration-none me-1 mb-1">
+                {{ topic.name }}
+              </a>
+            {% else %}
+              <p class="text-muted fst-italic">{{ _('No topics assigned to this collection') }}</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="{{ url_for('study.collections') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> {{ _('Back to Collections') }}
+          </a>
+
+          <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}"
+                id="add-collection-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success" id="add-collection-btn">
+              <i class="fas fa-plus me-1"></i> {{ _('Add All Words to Study List') }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-light">
+        <h4 class="mb-0">{{ _('Words in this Collection') }}</h4>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+            <tr>
+              <th>{{ _('English') }}</th>
+              <th>{{ _('Russian') }}</th>
+              <th>{{ _('Level') }}</th>
+              <th>{{ _('Status') }}</th>
+              <th class="text-end">{{ _('Actions') }}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for word in words %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('words.word_details', word_id=word.id) }}" class="word-link">
+                    {{ word.english_word }}
+                  </a>
+                </td>
+                <td>{{ word.russian_word }}</td>
+                <td>
+                  {% if word.level %}
+                    <span class="badge {% if word.level == 'A1' %}bg-success{% elif word.level == 'A2' %}bg-info{% elif word.level == 'B1' %}bg-primary{% elif word.level == 'B2' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ word.level }}
+                                </span>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% if word.is_studying %}
+                    <span class="badge bg-success">{{ _('In Study List') }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ _('Not Studying') }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if not word.is_studying %}
+                    <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}"
+                          class="d-inline add-word-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-outline-success add-word-btn">
+                        <i class="fas fa-plus"></i> {{ _('Add to Study') }}
+                      </button>
+                    </form>
+                  {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-success" disabled>
+                      <i class="fas fa-check"></i> {{ _('Added') }}
+                    </button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+      document.addEventListener('DOMContentLoaded', function () {
+          // Обработка формы добавления всей коллекции
+          const addCollectionForm = document.getElementById('add-collection-form');
+          const addCollectionBtn = document.getElementById('add-collection-btn');
+
+          if (addCollectionForm) {
+              addCollectionForm.addEventListener('submit', function (e) {
+                  e.preventDefault();
+
+                  addCollectionBtn.disabled = true;
+                  addCollectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Adding...") }}';
+
+                  fetch(this.action, {
+                      method: 'POST',
+                      headers: {
+                          'X-Requested-With': 'XMLHttpRequest',
+                          'Content-Type': 'application/x-www-form-urlencoded',
+                      },
+                      body: new URLSearchParams(new FormData(this))
+                  })
+                      .then(response => response.json())
+                      .then(data => {
+                          if (data.success) {
+                              // Показать сообщение об успехе
+                              const toastHtml = `
+                            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                                    <div class="toast-header bg-success text-white">
+                                        <strong class="me-auto">{{ _('Success') }}</strong>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                                    </div>
+                                    <div class="toast-body">
+                                        ${data.message}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                              // Добавить тост в DOM
+                              const toastContainer = document.createElement('div');
+                              toastContainer.innerHTML = toastHtml;
+                              document.body.appendChild(toastContainer);
+
+                              // Инициализировать и показать тост
+                              const toastEl = document.querySelector('.toast');
+                              const toast = new bootstrap.Toast(toastEl, {delay: 3000});
+                              toast.show();
+
+                              // Обновить кнопку
+                              if (data.added_count > 0) {
+                                  addCollectionBtn.classList.remove('btn-success');
+                                  addCollectionBtn.classList.add('btn-outline-success');
+                                  addCollectionBtn.innerHTML = '<i class="fas fa-check me-1"></i> {{ _("Words Added") }}';
+                                  addCollectionBtn.disabled = true;
+
+                                  // Перезагрузить страницу через 2 секунды
+                                  setTimeout(() => {
+                                      location.reload();
+                                  }, 2000);
+                              } else {
+                                  addCollectionBtn.disabled = false;
+                                  addCollectionBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add All Words to Study List") }}';
+                              }
+                          }
+                      })
+                      .catch(error => {
+                          console.error('Error:', error);
+                          addCollectionBtn.disabled = false;
+                          addCollectionBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add All Words to Study List") }}';
+                      });
+              });
+          }
+
+          // Обработка форм добавления отдельных слов
+          const addWordForms = document.querySelectorAll('.add-word-form');
+
+          addWordForms.forEach(form => {
+              form.addEventListener('submit', function (e) {
+                  e.preventDefault();
+
+                  const submitBtn = this.querySelector('.add-word-btn');
+                  submitBtn.disabled = true;
+                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                  fetch(this.action, {
+                      method: 'POST',
+                      headers: {
+                          'X-Requested-With': 'XMLHttpRequest',
+                          'Content-Type': 'application/x-www-form-urlencoded',
+                      },
+                      body: new URLSearchParams(new FormData(this))
+                  })
+                      .then(response => {
+                          if (response.ok) {
+                              // Изменить кнопку на "Added"
+                              submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Added") }}';
+                              submitBtn.disabled = true;
+
+                              // Обновить строку таблицы
+                              const row = submitBtn.closest('tr');
+                              const statusCell = row.querySelector('td:nth-child(4)');
+                              statusCell.innerHTML = '<span class="badge bg-success">{{ _("In Study List") }}</span>';
+                          } else {
+                              throw new Error('Server error');
+                          }
+                      })
+                      .catch(error => {
+                          console.error('Error:', error);
+                          submitBtn.disabled = false;
+                          submitBtn.innerHTML = '<i class="fas fa-plus"></i> {{ _("Add to Study") }}';
+                      });
+              });
+          });
+      });
+  </script>
+{% endblock %}

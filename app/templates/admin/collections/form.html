@@ -1,0 +1,559 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{{ title }} - Admin{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+  <style>
+      #selected-words-container {
+          max-height: 300px;
+          overflow-y: auto;
+          border: 1px solid #dee2e6;
+          border-radius: 0.25rem;
+          padding: 0.5rem;
+      }
+
+      .word-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.5rem;
+          border-bottom: 1px solid #f1f1f1;
+      }
+
+      .word-item:last-child {
+          border-bottom: none;
+      }
+
+      .word-remove {
+          cursor: pointer;
+          color: #dc3545;
+      }
+
+      .selected-topics {
+          margin-top: 0.5rem;
+      }
+
+      .selected-topic {
+          display: inline-block;
+          margin-right: 0.5rem;
+          margin-bottom: 0.5rem;
+      }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="container-fluid pt-4">
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a
+                    href="{{ url_for('admin.collection_list') }}">{{ _('Collections') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+          </ol>
+        </nav>
+
+        <h1 class="h2">{{ title }}</h1>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header bg-light">
+            <h5 class="mb-0">{{ _('Collection Information') }}</h5>
+          </div>
+          <div class="card-body">
+            <form method="POST" id="collection-form">
+              {{ form.csrf_token }}
+              {{ form.word_ids(id="word_ids", style="display: none;") }}
+              {{ form.topic_ids(id="topic_ids", style="display: none;") }}
+
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="name">{{ _('Collection Name') }} <span class="text-danger">*</span></label>
+                    {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), id="name", placeholder=_('Enter collection name')) }}
+                    {% if form.name.errors %}
+                      <div class="invalid-feedback">
+                        {% for error in form.name.errors %}
+                          {{ error }}
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="description">{{ _('Description') }}</label>
+                    {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), id="description", rows=3, placeholder=_('Enter collection description')) }}
+                    {% if form.description.errors %}
+                      <div class="invalid-feedback">
+                        {% for error in form.description.errors %}
+                          {{ error }}
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="row mb-4">
+                <div class="col-md-12">
+                  <div class="card mb-3">
+                    <div class="card-header bg-light">
+                      <h5 class="mb-0">{{ _('Select Topics') }}</h5>
+                    </div>
+                    <div class="card-body">
+                      <p class="text-muted">{{ _('Select topics to filter words or create a collection from mixed topics.') }}</p>
+                      <div class="row">
+                        {% for topic in topics %}
+                          <div class="col-md-3 mb-2">
+                            <div class="form-check">
+                              <input type="checkbox" class="form-check-input topic-checkbox" id="topic{{ topic.id }}"
+                                     value="{{ topic.id }}">
+                              <label class="form-check-label" for="topic{{ topic.id }}">{{ topic.name }}</label>
+                            </div>
+                          </div>
+                        {% endfor %}
+                      </div>
+
+                      <div class="selected-topics mt-3">
+                        <strong id="selected-topics-label" style="display: none;">{{ _('Selected Topics') }}:</strong>
+                        <div id="selected-topics-container" class="d-flex flex-wrap"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header bg-light">
+                      <h5 class="mb-0">{{ _('Available Words') }}</h5>
+                    </div>
+                    <div class="card-body">
+                      <div class="mb-3">
+                        <div class="input-group">
+                          <input type="text" id="word-search" class="form-control"
+                                 placeholder="{{ _('Search words...') }}">
+                          <button type="button" id="search-btn" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div id="available-words-container" class="list-group"
+                           style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center p-3">
+                          <i class="fas fa-info-circle me-1"></i> {{ _('Select topics or search for words to see available options') }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">{{ _('Selected Words') }}</h5>
+                      <span class="badge bg-primary" id="word-count">0</span>
+                    </div>
+                    <div class="card-body">
+                      <div id="selected-words-container">
+                        <div class="text-center p-3" id="no-words-selected">
+                          <i class="fas fa-folder-open me-1"></i> {{ _('No words selected yet') }}
+                        </div>
+                        <div id="selected-words-list"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 d-flex justify-content-between">
+                <a href="{{ url_for('admin.collection_list') }}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-left me-1"></i> {{ _('Back to Collections') }}
+                </a>
+                {{ form.submit(class="btn btn-primary") }}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+      document.addEventListener('DOMContentLoaded', function () {
+          // Хранилище выбранных слов и тем
+          const selectedWords = new Map();
+          const selectedTopics = new Set();
+
+          // Ссылки на элементы DOM
+          const wordIdsInput = document.getElementById('word_ids');
+          const topicIdsInput = document.getElementById('topic_ids');
+          const topicCheckboxes = document.querySelectorAll('.topic-checkbox');
+          const selectedTopicsContainer = document.getElementById('selected-topics-container');
+          const selectedTopicsLabel = document.getElementById('selected-topics-label');
+          const availableWordsContainer = document.getElementById('available-words-container');
+          const selectedWordsList = document.getElementById('selected-words-list');
+          const noWordsSelectedMsg = document.getElementById('no-words-selected');
+          const wordCountBadge = document.getElementById('word-count');
+          const wordSearchInput = document.getElementById('word-search');
+          const searchBtn = document.getElementById('search-btn');
+
+          // Инициализация для редактирования
+          {% if collection %}
+              // Заполнение выбранных слов из существующей коллекции
+              {% for word in collection.words %}
+                  addWordToSelection({
+                      id: {{ word.id }},
+                      english_word: "{{ word.english_word }}",
+                      russian_word: "{{ word.russian_word }}",
+                      level: "{{ word.level }}"
+                  });
+              {% endfor %}
+
+              // Предварительное выделение тем из слов коллекции
+              {% for topic in collection.topics %}
+                  const topicCheckbox = document.getElementById('topic{{ topic.id }}');
+                  if (topicCheckbox) {
+                      topicCheckbox.checked = true;
+                      selectedTopics.add({{ topic.id }});
+                      addTopicBadge({{ topic.id }}, "{{ topic.name }}");
+                  }
+              {% endfor %}
+
+              // Обновление hidden input
+              updateHiddenInputs();
+          {% endif %}
+
+          // Обработчики событий
+
+          // 1. Выбор тем
+          topicCheckboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', function () {
+                  const topicId = parseInt(this.value);
+                  const topicName = this.nextElementSibling.textContent;
+
+                  if (this.checked) {
+                      selectedTopics.add(topicId);
+                      addTopicBadge(topicId, topicName);
+                  } else {
+                      selectedTopics.delete(topicId);
+                      removeTopicBadge(topicId);
+                  }
+
+                  updateHiddenInputs();
+                  loadWordsForSelectedTopics();
+              });
+          });
+
+          // 2. Поиск слов
+          searchBtn.addEventListener('click', searchWords);
+          wordSearchInput.addEventListener('keypress', function (e) {
+              if (e.key === 'Enter') {
+                  e.preventDefault();
+                  searchWords();
+              }
+          });
+
+          // 3. Отправка формы
+          document.getElementById('collection-form').addEventListener('submit', function (e) {
+              // Убедимся, что данные обновлены перед отправкой
+              updateHiddenInputs();
+
+              // Проверка на наличие слов
+              if (selectedWords.size === 0) {
+                  e.preventDefault();
+                  alert("{{ _('Please select at least one word for the collection') }}");
+              }
+          });
+
+          // Функции
+
+          // Добавление бейджа выбранной темы
+          function addTopicBadge(topicId, topicName) {
+              if (selectedTopics.size > 0) {
+                  selectedTopicsLabel.style.display = 'block';
+              }
+
+              // Проверим, нет ли уже этого бейджа
+              if (document.getElementById(`topic-badge-${topicId}`)) {
+                  return;
+              }
+
+              const badge = document.createElement('span');
+              badge.className = 'badge bg-secondary me-1 mb-1 selected-topic';
+              badge.id = `topic-badge-${topicId}`;
+              badge.innerHTML = `${topicName} <i class="fas fa-times ms-1" data-topic-id="${topicId}" style="cursor: pointer;"></i>`;
+
+              // Обработчик для удаления темы при клике на крестик
+              badge.querySelector('i').addEventListener('click', function () {
+                  const topicId = parseInt(this.getAttribute('data-topic-id'));
+                  const checkbox = document.getElementById(`topic${topicId}`);
+                  if (checkbox) {
+                      checkbox.checked = false;
+                  }
+                  selectedTopics.delete(topicId);
+                  removeTopicBadge(topicId);
+                  updateHiddenInputs();
+                  loadWordsForSelectedTopics();
+              });
+
+              selectedTopicsContainer.appendChild(badge);
+          }
+
+          // Удаление бейджа темы
+          function removeTopicBadge(topicId) {
+              const badge = document.getElementById(`topic-badge-${topicId}`);
+              if (badge) {
+                  badge.remove();
+              }
+
+              if (selectedTopics.size === 0) {
+                  selectedTopicsLabel.style.display = 'none';
+              }
+          }
+
+          // Поиск слов
+          function searchWords() {
+              const searchTerm = wordSearchInput.value.trim();
+              if (!searchTerm) return;
+
+              // Показываем спиннер загрузки
+              availableWordsContainer.innerHTML = `
+                <div class="text-center p-3">
+                    <i class="fas fa-spinner fa-spin me-1"></i> {{ _('Searching...') }}
+                </div>
+            `;
+
+              // Запрос к API для поиска слов
+              fetch(`/words/api/search?term=${encodeURIComponent(searchTerm)}`)
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error('Network response was not ok');
+                      }
+                      return response.json();
+                  })
+                  .then(words => {
+                      displayAvailableWords(words);
+                  })
+                  .catch(error => {
+                      console.error('Error searching words:', error);
+                      availableWordsContainer.innerHTML = `
+                        <div class="alert alert-danger m-2">
+                            <i class="fas fa-exclamation-circle me-1"></i> {{ _('Error searching words') }}
+                        </div>
+                    `;
+                  });
+          }
+
+          // Загрузка слов для выбранных тем
+          function loadWordsForSelectedTopics() {
+              if (selectedTopics.size === 0) {
+                  availableWordsContainer.innerHTML = `
+                    <div class="text-center p-3">
+                        <i class="fas fa-info-circle me-1"></i> {{ _('Select topics or search for words') }}
+                    </div>
+                `;
+                  return;
+              }
+
+              // Показываем спиннер загрузки
+              availableWordsContainer.innerHTML = `
+                <div class="text-center p-3">
+                    <i class="fas fa-spinner fa-spin me-1"></i> {{ _('Loading...') }}
+                </div>
+            `;
+
+              // Формируем строку с ID тем
+              const topicIds = Array.from(selectedTopics).join(',');
+
+              // Запрос к API для получения слов по темам
+              fetch(`/admin/api/get_words_by_topic?topic_ids=${topicIds}`)
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error('Network response was not ok');
+                      }
+                      return response.json();
+                  })
+                  .then(words => {
+                      displayAvailableWords(words);
+                  })
+                  .catch(error => {
+                      console.error('Error loading words for topics:', error);
+                      availableWordsContainer.innerHTML = `
+                        <div class="alert alert-danger m-2">
+                            <i class="fas fa-exclamation-circle me-1"></i> {{ _('Error loading words') }}
+                        </div>
+                    `;
+                  });
+          }
+
+          // Отображение доступных слов
+          function displayAvailableWords(words) {
+              if (!words || words.length === 0) {
+                  availableWordsContainer.innerHTML = `
+                    <div class="text-center p-3">
+                        <i class="fas fa-search me-1"></i> {{ _('No words found') }}
+                    </div>
+                `;
+                  return;
+              }
+
+              let html = '';
+
+              words.forEach(word => {
+                  // Пропускаем слова, которые уже выбраны
+                  if (selectedWords.has(word.id)) {
+                      return;
+                  }
+
+                  const levelBadge = word.level ?
+                      `<span class="badge bg-${getLevelColor(word.level)}">${word.level}</span>` : '';
+
+                  html += `
+                    <a href="#" class="list-group-item list-group-item-action" data-word-id="${word.id}" data-word-english="${word.english_word}" data-word-russian="${word.russian_word}" data-word-level="${word.level || ''}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>${word.english_word}</strong>
+                            ${levelBadge}
+                        </div>
+                        <small class="text-muted">${word.russian_word || ''}</small>
+                    </a>
+                `;
+              });
+
+              availableWordsContainer.innerHTML = html;
+
+              // Добавляем обработчики для выбора слов
+              document.querySelectorAll('#available-words-container .list-group-item').forEach(item => {
+                  item.addEventListener('click', function (e) {
+                      e.preventDefault();
+
+                      const wordId = parseInt(this.getAttribute('data-word-id'));
+                      const wordEnglish = this.getAttribute('data-word-english');
+                      const wordRussian = this.getAttribute('data-word-russian');
+                      const wordLevel = this.getAttribute('data-word-level');
+
+                      // Добавляем слово в выбранные и удаляем из доступных
+                      addWordToSelection({
+                          id: wordId,
+                          english_word: wordEnglish,
+                          russian_word: wordRussian,
+                          level: wordLevel
+                      });
+
+                      this.remove();
+                  });
+              });
+          }
+
+          // Определение цвета для уровня сложности
+          function getLevelColor(level) {
+              switch (level) {
+                  case 'A1':
+                      return 'success';
+                  case 'A2':
+                      return 'info';
+                  case 'B1':
+                      return 'primary';
+                  case 'B2':
+                      return 'warning';
+                  case 'C1':
+                  case 'C2':
+                      return 'danger';
+                  default:
+                      return 'secondary';
+              }
+          }
+
+          // Добавление слова в выбранные
+          function addWordToSelection(word) {
+              if (selectedWords.has(word.id)) {
+                  return; // Слово уже выбрано
+              }
+
+              selectedWords.set(word.id, word);
+
+              // Если это первое слово, скрываем сообщение
+              if (noWordsSelectedMsg) {
+                  noWordsSelectedMsg.style.display = 'none';
+              }
+
+              // Создаем элемент для отображения
+              const wordEl = document.createElement('div');
+              wordEl.className = 'word-item';
+              wordEl.id = `selected-word-${word.id}`;
+
+              const levelBadge = word.level ?
+                  `<span class="badge bg-${getLevelColor(word.level)}">${word.level}</span>` : '';
+
+              wordEl.innerHTML = `
+                <div>
+                    <strong>${word.english_word}</strong> - <span class="text-muted">${word.russian_word || ''}</span>
+                    ${levelBadge}
+                </div>
+                <i class="fas fa-times word-remove" data-word-id="${word.id}"></i>
+            `;
+
+              // Обработчик для удаления слова
+              wordEl.querySelector('.word-remove').addEventListener('click', function () {
+                  const wordId = parseInt(this.getAttribute('data-word-id'));
+                  removeWordFromSelection(wordId);
+              });
+
+              selectedWordsList.appendChild(wordEl);
+
+              // Обновляем счетчик и hidden input
+              updateWordCount();
+              updateHiddenInputs();
+          }
+
+          // Удаление слова из выбранных
+          function removeWordFromSelection(wordId) {
+              selectedWords.delete(wordId);
+
+              // Удаляем элемент
+              const wordEl = document.getElementById(`selected-word-${wordId}`);
+              if (wordEl) {
+                  wordEl.remove();
+              }
+
+              // Если больше нет слов, показываем сообщение
+              if (selectedWords.size === 0 && noWordsSelectedMsg) {
+                  noWordsSelectedMsg.style.display = 'block';
+              }
+
+              // Обновляем счетчик и hidden input
+              updateWordCount();
+              updateHiddenInputs();
+
+              // Обновляем список доступных слов, если темы выбраны
+              if (selectedTopics.size > 0) {
+                  loadWordsForSelectedTopics();
+              }
+          }
+
+          // Обновление счетчика слов
+          function updateWordCount() {
+              wordCountBadge.textContent = selectedWords.size;
+          }
+
+          // Обновление скрытых полей
+          function updateHiddenInputs() {
+              // Обновляем поле со списком ID слов
+              wordIdsInput.value = Array.from(selectedWords.keys()).join(',');
+
+              // Обновляем поле со списком ID тем
+              topicIdsInput.value = Array.from(selectedTopics).join(',');
+          }
+      });
+  </script>
+{% endblock %}

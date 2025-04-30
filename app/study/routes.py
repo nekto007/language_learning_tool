@@ -1,15 +1,16 @@
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.study.forms import StudySessionForm, StudySettingsForm
 from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
-from app.words.models import CollectionWords
+from app.words.forms import CollectionFilterForm
+from app.words.models import Collection, CollectionWords, Topic
 
 study = Blueprint('study', __name__, template_folder='templates')
 
@@ -1088,11 +1089,13 @@ def complete_quiz():
         'is_personal_best': is_personal_best
     })
 
+
 @study.route('/leaderboard')
 @login_required
 def leaderboard():
     """Show leaderboard for games"""
     return render_template('study/leaderboard.html')
+
 
 @study.route('/api/leaderboard/<game_type>')
 @login_required
@@ -1166,3 +1169,242 @@ def get_leaderboard(game_type):
         'leaderboard': leaderboard_data,
         'user_best': user_best_data
     })
+
+
+@study.route('/collections')
+@login_required
+def collections():
+    """Отображение списка коллекций для изучения"""
+    form = CollectionFilterForm(request.args)
+
+    # Базовый запрос для получения коллекций
+    query = Collection.query
+
+    # Применение фильтра по теме
+    topic_id = request.args.get('topic')
+    if topic_id and topic_id.isdigit():
+        # Сложный запрос с JOIN для фильтрации по теме
+        query = query.join(
+            db.Table('collection_words_link'),
+            Collection.id == db.Table('collection_words_link').c.collection_id
+        ).join(
+            CollectionWords,
+            db.Table('collection_words_link').c.word_id == CollectionWords.id
+        ).join(
+            db.Table('topic_words'),
+            CollectionWords.id == db.Table('topic_words').c.word_id
+        ).filter(
+            db.Table('topic_words').c.topic_id == int(topic_id)
+        ).group_by(
+            Collection.id
+        )
+
+    # Применение поиска
+    search = request.args.get('search')
+    if search:
+        query = query.filter(
+            or_(
+                Collection.name.ilike(f'%{search}%'),
+                Collection.description.ilike(f'%{search}%')
+            )
+        )
+
+    # Получение результатов
+    collections = query.order_by(Collection.name).all()
+
+    # Подготовка дополнительных данных для отображения
+    for collection in collections:
+        # Количество слов в коллекции
+        # collection.word_count = len(collection.words)
+
+        # Количество слов, которые пользователь уже изучает
+        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
+        user_word_ids = [id[0] for id in user_word_ids]
+
+        collection.words_in_study = sum(1 for word in collection.words if word.id in user_word_ids)
+
+        # Темы коллекции
+        collection.topic_list = collection.topics
+
+    # Получаем все темы для фильтра
+    topics = Topic.query.order_by(Topic.name).all()
+
+    return render_template(
+        'study/collections.html',
+        collections=collections,
+        form=form,
+        topics=topics
+    )
+
+
+@study.route('/collections/<int:collection_id>')
+@login_required
+def collection_details(collection_id):
+    """Просмотр деталей коллекции"""
+    collection = Collection.query.get_or_404(collection_id)
+
+    # Получаем слова из коллекции
+    words = collection.words
+
+    # Определяем, какие слова уже изучаются пользователем
+    user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
+    user_word_ids = [id[0] for id in user_word_ids]
+
+    # Добавляем статус изучения к каждому слову
+    for word in words:
+        word.is_studying = word.id in user_word_ids
+
+    # Получаем темы коллекции
+    topics = collection.topics
+
+    return render_template(
+        'study/collection_details.html',
+        collection=collection,
+        words=words,
+        topics=topics
+    )
+
+
+@study.route('/add_collection/<int:collection_id>', methods=['POST'])
+@login_required
+def add_collection(collection_id):
+    """Добавление всех слов из коллекции в список изучения"""
+    collection = Collection.query.get_or_404(collection_id)
+
+    # Получаем слова из коллекции
+    words = collection.words
+
+    added_count = 0
+    for word in words:
+        # Проверяем, изучается ли уже слово
+        user_word = UserWord.query.filter_by(user_id=current_user.id, word_id=word.id).first()
+
+        if not user_word:
+            # Создаем новую запись UserWord
+            user_word = UserWord(user_id=current_user.id, word_id=word.id)
+            user_word.status = 'new'
+            db.session.add(user_word)
+            added_count += 1
+
+    if added_count > 0:
+        db.session.commit()
+        flash(_('%(count)d words from "%(name)s" collection added to your study list!',
+                count=added_count, name=collection.name), 'success')
+    else:
+        flash(_('All words from this collection are already in your study list.'), 'info')
+
+    # AJAX запрос или обычный
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'added_count': added_count,
+            'message': _('%(count)d words added to your study list!', count=added_count)
+        })
+    else:
+        return redirect(url_for('study.collections'))
+
+
+@study.route('/topics')
+@login_required
+def topics():
+    """Отображение списка тем для изучения"""
+    # Получаем все темы
+    topics = Topic.query.order_by(Topic.name).all()
+
+    # Подготовка дополнительных данных для отображения
+    for topic in topics:
+        # Количество слов в теме
+        topic.word_count = len(topic.words)
+
+        # Количество слов, которые пользователь уже изучает
+        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
+        user_word_ids = [id[0] for id in user_word_ids]
+
+        topic.words_in_study = sum(1 for word in topic.words if word.id in user_word_ids)
+
+    return render_template(
+        'study/topics.html',
+        topics=topics
+    )
+
+
+@study.route('/topics/<int:topic_id>')
+@login_required
+def topic_details(topic_id):
+    """Просмотр деталей темы и слов в ней"""
+    topic = Topic.query.get_or_404(topic_id)
+
+    # Получаем слова из темы
+    words = topic.words
+
+    # Определяем, какие слова уже изучаются пользователем
+    user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
+    user_word_ids = [id[0] for id in user_word_ids]
+
+    # Добавляем статус изучения к каждому слову
+    for word in words:
+        word.is_studying = word.id in user_word_ids
+
+    # Получаем коллекции, связанные с этой темой
+    related_collections = db.session.query(Collection).join(
+        db.Table('collection_words_link'),
+        Collection.id == db.Table('collection_words_link').c.collection_id
+    ).join(
+        CollectionWords,
+        db.Table('collection_words_link').c.word_id == CollectionWords.id
+    ).join(
+        db.Table('topic_words'),
+        CollectionWords.id == db.Table('topic_words').c.word_id
+    ).filter(
+        db.Table('topic_words').c.topic_id == topic_id
+    ).group_by(
+        Collection.id
+    ).order_by(
+        Collection.name
+    ).all()
+
+    return render_template(
+        'study/topic_details.html',
+        topic=topic,
+        words=words,
+        related_collections=related_collections
+    )
+
+
+@study.route('/add_topic/<int:topic_id>', methods=['POST'])
+@login_required
+def add_topic(topic_id):
+    """Добавление всех слов из темы в список изучения"""
+    topic = Topic.query.get_or_404(topic_id)
+
+    # Получаем слова из темы
+    words = topic.words
+
+    added_count = 0
+    for word in words:
+        # Проверяем, изучается ли уже слово
+        user_word = UserWord.query.filter_by(user_id=current_user.id, word_id=word.id).first()
+
+        if not user_word:
+            # Создаем новую запись UserWord
+            user_word = UserWord(user_id=current_user.id, word_id=word.id)
+            user_word.status = 'new'
+            db.session.add(user_word)
+            added_count += 1
+
+    if added_count > 0:
+        db.session.commit()
+        flash(_('%(count)d words from "%(name)s" topic added to your study list!',
+                count=added_count, name=topic.name), 'success')
+    else:
+        flash(_('All words from this topic are already in your study list.'), 'info')
+
+    # AJAX запрос или обычный
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'added_count': added_count,
+            'message': _('%(count)d words added to your study list!', count=added_count)
+        })
+    else:
+        return redirect(url_for('study.topics'))
