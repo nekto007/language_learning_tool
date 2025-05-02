@@ -1,11 +1,12 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
 from sqlalchemy import func, or_
 
 from app.study.models import GameScore
 from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
-from app.words.models import CollectionWords
+from app.words.models import CollectionWords, Topic
 
 words = Blueprint('words', __name__)
 
@@ -15,7 +16,6 @@ words = Blueprint('words', __name__)
 def dashboard():
     # Получение статистики по словам пользователя на основе новых моделей
     from app.study.models import UserWord
-    from app.words.models import Collection
 
     # Получаем количество слов в каждом статусе
     status_counts = db.session.query(
@@ -73,17 +73,21 @@ def dashboard():
         game_type='quiz'
     ).order_by(GameScore.score.desc()).first()
 
-    recent_collections = Collection.query.order_by(Collection.created_at.desc()).limit(3).all()
+    recent_topics = Topic.query.order_by(Topic.created_at.desc()).limit(3).all()
+    print('recent_topics', recent_topics)
 
-    for collection in recent_collections:
+    for topic in recent_topics:
         # Количество слов в коллекции
         # collection.word_count = len(collection.words)
+        print('topic', topic)
+        topic.word_count = len(topic.words)
+        print('topic.word_count', topic.word_count)
 
         # Количество слов, которые пользователь уже изучает
         user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
         user_word_ids = [id[0] for id in user_word_ids]
 
-        collection.words_in_study = sum(1 for word in collection.words if word.id in user_word_ids)
+        topic.words_in_study = sum(1 for word in topic.words if word.id in user_word_ids)
 
     return render_template(
         'dashboard.html',
@@ -94,7 +98,7 @@ def dashboard():
         total_words=total_words,
         progress=progress,
         recent_words=recent_words,
-        recent_collections=recent_collections
+        recent_topics=recent_topics
     )
 
 
@@ -239,16 +243,26 @@ def word_details(word_id):
     )
 
 
+# Dummy CSRF form for protection
+class DummyCSRFForm(FlaskForm):
+    pass
+
+
 @words.route('/update-word-status/<int:word_id>/<int:status>', methods=['POST'])
 @login_required
 def update_word_status(word_id, status):
+    form = DummyCSRFForm()
+    if not form.validate_on_submit():
+        from flask import abort
+        abort(400, description="CSRF token missing or invalid.")
+
     word = CollectionWords.query.get_or_404(word_id)
 
     # Используем обновленный метод set_word_status из модели User
     # Этот метод должен быть обновлен для работы с новыми моделями
     current_user.set_word_status(word_id, status)
 
-    flash(f'Status for word "{word.english_word}" updated successfully.', 'success')
+    flash(f'Status for word \"{word.english_word}\" updated successfully.', 'success')
 
     # Перенаправляем обратно на страницу, с которой пришел запрос
     next_page = request.args.get('next') or request.referrer or url_for('words.word_list')

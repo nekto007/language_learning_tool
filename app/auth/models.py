@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask_login import UserMixin
 from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, desc
@@ -17,7 +17,7 @@ class User(db.Model, UserMixin):
     email = Column(String(120), unique=True)
     password_hash = Column(Text, nullable=False)
     salt = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)

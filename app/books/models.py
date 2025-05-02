@@ -1,6 +1,6 @@
 # app/books/models.py
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -17,7 +17,7 @@ class Book(db.Model):
     level = Column(String(2), nullable=True)
     total_words = Column(Integer, default=0)
     unique_words = Column(Integer, default=0)
-    scrape_date = Column(DateTime, default=datetime.utcnow)
+    scrape_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     content = Column(Text)
     cover_image = Column(String(255))
 
@@ -37,7 +37,7 @@ class ReadingProgress(db.Model):
 
     # Текущая позиция в книге
     position = Column(Integer, default=0)  # Позиция в пикселях для прокрутки
-    last_read = Column(DateTime, default=datetime.utcnow)
+    last_read = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Связи - заменяем backref на back_populates
     user = relationship('User', back_populates='reading_progress')

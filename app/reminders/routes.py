@@ -4,7 +4,7 @@
 import logging
 import os
 import smtplib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация email
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT'))
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 25))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 't')
@@ -94,7 +94,7 @@ def get_inactive_users(days=7):
     Returns:
         list: Список неактивных пользователей
     """
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     inactive_users = User.query.filter(
         (User.last_login < cutoff_date) | (User.last_login.is_(None))
@@ -122,7 +122,7 @@ def reminder_dashboard():
     # Получаем статистику по отправленным напоминаниям
     reminders_sent = ReminderLog.query.order_by(desc(ReminderLog.sent_at)).limit(50).all()
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     return render_template(
         'admin/reminders/dashboard.html',
@@ -154,7 +154,7 @@ def send_reminders():
     users = User.query.filter(User.id.in_(user_ids)).all()
     success_count = 0
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     for user in users:
         # Формируем HTML-содержимое письма на основе шаблона
@@ -234,7 +234,7 @@ def preview_template(template_name):
         return redirect(url_for('main.index'))
 
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         unsubscribe_token = "sample_token"
 
         return render_template(f'emails/reminders/{template_name}.html', user=current_user,
@@ -252,7 +252,7 @@ class ReminderLog(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     template = db.Column(db.String(64), nullable=False)
     subject = db.Column(db.String(255), nullable=False)
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     sent_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Отношения
