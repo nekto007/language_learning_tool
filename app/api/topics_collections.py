@@ -124,13 +124,25 @@ def get_topic(topic_id):
         'description': collection.description
     } for collection in related_collections]
 
+    # Информация о создателе
+    creator = None
+    if topic.created_by:
+        from app.auth.models import User
+        user = User.query.get(topic.created_by)
+        if user:
+            creator = {
+                'id': user.id,
+                'username': user.username
+            }
+
     return jsonify({
         'id': topic.id,
         'name': topic.name,
         'description': topic.description,
         'word_count': word_count,
         'words': words_list,
-        'related_collections': collections_list
+        'related_collections': collections_list,
+        'creator': creator
     })
 
 

@@ -51,45 +51,36 @@
         </div>
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">{{ _('Word Collections') }}</h5>
-                <a href="{{ url_for('study.collections') }}" class="btn btn-sm btn-outline-primary">{{ _('View All') }}</a>
+                <h5 class="mb-0">{{ _('Word Topics') }}</h5>
+                <a href="{{ url_for('study.topics') }}" class="btn btn-sm btn-outline-primary">{{ _('View All') }}</a>
             </div>
             <div class="card-body">
-                {% if recent_collections %}
+                {% if recent_topics %}
                 <div class="row row-cols-1 row-cols-md-3 g-4">
-                    {% for collection in recent_collections %}
+                    {% for topic in recent_topics %}
                     <div class="col">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h6 class="card-title">{{ collection.name }}</h6>
+                                <h6 class="card-title">{{ topic.name }}</h6>
 
                                 <div class="d-flex justify-content-between my-2">
-                                    <small class="text-muted">{{ collection.word_count }} {{ _('words') }}</small>
-
-                                    <div>
-                                        {% for topic in collection.topics[:2] %}
-                                        <span class="badge bg-secondary">{{ topic.name }}</span>
-                                        {% endfor %}
-                                        {% if collection.topics|length > 2 %}
-                                        <span class="badge bg-light text-dark">+{{ collection.topics|length - 2 }}</span>
-                                        {% endif %}
-                                    </div>
+                                    <small class="text-muted">{{ topic.word_count }} {{ _('words') }}</small>
                                 </div>
 
-                                {% if collection.words_in_study > 0 %}
+                                {% if topic.words_in_study > 0 %}
                                 <div class="progress mb-2" style="height: 6px;">
                                     <div class="progress-bar" role="progressbar"
-                                        style="width: {{ (collection.words_in_study / collection.word_count * 100) | int }}%;">
+                                        style="width: {{ (topic.words_in_study / topic.word_count * 100) | int }}%;">
                                     </div>
                                 </div>
-                                <small class="text-muted">{{ collection.words_in_study }}/{{ collection.word_count }} {{ _('in study') }}</small>
+                                <small class="text-muted">{{ topic.words_in_study }}/{{ topic.word_count }} {{ _('in study') }}</small>
                                 {% endif %}
                             </div>
                             <div class="card-footer bg-transparent text-center">
-                                <a href="{{ url_for('study.collection_details', collection_id=collection.id) }}" class="btn btn-sm btn-outline-primary">{{ _('View') }}</a>
+                                <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="btn btn-sm btn-outline-primary">{{ _('View') }}</a>
 
-                                {% if collection.words_in_study < collection.word_count %}
-                                <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}" class="d-inline">
+                                {% if topic.words_in_study < topic.word_count %}
+                                <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-success">
                                         <i class="fas fa-plus me-1"></i> {{ _('Add to Study') }}
@@ -108,9 +99,9 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-book-open fa-3x mb-3 text-muted"></i>
-                    <p class="text-muted">{{ _('Explore our word collections to enhance your vocabulary!') }}</p>
-                    <a href="{{ url_for('study.collections') }}" class="btn btn-primary">
-                        {{ _('Browse Collections') }}
+                    <p class="text-muted">{{ _('Explore our word topics to enhance your vocabulary!') }}</p>
+                    <a href="{{ url_for('study.topics') }}" class="btn btn-primary">
+                        {{ _('Browse Tpoics') }}
                     </a>
                 </div>
                 {% endif %}

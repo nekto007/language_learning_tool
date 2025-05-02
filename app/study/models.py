@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Float, Index, cast, func
+from sqlalchemy import Index, func
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.utils.db import db
@@ -16,7 +16,7 @@ class StudySession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
     session_type = db.Column(db.String(20), nullable=False)  # 'cards', 'quiz', etc.
-    start_time = db.Column(db.DateTime, default=datetime.utcnow)
+    start_time = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     end_time = db.Column(db.DateTime, nullable=True)
 
     words_studied = db.Column(db.Integer, default=0)
@@ -28,12 +28,12 @@ class StudySession(db.Model):
 
     def complete_session(self):
         """Mark the session as complete"""
-        self.end_time = datetime.utcnow()
+        self.end_time = datetime.now(timezone.utc)
 
     @property
     def duration(self):
         """Calculate session duration in minutes"""
-        end = self.end_time or datetime.utcnow()
+        end = self.end_time or datetime.now(timezone.utc)
         delta = end - self.start_time
         return round(delta.total_seconds() / 60, 1)
 
@@ -98,7 +98,7 @@ class GameScore(db.Model):
     moves = db.Column(db.Integer, default=0)
     correct_answers = db.Column(db.Integer, default=0)
     total_questions = db.Column(db.Integer, default=0)
-    date_achieved = db.Column(db.DateTime, default=datetime.utcnow)
+    date_achieved = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationship
     user = db.relationship('User', backref=db.backref('game_scores', lazy='dynamic', cascade='all, delete-orphan'))
@@ -138,7 +138,7 @@ class UserWord(db.Model):
 
     # Status: new, learning, review, mastered
     status = db.Column(db.String(20), default='new')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user = db.relationship('User', backref=db.backref('user_words', lazy='dynamic', cascade='all, delete-orphan'))
@@ -285,8 +285,8 @@ class UserCardDirection(db.Model):
                     self.interval = max(1, round(self.interval * self.ease_factor * easy_bonus))
 
         # Update review dates
-        self.last_reviewed = datetime.utcnow()
-        self.next_review = datetime.utcnow() + timedelta(days=self.interval)
+        self.last_reviewed = datetime.now(timezone.utc)
+        self.next_review = datetime.now(timezone.utc) + timedelta(days=self.interval)
 
         # Update the parent UserWord status if needed
         self.update_user_word_status()
@@ -324,12 +324,12 @@ class UserCardDirection(db.Model):
     @property
     def due_for_review(self):
         """Check if this direction is due for review"""
-        return self.next_review and datetime.utcnow() >= self.next_review
+        return self.next_review and datetime.now(timezone.utc) >= self.next_review
 
     @property
     def days_until_review(self):
         """Calculate days until next review"""
         if not self.next_review or self.due_for_review:
             return 0
-        delta = self.next_review - datetime.utcnow()
+        delta = self.next_review - datetime.now(timezone.utc)
         return max(0, delta.days)

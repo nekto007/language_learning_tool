@@ -1,5 +1,4 @@
-from datetime import datetime
-
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -39,8 +38,11 @@ class Topic(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     words = relationship('CollectionWords', secondary='topic_words', back_populates='topics')
+    creator = relationship('User', backref='created_topics')
 
     def __repr__(self):
         return f"<Topic {self.name}>"
@@ -66,7 +68,7 @@ class Collection(db.Model):
     name = Column(String(150), nullable=False)
     description = Column(Text)
     created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     words = relationship('CollectionWords', secondary='collection_words_link', back_populates='collections')
     creator = relationship('User', backref='created_collections')
@@ -78,7 +80,6 @@ class Collection(db.Model):
     def word_count(self) -> int:
         """Возвращает количество слов в коллекции"""
         return len(self.words)
-
 
     @word_count.expression
     def word_count(cls):

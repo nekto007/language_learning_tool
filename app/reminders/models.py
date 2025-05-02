@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.utils.db import db
 
@@ -10,7 +10,7 @@ class ReminderLog(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     template = db.Column(db.String(64), nullable=False)
     subject = db.Column(db.String(255), nullable=False)
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     sent_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Отношения

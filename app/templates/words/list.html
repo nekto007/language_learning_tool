@@ -153,17 +153,20 @@
                                 <ul class="dropdown-menu" aria-labelledby="statusDropdown{{ word.id }}">
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="dropdown-item">{{ _('Add to Learning') }}</button>
                                         </form>
                                     </li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=3) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="dropdown-item">{{ _('Mark as Mastered') }}</button>
                                         </form>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <form action="{{ url_for('words.update_word_status', word_id=word.id, status=0) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="dropdown-item">{{ _('Reset Status') }}</button>
                                         </form>
                                     </li>
