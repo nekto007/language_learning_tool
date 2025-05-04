@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2025-04-11 14:03+0300\n"
-"PO-Revision-Date: 2025-04-28 15:10+0300\n"
+"PO-Revision-Date: 2025-05-03 01:14+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
 "Language-Team: ru <LL@li.org>\n"
@@ -1520,4 +1520,7 @@ msgstr "Установите новый пароль"
 
 msgid "Request Password Reset"
 msgstr "Запрос на восстановление пароля"
+
+msgid "Invalid email or password"
+msgstr "Неверное имя пользователя или пароль"
 
