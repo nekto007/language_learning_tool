@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime
-
+from flask_babel import lazy_gettext as _l
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import URLSafeTimedSerializer
@@ -122,7 +122,8 @@ def login():
                 next_page = url_for('words.dashboard')
             return redirect(next_page)
         else:
-            flash('Неверное имя пользователя или пароль', 'danger')
+            flash(_l('Invalid email or password'), 'danger')
+            return render_template('auth/login.html', form=form), 401
 
     return render_template('auth/login.html', form=form)
 
