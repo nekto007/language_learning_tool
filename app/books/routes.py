@@ -519,37 +519,52 @@ def get_word_base_form(word):
     if word.endswith('ing') and len(word) > 4:
         # Try removing 'ing'
         base_form = word[:-3]
+
+        # Check for doubled consonant (running -> run)
+        if len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+            base_form_single = base_form[:-1]
+            return base_form_single, 'continuous'
+
         # Try with 'e' (writing -> write)
         base_form_e = base_form + 'e'
-        # Try with doubled consonant (running -> run)
-        base_form_single = base_form[:-1] if len(base_form) >= 2 and base_form[-1] == base_form[-2] else None
+        # В идеале здесь нужно проверить в словаре, но для простого решения
+        # предполагаем, что если слово короткое и не имеет двойной согласной,
+        # то нужно добавить 'e'
+        if len(base_form) <= 4:
+            return base_form_e, 'continuous'
 
-        return (base_form, 'continuous') if base_form else (None, None)
+        return base_form, 'continuous'
 
     # 2. Check for -ed form
     if word.endswith('ed') and len(word) > 3:
         # Try removing 'ed'
         base_form = word[:-2]
+
+        # Check for doubled consonant (stopped -> stop)
+        if len(base_form) >= 2 and base_form[-1] == base_form[-2]:
+            base_form_single = base_form[:-1]
+            return base_form_single, 'past_tense'
+
         # Try with 'e' (liked -> like)
         base_form_e = word[:-1]  # Just remove 'd'
-        # Try with doubled consonant (stopped -> stop)
-        base_form_single = base_form[:-1] if len(base_form) >= 2 and base_form[-1] == base_form[-2] else None
+        if len(base_form) <= 4:
+            return base_form_e, 'past_tense'
 
-        return (base_form, 'past_tense') if base_form else (None, None)
+        return base_form, 'past_tense'
 
     # 3. Check for plural nouns
     if word.endswith('s') and not word.endswith('ss') and len(word) > 2:
         # Regular plural (cars -> car)
         base_form = word[:-1]
 
+        # Check for -ies (flies -> fly)
+        if word.endswith('ies'):
+            base_form_ies = word[:-3] + 'y'
+            return base_form_ies, 'plural'
+
         # Check for -es (boxes -> box)
         if word.endswith('es'):
             base_form_es = word[:-2]
-            # Special case for -ies (flies -> fly)
-            if word.endswith('ies'):
-                base_form_ies = word[:-3] + 'y'
-                return base_form_ies, 'plural'
-
             return base_form_es, 'plural'
 
         return base_form, 'plural'
@@ -558,24 +573,32 @@ def get_word_base_form(word):
     if word.endswith('er') and len(word) > 3:
         # Comparative (bigger -> big)
         base_form = word[:-2]
+
         # Check for doubled consonant
         if len(base_form) >= 2 and base_form[-1] == base_form[-2]:
-            base_form = base_form[:-1]
+            base_form_single = base_form[:-1]
+            return base_form_single, 'comparative'
+
         # Special case for -ier (easier -> easy)
         if word.endswith('ier'):
-            base_form = word[:-3] + 'y'
+            base_form_y = word[:-3] + 'y'
+            return base_form_y, 'comparative'
 
         return base_form, 'comparative'
 
     if word.endswith('est') and len(word) > 4:
         # Superlative (biggest -> big)
         base_form = word[:-3]
+
         # Check for doubled consonant
         if len(base_form) >= 2 and base_form[-1] == base_form[-2]:
-            base_form = base_form[:-1]
+            base_form_single = base_form[:-1]
+            return base_form_single, 'superlative'
+
         # Special case for -iest (easiest -> easy)
         if word.endswith('iest'):
-            base_form = word[:-4] + 'y'
+            base_form_y = word[:-4] + 'y'
+            return base_form_y, 'superlative'
 
         return base_form, 'superlative'
 
