@@ -73,7 +73,7 @@ def dashboard():
         game_type='quiz'
     ).order_by(GameScore.score.desc()).first()
 
-    recent_topics = Topic.query.order_by(Topic.created_at.desc()).limit(3).all()
+    recent_topics = Topic.query.order_by(Topic.created_at.desc()).limit(9).all()
     print('recent_topics', recent_topics)
 
     for topic in recent_topics:
