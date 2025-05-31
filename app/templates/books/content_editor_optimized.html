@@ -1,0 +1,735 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Редактировать содержимое') }} - {{ book.title }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+:root {
+    --editor-bg: #f8f9fa;
+    --editor-border: #dee2e6;
+    --preview-bg: #ffffff;
+    --toolbar-bg: #e9ecef;
+    --primary-color: #667eea;
+    --success-color: #48bb78;
+}
+
+/* Layout */
+.editor-container {
+    display: flex;
+    height: calc(100vh - 120px);
+    gap: 1rem;
+}
+
+.editor-panel, .preview-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* Header */
+.editor-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Toolbar */
+.editor-toolbar {
+    background: var(--toolbar-bg);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--editor-border);
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.toolbar-btn {
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border: 1px solid var(--editor-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.toolbar-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.toolbar-separator {
+    width: 1px;
+    background: var(--editor-border);
+    margin: 0 0.5rem;
+}
+
+/* Editor */
+.code-editor {
+    flex: 1;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 1rem;
+    border: none;
+    resize: none;
+    background: var(--editor-bg);
+    color: #2d3748;
+}
+
+.code-editor:focus {
+    outline: none;
+    background: white;
+}
+
+/* Preview */
+.preview-header {
+    padding: 1rem;
+    background: var(--toolbar-bg);
+    border-bottom: 1px solid var(--editor-border);
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.preview-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+    background: var(--preview-bg);
+}
+
+.preview-content p {
+    margin-bottom: 1.5rem;
+    line-height: 1.8;
+}
+
+/* Status Bar */
+.status-bar {
+    background: var(--toolbar-bg);
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--editor-border);
+    font-size: 0.875rem;
+    color: #6c757d;
+    display: flex;
+    justify-content: space-between;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6c757d;
+}
+
+.status-indicator.saved {
+    background: var(--success-color);
+}
+
+.status-indicator.unsaved {
+    background: #f6ad55;
+}
+
+/* Auto-save notification */
+.auto-save-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid var(--success-color);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.auto-save-toast.show {
+    display: flex;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Markdown Styles */
+.markdown-preview h1 { font-size: 2rem; margin: 2rem 0 1rem; color: #1a202c; }
+.markdown-preview h2 { font-size: 1.5rem; margin: 1.5rem 0 1rem; color: #2d3748; }
+.markdown-preview h3 { font-size: 1.25rem; margin: 1rem 0 0.5rem; color: #4a5568; }
+.markdown-preview blockquote {
+    border-left: 4px solid var(--primary-color);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: #718096;
+}
+.markdown-preview code {
+    background: #f7fafc;
+    padding: 0.125rem 0.25rem;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.875em;
+}
+.markdown-preview pre {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+.markdown-preview ul, .markdown-preview ol {
+    margin: 1rem 0;
+    padding-left: 2rem;
+}
+
+/* File Upload Area */
+.file-upload-area {
+    border: 2px dashed var(--editor-border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    margin: 1rem;
+    transition: all 0.3s;
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.file-upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+/* Split View Toggle */
+.view-toggle {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    padding: 0.25rem;
+}
+
+.view-toggle button {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-toggle button.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .editor-container {
+        flex-direction: column;
+    }
+    
+    .editor-panel, .preview-panel {
+        height: 50vh;
+    }
+    
+    .view-toggle {
+        display: none;
+    }
+}
+
+/* Loading Spinner */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(102, 126, 234, 0.3);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="editor-header">
+    <div class="container">
+        <div class="header-content">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-transparent p-0 mb-2">
+                        <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}" class="text-white-50">{{ _('Книги') }}</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-white-50">{{ book.title[:30] }}...</a></li>
+                        <li class="breadcrumb-item active text-white">{{ _('Редактировать содержимое') }}</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-0">{{ _('Редактировать содержимое:') }} {{ book.title }}</h1>
+            </div>
+            <div>
+                <button class="btn btn-light" onclick="saveContent()">
+                    <i class="fas fa-save me-2"></i>{{ _('Сохранить') }}
+                </button>
+                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-light">
+                    {{ _('Отмена') }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-3">
+    <!-- View Toggle -->
+    <div class="view-toggle">
+        <button class="active" onclick="setView('split')">
+            <i class="fas fa-columns me-2"></i>{{ _('Разделить') }}
+        </button>
+        <button onclick="setView('editor')">
+            <i class="fas fa-code me-2"></i>{{ _('Редактор') }}
+        </button>
+        <button onclick="setView('preview')">
+            <i class="fas fa-eye me-2"></i>{{ _('Предпросмотр') }}
+        </button>
+    </div>
+
+    <form id="contentForm" method="POST" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        
+        <!-- Hidden fields -->
+        {{ form.title(type="hidden") }}
+        {{ form.author(type="hidden") }}
+        {{ form.level(type="hidden") }}
+
+        <div class="editor-container" id="editorContainer">
+            <!-- Editor Panel -->
+            <div class="editor-panel" id="editorPanel">
+                <div class="editor-toolbar">
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="{{ _('Жирный') }}">
+                        <i class="fas fa-bold"></i>
+                    </button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="{{ _('Курсив') }}">
+                        <i class="fas fa-italic"></i>
+                    </button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('## ', '')" title="{{ _('Заголовок') }}">
+                        <i class="fas fa-heading"></i>
+                    </button>
+                    <div class="toolbar-separator"></div>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('- ', '')" title="{{ _('Список') }}">
+                        <i class="fas fa-list"></i>
+                    </button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('> ', '')" title="{{ _('Цитата') }}">
+                        <i class="fas fa-quote-right"></i>
+                    </button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('`', '`')" title="{{ _('Код') }}">
+                        <i class="fas fa-code"></i>
+                    </button>
+                    <div class="toolbar-separator"></div>
+                    <button type="button" class="toolbar-btn" onclick="formatContent()" title="{{ _('Форматировать') }}">
+                        <i class="fas fa-align-left"></i> {{ _('Формат') }}
+                    </button>
+                    <button type="button" class="toolbar-btn" onclick="countWords()" title="{{ _('Подсчет слов') }}">
+                        <i class="fas fa-calculator"></i> {{ _('Подсчет') }}
+                    </button>
+                </div>
+                
+                {{ form.content(class="code-editor", id="contentEditor", placeholder=_('Введите или вставьте содержимое книги здесь...')) }}
+                
+                <div class="status-bar">
+                    <div class="status-item">
+                        <span class="status-indicator" id="saveIndicator"></span>
+                        <span id="saveStatus">{{ _('Готов') }}</span>
+                    </div>
+                    <div class="status-item">
+                        <span id="wordCount">0 {{ _('слов') }}</span>
+                        <span>•</span>
+                        <span id="charCount">0 {{ _('символов') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="preview-panel" id="previewPanel">
+                <div class="preview-header">
+                    <span>{{ _('Предпросмотр') }}</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="togglePreviewMode()">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="preview-content markdown-preview" id="previewContent">
+                    <div class="text-muted text-center py-5">
+                        <i class="fas fa-eye fa-3x mb-3"></i>
+                        <p>{{ _('Предпросмотр появится здесь, когда вы начнете печатать...') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="file-upload-area mt-3" id="fileUploadArea">
+            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+            <h5>{{ _('Загрузить файл для замены содержимого') }}</h5>
+            <p class="text-muted">{{ _('Перетащите файл сюда или нажмите для выбора') }}</p>
+            {{ form.file(class="d-none", id="fileInput", accept=".txt,.pdf,.epub,.fb2,.doc,.docx") }}
+            <button type="button" class="btn btn-primary mt-2" onclick="document.getElementById('fileInput').click()">
+                {{ _('Выбрать файл') }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Auto-save Toast -->
+<div class="auto-save-toast" id="autoSaveToast">
+    <i class="fas fa-check-circle text-success"></i>
+    <span>{{ _('Содержимое автоматически сохранено') }}</span>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+let autoSaveTimer;
+let hasUnsavedChanges = false;
+let currentView = 'split';
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    const editor = document.getElementById('contentEditor');
+    
+    // Update preview on input
+    editor.addEventListener('input', function() {
+        updatePreview();
+        updateWordCount();
+        markAsUnsaved();
+        
+        // Auto-save after 2 seconds of inactivity
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(autoSave, 2000);
+    });
+    
+    // Initial preview and count
+    updatePreview();
+    updateWordCount();
+    
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+    
+    // File upload handling
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+    
+    // Drag and drop
+    const uploadArea = document.getElementById('fileUploadArea');
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('drag-over');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            document.getElementById('fileInput').files = files;
+            handleFileUpload();
+        }
+    });
+});
+
+// Update preview
+function updatePreview() {
+    const content = document.getElementById('contentEditor').value;
+    const preview = document.getElementById('previewContent');
+    
+    if (content.trim()) {
+        // Convert to HTML if it's plain text
+        let html = content;
+        if (!content.includes('<p>') && !content.includes('<h')) {
+            // Convert plain text to paragraphs
+            html = content.split('\n\n')
+                .filter(p => p.trim())
+                .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+                .join('\n');
+        }
+        
+        // Support basic markdown
+        html = marked.parse(html);
+        preview.innerHTML = html;
+    } else {
+        preview.innerHTML = `
+            <div class="text-muted text-center py-5">
+                <i class="fas fa-eye fa-3x mb-3"></i>
+                <p>Preview will appear here as you type...</p>
+            </div>
+        `;
+    }
+}
+
+// Update word count
+function updateWordCount() {
+    const content = document.getElementById('contentEditor').value;
+    const text = content.replace(/<[^>]*>/g, ''); // Remove HTML tags
+    const words = text.match(/\b\w+\b/g) || [];
+    const chars = text.length;
+    
+    document.getElementById('wordCount').textContent = `${words.length} words`;
+    document.getElementById('charCount').textContent = `${chars} characters`;
+}
+
+// Insert markdown
+function insertMarkdown(before, after) {
+    const editor = document.getElementById('contentEditor');
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selectedText = editor.value.substring(start, end);
+    const replacement = before + selectedText + after;
+    
+    editor.value = editor.value.substring(0, start) + replacement + editor.value.substring(end);
+    
+    // Set cursor position
+    const newPos = start + before.length + selectedText.length;
+    editor.setSelectionRange(newPos, newPos);
+    editor.focus();
+    
+    // Update preview
+    updatePreview();
+    markAsUnsaved();
+}
+
+// Format content
+function formatContent() {
+    const editor = document.getElementById('contentEditor');
+    let content = editor.value;
+    
+    // Basic formatting: ensure paragraphs are separated
+    content = content.replace(/\n{3,}/g, '\n\n'); // Replace multiple newlines with double
+    content = content.trim();
+    
+    editor.value = content;
+    updatePreview();
+    markAsUnsaved();
+}
+
+// Count words (detailed)
+function countWords() {
+    const content = document.getElementById('contentEditor').value;
+    const text = content.replace(/<[^>]*>/g, '');
+    const words = text.match(/\b\w+\b/g) || [];
+    const uniqueWords = [...new Set(words.map(w => w.toLowerCase()))];
+    
+    alert(`Word Statistics:\n\nTotal words: ${words.length}\nUnique words: ${uniqueWords.length}\nCharacters: ${text.length}\nCharacters (with spaces): ${content.length}`);
+}
+
+// View management
+function setView(view) {
+    currentView = view;
+    const container = document.getElementById('editorContainer');
+    const editorPanel = document.getElementById('editorPanel');
+    const previewPanel = document.getElementById('previewPanel');
+    
+    // Update toggle buttons
+    document.querySelectorAll('.view-toggle button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Apply view
+    switch(view) {
+        case 'editor':
+            editorPanel.style.display = 'flex';
+            previewPanel.style.display = 'none';
+            break;
+        case 'preview':
+            editorPanel.style.display = 'none';
+            previewPanel.style.display = 'flex';
+            break;
+        case 'split':
+        default:
+            editorPanel.style.display = 'flex';
+            previewPanel.style.display = 'flex';
+            break;
+    }
+}
+
+// Save content
+async function saveContent() {
+    const form = document.getElementById('contentForm');
+    const formData = new FormData(form);
+    
+    // Show loading
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    try {
+        const response = await fetch('', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            markAsSaved();
+            showAutoSaveToast();
+            hasUnsavedChanges = false;
+            
+            // Check if redirected
+            if (response.redirected) {
+                window.location.href = response.url;
+            }
+        } else {
+            alert('Failed to save content. Please try again.');
+        }
+    } catch (error) {
+        console.error('Save error:', error);
+        alert('An error occurred while saving.');
+    } finally {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+}
+
+// Auto-save
+async function autoSave() {
+    if (!hasUnsavedChanges) return;
+    
+    // For now, just mark as saved for demo
+    // In production, you'd implement actual auto-save
+    markAsSaved();
+    showAutoSaveToast();
+    hasUnsavedChanges = false;
+}
+
+// Status management
+function markAsUnsaved() {
+    hasUnsavedChanges = true;
+    document.getElementById('saveIndicator').classList.remove('saved');
+    document.getElementById('saveIndicator').classList.add('unsaved');
+    document.getElementById('saveStatus').textContent = 'Unsaved changes';
+}
+
+function markAsSaved() {
+    document.getElementById('saveIndicator').classList.add('saved');
+    document.getElementById('saveIndicator').classList.remove('unsaved');
+    document.getElementById('saveStatus').textContent = 'All changes saved';
+}
+
+function showAutoSaveToast() {
+    const toast = document.getElementById('autoSaveToast');
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// File upload
+async function handleFileUpload() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) return;
+    
+    // Show loading
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    try {
+        // For text files, read directly
+        if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+            const text = await file.text();
+            document.getElementById('contentEditor').value = text;
+            updatePreview();
+            updateWordCount();
+            markAsUnsaved();
+        } else {
+            // For other formats, need server processing
+            alert('File uploaded. Processing will happen on save.');
+            markAsUnsaved();
+        }
+    } catch (error) {
+        console.error('File read error:', error);
+        alert('Failed to read file.');
+    } finally {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveContent();
+    }
+    
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        insertMarkdown('**', '**');
+    }
+    
+    if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault();
+        insertMarkdown('*', '*');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Массовое обновление статусов слов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Массовое обновление статусов слов</h1>
+        <a href="{{ url_for('admin.word_management') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к управлению словами
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Обновление статусов</h6>
+                </div>
+                <div class="card-body">
+                    <form id="bulk-update-form">
+                        <!-- Status Selection -->
+                        <div class="form-group">
+                            <label for="status">Новый статус:</label>
+                            <select class="form-control" id="status" name="status" required>
+                                <option value="">Выберите статус</option>
+                                <option value="new">New (Новое)</option>
+                                <option value="learning">Learning (Изучается)</option>
+                                <option value="review">Review (Повторение)</option>
+                                <option value="mastered">Mastered (Изучено)</option>
+                            </select>
+                        </div>
+
+                        <!-- User Selection -->
+                        <div class="form-group">
+                            <label for="user_id">Пользователь (опционально):</label>
+                            <select class="form-control" id="user_id" name="user_id">
+                                <option value="">Все активные пользователи</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Если не выбран пользователь, статус будет обновлен для всех активных пользователей
+                            </small>
+                        </div>
+
+                        <!-- Input Method Selection -->
+                        <div class="form-group">
+                            <label>Способ ввода слов:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="input_method" id="method_text" value="text" checked>
+                                <label class="form-check-label" for="method_text">
+                                    Ввод текстом (по одному слову на строку)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="input_method" id="method_file" value="file">
+                                <label class="form-check-label" for="method_file">
+                                    Загрузка из файла
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Text Input -->
+                        <div class="form-group" id="text-input-group">
+                            <label for="words_text">Список слов:</label>
+                            <textarea class="form-control" id="words_text" name="words_text" rows="10" 
+                                      placeholder="Введите английские слова, по одному на строку. Например:&#10;apple&#10;book&#10;computer&#10;house"></textarea>
+                            <small class="form-text text-muted">
+                                Введите английские слова, по одному на строку
+                            </small>
+                        </div>
+
+                        <!-- File Input -->
+                        <div class="form-group" id="file-input-group" style="display: none;">
+                            <label for="words_file">Файл со словами:</label>
+                            <input type="file" class="form-control-file" id="words_file" name="words_file" accept=".txt,.csv">
+                            <small class="form-text text-muted">
+                                Загрузите текстовый файл с английскими словами (по одному на строку)
+                            </small>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress mb-3" id="progress-bar" style="display: none;">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            <i class="fas fa-sync-alt"></i> Обновить статусы
+                        </button>
+                    </form>
+
+                    <!-- Results -->
+                    <div id="results" class="mt-4" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">Справка</h6>
+                </div>
+                <div class="card-body">
+                    <h6>Описание статусов:</h6>
+                    <ul class="list-unstyled">
+                        <li><span class="badge badge-secondary">New</span> - Новое слово</li>
+                        <li><span class="badge badge-warning">Learning</span> - Изучается</li>
+                        <li><span class="badge badge-info">Review</span> - На повторении</li>
+                        <li><span class="badge badge-success">Mastered</span> - Изучено</li>
+                    </ul>
+
+                    <hr>
+
+                    <h6>Формат файла:</h6>
+                    <p class="small">Текстовый файл (.txt) с английскими словами, по одному на строку:</p>
+                    <pre class="small">apple
+book
+computer
+house</pre>
+
+                    <hr>
+
+                    <h6>Примечания:</h6>
+                    <ul class="small">
+                        <li>Слова должны точно совпадать с записями в базе данных</li>
+                        <li>Регистр не важен (автоматически приводится к нижнему)</li>
+                        <li>Несуществующие слова будут пропущены</li>
+                        <li>Операция необратима - будьте осторожны</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('bulk-update-form');
+    const textInputGroup = document.getElementById('text-input-group');
+    const fileInputGroup = document.getElementById('file-input-group');
+    const methodRadios = document.querySelectorAll('input[name="input_method"]');
+    const progressBar = document.getElementById('progress-bar');
+    const submitBtn = document.getElementById('submit-btn');
+    const results = document.getElementById('results');
+
+    // Toggle input method
+    methodRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'text') {
+                textInputGroup.style.display = 'block';
+                fileInputGroup.style.display = 'none';
+            } else {
+                textInputGroup.style.display = 'none';
+                fileInputGroup.style.display = 'block';
+            }
+        });
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const status = document.getElementById('status').value;
+        const userId = document.getElementById('user_id').value;
+        const inputMethod = document.querySelector('input[name="input_method"]:checked').value;
+
+        if (!status) {
+            alert('Пожалуйста, выберите статус');
+            return;
+        }
+
+        let words = [];
+
+        if (inputMethod === 'text') {
+            const wordsText = document.getElementById('words_text').value.trim();
+            if (!wordsText) {
+                alert('Пожалуйста, введите список слов');
+                return;
+            }
+            words = wordsText.split('\n').map(w => w.trim()).filter(w => w);
+        } else {
+            const fileInput = document.getElementById('words_file');
+            if (!fileInput.files[0]) {
+                alert('Пожалуйста, выберите файл');
+                return;
+            }
+
+            try {
+                const fileContent = await readFile(fileInput.files[0]);
+                words = fileContent.split('\n').map(w => w.trim()).filter(w => w);
+            } catch (error) {
+                alert('Ошибка чтения файла: ' + error.message);
+                return;
+            }
+        }
+
+        if (words.length === 0) {
+            alert('Список слов пуст');
+            return;
+        }
+
+        // Show progress
+        progressBar.style.display = 'block';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обновление...';
+
+        try {
+            const requestData = {
+                words: words,
+                status: status
+            };
+
+            if (userId) {
+                requestData.user_id = parseInt(userId);
+            }
+
+            const response = await fetch('{{ url_for("admin.bulk_status_update") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                results.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5>Операция завершена успешно!</h5>
+                        <p>Обновлено записей: <strong>${data.updated_count}</strong> из ${data.total_requested} запрошенных</p>
+                    </div>
+                `;
+                form.reset();
+            } else {
+                results.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Ошибка при обновлении</h5>
+                        <p>${data.error}</p>
+                    </div>
+                `;
+            }
+
+            results.style.display = 'block';
+
+        } catch (error) {
+            results.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5>Сетевая ошибка</h5>
+                    <p>${error.message}</p>
+                </div>
+            `;
+            results.style.display = 'block';
+        } finally {
+            progressBar.style.display = 'none';
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Обновить статусы';
+        }
+    });
+
+    // Helper function to read file
+    function readFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(new Error('Ошибка чтения файла'));
+            reader.readAsText(file);
+        });
+    }
+});
+</script>
+{% endblock %}

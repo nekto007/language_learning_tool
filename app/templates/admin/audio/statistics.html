@@ -1,0 +1,362 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Статистика аудио{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Статистика аудио файлов</h1>
+        <a href="{{ url_for('admin.audio_management') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к управлению аудио
+        </a>
+    </div>
+
+    <!-- Download Status Statistics -->
+    {% if download_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статистика по статусу загрузки</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Статус</th>
+                                    <th>Количество</th>
+                                    <th>Процент</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_download = download_stats|sum(attribute='count') %}
+                                {% for stat in download_stats %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if stat.status == 'Available' %}success{% elif stat.status == 'Not Available' %}warning{% else %}secondary{% endif %} badge-lg">
+                                            {{ stat.status }}
+                                        </span>
+                                    </td>
+                                    <td class="h5 mb-0">{{ stat.count }}</td>
+                                    <td>
+                                        {% set percentage = (stat.count / total_download * 100) | round(1) if total_download > 0 else 0 %}
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar bg-{% if stat.status == 'Available' %}success{% elif stat.status == 'Not Available' %}warning{% else %}secondary{% endif %}" 
+                                                 role="progressbar" style="width: {{ percentage }}%">
+                                                {{ percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Listening Format Statistics -->
+    {% if listening_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статистика по форматам listening</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Формат</th>
+                                    <th>Количество</th>
+                                    <th>Процент</th>
+                                    <th>Описание</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_listening = listening_stats|sum(attribute='count') %}
+                                {% for stat in listening_stats %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if stat.format_type == 'Anki Format' %}success{% elif stat.format_type == 'HTTP URL' %}danger{% elif stat.format_type == 'Empty' %}warning{% else %}info{% endif %} badge-lg">
+                                            {{ stat.format_type }}
+                                        </span>
+                                    </td>
+                                    <td class="h5 mb-0">{{ stat.count }}</td>
+                                    <td>
+                                        {% set percentage = (stat.count / total_listening * 100) | round(1) if total_listening > 0 else 0 %}
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar bg-{% if stat.format_type == 'Anki Format' %}success{% elif stat.format_type == 'HTTP URL' %}danger{% elif stat.format_type == 'Empty' %}warning{% else %}info{% endif %}" 
+                                                 role="progressbar" style="width: {{ percentage }}%">
+                                                {{ percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="small">
+                                        {% if stat.format_type == 'Anki Format' %}
+                                            Правильный формат [sound:filename.mp3]
+                                        {% elif stat.format_type == 'HTTP URL' %}
+                                            Устаревшие HTTP ссылки - требуют исправления
+                                        {% elif stat.format_type == 'Empty' %}
+                                            Пустые поля listening
+                                        {% else %}
+                                            Другие форматы данных
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Level Audio Statistics -->
+    {% if level_audio_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Покрытие аудио по уровням</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Уровень</th>
+                                    <th>Всего слов</th>
+                                    <th>С аудио</th>
+                                    <th>Покрытие</th>
+                                    <th>Прогресс</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in level_audio_stats %}
+                                <tr>
+                                    <td>
+                                        {% if stat.level and stat.level != 'Unknown' %}
+                                            <span class="badge badge-info">{{ stat.level }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Не указан</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ stat.total_words }}</td>
+                                    <td>{{ stat.with_audio }}</td>
+                                    <td>
+                                        {% if stat.total_words > 0 %}
+                                            {% set coverage = (stat.with_audio / stat.total_words * 100) | round(1) %}
+                                            <strong>{{ coverage }}%</strong>
+                                        {% else %}
+                                            <span class="text-muted">0%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if stat.total_words > 0 %}
+                                            {% set coverage = (stat.with_audio / stat.total_words * 100) | round(1) %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-{% if coverage >= 80 %}success{% elif coverage >= 50 %}warning{% else %}danger{% endif %}" 
+                                                     role="progressbar" style="width: {{ coverage }}%">
+                                                    {{ coverage }}%
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts -->
+    <div class="row">
+        {% if download_stats %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статус загрузки (диаграмма)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="downloadChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if listening_stats %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Форматы listening (диаграмма)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="listeningChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if level_audio_stats %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Покрытие аудио по уровням (диаграмма)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="levelChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Download Status Chart
+    {% if download_stats %}
+    const downloadCtx = document.getElementById('downloadChart').getContext('2d');
+    const downloadChart = new Chart(downloadCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [
+                {% for stat in download_stats %}
+                '{{ stat.status }}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for stat in download_stats %}
+                    {{ stat.count }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    {% for stat in download_stats %}
+                    {% if stat.status == 'Available' %}'#28a745'
+                    {% elif stat.status == 'Not Available' %}'#ffc107'
+                    {% else %}'#6c757d'
+                    {% endif %}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Listening Format Chart
+    {% if listening_stats %}
+    const listeningCtx = document.getElementById('listeningChart').getContext('2d');
+    const listeningChart = new Chart(listeningCtx, {
+        type: 'pie',
+        data: {
+            labels: [
+                {% for stat in listening_stats %}
+                '{{ stat.format_type }}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for stat in listening_stats %}
+                    {{ stat.count }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    {% for stat in listening_stats %}
+                    {% if stat.format_type == 'Anki Format' %}'#28a745'
+                    {% elif stat.format_type == 'HTTP URL' %}'#dc3545'
+                    {% elif stat.format_type == 'Empty' %}'#ffc107'
+                    {% else %}'#17a2b8'
+                    {% endif %}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Level Coverage Chart
+    {% if level_audio_stats %}
+    const levelCtx = document.getElementById('levelChart').getContext('2d');
+    const levelChart = new Chart(levelCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for stat in level_audio_stats %}
+                '{{ stat.level or "Unknown" }}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Всего слов',
+                data: [
+                    {% for stat in level_audio_stats %}
+                    {{ stat.total_words }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: '#e9ecef',
+                borderColor: '#adb5bd',
+                borderWidth: 1
+            }, {
+                label: 'С аудио',
+                data: [
+                    {% for stat in level_audio_stats %}
+                    {{ stat.with_audio }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: '#28a745',
+                borderColor: '#1e7e34',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

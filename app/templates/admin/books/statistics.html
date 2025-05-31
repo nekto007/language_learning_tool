@@ -1,0 +1,432 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Статистика книг{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Статистика книг</h1>
+        <a href="{{ url_for('admin.books') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к управлению книгами
+        </a>
+    </div>
+
+    <!-- Overall Statistics -->
+    {% if total_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Общая статистика</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-primary">{{ total_stats.total_books }}</div>
+                                <div class="text-muted">Всего книг</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-success">{{ "{:,}".format(total_stats.total_words or 0) }}</div>
+                                <div class="text-muted">Всего слов</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-info">{{ "{:,}".format(total_stats.unique_words or 0) }}</div>
+                                <div class="text-muted">Уникальных слов</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-warning">{{ "{:,}".format(total_stats.avg_words or 0) }}</div>
+                                <div class="text-muted">Среднее слов на книгу</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Phrasal Verbs Statistics -->
+    {% if phrasal_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статистика фразовых глаголов</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="text-center">
+                                <div class="h4 text-primary">{{ phrasal_stats.total_phrasal_verbs }}</div>
+                                <div class="text-muted">Всего фразовых глаголов</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center">
+                                <div class="h4 text-success">{{ phrasal_stats.with_audio }}</div>
+                                <div class="text-muted">С аудио файлами</div>
+                                {% if phrasal_stats.total_phrasal_verbs > 0 %}
+                                    <div class="progress mt-2">
+                                        {% set coverage = (phrasal_stats.with_audio / phrasal_stats.total_phrasal_verbs * 100) | round(1) %}
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ coverage }}%">
+                                            {{ coverage }}%
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Books by Total Words -->
+    {% if top_books_by_words %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Топ книг по общему количеству слов</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Ранг</th>
+                                    <th>Название книги</th>
+                                    <th>Всего слов</th>
+                                    <th>Уникальных слов</th>
+                                    <th>Соотношение уникальных</th>
+                                    <th>Дата обработки</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in top_books_by_words %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if loop.index <= 3 %}warning{% else %}secondary{% endif %}">
+                                            {{ loop.index }}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{ book.title }}</strong></td>
+                                    <td>{{ "{:,}".format(book.total_words) }}</td>
+                                    <td>{{ "{:,}".format(book.unique_words) }}</td>
+                                    <td>
+                                        {% if book.total_words and book.unique_words %}
+                                            {% set ratio = (book.unique_words / book.total_words * 100) | round(1) %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-{% if ratio >= 30 %}success{% elif ratio >= 20 %}warning{% else %}danger{% endif %}" 
+                                                     role="progressbar" style="width: {{ ratio }}%">
+                                                    {{ ratio }}%
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if book.scrape_date %}
+                                            {{ book.scrape_date.strftime('%Y-%m-%d') }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Books by Unique Words -->
+    {% if top_books_by_unique %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Топ книг по уникальным словам</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Ранг</th>
+                                    <th>Название книги</th>
+                                    <th>Уникальных слов</th>
+                                    <th>Всего слов</th>
+                                    <th>Словарное богатство</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in top_books_by_unique %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if loop.index <= 3 %}success{% else %}secondary{% endif %}">
+                                            {{ loop.index }}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{ book.title }}</strong></td>
+                                    <td>{{ "{:,}".format(book.unique_words) }}</td>
+                                    <td>{{ "{:,}".format(book.total_words) }}</td>
+                                    <td>
+                                        {% if book.total_words and book.unique_words %}
+                                            {% set richness = (book.unique_words / book.total_words * 100) | round(1) %}
+                                            <span class="badge badge-{% if richness >= 30 %}success{% elif richness >= 20 %}warning{% else %}danger{% endif %} badge-lg">
+                                                {{ richness }}%
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Books Without Statistics -->
+    {% if books_without_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">Книги без статистики ({{ books_without_stats|length }})</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for book in books_without_stats %}
+                        <div class="col-md-4 mb-2">
+                            <div class="d-flex justify-content-between align-items-center border rounded p-2">
+                                <div>
+                                    <small class="text-muted">ID: {{ book.id }}</small><br>
+                                    <strong>{{ book.title[:50] }}{% if book.title|length > 50 %}...{% endif %}</strong>
+                                </div>
+                                <button class="btn btn-sm btn-outline-warning" onclick="updateBookStatistics({{ book.id }})">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if books_without_stats|length >= 50 %}
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i>
+                        Показаны первые 50 книг без статистики. Используйте кнопку "Обновить все" для обработки всех книг.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts Row -->
+    <div class="row">
+        {% if top_books_by_words %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Распределение слов (топ 10)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="wordsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if top_books_by_unique %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Словарное богатство (топ 10)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="richnessChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Progress Modal -->
+    <div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Обновление статистики</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <p id="progress-text">Обновление статистики книги...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Words Distribution Chart
+    {% if top_books_by_words %}
+    const wordsCtx = document.getElementById('wordsChart').getContext('2d');
+    const wordsChart = new Chart(wordsCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for book in top_books_by_words[:10] %}
+                '{{ book.title[:20] }}{% if book.title|length > 20 %}...{% endif %}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Всего слов',
+                data: [
+                    {% for book in top_books_by_words[:10] %}
+                    {{ book.total_words }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: '#4f46e5',
+                borderColor: '#4338ca',
+                borderWidth: 1
+            }, {
+                label: 'Уникальных слов',
+                data: [
+                    {% for book in top_books_by_words[:10] %}
+                    {{ book.unique_words }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: '#10b981',
+                borderColor: '#059669',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Vocabulary Richness Chart
+    {% if top_books_by_unique %}
+    const richnessCtx = document.getElementById('richnessChart').getContext('2d');
+    const richnessChart = new Chart(richnessCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [
+                {% for book in top_books_by_unique[:10] %}
+                '{{ book.title[:15] }}{% if book.title|length > 15 %}...{% endif %}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for book in top_books_by_unique[:10] %}
+                    {% if book.total_words and book.unique_words %}
+                    {{ (book.unique_words / book.total_words * 100) | round(1) }}
+                    {% else %}
+                    0
+                    {% endif %}
+                    {% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6b7280'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+
+function updateBookStatistics(bookId) {
+    showProgressModal('Обновление статистики книги...');
+    
+    fetch('{{ url_for("admin.update_book_statistics") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({ book_id: bookId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+        
+        if (data.success) {
+            // Refresh page to show updated statistics
+            location.reload();
+        } else {
+            alert('Ошибка при обновлении статистики: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        alert('Сетевая ошибка: ' + error.message);
+    });
+}
+
+function showProgressModal(text) {
+    document.getElementById('progress-text').textContent = text;
+    new bootstrap.Modal(document.getElementById('progressModal')).show();
+}
+
+function hideProgressModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+</script>
+{% endblock %}

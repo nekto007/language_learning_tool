@@ -1,0 +1,600 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Управление книгами{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Управление книгами</h1>
+        <div>
+            <a href="{{ url_for('admin.add_book') }}" class="btn btn-success btn-sm me-2">
+                <i class="fas fa-plus"></i> Добавить книгу
+            </a>
+            <a href="{{ url_for('admin.book_statistics') }}" class="btn btn-info btn-sm me-2">
+                <i class="fas fa-chart-bar"></i> Статистика
+            </a>
+            <a href="{{ url_for('admin.cleanup_books') }}" class="btn btn-warning btn-sm">
+                <i class="fas fa-broom"></i> Очистка
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Всего книг
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_books }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-book fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                С обработанными данными
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ books_with_stats }}</div>
+                            <div class="text-xs">
+                                {% if total_books > 0 %}
+                                    {{ (books_with_stats / total_books * 100) | round(1) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Без статистики
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ books_without_stats }}</div>
+                            <div class="text-xs">
+                                {% if total_books > 0 %}
+                                    {{ (books_without_stats / total_books * 100) | round(1) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Общее количество слов
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(total_words_all) }}</div>
+                            <div class="text-xs">Уникальных: {{ "{:,}".format(unique_words_all) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-font fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Действия по управлению книгами</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-info h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-globe text-info"></i> Web Scraping
+                                    </h5>
+                                    <p class="card-text small">
+                                        Добавить новые книги из веб-сайтов через парсинг страниц
+                                    </p>
+                                    <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#scrapingModal">
+                                        <i class="fas fa-globe"></i> Запустить парсинг
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-warning h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-chart-line text-warning"></i> Обновить статистику
+                                    </h5>
+                                    <p class="card-text small">
+                                        Пересчитать количество слов и статистику для всех книг
+                                    </p>
+                                    <button class="btn btn-warning btn-sm" onclick="updateBookStatistics()">
+                                        <i class="fas fa-sync-alt"></i> Обновить все
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-success h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-plus-circle text-success"></i> Фразовые глаголы
+                                    </h5>
+                                    <p class="card-text small">
+                                        Импортировать фразовые глаголы из файла или текста
+                                    </p>
+                                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#phrasalVerbsModal">
+                                        <i class="fas fa-upload"></i> Импорт
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Books -->
+    {% if recent_books %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Недавно добавленные книги</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Название</th>
+                                    <th>Всего слов</th>
+                                    <th>Уникальных слов</th>
+                                    <th>Дата обработки</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in recent_books %}
+                                <tr>
+                                    <td>{{ book.id }}</td>
+                                    <td><strong>{{ book.title }}</strong></td>
+                                    <td>
+                                        {% if book.total_words %}
+                                            {{ "{:,}".format(book.total_words) }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if book.unique_words %}
+                                            {{ "{:,}".format(book.unique_words) }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if book.scrape_date %}
+                                            {{ book.scrape_date.strftime('%Y-%m-%d %H:%M') }}
+                                        {% else %}
+                                            <span class="text-muted">Не обработана</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-warning" onclick="updateBookStatistics({{ book.id }})">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Books -->
+    {% if top_books %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Топ книг по количеству слов</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Название</th>
+                                    <th>Всего слов</th>
+                                    <th>Уникальных слов</th>
+                                    <th>Соотношение</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in top_books %}
+                                <tr>
+                                    <td><strong>{{ book.title }}</strong></td>
+                                    <td>{{ "{:,}".format(book.total_words) }}</td>
+                                    <td>{{ "{:,}".format(book.unique_words) }}</td>
+                                    <td>
+                                        {% if book.total_words and book.unique_words %}
+                                            {% set ratio = (book.unique_words / book.total_words * 100) | round(1) %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-{% if ratio >= 30 %}success{% elif ratio >= 20 %}warning{% else %}danger{% endif %}" 
+                                                     role="progressbar" style="width: {{ ratio }}%">
+                                                    {{ ratio }}%
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Web Scraping Modal -->
+    <div class="modal fade" id="scrapingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Web Scraping книг</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="scrapingForm">
+                        <div class="mb-3">
+                            <label for="scrapeUrl" class="form-label">URL сайта для парсинга</label>
+                            <input type="url" class="form-control" id="scrapeUrl" name="url" 
+                                   placeholder="https://example.com/books" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxPages" class="form-label">Максимальное количество страниц</label>
+                            <input type="number" class="form-control" id="maxPages" name="max_pages" 
+                                   value="10" min="1" max="100">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-info" onclick="startScraping()">Начать парсинг</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phrasal Verbs Modal -->
+    <div class="modal fade" id="phrasalVerbsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Импорт фразовых глаголов</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="phrasalVerbsForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="phrasalVerbsFile" class="form-label">Файл с фразовыми глаголами</label>
+                            <input type="file" class="form-control" id="phrasalVerbsFile" name="phrasal_verbs_file" accept=".txt,.csv">
+                            <div class="form-text">Формат: phrasal_verb;russian_translate;using;english_sentence;russian_sentence</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phrasalVerbsText" class="form-label">Или вставьте текст</label>
+                            <textarea class="form-control" id="phrasalVerbsText" name="phrasal_verbs_text" rows="10"
+                                      placeholder="look up;искать;used when searching for information;I need to look up this word in the dictionary;Мне нужно найти это слово в словаре"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-success" onclick="processPhrasalVerbs()">Импортировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Выполнение операции</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <p id="progress-text">Выполняется операция...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal fade" id="resultsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Результат операции</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="results-content">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateBookStatistics(bookId = null) {
+    showProgressModal(bookId ? 'Обновление статистики книги...' : 'Обновление статистики всех книг...');
+    
+    const data = bookId ? { book_id: bookId } : {};
+    
+    fetch('{{ url_for("admin.update_book_statistics") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+        
+        if (data.success) {
+            showResultsModal(
+                `<div class="alert alert-success">
+                    <h5>Статистика обновлена!</h5>
+                    <p>Обновлено книг: <strong>${data.updated_count}</strong> из ${data.total_books}</p>
+                </div>`
+            );
+            
+            // Refresh page after 2 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showResultsModal(
+                `<div class="alert alert-danger">
+                    <h5>Ошибка при обновлении</h5>
+                    <p>${data.error}</p>
+                </div>`
+            );
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        showResultsModal(
+            `<div class="alert alert-danger">
+                <h5>Сетевая ошибка</h5>
+                <p>${error.message}</p>
+            </div>`
+        );
+    });
+}
+
+function startScraping() {
+    const form = document.getElementById('scrapingForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        url: formData.get('url'),
+        max_pages: parseInt(formData.get('max_pages'))
+    };
+    
+    if (!data.url) {
+        alert('Пожалуйста, укажите URL для парсинга');
+        return;
+    }
+    
+    // Hide modal and show progress
+    bootstrap.Modal.getInstance(document.getElementById('scrapingModal')).hide();
+    showProgressModal('Выполняется парсинг веб-сайта...');
+    
+    fetch('{{ url_for("admin.scrape_website") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+        
+        if (data.success) {
+            let resultsHtml = `
+                <div class="alert alert-success">
+                    <h5>Парсинг завершен!</h5>
+                    <p>Обработано книг: <strong>${data.scraped_count}</strong></p>
+                </div>
+            `;
+            
+            if (data.results && data.results.length > 0) {
+                resultsHtml += `
+                    <h6>Примеры найденных книг:</h6>
+                    <ul class="list-group">
+                `;
+                for (const result of data.results) {
+                    resultsHtml += `<li class="list-group-item">${result}</li>`;
+                }
+                resultsHtml += '</ul>';
+            }
+            
+            showResultsModal(resultsHtml);
+            
+            // Refresh page after 3 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            showResultsModal(
+                `<div class="alert alert-danger">
+                    <h5>Ошибка при парсинге</h5>
+                    <p>${data.error}</p>
+                </div>`
+            );
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        showResultsModal(
+            `<div class="alert alert-danger">
+                <h5>Сетевая ошибка</h5>
+                <p>${error.message}</p>
+            </div>`
+        );
+    });
+}
+
+function processPhrasalVerbs() {
+    const form = document.getElementById('phrasalVerbsForm');
+    const formData = new FormData(form);
+    
+    // Check if either file or text is provided
+    const hasFile = formData.get('phrasal_verbs_file').size > 0;
+    const hasText = formData.get('phrasal_verbs_text').trim().length > 0;
+    
+    if (!hasFile && !hasText) {
+        alert('Пожалуйста, загрузите файл или введите текст с фразовыми глаголами');
+        return;
+    }
+    
+    // Hide modal and show progress
+    bootstrap.Modal.getInstance(document.getElementById('phrasalVerbsModal')).hide();
+    showProgressModal('Обработка фразовых глаголов...');
+    
+    fetch('{{ url_for("admin.process_phrasal_verbs") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+        
+        if (data.success) {
+            let resultsHtml = `
+                <div class="alert alert-success">
+                    <h5>Фразовые глаголы обработаны!</h5>
+                    <p>Обработано: <strong>${data.processed_count}</strong> из ${data.total_lines}</p>
+                </div>
+            `;
+            
+            if (data.errors && data.errors.length > 0) {
+                resultsHtml += `
+                    <div class="alert alert-warning">
+                        <h6>Ошибки (${data.total_errors || data.errors.length}):</h6>
+                        <ul>
+                `;
+                for (const error of data.errors) {
+                    resultsHtml += `<li>${error}</li>`;
+                }
+                resultsHtml += '</ul></div>';
+            }
+            
+            showResultsModal(resultsHtml);
+            
+            // Refresh page after 3 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            showResultsModal(
+                `<div class="alert alert-danger">
+                    <h5>Ошибка при обработке</h5>
+                    <p>${data.error}</p>
+                </div>`
+            );
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        showResultsModal(
+            `<div class="alert alert-danger">
+                <h5>Сетевая ошибка</h5>
+                <p>${error.message}</p>
+            </div>`
+        );
+    });
+}
+
+function showProgressModal(text) {
+    document.getElementById('progress-text').textContent = text;
+    new bootstrap.Modal(document.getElementById('progressModal')).show();
+}
+
+function hideProgressModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+
+function showResultsModal(content) {
+    document.getElementById('results-content').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('resultsModal')).show();
+}
+</script>
+{% endblock %}

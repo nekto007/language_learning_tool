@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Импорт переводов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Импорт переводов</h1>
+        <a href="{{ url_for('admin.word_management') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к управлению словами
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Загрузка файла с переводами</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ csrf_token() }}
+                        
+                        <div class="form-group">
+                            <label for="translation_file">Файл с переводами:</label>
+                            <input type="file" class="form-control-file" id="translation_file" 
+                                   name="translation_file" accept=".txt,.csv" required>
+                            <small class="form-text text-muted">
+                                Поддерживаются файлы формата .txt и .csv
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Формат файла:</h6>
+                            <p>Каждая строка должна содержать английское слово и русский перевод, разделенные символом "|":</p>
+                            <pre>apple|яблоко
+book|книга
+computer|компьютер</pre>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle"></i> Важно:</h6>
+                            <ul class="mb-0">
+                                <li>Английские слова должны точно совпадать с записями в базе данных</li>
+                                <li>Строки, начинающиеся с "#", будут пропущены как комментарии</li>
+                                <li>Пустые строки будут проигнорированы</li>
+                                <li>Если слово не найдено в базе, оно будет пропущено с предупреждением</li>
+                            </ul>
+                        </div>
+
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-upload"></i> Импортировать переводы
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">Пример файла</h6>
+                </div>
+                <div class="card-body">
+                    <p>Создайте текстовый файл со следующим содержимым:</p>
+                    <pre class="small"># Переводы слов
+# Формат: английское_слово|русский_перевод
+
+apple|яблоко
+book|книга
+computer|компьютер
+house|дом
+car|автомобиль
+water|вода
+food|еда
+time|время
+people|люди
+work|работа</pre>
+                </div>
+            </div>
+
+            <div class="card shadow mt-3">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Советы</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li><strong>Резервная копия:</strong> Создайте резервную копию базы данных перед импортом</li>
+                        <li><strong>Тестирование:</strong> Сначала попробуйте импорт с небольшим файлом</li>
+                        <li><strong>Кодировка:</strong> Используйте UTF-8 для корректного отображения русских символов</li>
+                        <li><strong>Проверка:</strong> После импорта проверьте результаты в разделе статистики</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

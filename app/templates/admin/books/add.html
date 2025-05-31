@@ -1,0 +1,541 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Добавить книгу{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+.auto-filled {
+    background-color: #e8f5e8 !important;
+    border-color: #28a745 !important;
+}
+
+.auto-filled:focus {
+    background-color: #ffffff !important;
+    border-color: #80bdff !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+}
+
+.field-success {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#metadata-loading {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#metadata-alert {
+    animation: slideDown 0.3s ease-out;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">
+        {% if book %}Редактировать книгу{% else %}Добавить новую книгу{% endif %}
+    </h1>
+    <p class="page-subtitle">
+        {% if book %}
+            Изменение информации и содержания книги "{{ book.title }}"
+        {% else %}
+            Создание новой книги в системе
+        {% endif %}
+    </p>
+</div>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Book Form -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-{{ 'edit' if book else 'plus' }}"></i>
+            {{ 'Редактирование книги' if book else 'Информация о книге' }}
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" id="bookForm">
+            {{ form.hidden_tag() }}
+            
+            <div class="row">
+                <!-- Basic Information -->
+                <div class="col-lg-6">
+                    <div class="form-group mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                        {% if form.title.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.title.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-3">
+                        {{ form.author.label(class="form-label") }}
+                        {{ form.author(class="form-control" + (" is-invalid" if form.author.errors else "")) }}
+                        {% if form.author.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.author.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group mb-3">
+                        {{ form.level.label(class="form-label") }}
+                        {{ form.level(class="form-control" + (" is-invalid" if form.level.errors else "")) }}
+                        {% if form.level.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.level.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- File Format Selection -->
+                    {% if form.format_type %}
+                    <div class="form-group mb-3">
+                        {{ form.format_type.label(class="form-label") }}
+                        {{ form.format_type(class="form-control") }}
+                        <small class="form-text text-muted">
+                            Выберите формат для обработки загружаемого файла
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Cover Image -->
+                <div class="col-lg-6">
+                    <div class="form-group mb-3">
+                        <label class="form-label">Обложка книги</label>
+                        
+                        {% if book and book.cover_image %}
+                        <div class="current-cover mb-3">
+                            <img src="{{ url_for('static', filename=book.cover_image) }}" 
+                                 alt="Текущая обложка" 
+                                 class="img-thumbnail" 
+                                 style="max-width: 200px; max-height: 300px;">
+                            <p class="text-muted mt-2">Текущая обложка</p>
+                        </div>
+                        {% endif %}
+
+                        {{ form.cover_image(class="form-control" + (" is-invalid" if form.cover_image.errors else ""), accept="image/*") }}
+                        {% if form.cover_image.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.cover_image.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Поддерживаемые форматы: PNG, JPG, JPEG, GIF. Максимальный размер: 5MB.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Section -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2 mb-3">Содержание книги</h6>
+                    
+                    <!-- File Upload -->
+                    {% if form.file %}
+                    <div class="form-group mb-3">
+                        {{ form.file.label(class="form-label") }}
+                        {{ form.file(class="form-control" + (" is-invalid" if form.file.errors else "")) }}
+                        {% if form.file.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.file.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Загрузите файл с содержанием книги (TXT, DOCX, FB2, EPUB, HTML)
+                        </small>
+                    </div>
+                    {% endif %}
+
+                    <!-- Manual Content Input -->
+                    {% if form.content %}
+                    <div class="form-group mb-3">
+                        {{ form.content.label(class="form-label") }}
+                        {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows="15", placeholder="Введите текст книги вручную или загрузите файл выше") }}
+                        {% if form.content.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.content.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Вы можете ввести содержание книги вручную или загрузить файл выше.
+                            При загрузке файла это поле будет игнорировано.
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                {{ 'Сохранить изменения' if book else 'Создать книгу' }}
+                            </button>
+                            {% if book %}
+                            <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-eye"></i> Просмотр
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{{ url_for('admin.books') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Назад к списку
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Book Statistics (if editing) -->
+{% if book %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-chart-bar"></i>
+            Статистика книги
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-label">Общее количество слов</div>
+                    <div class="stat-value">{{ book.total_words or 0 }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-label">Уникальные слова</div>
+                    <div class="stat-value">{{ book.unique_words or 0 }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-label">Дата добавления</div>
+                    <div class="stat-value">
+                        {% if book.scrape_date %}
+                            {{ book.scrape_date.strftime('%d.%m.%Y') }}
+                        {% else %}
+                            Неизвестно
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-label">Статус обработки</div>
+                    <div class="stat-value">
+                        {% if book.content %}
+                            <span class="badge bg-success">Обработана</span>
+                        {% else %}
+                            <span class="badge bg-warning">Без содержания</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if book.content %}
+        <div class="mt-3">
+            <form action="{{ url_for('books.reprocess_book_words', book_id=book.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-info" 
+                        onclick="return confirm('Перезапустить обработку слов для этой книги?')">
+                    <i class="fas fa-sync-alt"></i> Перезапустить обработку слов
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Form validation and user experience improvements
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('bookForm');
+    const fileInput = document.querySelector('input[name="file"]');
+    const contentTextarea = document.querySelector('textarea[name="content"]');
+    const titleInput = document.querySelector('input[name="title"]');
+    const authorInput = document.querySelector('input[name="author"]');
+    
+    // Auto-extract metadata and show/hide content textarea based on file selection
+    if (fileInput && contentTextarea) {
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                const file = this.files[0];
+                
+                contentTextarea.style.display = 'none';
+                contentTextarea.previousElementSibling.style.display = 'none'; // Hide label
+                
+                // Show info about file upload
+                if (!document.getElementById('file-upload-info')) {
+                    const info = document.createElement('div');
+                    info.id = 'file-upload-info';
+                    info.className = 'alert alert-info';
+                    info.innerHTML = '<i class="fas fa-info-circle"></i> Файл выбран для загрузки. Содержание будет извлечено из файла.';
+                    this.parentNode.appendChild(info);
+                }
+                
+                // Extract metadata from file
+                extractFileMetadata(file);
+            } else {
+                contentTextarea.style.display = 'block';
+                contentTextarea.previousElementSibling.style.display = 'block'; // Show label
+                
+                // Remove info
+                const info = document.getElementById('file-upload-info');
+                if (info) {
+                    info.remove();
+                }
+            }
+        });
+    }
+    
+    // Function to extract metadata from uploaded file
+    function extractFileMetadata(file) {
+        // Check if file type supports metadata extraction
+        const supportedTypes = ['.fb2', '.epub', '.docx'];
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!supportedTypes.includes(fileExt) && fileExt !== '.txt') {
+            return; // Skip metadata extraction for unsupported types
+        }
+        
+        // Show loading indicator
+        showMetadataLoading();
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch('{{ url_for("admin.extract_book_metadata") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideMetadataLoading();
+            
+            if (data.success && data.metadata) {
+                console.log('Metadata extracted:', data.metadata);
+                
+                let extractedFields = [];
+                
+                // Auto-fill title and author fields if they're empty
+                if (data.metadata.title && (!titleInput.value || titleInput.value.trim() === '')) {
+                    titleInput.value = data.metadata.title;
+                    titleInput.classList.add('auto-filled');
+                    showFieldSuccess(titleInput, 'Заголовок извлечен из файла');
+                    extractedFields.push('заголовок');
+                }
+                
+                if (data.metadata.author && (!authorInput.value || authorInput.value.trim() === '')) {
+                    authorInput.value = data.metadata.author;
+                    authorInput.classList.add('auto-filled');
+                    showFieldSuccess(authorInput, 'Автор извлечен из файла');
+                    extractedFields.push('автор');
+                }
+                
+                // Show success message if any metadata was extracted
+                if (extractedFields.length > 0) {
+                    const message = `Метаданные успешно извлечены: ${extractedFields.join(', ')}`;
+                    showAlert('success', message);
+                } else if (data.metadata.title || data.metadata.author) {
+                    showAlert('info', 'Метаданные найдены, но поля уже заполнены');
+                }
+            } else {
+                // For TXT files or if extraction failed, try to use filename
+                if (fileExt === '.txt' || !data.success) {
+                    const filename = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+                    if (filename && (!titleInput.value || titleInput.value.trim() === '')) {
+                        titleInput.value = filename;
+                        titleInput.classList.add('auto-filled');
+                        showFieldSuccess(titleInput, 'Заголовок извлечен из имени файла');
+                    }
+                }
+                
+                if (!data.success) {
+                    console.warn('Metadata extraction failed:', data.error);
+                }
+            }
+        })
+        .catch(error => {
+            hideMetadataLoading();
+            console.error('Error extracting metadata:', error);
+            
+            // Fallback: use filename for title
+            const filename = file.name.replace(/\.[^/.]+$/, "");
+            if (filename && (!titleInput.value || titleInput.value.trim() === '')) {
+                titleInput.value = filename;
+                titleInput.classList.add('auto-filled');
+                showFieldSuccess(titleInput, 'Заголовок извлечен из имени файла');
+            }
+        });
+    }
+    
+    function showMetadataLoading() {
+        // Remove existing indicators
+        hideMetadataLoading();
+        
+        // Add loading indicator
+        const indicator = document.createElement('div');
+        indicator.id = 'metadata-loading';
+        indicator.className = 'alert alert-info mt-2';
+        indicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Извлечение метаданных из файла...';
+        fileInput.parentNode.appendChild(indicator);
+    }
+    
+    function hideMetadataLoading() {
+        const indicator = document.getElementById('metadata-loading');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+    
+    function showFieldSuccess(field, message) {
+        // Remove existing success indicators
+        const existingSuccess = field.parentNode.querySelector('.field-success');
+        if (existingSuccess) {
+            existingSuccess.remove();
+        }
+        
+        // Add success indicator
+        const success = document.createElement('div');
+        success.className = 'field-success text-success small mt-1';
+        success.innerHTML = `<i class="fas fa-check"></i> ${message}`;
+        field.parentNode.appendChild(success);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (success.parentNode) {
+                success.remove();
+            }
+        }, 5000);
+    }
+    
+    function showAlert(type, message) {
+        // Remove existing alerts
+        const existingAlert = document.getElementById('metadata-alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        // Create alert
+        const alert = document.createElement('div');
+        alert.id = 'metadata-alert';
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insert at top of form
+        form.insertBefore(alert, form.firstChild);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+    
+    // Cover image preview
+    const coverInput = document.querySelector('input[name="cover_image"]');
+    if (coverInput) {
+        coverInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Remove existing preview
+                    const existingPreview = document.getElementById('cover-preview');
+                    if (existingPreview) {
+                        existingPreview.remove();
+                    }
+                    
+                    // Create new preview
+                    const preview = document.createElement('div');
+                    preview.id = 'cover-preview';
+                    preview.className = 'mt-3';
+                    preview.innerHTML = `
+                        <img src="${e.target.result}" 
+                             alt="Предпросмотр обложки" 
+                             class="img-thumbnail" 
+                             style="max-width: 200px; max-height: 300px;">
+                        <p class="text-muted mt-2">Предпросмотр новой обложки</p>
+                    `;
+                    coverInput.parentNode.appendChild(preview);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Form submission handling
+    form.addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+        submitBtn.disabled = true;
+        
+        // Re-enable button after some time in case of errors
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 30000);
+    });
+});
+</script>
+{% endblock %}
