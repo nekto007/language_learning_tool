@@ -20,9 +20,9 @@ from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional
 
 from app.books.forms import BookContentForm
-from app.books.models import Book, ReadingProgress
+from app.books.models import Book, Bookmark, ReadingProgress
 from app.books.parsers import process_uploaded_book
-from app.books.processors import enqueue_book_processing, process_book_words
+from app.books.processors import enqueue_book_processing
 from app.study.models import UserWord
 from app.utils.db import db, word_book_link
 from app.utils.decorators import admin_required
@@ -129,98 +129,12 @@ def save_cover_image(file):
 @books.route('/add', methods=['GET', 'POST'])
 @login_required
 @admin_required
-def add_book():
+def add_book_redirect():
     """
-    Страница для добавления новой книги
+    Перенаправляет на админку для добавления новой книги
     """
-    form = BookContentForm()
-
-    if form.validate_on_submit():
-        try:
-            # Создаем новую книгу с основными данными
-            new_book = Book(
-                title=form.title.data,
-                author=form.author.data,
-                level=form.level.data,
-                scrape_date=datetime.utcnow()
-            )
-
-            # Обрабатываем обложку, если она загружена
-            if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
-                cover_filename = save_cover_image(form.cover_image.data)
-                if cover_filename:
-                    new_book.cover_image = cover_filename
-
-            # Если был загружен файл контента, обрабатываем его
-            if form.file.data and hasattr(form.file.data, 'filename'):
-                try:
-                    # Обрабатываем файл с помощью функции из parsers.py
-                    result = process_uploaded_book(
-                        file=form.file.data,
-                        title=form.title.data,
-                        format_type=form.format_type.data
-                    )
-
-                    # Сохраняем результаты
-                    new_book.content = result['content']
-                    new_book.total_words = result['word_count']
-                    new_book.unique_words = result['unique_words']
-
-                except Exception as e:
-                    flash(f'Error processing file: {str(e)}', 'danger')
-                    return render_template('books/add.html', form=form)
-
-            elif form.content.data:
-                # Если контент был введен вручную
-                content = form.content.data
-
-                # Нормализуем текст
-                content = re.sub(r'\s+', ' ', content)
-
-                # Преобразуем простой текст в HTML с форматированием абзацев
-                paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
-                content_html = '<p>' + '</p><p>'.join(paragraphs) + '</p>'
-
-                # Подсчитываем статистику слов
-                words = re.findall(r'\b[a-zA-Z]+\b', content.lower())
-                new_book.content = content_html
-                new_book.total_words = len(words)
-                new_book.unique_words = len(set(words))
-
-            # Сохраняем книгу в базу данных
-            db.session.add(new_book)
-            db.session.commit()
-
-            # ВАЖНО: Теперь запускаем обработку слов в отдельном потоке без ожидания
-            if new_book.content:
-                # Сохраняем ID книги и запускаем обработку асинхронно в отдельном потоке
-                book_id = new_book.id
-
-                # Используем исключительно threading.Thread с daemon=True
-                def start_processing():
-                    try:
-                        # Используем простую постановку в очередь
-                        process_book_words(new_book.id, new_book.content)
-                    except Exception as e:
-                        logger.error(f"Ошибка при запуске обработки слов: {str(e)}")
-
-                # Запускаем поток и не ждем его завершения
-                processing_thread = threading.Thread(target=start_processing)
-                processing_thread.daemon = True
-                processing_thread.start()
-
-                # Сразу возвращаем ответ пользователю
-                flash('Book added successfully! Word processing has been started in the background.', 'success')
-            else:
-                flash('Book added successfully!', 'success')
-
-            return redirect(url_for('books.book_details', book_id=new_book.id))
-
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error saving book: {str(e)}', 'danger')
-
-    return render_template('books/add.html', form=form)
+    flash('Функция добавления книг перенесена в админку', 'info')
+    return redirect(url_for('admin.add_book'))
 
 
 # 2. Аналогично модифицируем метод edit_book_content
@@ -335,7 +249,12 @@ def edit_book_content(book_id):
     if not form.content.data and book.content:
         form.content.data = book.content
 
-    return render_template('books/add.html', form=form, book=book, is_edit=True)
+    # A/B testing for optimized editor
+    use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
+
+    template = 'books/content_editor_optimized.html' if use_optimized else 'books/add.html'
+
+    return render_template(template, form=form, book=book, is_edit=True)
 
 
 @books.route('/reprocess-words/<int:book_id>', methods=['POST'])
@@ -411,11 +330,41 @@ def upload_cover(book_id):
     return redirect(url_for('books.book_details', book_id=book_id))
 
 
+@books.route('/read')
+@login_required
+def read_selection():
+    """
+    Page for selecting a book to read
+    """
+    # Get user's recent reading progress
+    recent_books = db.session.query(Book, ReadingProgress).join(
+        ReadingProgress, Book.id == ReadingProgress.book_id
+    ).filter(
+        ReadingProgress.user_id == current_user.id
+    ).order_by(
+        ReadingProgress.last_read.desc()
+    ).limit(10).all()
+
+    # Get all books with content
+    all_books = Book.query.filter(
+        Book.content.isnot(None),
+        Book.content != ''
+    ).order_by(Book.title).all()
+
+    # Get reading statistics
+    books_started = ReadingProgress.query.filter_by(user_id=current_user.id).count()
+
+    return render_template('books/read_selection.html',
+                           recent_books=recent_books,
+                           all_books=all_books,
+                           books_started=books_started)
+
+
 @books.route('/read/<int:book_id>')
 @login_required
 def read_book(book_id):
     """
-    Page for reading a book
+    Page for reading a book with A/B testing for optimized version
     """
     book = Book.query.get_or_404(book_id)
 
@@ -442,14 +391,202 @@ def read_book(book_id):
         progress.last_read = datetime.utcnow()
         db.session.commit()
 
-    return render_template('books/read.html', book=book, progress=progress)
+    # A/B testing for optimized reader
+    use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
+
+    if use_optimized:
+        return render_template('books/read_optimized.html', book=book, progress=progress)
+    else:
+        return render_template('books/read.html', book=book, progress=progress)
+
+
+@books.route('/api/save-reading-position', methods=['POST'])
+@login_required
+def save_reading_position():
+    """
+    API for saving reading position (optimized reader)
+    """
+    data = request.get_json()
+    book_id = data.get('book_id')
+    position = data.get('position')
+
+    if not book_id or position is None:
+        return jsonify({'success': False, 'error': 'Missing required data'}), 400
+
+    try:
+        # Get or create reading progress
+        progress = ReadingProgress.query.filter_by(
+            user_id=current_user.id,
+            book_id=book_id
+        ).first()
+
+        if not progress:
+            progress = ReadingProgress(
+                user_id=current_user.id,
+                book_id=book_id,
+                position=position
+            )
+            db.session.add(progress)
+        else:
+            progress.position = position
+            progress.last_read = datetime.utcnow()
+
+        db.session.commit()
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@books.route('/api/translate', methods=['POST'])
+@login_required
+def api_translate():
+    """
+    API for word translation (optimized reader)
+    """
+    data = request.get_json()
+    word = data.get('word', '').strip().lower()
+
+    if not word:
+        return jsonify({'success': False, 'error': 'Word is required'}), 400
+
+    try:
+        # Search for word in dictionary
+        word_entry = CollectionWords.query.filter_by(english_word=word).first()
+
+        if word_entry and word_entry.russian_word:
+            return jsonify({
+                'success': True,
+                'translation': word_entry.russian_word,
+                'word': word
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'translation': 'Translation not found',
+                'word': word
+            })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@books.route('/api/add-word-to-learning', methods=['POST'])
+@login_required
+def add_word_to_learning():
+    """
+    API for adding word to learning list (optimized reader)
+    """
+    data = request.get_json()
+    word = data.get('word', '').strip().lower()
+
+    if not word:
+        return jsonify({'success': False, 'error': 'Word is required'}), 400
+
+    try:
+        # Check if word exists in dictionary
+        word_entry = CollectionWords.query.filter_by(english_word=word).first()
+
+        if not word_entry:
+            # Create new word entry
+            word_entry = CollectionWords(
+                english_word=word,
+                russian_word='',  # Will be filled later
+                level='A1'  # Default level
+            )
+            db.session.add(word_entry)
+
+        # Check if user already has this word in learning
+        user_word = UserWord.query.filter_by(
+            user_id=current_user.id,
+            word_id=word_entry.id
+        ).first()
+
+        if not user_word:
+            # Add to user's learning list
+            user_word = UserWord(
+                user_id=current_user.id,
+                word_id=word_entry.id,
+                status='learning',  # Learning status as string
+                date_added=datetime.utcnow()
+            )
+            db.session.add(user_word)
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Word "{word}" added to learning list'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@books.route('/api/bookmarks/<int:book_id>')
+@login_required
+def get_bookmarks(book_id):
+    """
+    API for getting bookmarks for a book
+    """
+    try:
+        bookmarks = Bookmark.query.filter_by(
+            user_id=current_user.id,
+            book_id=book_id
+        ).order_by(Bookmark.position).all()
+
+        bookmarks_data = [{
+            'id': bookmark.id,
+            'name': bookmark.name,
+            'position': bookmark.position,
+            'context': bookmark.context or '',
+            'created_at': bookmark.created_at.isoformat()
+        } for bookmark in bookmarks]
+
+        return jsonify(bookmarks_data)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@books.route('/api/bookmarks', methods=['POST'])
+@login_required
+def save_bookmark():
+    """
+    API for saving a bookmark
+    """
+    data = request.get_json()
+    book_id = data.get('book_id')
+    name = data.get('name', '').strip()
+    position = data.get('position', 0)
+    context = data.get('context', '')
+
+    if not book_id or not name:
+        return jsonify({'success': False, 'error': 'Book ID and name are required'}), 400
+
+    try:
+        bookmark = Bookmark(
+            user_id=current_user.id,
+            book_id=book_id,
+            name=name,
+            position=position,
+            context=context,
+            created_at=datetime.utcnow()
+        )
+
+        db.session.add(bookmark)
+        db.session.commit()
+
+        return jsonify({'success': True, 'id': bookmark.id})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @books.route('/api/save-progress', methods=['POST'])
 @login_required
 def save_progress():
     """
-    API for saving reading progress
+    API for saving reading progress (legacy)
     """
     data = request.get_json()
     book_id = data.get('book_id')
@@ -1094,13 +1231,17 @@ def book_list():
 
     book_items = pagination.items
 
-    # Get word stats for each book
+    # Оптимизированный запрос статистики для всех книг сразу
     book_stats = {}
-    for book in book_items:
-        # Обновляем запрос статистики на использование новой модели UserWord
-        words_status_query = db.select(
-            func.count().label('count'),
-            UserWord.status
+
+    if book_items and current_user.is_authenticated:
+        book_ids = [book.id for book in book_items]
+
+        # Один запрос для всех книг
+        bulk_stats_query = db.select(
+            word_book_link.c.book_id,
+            UserWord.status,
+            func.count().label('count')
         ).select_from(
             word_book_link
         ).join(
@@ -1108,34 +1249,49 @@ def book_list():
             (word_book_link.c.word_id == UserWord.word_id) &
             (UserWord.user_id == current_user.id)
         ).where(
-            word_book_link.c.book_id == book.id
+            word_book_link.c.book_id.in_(book_ids)
         ).group_by(
+            word_book_link.c.book_id,
             UserWord.status
         )
 
-        word_status_counts = db.session.execute(words_status_query).all()
+        bulk_results = db.session.execute(bulk_stats_query).all()
 
-        # Initialize statistics
-        stats = {
-            'total': book.unique_words,
-            'new': book.unique_words,  # По умолчанию все слова считаем новыми, потом вычтем изученные
-            'learning': 0,
-            'review': 0,  # Добавляем статус 'review'
-            'mastered': 0
-        }
+        # Инициализируем статистику для всех книг
+        for book in book_items:
+            book_stats[book.id] = {
+                'total': book.unique_words or 0,
+                'new': book.unique_words or 0,
+                'learning': 0,
+                'review': 0,
+                'mastered': 0
+            }
 
-        # Обновляем статистику с учетом строковых статусов вместо числовых
-        for count, status in word_status_counts:
-            if status in stats:
-                stats[status] = count
-                # Если у слова есть статус (кроме 'new'), вычитаем из 'new'
+        # Обновляем статистику на основе результатов запроса
+        for book_id, status, count in bulk_results:
+            if book_id in book_stats and status in book_stats[book_id]:
+                book_stats[book_id][status] = count
+                # Вычитаем из 'new' если есть статус
                 if status != 'new':
-                    stats['new'] -= count
+                    book_stats[book_id]['new'] -= count
+    else:
+        # Для неавторизованных пользователей или пустого списка
+        for book in book_items:
+            book_stats[book.id] = {
+                'total': book.unique_words or 0,
+                'new': book.unique_words or 0,
+                'learning': 0,
+                'review': 0,
+                'mastered': 0
+            }
 
-        book_stats[book.id] = stats
+    # Проверяем, хочет ли пользователь использовать оптимизированную версию
+    use_optimized = request.args.get('optimized', 'true').lower() == 'true'
+
+    template = 'books/list_optimized.html' if use_optimized else 'books/list.html'
 
     return render_template(
-        'books/list.html',
+        template,
         books=book_items,
         pagination=pagination,
         book_stats=book_stats,
@@ -1170,7 +1326,7 @@ def book_details(book_id):
         'total': book.unique_words,
         'new': book.unique_words,  # По умолчанию все слова считаем новыми, потом вычтем изученные
         'learning': 0,
-        'review': 0,   # Добавляем статус 'review'
+        'review': 0,  # Добавляем статус 'review'
         'mastered': 0
     }
 
@@ -1208,8 +1364,13 @@ def book_details(book_id):
     for word, _ in frequent_words:
         word_statuses[word.id] = current_user.get_word_status(word.id)
 
+    # A/B testing for optimized version
+    use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
+
+    template = 'books/details_optimized.html' if use_optimized else 'books/details.html'
+
     return render_template(
-        'books/details.html',
+        template,
         book=book,
         word_stats=word_stats,
         progress=progress,
@@ -1286,12 +1447,49 @@ def book_words(book_id):
 
         word_statuses[word.id] = current_user.get_word_status(word.id)
 
+    # Get word statistics for filter counts
+    word_stats = {
+        'total': book.unique_words or 0,
+        'new': book.unique_words or 0,
+        'learning': 0,
+        'review': 0,
+        'mastered': 0
+    }
+
+    # Get counts for each status
+    stats_query = db.select(
+        UserWord.status,
+        func.count().label('count')
+    ).join(
+        word_book_link,
+        UserWord.word_id == word_book_link.c.word_id
+    ).where(
+        (word_book_link.c.book_id == book_id) &
+        (UserWord.user_id == current_user.id)
+    ).group_by(
+        UserWord.status
+    )
+
+    status_counts = db.session.execute(stats_query).all()
+
+    for status_name, count in status_counts:
+        if status_name in word_stats:
+            word_stats[status_name] = count
+            if status_name != 'new':
+                word_stats['new'] -= count
+
+    # A/B testing for optimized version
+    use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
+
+    template = 'books/words_optimized.html' if use_optimized else 'books/words.html'
+
     return render_template(
-        'books/words.html',
+        template,
         book=book,
         book_words=book_words,
         pagination=pagination,
         word_statuses=word_statuses,
+        word_stats=word_stats,
         status=status,
         sort_by=sort_by,
         sort_order=sort_order

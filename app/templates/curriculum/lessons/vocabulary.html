@@ -1,0 +1,1572 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Словарь') %}
+{% set instruction_text = _('Изучите новые слова. Добавьте их в свой список для изучения или отметьте как уже известные.') %}
+{% set block_description = _('Изучение новых слов и выражений') %}
+
+{% block lesson_content %}
+<!-- Получаем данные о предыдущей сессии -->
+{% set previous_data = None %}
+{% set is_completed_raw = false %}
+{% if progress %}
+  {% if progress.data %}
+    {% set previous_data = progress.data %}
+  {% endif %}
+  {% if progress.status is defined and progress.status is not none %}
+    {% set is_completed_raw = (progress.status == 'completed') %}
+  {% endif %}
+{% else %}
+{% endif %}
+
+{# Ensure is_completed is always a boolean #}
+{% if is_completed_raw is sameas true %}
+  {% set is_completed = true %}
+{% else %}
+  {% set is_completed = false %}
+{% endif %}
+
+
+<div class="vocabulary-lesson">
+  {% if is_completed %}
+    <!-- Режим просмотра результатов -->
+    <div class="vocabulary-results-review">
+      <div class="results-header">
+        <h3>{{ _('Урок завершен') }}</h3>
+        <div class="results-stats">
+          <div class="stat-card">
+            <i class="fas fa-book-open"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ words|length }}</span>
+              <span class="stat-label">{{ _('Слов в уроке') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-graduation-cap"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ words|selectattr('status', 'equalto', 'learning')|list|length }}</span>
+              <span class="stat-label">{{ _('Добавлено в изучение') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-check-circle"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ words|selectattr('status', 'equalto', 'mastered')|list|length }}</span>
+              <span class="stat-label">{{ _('Отмечено как изученные') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-actions">
+        <p class="text-muted">{{ _('Вы обработали все слова в этом уроке.') }}</p>
+      </div>
+    </div>
+  {% endif %}
+
+
+  <!-- Статистика -->
+  <div class="vocab-controls mb-4">
+    <div class="vocab-stats">
+      <span class="stat-item">
+        <i class="fas fa-book-open"></i>
+        <span>{{ words|length }}</span> {{ _('слов') }}
+      </span>
+      <span class="stat-item text-primary">
+        <i class="fas fa-plus-circle"></i>
+        <span id="new-count">{{ words|length }}</span> {{ _('новых') }}
+      </span>
+      <span class="stat-item text-success">
+        <i class="fas fa-check-circle"></i>
+        <span id="processed-count">0</span> {{ _('обработано') }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Кнопки массовых действий -->
+  {% set new_words_count = words|selectattr('status', 'equalto', 'new')|list|length %}
+  {% if not is_completed and new_words_count > 0 %}
+  <div class="bulk-actions mb-4">
+    <div class="bulk-actions-container">
+      <div class="bulk-info">
+        <i class="fas fa-magic"></i>
+        <span>{{ _('Быстрые действия со всеми словами') }}</span>
+      </div>
+      <div class="bulk-buttons">
+        <button class="bulk-btn add-all-btn" id="add-all-words" title="{{ _('Добавить все слова в изучение') }}">
+          <i class="fas fa-plus-circle"></i>
+          <span>{{ _('Изучать все') }}</span>
+          <div class="btn-ripple"></div>
+        </button>
+        <button class="bulk-btn master-all-btn" id="master-all-words" title="{{ _('Отметить все слова как изученные') }}">
+          <i class="fas fa-check-circle"></i>
+          <span>{{ _('Знаю все') }}</span>
+          <div class="btn-ripple"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Красивые карточки слов -->
+  <div class="modern-words-grid">
+    {% for word in words %}
+    <div class="modern-word-card" data-word-id="{{ word.id }}" data-status="{{ word.status|default('new') }}">
+      <!-- Статус индикатор -->
+      <div class="status-indicator">
+        <div class="status-dot {% if word.status == 'learning' %}learning{% elif word.status == 'mastered' %}mastered{% endif %}"></div>
+      </div>
+      
+      <!-- Главный контент -->
+      <div class="word-content">
+        <div class="word-header">
+          <h3 class="word-english">{{ word.english }}</h3>
+          {% if word.get('audio_url') or (word.get('english') and word.get('get_download') == 1) %}
+          <button class="audio-btn word-pronunciation" 
+                  data-audio="{% if word.get('audio_url') %}{{ word.audio_url }}{% else %}{{ url_for('static', filename='audio/pronunciation_en_' + word.english.lower().replace(' ', '_') + '.mp3') }}{% endif %}" 
+                  title="{{ _('Прослушать произношение') }}">
+            <i class="fas fa-volume-up"></i>
+            <span class="audio-wave">
+              <span></span><span></span><span></span>
+            </span>
+          </button>
+          {% endif %}
+        </div>
+        
+        <div class="word-translation">
+          <i class="fas fa-arrow-right translation-arrow"></i>
+          <span class="word-russian">{{ word.russian }}</span>
+        </div>
+        
+        {% if word.usage %}
+        <div class="word-usage">
+          <i class="fas fa-info-circle usage-icon"></i>
+          <span class="usage-text">{{ word.usage }}</span>
+        </div>
+        {% endif %}
+        
+        <!-- Статус бейдж -->
+        <div class="status-section">
+          {% if word.status == 'learning' %}
+          <span class="status-badge learning-status">
+            <i class="fas fa-graduation-cap"></i>
+            <span class="status-text">{{ _('Изучается') }}</span>
+          </span>
+          {% elif word.status == 'mastered' %}
+          <span class="status-badge mastered-status">
+            <i class="fas fa-crown"></i>
+            <span class="status-text">{{ _('Изучено') }}</span>
+          </span>
+          {% else %}
+          <span class="status-badge new-status">
+            <i class="fas fa-star"></i>
+            <span class="status-text">{{ _('Новое слово') }}</span>
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Действия -->
+      {% if not is_completed and word.status == 'new' %}
+      <div class="word-actions">
+        <button class="action-btn learn-btn add-word" data-word-id="{{ word.id }}" title="{{ _('Добавить в изучение') }}">
+          <i class="fas fa-plus"></i>
+          <span>{{ _('Изучать') }}</span>
+          <div class="btn-ripple"></div>
+        </button>
+        <button class="action-btn master-btn mark-mastered" data-word-id="{{ word.id }}" title="{{ _('Отметить как изученное') }}">
+          <i class="fas fa-check"></i>
+          <span>{{ _('Знаю') }}</span>
+          <div class="btn-ripple"></div>
+        </button>
+      </div>
+      {% endif %}
+      
+      <!-- Прогресс анимация -->
+      <div class="card-progress">
+        <div class="progress-bar"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Прогресс изучения -->
+  <div class="study-progress mt-4">
+    <h5>{{ _('Прогресс обработки') }}</h5>
+    <div class="progress">
+      {% set initial_percentage = ((words|rejectattr('status', 'equalto', 'new')|list|length / words|length * 100)|round) if words|length > 0 else 0 %}
+      <div class="progress-bar bg-success" id="progress-bar" role="progressbar" style="width: {{ initial_percentage }}%">
+        <span id="progress-text">{{ initial_percentage }}%</span>
+      </div>
+    </div>
+    <small class="text-muted">
+      {{ _('Обработано') }}: <span id="progress-detail">{{ words|rejectattr('status', 'equalto', 'new')|list|length }} / {{ words|length }}</span>
+    </small>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_script %}
+
+// Конфигурация урока (безопасное присвоение без tojson)
+const lessonConfig = {
+  isCompleted: {% if is_completed %}true{% else %}false{% endif %},
+  totalWords: {{ words|length }}
+};
+
+// Инициализация урока
+
+// Состояние урока
+{% set processed_words = [] %}
+{% set learning_words = [] %}
+{% set mastered_words = [] %}
+{% for word in words %}
+  {% if word.status != 'new' %}
+    {% set _ = processed_words.append(word) %}
+  {% endif %}
+  {% if word.status == 'learning' %}
+    {% set _ = learning_words.append(word) %}
+  {% endif %}
+  {% if word.status == 'mastered' %}
+    {% set _ = mastered_words.append(word) %}
+  {% endif %}
+{% endfor %}
+{% set processed_count = processed_words|length %}
+{% set learning_count = learning_words|length %}
+{% set mastered_count = mastered_words|length %}
+
+
+let vocabularyState = {
+  totalWords: {{ words|length }},
+  processedWords: {{ processed_count }},
+  wordsAdded: {{ learning_count }},
+  wordsMastered: {{ mastered_count }}
+};
+
+
+// Аудио плеер
+const audioPlayer = new Audio();
+
+// Загрузка статусов слов (оставлено для совместимости, но не используется)
+async function loadWordStatuses() {
+  try {
+    const wordCards = document.querySelectorAll('.modern-word-card');
+    const wordIds = Array.from(wordCards)
+      .map(card => parseInt(card.getAttribute('data-word-id')))
+      .filter(id => id > 0);
+
+    if (wordIds.length === 0) return;
+
+    const response = await fetch('{{ url_for("api_words.get_user_words_status") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
+      body: JSON.stringify({ word_ids: wordIds })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      
+      data.words.forEach(wordData => {
+        updateWordCard(wordData.word_id, wordData.status);
+      });
+      
+      updateCounters();
+      updateProgress();
+    } else {
+      console.error('Failed to load word statuses:', response.status);
+    }
+  } catch (error) {
+    console.error('Error loading word statuses:', error);
+  }
+}
+
+// Обновление карточки слова
+function updateWordCard(wordId, status) {
+  const card = document.querySelector(`.modern-word-card[data-word-id="${wordId}"]`);
+  if (!card) return;
+
+  // Маппинг строковых статусов из базы данных в статусы для UI
+  const statusMapping = {
+    'new': 'new',
+    'learning': 'learning', 
+    'review': 'learning',  // review также показываем как learning
+    'mastered': 'mastered'
+  };
+  
+  const mappedStatus = statusMapping[status] || 'new';
+
+  // Добавляем анимацию изменения
+  card.classList.add('updating');
+  
+  setTimeout(() => {
+    card.setAttribute('data-status', mappedStatus);
+    
+    const statusDot = card.querySelector('.status-dot');
+    const statusBadge = card.querySelector('.status-badge');
+    const statusText = card.querySelector('.status-text');
+    const statusIcon = card.querySelector('.status-badge i');
+    const actionButtons = card.querySelector('.word-actions');
+
+    if (mappedStatus === 'new') {
+      statusDot.className = 'status-dot';
+      statusBadge.className = 'status-badge new-status';
+      statusIcon.className = 'fas fa-star';
+      statusText.textContent = '{{ _("Новое слово") }}';
+      if (!lessonConfig.isCompleted && actionButtons) {
+        actionButtons.style.display = 'flex';
+      }
+    } else {
+      const statusInfo = {
+        'learning': { 
+          text: '{{ _("Изучается") }}', 
+          icon: 'fas fa-graduation-cap',
+          class: 'learning-status'
+        },
+        'mastered': { 
+          text: '{{ _("Изучено") }}', 
+          icon: 'fas fa-crown',
+          class: 'mastered-status'
+        }
+      };
+
+      const info = statusInfo[mappedStatus] || statusInfo['learning'];
+      statusDot.className = `status-dot ${mappedStatus}`;
+      statusBadge.className = `status-badge ${info.class}`;
+      statusIcon.className = info.icon;
+      statusText.textContent = info.text;
+      
+      if (actionButtons) {
+        actionButtons.style.display = 'none';
+      }
+      
+      // Анимация успеха
+      card.classList.add('success-animation');
+      setTimeout(() => card.classList.remove('success-animation'), 600);
+    }
+    
+    card.classList.remove('updating');
+  }, 150);
+}
+
+// Воспроизведение аудио
+document.querySelectorAll('.word-pronunciation').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const audioSrc = this.getAttribute('data-audio');
+    if (audioSrc) {
+      this.classList.add('playing');
+      audioPlayer.src = audioSrc;
+      audioPlayer.play();
+
+      audioPlayer.onended = () => {
+        this.classList.remove('playing');
+      };
+    }
+  });
+});
+
+
+// Добавление слова в изучение
+document.addEventListener('click', async function(e) {
+  if (e.target.closest('.add-word')) {
+    const button = e.target.closest('.add-word');
+    const wordId = parseInt(button.getAttribute('data-word-id'));
+
+    // Анимация нажатия
+    createRippleEffect(button, e);
+    button.classList.add('loading');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>{{ _("Добавление...") }}</span>';
+    button.disabled = true;
+
+    try {
+      const response = await fetch('{{ url_for("api_words.update_word_status") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          word_id: wordId,
+          status: 1  // learning
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateWordCard(wordId, data.status || 'learning');
+        vocabularyState.wordsAdded++;
+        updateCounters();
+        updateProgress();
+        checkCompletion();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      button.classList.remove('loading');
+      button.innerHTML = '<i class="fas fa-plus"></i> <span>{{ _("Изучать") }}</span>';
+      button.disabled = false;
+    }
+  }
+});
+
+// Отметить слово как изученное
+document.addEventListener('click', async function(e) {
+  if (e.target.closest('.mark-mastered')) {
+    const button = e.target.closest('.mark-mastered');
+    const wordId = parseInt(button.getAttribute('data-word-id'));
+
+    // Анимация нажатия
+    createRippleEffect(button, e);
+    button.classList.add('loading');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>{{ _("Сохранение...") }}</span>';
+    button.disabled = true;
+
+    try {
+      const response = await fetch('{{ url_for("api_words.update_word_status") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          word_id: wordId,
+          status: 3  // mastered
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateWordCard(wordId, data.status || 'mastered');
+        vocabularyState.wordsMastered++;
+        updateCounters();
+        updateProgress();
+        checkCompletion();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      button.classList.remove('loading');
+      button.innerHTML = '<i class="fas fa-check"></i> <span>{{ _("Знаю") }}</span>';
+      button.disabled = false;
+    }
+  }
+});
+
+// Массовые действия
+document.getElementById('add-all-words')?.addEventListener('click', async function(e) {
+  if (confirm('{{ _("Добавить все слова в изучение?") }}')) {
+    await processBulkAction(1, '{{ _("Добавление всех слов...") }}');
+  }
+});
+
+document.getElementById('master-all-words')?.addEventListener('click', async function(e) {
+  if (confirm('{{ _("Отметить все слова как изученные?") }}')) {
+    await processBulkAction(3, '{{ _("Отмечаем все слова...") }}');
+  }
+});
+
+// Функция массовой обработки
+async function processBulkAction(status, loadingText) {
+  const newCards = document.querySelectorAll('.modern-word-card[data-status="new"]');
+  
+  if (newCards.length === 0) {
+    alert('{{ _("Нет новых слов для обработки. Все слова уже добавлены в изучение или отмечены как изученные.") }}');
+    return;
+  }
+  
+  // Показываем состояние загрузки
+  const bulkButtons = document.querySelectorAll('.bulk-btn');
+  bulkButtons.forEach(btn => {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>${loadingText}</span>`;
+  });
+  
+  try {
+    // Обрабатываем слова пачками
+    const promises = Array.from(newCards).map(async (card) => {
+      const wordId = parseInt(card.getAttribute('data-word-id'));
+      
+      const response = await fetch('{{ url_for("api_words.update_word_status") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          word_id: wordId,
+          status: status
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          updateWordCard(wordId, data.status || (status === 1 ? 'learning' : 'mastered'));
+          if (status === 1) {
+            vocabularyState.wordsAdded++;
+          } else {
+            vocabularyState.wordsMastered++;
+          }
+        }
+      }
+    });
+    
+    await Promise.all(promises);
+    
+    updateCounters();
+    updateProgress();
+    checkCompletion();
+    
+    // Восстанавливаем кнопки
+    restoreBulkButtons();
+    
+  } catch (error) {
+    console.error('Error in bulk action:', error);
+    restoreBulkButtons();
+    alert('{{ _("Произошла ошибка при массовой обработке") }}');
+  }
+}
+
+function restoreBulkButtons() {
+  document.getElementById('add-all-words').innerHTML = '<i class="fas fa-plus-circle"></i> <span>{{ _("Изучать все") }}</span>';
+  document.getElementById('master-all-words').innerHTML = '<i class="fas fa-check-circle"></i> <span>{{ _("Знаю все") }}</span>';
+  
+  const bulkButtons = document.querySelectorAll('.bulk-btn');
+  bulkButtons.forEach(btn => btn.disabled = false);
+}
+
+// Обновление счетчиков
+function updateCounters() {
+  const processedCards = document.querySelectorAll('.modern-word-card:not([data-status="new"])');
+  vocabularyState.processedWords = processedCards.length;
+
+  const newCount = vocabularyState.totalWords - vocabularyState.processedWords;
+  document.getElementById('new-count').textContent = newCount;
+  document.getElementById('processed-count').textContent = vocabularyState.processedWords;
+}
+
+// Обновление прогресса
+function updateProgress() {
+  const percentage = vocabularyState.totalWords > 0
+    ? Math.round((vocabularyState.processedWords / vocabularyState.totalWords) * 100)
+    : 0;
+
+  const progressBar = document.getElementById('progress-bar');
+  const progressText = document.getElementById('progress-text');
+  const progressDetail = document.getElementById('progress-detail');
+
+  progressBar.style.width = percentage + '%';
+  progressText.textContent = percentage + '%';
+  progressDetail.textContent = `${vocabularyState.processedWords} / ${vocabularyState.totalWords}`;
+}
+
+// Проверка завершения урока
+async function checkCompletion() {
+  if (vocabularyState.processedWords === vocabularyState.totalWords && vocabularyState.totalWords > 0) {
+    // Сохраняем результаты
+    try {
+      const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          score: 100,
+          status: 'completed',
+          data: {
+            words_added: vocabularyState.wordsAdded,
+            words_mastered: vocabularyState.wordsMastered,
+            completed_items: vocabularyState.processedWords,
+            total_items: vocabularyState.totalWords
+          }
+        })
+      });
+
+      if (response.ok) {
+        // Показываем результаты
+        showCompletionResults();
+        
+        // Показываем кнопки навигации
+        const nextBtn = document.getElementById('complete-exercise');
+        const completeModuleBtn = document.getElementById('complete-module');
+        const retryBtn = document.getElementById('retry-button');
+        
+        if (nextBtn) {
+          nextBtn.style.display = 'inline-flex';
+          nextBtn.disabled = false;
+        } else if (completeModuleBtn) {
+          completeModuleBtn.style.display = 'inline-flex';
+          completeModuleBtn.disabled = false;
+        }
+        
+        // Для уроков словаря не показываем кнопку "Пройти заново"
+      }
+    } catch (error) {
+      console.error('Error completing lesson:', error);
+    }
+  }
+}
+
+// Показ результатов завершения
+function showCompletionResults() {
+  const resultsDiv = document.createElement('div');
+  resultsDiv.className = 'vocabulary-completion-results mt-4 mb-4';
+  resultsDiv.innerHTML = `
+    <div class="completion-card">
+      <div class="completion-header">
+        <div class="completion-icon">
+          <i class="fas fa-trophy"></i>
+        </div>
+        <h3>{{ _('Урок завершен!') }}</h3>
+        <p class="text-muted">{{ _('Вы обработали все слова в этом уроке') }}</p>
+      </div>
+      
+      <div class="completion-stats">
+        <div class="stat-item">
+          <div class="stat-icon success">
+            <i class="fas fa-book-open"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${vocabularyState.totalWords}</span>
+            <span class="stat-label">{{ _('Слов в уроке') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon primary">
+            <i class="fas fa-graduation-cap"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${vocabularyState.wordsAdded}</span>
+            <span class="stat-label">{{ _('Добавлено в изучение') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon warning">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${vocabularyState.wordsMastered}</span>
+            <span class="stat-label">{{ _('Отмечено как изученные') }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Добавляем результаты в конец урока
+  const vocabularyLesson = document.querySelector('.vocabulary-lesson');
+  if (vocabularyLesson) {
+    vocabularyLesson.appendChild(resultsDiv);
+  }
+  
+  // Прокручиваем к результатам
+  resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Функция инициализации
+function initializeVocabularyLesson() {
+  try {
+    
+    // Сначала обновляем счетчики на основе начальных статусов
+    updateCounters();
+    updateProgress();
+    
+    // Если все слова обработаны (15 из 15), показываем кнопки
+    if (vocabularyState.processedWords === vocabularyState.totalWords && vocabularyState.totalWords > 0) {
+      // Ищем кнопки навигации
+      const nextBtn = document.getElementById('complete-exercise');
+      const completeModuleBtn = document.getElementById('complete-module');
+      const retryBtn = document.getElementById('retry-button');
+      
+      // Показываем соответствующие кнопки
+      if (nextBtn) {
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.disabled = false;
+      }
+      
+      if (completeModuleBtn) {
+        completeModuleBtn.style.display = 'inline-flex';
+        completeModuleBtn.disabled = false;
+      }
+      
+      // Для уроков словаря не показываем кнопку "Пройти заново"
+      // if (retryBtn) {
+      //   retryBtn.style.display = 'inline-flex';
+      //   console.log('Retry button shown');
+      // }
+      
+      {% if not is_completed %}
+        // Отправляем завершение урока
+        checkCompletion();
+      {% endif %}
+    }
+  } catch (error) {
+    console.error('Error in initialization:', error);
+  }
+}
+
+// Вызываем инициализацию
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeVocabularyLesson);
+} else {
+  // DOM уже загружен
+  initializeVocabularyLesson();
+}
+
+// Функция создания ripple эффекта
+function createRippleEffect(button, event) {
+  const ripple = button.querySelector('.btn-ripple');
+  if (!ripple) return;
+  
+  const rect = button.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = event.clientX - rect.left - size / 2;
+  const y = event.clientY - rect.top - size / 2;
+  
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = x + 'px';
+  ripple.style.top = y + 'px';
+  ripple.classList.add('ripple-animation');
+  
+  setTimeout(() => {
+    ripple.classList.remove('ripple-animation');
+  }, 600);
+}
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  .vocabulary-lesson {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  /* Режим просмотра результатов */
+  .vocabulary-results-review {
+    margin-bottom: 2rem;
+  }
+
+  .results-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .results-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 1.5rem;
+  }
+
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--lesson-light);
+    border-radius: var(--lesson-radius-lg);
+    min-width: 150px;
+  }
+
+  .stat-card i {
+    font-size: 2rem;
+    color: var(--lesson-primary);
+  }
+
+  .stat-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--lesson-dark);
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  .review-actions {
+    text-align: center;
+    margin-top: 2rem;
+  }
+
+  /* Контролы */
+  .vocab-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .vocab-stats {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  /* Массовые действия */
+  .bulk-actions {
+    margin: 1.5rem 0;
+  }
+
+  .bulk-actions-container {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .bulk-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #495057;
+    font-weight: 500;
+  }
+
+  .bulk-info i {
+    color: #667eea;
+    font-size: 1.25rem;
+  }
+
+  .bulk-buttons {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .bulk-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .add-all-btn {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+  }
+
+  .add-all-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+  }
+
+  .master-all-btn {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+  }
+
+  .master-all-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+  }
+
+  .bulk-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* Современная сетка карточек */
+  .modern-words-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+
+  /* Современная карточка слова */
+  .modern-word-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .modern-word-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .modern-word-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .modern-word-card:hover::before {
+    opacity: 1;
+  }
+
+  .modern-word-card[data-status="learning"] {
+    background: linear-gradient(145deg, #fff9e6 0%, #f0f8d8 100%);
+    border-color: rgba(255, 193, 7, 0.3);
+  }
+
+  .modern-word-card[data-status="learning"]::before {
+    background: linear-gradient(90deg, #ffc107 0%, #28a745 100%);
+    opacity: 1;
+  }
+
+  .modern-word-card[data-status="mastered"] {
+    background: linear-gradient(145deg, #e8f4fd 0%, #e1f5fe 100%);
+    border-color: rgba(13, 110, 253, 0.3);
+  }
+
+  .modern-word-card[data-status="mastered"]::before {
+    background: linear-gradient(90deg, #007bff 0%, #6610f2 100%);
+    opacity: 1;
+  }
+
+  /* Статус индикатор */
+  .status-indicator {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 2;
+  }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #dee2e6;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .status-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .status-dot.learning {
+    background: #ffc107;
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.3);
+  }
+
+  .status-dot.learning::after {
+    opacity: 1;
+  }
+
+  .status-dot.mastered {
+    background: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+  }
+
+  .status-dot.mastered::after {
+    opacity: 1;
+  }
+
+  /* Заголовок слова */
+  .word-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .word-english {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+    line-height: 1.2;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Аудио кнопка */
+  .audio-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+
+  .audio-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  }
+
+  .audio-btn i {
+    font-size: 1.2rem;
+    z-index: 2;
+  }
+
+  .audio-wave {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .audio-wave span {
+    width: 3px;
+    height: 16px;
+    background: white;
+    margin: 0 1px;
+    border-radius: 2px;
+    animation: none;
+  }
+
+  .audio-btn.playing .audio-wave {
+    opacity: 1;
+  }
+
+  .audio-btn.playing .audio-wave span {
+    animation: audioWave 0.8s ease-in-out infinite;
+  }
+
+  .audio-btn.playing .audio-wave span:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  .audio-btn.playing .audio-wave span:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+
+  @keyframes audioWave {
+    0%, 100% { height: 16px; }
+    50% { height: 8px; }
+  }
+
+  /* Перевод */
+  .word-translation {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+  }
+
+  .translation-arrow {
+    color: #667eea;
+    font-size: 1.2rem;
+  }
+
+  .word-russian {
+    font-size: 1.125rem;
+    color: #495057;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  /* Usage секция */
+  .word-usage {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(102, 126, 234, 0.08);
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+  }
+
+  .usage-icon {
+    color: #667eea;
+    font-size: 1rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+  }
+
+  .usage-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  /* Статус секция */
+  .status-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+  }
+
+  .status-badge.new-status {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #856404;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  }
+
+  .status-badge.learning-status {
+    background: linear-gradient(135deg, #ffc107 0%, #28a745 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
+  }
+
+  .status-badge.mastered-status {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.4);
+  }
+
+  /* Действия */
+  .word-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+  }
+
+  .learn-btn {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+  }
+
+  .learn-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+  }
+
+  .master-btn {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+  }
+
+  .master-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .action-btn.loading {
+    pointer-events: none;
+  }
+
+  /* Ripple эффект */
+  .btn-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    pointer-events: none;
+  }
+
+  .btn-ripple.ripple-animation {
+    animation: ripple 0.6s linear;
+  }
+
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+
+  /* Анимации карточек */
+  .modern-word-card.updating {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+
+  .modern-word-card.success-animation {
+    animation: successPulse 0.6s ease;
+  }
+
+  @keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  /* Прогресс карточки */
+  .card-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .card-progress .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  /* Прогресс изучения */
+  .study-progress {
+    background: var(--lesson-light);
+    padding: 1.5rem;
+    border-radius: 12px;
+  }
+
+  .study-progress h5 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .progress {
+    height: 1.5rem;
+    background: #e9ecef;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    transition: width 0.3s ease;
+  }
+
+  /* Результаты завершения */
+  .vocabulary-completion-results {
+    animation: slideInUp 0.5s ease;
+  }
+
+  .completion-card {
+    background: white;
+    border: 2px solid var(--lesson-success);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: var(--lesson-shadow-lg);
+  }
+
+  .completion-header {
+    margin-bottom: 2rem;
+  }
+
+  .completion-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+  }
+
+  .completion-icon i {
+    font-size: 2.5rem;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .completion-header h3 {
+    color: var(--lesson-dark);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .completion-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .completion-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--lesson-light);
+    border-radius: 12px;
+    min-width: 140px;
+  }
+
+  .completion-stats .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  .completion-stats .stat-icon.success {
+    background: var(--lesson-success);
+  }
+
+  .completion-stats .stat-icon.primary {
+    background: var(--lesson-primary);
+  }
+
+  .completion-stats .stat-icon.warning {
+    background: var(--lesson-warning);
+  }
+
+  .completion-stats .stat-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .completion-stats .stat-value {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--lesson-dark);
+    line-height: 1;
+  }
+
+  .completion-stats .stat-label {
+    font-size: 0.75rem;
+    color: var(--lesson-muted);
+    margin-top: 0.25rem;
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    .vocab-stats {
+      gap: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .results-stats {
+      flex-direction: column;
+    }
+
+    .completion-stats {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .completion-stats .stat-item {
+      min-width: auto;
+      width: 100%;
+    }
+
+    /* Адаптивные карточки */
+    .modern-words-grid {
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .modern-word-card {
+      padding: 1.25rem;
+    }
+
+    .word-english {
+      font-size: 1.75rem;
+    }
+
+    .word-russian {
+      font-size: 1rem;
+    }
+
+    .audio-btn {
+      width: 40px;
+      height: 40px;
+    }
+
+    .action-btn {
+      padding: 0.625rem 0.875rem;
+      font-size: 0.8125rem;
+    }
+
+    /* Адаптивные массовые действия */
+    .bulk-actions-container {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .bulk-buttons {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .bulk-btn {
+      flex: 1;
+      max-width: 200px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .modern-words-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .modern-word-card {
+      padding: 1rem;
+    }
+
+    .word-english {
+      font-size: 1.5rem;
+    }
+
+    .word-russian {
+      font-size: 0.9375rem;
+    }
+
+    .word-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .audio-btn {
+      width: 36px;
+      height: 36px;
+      align-self: flex-end;
+    }
+
+    .word-actions {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .action-btn {
+      padding: 0.75rem;
+      min-height: 40px;
+    }
+
+    .word-translation {
+      padding: 0.75rem;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .translation-arrow {
+      transform: rotate(90deg);
+    }
+
+    /* Мобильные массовые действия */
+    .bulk-buttons {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .bulk-btn {
+      max-width: none;
+      padding: 1rem;
+    }
+  }
+</style>
+{% endblock %}

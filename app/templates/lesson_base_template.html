@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Минималистичная навигация -->
+  <nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb-minimal">
+      <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
+      <li>/</li>
+      <li><a href="{{ url_for('curriculum.level_modules', level_code=lesson.module.level.code) }}">{{ lesson.module.level.code }}</a></li>
+      <li>/</li>
+      <li><a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}">{{ _('Модуль') }} {{ lesson.module.number }}</a></li>
+      <li>/</li>
+      <li class="active">{{ _('Урок') }} {{ lesson.number }}</li>
+    </ol>
+  </nav>
+
+  <!-- Заголовок урока -->
+  <div class="lesson-intro mb-5">
+    <div class="lesson-type-badge mb-3">
+      <span class="badge-icon">
+        {% if lesson.type == 'vocabulary' %}
+          <i class="fas fa-book"></i>
+        {% elif lesson.type == 'grammar' %}
+          <i class="fas fa-pen"></i>
+        {% elif lesson.type == 'quiz' %}
+          <i class="fas fa-question-circle"></i>
+        {% elif lesson.type == 'text' %}
+          <i class="fas fa-file-alt"></i>
+        {% elif lesson.type in ['card', 'anki_cards'] %}
+          <i class="fas fa-clone"></i>
+        {% elif lesson.type == 'final_test' %}
+          <i class="fas fa-trophy"></i>
+        {% else %}
+          <i class="fas fa-graduation-cap"></i>
+        {% endif %}
+      </span>
+      <span class="badge-text">{{ component_name|default(translate_lesson_type(lesson.type)) }}</span>
+    </div>
+
+    <h1 class="lesson-title">{{ lesson.title }}</h1>
+    <p class="lesson-description">{{ lesson.description or block_description|default('') }}</p>
+  </div>
+
+  <!-- Прогресс модуля -->
+  <div class="lesson-progress-bar mb-5">
+    <div class="progress-header">
+      <span class="progress-label">{{ _('Прогресс модуля') }}</span>
+      <span class="progress-value">{{ lesson.number }} / {{ total_lessons|default(7) }}</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" style="width: {{ ((lesson.number / total_lessons|default(7)) * 100)|round }}%"></div>
+    </div>
+  </div>
+
+  <!-- Основной контент -->
+  <div class="lesson-content-wrapper">
+    <!-- Инструкции (если есть) -->
+    {% if instruction_text %}
+    <div class="instruction-card mb-4">
+      <i class="fas fa-info-circle"></i>
+      <span>{{ instruction_text }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Основная карточка контента -->
+    <div class="content-card">
+      {% block lesson_content %}{% endblock %}
+    </div>
+
+    <!-- Навигация -->
+    <div class="lesson-navigation mt-5" id="lesson-footer">
+      <div class="nav-center">
+        {% block action_buttons %}
+          <!-- Кнопка возврата к модулю -->
+          <a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}" 
+             class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> {{ _('Вернуться к модулю') }}
+          </a>
+          
+          <!-- Кнопка повторного прохождения (скрыта по умолчанию) -->
+          <button type="button" 
+                  class="btn btn-outline-primary" 
+                  id="retry-button"
+                  style="display: none;"
+                  onclick="retryLesson()">
+            <i class="fas fa-redo"></i> {{ _('Пройти заново') }}
+          </button>
+          
+          {% if next_lesson %}
+            <button type="button" 
+                    class="btn btn-primary btn-next" 
+                    id="complete-exercise" 
+                    style="display: none;"
+                    data-next-url="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
+                    onclick="window.location.href=this.getAttribute('data-next-url')">
+              {{ _('Следующий урок') }} <i class="fas fa-arrow-right"></i>
+            </button>
+          {% else %}
+            <button type="button" 
+                    class="btn btn-primary" 
+                    id="complete-module"
+                    style="display: none;"
+                    onclick="window.location.href='{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}'">
+              <i class="fas fa-check"></i> {{ _('Завершить модуль') }}
+            </button>
+          {% endif %}
+        {% endblock %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CSRF Token Meta -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* Единая система дизайна для всех уроков */
+  :root {
+    /* Цвета */
+    --lesson-primary: #0d6efd;
+    --lesson-primary-dark: #0a58ca;
+    --lesson-primary-light: rgba(13, 110, 253, 0.1);
+    --lesson-success: #198754;
+    --lesson-success-dark: #146c43;
+    --lesson-success-light: rgba(25, 135, 84, 0.1);
+    --lesson-danger: #dc3545;
+    --lesson-danger-light: rgba(220, 53, 69, 0.1);
+    --lesson-warning: #ffc107;
+    --lesson-warning-light: rgba(255, 193, 7, 0.1);
+    --lesson-info: #0dcaf0;
+    --lesson-info-light: rgba(13, 202, 240, 0.1);
+    --lesson-muted: #6c757d;
+    --lesson-light: #f8f9fa;
+    --lesson-dark: #212529;
+    --lesson-border: #dee2e6;
+
+    /* Тени */
+    --lesson-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --lesson-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    --lesson-shadow-active: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+
+    /* Радиусы */
+    --lesson-radius-sm: 0.375rem;
+    --lesson-radius: 0.5rem;
+    --lesson-radius-lg: 0.75rem;
+    --lesson-radius-xl: 1rem;
+
+    /* Transitions */
+    --lesson-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --lesson-transition-fast: all 0.15s ease-in-out;
+  }
+
+  /* Навигация */
+  .breadcrumb-minimal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    font-size: 0.875rem;
+  }
+
+  .breadcrumb-minimal a {
+    color: var(--lesson-muted);
+    text-decoration: none;
+    transition: var(--lesson-transition-fast);
+  }
+
+  .breadcrumb-minimal a:hover {
+    color: var(--lesson-primary);
+  }
+
+  .breadcrumb-minimal .active {
+    color: var(--lesson-dark);
+    font-weight: 500;
+  }
+
+  /* Заголовок урока */
+  .lesson-intro {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .lesson-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: var(--lesson-light);
+    border-radius: 2rem;
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  .badge-icon {
+    width: 2rem;
+    height: 2rem;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lesson-primary);
+    box-shadow: var(--lesson-shadow);
+  }
+
+  .lesson-title {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 1rem 0;
+    color: var(--lesson-dark);
+  }
+
+  .lesson-description {
+    font-size: 1.125rem;
+    color: var(--lesson-muted);
+    line-height: 1.6;
+  }
+
+  /* Прогресс-бар */
+  .lesson-progress-bar {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .progress-label {
+    color: var(--lesson-muted);
+  }
+
+  .progress-value {
+    font-weight: 600;
+    color: var(--lesson-primary);
+  }
+
+  .progress-track {
+    height: 0.5rem;
+    background: var(--lesson-border);
+    border-radius: var(--lesson-radius);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--lesson-primary), var(--lesson-info));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Инструкции */
+  .instruction-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--lesson-info-light);
+    border-radius: var(--lesson-radius-lg);
+    color: #055160;
+    font-size: 0.9375rem;
+    border: 1px solid rgba(13, 202, 240, 0.2);
+  }
+
+  .instruction-card i {
+    font-size: 1.25rem;
+    opacity: 0.8;
+  }
+
+  /* Основная карточка контента */
+  .content-card {
+    background: white;
+    border-radius: var(--lesson-radius-xl);
+    padding: 2rem;
+    box-shadow: var(--lesson-shadow);
+    min-height: 300px;
+    transition: var(--lesson-transition);
+  }
+
+  /* Навигация урока */
+  .lesson-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .nav-center {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* Единый стиль кнопок */
+  .btn {
+    padding: 0.625rem 1.5rem;
+    border-radius: var(--lesson-radius);
+    font-weight: 500;
+    transition: var(--lesson-transition);
+    border: none;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    cursor: pointer;
+    line-height: 1.5;
+  }
+
+  .btn:hover {
+    transform: translateY(-0.125rem);
+    box-shadow: var(--lesson-shadow-hover);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+    box-shadow: var(--lesson-shadow-active);
+  }
+
+  .btn-primary {
+    background: var(--lesson-primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--lesson-primary-dark);
+    color: white;
+  }
+
+  .btn-success {
+    background: var(--lesson-success);
+    color: white;
+  }
+
+  .btn-success:hover {
+    background: var(--lesson-success-dark);
+    color: white;
+  }
+
+  .btn-warning {
+    background: var(--lesson-warning);
+    color: #000;
+  }
+
+  .btn-warning:hover {
+    background: #e0a800;
+    color: #000;
+  }
+
+  .btn-danger {
+    background: var(--lesson-danger);
+    color: white;
+  }
+
+  .btn-danger:hover {
+    background: #bb2d3b;
+    color: white;
+  }
+
+  .btn-outline-primary {
+    background: white;
+    color: var(--lesson-primary);
+    border: 2px solid var(--lesson-primary);
+  }
+
+  .btn-outline-primary:hover {
+    background: var(--lesson-primary);
+    color: white;
+  }
+
+  .btn-outline-secondary {
+    background: white;
+    color: var(--lesson-muted);
+    border: 2px solid var(--lesson-border);
+  }
+
+  .btn-outline-secondary:hover {
+    background: var(--lesson-light);
+    border-color: var(--lesson-muted);
+    color: var(--lesson-dark);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Размеры кнопок */
+  .btn-sm {
+    padding: 0.375rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-lg {
+    padding: 0.75rem 2rem;
+    font-size: 1.125rem;
+  }
+
+  /* Анимации */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    .lesson-title {
+      font-size: 1.5rem;
+    }
+
+    .content-card {
+      padding: 1.5rem;
+    }
+
+    .lesson-navigation {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .nav-center {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  /* Utilities */
+  .text-success { color: var(--lesson-success) !important; }
+  .text-danger { color: var(--lesson-danger) !important; }
+  .text-warning { color: var(--lesson-warning) !important; }
+  .text-info { color: var(--lesson-info) !important; }
+  .text-muted { color: var(--lesson-muted) !important; }
+  .text-primary { color: var(--lesson-primary) !important; }
+
+  .bg-success { background-color: var(--lesson-success) !important; }
+  .bg-danger { background-color: var(--lesson-danger) !important; }
+  .bg-warning { background-color: var(--lesson-warning) !important; }
+  .bg-info { background-color: var(--lesson-info) !important; }
+  .bg-primary { background-color: var(--lesson-primary) !important; }
+
+  /* Margin utilities */
+  .ms-1 { margin-left: 0.25rem !important; }
+  .ms-2 { margin-left: 0.5rem !important; }
+  .me-1 { margin-right: 0.25rem !important; }
+  .me-2 { margin-right: 0.5rem !important; }
+  .mt-1 { margin-top: 0.25rem !important; }
+  .mt-2 { margin-top: 0.5rem !important; }
+  .mt-3 { margin-top: 1rem !important; }
+  .mt-4 { margin-top: 1.5rem !important; }
+  .mt-5 { margin-top: 3rem !important; }
+  .mb-1 { margin-bottom: 0.25rem !important; }
+  .mb-2 { margin-bottom: 0.5rem !important; }
+  .mb-3 { margin-bottom: 1rem !important; }
+  .mb-4 { margin-bottom: 1.5rem !important; }
+  .mb-5 { margin-bottom: 3rem !important; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // Базовые скрипты для всех уроков
+  document.addEventListener('DOMContentLoaded', function() {
+    // Плавная прокрутка к элементам
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    });
+
+    // Автофокус на первом интерактивном элементе
+    const firstInput = document.querySelector('.content-card input:not([type="hidden"]):not([disabled]), .content-card textarea:not([disabled]), .content-card select:not([disabled])');
+    if (firstInput) {
+      firstInput.focus();
+    }
+
+    // Анимация при появлении элементов
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, observerOptions);
+
+    // Наблюдаем за элементами с анимацией
+    document.querySelectorAll('.fade-in-up').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+      observer.observe(el);
+    });
+
+    {% block lesson_script %}{% endblock %}
+  });
+
+  // Глобальная функция для повторного прохождения урока
+  function retryLesson() {
+    const currentUrl = window.location.href;
+    const urlParts = currentUrl.split('?');
+    const baseUrl = urlParts[0];
+    
+    if (confirm('{{ _("Вы уверены, что хотите пройти урок заново? Текущие результаты будут сброшены.") }}')) {
+      // Добавляем параметр reset=true для сброса прогресса
+      window.location.href = baseUrl + '?reset=true';
+    }
+  }
+</script>
+{% endblock %}

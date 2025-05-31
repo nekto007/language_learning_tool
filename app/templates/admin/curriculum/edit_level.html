@@ -1,0 +1,106 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Edit CEFR Level{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Edit CEFR Level</h1>
+        <p class="page-subtitle">Update level {{ level.code }} - {{ level.name }}</p>
+    </div>
+    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.code.label }}</label>
+                            {{ form.code(class="form-control text-uppercase", maxlength="2") }}
+                            {% if form.code.errors %}
+                                <div class="text-danger small">{{ form.code.errors[0] }}</div>
+                            {% endif %}
+                            <div class="form-text">2 characters (e.g., A0, A1, B2)</div>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label">{{ form.name.label }}</label>
+                            {{ form.name(class="form-control") }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">{{ form.name.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        {{ form.description(class="form-control", rows="3") }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">{{ form.order.label }}</label>
+                        {{ form.order(class="form-control", style="width: 100px") }}
+                        {% if form.order.errors %}
+                            <div class="text-danger small">{{ form.order.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">Order in which levels appear (0 = first)</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
+
+                        {% if level.modules|length == 0 %}
+                        <form action="{{ url_for('admin.delete_level', level_id=level.id) }}" method="POST" class="ms-auto">
+                            <button type="submit" class="btn btn-danger"
+                                    onclick="return confirm('Are you sure you want to delete this level?')">
+                                <i class="fas fa-trash me-1"></i> Delete Level
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Level Statistics</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-6">Modules:</dt>
+                    <dd class="col-6">{{ level.modules|length }}</dd>
+
+                    <dt class="col-6">Created:</dt>
+                    <dd class="col-6">{{ level.created_at.strftime('%d %b %Y') if level.created_at else 'N/A' }}</dd>
+
+                    <dt class="col-6">Updated:</dt>
+                    <dd class="col-6">{{ level.updated_at.strftime('%d %b %Y') if level.updated_at else 'N/A' }}</dd>
+                </dl>
+
+                {% if level.modules|length > 0 %}
+                <hr>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Cannot delete level with existing modules
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,345 +1,306 @@
-<!-- app/templates/admin/users.html -->
 {% extends 'admin/base.html' %}
 
-{% block title %}Управление пользователями{% endblock %}
+{% block title %}Users Management{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">Управление пользователями</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group mr-2">
-            <a href="{{ url_for('admin.users') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-sync-alt"></i> Обновить
-            </a>
-        </div>
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Users Management</h1>
+        <p class="page-subtitle">Manage user accounts and permissions</p>
     </div>
+    <button class="btn btn-primary" onclick="window.location.reload()">
+        <i class="fas fa-sync-alt me-2"></i> Refresh
+    </button>
 </div>
 
-<!-- Фильтры и поиск -->
-<div class="card mb-4 shadow-sm">
-    <div class="card-header">
-        <h5 class="mb-0">Поиск и фильтры</h5>
-    </div>
+<!-- Search and Filters -->
+<div class="card mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ url_for('admin.users') }}" class="form-inline">
-            <div class="form-group mb-2 mr-sm-2">
-                <label for="search" class="sr-only">Поиск</label>
+        <form method="GET" action="{{ url_for('admin.users') }}" class="row g-3">
+            <div class="col-md-6">
                 <div class="input-group">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    </div>
-                    <input type="text" class="form-control" id="search" name="search"
-                           placeholder="Имя пользователя или email" value="{{ search }}">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" name="search" placeholder="Search by username or email" value="{{ search }}">
                 </div>
             </div>
-
-            <div class="form-group mb-2 mr-sm-2">
-                <label for="per_page" class="sr-only">Записей на странице</label>
-                <select class="form-control" id="per_page" name="per_page">
-                    <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10 записей</option>
-                    <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20 записей</option>
-                    <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 записей</option>
-                    <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100 записей</option>
+            <div class="col-md-2">
+                <select class="form-select" name="per_page">
+                    <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20 per page</option>
+                    <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 per page</option>
+                    <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100 per page</option>
                 </select>
             </div>
-
-            <button type="submit" class="btn btn-primary mb-2">Применить</button>
-
-            {% if search %}
-                <a href="{{ url_for('admin.users') }}" class="btn btn-secondary mb-2 ml-2">
-                    <i class="fas fa-times"></i> Сбросить
-                </a>
-            {% endif %}
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                {% if search %}
+                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">Clear</a>
+                {% endif %}
+                <button type="button" class="btn btn-outline-primary" onclick="exportUsers()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
         </form>
     </div>
 </div>
 
-<!-- Основная таблица пользователей -->
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Список пользователей</h6>
-        <div class="dropdown no-arrow">
-            <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-            </a>
-            <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
-                 aria-labelledby="dropdownMenuLink">
-                <div class="dropdown-header">Действия:</div>
-                <a class="dropdown-item" href="{{ url_for('reminders.reminder_dashboard') }}">
-                    <i class="fas fa-bell fa-sm fa-fw mr-2 text-gray-400"></i>
-                    Отправить напоминания
-                </a>
-                <a class="dropdown-item" href="#" id="exportUsersBtn">
-                    <i class="fas fa-download fa-sm fa-fw mr-2 text-gray-400"></i>
-                    Экспорт в CSV
-                </a>
-            </div>
+<!-- Users Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Users ({{ pagination.total }})</h5>
+        <div>
+            <button class="btn btn-sm btn-outline-primary" onclick="showBulkActions()">
+                <i class="fas fa-tasks"></i> Bulk Actions
+            </button>
         </div>
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-bordered table-striped" id="usersTable" width="100%" cellspacing="0">
+            <table class="table table-hover mb-0">
                 <thead>
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
                         <th>ID</th>
-                        <th>Имя пользователя</th>
+                        <th>Username</th>
                         <th>Email</th>
-                        <th>Зарегистрирован</th>
-                        <th>Последний вход</th>
-                        <th>Статус</th>
-                        <th>Прогресс</th>
-                        <th>Действия</th>
+                        <th>Registered</th>
+                        <th>Last Active</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
-                        <tr>
-                            <td>{{ user.id }}</td>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                            <td>
-                                {% if user.last_login %}
-                                    {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
-
-                                    {% set days_inactive = ((now - user.last_login).total_seconds() / 86400)|round|int %}
-                                    {% if days_inactive > 14 %}
-                                        <span class="badge badge-danger">{{ days_inactive }} дней</span>
-                                    {% elif days_inactive > 7 %}
-                                        <span class="badge badge-warning">{{ days_inactive }} дней</span>
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}">
+                        </td>
+                        <td>{{ user.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-2">
+                                    <div class="avatar-initials">{{ user.username[:2].upper() }}</div>
+                                </div>
+                                <div>
+                                    <div>{{ user.username }}</div>
+                                    {% if user.is_admin %}
+                                    <small class="text-muted">Administrator</small>
                                     {% endif %}
-                                {% else %}
-                                    <span class="text-muted">Никогда</span>
-                                    <span class="badge badge-danger">Не активирован</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ user.email or '-' }}</td>
+                        <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
+                        <td>
+                            {% if user.last_login %}
+                                {% set days_inactive = ((now - user.last_login).total_seconds() / 86400)|round|int %}
+                                {{ user.last_login.strftime('%d %b %Y') }}
+                                {% if days_inactive > 30 %}
+                                    <span class="badge bg-danger ms-1">{{ days_inactive }}d inactive</span>
+                                {% elif days_inactive > 7 %}
+                                    <span class="badge bg-warning ms-1">{{ days_inactive }}d inactive</span>
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if user.active %}
-                                    <span class="badge badge-success">Активен</span>
-                                {% else %}
-                                    <span class="badge badge-danger">Отключен</span>
-                                {% endif %}
-
-                                {% if user.is_admin %}
-                                    <span class="badge badge-info">Админ</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% set progress = user.get_reading_progress_count() %}
-                                {% if progress > 0 %}
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar" role="progressbar" style="width: 25%;"
-                                             aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
-                                            {{ progress }} книг
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    <span class="text-muted">Нет прогресса</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-sm btn-primary dropdown-toggle"
-                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        Действия
-                                    </button>
-                                    <div class="dropdown-menu">
-                                        <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST">
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                            {% if user.is_admin %}
+                                <span class="badge bg-info">Admin</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
                                             <button type="submit" class="dropdown-item">
-                                                <i class="fas fa-{{ 'user-slash' if user.active else 'user-check' }} fa-sm fa-fw mr-2 text-gray-400"></i>
-                                                {{ 'Деактивировать' if user.active else 'Активировать' }}
+                                                <i class="fas fa-{{ 'ban' if user.active else 'check' }} me-2"></i>
+                                                {{ 'Deactivate' if user.active else 'Activate' }}
                                             </button>
                                         </form>
-
-                                        {% if current_user.id != user.id %}
-                                            <form action="{{ url_for('admin.toggle_admin_status', user_id=user.id) }}" method="POST">
-                                                <button type="submit" class="dropdown-item">
-                                                    <i class="fas fa-user-{{ 'minus' if user.is_admin else 'shield' }} fa-sm fa-fw mr-2 text-gray-400"></i>
-                                                    {{ 'Отозвать права админа' if user.is_admin else 'Сделать админом' }}
-                                                </button>
-                                            </form>
-                                        {% endif %}
-
-                                        <div class="dropdown-divider"></div>
-
-                                        <a class="dropdown-item" href="#" onclick="sendReminderToUser({{ user.id }}, '{{ user.username }}')">
-                                            <i class="fas fa-bell fa-sm fa-fw mr-2 text-gray-400"></i>
-                                            Отправить напоминание
+                                    </li>
+                                    {% if current_user.id != user.id %}
+                                    <li>
+                                        <form action="{{ url_for('admin.toggle_admin_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="fas fa-user-{{ 'minus' if user.is_admin else 'shield' }} me-2"></i>
+                                                {{ 'Remove Admin' if user.is_admin else 'Make Admin' }}
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="sendReminder({{ user.id }}, '{{ user.username }}')">
+                                            <i class="fas fa-bell me-2"></i> Send Reminder
                                         </a>
-
-                                        {% if user.email %}
-                                            <a class="dropdown-item" href="mailto:{{ user.email }}">
-                                                <i class="fas fa-envelope fa-sm fa-fw mr-2 text-gray-400"></i>
-                                                Написать email
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
+                                    </li>
+                                    {% if user.email %}
+                                    <li>
+                                        <a class="dropdown-item" href="mailto:{{ user.email }}">
+                                            <i class="fas fa-envelope me-2"></i> Send Email
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        <!-- Пагинация -->
-        {% if pagination.pages > 1 %}
-            <nav aria-label="Навигация по страницам">
-                <ul class="pagination justify-content-center mt-4">
-                    {% if pagination.has_prev %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.users', page=pagination.prev_num, per_page=pagination.per_page, search=search) }}">
-                                <i class="fas fa-chevron-left"></i> Предыдущая
-                            </a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="fas fa-chevron-left"></i> Предыдущая</span>
-                        </li>
-                    {% endif %}
-
-                    {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
-                        {% if page_num %}
-                            {% if page_num == pagination.page %}
-                                <li class="page-item active">
-                                    <span class="page-link">{{ page_num }}</span>
-                                </li>
-                            {% else %}
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('admin.users', page=page_num, per_page=pagination.per_page, search=search) }}">
-                                        {{ page_num }}
-                                    </a>
-                                </li>
-                            {% endif %}
-                        {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link">...</span>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if pagination.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.users', page=pagination.next_num, per_page=pagination.per_page, search=search) }}">
-                                Следующая <i class="fas fa-chevron-right"></i>
-                            </a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link">Следующая <i class="fas fa-chevron-right"></i></span>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
-        {% endif %}
-
-        <div class="text-center mt-2">
-            <small class="text-muted">
-                Показано {{ users|length }} из {{ pagination.total }} пользователей
-                (Страница {{ pagination.page }} из {{ pagination.pages }})
-            </small>
-        </div>
     </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination mb-0 justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.users', page=pagination.prev_num, per_page=pagination.per_page, search=search) }}">
+                        Previous
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('admin.users', page=page_num, per_page=pagination.per_page, search=search) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.users', page=pagination.next_num, per_page=pagination.per_page, search=search) }}">
+                        Next
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 
-<!-- Модальное окно для отправки напоминания конкретному пользователю -->
-<div class="modal fade" id="sendReminderModal" tabindex="-1" role="dialog" aria-labelledby="sendReminderModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<!-- Reminder Modal -->
+<div class="modal fade" id="reminderModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="sendReminderModalLabel">Отправить напоминание</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title">Send Reminder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form id="singleReminderForm" action="{{ url_for('reminders.send_reminders') }}" method="POST">
-                    <input type="hidden" id="single_user_id" name="user_ids">
+            <form id="reminderForm" action="{{ url_for('reminders.send_reminders') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" id="reminder_user_id" name="user_ids">
 
-                    <div class="form-group">
-                        <label for="reminder_template">Выберите шаблон напоминания:</label>
-                        <select name="reminder_template" id="reminder_template" class="form-control">
-                            <option value="default">Стандартное напоминание</option>
-                            <option value="friendly">Дружелюбное сообщение от лисенка</option>
-                            <option value="achievement">Мотивационное (достижения)</option>
+                    <div class="mb-3">
+                        <label class="form-label">Template</label>
+                        <select name="reminder_template" class="form-select">
+                            <option value="default">Default Reminder</option>
+                            <option value="friendly">Friendly Message</option>
+                            <option value="achievement">Achievement Based</option>
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label for="custom_subject">Тема письма:</label>
-                        <input type="text" name="custom_subject" id="custom_subject" class="form-control"
-                               value="Пора вернуться к изучению английского!">
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <input type="text" name="custom_subject" class="form-control"
+                               value="Time to continue learning English!">
                     </div>
 
                     <div class="alert alert-info">
-                        Напоминание будет отправлено пользователю <strong id="reminderUsername"></strong>.
+                        Reminder will be sent to: <strong id="reminderUsername"></strong>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
-                <button type="submit" form="singleReminderForm" class="btn btn-primary">Отправить</button>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Reminder</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+<style>
+.avatar-initials {
+    width: 36px;
+    height: 36px;
+    background: #4f46e5;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        // Авто-отправка формы при изменении select с количеством записей на странице
-        $('#per_page').change(function() {
-            $(this).closest('form').submit();
-        });
+// Select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+});
 
-        // Обработчик кнопки экспорта
-        $('#exportUsersBtn').click(function(e) {
-            e.preventDefault();
+// Send reminder
+function sendReminder(userId, username) {
+    document.getElementById('reminder_user_id').value = userId;
+    document.getElementById('reminderUsername').textContent = username;
+    new bootstrap.Modal(document.getElementById('reminderModal')).show();
+}
 
-            // Простая функция для создания CSV из таблицы
-            function exportTableToCSV(filename) {
-                var csv = [];
-                var rows = document.querySelectorAll('#usersTable tr');
+// Export users
+function exportUsers() {
+    const table = document.querySelector('table');
+    const rows = Array.from(table.querySelectorAll('tr'));
 
-                for (var i = 0; i < rows.length; i++) {
-                    var row = [], cols = rows[i].querySelectorAll('td, th');
+    const csv = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('td, th')).slice(1, -1); // Skip checkbox and actions
+        return cells.map(cell => {
+            const text = cell.textContent.trim().replace(/\s+/g, ' ');
+            return `"${text}"`;
+        }).join(',');
+    }).join('\n');
 
-                    for (var j = 0; j < cols.length - 1; j++) { // Исключаем последнюю колонку (Действия)
-                        // Очистка текста от HTML-тегов и лишних пробелов
-                        var text = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, ' ').trim();
-                        row.push('"' + text + '"');
-                    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+}
 
-                    csv.push(row.join(','));
-                }
-
-                // Создаем CSV файл и инициируем скачивание
-                var csvFile = new Blob([csv.join('\n')], {type: 'text/csv;charset=utf-8;'});
-                var downloadLink = document.createElement('a');
-                downloadLink.href = URL.createObjectURL(csvFile);
-                downloadLink.setAttribute('download', filename);
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-            }
-
-            // Экспортируем таблицу
-            var today = new Date();
-            var dateStr = today.getFullYear() + '-' +
-                          String(today.getMonth() + 1).padStart(2, '0') + '-' +
-                          String(today.getDate()).padStart(2, '0');
-
-            exportTableToCSV('users_export_' + dateStr + '.csv');
-        });
-    });
-
-    // Функция для открытия модального окна отправки напоминания конкретному пользователю
-    function sendReminderToUser(userId, username) {
-        $('#single_user_id').val(userId);
-        $('#reminderUsername').text(username);
-        $('#sendReminderModal').modal('show');
+// Show bulk actions (placeholder)
+function showBulkActions() {
+    const selected = document.querySelectorAll('.user-checkbox:checked');
+    if (selected.length === 0) {
+        alert('Please select at least one user');
+        return;
     }
+    alert(`${selected.length} users selected. Bulk actions coming soon!`);
+}
 </script>
 {% endblock %}

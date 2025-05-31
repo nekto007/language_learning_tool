@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}{{ level.code }} - {{ level.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Навигационная крошка минималистичная -->
+  <nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb-minimal">
+      <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
+      <li>/</li>
+      <li class="active">{{ level.code }}</li>
+    </ol>
+  </nav>
+
+  <!-- Заголовок уровня -->
+  <div class="level-header-section mb-5">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <div class="d-flex align-items-center gap-3">
+          <span class="level-icon level-{{ level.code[0]|lower }}">{{ level.code }}</span>
+          <div>
+            <h1 class="mb-1">{{ level.name }}</h1>
+            <p class="text-muted mb-0">{{ level.description }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        {% set ns = namespace(completed=0, total=0) %}
+        {% for module_id, progress in user_module_progress.items() %}
+          {% set ns.completed = ns.completed + progress.completed_lessons %}
+          {% set ns.total = ns.total + progress.total_lessons %}
+        {% endfor %}
+        {% if ns.total > 0 %}
+          <div class="level-stats">
+            <div class="stat-value">{{ ((ns.completed / ns.total) * 100)|round }}%</div>
+            <div class="stat-label">{{ _('Общий прогресс') }}</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Группировка модулей по статусу -->
+  {% set current_modules = [] %}
+  {% set completed_modules = [] %}
+  {% set locked_modules = [] %}
+
+  {% for module in modules %}
+    {% if module.id in user_module_progress %}
+      {% if user_module_progress[module.id].percentage == 100 %}
+        {% set _ = completed_modules.append(module) %}
+      {% else %}
+        {% set _ = current_modules.append(module) %}
+      {% endif %}
+    {% else %}
+      {% set _ = locked_modules.append(module) %}
+    {% endif %}
+  {% endfor %}
+
+  <!-- Текущие модули -->
+  {% if current_modules %}
+    <div class="module-section mb-5">
+      <h3 class="section-title">{{ _('Текущие модули') }}</h3>
+      <div class="modules-grid">
+        {% for module in current_modules %}
+          {% set progress = user_module_progress[module.id] %}
+          <div class="module-card current">
+            <div class="module-header">
+              <span class="module-number">{{ module.number }}</span>
+              <div class="module-progress-ring">
+                <svg width="60" height="60">
+                  <circle cx="30" cy="30" r="25" fill="none" stroke="#e9ecef" stroke-width="5"></circle>
+                  <circle cx="30" cy="30" r="25" fill="none" stroke="#0d6efd" stroke-width="5"
+                          stroke-dasharray="{{ (progress.percentage / 100 * 157)|round }} 157"
+                          stroke-dashoffset="0"
+                          transform="rotate(-90 30 30)"></circle>
+                </svg>
+                <span class="progress-value">{{ progress.percentage }}%</span>
+              </div>
+            </div>
+            <h4 class="module-title">{{ module.title }}</h4>
+            <p class="module-description">{{ module.description or _('Продолжайте изучение этого модуля') }}</p>
+            <div class="module-stats">
+              <span>{{ progress.completed_lessons }} / {{ progress.total_lessons }} уроков</span>
+            </div>
+            <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
+               class="btn btn-primary btn-block">{{ _('Продолжить') }}</a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Новые модули -->
+  {% if locked_modules %}
+    <div class="module-section mb-5">
+      <h3 class="section-title">{{ _('Доступные модули') }}</h3>
+      <div class="modules-grid">
+        {% for module in locked_modules %}
+          <div class="module-card new">
+            <div class="module-header">
+              <span class="module-number">{{ module.number }}</span>
+            </div>
+            <h4 class="module-title">{{ module.title }}</h4>
+            <p class="module-description">{{ module.description or _('Начните изучение нового модуля') }}</p>
+            <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
+               class="btn btn-outline-primary btn-block">{{ _('Начать') }}</a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Завершенные модули (сворачиваемые) -->
+  {% if completed_modules %}
+    <div class="module-section">
+      <div class="section-header-collapsible">
+        <h3 class="section-title mb-0">{{ _('Завершенные модули') }}</h3>
+        <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse"
+                data-bs-target="#completedModules" aria-expanded="false">
+          <span class="toggle-text">{{ _('Показать') }}</span>
+          <i class="fas fa-chevron-down ms-1"></i>
+        </button>
+      </div>
+
+      <div class="collapse" id="completedModules">
+        <div class="modules-list mt-3">
+          {% for module in completed_modules %}
+            <div class="module-item-completed">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-3">
+                  <span class="module-check"><i class="fas fa-check"></i></span>
+                  <div>
+                    <h5 class="mb-0">{{ _('Модуль') }} {{ module.number }}: {{ module.title }}</h5>
+                    <small class="text-muted">{{ user_module_progress[module.id].total_lessons }} {{ _('уроков завершено') }}</small>
+                  </div>
+                </div>
+                <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
+                   class="btn btn-sm btn-outline-secondary">{{ _('Повторить') }}</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+  /* Минималистичная навигация */
+  .breadcrumb-minimal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    font-size: 0.875rem;
+  }
+
+  .breadcrumb-minimal a {
+    color: #6c757d;
+    text-decoration: none;
+  }
+
+  .breadcrumb-minimal a:hover {
+    color: #0d6efd;
+  }
+
+  .breadcrumb-minimal .active {
+    color: #212529;
+    font-weight: 500;
+  }
+
+  /* Заголовок уровня */
+  .level-header-section h1 {
+    font-size: 2rem;
+    font-weight: 600;
+  }
+
+  .level-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 2rem;
+  }
+
+  .level-a { background: #e3f2fd; color: #1976d2; }
+  .level-b { background: #fff3e0; color: #f57c00; }
+  .level-c { background: #ffebee; color: #d32f2f; }
+
+  .level-stats {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #0d6efd;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+  }
+
+  /* Секции модулей */
+  .module-section {
+    margin-bottom: 3rem;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #212529;
+  }
+
+  .section-header-collapsible {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  /* Сетка модулей */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  /* Карточки модулей */
+  .module-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .module-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .module-card.current {
+    border-color: #0d6efd;
+  }
+
+  .module-card.new {
+    background: #f8f9fa;
+  }
+
+  .module-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .module-number {
+    width: 40px;
+    height: 40px;
+    background: #e9ecef;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: #495057;
+  }
+
+  .module-card.current .module-number {
+    background: #0d6efd;
+    color: white;
+  }
+
+  /* Прогресс кольцо */
+  .module-progress-ring {
+    position: relative;
+  }
+
+  .progress-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #0d6efd;
+  }
+
+  .module-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #212529;
+  }
+
+  .module-description {
+    font-size: 0.875rem;
+    color: #6c757d;
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: 1rem;
+  }
+
+  .module-stats {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+  }
+
+  /* Завершенные модули */
+  .module-item-completed {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .module-check {
+    width: 32px;
+    height: 32px;
+    background: #198754;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Кнопки */
+  .btn-block {
+    width: 100%;
+  }
+
+  /* Анимация для collapse */
+  .section-header-collapsible button {
+    transition: transform 0.3s ease;
+  }
+
+  .section-header-collapsible button[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+  }
+
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    .level-header-section h1 {
+      font-size: 1.5rem;
+    }
+
+    .level-icon {
+      width: 60px;
+      height: 60px;
+      font-size: 1.5rem;
+    }
+
+    .modules-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // Изменение текста кнопки при сворачивании/разворачивании
+  document.addEventListener('DOMContentLoaded', function() {
+    const collapseEl = document.getElementById('completedModules');
+    const toggleBtn = document.querySelector('[data-bs-target="#completedModules"]');
+    const toggleText = toggleBtn.querySelector('.toggle-text');
+
+    if (collapseEl) {
+      collapseEl.addEventListener('show.bs.collapse', function () {
+        toggleText.textContent = '{{ _("Скрыть") }}';
+      });
+
+      collapseEl.addEventListener('hide.bs.collapse', function () {
+        toggleText.textContent = '{{ _("Показать") }}';
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -11,6 +11,23 @@ from werkzeug.utils import secure_filename
 logger = logging.getLogger(__name__)
 
 
+def clean_text(text):
+    """Очищает текст от некорректных символов и служебной информации"""
+    if not text:
+        return ''
+
+    # Удаляем некорректные символы кодировки
+    text = text.encode('utf-8', 'ignore').decode('utf-8')
+
+    # Удаляем служебную информацию сайтов
+    text = re.sub(r'\s*-\s*[a-zA-Z0-9\-_]+\.(com|ru|org|net)\s*$', '', text)
+
+    # Удаляем лишние пробелы
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
+
+
 def parse_book_file(file_path, file_ext, format_type='enhanced'):
     """
     Парсит файл книги и возвращает HTML-контент с сохранением форматирования
@@ -116,6 +133,140 @@ def parse_txt(file_path, format_type):
         html_content = f'<div>{normalized_content}</div>'
 
     return html_content, word_count, unique_words
+
+
+def extract_fb2_metadata(file_path):
+    """Извлекает метаданные из FB2 файла"""
+    try:
+        # Пробуем разные кодировки
+        encodings = ['utf-8', 'windows-1251', 'cp1251', 'latin-1']
+        content = None
+
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    content = f.read()
+                break
+            except UnicodeDecodeError:
+                continue
+
+        if content is None:
+            logger.error("Could not decode FB2 file with any encoding")
+            return {'title': '', 'author': ''}
+
+        # Парсим XML из строки
+        root = ET.fromstring(content)
+
+        # Определяем namespace
+        namespace = ''
+        if root.tag.startswith('{'):
+            namespace = root.tag.split('}')[0] + '}'
+
+        metadata = {'title': '', 'author': ''}
+
+        # Извлекаем информацию из description/title-info
+        title_info = root.find('.//' + namespace + 'title-info')
+        if title_info is not None:
+            # Название книги
+            book_title = title_info.find(namespace + 'book-title')
+            if book_title is not None and book_title.text:
+                metadata['title'] = clean_text(book_title.text)
+
+            # Автор книги - собираем все части имени
+            author = title_info.find(namespace + 'author')
+            if author is not None:
+                author_parts = []
+
+                # Первое имя
+                first_name = author.find(namespace + 'first-name')
+                if first_name is not None and first_name.text:
+                    author_parts.append(clean_text(first_name.text))
+
+                # Отчество
+                middle_name = author.find(namespace + 'middle-name')
+                if middle_name is not None and middle_name.text:
+                    author_parts.append(clean_text(middle_name.text))
+
+                # Фамилия
+                last_name = author.find(namespace + 'last-name')
+                if last_name is not None and last_name.text:
+                    author_parts.append(clean_text(last_name.text))
+
+                if author_parts:
+                    metadata['author'] = ' '.join(filter(None, author_parts))
+
+        # Логируем для отладки
+        logger.info(f"Extracted FB2 metadata: title='{metadata['title']}', author='{metadata['author']}'")
+
+        return metadata
+
+    except ET.ParseError as e:
+        logger.error(f"XML parsing error in FB2 file: {str(e)}")
+        return {'title': '', 'author': ''}
+    except Exception as e:
+        logger.error(f"Error extracting FB2 metadata: {str(e)}")
+        return {'title': '', 'author': ''}
+
+
+def extract_epub_metadata(file_path):
+    """Извлекает метаданные из EPUB файла"""
+    try:
+        import ebooklib
+        from ebooklib import epub
+
+        book = epub.read_epub(file_path)
+        metadata = {'title': '', 'author': ''}
+
+        # Извлекаем заголовок
+        title = book.get_metadata('DC', 'title')
+        if title:
+            metadata['title'] = title[0][0]
+
+        # Извлекаем автора
+        author = book.get_metadata('DC', 'creator')
+        if author:
+            metadata['author'] = author[0][0]
+
+        return metadata
+    except Exception as e:
+        logger.error(f"Error extracting EPUB metadata: {str(e)}")
+        return {'title': '', 'author': ''}
+
+
+def extract_docx_metadata(file_path):
+    """Извлекает метаданные из DOCX файла"""
+    try:
+        from docx import Document
+
+        doc = Document(file_path)
+        metadata = {'title': '', 'author': ''}
+
+        # Извлекаем метаданные из свойств документа
+        if doc.core_properties.title:
+            metadata['title'] = doc.core_properties.title
+        if doc.core_properties.author:
+            metadata['author'] = doc.core_properties.author
+
+        return metadata
+    except Exception as e:
+        logger.error(f"Error extracting DOCX metadata: {str(e)}")
+        return {'title': '', 'author': ''}
+
+
+def extract_file_metadata(file_path, file_ext):
+    """Универсальная функция для извлечения метаданных из файла"""
+    file_ext = file_ext.lower()
+
+    if file_ext == '.fb2':
+        return extract_fb2_metadata(file_path)
+    elif file_ext == '.epub':
+        return extract_epub_metadata(file_path)
+    elif file_ext == '.docx':
+        return extract_docx_metadata(file_path)
+    else:
+        # Для TXT и других форматов пытаемся извлечь из имени файла
+        filename = os.path.splitext(os.path.basename(file_path))[0]
+        return {'title': filename, 'author': ''}
 
 
 def parse_fb2(file_path, format_type):

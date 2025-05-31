@@ -1,0 +1,274 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Edit Text - {{ component.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Edit Text Content</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.curriculum') }}">Curriculum</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}">{{ component.title }}</a></li>
+            <li class="breadcrumb-item active">Edit Text</li>
+        </ol>
+    </nav>
+</div>
+
+<form method="POST" action="">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Text Source Selection -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Text Source</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="text_source" id="customText" value="custom"
+                                   {% if not book %}checked{% endif %} onchange="toggleTextSource()">
+                            <label class="form-check-label" for="customText">
+                                Custom Text
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="text_source" id="bookText" value="book"
+                                   {% if book %}checked{% endif %} onchange="toggleTextSource()">
+                            <label class="form-check-label" for="bookText">
+                                Text from Book
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Text Input -->
+            <div class="card mt-4" id="customTextSection" style="{% if book %}display: none;{% endif %}">
+                <div class="card-header">
+                    <h5 class="mb-0">Reading Text</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="text" class="form-label">Text Content</label>
+                        <textarea name="text" id="text" class="form-control" rows="15"
+                                  placeholder="Enter or paste the reading text here...">{{ text }}</textarea>
+                        <small class="form-text text-muted">This text will be shown to students for reading comprehension</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Book Selection -->
+            <div class="card mt-4" id="bookSection" style="{% if not book %}display: none;{% endif %}">
+                <div class="card-header">
+                    <h5 class="mb-0">Book Selection</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="book_id" class="form-label">Select Book</label>
+                        <select name="book_id" id="book_id" class="form-select">
+                            <option value="">-- Select a book --</option>
+                            {% for b in books %}
+                                <option value="{{ b.id }}" {% if book and book.id == b.id %}selected{% endif %}>
+                                    {{ b.title }} by {{ b.author }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="starting_paragraph" class="form-label">Starting Paragraph</label>
+                                <input type="number" name="starting_paragraph" id="starting_paragraph"
+                                       class="form-control" value="{{ starting_paragraph }}" min="0">
+                                <small class="form-text text-muted">0 = from beginning</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="ending_paragraph" class="form-label">Ending Paragraph</label>
+                                <input type="number" name="ending_paragraph" id="ending_paragraph"
+                                       class="form-control" value="{{ ending_paragraph }}" min="0">
+                                <small class="form-text text-muted">0 = to the end</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if book %}
+                    <div class="alert alert-info">
+                        <strong>Current Book:</strong> {{ book.title }}<br>
+                        <strong>Author:</strong> {{ book.author }}<br>
+                        <strong>Total Paragraphs:</strong> {{ book.content.split('\n\n')|length }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Text Metadata</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="meta_title" class="form-label">Title</label>
+                                <input type="text" name="meta_title" id="meta_title" class="form-control"
+                                       value="{{ metadata.get('title', '') }}"
+                                       placeholder="Title of the text">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="meta_source" class="form-label">Source</label>
+                                <input type="text" name="meta_source" id="meta_source" class="form-control"
+                                       value="{{ metadata.get('source', '') }}"
+                                       placeholder="Source or author">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="meta_type" class="form-label">Text Type</label>
+                                <select name="meta_type" id="meta_type" class="form-select">
+                                    <option value="article" {% if metadata.get('type') == 'article' %}selected{% endif %}>Article</option>
+                                    <option value="dialogue" {% if metadata.get('type') == 'dialogue' %}selected{% endif %}>Dialogue</option>
+                                    <option value="story" {% if metadata.get('type') == 'story' %}selected{% endif %}>Story</option>
+                                    <option value="letter" {% if metadata.get('type') == 'letter' %}selected{% endif %}>Letter</option>
+                                    <option value="email" {% if metadata.get('type') == 'email' %}selected{% endif %}>Email</option>
+                                    <option value="news" {% if metadata.get('type') == 'news' %}selected{% endif %}>News</option>
+                                    <option value="other" {% if metadata.get('type') == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="meta_level" class="form-label">Difficulty Level</label>
+                                <input type="text" name="meta_level" id="meta_level" class="form-control"
+                                       value="{{ metadata.get('level', component.module.level.code) }}"
+                                       placeholder="e.g., A0, A1, B1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit buttons -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Text Content
+                        </button>
+                        <a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Text Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="textPreview" class="border rounded p-3 bg-light" style="max-height: 400px; overflow-y: auto;">
+                        {% if book and book.content %}
+                            <h6>{{ book.title }}</h6>
+                            <p class="text-muted small">by {{ book.author }}</p>
+                            <hr>
+                            <div class="small">
+                                {{ book.content[:500] }}{% if book.content|length > 500 %}...{% endif %}
+                            </div>
+                        {% elif text %}
+                            <div class="small">
+                                {{ text[:500] }}{% if text|length > 500 %}...{% endif %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center">No text content yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Text Types</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="small mb-0">
+                        <dt>Article</dt>
+                        <dd class="mb-2">Informational or news articles</dd>
+
+                        <dt>Dialogue</dt>
+                        <dd class="mb-2">Conversations between people</dd>
+
+                        <dt>Story</dt>
+                        <dd class="mb-2">Narrative fiction or anecdotes</dd>
+
+                        <dt>Letter/Email</dt>
+                        <dd class="mb-2">Personal or business correspondence</dd>
+
+                        <dt>News</dt>
+                        <dd class="mb-0">Current events and reports</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li class="mb-2">Choose texts appropriate for the level</li>
+                        <li class="mb-2">Include diverse text types</li>
+                        <li class="mb-2">200-500 words work well for most levels</li>
+                        <li class="mb-2">Consider cultural context</li>
+                        <li class="mb-0">Add comprehension questions separately</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+function toggleTextSource() {
+    const isCustom = document.getElementById('customText').checked;
+    document.getElementById('customTextSection').style.display = isCustom ? 'block' : 'none';
+    document.getElementById('bookSection').style.display = isCustom ? 'none' : 'block';
+}
+
+// Update preview when text changes
+document.getElementById('text').addEventListener('input', function() {
+    const preview = document.getElementById('textPreview');
+    const text = this.value;
+
+    if (text) {
+        preview.innerHTML = `<div class="small">${text.substring(0, 500)}${text.length > 500 ? '...' : ''}</div>`;
+    } else {
+        preview.innerHTML = '<p class="text-muted text-center">No text content yet</p>';
+    }
+});
+
+// Update book preview when selection changes
+document.getElementById('book_id').addEventListener('change', function() {
+    if (this.value) {
+        // In a real implementation, you might fetch book preview via AJAX
+        const selectedOption = this.options[this.selectedIndex];
+        const preview = document.getElementById('textPreview');
+        preview.innerHTML = `
+            <h6>${selectedOption.text}</h6>
+            <p class="text-muted small">Loading preview...</p>
+        `;
+    }
+});
+</script>
+{% endblock %}

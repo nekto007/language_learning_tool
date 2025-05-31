@@ -1,0 +1,396 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Import Curriculum{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Import Curriculum</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.curriculum') }}">Curriculum</a></li>
+            <li class="breadcrumb-item active">Import</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="POST" enctype="multipart/form-data">
+            <!-- Import Method Selection -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Import Method</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="import_method" id="fileUpload" value="file" checked onchange="toggleImportMethod()">
+                        <label class="form-check-label" for="fileUpload">
+                            <strong>Upload JSON File</strong>
+                            <small class="text-muted d-block">Select a JSON file from your computer</small>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="import_method" id="textPaste" value="text" onchange="toggleImportMethod()">
+                        <label class="form-check-label" for="textPaste">
+                            <strong>Paste JSON Text</strong>
+                            <small class="text-muted d-block">Copy and paste JSON content directly</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
+            <div class="card mt-4" id="fileUploadSection">
+                <div class="card-header">
+                    <h5 class="mb-0">Upload JSON File</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="json_file" class="form-label">Select JSON File</label>
+                        <input type="file" class="form-control" id="json_file" name="json_file" accept=".json">
+                        <small class="form-text text-muted">Maximum file size: 10MB</small>
+                    </div>
+
+                    <div id="fileInfo" class="alert alert-info d-none">
+                        <strong>Selected file:</strong> <span id="fileName"></span><br>
+                        <strong>Size:</strong> <span id="fileSize"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Paste Section -->
+            <div class="card mt-4" id="textPasteSection" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0">Paste JSON Content</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="json_text" class="form-label">JSON Content</label>
+                        <textarea name="json_text" id="json_text" class="form-control font-monospace" rows="15"
+                                  placeholder='{"level": "A0", "module": 1, "vocabulary": [...], ...}'></textarea>
+                        <small class="form-text text-muted">Paste valid JSON content for a complete module</small>
+                    </div>
+
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="validateJSON()">
+                        <i class="fas fa-check me-1"></i>Validate JSON
+                    </button>
+                    <button type="button" class="btn btn-sm btn-info ms-2" onclick="formatJSON()">
+                        <i class="fas fa-code me-1"></i>Format JSON
+                    </button>
+
+                    <div id="validationResult" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Import Options -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Import Options</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="updateExisting" name="update_existing" checked>
+                        <label class="form-check-label" for="updateExisting">
+                            Update existing content if found
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="createCollections" name="create_collections" checked>
+                        <label class="form-check-label" for="createCollections">
+                            Create vocabulary collections automatically
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="importTags" name="import_tags" checked>
+                        <label class="form-check-label" for="importTags">
+                            Import word tags as topics
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="importBtn">
+                            <i class="fas fa-upload me-2"></i>Import Curriculum
+                        </button>
+                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">JSON Structure</h5>
+            </div>
+            <div class="card-body">
+                <p class="small mb-3">Required fields for import:</p>
+                <pre class="bg-light p-2 rounded small"><code>{
+  "level": "A0",
+  "module": 1,
+  "title": "Module title",
+  "description": "Description",
+  "card": [...],
+  "vocabulary": [...],
+  "matching": [...],
+  "grammar": {...},
+  "quiz": [...],
+  "authentic_text": {...},
+  "checkpoint": {...}
+}</code></pre>
+                <p class="small text-muted mb-0">Not all sections are required, but level and module are mandatory.</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Import Process</h5>
+            </div>
+            <div class="card-body">
+                <ol class="small mb-0">
+                    <li class="mb-2">Validates JSON structure</li>
+                    <li class="mb-2">Creates/finds CEFR level</li>
+                    <li class="mb-2">Creates/finds module</li>
+                    <li class="mb-2">Creates lessons for each section</li>
+                    <li class="mb-2">Imports vocabulary with tags</li>
+                    <li class="mb-0">Links all components together</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li class="mb-2">Ensure JSON is valid before importing</li>
+                    <li class="mb-2">Check level and module numbers</li>
+                    <li class="mb-2">Vocabulary words are case-insensitive</li>
+                    <li class="mb-2">Existing content can be updated</li>
+                    <li class="mb-0">Import creates a complete module structure</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">Sample Files</h5>
+            </div>
+            <div class="card-body">
+                <p class="small mb-3">Download sample JSON files:</p>
+                <div class="d-grid gap-2">
+                    <a href="#" class="btn btn-sm btn-outline-primary" onclick="downloadSample('basic')">
+                        <i class="fas fa-download me-1"></i>Basic Module
+                    </a>
+                    <a href="#" class="btn btn-sm btn-outline-primary" onclick="downloadSample('complete')">
+                        <i class="fas fa-download me-1"></i>Complete Module
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleImportMethod() {
+    const isFile = document.getElementById('fileUpload').checked;
+    document.getElementById('fileUploadSection').style.display = isFile ? 'block' : 'none';
+    document.getElementById('textPasteSection').style.display = isFile ? 'none' : 'block';
+}
+
+// File upload handling
+document.getElementById('json_file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+        document.getElementById('fileInfo').classList.remove('d-none');
+
+        // Read and validate file
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                JSON.parse(e.target.result);
+                showValidation(true, 'Valid JSON file');
+            } catch (error) {
+                showValidation(false, 'Invalid JSON: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+});
+
+function validateJSON() {
+    const jsonText = document.getElementById('json_text').value;
+
+    if (!jsonText.trim()) {
+        showValidation(false, 'Please enter JSON content');
+        return;
+    }
+
+    try {
+        const data = JSON.parse(jsonText);
+
+        // Check required fields
+        if (!data.level || !data.module) {
+            showValidation(false, 'Missing required fields: level and module');
+            return;
+        }
+
+        showValidation(true, 'Valid JSON with level ' + data.level + ' and module ' + data.module);
+    } catch (error) {
+        showValidation(false, 'Invalid JSON: ' + error.message);
+    }
+}
+
+function formatJSON() {
+    const jsonText = document.getElementById('json_text').value;
+
+    try {
+        const data = JSON.parse(jsonText);
+        document.getElementById('json_text').value = JSON.stringify(data, null, 2);
+        showValidation(true, 'JSON formatted successfully');
+    } catch (error) {
+        showValidation(false, 'Cannot format invalid JSON: ' + error.message);
+    }
+}
+
+function showValidation(isValid, message) {
+    const result = document.getElementById('validationResult');
+    result.className = 'alert ' + (isValid ? 'alert-success' : 'alert-danger');
+    result.innerHTML = '<i class="fas fa-' + (isValid ? 'check-circle' : 'exclamation-triangle') + ' me-2"></i>' + message;
+}
+
+function downloadSample(type) {
+    const samples = {
+        basic: {
+            level: "A0",
+            module: 1,
+            title: "Basic Module",
+            description: "Sample module structure",
+            vocabulary: [
+                {
+                    word: "Hello",
+                    translation: "Привет",
+                    tags: ["greeting"]
+                }
+            ],
+            quiz: [
+                {
+                    type: "multiple_choice",
+                    question: "What is the greeting?",
+                    options: ["Hello", "Goodbye", "Thanks", "Please"],
+                    correct_index: 0
+                }
+            ]
+        },
+        complete: {
+            level: "A0",
+            module: 1,
+            title: "Complete Module Example",
+            description: "Full module with all components",
+            card: [
+                {
+                    front: "Hello",
+                    back: "Привет",
+                    audio: "hello.mp3"
+                }
+            ],
+            vocabulary: [
+                {
+                    word: "Hello",
+                    translation: "Привет",
+                    tags: ["greeting", "formal"],
+                    frequency_rank: 35
+                }
+            ],
+            matching: [
+                {
+                    left: "Hello",
+                    right: "Привет"
+                }
+            ],
+            grammar: {
+                rule: "Personal pronouns",
+                description: "Using I, you, he, she, it, we, they",
+                examples: ["I am John", "She is Mary"],
+                exercises: [
+                    {
+                        type: "fill_in_blank",
+                        prompt: "__ am a student",
+                        answers: ["I"]
+                    }
+                ]
+            },
+            quiz: [
+                {
+                    type: "multiple_choice",
+                    question: "Choose the greeting",
+                    options: ["Hello", "Goodbye", "Thanks", "Sorry"],
+                    correct_index: 0
+                }
+            ],
+            authentic_text: {
+                type: "dialogue",
+                title: "First Meeting",
+                content: "A: Hello! B: Hi, how are you?"
+            },
+            checkpoint: {
+                passing_score_percent: 80,
+                questions: [
+                    {
+                        type: "true_false",
+                        question: "Hello is a greeting",
+                        answer: true
+                    }
+                ]
+            }
+        }
+    };
+
+    const data = samples[type];
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sample_${type}_module.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Prevent form submission if validation fails
+document.querySelector('form').addEventListener('submit', function(e) {
+    const isFile = document.getElementById('fileUpload').checked;
+
+    if (isFile) {
+        const file = document.getElementById('json_file').files[0];
+        if (!file) {
+            e.preventDefault();
+            alert('Please select a JSON file to import');
+        }
+    } else {
+        const jsonText = document.getElementById('json_text').value.trim();
+        if (!jsonText) {
+            e.preventDefault();
+            alert('Please enter JSON content to import');
+        } else {
+            try {
+                JSON.parse(jsonText);
+            } catch (error) {
+                e.preventDefault();
+                alert('Invalid JSON format: ' + error.message);
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

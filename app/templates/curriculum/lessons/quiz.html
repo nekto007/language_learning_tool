@@ -1,0 +1,1392 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Викторина') %}
+{% set instruction_text = _('Отвечайте на вопросы по одному. После каждого ответа вы увидите результат.') %}
+{% set block_description = _('Проверьте свои знания с помощью интерактивной викторины') %}
+{% set show_score = true %}
+
+{% block lesson_content %}
+{% set previous_data = None %}
+{% set previous_feedback = {} %}
+{% set is_completed = False %}
+{% if progress and progress.data %}
+  {% set previous_data = progress.data %}
+  {% set previous_feedback = previous_data.get('feedback', {}) %}
+  {% set is_completed = progress.status == 'completed' %}
+{% endif %}
+
+<div class="quiz-lesson">
+  {% if is_completed and previous_data %}
+    <!-- Режим просмотра результатов -->
+    <div class="quiz-results-review">
+      <div class="results-summary">
+        <div class="score-circle {% if previous_data.score >= 70 %}success{% else %}warning{% endif %}">
+          <div class="score-value">{{ previous_data.score|round(0)|int }}%</div>
+          <div class="score-label">{{ _('Результат') }}</div>
+        </div>
+        <div class="results-stats">
+          <div class="stat-item">
+            <i class="fas fa-check-circle text-success"></i>
+            <span>{{ _('Правильно:') }} {{ previous_data.correct_count }} {{ _('из') }} {{ previous_data.total_count }}</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-redo text-primary"></i>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="retryQuiz()">
+              {{ _('Пройти заново') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Детальный просмотр ответов -->
+      <div class="review-questions">
+        <h3 class="mb-4">{{ _('Ваши ответы') }}</h3>
+        {% for question in questions %}
+          {% set q_idx = loop.index0|string %}
+          {% set feedback = previous_feedback.get(q_idx, {}) %}
+          <div class="review-question {% if feedback.status == 'correct' %}correct{% else %}incorrect{% endif %}">
+            <div class="review-question-header">
+              <span class="question-number">{{ loop.index }}</span>
+              <span class="question-status">
+                {% if feedback.status == 'correct' %}
+                  <i class="fas fa-check-circle text-success"></i>
+                {% else %}
+                  <i class="fas fa-times-circle text-danger"></i>
+                {% endif %}
+              </span>
+            </div>
+
+            <div class="review-question-content">
+              <p class="question-text">{{ question.text or question.question or question.prompt }}</p>
+
+              {% if question.type == 'multiple_choice' %}
+                <div class="review-options">
+                  {% for option in question.options %}
+                    {% set is_user_answer = (feedback.user_answer == option) or (feedback.user_answer == loop.index0|string) %}
+                    {% set is_correct_answer = (question.answer == loop.index0) or (question.correct_index == loop.index0) or (question.correct == loop.index0) %}
+                    <div class="review-option {% if is_user_answer %}user-selected{% endif %} {% if is_correct_answer %}correct-answer{% endif %}">
+                      <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
+                      <span class="option-text">{{ option }}</span>
+                      {% if is_user_answer and not is_correct_answer %}
+                        <i class="fas fa-times text-danger ms-2"></i>
+                      {% elif is_correct_answer %}
+                        <i class="fas fa-check text-success ms-2"></i>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% elif question.type == 'true_false' %}
+                <div class="review-options">
+                  <div class="review-option {% if feedback.user_answer == 'true' %}user-selected{% endif %} {% if question.answer == true or question.correct_answer == true or question.correct == true %}correct-answer{% endif %}">
+                    <span class="option-letter">T</span>
+                    <span class="option-text">{{ _('Правда') }}</span>
+                    {% if feedback.user_answer == 'true' and question.answer != true and question.correct_answer != true and question.correct != true %}
+                      <i class="fas fa-times text-danger ms-2"></i>
+                    {% elif question.answer == true or question.correct_answer == true or question.correct == true %}
+                      <i class="fas fa-check text-success ms-2"></i>
+                    {% endif %}
+                  </div>
+                  <div class="review-option {% if feedback.user_answer == 'false' %}user-selected{% endif %} {% if question.answer == false or question.correct_answer == false or question.correct == false %}correct-answer{% endif %}">
+                    <span class="option-letter">F</span>
+                    <span class="option-text">{{ _('Ложь') }}</span>
+                    {% if feedback.user_answer == 'false' and question.answer != false and question.correct_answer != false and question.correct != false %}
+                      <i class="fas fa-times text-danger ms-2"></i>
+                    {% elif question.answer == false or question.correct_answer == false or question.correct == false %}
+                      <i class="fas fa-check text-success ms-2"></i>
+                    {% endif %}
+                  </div>
+                </div>
+              {% elif question.type in ['fill_in_blank', 'translation'] %}
+                <div class="review-text-answer">
+                  <div class="user-answer">
+                    <strong>{{ _('Ваш ответ:') }}</strong> {{ feedback.user_answer }}
+                  </div>
+                  {% if feedback.status != 'correct' %}
+                    <div class="correct-answer">
+                      <strong>{{ _('Правильный ответ:') }}</strong> {{ feedback.correct_answer }}
+                    </div>
+                  {% endif %}
+                </div>
+              {% endif %}
+
+              <!-- Показать объяснение если доступно -->
+              {% if question.explanation and feedback.status != 'correct' %}
+                <div class="question-explanation">
+                  <strong>{{ _('Объяснение:') }}</strong> {{ question.explanation }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  {% else %}
+    <!-- Интерактивная викторина -->
+    <!-- Стартовый экран -->
+    <div class="quiz-screen" id="start-screen">
+      <div class="quiz-start-content">
+        <div class="quiz-icon">
+          <i class="fas fa-question-circle"></i>
+        </div>
+        <h2>{{ _('Готовы к викторине?') }}</h2>
+        <p class="text-muted mb-4">
+          {{ _('В этой викторине') }} <strong>{{ questions|length }}</strong> {{ _('вопросов') }}.<br>
+          {{ _('Отвечайте внимательно и получайте мгновенную обратную связь.') }}
+        </p>
+        <button type="button" class="btn btn-primary btn-lg" id="start-quiz-btn">
+          <i class="fas fa-play"></i> {{ _('Начать викторину') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Экран вопросов -->
+    <div class="quiz-screen" id="quiz-screen" style="display: none;">
+      <!-- Прогресс викторины -->
+      <div class="quiz-progress-section mb-4">
+        <div class="progress-info">
+          <span>{{ _('Вопрос') }} <span id="current-num">1</span> {{ _('из') }} {{ questions|length }}</span>
+        </div>
+        <div class="quiz-progress-bar">
+          <div class="quiz-progress-fill" id="quiz-progress-bar" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Контейнер для вопросов -->
+      <div class="questions-container">
+        {% for question in questions %}
+          {% set question_index = loop.index0 %}
+          <div class="question-card" id="question-{{ question_index }}" style="display: none;" data-index="{{ question_index }}">
+            <h3 class="question-text">{{ question.text or question.question or question.prompt }}</h3>
+
+            {% if question.type == 'multiple_choice' %}
+              <div class="answer-options">
+                {% for option in question.options %}
+                  <button type="button"
+                          class="answer-option"
+                          data-question="{{ question_index }}"
+                          data-value="{{ loop.index0 }}"
+                          data-text="{{ option }}">
+                    <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
+                    <span class="option-text">{{ option }}</span>
+                  </button>
+                {% endfor %}
+              </div>
+
+            {% elif question.type == 'true_false' %}
+              <div class="answer-options">
+                <button type="button"
+                        class="answer-option"
+                        data-question="{{ question_index }}"
+                        data-value="true">
+                  <span class="option-letter">T</span>
+                  <span class="option-text">{{ _('Правда') }}</span>
+                </button>
+                <button type="button"
+                        class="answer-option"
+                        data-question="{{ question_index }}"
+                        data-value="false">
+                  <span class="option-letter">F</span>
+                  <span class="option-text">{{ _('Ложь') }}</span>
+                </button>
+              </div>
+
+            {% elif question.type in ['fill_in_blank', 'translation'] %}
+              <div class="text-answer">
+                <input type="text"
+                       class="form-control"
+                       id="text-answer-{{ question_index }}"
+                       placeholder="{{ _('Введите ваш ответ...') }}">
+                <button type="button"
+                        class="btn btn-primary mt-3 text-submit-btn"
+                        data-question="{{ question_index }}">
+                  {{ _('Отправить ответ') }}
+                </button>
+              </div>
+
+            {% elif question.type == 'reorder' %}
+              <div class="reorder-answer">
+                <div class="words-container" id="words-container-{{ question_index }}">
+                  {% for word in question.words %}
+                    <button type="button" 
+                            class="word-button" 
+                            data-word="{{ word }}"
+                            onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)">
+                      {{ word }}
+                    </button>
+                  {% endfor %}
+                </div>
+                <div class="sentence-container">
+                  <div class="sentence-display" id="sentence-{{ question_index }}" 
+                       onclick="clearSentence({{ question_index }})">
+                    <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
+                  </div>
+                </div>
+                <button type="button"
+                        class="btn btn-primary mt-3 reorder-submit-btn"
+                        data-question="{{ question_index }}"
+                        onclick="submitReorderAnswer({{ question_index }})">
+                  {{ _('Отправить ответ') }}
+                </button>
+              </div>
+            {% endif %}
+
+            <!-- Обратная связь -->
+            <div class="question-feedback" id="feedback-{{ question_index }}" style="display: none;">
+              <div class="feedback-content">
+                <div class="feedback-icon"></div>
+                <div class="feedback-text"></div>
+                <button type="button" class="btn btn-primary mt-3" onclick="QuizApp.nextQuestion()">
+                  <span class="btn-text">{{ _('Следующий вопрос') }}</span>
+                  <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  {% endif %}
+</div>
+
+<script>
+window.quizData = {
+  questions: {{ questions|tojson|safe }},
+  totalQuestions: {{ questions|length }},
+  isCompleted: {{ is_completed|tojson|safe }}
+};
+
+// Quiz data is loaded
+
+function retryQuiz() {
+  if (confirm('{{ _("Вы уверены, что хотите пройти викторину заново? Текущие результаты будут сброшены.") }}')) {
+    window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+  }
+}
+
+// Reorder question functions
+function addWordToSentence(questionIndex, word, button) {
+  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
+  const placeholder = sentenceDiv.querySelector('.placeholder-text');
+  
+  // Remove placeholder if it exists
+  if (placeholder) {
+    placeholder.remove();
+  }
+  
+  // Create word element
+  const wordElement = document.createElement('span');
+  wordElement.className = 'sentence-word';
+  wordElement.textContent = word;
+  wordElement.onclick = () => removeWordFromSentence(wordElement, button);
+  
+  // Add word to sentence
+  sentenceDiv.appendChild(wordElement);
+  
+  // Add space after word (except for punctuation)
+  if (!word.match(/[.,!?;:]/)) {
+    const space = document.createElement('span');
+    space.textContent = ' ';
+    space.className = 'word-space';
+    sentenceDiv.appendChild(space);
+  }
+  
+  // Disable the word button
+  button.disabled = true;
+  button.classList.add('used');
+}
+
+function removeWordFromSentence(wordElement, originalButton) {
+  // Re-enable the original button
+  originalButton.disabled = false;
+  originalButton.classList.remove('used');
+  
+  // Remove the word and any trailing space
+  const nextElement = wordElement.nextSibling;
+  if (nextElement && nextElement.classList && nextElement.classList.contains('word-space')) {
+    nextElement.remove();
+  }
+  wordElement.remove();
+  
+  // Add placeholder if sentence is empty
+  const sentenceDiv = wordElement.parentElement;
+  if (!sentenceDiv.textContent.trim()) {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'placeholder-text';
+    placeholder.textContent = '{{ _("Нажмите на слова выше, чтобы составить предложение") }}';
+    sentenceDiv.appendChild(placeholder);
+  }
+}
+
+function clearSentence(questionIndex) {
+  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
+  const wordsContainer = document.getElementById(`words-container-${questionIndex}`);
+  
+  // Re-enable all word buttons
+  const wordButtons = wordsContainer.querySelectorAll('.word-button');
+  wordButtons.forEach(button => {
+    button.disabled = false;
+    button.classList.remove('used');
+  });
+  
+  // Clear sentence and add placeholder
+  sentenceDiv.innerHTML = '<span class="placeholder-text">{{ _("Нажмите на слова выше, чтобы составить предложение") }}</span>';
+}
+
+function submitReorderAnswer(questionIndex) {
+  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
+  const placeholder = sentenceDiv.querySelector('.placeholder-text');
+  
+  if (placeholder) {
+    // No sentence formed
+    sentenceDiv.classList.add('error');
+    setTimeout(() => sentenceDiv.classList.remove('error'), 1000);
+    return;
+  }
+  
+  // Get the formed sentence
+  const sentence = sentenceDiv.textContent.trim();
+  
+  // Store the answer in QuizApp state
+  QuizApp.state.answers[questionIndex] = {
+    value: sentence,
+    text: sentence,
+    correct: false // Will be determined in showFeedback
+  };
+  
+  // Get correct answer and check
+  const question = window.quizData.questions[questionIndex];
+  const correctAnswer = question.correct_answer;
+  
+  // Normalize for comparison
+  const normalize = (text) => text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+  const isCorrect = normalize(sentence) === normalize(correctAnswer);
+  
+  QuizApp.state.answers[questionIndex].correct = isCorrect;
+  if (isCorrect) QuizApp.state.correctCount++;
+  
+  // Disable all word buttons
+  const wordsContainer = document.getElementById(`words-container-${questionIndex}`);
+  const wordButtons = wordsContainer.querySelectorAll('.word-button');
+  wordButtons.forEach(button => button.disabled = true);
+  
+  // Disable submit button
+  const submitBtn = document.querySelector(`.reorder-submit-btn[data-question="${questionIndex}"]`);
+  submitBtn.disabled = true;
+  
+  QuizApp.showFeedback(questionIndex, isCorrect, correctAnswer);
+}
+
+// Приложение викторины
+window.QuizApp = {
+  state: {
+    currentQuestion: 0,
+    answers: [],
+    correctCount: 0,
+    started: false
+  },
+
+  init() {
+    if (window.quizData.isCompleted) return;
+
+    document.getElementById('start-quiz-btn')?.addEventListener('click', () => this.startQuiz());
+
+    document.querySelectorAll('.answer-option').forEach(btn => {
+      btn.addEventListener('click', (e) => this.selectAnswer(e.target.closest('.answer-option')));
+    });
+
+    document.querySelectorAll('.text-submit-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.submitTextAnswer(parseInt(btn.dataset.question)));
+    });
+  },
+
+  startQuiz() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    this.state.started = true;
+    this.state.currentQuestion = 0;
+    this.updateProgress();
+    this.showQuestion(0);
+  },
+
+  showQuestion(index) {
+    document.querySelectorAll('.question-card').forEach(card => card.style.display = 'none');
+    const currentCard = document.getElementById(`question-${index}`);
+    if (currentCard) {
+      currentCard.style.display = 'block';
+      currentCard.querySelectorAll('.answer-option').forEach(btn => {
+        btn.classList.remove('selected', 'correct', 'incorrect');
+        btn.disabled = false;
+      });
+      const textarea = currentCard.querySelector('input[type="text"]');
+      if (textarea) {
+        textarea.value = '';
+        textarea.disabled = false;
+      }
+      document.getElementById(`feedback-${index}`).style.display = 'none';
+      this.updateProgress();
+    }
+  },
+
+  selectAnswer(button) {
+    const questionIndex = parseInt(button.dataset.question);
+    const value = button.dataset.value;
+    const text = button.dataset.text || value;
+
+    button.closest('.answer-options').querySelectorAll('.answer-option').forEach(btn => {
+      btn.disabled = true;
+    });
+
+    const question = window.quizData.questions[questionIndex];
+    
+    // Get correct answer from various possible fields
+    let correctAnswer = null;
+    if (question.correct_index !== undefined) {
+      correctAnswer = question.correct_index;
+    } else if (question.correct !== undefined) {
+      correctAnswer = question.correct;
+    } else if (question.answer !== undefined) {
+      correctAnswer = question.answer;
+    } else if (question.correct_answer !== undefined) {
+      correctAnswer = question.correct_answer;
+    }
+    
+    // Debug logging (can be removed in production)
+    console.log(`Question ${questionIndex}: type=${question.type}, user=${value}, correct=${correctAnswer}`);
+    
+    let isCorrect = false;
+    
+    if (question.type === 'true_false') {
+      // For true/false questions
+      if (typeof correctAnswer === 'boolean') {
+        isCorrect = (value === 'true') === correctAnswer;
+      } else if (typeof correctAnswer === 'string') {
+        isCorrect = value === correctAnswer;
+      } else {
+        isCorrect = (value === 'true') === (correctAnswer == true);
+      }
+    } else if (question.type === 'multiple_choice') {
+      // For multiple choice questions
+      const userIndex = parseInt(value);
+      
+      // If correctAnswer is the actual text of the correct option
+      if (typeof correctAnswer === 'string' && !correctAnswer.match(/^\d+$/)) {
+        // Find the index of the correct answer in options
+        const correctIndex = question.options.findIndex(opt => opt === correctAnswer);
+        isCorrect = userIndex === correctIndex;
+        // Correct answer is text, found at index
+      } else {
+        // correctAnswer is an index (number or string number)
+        const correctIndex = typeof correctAnswer === 'string' ? parseInt(correctAnswer) : correctAnswer;
+        isCorrect = userIndex === correctIndex;
+        // Correct answer is index
+      }
+    } else {
+      // For other question types
+      isCorrect = parseInt(value) === correctAnswer;
+    }
+
+    console.log('Final isCorrect result:', isCorrect);
+
+    // Add visual classes based on correctness
+    button.classList.add('selected');
+    if (isCorrect) {
+      button.classList.add('correct');
+      this.state.correctCount++;
+    }
+
+    this.state.answers[questionIndex] = {
+      value: value,
+      text: text,
+      correct: isCorrect
+    };
+    
+    console.log(`Saved answer for question ${questionIndex}:`, this.state.answers[questionIndex]);
+
+    this.showFeedback(questionIndex, isCorrect, correctAnswer);
+  },
+
+  submitTextAnswer(questionIndex) {
+    const input = document.getElementById(`text-answer-${questionIndex}`);
+    const answer = input.value.trim();
+
+    if (!answer) {
+      input.classList.add('is-invalid');
+      return;
+    }
+
+    input.disabled = true;
+    document.querySelector(`.text-submit-btn[data-question="${questionIndex}"]`).disabled = true;
+
+    const question = window.quizData.questions[questionIndex];
+    
+    // Get correct answer from various possible fields
+    let correctAnswer = question.correct_answer || question.answer;
+    
+    // Normalize text while preserving Cyrillic characters
+    const normalize = (text) => {
+      if (!text) return '';
+      return text.toLowerCase()
+        .replace(/[^\w\sа-яёА-ЯЁ]/g, '') // Include Cyrillic characters
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    let isCorrect = false;
+    if (Array.isArray(correctAnswer)) {
+      isCorrect = correctAnswer.some(ans => normalize(ans) === normalize(answer));
+    } else {
+      isCorrect = normalize(answer) === normalize(correctAnswer);
+    }
+
+    if (!isCorrect && question.alternative_answers) {
+      isCorrect = question.alternative_answers.some(ans => normalize(ans) === normalize(answer));
+    }
+
+    this.state.answers[questionIndex] = {
+      value: answer,
+      text: answer,
+      correct: isCorrect
+    };
+    
+    console.log(`Saved text answer for question ${questionIndex}:`, this.state.answers[questionIndex]);
+
+    if (isCorrect) this.state.correctCount++;
+
+    this.showFeedback(questionIndex, isCorrect, correctAnswer);
+  },
+
+  showFeedback(questionIndex, isCorrect, correctAnswer) {
+    const feedbackEl = document.getElementById(`feedback-${questionIndex}`);
+    const iconEl = feedbackEl.querySelector('.feedback-icon');
+    const textEl = feedbackEl.querySelector('.feedback-text');
+
+    if (isCorrect) {
+      feedbackEl.className = 'question-feedback correct';
+      iconEl.innerHTML = '<i class="fas fa-check-circle"></i>';
+      textEl.innerHTML = '<strong>{{ _("Правильно!") }}</strong>';
+    } else {
+      feedbackEl.className = 'question-feedback incorrect';
+      iconEl.innerHTML = '<i class="fas fa-times-circle"></i>';
+
+      let correctText = '';
+      const question = window.quizData.questions[questionIndex];
+
+      if (question.type === 'multiple_choice' && question.options) {
+        // Get the correct option text
+        if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < question.options.length) {
+          correctText = question.options[correctAnswer];
+        } else if (typeof correctAnswer === 'string' && correctAnswer.match(/^\d+$/)) {
+          // correctAnswer is a string number
+          const index = parseInt(correctAnswer);
+          if (index >= 0 && index < question.options.length) {
+            correctText = question.options[index];
+          } else {
+            correctText = correctAnswer;
+          }
+        } else {
+          // correctAnswer is the actual text
+          correctText = correctAnswer;
+        }
+      } else if (question.type === 'true_false') {
+        // Convert boolean to text
+        if (typeof correctAnswer === 'boolean') {
+          correctText = correctAnswer ? '{{ _("Правда") }}' : '{{ _("Ложь") }}';
+        } else if (typeof correctAnswer === 'string') {
+          correctText = (correctAnswer === 'true' || correctAnswer === true) ? '{{ _("Правда") }}' : '{{ _("Ложь") }}';
+        } else {
+          correctText = correctAnswer ? '{{ _("Правда") }}' : '{{ _("Ложь") }}';
+        }
+      } else {
+        // For text questions (fill_in_blank, translation)
+        if (Array.isArray(correctAnswer)) {
+          correctText = correctAnswer.join(' / ');
+        } else {
+          correctText = correctAnswer || '{{ _("Ответ не указан") }}';
+        }
+      }
+
+      textEl.innerHTML = `<strong>{{ _("Неправильно") }}</strong><br>{{ _("Правильный ответ:") }} <strong>${correctText}</strong>`;
+      
+      // Add explanation if available
+      if (question.explanation) {
+        textEl.innerHTML += `<br><br><strong>{{ _("Объяснение:") }}</strong> ${question.explanation}`;
+      }
+    }
+
+    const isLastQuestion = questionIndex >= window.quizData.totalQuestions - 1;
+    feedbackEl.querySelector('.btn-text').textContent = isLastQuestion ? '{{ _("Показать результаты") }}' : '{{ _("Следующий вопрос") }}';
+
+    feedbackEl.style.display = 'block';
+  },
+
+  nextQuestion() {
+    this.state.currentQuestion++;
+    if (this.state.currentQuestion >= window.quizData.totalQuestions) {
+      this.showResults();
+    } else {
+      this.showQuestion(this.state.currentQuestion);
+    }
+  },
+
+  updateProgress() {
+    const currentNum = this.state.currentQuestion + 1;
+    const percent = (currentNum / window.quizData.totalQuestions) * 100;
+    document.getElementById('quiz-progress-bar').style.width = percent + '%';
+    document.getElementById('current-num').textContent = currentNum;
+  },
+
+  showResults() {
+    // Instead of showing a separate results screen, submit the results
+    this.submitResults();
+  },
+
+  submitResults() {
+    const score = (this.state.correctCount / window.quizData.totalQuestions) * 100;
+    const formData = new FormData();
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+
+    console.log('Current state before submission:', this.state);
+    console.log('Answers array:', this.state.answers);
+
+    if (csrfToken) formData.append('csrf_token', csrfToken.content);
+
+    for (let i = 0; i < window.quizData.totalQuestions; i++) {
+      const answer = this.state.answers[i];
+      if (answer) {
+        formData.append(`answer_${i}`, answer.value);
+        console.log(`Submitting answer_${i}: ${answer.value}`);
+      } else {
+        console.log(`No answer for question ${i}`);
+      }
+    }
+
+    fetch(window.location.href, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Show results at the bottom of the page
+        this.showResultsAndNavigation(data);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('{{ _("Ошибка при сохранении результатов") }}');
+    });
+  },
+
+  showResultsAndNavigation(data) {
+    // Hide the quiz screen
+    document.getElementById('quiz-screen').style.display = 'none';
+    
+    // Remove existing results if any
+    const existingResults = document.querySelector('.quiz-results-summary');
+    if (existingResults) {
+      existingResults.remove();
+    }
+    
+    // Create results summary
+    const resultsDiv = document.createElement('div');
+    resultsDiv.className = 'quiz-results-summary mt-4';
+    
+    const score = data.score || (this.state.correctCount / window.quizData.totalQuestions) * 100;
+    const correctCount = data.correct_count || this.state.correctCount;
+    const totalCount = data.total_count || window.quizData.totalQuestions;
+    const isPassed = score >= 70;
+    
+    resultsDiv.innerHTML = `
+      <div class="results-summary ${isPassed ? 'success' : 'warning'}">
+        <h3>{{ _('Результаты викторины') }}</h3>
+        <div class="score-display">
+          <i class="fas fa-${isPassed ? 'trophy' : 'exclamation'}-circle"></i>
+          <span class="score-value">${Math.round(score)}%</span>
+        </div>
+        <p class="score-details">
+          {{ _('Правильно') }}: ${correctCount} {{ _('из') }} ${totalCount}
+        </p>
+        ${isPassed ? `
+          <div class="feedback-message success">
+            <i class="fas fa-check-circle"></i>
+            <p>{{ _('Отличная работа! Вы успешно прошли викторину.') }}</p>
+          </div>
+        ` : `
+          <div class="feedback-message">
+            <i class="fas fa-info-circle"></i>
+            <p>{{ _('Попробуйте еще раз для лучшего результата.') }}</p>
+          </div>
+        `}
+      </div>
+    `;
+    
+    // Add results to the page
+    const lessonContent = document.querySelector('.lesson-content-wrapper');
+    const lessonFooter = document.querySelector('#lesson-footer');
+    
+    if (lessonContent) {
+      if (lessonFooter) {
+        lessonContent.insertBefore(resultsDiv, lessonFooter);
+      } else {
+        lessonContent.appendChild(resultsDiv);
+      }
+    } else {
+      // Fallback: add to quiz lesson container
+      const quizLesson = document.querySelector('.quiz-lesson');
+      if (quizLesson) {
+        quizLesson.appendChild(resultsDiv);
+      }
+    }
+    
+    // Scroll to results
+    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Show navigation buttons
+    const retryBtn = document.getElementById('retry-button');
+    const nextBtn = document.getElementById('complete-exercise');
+    const completeModuleBtn = document.getElementById('complete-module');
+    
+    // Show retry button
+    if (retryBtn) {
+      retryBtn.style.display = 'inline-flex';
+    }
+    
+    // Show next/complete button if passed
+    if (isPassed) {
+      if (nextBtn) {
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.disabled = false;
+      } else if (completeModuleBtn) {
+        completeModuleBtn.style.display = 'inline-flex';
+        completeModuleBtn.disabled = false;
+      }
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  QuizApp.init();
+
+  {% if is_completed %}
+    const nextBtn = document.getElementById('complete-exercise');
+    if (nextBtn) {
+      nextBtn.style.display = 'inline-flex';
+      nextBtn.disabled = false;
+    }
+  {% endif %}
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  .quiz-lesson {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* Режим просмотра результатов */
+  .quiz-results-review {
+    padding: 2rem 0;
+  }
+
+  .results-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: var(--lesson-light);
+    border-radius: var(--lesson-radius-lg);
+  }
+
+  .score-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--lesson-shadow);
+  }
+
+  .score-circle.success {
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+    color: white;
+  }
+
+  .score-circle.warning {
+    background: linear-gradient(135deg, #e0a800 0%, #dc9000 100%);
+    color: white;
+  }
+
+  .score-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+  }
+
+  .results-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Просмотр вопросов */
+  .review-questions {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .review-question {
+    background: var(--lesson-light);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 2px solid transparent;
+  }
+
+  .review-question.correct {
+    border-color: var(--lesson-success);
+  }
+
+  .review-question.incorrect {
+    border-color: var(--lesson-danger);
+  }
+
+  .review-question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .question-number {
+    width: 32px;
+    height: 32px;
+    background: var(--lesson-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+
+  .review-options {
+    margin-top: 1rem;
+  }
+
+  .review-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+  }
+
+  .review-option.user-selected {
+    background: rgba(13, 110, 253, 0.1);
+    border: 2px solid var(--lesson-primary);
+  }
+
+  .review-option.correct-answer {
+    background: rgba(25, 135, 84, 0.05);
+  }
+
+  .review-option.user-selected:not(.correct-answer) {
+    background: rgba(220, 53, 69, 0.05);
+    border-color: var(--lesson-danger);
+  }
+
+  .review-text-answer {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+  }
+
+  .user-answer {
+    margin-bottom: 0.5rem;
+  }
+
+  .correct-answer {
+    color: var(--lesson-success);
+  }
+
+  .question-explanation {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(13, 110, 253, 0.05);
+    border-radius: 8px;
+    border-left: 4px solid var(--lesson-primary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .question-explanation strong {
+    color: var(--lesson-primary);
+  }
+
+  /* Экраны викторины */
+  .quiz-screen {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Стартовый экран */
+  .quiz-start-content {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .quiz-icon {
+    width: 100px;
+    height: 100px;
+    background: var(--lesson-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    margin: 0 auto 2rem;
+  }
+
+  /* Прогресс викторины */
+  .quiz-progress-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .progress-info {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .quiz-progress-bar {
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .quiz-progress-fill {
+    height: 100%;
+    background: var(--lesson-primary);
+    transition: width 0.3s ease;
+  }
+
+  /* Карточка вопроса */
+  .question-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--lesson-shadow);
+  }
+
+  .question-text {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  /* Варианты ответов */
+  .answer-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .answer-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: white;
+    border: 2px solid var(--lesson-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+  }
+
+  .answer-option:hover:not(:disabled) {
+    border-color: var(--lesson-primary);
+    background: var(--lesson-light);
+  }
+
+  .answer-option:disabled {
+    cursor: not-allowed;
+  }
+
+  .answer-option.selected {
+    border-color: var(--lesson-primary);
+    background: rgba(13, 110, 253, 0.1);
+  }
+
+  .answer-option.selected.correct {
+    border-color: var(--lesson-success);
+    background: rgba(25, 135, 84, 0.1);
+  }
+
+  .answer-option.selected:not(.correct) {
+    border-color: var(--lesson-danger);
+    background: rgba(220, 53, 69, 0.1);
+  }
+
+  .option-letter {
+    width: 32px;
+    height: 32px;
+    background: var(--lesson-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+
+  /* Текстовые ответы */
+  .text-answer input {
+    border: 2px solid var(--lesson-border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+
+  .text-answer input:focus {
+    border-color: var(--lesson-primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+  }
+
+  /* Обратная связь */
+  .question-feedback {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+  }
+
+  .question-feedback.correct {
+    background: rgba(25, 135, 84, 0.1);
+  }
+
+  .question-feedback.incorrect {
+    background: rgba(220, 53, 69, 0.1);
+  }
+
+  .feedback-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  .question-feedback.correct .feedback-icon {
+    color: var(--lesson-success);
+  }
+
+  .question-feedback.incorrect .feedback-icon {
+    color: var(--lesson-danger);
+  }
+
+  /* Результаты */
+  .results-content {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .results-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    margin: 0 auto 2rem;
+  }
+
+  .results-stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin: 2rem 0;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  /* Quiz results summary (inline results) */
+  .quiz-results-summary {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid var(--lesson-border);
+  }
+
+  .quiz-results-summary .results-summary {
+    background: var(--lesson-light);
+    border-radius: var(--lesson-radius-lg);
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .quiz-results-summary .results-summary h3 {
+    margin-bottom: 1.5rem;
+    color: var(--lesson-dark);
+  }
+
+  .quiz-results-summary .score-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .quiz-results-summary .score-display i {
+    font-size: 3rem;
+  }
+
+  .quiz-results-summary .score-value {
+    font-size: 3rem;
+    font-weight: 700;
+  }
+
+  .quiz-results-summary .results-summary.success .score-display {
+    color: var(--lesson-success);
+  }
+
+  .quiz-results-summary .results-summary.warning .score-display {
+    color: var(--lesson-warning);
+  }
+
+  .quiz-results-summary .score-details {
+    font-size: 1.125rem;
+    color: var(--lesson-text-muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .quiz-results-summary .feedback-message {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--lesson-radius);
+    border-left: 4px solid var(--lesson-info);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    text-align: left;
+  }
+
+  .quiz-results-summary .feedback-message.success {
+    border-left-color: var(--lesson-success);
+  }
+
+  .quiz-results-summary .feedback-message i {
+    font-size: 1.5rem;
+    color: var(--lesson-info);
+  }
+
+  .quiz-results-summary .feedback-message.success i {
+    color: var(--lesson-success);
+  }
+
+  .quiz-results-summary .feedback-message p {
+    margin: 0;
+    flex: 1;
+  }
+
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    .results-summary {
+      flex-direction: column;
+    }
+
+    .question-text {
+      font-size: 1.125rem;
+    }
+
+    .answer-option {
+      padding: 0.75rem 1rem;
+    }
+
+    .quiz-results-summary .score-display i,
+    .quiz-results-summary .score-value {
+      font-size: 2.5rem;
+    }
+
+    .quiz-results-summary .results-summary {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Reorder Questions */
+  .reorder-answer {
+    text-align: center;
+  }
+
+  .words-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--lesson-light);
+    border-radius: 8px;
+    min-height: 60px;
+    align-items: center;
+  }
+
+  .word-button {
+    background: var(--lesson-primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .word-button:hover:not(:disabled) {
+    background: #0a58ca;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+  }
+
+  .word-button:disabled,
+  .word-button.used {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .sentence-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .sentence-display {
+    min-height: 60px;
+    border: 2px dashed var(--lesson-border);
+    border-radius: 8px;
+    padding: 1rem;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    text-align: center;
+  }
+
+  .sentence-display:hover {
+    border-color: var(--lesson-primary);
+    background: var(--lesson-light);
+  }
+
+  .sentence-display.error {
+    border-color: var(--lesson-danger);
+    background: rgba(220, 53, 69, 0.05);
+    animation: shake 0.5s ease-in-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
+  .placeholder-text {
+    color: var(--lesson-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+
+  .sentence-word {
+    background: var(--lesson-success);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin: 0.125rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+
+  .sentence-word:hover {
+    background: #157347;
+    transform: scale(1.05);
+  }
+
+  .word-space {
+    display: inline;
+  }
+
+  .reorder-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Mobile responsiveness for reorder questions */
+  @media (max-width: 768px) {
+    .words-container {
+      padding: 0.75rem;
+    }
+    
+    .word-button {
+      font-size: 0.8rem;
+      padding: 0.375rem 0.75rem;
+    }
+    
+    .sentence-display {
+      min-height: 50px;
+      padding: 0.75rem;
+    }
+  }
+</style>
+{% endblock %}

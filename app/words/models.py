@@ -1,3 +1,5 @@
+# app/words/models.py
+
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, func, select
@@ -18,7 +20,7 @@ class CollectionWords(db.Model):
     level = Column(String(10))  # A1, A2, B1, B2, C1, C2
     brown = Column(Integer, default=0)
     get_download = Column(Integer, default=0)
-    learning_status = Column(Integer, default=0)
+    frequency_rank = Column(Integer, default=0)
 
     books = relationship("Book", secondary="word_book_link", back_populates="words")
     phrasal_verbs = relationship("PhrasalVerb", back_populates="base_word")
@@ -28,7 +30,7 @@ class CollectionWords(db.Model):
 
     __table_args__ = (
         Index('idx_collection_words_english_word', 'english_word'),
-        Index('idx_collection_words_learning_status', 'learning_status'),
+        Index('idx_collection_words_frequency_rank', 'frequency_rank'),
     )
 
 

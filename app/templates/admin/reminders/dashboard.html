@@ -103,7 +103,7 @@
                                             </td>
                                             <td>
                                                 {% if user.last_login %}
-                                                    {{ ((now - user.last_login).total_seconds() / 86400)|round|int }} дней
+                                                    {{ ((now.timestamp() - user.last_login.timestamp()) / 86400)|round|int }} дней
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
                                                 {% endif %}

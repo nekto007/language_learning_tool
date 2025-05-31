@@ -1,0 +1,1757 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Карточки для запоминания') %}
+{% set instruction_text = _('Изучайте слова методом интервальных повторений. Оценивайте, насколько хорошо вы помните каждое слово.') %}
+{% set block_description = _('Умная система запоминания с оптимальными интервалами повторения') %}
+
+{% block lesson_content %}
+  <!-- Получаем данные о предыдущей сессии -->
+  {% set previous_data = None %}
+  {% set is_completed = False %}
+  {% if progress and progress.data %}
+    {% set previous_data = progress.data %}
+    {% set is_completed = progress.status == 'completed' %}
+  {% endif %}
+
+  <div class="srs-lesson">
+    {% if is_completed and previous_data %}
+      <!-- Режим просмотра результатов -->
+      <div class="session-results-review">
+        <div class="results-header">
+          <h3>{{ _('Результаты сессии') }}</h3>
+          <div class="session-stats">
+            <div class="stat-card">
+              <i class="fas fa-graduation-cap"></i>
+              <div class="stat-content">
+                <span class="stat-value">{{ previous_data.get('cardsStudied', previous_data.get('cards_studied', 0)) }}</span>
+                <span class="stat-label">{{ _('Карточек изучено') }}</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <i class="fas fa-percentage"></i>
+              <div class="stat-content">
+                <span class="stat-value">{{ previous_data.get('accuracy', 0) }}%</span>
+                <span class="stat-label">{{ _('Точность') }}</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <i class="fas fa-clock"></i>
+              <div class="stat-content">
+                <span class="stat-value">{{ ((previous_data.get('timeSpent', previous_data.get('time_spent', 0)) / 60)|round(0)|int) }}м</span>
+                <span class="stat-label">{{ _('Время') }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="retry-section">
+          <p class="text-muted">{{ _('Хотите изучить больше карточек или улучшить результат?') }}</p>
+          <button type="button" class="btn btn-outline-primary" onclick="retrySession()">
+            <i class="fas fa-redo"></i> {{ _('Начать новую сессию') }}
+          </button>
+        </div>
+      </div>
+
+    {% elif cards_data.cards|length == 0 %}
+      <!-- Нет доступных карточек -->
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <i class="fas fa-check-double"></i>
+        </div>
+        <h3>{{ _('Все карточки изучены!') }}</h3>
+        <p>{{ _('У вас нет карточек для повторения сейчас. Отличная работа!') }}</p>
+        <div class="next-review-info">
+          <i class="fas fa-clock"></i>
+          <span>{{ _('Следующее повторение через') }} <strong id="next-review-time">--</strong></span>
+        </div>
+      </div>
+
+    {% else %}
+      <!-- Активная сессия изучения -->
+      <!-- Статистика сессии -->
+      <div class="session-stats-bar">
+        <div class="stat-item">
+          <i class="fas fa-layer-group"></i>
+          <div class="stat-content">
+            <span class="stat-value" id="total-cards">{{ cards_data.cards|length if cards_data else 0 }}</span>
+            <span class="stat-label">{{ _('Всего') }}</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <i class="fas fa-sparkles"></i>
+          <div class="stat-content">
+            <span class="stat-value text-info" id="new-cards">0</span>
+            <span class="stat-label">{{ _('Новых') }}</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <i class="fas fa-sync-alt"></i>
+          <div class="stat-content">
+            <span class="stat-value text-warning" id="due-cards">0</span>
+            <span class="stat-label">{{ _('Повторить') }}</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <i class="fas fa-check-circle"></i>
+          <div class="stat-content">
+            <span class="stat-value text-success" id="studied-cards">0</span>
+            <span class="stat-label">{{ _('Изучено') }}</span>
+          </div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <i class="fas fa-percentage"></i>
+          <div class="stat-content">
+            <span class="stat-value" id="accuracy">100%</span>
+            <span class="stat-label">{{ _('Точность') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Прогресс урока -->
+      <div class="lesson-progress-detailed">
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar-fill" id="lesson-progress" style="width: 0%"></div>
+        </div>
+        <div class="progress-text" id="progress-text">{{ _('Начните изучение карточек') }}</div>
+      </div>
+
+      <!-- Контейнер для карточек -->
+      <div class="srs-card-container" id="srs-container">
+        <!-- Состояние загрузки -->
+        <div class="loading-state" id="loading-state">
+          <div class="spinner">
+            <div class="spinner-circle"></div>
+          </div>
+          <p class="loading-text">{{ _('Подготовка карточек...') }}</p>
+        </div>
+
+        <!-- Карточка (фронт) -->
+        <div class="srs-card" id="card-front" style="display: none;">
+          <div class="card-header">
+          <span class="card-badge" id="card-type-badge">
+            <i class="fas fa-sparkles"></i>
+            <span>{{ _('Новая') }}</span>
+          </span>
+            <span class="card-direction" id="card-direction">ENG → RUS</span>
+          </div>
+
+          <div class="card-body">
+            <h2 class="card-word" id="front-word"></h2>
+
+            <button class="audio-btn" id="front-audio-btn" style="display: none;">
+              <i class="fas fa-volume-up"></i>
+              <span>{{ _('Произношение') }}</span>
+            </button>
+
+            <div class="hint-container" id="hint-container" style="display: none;">
+              <div class="hint-label">{{ _('Подсказка:') }}</div>
+              <p class="hint-text" id="hint-text"></p>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button class="btn btn-primary btn-lg show-answer-btn" id="show-answer-btn">
+              {{ _('Показать ответ') }}
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Карточка (обратная сторона) -->
+        <div class="srs-card" id="card-back" style="display: none;">
+          <div class="card-header">
+          <span class="card-badge" id="card-type-badge-back">
+            <i class="fas fa-sparkles"></i>
+            <span>{{ _('Новая') }}</span>
+          </span>
+            <span class="card-direction" id="card-direction-back">ENG → RUS</span>
+          </div>
+
+          <div class="card-body">
+            <h2 class="card-word" id="back-word"></h2>
+
+            <button class="audio-btn" id="back-audio-btn" style="display: none;">
+              <i class="fas fa-volume-up"></i>
+              <span>{{ _('Произношение') }}</span>
+            </button>
+
+            <div class="card-divider"></div>
+
+            <div class="translation-section">
+              <p class="translation-label">{{ _('Перевод:') }}</p>
+              <p class="translation-text" id="translation-text"></p>
+            </div>
+
+            <div class="example-section" id="example-section" style="display: none;">
+              <p class="example-label">{{ _('Пример:') }}</p>
+              <p class="example-text" id="example-text"></p>
+              <p class="example-translation" id="example-translation"></p>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="rating-section">
+              <p class="rating-prompt">{{ _('Насколько хорошо вы знаете это слово?') }}</p>
+              <div class="rating-buttons">
+                <button class="rating-btn rating-again" data-rating="0">
+                  <i class="fas fa-times"></i>
+                  <span class="rating-text">{{ _('Не помню') }}</span>
+                  <span class="interval-hint">{{ _('Повтор') }}</span>
+                </button>
+                <button class="rating-btn rating-hard" data-rating="2">
+                  <i class="fas fa-frown"></i>
+                  <span class="rating-text">{{ _('Сложно') }}</span>
+                  <span class="interval-hint" id="hard-interval"></span>
+                </button>
+                <button class="rating-btn rating-good" data-rating="3">
+                  <i class="fas fa-smile"></i>
+                  <span class="rating-text">{{ _('Хорошо') }}</span>
+                  <span class="interval-hint" id="good-interval"></span>
+                </button>
+                <button class="rating-btn rating-easy" data-rating="4">
+                  <i class="fas fa-grin"></i>
+                  <span class="rating-text">{{ _('Легко') }}</span>
+                  <span class="interval-hint" id="easy-interval"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Состояние завершения сессии -->
+        <div class="session-complete" id="session-complete" style="display: none;">
+          <div class="complete-icon">
+            <i class="fas fa-trophy"></i>
+          </div>
+          <h3>{{ _('Отличная работа!') }}</h3>
+
+          <div class="session-summary">
+            <div class="summary-item">
+              <span class="summary-value" id="summary-studied">0</span>
+              <span class="summary-label">{{ _('Карточек изучено') }}</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <span class="summary-value" id="summary-accuracy">0%</span>
+              <span class="summary-label">{{ _('Точность') }}</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <span class="summary-value" id="summary-time">0м</span>
+              <span class="summary-label">{{ _('Время') }}</span>
+            </div>
+          </div>
+
+          <div class="session-actions">
+            <button type="button" class="btn btn-success btn-lg" id="complete-session-btn">
+              <i class="fas fa-check-circle"></i> {{ _('Завершить сессию') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Аудио элемент -->
+  <audio id="word-audio" style="display: none;"></audio>
+
+  <!-- CSRF Token -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <script>
+      // Конфигурация урока
+      const lessonConfig = {
+          lessonId: {{ lesson.id }},
+          cards: {{ cards_data.cards|tojson if cards_data and cards_data.cards else []|tojson }},
+          srsSettings: {{ cards_data.srs_settings|tojson if cards_data and cards_data.srs_settings else srs_settings|tojson if srs_settings else {}|tojson }},
+          lessonSettings: {{ cards_data.lesson_settings|tojson if cards_data and cards_data.lesson_settings else {}|tojson }},
+          stats: {{ cards_data.stats|tojson if cards_data and cards_data.stats else {}|tojson }},
+          showHintTime: {{ (cards_data.srs_settings.show_hint_time * 1000) if cards_data and cards_data.srs_settings and cards_data.srs_settings.show_hint_time else 5000 }},
+      };
+
+      {% if next_lesson %}
+          const nextLessonUrl = "{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}";
+      {% else %}
+          const nextLessonUrl = null;
+      {% endif %}
+
+      // Состояние сессии
+      let sessionState = {
+          startTime: Date.now(),
+          cardsStudied: 0,
+          correctAnswers: 0,
+          totalAnswers: 0,
+          currentCard: null,
+          currentIndex: 0,
+          availableCards: [],
+          studiedCards: new Set(),
+          cardProgress: {},
+          newCardsStudied: 0,
+          reviewsStudied: 0,
+          sessionActive: true,
+          repeatQueue: [],
+      };
+
+      // Элементы DOM
+      const elements = {
+          loading: document.getElementById('loading-state'),
+          cardFront: document.getElementById('card-front'),
+          cardBack: document.getElementById('card-back'),
+          sessionComplete: document.getElementById('session-complete'),
+
+          // Статистика
+          totalCards: document.getElementById('total-cards'),
+          dueCards: document.getElementById('due-cards'),
+          newCards: document.getElementById('new-cards'),
+          studiedCards: document.getElementById('studied-cards'),
+          accuracy: document.getElementById('accuracy'),
+          progressBar: document.getElementById('lesson-progress'),
+          progressText: document.getElementById('progress-text'),
+
+          // Карточка
+          frontWord: document.getElementById('front-word'),
+          backWord: document.getElementById('back-word'),
+          translationText: document.getElementById('translation-text'),
+          hintText: document.getElementById('hint-text'),
+          hintContainer: document.getElementById('hint-container'),
+          exampleSection: document.getElementById('example-section'),
+          exampleText: document.getElementById('example-text'),
+          exampleTranslation: document.getElementById('example-translation'),
+          cardTypeBadge: document.getElementById('card-type-badge'),
+          cardTypeBadgeBack: document.getElementById('card-type-badge-back'),
+          cardDirection: document.getElementById('card-direction'),
+          cardDirectionBack: document.getElementById('card-direction-back'),
+
+          // Кнопки
+          showAnswerBtn: document.getElementById('show-answer-btn'),
+          frontAudioBtn: document.getElementById('front-audio-btn'),
+          backAudioBtn: document.getElementById('back-audio-btn'),
+          completeSessionBtn: document.getElementById('complete-session-btn'),
+
+          // Аудио
+          wordAudio: document.getElementById('word-audio'),
+      };
+
+      let hintTimeout = null;
+
+      // Функция для повторной сессии
+      function retrySession() {
+          if (confirm('{{ _("Вы уверены, что хотите начать новую сессию?") }}')) {
+              window.location.href = '{{ url_for("curriculum_lessons.card_lesson", lesson_id=lesson.id, reset="true") }}';
+          }
+      }
+
+      // Global retry function for navigation button
+      function retryLesson() {
+          retrySession();
+      }
+
+      // Инициализация
+      async function initializeSRS() {
+          console.log('Initializing SRS lesson');
+
+          if (!lessonConfig.cards || lessonConfig.cards.length === 0) {
+              elements.loading.style.display = 'none';
+              return;
+          }
+
+          // Инициализируем состояние сессии из серверных данных
+          if (lessonConfig.stats) {
+              sessionState.cardsStudied = (lessonConfig.stats.new_cards_shown || 0) + (lessonConfig.stats.review_cards_shown || 0);
+              sessionState.newCardsStudied = lessonConfig.stats.new_cards_shown || 0;
+              sessionState.reviewsStudied = lessonConfig.stats.review_cards_shown || 0;
+              console.log('Initialized session state from server:', {
+                  cardsStudied: sessionState.cardsStudied,
+                  newCardsStudied: sessionState.newCardsStudied,
+                  reviewsStudied: sessionState.reviewsStudied
+              });
+          }
+
+          // Обрабатываем карточки
+          processCardsStatus();
+          updateStatistics();
+
+          // Показываем первую карточку
+          elements.loading.style.display = 'none';
+          showNextCard();
+      }
+
+      // Обработка статуса карточек
+      function processCardsStatus() {
+          sessionState.availableCards = [];
+
+          lessonConfig.cards.forEach((card, index) => {
+              const cardData = {
+                  ...card,
+                  index: index,
+                  isNew: card.is_new !== undefined ? card.is_new : true,
+                  direction: card.direction || 'eng-rus',
+                  interval: card.interval || 0,
+                  easeFactor: card.ease_factor || card.easeFactor || 2.5,
+                  repetitions: card.repetitions || 0,
+                  session_attempts: card.session_attempts || 0,
+                  calculated_intervals: card.calculated_intervals || null
+              };
+
+              sessionState.availableCards.push(cardData);
+          });
+
+          // Перемешиваем карточки
+          sessionState.availableCards = shuffleArray(sessionState.availableCards);
+
+          // Инициализируем счетчики согласно серверной логике
+          if (lessonConfig.stats) {
+              // Используем данные от сервера, которые точно отражают текущее состояние
+              const serverNewCount = lessonConfig.stats.new_cards_count || 0;
+              const serverReviewCount = lessonConfig.stats.review_cards_count || 0;
+              const serverNewShown = lessonConfig.stats.new_cards_shown || 0;
+              const serverReviewShown = lessonConfig.stats.review_cards_shown || 0;
+              const serverTotalDue = lessonConfig.stats.total_due || 0;
+
+              // Всего карточек = то что доступно сейчас + уже изученные в этой сессии
+              const totalStudied = serverNewShown + serverReviewShown;
+              const totalCards = serverTotalDue + totalStudied;
+
+              // Обновляем элементы точно согласно серверным данным
+              if (elements.newCards) elements.newCards.textContent = serverNewCount;
+              if (elements.dueCards) elements.dueCards.textContent = serverReviewCount;
+              if (elements.totalCards) elements.totalCards.textContent = totalCards;
+              if (elements.studiedCards) elements.studiedCards.textContent = totalStudied;
+
+              console.log('Initial counters (server-based):', {
+                  newCards: serverNewCount,
+                  reviewCards: serverReviewCount,
+                  studiedCards: totalStudied,
+                  totalCards: totalCards,
+                  serverData: lessonConfig.stats
+              });
+          } else {
+              // Fallback если нет серверных данных
+              const newCount = sessionState.availableCards.filter(c => c.isNew).length;
+              const reviewCount = sessionState.availableCards.filter(c => !c.isNew).length;
+              const totalStudied = sessionState.cardsStudied;
+              const totalCards = newCount + reviewCount + totalStudied;
+
+              if (elements.newCards) elements.newCards.textContent = newCount;
+              if (elements.dueCards) elements.dueCards.textContent = reviewCount;
+              if (elements.totalCards) elements.totalCards.textContent = totalCards;
+              if (elements.studiedCards) elements.studiedCards.textContent = totalStudied;
+          }
+      }
+
+      // Показать следующую карточку
+      function showNextCard() {
+          if (!sessionState.sessionActive) return;
+
+          // Проверяем очередь повтора
+          if (sessionState.repeatQueue.length > 0 && sessionState.availableCards.length === 0) {
+              sessionState.currentCard = sessionState.repeatQueue.shift();
+              updateStatistics();
+              showCardFront();
+              return;
+          }
+
+          // Если нет доступных карточек и нет повторов - завершаем
+          if (!sessionState.availableCards || sessionState.availableCards.length === 0) {
+              if (sessionState.repeatQueue.length > 0) {
+                  // Добавляем карточки из очереди повтора обратно
+                  sessionState.availableCards.push(...sessionState.repeatQueue);
+                  sessionState.repeatQueue = [];
+                  sessionState.currentIndex = 0; // Сбрасываем индекс
+                  updateStatistics();
+              } else {
+                  completeSession();
+                  return;
+              }
+          }
+
+          // Сбрасываем индекс если он больше доступных карточек
+          if (sessionState.currentIndex >= sessionState.availableCards.length) {
+              sessionState.currentIndex = 0;
+          }
+
+          // Берем первую доступную карточку (индекс всегда 0, так как удаляем изученные)
+          sessionState.currentCard = sessionState.availableCards[0];
+          sessionState.currentIndex = 0;
+          showCardFront();
+      }
+
+      // Показать фронт карточки
+      function showCardFront() {
+          const card = sessionState.currentCard;
+
+          elements.cardBack.style.display = 'none';
+          elements.sessionComplete.style.display = 'none';
+          elements.cardFront.style.display = 'block';
+
+          // Обновляем бейдж типа карточки
+          const badge = elements.cardTypeBadge;
+          const badgeSpan = badge.querySelector('span');
+
+          if (card.isNew) {
+              badge.querySelector('i').className = 'fas fa-sparkles';
+              badgeSpan.textContent = 'Новая';
+              badge.className = 'card-badge new';
+          } else if (card.repeatAttempt) {
+              badge.querySelector('i').className = 'fas fa-redo';
+              badgeSpan.textContent = 'Повтор';
+              badge.className = 'card-badge repeat';
+          } else {
+              badge.querySelector('i').className = 'fas fa-sync-alt';
+              badgeSpan.textContent = 'Повторение';
+              badge.className = 'card-badge review';
+          }
+
+          // Обновляем направление
+          elements.cardDirection.textContent = card.direction === 'eng-rus' ? 'ENG → RUS' : 'RUS → ENG';
+
+          // Устанавливаем содержимое
+          elements.frontWord.textContent = card.front || card.word;
+          elements.translationText.textContent = card.back || card.translation;
+
+          // Аудио
+          if (card.audio && card.direction === 'eng-rus') {
+              elements.frontAudioBtn.style.display = 'inline-flex';
+              elements.wordAudio.src = `/static/audio/${card.audio}`;
+              console.log(`Audio set for card: ${card.front || card.word} -> ${card.audio}`);
+          } else {
+              elements.frontAudioBtn.style.display = 'none';
+              elements.wordAudio.src = ''; // Очищаем аудио
+              console.log(`No audio for card: ${card.front || card.word} (direction: ${card.direction})`);
+          }
+
+          // Подсказка
+          setupHint();
+
+          // Примеры
+          if (card.examples) {
+              const examples = parseExamples(card.examples);
+              elements.exampleText.textContent = examples.en;
+              elements.exampleTranslation.textContent = examples.ru;
+              elements.exampleSection.style.display = 'block';
+          } else {
+              elements.exampleSection.style.display = 'none';
+          }
+
+          // Анимация появления
+          elements.cardFront.style.animation = 'slideInCard 0.3s ease-out';
+      }
+
+      // Настройка подсказки
+      function setupHint() {
+          const translation = elements.translationText.textContent;
+          const firstLetter = translation.charAt(0);
+          const wordLength = translation.split(',')[0].trim().length;
+
+          elements.hintText.textContent = `${firstLetter}${'_'.repeat(wordLength - 1)} (${wordLength} букв)`;
+          elements.hintContainer.style.display = 'none';
+
+          if (hintTimeout) clearTimeout(hintTimeout);
+          hintTimeout = setTimeout(() => {
+              elements.hintContainer.style.display = 'block';
+              elements.hintContainer.style.animation = 'fadeInUp 0.3s ease-out';
+          }, lessonConfig.showHintTime);
+      }
+
+      // Показать обратную сторону карточки
+      function showCardBack() {
+          if (hintTimeout) clearTimeout(hintTimeout);
+
+          elements.cardFront.style.display = 'none';
+          elements.cardBack.style.display = 'block';
+
+          // Копируем информацию
+          const badge = elements.cardTypeBadgeBack;
+          const frontBadge = elements.cardTypeBadge;
+          badge.querySelector('i').className = frontBadge.querySelector('i').className;
+          badge.querySelector('span').textContent = frontBadge.querySelector('span').textContent;
+          badge.className = frontBadge.className;
+          elements.cardDirectionBack.textContent = elements.cardDirection.textContent;
+
+          elements.backWord.textContent = elements.frontWord.textContent;
+
+          // Аудио на обратной стороне - показываем для обеих направлений, если аудио доступно
+          if (sessionState.currentCard.audio) {
+              elements.backAudioBtn.style.display = 'inline-flex';
+              // Убеждаемся, что аудио src правильно установлен
+              elements.wordAudio.src = `/static/audio/${sessionState.currentCard.audio}`;
+              console.log(`Back audio confirmed for: ${sessionState.currentCard.front || sessionState.currentCard.word} -> ${sessionState.currentCard.audio}`);
+          } else {
+              elements.backAudioBtn.style.display = 'none';
+              console.log(`No back audio for: ${sessionState.currentCard.front || sessionState.currentCard.word} (direction: ${sessionState.currentCard.direction})`);
+          }
+
+          // Обновляем интервалы на кнопках
+          updateIntervalHints();
+
+          // Анимация переворота
+          elements.cardBack.style.animation = 'flipInCard 0.4s ease-out';
+      }
+
+      // Обновить подсказки интервалов
+      function updateIntervalHints() {
+          const card = sessionState.currentCard;
+
+          // Используем рассчитанные интервалы от сервера, если доступны
+          let intervals;
+          if (card.calculated_intervals) {
+              intervals = {
+                  hard: card.calculated_intervals.hard,
+                  good: card.calculated_intervals.good,
+                  easy: card.calculated_intervals.easy
+              };
+          } else {
+              intervals = calculateIntervals(card);
+          }
+
+          const hardEl = document.getElementById('hard-interval');
+          const goodEl = document.getElementById('good-interval');
+          const easyEl = document.getElementById('easy-interval');
+
+          if (hardEl) hardEl.textContent = formatInterval(intervals.hard);
+          if (goodEl) goodEl.textContent = formatInterval(intervals.good);
+          if (easyEl) easyEl.textContent = formatInterval(intervals.easy);
+      }
+
+      // Рассчитать интервалы (соответствует серверному алгоритму)
+      function calculateIntervals(card) {
+          const easeFactor = card.easeFactor || card.ease_factor || 2.5;
+          const currentInterval = card.interval || 0;
+          const repetitions = card.repetitions || 0;
+
+          if (card.isNew || repetitions === 0) {
+              return {
+                  hard: 1,  // rating 2 -> 1 день
+                  good: 1,  // rating 3 -> 1 день (первое повторение)
+                  easy: 6   // rating 4 -> 6 дней (второе повторение сразу)
+              };
+          } else if (repetitions === 1) {
+              return {
+                  hard: 1,
+                  good: 6,  // второе повторение
+                  easy: Math.max(1, Math.round(6 * easeFactor * 1.3))
+              };
+          } else {
+              // Для последующих повторений
+              return {
+                  hard: Math.max(1, Math.round(currentInterval * easeFactor * 0.8)),
+                  good: Math.max(1, Math.round(currentInterval * easeFactor)),
+                  easy: Math.max(1, Math.round(currentInterval * easeFactor * 1.3))
+              };
+          }
+      }
+
+      // Форматирование интервала
+      function formatInterval(days) {
+          if (days === 0) return '< 1д';
+          if (days === 1) return '1д';
+          if (days < 7) return `${days}д`;
+          if (days < 30) return `${Math.round(days / 7)}н`;
+          if (days < 365) return `${Math.round(days / 30)}м`;
+          return `${Math.round(days / 365)}г`;
+      }
+
+      // Оценить карточку
+      async function rateCard(rating) {
+          const card = sessionState.currentCard;
+          const cardKey = `${card.word_id}-${card.direction}`;
+
+          // Анимация нажатия кнопки
+          const btn = event.currentTarget;
+          btn.classList.add('clicked');
+          setTimeout(() => btn.classList.remove('clicked'), 300);
+
+          if (rating === 0) {
+              // "Не помню" - добавляем в очередь повтора
+              sessionState.repeatQueue.push({
+                  ...card,
+                  repeatAttempt: (card.repeatAttempt || 0) + 1
+              });
+              sessionState.totalAnswers++;
+              sessionState.currentIndex++;
+          } else {
+              // Обычная обработка
+              sessionState.totalAnswers++;
+              if (rating >= 3) {
+                  sessionState.correctAnswers++;
+              }
+
+              sessionState.studiedCards.add(cardKey);
+              sessionState.cardsStudied++;
+
+              if (card.isNew) {
+                  sessionState.newCardsStudied++;
+              } else {
+                  sessionState.reviewsStudied++;
+              }
+
+              // Удаляем изученную карточку из списка доступных
+              const cardIndex = sessionState.availableCards.findIndex(c =>
+                  c.word_id === card.word_id && c.direction === card.direction
+              );
+              if (cardIndex !== -1) {
+                  sessionState.availableCards.splice(cardIndex, 1);
+                  console.log(`Removed studied card from available cards, remaining: ${sessionState.availableCards.length}`);
+              }
+
+              // Для успешных ответов карточка удаляется из массива, индекс не увеличиваем
+              // (currentIndex будет указывать на следующую карточку)
+
+              console.log('Rating card:', {
+                  lesson_id: lessonConfig.lessonId,
+                  word_id: card.word_id,
+                  direction: card.direction,
+                  rating: rating
+              });
+
+              try {
+                  const response = await fetch('/curriculum/api/rate-card', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                      },
+                      body: JSON.stringify({
+                          lesson_id: lessonConfig.lessonId,
+                          word_id: card.word_id,
+                          direction: card.direction,
+                          rating: rating
+                      })
+                  });
+
+                  const result = await response.json();
+                  console.log('Rate card result:', result);
+
+                  if (!response.ok) {
+                      console.error('Rate card failed:', result);
+                  }
+              } catch (error) {
+                  console.error('Error rating card:', error);
+              }
+          }
+
+          updateStatistics();
+          showNextCard();
+      }
+
+      // Обновить статистику
+      function updateStatistics() {
+          const accuracy = sessionState.totalAnswers > 0
+              ? Math.round((sessionState.correctAnswers / sessionState.totalAnswers) * 100)
+              : 100;
+
+          // Подсчитываем текущие доступные карточки
+          const currentNewCards = sessionState.availableCards.filter(c => c.isNew).length;
+          const currentReviewCards = sessionState.availableCards.filter(c => !c.isNew).length;
+
+          // Используем изначальные данные от сервера для постоянного общего количества
+          let totalCards, initialTotal;
+          if (lessonConfig.stats) {
+              // Изначальное общее количество = изначально доступные + уже изученные
+              const initialNew = lessonConfig.stats.new_cards_count || 0;
+              const initialReview = lessonConfig.stats.review_cards_count || 0;
+              const initialStudied = (lessonConfig.stats.new_cards_shown || 0) + (lessonConfig.stats.review_cards_shown || 0);
+
+              initialTotal = initialNew + initialReview + initialStudied;
+              totalCards = initialTotal; // Общее остается константой
+          } else {
+              // Fallback
+              totalCards = currentNewCards + currentReviewCards + sessionState.cardsStudied;
+              initialTotal = totalCards;
+          }
+
+          // Обновляем счетчики
+          elements.studiedCards.textContent = sessionState.cardsStudied;
+          elements.newCards.textContent = currentNewCards;
+          elements.dueCards.textContent = currentReviewCards;
+          elements.totalCards.textContent = totalCards;
+          elements.accuracy.textContent = accuracy + '%';
+
+          // Прогресс-бар - прогресс относительно изначального количества карточек
+          const progress = initialTotal > 0 ? Math.min(100, (sessionState.cardsStudied / initialTotal) * 100) : 0;
+          elements.progressBar.style.width = progress + '%';
+          elements.progressText.textContent = `Изучено ${sessionState.cardsStudied} из ${initialTotal}`;
+
+          console.log('Updated statistics:', {
+              newCards: currentNewCards,
+              reviewCards: currentReviewCards,
+              studiedCards: sessionState.cardsStudied,
+              totalCards: totalCards,
+              initialTotal: initialTotal,
+              progress: progress + '%'
+          });
+      }
+
+      // Завершить сессию
+      function completeSession() {
+          elements.cardFront.style.display = 'none';
+          elements.cardBack.style.display = 'none';
+          elements.sessionComplete.style.display = 'block';
+
+          const accuracy = sessionState.totalAnswers > 0
+              ? Math.round((sessionState.correctAnswers / sessionState.totalAnswers) * 100)
+              : 100;
+          const timeSpent = Math.round((Date.now() - sessionState.startTime) / 60000);
+
+          document.getElementById('summary-studied').textContent = sessionState.cardsStudied;
+          document.getElementById('summary-accuracy').textContent = accuracy + '%';
+          document.getElementById('summary-time').textContent = timeSpent + 'м';
+      }
+
+      // Завершить урок
+      if (elements.completeSessionBtn) {
+          elements.completeSessionBtn.addEventListener('click', async () => {
+              const accuracy = sessionState.totalAnswers > 0
+                  ? Math.round((sessionState.correctAnswers / sessionState.totalAnswers) * 100)
+                  : 100;
+
+              const sessionData = {
+                  cardsStudied: sessionState.cardsStudied,
+                  accuracy: accuracy,
+                  timeSpent: Math.round((Date.now() - sessionState.startTime) / 1000),
+                  cardProgress: sessionState.cardProgress,
+                  newCardsStudied: sessionState.newCardsStudied,
+                  reviewsStudied: sessionState.reviewsStudied
+              };
+
+              // Сохраняем результаты
+              try {
+                  const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                      },
+                      body: JSON.stringify({
+                          score: sessionData.accuracy,
+                          status: 'completed',
+                          data: sessionData
+                      })
+                  });
+
+                  if (response.ok) {
+                      // Show results and navigation instead of reloading
+                      showCompletionResults(sessionData);
+                  }
+              } catch (error) {
+                  console.error('Error saving session:', error);
+              }
+          });
+      }
+
+      // Show completion results and navigation
+      function showCompletionResults(sessionData) {
+          // Hide the current content
+          elements.sessionComplete.style.display = 'none';
+
+          // Remove existing results if any
+          const existingResults = document.querySelector('.srs-results-summary');
+          if (existingResults) {
+              existingResults.remove();
+          }
+
+          // Create results summary
+          const resultsDiv = document.createElement('div');
+          resultsDiv.className = 'srs-results-summary mt-4';
+
+          const isPassed = sessionData.accuracy >= 70;
+
+          resultsDiv.innerHTML = `
+    <div class="session-completion-summary ${isPassed ? 'success' : 'warning'}">
+      <h3>{{ _('Сессия завершена!') }}</h3>
+      <div class="completion-stats">
+        <div class="stat-item">
+          <div class="stat-icon">
+            <i class="fas fa-graduation-cap"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${sessionData.cardsStudied}</span>
+            <span class="stat-label">{{ _('Карточек изучено') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <i class="fas fa-percentage"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${sessionData.accuracy}%</span>
+            <span class="stat-label">{{ _('Точность') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${Math.round(sessionData.timeSpent / 60)}м</span>
+            <span class="stat-label">{{ _('Время') }}</span>
+          </div>
+        </div>
+      </div>
+      ${isPassed ? `
+        <div class="feedback-message success">
+          <i class="fas fa-check-circle"></i>
+          <p>{{ _('Отличная работа! Вы успешно завершили сессию карточек.') }}</p>
+        </div>
+      ` : `
+        <div class="feedback-message">
+          <i class="fas fa-info-circle"></i>
+          <p>{{ _('Сессия завершена. Попробуйте еще раз для лучшего результата.') }}</p>
+        </div>
+      `}
+    </div>
+  `;
+
+          // Add results to the page
+          const lessonContent = document.querySelector('.lesson-content-wrapper .content-card');
+          lessonContent.appendChild(resultsDiv);
+
+          // Scroll to results
+          resultsDiv.scrollIntoView({behavior: 'smooth', block: 'center'});
+
+          // Show navigation buttons in lesson-footer
+          const retryBtn = document.getElementById('retry-button');
+          const nextBtn = document.getElementById('complete-exercise');
+          const completeModuleBtn = document.getElementById('complete-module');
+
+          // Always show retry button for SRS lessons
+          if (retryBtn) {
+              retryBtn.style.display = 'inline-flex';
+          }
+
+          // Show next/complete button if passed or always for SRS
+          if (nextBtn) {
+              nextBtn.style.display = 'inline-flex';
+              nextBtn.disabled = false;
+          } else if (completeModuleBtn) {
+              completeModuleBtn.style.display = 'inline-flex';
+              completeModuleBtn.disabled = false;
+          }
+      }
+
+      // Получить время следующего повторения
+      async function fetchNextReviewTime() {
+          try {
+              const response = await fetch(`/curriculum/api/lesson/${lessonConfig.lessonId}/next-review-time`);
+              const data = await response.json();
+
+              if (data.next_review_time) {
+                  const element = document.getElementById('next-review-time');
+                  if (element) {
+                      element.textContent = data.next_review_time;
+                  }
+              }
+          } catch (error) {
+              console.error('Error fetching next review time:', error);
+          }
+      }
+
+      // Вспомогательные функции
+      function shuffleArray(array) {
+          const newArray = [...array];
+          for (let i = newArray.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+          }
+          return newArray;
+      }
+
+      function parseExamples(examples) {
+          if (!examples) return {en: '', ru: ''};
+
+          const lines = examples.replace(/<br>/g, '\n').split('\n').filter(l => l.trim());
+
+          if (lines.length >= 2) {
+              return {
+                  en: lines[0].trim(),
+                  ru: lines[1].trim()
+              };
+          }
+
+          return {en: examples, ru: ''};
+      }
+
+      // Обработчики событий
+      if (elements.showAnswerBtn) {
+          elements.showAnswerBtn.addEventListener('click', showCardBack);
+      }
+
+      if (elements.frontAudioBtn) {
+          elements.frontAudioBtn.addEventListener('click', () => {
+              console.log(`Playing front audio: ${elements.wordAudio.src}`);
+              elements.wordAudio.play().catch(e => console.error('Audio play failed:', e));
+          });
+      }
+
+      if (elements.backAudioBtn) {
+          elements.backAudioBtn.addEventListener('click', () => {
+              console.log(`Playing back audio: ${elements.wordAudio.src}`);
+              elements.wordAudio.play().catch(e => console.error('Audio play failed:', e));
+          });
+      }
+
+      document.querySelectorAll('.rating-btn').forEach(btn => {
+          btn.addEventListener('click', function () {
+              const rating = parseInt(this.dataset.rating);
+              rateCard(rating);
+          });
+      });
+
+      // Горячие клавиши
+      document.addEventListener('keydown', (e) => {
+          if (elements.cardFront.style.display === 'block' && e.code === 'Space') {
+              e.preventDefault();
+              showCardBack();
+          } else if (elements.cardBack.style.display === 'block') {
+              if (e.key === '1') rateCard(0);      // Не помню
+              else if (e.key === '2') rateCard(2); // Сложно
+              else if (e.key === '3') rateCard(3); // Хорошо
+              else if (e.key === '4') rateCard(4); // Легко
+          }
+      });
+
+      // Инициalization when page loads
+      document.addEventListener('DOMContentLoaded', () => {
+          {% if is_completed %}
+              // If lesson is completed, show navigation buttons in lesson-footer
+              const retryBtn = document.getElementById('retry-button');
+              const nextBtn = document.getElementById('complete-exercise');
+              const completeModuleBtn = document.getElementById('complete-module');
+
+              if (retryBtn) {
+                  retryBtn.style.display = 'inline-flex';
+              }
+
+              if (nextBtn) {
+                  nextBtn.style.display = 'inline-flex';
+                  nextBtn.disabled = false;
+              } else if (completeModuleBtn) {
+                  completeModuleBtn.style.display = 'inline-flex';
+                  completeModuleBtn.disabled = false;
+              }
+          {% else %}
+              if (lessonConfig.cards && lessonConfig.cards.length > 0) {
+                  initializeSRS();
+              } else {
+                  elements.loading.style.display = 'none';
+                  fetchNextReviewTime();
+              }
+          {% endif %}
+      });
+  </script>
+{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+  <style>
+      /* Стили для SRS урока */
+      .srs-lesson {
+          max-width: 900px;
+          margin: 0 auto;
+      }
+
+      /* Режим просмотра результатов */
+      .session-results-review {
+          padding: 2rem 0;
+      }
+
+      .results-header {
+          text-align: center;
+          margin-bottom: 2rem;
+      }
+
+      .session-stats {
+          display: flex;
+          justify-content: center;
+          gap: 2rem;
+          margin-top: 1.5rem;
+      }
+
+      .stat-card {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1.5rem;
+          background: var(--lesson-light);
+          border-radius: var(--lesson-radius-lg);
+          min-width: 150px;
+      }
+
+      .stat-card i {
+          font-size: 2rem;
+          color: var(--lesson-primary);
+      }
+
+      .stat-content {
+          display: flex;
+          flex-direction: column;
+      }
+
+      .stat-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--lesson-dark);
+      }
+
+      .stat-label {
+          font-size: 0.875rem;
+          color: var(--lesson-muted);
+      }
+
+      .retry-section {
+          text-align: center;
+          margin-top: 2rem;
+      }
+
+      /* Пустое состояние */
+      .empty-state {
+          text-align: center;
+          padding: 3rem;
+      }
+
+      .empty-state-icon {
+          width: 5rem;
+          height: 5rem;
+          background: var(--lesson-success);
+          color: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 2.5rem;
+          margin: 0 auto 1.5rem;
+      }
+
+      .next-review-info {
+          padding: 1rem 1.5rem;
+          background: var(--lesson-info-light);
+          border-radius: var(--lesson-radius);
+          color: #055160;
+          margin-top: 1.5rem;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+      }
+
+      /* Статистика сессии */
+      .session-stats-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: white;
+          border-radius: var(--lesson-radius-lg);
+          padding: 1.25rem 1.5rem;
+          margin-bottom: 1.5rem;
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .stat-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+      }
+
+      .stat-item i {
+          color: var(--lesson-primary);
+          font-size: 1.25rem;
+      }
+
+      .stat-divider {
+          width: 1px;
+          height: 2.5rem;
+          background: var(--lesson-border);
+      }
+
+      /* Прогресс урока */
+      .lesson-progress-detailed {
+          background: white;
+          border-radius: var(--lesson-radius-lg);
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .progress-bar-wrapper {
+          height: 0.75rem;
+          background: var(--lesson-border);
+          border-radius: var(--lesson-radius);
+          overflow: hidden;
+          margin-bottom: 0.75rem;
+      }
+
+      .progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--lesson-primary), var(--lesson-info));
+          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .progress-text {
+          text-align: center;
+          color: var(--lesson-muted);
+          font-size: 0.875rem;
+      }
+
+      /* Контейнер карточек */
+      .srs-card-container {
+          min-height: 500px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+      }
+
+      /* Состояние загрузки */
+      .loading-state {
+          text-align: center;
+          padding: 3rem;
+      }
+
+      .spinner {
+          width: 3rem;
+          height: 3rem;
+          margin: 0 auto 1rem;
+      }
+
+      .spinner-circle {
+          width: 100%;
+          height: 100%;
+          border: 3px solid var(--lesson-border);
+          border-top-color: var(--lesson-primary);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+          to {
+              transform: rotate(360deg);
+          }
+      }
+
+      .loading-text {
+          color: var(--lesson-muted);
+          font-size: 1rem;
+      }
+
+      /* SRS карточка */
+      .srs-card {
+          background: white;
+          border-radius: var(--lesson-radius-xl);
+          box-shadow: var(--lesson-shadow-hover);
+          width: 100%;
+          max-width: 600px;
+          overflow: hidden;
+      }
+
+      .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.25rem 1.5rem;
+          background: var(--lesson-light);
+          border-bottom: 1px solid var(--lesson-border);
+      }
+
+      .card-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.375rem 0.875rem;
+          border-radius: 2rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: var(--lesson-transition-fast);
+      }
+
+      .card-badge.new {
+          background: var(--lesson-info-light);
+          color: #055160;
+      }
+
+      .card-badge.review {
+          background: var(--lesson-warning-light);
+          color: #664d03;
+      }
+
+      .card-badge.repeat {
+          background: var(--lesson-danger-light);
+          color: #842029;
+      }
+
+      .card-direction {
+          font-size: 0.875rem;
+          color: var(--lesson-muted);
+          font-weight: 500;
+      }
+
+      .card-body {
+          padding: 2.5rem 2rem;
+          text-align: center;
+      }
+
+      .card-word {
+          font-size: 2.5rem;
+          font-weight: 500;
+          margin-bottom: 1.5rem;
+          color: var(--lesson-dark);
+          line-height: 1.2;
+      }
+
+      .audio-btn {
+          background: white;
+          border: 2px solid var(--lesson-border);
+          border-radius: var(--lesson-radius);
+          padding: 0.625rem 1.25rem;
+          cursor: pointer;
+          transition: var(--lesson-transition-fast);
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          color: var(--lesson-dark);
+      }
+
+      .audio-btn:hover {
+          border-color: var(--lesson-primary);
+          background: var(--lesson-primary-light);
+          transform: translateY(-2px);
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .hint-container {
+          margin-top: 2rem;
+          padding: 1rem 1.25rem;
+          background: var(--lesson-warning-light);
+          border-radius: var(--lesson-radius);
+          border: 1px solid rgba(255, 193, 7, 0.2);
+      }
+
+      .hint-label {
+          font-size: 0.75rem;
+          color: #664d03;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 0.25rem;
+      }
+
+      .hint-text {
+          margin: 0;
+          color: #664d03;
+          font-weight: 500;
+      }
+
+      .card-divider {
+          height: 1px;
+          background: var(--lesson-border);
+          margin: 2rem 0;
+      }
+
+      .translation-section, .example-section {
+          margin-bottom: 1.5rem;
+      }
+
+      .translation-label, .example-label {
+          font-size: 0.875rem;
+          color: var(--lesson-muted);
+          margin-bottom: 0.5rem;
+      }
+
+      .translation-text {
+          font-size: 1.75rem;
+          color: var(--lesson-success);
+          font-weight: 500;
+          margin: 0;
+      }
+
+      .example-text {
+          font-size: 1.125rem;
+          margin-bottom: 0.5rem;
+          color: var(--lesson-dark);
+      }
+
+      .example-translation {
+          font-size: 1rem;
+          color: var(--lesson-muted);
+      }
+
+      .card-footer {
+          padding: 1.5rem 2rem 2rem;
+          background: var(--lesson-light);
+          border-top: 1px solid var(--lesson-border);
+      }
+
+      .show-answer-btn {
+          width: 100%;
+      }
+
+      /* Рейтинг */
+      .rating-section {
+          text-align: center;
+      }
+
+      .rating-prompt {
+          color: var(--lesson-muted);
+          margin-bottom: 1rem;
+          font-size: 0.9375rem;
+      }
+
+      .rating-buttons {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.75rem;
+      }
+
+      .rating-btn {
+          background: white;
+          border: 2px solid var(--lesson-border);
+          border-radius: var(--lesson-radius);
+          padding: 0.75rem 0.5rem;
+          cursor: pointer;
+          transition: var(--lesson-transition-fast);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.25rem;
+          position: relative;
+          overflow: hidden;
+      }
+
+      .rating-btn i {
+          font-size: 1.5rem;
+          margin-bottom: 0.25rem;
+      }
+
+      .rating-text {
+          font-weight: 500;
+          font-size: 0.875rem;
+      }
+
+      .interval-hint {
+          font-size: 0.75rem;
+          color: var(--lesson-muted);
+          font-weight: normal;
+      }
+
+      .rating-again {
+          border-color: var(--lesson-danger);
+          color: var(--lesson-danger);
+      }
+
+      .rating-again:hover {
+          background: var(--lesson-danger);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .rating-hard {
+          border-color: var(--lesson-warning);
+          color: #664d03;
+      }
+
+      .rating-hard:hover {
+          background: var(--lesson-warning);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .rating-good {
+          border-color: var(--lesson-info);
+          color: #055160;
+      }
+
+      .rating-good:hover {
+          background: var(--lesson-info);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .rating-easy {
+          border-color: var(--lesson-success);
+          color: var(--lesson-success);
+      }
+
+      .rating-easy:hover {
+          background: var(--lesson-success);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .rating-btn.clicked {
+          animation: clickPulse 0.3s ease;
+      }
+
+      @keyframes clickPulse {
+          0% {
+              transform: scale(1);
+          }
+          50% {
+              transform: scale(0.95);
+          }
+          100% {
+              transform: scale(1);
+          }
+      }
+
+      /* Состояние завершения */
+      .session-complete {
+          text-align: center;
+          padding: 3rem;
+          background: white;
+          border-radius: var(--lesson-radius-xl);
+          box-shadow: var(--lesson-shadow);
+          animation: fadeInUp 0.4s ease-out;
+      }
+
+      .complete-icon {
+          width: 5rem;
+          height: 5rem;
+          background: var(--lesson-success);
+          color: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 2.5rem;
+          margin: 0 auto 1.5rem;
+          animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Итоги сессии */
+      .session-summary {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 2rem;
+          margin: 2rem 0;
+          padding: 1.5rem;
+          background: var(--lesson-light);
+          border-radius: var(--lesson-radius-lg);
+      }
+
+      .summary-item {
+          text-align: center;
+      }
+
+      .summary-value {
+          display: block;
+          font-size: 2rem;
+          font-weight: 700;
+          color: var(--lesson-primary);
+          margin-bottom: 0.25rem;
+      }
+
+      .summary-label {
+          font-size: 0.875rem;
+          color: var(--lesson-muted);
+      }
+
+      .summary-divider {
+          width: 1px;
+          height: 3rem;
+          background: var(--lesson-border);
+      }
+
+      .session-actions {
+          margin-top: 2rem;
+      }
+
+      /* Анимации карточек */
+      @keyframes slideInCard {
+          from {
+              opacity: 0;
+              transform: translateX(-20px);
+          }
+          to {
+              opacity: 1;
+              transform: translateX(0);
+          }
+      }
+
+      @keyframes flipInCard {
+          from {
+              opacity: 0;
+              transform: rotateY(-90deg);
+          }
+          to {
+              opacity: 1;
+              transform: rotateY(0);
+          }
+      }
+
+      /* Completion Results */
+      .srs-results-summary {
+          margin-top: 2rem;
+          padding-top: 2rem;
+          border-top: 2px solid var(--lesson-border);
+      }
+
+      .session-completion-summary {
+          background: var(--lesson-light);
+          border-radius: var(--lesson-radius-lg);
+          padding: 2rem;
+          text-align: center;
+          margin-bottom: 1.5rem;
+      }
+
+      .session-completion-summary h3 {
+          margin-bottom: 1.5rem;
+          color: var(--lesson-dark);
+      }
+
+      .completion-stats {
+          display: flex;
+          justify-content: center;
+          gap: 2rem;
+          margin: 2rem 0;
+          flex-wrap: wrap;
+      }
+
+      .completion-stats .stat-item {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          min-width: 120px;
+      }
+
+      .completion-stats .stat-icon {
+          width: 3rem;
+          height: 3rem;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--lesson-primary);
+          font-size: 1.25rem;
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .completion-stats .stat-content {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+      }
+
+      .completion-stats .stat-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--lesson-dark);
+      }
+
+      .completion-stats .stat-label {
+          font-size: 0.875rem;
+          color: var(--lesson-muted);
+      }
+
+      .session-completion-summary .feedback-message {
+          background: white;
+          padding: 1rem 1.5rem;
+          border-radius: var(--lesson-radius);
+          border-left: 4px solid var(--lesson-info);
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          text-align: left;
+          margin-top: 1.5rem;
+      }
+
+      .session-completion-summary .feedback-message.success {
+          border-left-color: var(--lesson-success);
+      }
+
+      .session-completion-summary .feedback-message i {
+          font-size: 1.5rem;
+          color: var(--lesson-info);
+      }
+
+      .session-completion-summary .feedback-message.success i {
+          color: var(--lesson-success);
+      }
+
+      .session-completion-summary .feedback-message p {
+          margin: 0;
+          flex: 1;
+      }
+
+      /* Адаптивность */
+      @media (max-width: 768px) {
+          .session-stats-bar {
+              flex-wrap: wrap;
+              gap: 1rem;
+              justify-content: center;
+          }
+
+          .stat-item {
+              flex: 0 0 30%;
+          }
+
+          .stat-divider {
+              display: none;
+          }
+
+          .card-word {
+              font-size: 2rem;
+          }
+
+          .translation-text {
+              font-size: 1.5rem;
+          }
+
+          .rating-buttons {
+              grid-template-columns: repeat(2, 1fr);
+          }
+
+          .srs-card {
+              margin: 0 1rem;
+          }
+
+          .session-summary {
+              flex-wrap: wrap;
+              gap: 1rem;
+          }
+
+          .summary-divider {
+              display: none;
+          }
+
+          .session-stats {
+              flex-direction: column;
+          }
+
+          .completion-stats {
+              flex-direction: column;
+              gap: 1rem;
+          }
+
+          .completion-stats .stat-item {
+              justify-content: center;
+              min-width: auto;
+          }
+      }
+
+      @media (max-width: 576px) {
+          .stat-item {
+              flex: 0 0 45%;
+          }
+
+          .rating-text {
+              font-size: 0.75rem;
+          }
+
+          .interval-hint {
+              font-size: 0.625rem;
+          }
+
+          .card-body {
+              padding: 2rem 1.5rem;
+          }
+      }
+  </style>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Edit Module{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Edit Module</h1>
+        <p class="page-subtitle">{{ module.level.code }} - Module {{ module.number }}: {{ module.title }}</p>
+    </div>
+    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">{{ form.level_id.label }}</label>
+                            {{ form.level_id(class="form-select") }}
+                            {% if form.level_id.errors %}
+                                <div class="text-danger small">{{ form.level_id.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.number.label }}</label>
+                            {{ form.number(class="form-control", min="1") }}
+                            {% if form.number.errors %}
+                                <div class="text-danger small">{{ form.number.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.title.label }}</label>
+                        {{ form.title(class="form-control") }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        {{ form.description(class="form-control", rows="4") }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
+
+                        {% if module.lessons|length == 0 %}
+                        <form action="{{ url_for('admin.delete_module', module_id=module.id) }}" method="POST" class="ms-auto">
+                            <button type="submit" class="btn btn-danger"
+                                    onclick="return confirm('Are you sure you want to delete this module?')">
+                                <i class="fas fa-trash me-1"></i> Delete Module
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lessons in this module -->
+        {% if module.lessons|length > 0 %}
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Lessons in This Module</h5>
+                <a href="{{ url_for('admin.create_lesson', module_id=module.id) }}" class="btn btn-sm btn-success">
+                    <i class="fas fa-plus me-1"></i> Add Lesson
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for lesson in module.lessons|sort(attribute='number') %}
+                    <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}"
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">Lesson {{ lesson.number }}: {{ lesson.title }}</h6>
+                                <small class="text-muted">Type: {{ lesson.type }}</small>
+                            </div>
+                            <i class="fas fa-chevron-right text-muted"></i>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Module Statistics</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-6">Lessons:</dt>
+                    <dd class="col-6">{{ module.lessons|length }}</dd>
+
+                    <dt class="col-6">Created:</dt>
+                    <dd class="col-6">{{ module.created_at.strftime('%d %b %Y') if module.created_at else 'N/A' }}</dd>
+
+                    <dt class="col-6">Updated:</dt>
+                    <dd class="col-6">{{ module.updated_at.strftime('%d %b %Y') if module.updated_at else 'N/A' }}</dd>
+                </dl>
+
+                {% if module.lessons|length > 0 %}
+                <hr>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Cannot delete module with existing lessons
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a href="{{ url_for('admin.create_lesson', module_id=module.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i> Create New Lesson
+                </a>
+                <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                    <i class="fas fa-file-import me-1"></i> Import Lessons
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
