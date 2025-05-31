@@ -1,0 +1,1368 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Игра на соответствие') %}
+{% set instruction_text = _('Переворачивайте карточки и находите пары английских слов с их переводами. Чем быстрее, тем больше очков!') %}
+{% set block_description = _('Запоминание слов через игру на соответствие') %}
+
+{% block lesson_content %}
+<!-- Получаем данные о предыдущей сессии -->
+{% set previous_data = None %}
+{% set is_completed = False %}
+{% if progress and progress.data %}
+  {% set previous_data = progress.data %}
+  {% set is_completed = progress.status == 'completed' %}
+{% endif %}
+
+<div class="matching-lesson">
+  {% if is_completed and previous_data %}
+    <!-- Режим просмотра результатов -->
+    <div class="matching-results-review">
+      <div class="results-header">
+        <h3>{{ _('Игра завершена') }}</h3>
+        <div class="results-stats">
+          <div class="stat-card">
+            <i class="fas fa-trophy"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ previous_data.score|default(0) }}</span>
+              <span class="stat-label">{{ _('Очков') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-puzzle-piece"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ previous_data.pairs_matched|default(0) }}</span>
+              <span class="stat-label">{{ _('Пар найдено') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-stopwatch"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ previous_data.time_taken|default(0) }}с</span>
+              <span class="stat-label">{{ _('Время') }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-mouse-pointer"></i>
+            <div class="stat-content">
+              <span class="stat-value">{{ previous_data.moves|default(0) }}</span>
+              <span class="stat-label">{{ _('Ходов') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-actions">
+        <p class="text-muted">{{ _('Вы успешно завершили игру на соответствие.') }}</p>
+        {% if previous_data.explanation %}
+          <div class="explanation-card mt-3">
+            <h5>{{ _('Объяснение результатов:') }}</h5>
+            <p>{{ previous_data.explanation }}</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Настройки игры (если не завершена) -->
+  {% if not is_completed %}
+    <div class="game-setup" id="game-setup">
+      <div class="setup-header">
+        <div class="game-icon">
+          <i class="fas fa-puzzle-piece"></i>
+        </div>
+        <h3>{{ _('Настройка игры') }}</h3>
+        <p class="text-muted">{{ _('Выберите уровень сложности и начните игру') }}</p>
+      </div>
+
+      <div class="difficulty-selector">
+        <h5>{{ _('Уровень сложности:') }}</h5>
+        <div class="difficulty-options">
+          <button class="difficulty-btn selected" data-difficulty="easy">
+            <div class="difficulty-info">
+              <span class="difficulty-name">{{ _('Легкий') }}</span>
+              <span class="difficulty-desc">6 {{ _('пар') }}, 60{{ _('с') }}</span>
+            </div>
+          </button>
+          <button class="difficulty-btn" data-difficulty="medium">
+            <div class="difficulty-info">
+              <span class="difficulty-name">{{ _('Средний') }}</span>
+              <span class="difficulty-desc">8 {{ _('пар') }}, 120{{ _('с') }}</span>
+            </div>
+          </button>
+          <button class="difficulty-btn" data-difficulty="hard">
+            <div class="difficulty-info">
+              <span class="difficulty-name">{{ _('Сложный') }}</span>
+              <span class="difficulty-desc">12 {{ _('пар') }}, 180{{ _('с') }}</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="setup-actions">
+        <button type="button" class="btn btn-primary btn-lg" id="start-game-btn">
+          <i class="fas fa-play"></i> {{ _('Начать игру') }}
+        </button>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Игровая область -->
+  <div class="game-container" id="game-container" style="display: none;">
+    <!-- Игровая статистика -->
+    <div class="game-stats mb-4">
+      <div class="stat-item">
+        <i class="fas fa-puzzle-piece"></i>
+        <span>{{ _('Пары:') }} <span id="pairs-counter">0/0</span></span>
+      </div>
+      <div class="stat-item">
+        <i class="fas fa-mouse-pointer"></i>
+        <span>{{ _('Ходы:') }} <span id="moves-counter">0</span></span>
+      </div>
+      <div class="stat-item">
+        <i class="fas fa-stopwatch"></i>
+        <span>{{ _('Время:') }} <span id="timer-value">00:00</span></span>
+      </div>
+      <div class="stat-item">
+        <button id="hint-btn" class="btn btn-sm btn-outline-primary">
+          <i class="fas fa-lightbulb"></i> {{ _('Подсказка') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Прогресс игры -->
+    <div class="game-progress mb-4">
+      <div class="progress-track">
+        <div class="progress-fill" id="game-progress-bar" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Сетка карточек -->
+    <div class="cards-grid" id="cards-grid">
+      <!-- Карточки будут добавлены динамически -->
+    </div>
+
+    <!-- Контролы игры -->
+    <div class="game-controls mt-4">
+      <button id="end-game-btn" class="btn btn-outline-secondary">
+        <i class="fas fa-stop"></i> {{ _('Завершить игру') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Всплывающая карточка с информацией о слове -->
+  <div class="word-popup" id="word-popup" style="display: none;">
+    <div class="popup-content">
+      <div class="word-info">
+        <h4 id="popup-word"></h4>
+        <p id="popup-translation"></p>
+      </div>
+      
+      <div class="word-details" id="word-details" style="display: none;">
+        <div class="audio-section">
+          <button id="popup-audio-btn" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-volume-up"></i> {{ _('Произношение') }}
+          </button>
+        </div>
+        
+        <div class="example-section" id="example-section" style="display: none;">
+          <h6>{{ _('Пример:') }}</h6>
+          <div id="popup-example"></div>
+        </div>
+
+        <div class="explanation-section" id="explanation-section" style="display: none;">
+          <h6>{{ _('Объяснение:') }}</h6>
+          <div id="popup-explanation"></div>
+        </div>
+      </div>
+      
+      <div class="popup-actions">
+        <button class="btn btn-primary" id="popup-continue-btn">
+          {{ _('Продолжить') }}
+        </button>
+      </div>
+    </div>
+    <div class="popup-overlay" id="popup-overlay"></div>
+  </div>
+</div>
+
+<!-- Скрытые аудио элементы -->
+<audio id="word-audio" style="display: none;"></audio>
+<audio id="match-sound" preload="auto">
+  <source src="{{ url_for('static', filename='audio/match.mp3') }}" type="audio/mpeg">
+</audio>
+<audio id="flip-sound" preload="auto">
+  <source src="{{ url_for('static', filename='audio/flip.mp3') }}" type="audio/mpeg">
+</audio>
+<audio id="success-sound" preload="auto">
+  <source src="{{ url_for('static', filename='audio/success.mp3') }}" type="audio/mpeg">
+</audio>
+{% endblock %}
+
+{% block lesson_script %}
+// Конфигурация игры
+const gameConfig = {
+  lessonId: {{ lesson.id }},
+  playAudio: {{ settings.include_audio|default(true)|tojson|safe }},
+  showTranslations: {{ settings.include_translations|default(true)|tojson|safe }},
+  showExamples: {{ settings.include_examples|default(true)|tojson|safe }},
+  isCompleted: {{ is_completed|tojson|safe }}
+};
+
+// Настройки сложности
+const difficultySettings = {
+  easy: { pairs: 6, timeLimit: 60, hintDuration: 4000 },
+  medium: { pairs: 8, timeLimit: 120, hintDuration: 3000 },
+  hard: { pairs: 12, timeLimit: 180, hintDuration: 2000 }
+};
+
+// Состояние игры
+let gameState = {
+  difficulty: 'easy',
+  words: [],
+  cards: [],
+  firstCard: null,
+  secondCard: null,
+  lockBoard: false,
+  gameStartTime: 0,
+  gameTimer: null,
+  gameSeconds: 0,
+  matchedPairs: 0,
+  totalPairs: 0,
+  moves: 0,
+  showingHint: false,
+  hintTimeout: null
+};
+
+// Элементы DOM
+const elements = {
+  gameSetup: document.getElementById('game-setup'),
+  gameContainer: document.getElementById('game-container'),
+  cardsGrid: document.getElementById('cards-grid'),
+  pairsCounter: document.getElementById('pairs-counter'),
+  movesCounter: document.getElementById('moves-counter'),
+  timerValue: document.getElementById('timer-value'),
+  gameProgressBar: document.getElementById('game-progress-bar'),
+  hintBtn: document.getElementById('hint-btn'),
+  endGameBtn: document.getElementById('end-game-btn'),
+  startGameBtn: document.getElementById('start-game-btn'),
+  wordPopup: document.getElementById('word-popup'),
+  popupOverlay: document.getElementById('popup-overlay'),
+  popupWord: document.getElementById('popup-word'),
+  popupTranslation: document.getElementById('popup-translation'),
+  popupExample: document.getElementById('popup-example'),
+  popupExplanation: document.getElementById('popup-explanation'),
+  popupAudioBtn: document.getElementById('popup-audio-btn'),
+  popupContinueBtn: document.getElementById('popup-continue-btn'),
+  wordAudio: document.getElementById('word-audio'),
+  matchSound: document.getElementById('match-sound'),
+  flipSound: document.getElementById('flip-sound'),
+  successSound: document.getElementById('success-sound')
+};
+
+// Инициализация
+function initGame() {
+  if (gameConfig.isCompleted) {
+    showNavigationButtons();
+    return;
+  }
+
+  setupDifficultySelector();
+  setupEventListeners();
+}
+
+// Настройка селектора сложности
+function setupDifficultySelector() {
+  const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+  difficultyButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      difficultyButtons.forEach(btn => btn.classList.remove('selected'));
+      button.classList.add('selected');
+      gameState.difficulty = button.getAttribute('data-difficulty');
+    });
+  });
+}
+
+// Настройка обработчиков событий
+function setupEventListeners() {
+  if (elements.startGameBtn) {
+    elements.startGameBtn.addEventListener('click', startGame);
+  }
+  
+  if (elements.hintBtn) {
+    elements.hintBtn.addEventListener('click', showHint);
+  }
+  
+  if (elements.endGameBtn) {
+    elements.endGameBtn.addEventListener('click', () => endGame(true));
+  }
+  
+  if (elements.popupContinueBtn) {
+    elements.popupContinueBtn.addEventListener('click', hideWordPopup);
+  }
+  
+  if (elements.popupOverlay) {
+    elements.popupOverlay.addEventListener('click', hideWordPopup);
+  }
+  
+  if (elements.popupAudioBtn) {
+    elements.popupAudioBtn.addEventListener('click', playPopupAudio);
+  }
+}
+
+// Начало игры
+async function startGame() {
+  try {
+    elements.gameSetup.style.display = 'none';
+    
+    // Загружаем слова
+    await fetchWords();
+    
+    // Создаем игровое поле
+    createGameBoard();
+    
+    // Показываем игру
+    elements.gameContainer.style.display = 'block';
+    
+    // Запускаем таймер
+    startTimer();
+    
+  } catch (error) {
+    console.error('Error starting game:', error);
+    showError(_('Ошибка при загрузке игры. Попробуйте еще раз.'));
+  }
+}
+
+// Загрузка слов
+async function fetchWords() {
+  const settings = difficultySettings[gameState.difficulty];
+  const requiredPairs = settings.pairs;
+  
+  try {
+    const response = await fetch(`{{ url_for('api_words.get_matching_words') }}?lesson_id=${gameConfig.lessonId}&count=${requiredPairs}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch words');
+    }
+    
+    const data = await response.json();
+    
+    if (data.status === 'success' && data.words && data.words.length > 0) {
+      gameState.words = data.words.slice(0, requiredPairs);
+      gameState.totalPairs = gameState.words.length;
+      updatePairsCounter();
+      return true;
+    } else {
+      throw new Error(data.message || 'No words available');
+    }
+  } catch (error) {
+    console.error('Error fetching words:', error);
+    throw error;
+  }
+}
+
+// Создание игрового поля
+function createGameBoard() {
+  // Очищаем сетку
+  elements.cardsGrid.innerHTML = '';
+  
+  // Создаем массив карточек
+  const cardItems = [];
+  
+  gameState.words.forEach(word => {
+    // Английская карточка
+    cardItems.push({
+      id: word.id,
+      text: word.english_word || word.word,
+      type: 'english',
+      matched: false,
+      pairId: word.id,
+      wordData: word
+    });
+    
+    // Русская карточка
+    cardItems.push({
+      id: word.id,
+      text: word.russian_word || word.translation,
+      type: 'russian',
+      matched: false,
+      pairId: word.id,
+      wordData: word
+    });
+  });
+  
+  // Перемешиваем карточки
+  gameState.cards = shuffleArray([...cardItems]);
+  
+  // Создаем DOM элементы карточек
+  gameState.cards.forEach((card, index) => {
+    const cardElement = document.createElement('div');
+    cardElement.className = 'game-card';
+    cardElement.dataset.index = index;
+    
+    cardElement.innerHTML = `
+      <div class="card-inner">
+        <div class="card-front">
+          <i class="fas fa-language"></i>
+        </div>
+        <div class="card-back">
+          <span class="card-text">${card.text}</span>
+        </div>
+      </div>
+    `;
+    
+    cardElement.addEventListener('click', () => flipCard(cardElement, index));
+    elements.cardsGrid.appendChild(cardElement);
+  });
+  
+  // Настраиваем сетку
+  const columns = Math.min(4, Math.ceil(Math.sqrt(gameState.cards.length)));
+  elements.cardsGrid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+}
+
+// Переворот карточки
+function flipCard(cardElement, index) {
+  if (gameState.lockBoard || 
+      cardElement.classList.contains('flipped') || 
+      cardElement.classList.contains('matched')) {
+    return;
+  }
+  
+  // Воспроизводим звук переворота
+  playSound(elements.flipSound);
+  
+  // Переворачиваем карточку
+  cardElement.classList.add('flipped');
+  
+  if (!gameState.firstCard) {
+    gameState.firstCard = { element: cardElement, index: index };
+    return;
+  }
+  
+  gameState.secondCard = { element: cardElement, index: index };
+  gameState.moves++;
+  updateMovesCounter();
+  
+  checkForMatch();
+}
+
+// Проверка совпадения
+function checkForMatch() {
+  gameState.lockBoard = true;
+  
+  const firstCardData = gameState.cards[gameState.firstCard.index];
+  const secondCardData = gameState.cards[gameState.secondCard.index];
+  
+  const isMatch = firstCardData.pairId === secondCardData.pairId &&
+                  firstCardData.type !== secondCardData.type;
+  
+  if (isMatch) {
+    handleMatch(firstCardData.pairId);
+  } else {
+    setTimeout(() => {
+      gameState.firstCard.element.classList.remove('flipped');
+      gameState.secondCard.element.classList.remove('flipped');
+      resetBoard();
+    }, 1000);
+  }
+}
+
+// Обработка совпадения
+function handleMatch(wordId) {
+  // Воспроизводим звук совпадения
+  playSound(elements.matchSound);
+  
+  // Отмечаем карточки как совпавшие
+  gameState.firstCard.element.classList.add('matched');
+  gameState.secondCard.element.classList.add('matched');
+  
+  // Обновляем счетчики
+  gameState.matchedPairs++;
+  updatePairsCounter();
+  updateProgress();
+  
+  // Сброс состояния
+  resetBoard();
+  
+  // Показываем информацию о слове
+  const matchedWord = gameState.words.find(word => word.id === wordId);
+  if (matchedWord) {
+    showWordPopup(matchedWord);
+  }
+  
+  // Проверяем завершение игры
+  if (gameState.matchedPairs === gameState.totalPairs) {
+    setTimeout(() => {
+      completeGame();
+    }, 500);
+  }
+}
+
+// Показ всплывающей карточки со словом
+function showWordPopup(word) {
+  elements.popupWord.textContent = word.english_word || word.word;
+  elements.popupTranslation.textContent = word.russian_word || word.translation;
+  
+  // Настройка аудио
+  if (word.audio_url && gameConfig.playAudio) {
+    elements.popupAudioBtn.style.display = 'inline-flex';
+    elements.wordAudio.src = word.audio_url;
+  } else {
+    elements.popupAudioBtn.style.display = 'none';
+  }
+  
+  // Настройка примера
+  const exampleSection = document.getElementById('example-section');
+  if (word.example && gameConfig.showExamples) {
+    elements.popupExample.innerHTML = word.example.replace('\n', '<br><span class="text-muted">') + '</span>';
+    exampleSection.style.display = 'block';
+  } else {
+    exampleSection.style.display = 'none';
+  }
+  
+  // Настройка объяснения
+  const explanationSection = document.getElementById('explanation-section');
+  if (word.explanation) {
+    elements.popupExplanation.textContent = word.explanation;
+    explanationSection.style.display = 'block';
+  } else {
+    explanationSection.style.display = 'none';
+  }
+  
+  // Показываем детали если есть что показать
+  const wordDetails = document.getElementById('word-details');
+  if (word.audio_url || word.example || word.explanation) {
+    wordDetails.style.display = 'block';
+  } else {
+    wordDetails.style.display = 'none';
+  }
+  
+  elements.wordPopup.style.display = 'block';
+}
+
+// Скрытие всплывающей карточки
+function hideWordPopup() {
+  elements.wordPopup.style.display = 'none';
+}
+
+// Воспроизведение аудио во всплывающей карточке
+function playPopupAudio() {
+  if (elements.wordAudio.src) {
+    elements.wordAudio.play();
+  }
+}
+
+// Сброс состояния доски
+function resetBoard() {
+  gameState.firstCard = null;
+  gameState.secondCard = null;
+  gameState.lockBoard = false;
+}
+
+// Показ подсказки
+function showHint() {
+  if (gameState.showingHint || gameState.hintTimeout) {
+    return;
+  }
+  
+  gameState.lockBoard = true;
+  gameState.showingHint = true;
+  
+  // Показываем все неоткрытые карточки
+  const unmatched = document.querySelectorAll('.game-card:not(.matched)');
+  unmatched.forEach(card => {
+    card.classList.add('flipped');
+  });
+  
+  // Добавляем штраф за подсказку
+  gameState.moves += 2;
+  updateMovesCounter();
+  
+  // Скрываем карточки через некоторое время
+  gameState.hintTimeout = setTimeout(() => {
+    unmatched.forEach(card => {
+      if (!card.classList.contains('matched')) {
+        card.classList.remove('flipped');
+      }
+    });
+    
+    gameState.lockBoard = false;
+    gameState.showingHint = false;
+    gameState.hintTimeout = null;
+  }, difficultySettings[gameState.difficulty].hintDuration);
+}
+
+// Запуск таймера
+function startTimer() {
+  gameState.gameStartTime = Date.now();
+  gameState.gameSeconds = 0;
+  
+  gameState.gameTimer = setInterval(() => {
+    gameState.gameSeconds++;
+    updateTimerDisplay();
+    
+    // Проверка лимита времени
+    if (difficultySettings[gameState.difficulty].timeLimit && 
+        gameState.gameSeconds >= difficultySettings[gameState.difficulty].timeLimit) {
+      endGame(false);
+    }
+  }, 1000);
+}
+
+// Завершение игры
+function completeGame() {
+  // Останавливаем таймер
+  if (gameState.gameTimer) {
+    clearInterval(gameState.gameTimer);
+  }
+  
+  // Воспроизводим звук успеха
+  playSound(elements.successSound);
+  
+  // Вычисляем очки
+  const score = calculateScore();
+  
+  // Сохраняем результаты
+  saveGameResults(score);
+}
+
+// Принудительное завершение игры
+function endGame(userInitiated = true) {
+  if (userInitiated) {
+    if (!confirm('{{ _("Вы уверены, что хотите завершить игру досрочно?") }}')) {
+      return;
+    }
+  }
+  
+  if (gameState.gameTimer) {
+    clearInterval(gameState.gameTimer);
+  }
+  
+  completeGame();
+}
+
+// Расчет очков
+function calculateScore() {
+  const settings = difficultySettings[gameState.difficulty];
+  const timeLimit = settings.timeLimit;
+  
+  // Бонус за время
+  const timeBonus = Math.max(0, timeLimit - gameState.gameSeconds);
+  
+  // Эффективность ходов
+  let moveEfficiency = 0;
+  if (gameState.moves > 0) {
+    moveEfficiency = Math.min(1, (gameState.totalPairs * 2) / gameState.moves);
+  }
+  
+  // Множитель сложности
+  const difficultyMultipliers = { easy: 1, medium: 1.5, hard: 2 };
+  const difficultyMultiplier = difficultyMultipliers[gameState.difficulty] || 1;
+  
+  // Итоговый счет
+  const score = Math.round((
+    (gameState.totalPairs * 5) +
+    (timeBonus * 5) +
+    (moveEfficiency * 10)
+  ) * difficultyMultiplier);
+  
+  return Math.max(0, score);
+}
+
+// Сохранение результатов игры
+async function saveGameResults(score) {
+  try {
+    const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      },
+      body: JSON.stringify({
+        score: Math.min(100, Math.round(score)),
+        status: 'completed',
+        data: {
+          score: score,
+          difficulty: gameState.difficulty,
+          pairs_matched: gameState.matchedPairs,
+          total_pairs: gameState.totalPairs,
+          moves: gameState.moves,
+          time_taken: gameState.gameSeconds,
+          explanation: generateExplanation(score)
+        }
+      })
+    });
+    
+    if (response.ok) {
+      showCompletionResults(score);
+      showNavigationButtons();
+    } else {
+      throw new Error('Failed to save results');
+    }
+  } catch (error) {
+    console.error('Error saving game results:', error);
+    showError('{{ _("Ошибка при сохранении результатов") }}');
+  }
+}
+
+// Генерация объяснения результатов
+function generateExplanation(score) {
+  if (score >= 80) {
+    return '{{ _("Отличный результат! Вы показали превосходную память и скорость.") }}';
+  } else if (score >= 60) {
+    return '{{ _("Хороший результат! Продолжайте тренироваться для улучшения скорости.") }}';
+  } else if (score >= 40) {
+    return '{{ _("Неплохо! Попробуйте использовать меньше подсказок и работать быстрее.") }}';
+  } else {
+    return '{{ _("Продолжайте практиковаться! Со временем вы улучшите свои результаты.") }}';
+  }
+}
+
+// Показ результатов завершения
+function showCompletionResults(score) {
+  const resultsDiv = document.createElement('div');
+  resultsDiv.className = 'matching-completion-results mt-4';
+  
+  const minutes = Math.floor(gameState.gameSeconds / 60);
+  const seconds = gameState.gameSeconds % 60;
+  const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  resultsDiv.innerHTML = `
+    <div class="completion-card">
+      <div class="completion-header">
+        <div class="completion-icon">
+          <i class="fas fa-trophy"></i>
+        </div>
+        <h3>{{ _('Игра завершена!') }}</h3>
+        <p class="text-muted">{{ _('Отличная работа! Вы нашли все пары.') }}</p>
+      </div>
+      
+      <div class="completion-stats">
+        <div class="stat-item">
+          <div class="stat-icon primary">
+            <i class="fas fa-trophy"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${score}</span>
+            <span class="stat-label">{{ _('Очков') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon success">
+            <i class="fas fa-puzzle-piece"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${gameState.matchedPairs}</span>
+            <span class="stat-label">{{ _('Пар найдено') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon warning">
+            <i class="fas fa-stopwatch"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${timeStr}</span>
+            <span class="stat-label">{{ _('Время') }}</span>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon info">
+            <i class="fas fa-mouse-pointer"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">${gameState.moves}</span>
+            <span class="stat-label">{{ _('Ходов') }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Добавляем результаты на страницу
+  const lessonContent = document.querySelector('.lesson-content-wrapper .content-card');
+  lessonContent.appendChild(resultsDiv);
+  
+  // Прокручиваем к результатам
+  resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Показ кнопок навигации
+function showNavigationButtons() {
+  const retryBtn = document.getElementById('retry-button');
+  const nextBtn = document.getElementById('complete-exercise');
+  const completeModuleBtn = document.getElementById('complete-module');
+  
+  // Показываем кнопку повтора
+  if (retryBtn) {
+    retryBtn.style.display = 'inline-flex';
+  }
+  
+  // Показываем кнопку перехода к следующему уроку или завершения модуля
+  if (nextBtn) {
+    nextBtn.style.display = 'inline-flex';
+    nextBtn.disabled = false;
+  } else if (completeModuleBtn) {
+    completeModuleBtn.style.display = 'inline-flex';
+    completeModuleBtn.disabled = false;
+  }
+}
+
+// Утилиты
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function updatePairsCounter() {
+  if (elements.pairsCounter) {
+    elements.pairsCounter.textContent = `${gameState.matchedPairs}/${gameState.totalPairs}`;
+  }
+}
+
+function updateMovesCounter() {
+  if (elements.movesCounter) {
+    elements.movesCounter.textContent = gameState.moves;
+  }
+}
+
+function updateTimerDisplay() {
+  if (elements.timerValue) {
+    const minutes = Math.floor(gameState.gameSeconds / 60);
+    const seconds = gameState.gameSeconds % 60;
+    elements.timerValue.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+}
+
+function updateProgress() {
+  if (elements.gameProgressBar) {
+    const percentage = gameState.totalPairs > 0 
+      ? (gameState.matchedPairs / gameState.totalPairs) * 100 
+      : 0;
+    elements.gameProgressBar.style.width = percentage + '%';
+  }
+}
+
+function playSound(audioElement) {
+  if (gameConfig.playAudio && audioElement) {
+    try {
+      audioElement.currentTime = 0;
+      audioElement.play().catch(e => console.log('Audio play prevented:', e));
+    } catch (e) {
+      console.log('Audio error:', e);
+    }
+  }
+}
+
+function showError(message) {
+  alert(message);
+}
+
+// Функция повтора урока
+function retryLesson() {
+  if (confirm('{{ _("Вы уверены, что хотите пройти игру заново?") }}')) {
+    window.location.reload();
+  }
+}
+
+// Инициализация при загрузке страницы
+initGame();
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  .matching-lesson {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* Режим просмотра результатов */
+  .matching-results-review {
+    margin-bottom: 2rem;
+  }
+
+  .results-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .results-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--lesson-light);
+    border-radius: var(--lesson-radius-lg);
+    min-width: 140px;
+  }
+
+  .stat-card i {
+    font-size: 1.75rem;
+    color: var(--lesson-primary);
+  }
+
+  .stat-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-value {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--lesson-dark);
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  .explanation-card {
+    background: var(--lesson-light);
+    padding: 1.5rem;
+    border-radius: var(--lesson-radius-lg);
+    border-left: 4px solid var(--lesson-primary);
+  }
+
+  /* Настройка игры */
+  .game-setup {
+    text-align: center;
+    padding: 2rem 0;
+  }
+
+  .setup-header {
+    margin-bottom: 2rem;
+  }
+
+  .game-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--lesson-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin: 0 auto 1.5rem;
+    box-shadow: var(--lesson-shadow-hover);
+  }
+
+  .setup-header h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .difficulty-selector {
+    margin-bottom: 2rem;
+  }
+
+  .difficulty-selector h5 {
+    margin-bottom: 1rem;
+    color: var(--lesson-dark);
+  }
+
+  .difficulty-options {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .difficulty-btn {
+    padding: 1rem 1.5rem;
+    background: white;
+    border: 2px solid var(--lesson-border);
+    border-radius: var(--lesson-radius-lg);
+    cursor: pointer;
+    transition: var(--lesson-transition);
+    min-width: 120px;
+  }
+
+  .difficulty-btn:hover {
+    border-color: var(--lesson-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--lesson-shadow);
+  }
+
+  .difficulty-btn.selected {
+    border-color: var(--lesson-primary);
+    background: var(--lesson-primary-light);
+  }
+
+  .difficulty-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .difficulty-name {
+    font-weight: 600;
+    color: var(--lesson-dark);
+  }
+
+  .difficulty-desc {
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  /* Игровая область */
+  .game-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--lesson-light);
+    padding: 1rem 1.5rem;
+    border-radius: var(--lesson-radius-lg);
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .game-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--lesson-muted);
+  }
+
+  .game-stats .stat-item i {
+    color: var(--lesson-primary);
+  }
+
+  .game-progress {
+    background: var(--lesson-light);
+    padding: 1rem;
+    border-radius: var(--lesson-radius);
+  }
+
+  .progress-track {
+    height: 8px;
+    background: var(--lesson-border);
+    border-radius: var(--lesson-radius);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--lesson-primary), var(--lesson-success));
+    transition: width 0.3s ease;
+  }
+
+  /* Сетка карточек */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  .game-card {
+    aspect-ratio: 1;
+    perspective: 1000px;
+    cursor: pointer;
+  }
+
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.5s;
+  }
+
+  .game-card.flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .card-front,
+  .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: var(--lesson-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: var(--lesson-shadow);
+    transition: var(--lesson-transition);
+  }
+
+  .card-front {
+    background: var(--lesson-primary);
+    color: white;
+    font-size: 1.5rem;
+  }
+
+  .card-back {
+    background: white;
+    border: 2px solid var(--lesson-border);
+    transform: rotateY(180deg);
+    font-size: 1rem;
+    line-height: 1.3;
+    color: var(--lesson-dark);
+  }
+
+  .game-card.matched .card-back {
+    background: var(--lesson-success-light);
+    border-color: var(--lesson-success);
+    color: var(--lesson-success-dark);
+  }
+
+  .card-text {
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Контролы игры */
+  .game-controls {
+    text-align: center;
+  }
+
+  /* Всплывающая карточка */
+  .word-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .popup-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+  }
+
+  .popup-content {
+    background: white;
+    border-radius: var(--lesson-radius-xl);
+    padding: 2rem;
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--lesson-shadow-hover);
+    animation: scaleIn 0.3s ease;
+  }
+
+  .word-info {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .word-info h4 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--lesson-dark);
+  }
+
+  .word-info p {
+    font-size: 1.125rem;
+    color: var(--lesson-primary);
+    margin: 0;
+  }
+
+  .word-details {
+    margin-bottom: 1.5rem;
+  }
+
+  .word-details > div {
+    margin-bottom: 1rem;
+  }
+
+  .word-details h6 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--lesson-muted);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .popup-actions {
+    text-align: center;
+  }
+
+  /* Результаты завершения */
+  .matching-completion-results {
+    animation: fadeInUp 0.5s ease;
+  }
+
+  .completion-card {
+    background: white;
+    border: 2px solid var(--lesson-success);
+    border-radius: var(--lesson-radius-xl);
+    padding: 2rem;
+    text-align: center;
+    box-shadow: var(--lesson-shadow-hover);
+  }
+
+  .completion-header {
+    margin-bottom: 2rem;
+  }
+
+  .completion-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+  }
+
+  .completion-icon i {
+    font-size: 2.5rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .completion-header h3 {
+    color: var(--lesson-dark);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .completion-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .completion-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--lesson-light);
+    border-radius: var(--lesson-radius-lg);
+    min-width: 120px;
+  }
+
+  .completion-stats .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--lesson-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  .completion-stats .stat-icon.primary {
+    background: var(--lesson-primary);
+  }
+
+  .completion-stats .stat-icon.success {
+    background: var(--lesson-success);
+  }
+
+  .completion-stats .stat-icon.warning {
+    background: var(--lesson-warning);
+  }
+
+  .completion-stats .stat-icon.info {
+    background: var(--lesson-info);
+  }
+
+  .completion-stats .stat-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .completion-stats .stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--lesson-dark);
+    line-height: 1;
+  }
+
+  .completion-stats .stat-label {
+    font-size: 0.75rem;
+    color: var(--lesson-muted);
+    margin-top: 0.25rem;
+  }
+
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    .cards-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+    
+    .game-stats {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .difficulty-options {
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .difficulty-btn {
+      width: 100%;
+      max-width: 200px;
+    }
+    
+    .results-stats,
+    .completion-stats {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .stat-card,
+    .completion-stats .stat-item {
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+    
+    .popup-content {
+      padding: 1.5rem;
+      margin: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .card-front {
+      font-size: 1.25rem;
+    }
+    
+    .card-back {
+      font-size: 0.875rem;
+    }
+  }
+</style>
+{% endblock %}

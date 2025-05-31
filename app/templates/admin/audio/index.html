@@ -1,0 +1,442 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Управление аудио{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Управление аудио файлами</h1>
+        <div>
+            <a href="{{ url_for('admin.audio_statistics') }}" class="btn btn-info btn-sm">
+                <i class="fas fa-chart-bar"></i> Статистика
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Всего слов
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_words }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-book fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                С аудио
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ words_with_audio }}</div>
+                            <div class="text-xs">
+                                {% if total_words > 0 %}
+                                    {{ (words_with_audio / total_words * 100) | round(1) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-volume-up fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Без аудио
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ words_without_audio }}</div>
+                            <div class="text-xs">
+                                {% if total_words > 0 %}
+                                    {{ (words_without_audio / total_words * 100) | round(1) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-volume-mute fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Проблемные URL
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ problematic_audio }}</div>
+                            <div class="text-xs">Требуют исправления</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Действия по управлению аудио</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-info h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-sync-alt text-info"></i> Обновить статус загрузки
+                                    </h5>
+                                    <p class="card-text small">
+                                        Проверить существование аудио файлов в папке медиа и обновить статус get_download
+                                    </p>
+                                    <button class="btn btn-info btn-sm" onclick="updateDownloadStatus()">
+                                        <i class="fas fa-sync-alt"></i> Обновить статус
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-warning h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-wrench text-warning"></i> Исправить поля listening
+                                    </h5>
+                                    <p class="card-text small">
+                                        Заменить HTTP URL в полях listening на правильный формат Anki
+                                    </p>
+                                    <button class="btn btn-warning btn-sm" onclick="fixListeningFields()">
+                                        <i class="fas fa-wrench"></i> Исправить поля
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-success h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-download text-success"></i> Список для загрузки
+                                    </h5>
+                                    <p class="card-text small">
+                                        Получить список Forvo URL для загрузки аудио произношения слов
+                                    </p>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('admin.get_audio_download_list') }}?format=txt" class="btn btn-success btn-sm">
+                                            <i class="fas fa-download"></i> TXT
+                                        </a>
+                                        <a href="{{ url_for('admin.get_audio_download_list') }}?format=csv" class="btn btn-success btn-sm">
+                                            CSV
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download List with Pattern -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Список для загрузки с фильтром</h6>
+                </div>
+                <div class="card-body">
+                    <form id="download-list-form" class="form-inline">
+                        <div class="form-group mr-3">
+                            <label for="pattern" class="sr-only">Паттерн</label>
+                            <input type="text" class="form-control" id="pattern" name="pattern" 
+                                   placeholder="Например: a, s, app..." 
+                                   title="Слова, начинающиеся с указанных символов">
+                        </div>
+                        <div class="form-group mr-3">
+                            <select class="form-control" id="format" name="format">
+                                <option value="txt">TXT</option>
+                                <option value="csv">CSV</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Скачать список
+                        </button>
+                    </form>
+                    <small class="form-text text-muted mt-2">
+                        Укажите паттерн для фильтрации слов (например, "s" для слов, начинающихся на "s").<br>
+                        Список будет содержать Forvo URL в формате: https://forvo.com/word/{word}/#en
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Audio Updates -->
+    {% if recent_audio_updates %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Недавно обновленные аудио записи</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Английское слово</th>
+                                    <th>Русский перевод</th>
+                                    <th>Уровень</th>
+                                    <th>Статус аудио</th>
+                                    <th>Формат listening</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for word in recent_audio_updates %}
+                                <tr>
+                                    <td>{{ word.id }}</td>
+                                    <td><strong>{{ word.english_word }}</strong></td>
+                                    <td>{{ word.russian_word or 'Нет перевода' }}</td>
+                                    <td>
+                                        {% if word.level %}
+                                            <span class="badge badge-info">{{ word.level }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if word.get_download == 1 %}
+                                            <span class="badge badge-success">Доступно</span>
+                                        {% else %}
+                                            <span class="badge badge-warning">Недоступно</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if word.listening %}
+                                            {% if word.listening.startswith('http') %}
+                                                <span class="badge badge-danger">HTTP URL</span>
+                                            {% elif word.listening.startswith('[sound:') %}
+                                                <span class="badge badge-success">Anki Format</span>
+                                            {% else %}
+                                                <span class="badge badge-secondary">Другой</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Пусто</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Progress Modal -->
+    <div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Выполнение операции</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <p id="progress-text">Выполняется операция...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal fade" id="resultsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Результат операции</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="results-content">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle download list form
+    document.getElementById('download-list-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const pattern = document.getElementById('pattern').value;
+        const format = document.getElementById('format').value;
+        
+        let url = '{{ url_for("admin.get_audio_download_list") }}?format=' + format;
+        if (pattern) {
+            url += '&pattern=' + encodeURIComponent(pattern);
+        }
+        
+        window.location.href = url;
+    });
+});
+
+function updateDownloadStatus() {
+    showProgressModal('Обновление статуса загрузки аудио файлов...');
+    
+    fetch('{{ url_for("admin.update_audio_download_status") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+        
+        if (data.success) {
+            showResultsModal(
+                `<div class="alert alert-success">
+                    <h5>Операция завершена успешно!</h5>
+                    <p>Обновлено записей: <strong>${data.updated_count}</strong></p>
+                    <p>Таблица: <strong>${data.table_name}</strong></p>
+                </div>`
+            );
+            
+            // Refresh page after 2 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showResultsModal(
+                `<div class="alert alert-danger">
+                    <h5>Ошибка при обновлении</h5>
+                    <p>${data.error}</p>
+                </div>`
+            );
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        showResultsModal(
+            `<div class="alert alert-danger">
+                <h5>Сетевая ошибка</h5>
+                <p>${error.message}</p>
+            </div>`
+        );
+    });
+}
+
+function fixListeningFields() {
+    showProgressModal('Исправление полей listening...');
+    
+    fetch('{{ url_for("admin.fix_audio_listening_fields") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+        
+        if (data.success) {
+            showResultsModal(
+                `<div class="alert alert-success">
+                    <h5>Операция завершена!</h5>
+                    <p>${data.message}</p>
+                    <p>Исправлено записей: <strong>${data.fixed_count}</strong></p>
+                </div>`
+            );
+            
+            // Refresh page after 2 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showResultsModal(
+                `<div class="alert alert-danger">
+                    <h5>Ошибка при исправлении</h5>
+                    <p>${data.error}</p>
+                </div>`
+            );
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        showResultsModal(
+            `<div class="alert alert-danger">
+                <h5>Сетевая ошибка</h5>
+                <p>${error.message}</p>
+            </div>`
+        );
+    });
+}
+
+function showProgressModal(text) {
+    document.getElementById('progress-text').textContent = text;
+    new bootstrap.Modal(document.getElementById('progressModal')).show();
+}
+
+function hideProgressModal() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
+    if (modal) {
+        modal.hide();
+    }
+}
+
+function showResultsModal(content) {
+    document.getElementById('results-content').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('resultsModal')).show();
+}
+</script>
+{% endblock %}

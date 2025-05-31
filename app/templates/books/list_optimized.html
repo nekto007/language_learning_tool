@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Книги - Приложение для изучения английского') }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+.book-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+}
+
+.book-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.book-cover {
+    height: 200px;
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.book-cover img {
+    max-height: 100%;
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+.book-cover-placeholder {
+    color: #6c757d;
+    font-size: 3rem;
+}
+
+.progress-mini {
+    height: 4px;
+    border-radius: 2px;
+}
+
+.filter-chip {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    margin: 0.25rem;
+    background: #e9ecef;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-chip:hover,
+.filter-chip.active {
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+}
+
+.search-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 1rem;
+    padding: 2rem;
+    color: white;
+    margin-bottom: 2rem;
+}
+
+.stats-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Modern Header with Search -->
+<div class="search-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="mb-2">📚 {{ _('Коллекция книг') }}</h1>
+            <p class="mb-0 opacity-75">{{ _('Открывайте книги и улучшайте свой английский словарный запас') }}</p>
+        </div>
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-light">
+                <i class="fas fa-plus"></i> {{ _('Добавить книгу') }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Quick Search -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <form method="GET" action="{{ url_for('books.book_list') }}">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control form-control-lg" 
+                           placeholder="{{ _('Поиск книг по названию или автору...') }}" 
+                           value="{{ request.args.get('search', '') }}">
+                    <button class="btn btn-light" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    {% if request.args.get('search') %}
+                    <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-light">
+                        <i class="fas fa-times"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex flex-wrap align-items-center">
+            <span class="me-3 fw-bold">{{ _('Быстрые фильтры:') }}</span>
+            
+            <!-- Level Filters -->
+            <a href="{{ url_for('books.book_list', search=request.args.get('search', '')) }}" 
+               class="filter-chip {{ 'active' if not request.args.get('level') else '' }}">
+                {{ _('Все уровни') }}
+            </a>
+            
+            {% for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+            <a href="{{ url_for('books.book_list', level=level, search=request.args.get('search', '')) }}" 
+               class="filter-chip {{ 'active' if request.args.get('level') == level else '' }}">
+                {{ level }}
+            </a>
+            {% endfor %}
+            
+            <!-- Letter Filter Dropdown -->
+            <div class="dropdown ms-3">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    {{ request.args.get('letter', 'A-Z') }}
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}">{{ _('Все буквы') }}</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                    <li><a class="dropdown-item" href="{{ url_for('books.book_list', letter=letter, search=request.args.get('search', ''), level=request.args.get('level', '')) }}">{{ letter }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Filters -->
+{% if request.args.get('search') or request.args.get('level') or request.args.get('letter') %}
+<div class="alert alert-info">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <strong>{{ _('Активные фильтры:') }}</strong>
+            {% if request.args.get('search') %}
+                <span class="badge bg-primary ms-1">{{ _('Поиск:') }} "{{ request.args.get('search') }}"</span>
+            {% endif %}
+            {% if request.args.get('level') %}
+                <span class="badge bg-success ms-1">{{ _('Уровень:') }} {{ request.args.get('level') }}</span>
+            {% endif %}
+            {% if request.args.get('letter') %}
+                <span class="badge bg-info ms-1">{{ _('Буква:') }} {{ request.args.get('letter') }}</span>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-secondary">
+            {{ _('Очистить все') }}
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Books Grid -->
+{% if books %}
+<div class="row g-4">
+    {% for book in books %}
+    <div class="col-lg-3 col-md-4 col-sm-6">
+        <div class="card book-card h-100">
+            <!-- Book Cover -->
+            <div class="book-cover">
+                {% if book.cover_image %}
+                    <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ book.title }}">
+                {% else %}
+                    <i class="fas fa-book book-cover-placeholder"></i>
+                {% endif %}
+            </div>
+            
+            <div class="card-body d-flex flex-column">
+                <!-- Title and Author -->
+                <h6 class="card-title mb-2" title="{{ book.title }}">
+                    {{ book.title[:50] }}{% if book.title|length > 50 %}...{% endif %}
+                </h6>
+                
+                {% if book.author %}
+                <p class="card-text text-muted small mb-2">{{ book.author }}</p>
+                {% endif %}
+                
+                <!-- Level Badge -->
+                {% if book.level %}
+                <span class="badge bg-{{ 'primary' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }} stats-badge mb-2">
+                    {{ book.level }}
+                </span>
+                {% endif %}
+                
+                <!-- Quick Stats -->
+                {% if current_user.is_authenticated and book_stats[book.id] %}
+                {% set stats = book_stats[book.id] %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small text-muted mb-1">
+                        <span>{{ _('Прогресс') }}</span>
+                        <span>{{ stats.mastered }}/{{ stats.total }}</span>
+                    </div>
+                    <div class="progress progress-mini">
+                        <div class="progress-bar bg-success" style="width: {{ (stats.mastered / stats.total * 100) if stats.total > 0 else 0 }}%"></div>
+                        <div class="progress-bar bg-warning" style="width: {{ (stats.learning / stats.total * 100) if stats.total > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Actions -->
+                <div class="mt-auto">
+                    <div class="d-grid">
+                        <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i> {{ _('Подробнее') }}
+                        </a>
+                    </div>
+                    
+                    {% if current_user.is_authenticated and book.content %}
+                    <div class="d-grid mt-2">
+                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-book-open"></i> {{ _('Начать чтение') }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<nav aria-label="{{ _('Постраничная навигация книг') }}" class="mt-5">
+    <ul class="pagination justify-content-center">
+        {% if pagination.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+            {% if page_num %}
+                {% if page_num != pagination.page %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('books.book_list', page=page_num, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<!-- Empty State -->
+<div class="text-center py-5">
+    <i class="fas fa-book-open fa-4x text-muted mb-3"></i>
+    <h4>{{ _('Книги не найдены') }}</h4>
+    <p class="text-muted">
+        {% if request.args.get('search') or request.args.get('level') or request.args.get('letter') %}
+            {{ _('Попробуйте изменить критерии поиска или') }} <a href="{{ url_for('books.book_list') }}">{{ _('просмотреть все книги') }}</a>.
+        {% else %}
+            {{ _('Книги еще не добавлены.') }}
+        {% endif %}
+    </p>
+    
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> {{ _('Добавить первую книгу') }}
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

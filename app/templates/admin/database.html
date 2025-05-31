@@ -1,0 +1,306 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Управление базой данных{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Управление базой данных</h1>
+        <div>
+            <button id="test-connection-btn" class="btn btn-info btn-sm">
+                <i class="fas fa-network-wired"></i> Тест подключения
+            </button>
+            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#initDbModal">
+                <i class="fas fa-database"></i> Инициализация БД
+            </button>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-left-{% if db_connection_status.status == 'success' %}success{% else %}danger{% endif %}">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-{% if db_connection_status.status == 'success' %}success{% else %}danger{% endif %} text-uppercase mb-1">
+                                Статус подключения к БД
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ db_connection_status.message }}
+                            </div>
+                            {% if db_connection_status.status == 'success' %}
+                            <div class="text-muted small mt-2">
+                                <div><strong>Версия:</strong> {{ db_connection_status.version }}</div>
+                                <div><strong>Таблиц:</strong> {{ db_connection_status.table_count }}</div>
+                                <div><strong>Размер БД:</strong> {{ db_connection_status.database_size }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-{% if db_connection_status.status == 'success' %}check-circle{% else %}exclamation-triangle{% endif %} fa-2x text-{% if db_connection_status.status == 'success' %}success{% else %}danger{% endif %}"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Word Statistics -->
+    {% if word_stats and not word_stats.error %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статистика по словам пользователей</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-primary">{{ word_stats.totals.total_user_words }}</div>
+                                <div class="text-muted small">Всего записей</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-success">{{ word_stats.totals.unique_words_tracked }}</div>
+                                <div class="text-muted small">Уникальных слов</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="h4 mb-1 text-info">{{ word_stats.totals.users_with_words }}</div>
+                                <div class="text-muted small">Активных пользователей</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Статус</th>
+                                    <th>Количество слов</th>
+                                    <th>Пользователи</th>
+                                    <th>Процент</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in word_stats.status_breakdown %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if stat.status == 'new' %}secondary{% elif stat.status == 'learning' %}warning{% elif stat.status == 'review' %}info{% else %}success{% endif %}">
+                                            {{ stat.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ stat.count }}</td>
+                                    <td>{{ stat.users }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-{% if stat.status == 'new' %}secondary{% elif stat.status == 'learning' %}warning{% elif stat.status == 'review' %}info{% else %}success{% endif %}" 
+                                                 role="progressbar" style="width: {{ stat.percentage }}%">
+                                                {{ stat.percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Book Statistics -->
+    {% if book_stats and not book_stats.error %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статистика по книгам</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="h5 mb-1 text-primary">{{ book_stats.totals.total_books }}</div>
+                            <div class="text-muted small">Всего книг</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="h5 mb-1 text-success">{{ book_stats.totals.total_words_all_books }}</div>
+                            <div class="text-muted small">Всего слов</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="h5 mb-1 text-info">{{ book_stats.totals.total_unique_words_all }}</div>
+                            <div class="text-muted small">Уникальных слов</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Топ-5 книг по объему</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for book in book_stats.top_books %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <strong>{{ book.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ book.unique_words }} уникальных слов</small>
+                            </div>
+                            <span class="badge badge-primary badge-pill">{{ book.total_words }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Operations -->
+    {% if recent_operations and not recent_operations.error %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Недавние уроки</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_operations.recent_lessons %}
+                    <div class="list-group list-group-flush">
+                        {% for lesson in recent_operations.recent_lessons %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <strong>{{ lesson.title }}</strong>
+                                <br>
+                                <span class="badge badge-{% if lesson.type == 'vocabulary' %}success{% elif lesson.type == 'grammar' %}warning{% elif lesson.type == 'quiz' %}info{% else %}secondary{% endif %}">
+                                    {{ lesson.type }}
+                                </span>
+                            </div>
+                            <small class="text-muted">{{ lesson.created_at }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Нет данных о недавних уроках</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Новые пользователи (7 дней)</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_operations.recent_users %}
+                    <div class="list-group list-group-flush">
+                        {% for user in recent_operations.recent_users %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <strong>{{ user.username }}</strong>
+                            <small class="text-muted">{{ user.created_at }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Нет новых пользователей за последние 7 дней</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Initialize Database Modal -->
+<div class="modal fade" id="initDbModal" tabindex="-1" aria-labelledby="initDbModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="initDbModalLabel">Инициализация базы данных</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Внимание!</strong> 
+                    Эта операция создаст недостающие таблицы и схемы в базе данных. 
+                    Убедитесь, что база данных доступна и у вас есть права администратора.
+                </div>
+                <p>Вы уверены, что хотите инициализировать базу данных?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="POST" action="{{ url_for('admin.init_database') }}" style="display: inline;">
+                    {{ csrf_token() }}
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-database"></i> Инициализировать
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('test-connection-btn').addEventListener('click', function() {
+    const btn = this;
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Тестирование...';
+    btn.disabled = true;
+    
+    fetch('{{ url_for("admin.test_db_connection") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                btn.innerHTML = '<i class="fas fa-check"></i> Подключение успешно';
+                btn.className = 'btn btn-success btn-sm';
+                
+                // Show detailed info in a toast or alert
+                const message = `
+                    Версия: ${data.version}<br>
+                    Таблиц: ${data.table_count}<br>
+                    Размер БД: ${data.database_size}
+                `;
+                
+                // You can add a toast notification here
+                showToast('Тест подключения', message, 'success');
+            } else {
+                btn.innerHTML = '<i class="fas fa-times"></i> Ошибка подключения';
+                btn.className = 'btn btn-danger btn-sm';
+                showToast('Ошибка подключения', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            btn.innerHTML = '<i class="fas fa-times"></i> Ошибка';
+            btn.className = 'btn btn-danger btn-sm';
+            showToast('Ошибка', 'Не удалось выполнить тест подключения', 'error');
+        })
+        .finally(() => {
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.className = 'btn btn-info btn-sm';
+                btn.disabled = false;
+            }, 3000);
+        });
+});
+
+function showToast(title, message, type) {
+    // Simple alert for now - you can implement a proper toast notification
+    alert(`${title}: ${message}`);
+}
+</script>
+{% endblock %}

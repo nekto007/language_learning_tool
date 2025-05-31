@@ -1,0 +1,293 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Статистика по словам{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Детальная статистика по словам</h1>
+        <a href="{{ url_for('admin.word_management') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к управлению словами
+        </a>
+    </div>
+
+    <!-- Status Statistics -->
+    {% if status_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статистика по статусам изучения</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Статус</th>
+                                    <th>Количество записей</th>
+                                    <th>Уникальных пользователей</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in status_stats %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if stat.status == 'new' %}secondary{% elif stat.status == 'learning' %}warning{% elif stat.status == 'review' %}info{% else %}success{% endif %} badge-lg">
+                                            {{ stat.status|title }}
+                                        </span>
+                                    </td>
+                                    <td class="h5 mb-0">{{ stat.count }}</td>
+                                    <td class="h6 text-muted">{{ stat.users }} пользователей</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=csv" 
+                                               class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-download"></i> CSV
+                                            </a>
+                                            <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=json" 
+                                               class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-download"></i> JSON
+                                            </a>
+                                            <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=txt" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-download"></i> TXT
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <!-- Level Statistics -->
+        {% if level_stats %}
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Распределение по уровням</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Уровень</th>
+                                    <th>Количество слов</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for level in level_stats %}
+                                <tr>
+                                    <td>
+                                        {% if level.level %}
+                                            <span class="badge badge-info">{{ level.level }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Не указан</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ level.count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Top Users -->
+        {% if top_users %}
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Топ пользователей по активности</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for user in top_users %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <strong>{{ user.username }}</strong>
+                            </div>
+                            <span class="badge badge-primary badge-pill">{{ user.word_count }} слов</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Book Statistics -->
+    {% if book_stats %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Топ-10 книг по объему</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Название книги</th>
+                                    <th>Всего слов</th>
+                                    <th>Уникальных слов</th>
+                                    <th>Соотношение</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in book_stats %}
+                                <tr>
+                                    <td><strong>{{ book.title }}</strong></td>
+                                    <td>{{ book.total_words }}</td>
+                                    <td>{{ book.unique_words }}</td>
+                                    <td>
+                                        {% if book.total_words and book.unique_words %}
+                                            {% set ratio = (book.unique_words / book.total_words * 100) | round(1) %}
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" role="progressbar" style="width: {{ ratio }}%">
+                                                    {{ ratio }}%
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts Section -->
+    <div class="row mt-4">
+        {% if status_stats %}
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Распределение статусов (диаграмма)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if level_stats %}
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Распределение по уровням (диаграмма)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="levelChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Status Chart
+    {% if status_stats %}
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [
+                {% for stat in status_stats %}
+                '{{ stat.status|title }}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for stat in status_stats %}
+                    {{ stat.count }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    {% for stat in status_stats %}
+                    {% if stat.status == 'new' %}'#6c757d'
+                    {% elif stat.status == 'learning' %}'#ffc107'
+                    {% elif stat.status == 'review' %}'#17a2b8'
+                    {% else %}'#28a745'
+                    {% endif %}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Level Chart
+    {% if level_stats %}
+    const levelCtx = document.getElementById('levelChart').getContext('2d');
+    const levelChart = new Chart(levelCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for level in level_stats %}
+                '{{ level.level or "Не указан" }}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Количество слов',
+                data: [
+                    {% for level in level_stats %}
+                    {{ level.count }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: '#4f46e5',
+                borderColor: '#4338ca',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

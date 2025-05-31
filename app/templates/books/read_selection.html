@@ -1,0 +1,418 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Выбрать книгу для чтения - Приложение для изучения английского') }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --card-hover-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.hero-section {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    transform: rotate(45deg);
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.stats-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.stats-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.book-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-hover-shadow);
+}
+
+.book-cover-wrapper {
+    position: relative;
+    padding-top: 140%;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    overflow: hidden;
+}
+
+.book-cover-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-cover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #718096;
+}
+
+.no-cover i {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.book-info {
+    padding: 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.book-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.book-author {
+    color: #718096;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.progress-info {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.progress-bar-wrapper {
+    background: #e2e8f0;
+    border-radius: 4px;
+    height: 6px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    background: var(--primary-gradient);
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: #718096;
+    display: flex;
+    justify-content: space-between;
+}
+
+.continue-reading-btn {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.continue-reading-btn:hover {
+    transform: scale(1.05);
+    color: white;
+    text-decoration: none;
+}
+
+.start-reading-btn {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.start-reading-btn:hover {
+    background: #38a169;
+    color: white;
+    text-decoration: none;
+}
+
+.section-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #718096;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.search-bar {
+    max-width: 600px;
+    margin: 0 auto 3rem auto;
+}
+
+.search-input {
+    border-radius: 50px;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid #e2e8f0;
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+@media (max-width: 768px) {
+    .stats-card {
+        margin-bottom: 1rem;
+    }
+    
+    .hero-section {
+        padding: 2rem 0;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container hero-content">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-3">📚 {{ _('Ваше путешествие в чтении') }}</h1>
+                <p class="lead mb-4">{{ _('Продолжайте с того места, где остановились, или откройте новые книги для улучшения своего английского.') }}</p>
+            </div>
+            <div class="col-lg-4">
+                <div class="stats-card">
+                    <div class="stats-number">{{ books_started }}</div>
+                    <div>{{ _('Книг начато') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Recent Books Section -->
+    {% if recent_books %}
+    <section class="mb-5">
+        <div class="section-header">
+            <h2 class="h3 mb-0">
+                <i class="fas fa-history text-primary me-2"></i>
+                {{ _('Продолжить чтение') }}
+            </h2>
+        </div>
+        
+        <div class="row g-4">
+            {% for book, progress in recent_books[:6] %}
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="book-card">
+                    <div class="book-cover-wrapper">
+                        {% if book.cover_image %}
+                        <img src="{{ url_for('static', filename=book.cover_image) }}" 
+                             alt="{{ book.title }}" 
+                             class="book-cover-img">
+                        {% else %}
+                        <div class="no-cover">
+                            <i class="fas fa-book"></i>
+                            <div>{{ _('Нет обложки') }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="book-info">
+                        <h3 class="book-title">{{ book.title }}</h3>
+                        {% if book.author %}
+                        <div class="book-author">{{ book.author }}</div>
+                        {% endif %}
+                        
+                        <div class="progress-info">
+                            <div class="progress-bar-wrapper">
+                                <div class="progress-bar-fill" style="width: {{ (progress.position / 1000) }}%"></div>
+                            </div>
+                            <div class="progress-text">
+                                <span>{{ _('Прогресс') }}</span>
+                                <span>{{ progress.last_read.strftime('%b %d') }}</span>
+                            </div>
+                        </div>
+                        
+                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" 
+                           class="continue-reading-btn mt-3">
+                            <i class="fas fa-play-circle me-2"></i>{{ _('Продолжить') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- All Books Section -->
+    <section>
+        <div class="section-header">
+            <h2 class="h3 mb-0">
+                <i class="fas fa-book-open text-success me-2"></i>
+                {{ _('Доступные книги') }}
+            </h2>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" 
+                   class="form-control search-input" 
+                   id="bookSearch" 
+                   placeholder="{{ _('Поиск книг по названию или автору...') }}">
+        </div>
+
+        {% if all_books %}
+        <div class="row g-4" id="booksGrid">
+            {% for book in all_books %}
+            <div class="col-lg-3 col-md-4 col-sm-6 book-item" 
+                 data-title="{{ book.title.lower() }}" 
+                 data-author="{{ book.author.lower() if book.author else '' }}">
+                <div class="book-card">
+                    <div class="book-cover-wrapper">
+                        {% if book.cover_image %}
+                        <img src="{{ url_for('static', filename=book.cover_image) }}" 
+                             alt="{{ book.title }}" 
+                             class="book-cover-img">
+                        {% else %}
+                        <div class="no-cover">
+                            <i class="fas fa-book"></i>
+                            <div>{{ _('Нет обложки') }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="book-info">
+                        <h3 class="book-title">{{ book.title }}</h3>
+                        {% if book.author %}
+                        <div class="book-author">{{ book.author }}</div>
+                        {% endif %}
+                        
+                        {% if book.level %}
+                        <span class="badge bg-info mb-2">{{ book.level }}</span>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" 
+                           class="start-reading-btn mt-auto">
+                            <i class="fas fa-book-reader me-2"></i>{{ _('Начать чтение') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-book-open"></i>
+            <h3>{{ _('Нет доступных книг') }}</h3>
+            <p>{{ _('Книги с содержимым появятся здесь.') }}</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Search functionality
+document.getElementById('bookSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const bookItems = document.querySelectorAll('.book-item');
+    
+    bookItems.forEach(item => {
+        const title = item.dataset.title;
+        const author = item.dataset.author;
+        
+        if (title.includes(searchTerm) || author.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+});
+
+// Animate progress bars on load
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar-fill');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 100);
+    });
+});
+</script>
+{% endblock %}

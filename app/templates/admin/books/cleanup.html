@@ -1,0 +1,237 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Books Cleanup{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">🧹 Books Cleanup & Optimization</h1>
+    <p class="page-subtitle">Clean up and optimize the books section for better performance</p>
+</div>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Statistics Overview -->
+{% if stats and not stats.get('error') %}
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-book fa-3x text-primary"></i>
+                </div>
+                <h3 class="mb-1">{{ stats.total_books }}</h3>
+                <p class="text-muted mb-0">Total Books</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-file-times fa-3x text-warning"></i>
+                </div>
+                <h3 class="mb-1">{{ stats.books_no_content }}</h3>
+                <p class="text-muted mb-0">Without Content</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-chart-line fa-3x text-danger"></i>
+                </div>
+                <h3 class="mb-1">{{ stats.books_no_stats }}</h3>
+                <p class="text-muted mb-0">Without Statistics</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-percentage fa-3x text-success"></i>
+                </div>
+                <h3 class="mb-1">
+                    {% if stats.total_books > 0 %}
+                        {{ ((stats.total_books - stats.books_no_content) / stats.total_books * 100) | round(1) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </h3>
+                <p class="text-muted mb-0">Healthy Books</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Cleanup Actions -->
+<div class="row g-4">
+    <!-- Database Cleanup -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-database"></i>
+                    Database Cleanup
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6>Remove Empty Books</h6>
+                    <p class="text-muted small">
+                        Delete books that have no content. This will free up database space.
+                    </p>
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="action" value="remove_empty_books">
+                        <button type="submit" class="btn btn-warning btn-sm" 
+                                onclick="return confirm('Are you sure you want to delete {{ stats.books_no_content }} books without content?')">
+                            <i class="fas fa-trash"></i>
+                            Remove {{ stats.books_no_content }} Empty Books
+                        </button>
+                    </form>
+                </div>
+                
+                <hr>
+                
+                <div class="alert alert-info">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Safe operations:</strong> These actions only remove clearly problematic data and can improve performance.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- File System Cleanup -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder-open"></i>
+                    File System Cleanup
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6>Clean Temporary Files</h6>
+                    <p class="text-muted small">
+                        Remove temporary files from metadata extraction and file processing.
+                    </p>
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="action" value="clean_temp_files">
+                        <button type="submit" class="btn btn-info btn-sm">
+                            <i class="fas fa-broom"></i>
+                            Clean Temp Files
+                        </button>
+                    </form>
+                </div>
+                
+                <hr>
+                
+                <div class="alert alert-success">
+                    <small>
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Safe operation:</strong> Only removes temporary files that are no longer needed.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Optimization Recommendations -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-lightbulb"></i>
+            Optimization Recommendations
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Performance Improvements</h6>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Optimized database queries
+                        <span class="badge bg-success">✅ Implemented</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Modern grid layout
+                        <span class="badge bg-success">✅ Available</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Simplified filters
+                        <span class="badge bg-success">✅ Available</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Interface Improvements</h6>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Compact design
+                        <span class="badge bg-primary">📱 Mobile-friendly</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Better navigation
+                        <span class="badge bg-info">🎯 User-focused</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Visual progress indicators
+                        <span class="badge bg-warning">📊 Data-driven</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+            <div class="col-12">
+                <h6>Try the Optimized Books Interface</h6>
+                <p class="text-muted">
+                    Experience the improved books section with better performance and modern design.
+                </p>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('books.book_list', optimized='true') }}" class="btn btn-primary">
+                        <i class="fas fa-rocket"></i>
+                        View Optimized Version
+                    </a>
+                    <a href="{{ url_for('books.book_list', optimized='false') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-history"></i>
+                        View Original Version
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Back Navigation -->
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{{ url_for('admin.books') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Books Management
+        </a>
+    </div>
+</div>
+
+{% endblock %}
