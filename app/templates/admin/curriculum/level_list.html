@@ -1,0 +1,168 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}CEFR Levels{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">CEFR Levels</h1>
+        <p class="page-subtitle">Manage Common European Framework levels</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>New Level
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% if levels %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th width="100">Code</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th width="100" class="text-center">Modules</th>
+                        <th width="100" class="text-center">Lessons</th>
+                        <th width="100" class="text-center">Order</th>
+                        <th width="150" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for level in levels %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-primary fs-6">{{ level.code }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ level.name }}</strong>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ level.description[:100] if level.description else 'No description' }}{% if level.description and level.description|length > 100 %}...{% endif %}</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ level.module_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success">{{ level.lesson_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            {{ level.order }}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.edit_level', level_id=level.id) }}"
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('admin.module_list', level_id=level.id) }}"
+                                   class="btn btn-outline-info" title="View Modules">
+                                    <i class="fas fa-book"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.delete_level', level_id=level.id) }}"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            onclick="return confirm('Delete this level? This cannot be undone.')"
+                                            title="Delete"
+                                            {% if level.module_count > 0 %}disabled{% endif %}>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No CEFR levels created yet</p>
+            <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create First Level
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Level progression visualization -->
+{% if levels %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Level Progression</h5>
+    </div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            {% for level in levels %}
+            <div class="text-center flex-fill {% if not loop.last %}border-end{% endif %}">
+                <div class="fs-1 mb-2">
+                    <span class="badge bg-{{ loop.cycle('danger', 'warning', 'info', 'primary', 'success', 'secondary', 'dark') }}">
+                        {{ level.code }}
+                    </span>
+                </div>
+                <h6>{{ level.name }}</h6>
+                <small class="text-muted">{{ level.module_count }} modules</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                        <i class="fas fa-file-import me-2"></i>Import Curriculum from JSON
+                    </a>
+                    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Curriculum Overview
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">CEFR Reference</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-3">A0</dt>
+                    <dd class="col-sm-9">Pre-Beginner (Breakthrough preparation)</dd>
+
+                    <dt class="col-sm-3">A1</dt>
+                    <dd class="col-sm-9">Beginner (Breakthrough)</dd>
+
+                    <dt class="col-sm-3">A2</dt>
+                    <dd class="col-sm-9">Elementary (Waystage)</dd>
+
+                    <dt class="col-sm-3">B1</dt>
+                    <dd class="col-sm-9">Intermediate (Threshold)</dd>
+
+                    <dt class="col-sm-3">B2</dt>
+                    <dd class="col-sm-9">Upper Intermediate (Vantage)</dd>
+
+                    <dt class="col-sm-3">C1</dt>
+                    <dd class="col-sm-9">Advanced (Effective Operational Proficiency)</dd>
+
+                    <dt class="col-sm-3">C2</dt>
+                    <dd class="col-sm-9 mb-0">Proficiency (Mastery)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

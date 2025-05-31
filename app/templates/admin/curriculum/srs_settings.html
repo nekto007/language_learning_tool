@@ -1,0 +1,420 @@
+<!-- templates/admin/curriculum/srs_settings.html -->
+
+{% extends "admin/base.html" %}
+
+{% block title %}Настройки SRS для уроков{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mb-4">
+        <i class="fas fa-cog me-2"></i>Настройки SRS для уроков
+      </h1>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Уроки с карточками</h3>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Модуль</th>
+                  <th>Урок</th>
+                  <th>Мин. карточек</th>
+                  <th>Мин. точность</th>
+                  <th>Новых/день</th>
+                  <th>Повторов/день</th>
+                  <th>Время подсказки</th>
+                  <th>Блокировка</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for lesson in card_lessons %}
+                <tr>
+                  <td>{{ lesson.module.title }}</td>
+                  <td>{{ lesson.title }}</td>
+                  <td>
+                    <span class="editable"
+                          data-lesson-id="{{ lesson.id }}"
+                          data-field="min_cards_required">
+                      {{ lesson.srs_settings.min_cards_required }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="editable"
+                          data-lesson-id="{{ lesson.id }}"
+                          data-field="min_accuracy_required">
+                      {{ lesson.srs_settings.min_accuracy_required }}%
+                    </span>
+                  </td>
+                  <td>
+                    <span class="editable"
+                          data-lesson-id="{{ lesson.id }}"
+                          data-field="new_cards_per_day">
+                      {{ lesson.srs_settings.new_cards_per_day }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="editable"
+                          data-lesson-id="{{ lesson.id }}"
+                          data-field="reviews_per_day">
+                      {{ lesson.srs_settings.reviews_per_day }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="editable"
+                          data-lesson-id="{{ lesson.id }}"
+                          data-field="show_hint_time">
+                      {{ lesson.srs_settings.show_hint_time }}с
+                    </span>
+                  </td>
+                  <td>
+                    <div class="form-check form-switch">
+                      <input class="form-check-input block-toggle"
+                             type="checkbox"
+                             data-lesson-id="{{ lesson.id }}"
+                             {% if lesson.srs_settings.block_next_lesson %}checked{% endif %}>
+                    </div>
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-primary"
+                            onclick="showSettingsModal({{ lesson.id }})">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Глобальные настройки по умолчанию -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Настройки по умолчанию для новых уроков</h3>
+        </div>
+        <div class="card-body">
+          <form id="default-settings-form">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Минимум карточек для завершения</label>
+                  <input type="number" class="form-control" id="default-min-cards" value="20" min="1">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Минимальная точность (%)</label>
+                  <input type="number" class="form-control" id="default-min-accuracy" value="80" min="0" max="100">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Блокировать следующий урок</label>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="default-block-next" checked>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Новых карточек в день</label>
+                  <input type="number" class="form-control" id="default-new-cards" value="10" min="1">
+                  <small class="text-muted">Суммарно для обоих направлений (eng-rus + rus-eng)</small>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Повторений в день</label>
+                  <input type="number" class="form-control" id="default-reviews" value="30" min="1">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Время до подсказки (секунды)</label>
+                  <input type="number" class="form-control" id="default-hint-time" value="10" min="1">
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save me-2"></i>Сохранить настройки по умолчанию
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal для редактирования настроек -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Настройки SRS для урока</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="lesson-settings-form">
+          <input type="hidden" id="modal-lesson-id">
+
+          <div class="mb-3">
+            <label class="form-label">Минимум карточек для завершения</label>
+            <input type="number" class="form-control" id="modal-min-cards" min="1">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Минимальная точность (%)</label>
+            <input type="number" class="form-control" id="modal-min-accuracy" min="0" max="100">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Новых карточек в день</label>
+            <input type="number" class="form-control" id="modal-new-cards" min="1">
+            <small class="text-muted">Суммарно для обоих направлений</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Повторений в день</label>
+            <input type="number" class="form-control" id="modal-reviews" min="1">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Время до подсказки (секунды)</label>
+            <input type="number" class="form-control" id="modal-hint-time" min="1">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Блокировать следующий урок</label>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="modal-block-next">
+              <label class="form-check-label" for="modal-block-next">
+                Требовать выполнения условий для доступа к следующему уроку
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-primary" onclick="saveLessonSettings()">
+          <i class="fas fa-save me-2"></i>Сохранить
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Инлайн редактирование
+document.querySelectorAll('.editable').forEach(span => {
+  span.addEventListener('click', function() {
+    const currentValue = this.textContent.replace('%', '').replace('с', '');
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = currentValue;
+    input.className = 'form-control form-control-sm';
+    input.style.width = '80px';
+
+    const lessonId = this.dataset.lessonId;
+    const field = this.dataset.field;
+
+    input.addEventListener('blur', async () => {
+      const newValue = input.value;
+
+      // Отправляем на сервер
+      try {
+        const response = await fetch(`/admin/curriculum/api/srs-settings/${lessonId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          },
+          body: JSON.stringify({
+            [field]: parseInt(newValue)
+          })
+        });
+
+        if (response.ok) {
+          // Обновляем отображение
+          if (field === 'min_accuracy_required') {
+            span.textContent = newValue + '%';
+          } else if (field === 'show_hint_time') {
+            span.textContent = newValue + 'с';
+          } else {
+            span.textContent = newValue;
+          }
+
+          showToast('Настройки сохранены', 'success');
+        } else {
+          showToast('Ошибка сохранения', 'danger');
+          span.textContent = currentValue + (field === 'min_accuracy_required' ? '%' : '');
+        }
+      } catch (error) {
+        showToast('Ошибка сохранения', 'danger');
+        span.textContent = currentValue + (field === 'min_accuracy_required' ? '%' : '');
+      }
+    });
+
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        input.blur();
+      }
+    });
+
+    this.replaceWith(input);
+    input.focus();
+  });
+});
+
+// Переключатель блокировки
+document.querySelectorAll('.block-toggle').forEach(toggle => {
+  toggle.addEventListener('change', async function() {
+    const lessonId = this.dataset.lessonId;
+    const isChecked = this.checked;
+
+    try {
+      const response = await fetch(`/admin/curriculum/api/srs-settings/${lessonId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({
+          block_next_lesson: isChecked
+        })
+      });
+
+      if (response.ok) {
+        showToast('Настройки сохранены', 'success');
+      } else {
+        showToast('Ошибка сохранения', 'danger');
+        this.checked = !isChecked;
+      }
+    } catch (error) {
+      showToast('Ошибка сохранения', 'danger');
+      this.checked = !isChecked;
+    }
+  });
+});
+
+// Модальное окно настроек
+async function showSettingsModal(lessonId) {
+  try {
+    const response = await fetch(`/admin/curriculum/api/srs-settings/${lessonId}`);
+    const settings = await response.json();
+
+    document.getElementById('modal-lesson-id').value = lessonId;
+    document.getElementById('modal-min-cards').value = settings.min_cards_required;
+    document.getElementById('modal-min-accuracy').value = settings.min_accuracy_required;
+    document.getElementById('modal-new-cards').value = settings.new_cards_per_day;
+    document.getElementById('modal-reviews').value = settings.reviews_per_day;
+    document.getElementById('modal-hint-time').value = settings.show_hint_time;
+    document.getElementById('modal-block-next').checked = settings.block_next_lesson;
+
+    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    modal.show();
+  } catch (error) {
+    showToast('Ошибка загрузки настроек', 'danger');
+  }
+}
+
+async function saveLessonSettings() {
+  const lessonId = document.getElementById('modal-lesson-id').value;
+
+  const settings = {
+    min_cards_required: parseInt(document.getElementById('modal-min-cards').value),
+    min_accuracy_required: parseInt(document.getElementById('modal-min-accuracy').value),
+    new_cards_per_day: parseInt(document.getElementById('modal-new-cards').value),
+    reviews_per_day: parseInt(document.getElementById('modal-reviews').value),
+    show_hint_time: parseInt(document.getElementById('modal-hint-time').value),
+    block_next_lesson: document.getElementById('modal-block-next').checked
+  };
+
+  try {
+    const response = await fetch(`/admin/curriculum/api/srs-settings/${lessonId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (response.ok) {
+      showToast('Настройки сохранены', 'success');
+      location.reload();
+    } else {
+      showToast('Ошибка сохранения', 'danger');
+    }
+  } catch (error) {
+    showToast('Ошибка сохранения', 'danger');
+  }
+}
+
+// Настройки по умолчанию
+document.getElementById('default-settings-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const settings = {
+    min_cards_required: parseInt(document.getElementById('default-min-cards').value),
+    min_accuracy_required: parseInt(document.getElementById('default-min-accuracy').value),
+    new_cards_per_day: parseInt(document.getElementById('default-new-cards').value),
+    reviews_per_day: parseInt(document.getElementById('default-reviews').value),
+    show_hint_time: parseInt(document.getElementById('default-hint-time').value),
+    block_next_lesson: document.getElementById('default-block-next').checked
+  };
+
+  try {
+    const response = await fetch('/admin/curriculum/api/srs-settings/defaults', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (response.ok) {
+      showToast('Настройки по умолчанию сохранены', 'success');
+    } else {
+      showToast('Ошибка сохранения', 'danger');
+    }
+  } catch (error) {
+    showToast('Ошибка сохранения', 'danger');
+  }
+});
+
+function getCsrfToken() {
+  return document.querySelector('[name=csrf_token]')?.value || '';
+}
+
+function showToast(message, type) {
+  // Простое уведомление, можно заменить на более красивое
+  const toast = document.createElement('div');
+  toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+  toast.style.zIndex = '9999';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+</script>
+
+<style>
+.editable {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.editable:hover {
+  background-color: #f0f0f0;
+}
+
+.table td {
+  vertical-align: middle;
+}
+</style>
+{% endblock %}

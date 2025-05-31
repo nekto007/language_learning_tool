@@ -7,20 +7,16 @@ import logging
 import os
 import sys
 
-import click
-from flask.cli import cli
-
-from config.settings import (
-    COLLECTIONS_TABLE, DB_CONFIG, MAX_PAGES, MEDIA_FOLDER, PHRASAL_VERB_FILE, PHRASAL_VERB_TABLE, TRANSLATE_FILE
-)
-from app.words.models import CollectionWords as Word
 from app.books.models import Book
-from app.utils.helpers import setup_logging
-from app.nlp.setup import download_nltk_resources, initialize_nltk
 from app.nlp.processor import prepare_word_data
-from app.web.scraper import WebScraper
+from app.nlp.setup import download_nltk_resources, initialize_nltk
 from app.repository import DatabaseRepository
-
+from app.utils.helpers import setup_logging
+from app.web.scraper import WebScraper
+from app.words.models import CollectionWords as Word
+from config.settings import (
+    COLLECTIONS_TABLE, DB_CONFIG, MAX_PAGES, MEDIA_FOLDER, PHRASAL_VERB_FILE, PHRASAL_VERB_TABLE, TRANSLATE_FILE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +307,7 @@ def get_download_words(args: argparse.Namespace) -> None:
     # Form query
     query = f"""
         SELECT english_word FROM {COLLECTIONS_TABLE}
-        WHERE russian_word IS NOT NULL AND get_download = FALSE
+        WHERE russian_word IS NOT NULL AND get_download = 0 or get_download IS NULL
     """
 
     if pattern:
@@ -517,29 +513,42 @@ def show_status_statistics(args: argparse.Namespace) -> None:
     # Check and update database schema
     repo.update_schema_if_needed()
 
-    # Query to count words by status
+    # Query to count words by status using new user_words table
     query = """
-        SELECT learning_status, COUNT(*) as count
-        FROM collection_words
-        GROUP BY learning_status
-        ORDER BY learning_status
+        SELECT uw.status, COUNT(*) as count
+        FROM user_words uw
+        GROUP BY uw.status
+        ORDER BY uw.status
     """
     result = repo.execute_query(query, fetch=True)
 
     if not result:
-        logger.warning("No words found in database")
-        return
+        logger.warning("No user word statistics found in database")
+        # Fallback to collection_words if no user_words data
+        query = """
+            SELECT 'new' as status, COUNT(*) as count
+            FROM collection_words
+        """
+        result = repo.execute_query(query, fetch=True)
 
     # Prepare statistics
     total_words = 0
     status_counts = []
+
+    # Status mapping for display
+    status_labels = {
+        'new': 'New',
+        'learning': 'Learning',
+        'review': 'Review',
+        'mastered': 'Mastered'
+    }
 
     for row in result:
         status = row[0]
         count = row[1]
         total_words += count
 
-        status_label = Word.STATUS_LABELS.get(status, f"Unknown status ({status})")
+        status_label = status_labels.get(status, f"Unknown status ({status})")
         status_counts.append((status, status_label, count))
 
     # Output statistics
@@ -550,23 +559,24 @@ def show_status_statistics(args: argparse.Namespace) -> None:
         percentage = (count / total_words) * 100 if total_words > 0 else 0
         print(f"{label}: {count} words ({percentage:.1f}%)")
 
-    print(f"\nTotal words in database: {total_words}")
+    print(f"\nTotal words tracked: {total_words}")
 
     if args.book:
-        # Statistics for book
-        query = f"""
-            SELECT cw.learning_status, COUNT(*) as count
-            FROM collection_words cw
+        # Statistics for book using updated schema
+        query = """
+            SELECT uw.status, COUNT(*) as count
+            FROM user_words uw
+            JOIN collection_words cw ON uw.word_id = cw.id
             JOIN word_book_link wbl ON cw.id = wbl.word_id
             JOIN book b ON wbl.book_id = b.id
             WHERE b.title = %s
-            GROUP BY cw.learning_status
-            ORDER BY cw.learning_status
+            GROUP BY uw.status
+            ORDER BY uw.status
         """
         result = repo.execute_query(query, (args.book,), fetch=True)
 
         if not result:
-            logger.warning(f"No words found for book: {args.book}")
+            logger.warning(f"No user word statistics found for book: {args.book}")
             return
 
         # Prepare statistics for book
@@ -578,7 +588,7 @@ def show_status_statistics(args: argparse.Namespace) -> None:
             count = row[1]
             book_total += count
 
-            status_label = Word.STATUS_LABELS.get(status, f"Unknown status ({status})")
+            status_label = status_labels.get(status, f"Unknown status ({status})")
             book_status_counts.append((status, status_label, count))
 
         # Output book statistics

@@ -1,0 +1,264 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}User Progress{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">User Progress</h1>
+    <p class="page-subtitle">Track student progress through the curriculum</p>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Progress Records</h5>
+                <h2 class="mb-0">{{ progress_entries|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Completed</h5>
+                <h2 class="mb-0">{{ status_stats.get('completed', 0) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5 class="card-title">In Progress</h5>
+                <h2 class="mb-0">{{ status_stats.get('in_progress', 0) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Not Started</h5>
+                <h2 class="mb-0">{{ status_stats.get('not_started', 0) }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin.user_progress') }}" class="row align-items-end">
+            <div class="col-md-3">
+                <label for="user_id" class="form-label">User</label>
+                <select name="user_id" id="user_id" class="form-select">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if user_id == user.id %}selected{% endif %}>
+                            {{ user.username }} ({{ user.email }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="level_id" class="form-label">Level</label>
+                <select name="level_id" id="level_id" class="form-select" onchange="updateModulesFilter()">
+                    <option value="">All Levels</option>
+                    {% for level in levels %}
+                        <option value="{{ level.id }}" {% if level_id == level.id %}selected{% endif %}>
+                            {{ level.code }} - {{ level.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="module_id" class="form-label">Module</label>
+                <select name="module_id" id="module_id" class="form-select">
+                    <option value="">All Modules</option>
+                    {% for module in modules %}
+                        <option value="{{ module.id }}" {% if module_id == module.id %}selected{% endif %}>
+                            Module {{ module.number }}: {{ module.title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="not_started" {% if status == 'not_started' %}selected{% endif %}>Not Started</option>
+                    <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </div>
+            {% if user_id or level_id or module_id or status %}
+            <div class="col-md-1">
+                <a href="{{ url_for('admin.user_progress') }}" class="btn btn-secondary w-100">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Progress Table -->
+<div class="card">
+    <div class="card-body p-0">
+        {% if progress_entries %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Level</th>
+                        <th>Module</th>
+                        <th>Lesson</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Started</th>
+                        <th>Completed</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for progress, lesson, module, level, user in progress_entries %}
+                    <tr>
+                        <td>
+                            <strong>{{ user.username }}</strong><br>
+                            <small class="text-muted">{{ user.email }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ level.code }}</span>
+                        </td>
+                        <td>
+                            <small>Module {{ module.number }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ lesson.title }}</strong><br>
+                            <small class="text-muted">Lesson {{ lesson.number }}</small>
+                        </td>
+                        <td>
+                            {% if progress.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elif progress.status == 'in_progress' %}
+                                <span class="badge bg-warning">In Progress</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not Started</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if progress.score is not none %}
+                                <strong>{{ progress.score }}%</strong>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ progress.started_at.strftime('%Y-%m-%d %H:%M') if progress.started_at else '-' }}</small>
+                        </td>
+                        <td>
+                            <small>{{ progress.completed_at.strftime('%Y-%m-%d %H:%M') if progress.completed_at else '-' }}</small>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.progress_details', progress_id=progress.id) }}"
+                                   class="btn btn-outline-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.reset_progress', progress_id=progress.id) }}"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-outline-warning btn-sm"
+                                            onclick="return confirm('Reset this progress record?')"
+                                            title="Reset Progress">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.delete_progress', progress_id=progress.id) }}"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            onclick="return confirm('Delete this progress record?')"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No progress records found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Export Options</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p>Export progress data for reporting and analysis</p>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary" onclick="exportData('csv')">
+                        <i class="fas fa-file-csv me-2"></i>Export CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="exportData('excel')">
+                        <i class="fas fa-file-excel me-2"></i>Export Excel
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="exportData('json')">
+                        <i class="fas fa-file-code me-2"></i>Export JSON
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <p>Generate progress reports</p>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-success" onclick="generateReport('user')">
+                        <i class="fas fa-user me-2"></i>User Report
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="generateReport('module')">
+                        <i class="fas fa-book me-2"></i>Module Report
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="generateReport('level')">
+                        <i class="fas fa-layer-group me-2"></i>Level Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateModulesFilter() {
+    const levelId = document.getElementById('level_id').value;
+    // In a real application, this would update the modules dropdown via AJAX
+    if (levelId) {
+        document.querySelector('form').submit();
+    }
+}
+
+function exportData(format) {
+    // Add current filters to export URL
+    const params = new URLSearchParams(window.location.search);
+    params.append('export', format);
+    window.location.href = '{{ url_for("admin.user_progress") }}?' + params.toString();
+}
+
+function generateReport(type) {
+    alert('Report generation for ' + type + ' will be implemented');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,473 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Edit Quiz - {{ component.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Edit Quiz Content</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.curriculum') }}">Curriculum</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}">{{ component.title }}</a></li>
+            <li class="breadcrumb-item active">Edit Quiz</li>
+        </ol>
+    </nav>
+</div>
+
+<form method="POST" action="">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Quiz Settings -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quiz Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="passing_score" class="form-label">Passing Score (%)</label>
+                                <input type="number" name="passing_score" id="passing_score" class="form-control"
+                                       value="{{ passing_score }}" min="0" max="100" required>
+                                <small class="form-text text-muted">Minimum score required to pass this quiz</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Total Questions</label>
+                                <input type="text" class="form-control" value="{{ questions|length }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions -->
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Questions</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-plus me-1"></i>Add Question
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="addQuestion('multiple_choice')">Multiple Choice</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="addQuestion('true_false')">True/False</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="addQuestion('fill_blank')">Fill in the Blank</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="addQuestion('matching')">Matching</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="addQuestion('translation')">Translation</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <input type="hidden" name="question_count" id="questionCount" value="{{ questions|length }}">
+                    <div id="questionsList">
+                        {% for i, question in enumerate(questions) %}
+                        <div class="question-item card mb-3" data-index="{{ i }}">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <span class="question-number">Question {{ i + 1 }}</span>
+                                <div>
+                                    <span class="badge bg-info me-2">
+                                        {% if question.type == 'multiple_choice' %}Multiple Choice
+                                        {% elif question.type == 'true_false' %}True/False
+                                        {% elif question.type == 'fill_blank' %}Fill in the Blank
+                                        {% elif question.type == 'matching' %}Matching
+                                        {% elif question.type == 'translation' %}Translation
+                                        {% else %}{{ question.type }}{% endif %}
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <input type="hidden" name="question_type_{{ i }}" value="{{ question.type }}">
+
+                                {% if question.type == 'multiple_choice' %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Question Text</label>
+                                        <input type="text" name="question_text_{{ i }}" class="form-control"
+                                               value="{{ question.text }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Options</label>
+                                        {% for j, option in enumerate(question.options) %}
+                                        <div class="input-group mb-2">
+                                            <div class="input-group-text">
+                                                <input type="radio" name="question_correct_{{ i }}" value="{{ j }}"
+                                                       {% if question.answer == j or question.answer == option %}checked{% endif %}>
+                                            </div>
+                                            <input type="text" name="question_options_{{ i }}[]" class="form-control"
+                                                   value="{{ option }}" placeholder="Option {{ j + 1 }}">
+                                        </div>
+                                        {% endfor %}
+                                        {% if question.options|length < 4 %}
+                                            {% for j in range(question.options|length, 4) %}
+                                            <div class="input-group mb-2">
+                                                <div class="input-group-text">
+                                                    <input type="radio" name="question_correct_{{ i }}" value="{{ j }}">
+                                                </div>
+                                                <input type="text" name="question_options_{{ i }}[]" class="form-control"
+                                                       placeholder="Option {{ j + 1 }}">
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+
+                                {% elif question.type == 'true_false' %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Statement</label>
+                                        <input type="text" name="question_text_{{ i }}" class="form-control"
+                                               value="{{ question.text }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Correct Answer</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_correct_{{ i }}"
+                                                   value="true" id="true_{{ i }}" {% if question.answer %}checked{% endif %}>
+                                            <label class="form-check-label" for="true_{{ i }}">True</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_correct_{{ i }}"
+                                                   value="false" id="false_{{ i }}" {% if not question.answer %}checked{% endif %}>
+                                            <label class="form-check-label" for="false_{{ i }}">False</label>
+                                        </div>
+                                    </div>
+
+                                {% elif question.type == 'fill_blank' %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Question (use ____ for blank)</label>
+                                        <input type="text" name="question_text_{{ i }}" class="form-control"
+                                               value="{{ question.text }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Correct Answer</label>
+                                        <input type="text" name="question_correct_{{ i }}" class="form-control"
+                                               value="{{ question.answer }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Acceptable Answers (one per line)</label>
+                                        <textarea name="question_acceptable_{{ i }}[]" class="form-control" rows="3"
+                                                  placeholder="Alternative correct answers">{{ '\n'.join(question.acceptable_answers) if question.acceptable_answers else '' }}</textarea>
+                                    </div>
+
+                                {% elif question.type == 'matching' %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Instructions</label>
+                                        <input type="text" name="question_text_{{ i }}" class="form-control"
+                                               value="{{ question.text }}" placeholder="Match the following items">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Matching Pairs</label>
+                                        {% if question.pairs %}
+                                            {% for pair in question.pairs %}
+                                            <div class="row mb-2">
+                                                <div class="col-md-5">
+                                                    <input type="text" name="question_pair_left_{{ i }}[]" class="form-control"
+                                                           value="{{ pair.left }}" placeholder="Left item">
+                                                </div>
+                                                <div class="col-md-2 text-center">
+                                                    <i class="fas fa-arrows-alt-h mt-2"></i>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <input type="text" name="question_pair_right_{{ i }}[]" class="form-control"
+                                                           value="{{ pair.right }}" placeholder="Right item">
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% for j in range(3) %}
+                                            <div class="row mb-2">
+                                                <div class="col-md-5">
+                                                    <input type="text" name="question_pair_left_{{ i }}[]" class="form-control" placeholder="Left item">
+                                                </div>
+                                                <div class="col-md-2 text-center">
+                                                    <i class="fas fa-arrows-alt-h mt-2"></i>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <input type="text" name="question_pair_right_{{ i }}[]" class="form-control" placeholder="Right item">
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+
+                                {% elif question.type == 'translation' %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Text to Translate</label>
+                                        <input type="text" name="question_text_{{ i }}" class="form-control"
+                                               value="{{ question.text }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Correct Translation(s)</label>
+                                        <textarea name="question_correct_{{ i }}" class="form-control" rows="2" required>{{ question.answer[0] if question.answer and question.answer is iterable else question.answer }}</textarea>
+                                        <small class="form-text text-muted">Enter the main correct translation</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Alternative Translations (one per line)</label>
+                                        <textarea name="question_acceptable_{{ i }}[]" class="form-control" rows="3"
+                                                  placeholder="Other acceptable translations">{{ '\n'.join(question.answer[1:]) if question.answer and question.answer is iterable and question.answer|length > 1 else '' }}</textarea>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if not questions %}
+                    <p class="text-center text-muted py-4">No questions added yet. Click "Add Question" to start.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Submit buttons -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Quiz
+                        </button>
+                        <a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quiz Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-7">Total Questions:</dt>
+                        <dd class="col-sm-5"><span id="totalQuestions">{{ questions|length }}</span></dd>
+
+                        <dt class="col-sm-7">Passing Score:</dt>
+                        <dd class="col-sm-5">{{ passing_score }}%</dd>
+
+                        <dt class="col-sm-7">Questions to Pass:</dt>
+                        <dd class="col-sm-5"><span id="questionsToPass">{{ ((questions|length * passing_score / 100)|round(0, 'ceil'))|int }}</span></dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Question Types</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="small mb-0">
+                        <dt>Multiple Choice</dt>
+                        <dd>Single correct answer from multiple options</dd>
+
+                        <dt>True/False</dt>
+                        <dd>Statement evaluation</dd>
+
+                        <dt>Fill in the Blank</dt>
+                        <dd>Complete the sentence with missing word(s)</dd>
+
+                        <dt>Matching</dt>
+                        <dd>Connect related items</dd>
+
+                        <dt>Translation</dt>
+                        <dd>Translate text between languages</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>Mix different question types</li>
+                        <li>Keep questions clear and concise</li>
+                        <li>Avoid trick questions</li>
+                        <li>Test one concept per question</li>
+                        <li>Provide clear instructions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+let questionIndex = {{ questions|length }};
+
+function updateQuestionNumbers() {
+    const questions = document.querySelectorAll('.question-item');
+    questions.forEach((question, index) => {
+        question.querySelector('.question-number').textContent = `Question ${index + 1}`;
+        question.dataset.index = index;
+
+        // Update all input names
+        question.querySelectorAll('input, textarea, select').forEach(input => {
+            if (input.name) {
+                input.name = input.name.replace(/_\d+/, '_' + index);
+            }
+        });
+    });
+
+    document.getElementById('questionCount').value = questions.length;
+    document.getElementById('totalQuestions').textContent = questions.length;
+
+    // Update questions to pass
+    const passingScore = parseInt(document.getElementById('passing_score').value) || 60;
+    const questionsToPass = Math.ceil(questions.length * passingScore / 100);
+    document.getElementById('questionsToPass').textContent = questionsToPass;
+}
+
+function removeQuestion(button) {
+    button.closest('.question-item').remove();
+    updateQuestionNumbers();
+}
+
+function addQuestion(type) {
+    const questionsList = document.getElementById('questionsList');
+    const div = document.createElement('div');
+    div.className = 'question-item card mb-3';
+    div.dataset.index = questionIndex;
+
+    let content = '';
+    let typeLabel = '';
+
+    switch(type) {
+        case 'multiple_choice':
+            typeLabel = 'Multiple Choice';
+            content = `
+                <div class="mb-3">
+                    <label class="form-label">Question Text</label>
+                    <input type="text" name="question_text_${questionIndex}" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Options</label>
+                    ${[0,1,2,3].map(i => `
+                        <div class="input-group mb-2">
+                            <div class="input-group-text">
+                                <input type="radio" name="question_correct_${questionIndex}" value="${i}">
+                            </div>
+                            <input type="text" name="question_options_${questionIndex}[]" class="form-control" placeholder="Option ${i + 1}">
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            break;
+
+        case 'true_false':
+            typeLabel = 'True/False';
+            content = `
+                <div class="mb-3">
+                    <label class="form-label">Statement</label>
+                    <input type="text" name="question_text_${questionIndex}" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Correct Answer</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="question_correct_${questionIndex}" value="true" id="true_${questionIndex}">
+                        <label class="form-check-label" for="true_${questionIndex}">True</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="question_correct_${questionIndex}" value="false" id="false_${questionIndex}">
+                        <label class="form-check-label" for="false_${questionIndex}">False</label>
+                    </div>
+                </div>
+            `;
+            break;
+
+        case 'fill_blank':
+            typeLabel = 'Fill in the Blank';
+            content = `
+                <div class="mb-3">
+                    <label class="form-label">Question (use ____ for blank)</label>
+                    <input type="text" name="question_text_${questionIndex}" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Correct Answer</label>
+                    <input type="text" name="question_correct_${questionIndex}" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Acceptable Answers (one per line)</label>
+                    <textarea name="question_acceptable_${questionIndex}[]" class="form-control" rows="3" placeholder="Alternative correct answers"></textarea>
+                </div>
+            `;
+            break;
+
+        case 'matching':
+            typeLabel = 'Matching';
+            content = `
+                <div class="mb-3">
+                    <label class="form-label">Instructions</label>
+                    <input type="text" name="question_text_${questionIndex}" class="form-control" placeholder="Match the following items">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Matching Pairs</label>
+                    ${[0,1,2].map(i => `
+                        <div class="row mb-2">
+                            <div class="col-md-5">
+                                <input type="text" name="question_pair_left_${questionIndex}[]" class="form-control" placeholder="Left item">
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-arrows-alt-h mt-2"></i>
+                            </div>
+                            <div class="col-md-5">
+                                <input type="text" name="question_pair_right_${questionIndex}[]" class="form-control" placeholder="Right item">
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            break;
+
+        case 'translation':
+            typeLabel = 'Translation';
+            content = `
+                <div class="mb-3">
+                    <label class="form-label">Text to Translate</label>
+                    <input type="text" name="question_text_${questionIndex}" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Correct Translation(s)</label>
+                    <textarea name="question_correct_${questionIndex}" class="form-control" rows="2" required></textarea>
+                    <small class="form-text text-muted">Enter the main correct translation</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Alternative Translations (one per line)</label>
+                    <textarea name="question_acceptable_${questionIndex}[]" class="form-control" rows="3" placeholder="Other acceptable translations"></textarea>
+                </div>
+            `;
+            break;
+    }
+
+    div.innerHTML = `
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span class="question-number">Question ${document.querySelectorAll('.question-item').length + 1}</span>
+            <div>
+                <span class="badge bg-info me-2">${typeLabel}</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <input type="hidden" name="question_type_${questionIndex}" value="${type}">
+            ${content}
+        </div>
+    `;
+
+    questionsList.appendChild(div);
+    questionIndex++;
+    updateQuestionNumbers();
+}
+
+// Update questions to pass when passing score changes
+document.getElementById('passing_score').addEventListener('input', function() {
+    updateQuestionNumbers();
+});
+</script>
+{% endblock %}

@@ -1,243 +1,157 @@
 {% extends 'admin/base.html' %}
 
-{% block title %}Панель управления{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">Панель управления</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group mr-2">
-            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-sync-alt"></i> Обновить
-            </a>
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Welcome back! Here's what's happening with your platform.</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value">{{ total_users }}</div>
+            <i class="fas fa-users stat-icon"></i>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-label">Active Users</div>
+            <div class="stat-value">{{ active_users }}</div>
+            <i class="fas fa-user-check stat-icon"></i>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-label">New Users (7 days)</div>
+            <div class="stat-value">{{ new_users }}</div>
+            <i class="fas fa-user-plus stat-icon"></i>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-label">Active Recently</div>
+            <div class="stat-value">{{ active_recently }}</div>
+            <i class="fas fa-clock stat-icon"></i>
         </div>
     </div>
 </div>
 
-<!-- Статистические карточки -->
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-stats card-stats-primary shadow h-100 py-2">
+<div class="row g-4">
+    <!-- User Activity Chart -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">User Activity</h5>
+            </div>
             <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Всего пользователей
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users card-stats-icon text-primary"></i>
-                    </div>
-                </div>
+                <canvas id="activityChart" height="100"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-stats card-stats-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Активные пользователи
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_users }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-check card-stats-icon text-success"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-stats card-stats-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Новые пользователи (7 дней)
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_users }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-plus card-stats-icon text-info"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-stats card-stats-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Недавняя активность (7 дней)
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_recently }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-clock card-stats-icon text-warning"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- График активности -->
-    <div class="col-lg-8 mb-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Активность пользователей</h6>
+    <!-- Platform Stats -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Platform Statistics</h5>
             </div>
             <div class="card-body">
-                <div class="chart-area">
-                    <canvas id="usersActivityChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Круговая диаграмма статусов обучения -->
-    <div class="col-lg-4 mb-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Статистика приложения</h6>
-            </div>
-            <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col">
-                        <div class="small text-gray-500">Всего книг</div>
-                        <div class="font-weight-bold">{{ total_books }}</div>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-muted small">Total Books</div>
+                        <div class="h4 mb-0">{{ total_books }}</div>
                     </div>
-                    <div class="col">
-                        <div class="small text-gray-500">Всего слов</div>
-                        <div class="font-weight-bold">{{ total_words }}</div>
+                    <div class="col-6">
+                        <div class="text-muted small">Total Words</div>
+                        <div class="h4 mb-0">{{ "{:,}".format(total_words) }}</div>
                     </div>
-                </div>
-                <div class="row mb-4">
-                    <div class="col">
-                        <div class="small text-gray-500">Изучено фрагментов</div>
-                        <div class="font-weight-bold">{{ total_readings }}</div>
+                    <div class="col-6">
+                        <div class="text-muted small">Words w/ Audio</div>
+                        <div class="h4 mb-0">{{ "{:,}".format(words_with_audio) }}</div>
                     </div>
-                    <div class="col">
-                        <div class="small text-gray-500">Сессий обучения</div>
-                        <div class="font-weight-bold">-</div>
+                    <div class="col-6">
+                        <div class="text-muted small">Total Lessons</div>
+                        <div class="h4 mb-0">{{ total_lessons }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">Active Lessons</div>
+                        <div class="h4 mb-0">{{ active_lessons }}</div>
                     </div>
                 </div>
 
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('admin.stats') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-chart-pie mr-1"></i> Подробная статистика
-                    </a>
-                </div>
+                <hr class="my-3">
+
+                <canvas id="progressChart" height="200"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <!-- Последние зарегистрированные пользователи -->
-    <div class="col-lg-12 mb-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Недавно зарегистрированные пользователи</h6>
-                <div class="dropdown no-arrow">
-                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
-                         aria-labelledby="dropdownMenuLink">
-                        <div class="dropdown-header">Действия:</div>
-                        <a class="dropdown-item" href="{{ url_for('admin.users') }}">
-                            <i class="fas fa-users fa-sm fa-fw mr-2 text-gray-400"></i>
-                            Все пользователи
-                        </a>
-                        <a class="dropdown-item" href="{{ url_for('reminders.reminder_dashboard') }}">
-                            <i class="fas fa-bell fa-sm fa-fw mr-2 text-gray-400"></i>
-                            Отправить напоминания
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Имя пользователя</th>
-                                <th>Email</th>
-                                <th>Зарегистрирован</th>
-                                <th>Последний вход</th>
-                                <th>Статус</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user in recent_users %}
-                                <tr>
-                                    <td>{{ user.id }}</td>
-                                    <td>{{ user.username }}</td>
-                                    <td>{{ user.email }}</td>
-                                    <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                                    <td>
-                                        {% if user.last_login %}
-                                            {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
-                                        {% else %}
-                                            <span class="text-muted">Никогда</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if user.active %}
-                                            <span class="badge badge-success">Активен</span>
-                                        {% else %}
-                                            <span class="badge badge-danger">Отключен</span>
-                                        {% endif %}
-
-                                        {% if user.is_admin %}
-                                            <span class="badge badge-info">Админ</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
-                                                <button type="submit" class="btn btn-sm btn-{{ 'danger' if user.active else 'success' }}"
-                                                        data-toggle="tooltip" data-placement="top"
-                                                        title="{{ 'Деактивировать' if user.active else 'Активировать' }}">
-                                                    <i class="fas fa-{{ 'user-slash' if user.active else 'user-check' }}"></i>
-                                                </button>
-                                            </form>
-
-                                            {% if current_user.id != user.id %}
-                                                <form action="{{ url_for('admin.toggle_admin_status', user_id=user.id) }}" method="POST" class="d-inline ml-1">
-                                                    <button type="submit" class="btn btn-sm btn-{{ 'secondary' if user.is_admin else 'info' }}"
-                                                            data-toggle="tooltip" data-placement="top"
-                                                            title="{{ 'Отозвать права админа' if user.is_admin else 'Сделать админом' }}">
-                                                        <i class="fas fa-user-{{ 'minus' if user.is_admin else 'shield' }}"></i>
-                                                    </button>
-                                                </form>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('admin.users') }}" class="btn btn-primary">
-                        <i class="fas fa-users mr-1"></i> Все пользователи
-                    </a>
-                </div>
-            </div>
+<!-- Recent Users Table -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Recent Users</h5>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-sm btn-primary">View All</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Registered</th>
+                        <th>Last Login</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in recent_users[:5] %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email or '-' }}</td>
+                        <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
+                        <td>
+                            {% if user.last_login %}
+                                {{ user.last_login.strftime('%d %b %Y') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                            {% if user.is_admin %}
+                                <span class="badge bg-info">Admin</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if user.active else 'success' }}" title="{{ 'Deactivate' if user.active else 'Activate' }}">
+                                        <i class="fas fa-{{ 'ban' if user.active else 'check' }}"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -245,87 +159,63 @@
 
 {% block scripts %}
 <script>
-    // Фиктивные данные для графика (в реальном приложении эти данные будут загружаться из API)
-    var ctxActivity = document.getElementById('usersActivityChart').getContext('2d');
-    var usersActivityChart = new Chart(ctxActivity, {
-        type: 'line',
-        data: {
-            labels: ['7 дней назад', '6 дней назад', '5 дней назад', '4 дня назад', '3 дня назад', '2 дня назад', 'Вчера'],
-            datasets: [{
-                label: 'Новые пользователи',
-                data: [3, 5, 2, 7, 4, 6, {{ new_users }}],
-                borderColor: 'rgba(78, 115, 223, 1)',
-                backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
-                pointBorderColor: '#fff',
-                pointRadius: 4,
-                tension: 0.3,
-                fill: true
-            }, {
-                label: 'Активные пользователи',
-                data: [10, 15, 8, 12, 18, 14, {{ active_recently }}],
-                borderColor: 'rgba(28, 200, 138, 1)',
-                backgroundColor: 'rgba(28, 200, 138, 0.1)',
-                pointBackgroundColor: 'rgba(28, 200, 138, 1)',
-                pointBorderColor: '#fff',
-                pointRadius: 4,
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: {
-            maintainAspectRatio: false,
-            responsive: true,
-            layout: {
-                padding: {
-                    left: 10,
-                    right: 25,
-                    top: 25,
-                    bottom: 0
-                }
-            },
-            scales: {
-                xAxes: [{
-                    gridLines: {
-                        display: false,
-                        drawBorder: false
-                    }
-                }],
-                yAxes: [{
-                    ticks: {
-                        beginAtZero: true
-                    }
-                }]
-            },
+// Activity Chart
+const activityCtx = document.getElementById('activityChart').getContext('2d');
+new Chart(activityCtx, {
+    type: 'line',
+    data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+            label: 'New Users',
+            data: [12, 19, 3, 5, 2, 3, {{ new_users }}],
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'Active Users',
+            data: [30, 45, 28, 40, 35, 48, {{ active_recently }}],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
             legend: {
-                display: true,
-                position: 'top'
-            },
-            tooltips: {
-                backgroundColor: "rgb(255,255,255)",
-                bodyFontColor: "#858796",
-                titleMarginBottom: 10,
-                titleFontColor: '#6e707e',
-                titleFontSize: 14,
-                borderColor: '#dddfeb',
-                borderWidth: 1,
-                xPadding: 15,
-                yPadding: 15,
-                displayColors: false,
-                caretPadding: 10,
-                callbacks: {
-                    label: function(tooltipItem, chart) {
-                        var datasetLabel = chart.datasets[tooltipItem.datasetIndex].label || '';
-                        return datasetLabel + ': ' + tooltipItem.yLabel;
-                    }
-                }
+                position: 'bottom',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
             }
         }
-    });
+    }
+});
 
-    // Инициализация тултипов
-    $(function () {
-        $('[data-toggle="tooltip"]').tooltip();
-    });
+// Progress Chart (Doughnut)
+const progressCtx = document.getElementById('progressChart').getContext('2d');
+new Chart(progressCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Active', 'Inactive', 'New'],
+        datasets: [{
+            data: [{{ active_users }}, {{ total_users - active_users - new_users }}, {{ new_users }}],
+            backgroundColor: ['#10b981', '#ef4444', '#3b82f6'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
 </script>
 {% endblock %}

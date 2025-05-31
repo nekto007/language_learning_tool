@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2025-04-11 14:03+0300\n"
-"PO-Revision-Date: 2025-05-03 01:14+0300\n"
+"PO-Revision-Date: 2025-05-12 16:59+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
 "Language-Team: ru <LL@li.org>\n"
@@ -1523,4 +1523,1040 @@ msgstr "Запрос на восстановление пароля"
 
 msgid "Invalid email or password"
 msgstr "Неверное имя пользователя или пароль"
+
+msgid "Pre-Beginner"
+msgstr "Нулевой уровень"
+
+msgid "Beginner"
+msgstr "Начинающий"
+
+msgid "Elementary"
+msgstr "Элементарный"
+
+msgid "Intermediate"
+msgstr "Средний уровень"
+
+msgid "Upper Intermediate"
+msgstr "Выше среднего"
+
+msgid "Advanced"
+msgstr "Продвинутый"
+
+msgid "Proficiency"
+msgstr "Свободное владение"
+
+# Admin panel translations
+msgid "Create Lesson"
+msgstr "Создать урок"
+
+msgid "Edit Module"
+msgstr "Редактировать модуль"
+
+msgid "Users Management"
+msgstr "Управление пользователями"
+
+msgid "Curriculum"
+msgstr "Учебная программа"
+
+msgid "CEFR Level Guide"
+msgstr "Руководство по уровням CEFR"
+
+msgid "Module Tips"
+msgstr "Советы по модулю"
+
+# Form labels and placeholders
+msgid "Search by username or email"
+msgstr "Поиск по имени пользователя или email"
+
+msgid "Enter an example sentence"
+msgstr "Введите пример предложения"
+
+msgid "Time Limit (seconds)"
+msgstr "Ограничение времени (секунды)"
+
+msgid "Lesson number within the module"
+msgstr "Номер урока в модуле"
+
+# Buttons
+msgid "Apply Filters"
+msgstr "Применить фильтры"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "Add Exercise"
+msgstr "Добавить упражнение"
+
+msgid "Remove Pair"
+msgstr "Удалить пару"
+
+msgid "Save Changes"
+msgstr "Сохранить изменения"
+
+msgid "Delete"
+msgstr "Удалить"
+
+# Navigation
+msgid "Main"
+msgstr "Главная"
+
+msgid "Content"
+msgstr "Содержание"
+
+msgid "System"
+msgstr "Система"
+
+# Status values
+msgid "new"
+msgstr "новое"
+
+msgid "learning"
+msgstr "изучается"
+
+msgid "review"
+msgstr "повторение"
+
+msgid "mastered"
+msgstr "выучено"
+
+msgid "easy"
+msgstr "легкий"
+
+msgid "medium"
+msgstr "средний"
+
+msgid "hard"
+msgstr "сложный"
+
+msgid "basic"
+msgstr "базовый"
+
+msgid "reversed"
+msgstr "обратный"
+
+msgid "cloze"
+msgstr "с пропусками"
+
+# Informational text
+msgid "No collection assigned to this vocabulary lesson."
+msgstr "К этому уроку лексики не назначена коллекция."
+
+msgid "0 = no time limit"
+msgstr "0 = без ограничения времени"
+
+msgid "2 characters (e.g., A0, A1, B2)"
+msgstr "2 символа (например, A0, A1, B2)"
+
+# Table headers
+msgid "Role"
+msgstr "Роль"
+
+msgid "Left Side"
+msgstr "Левая сторона"
+
+msgid "Right Side"
+msgstr "Правая сторона"
+
+msgid "Correct Answer"
+msgstr "Правильный ответ"
+
+# Error messages
+msgid "Please select at least one word first."
+msgstr "Пожалуйста, сначала выберите хотя бы одно слово."
+
+msgid "Please complete all exercises before proceeding."
+msgstr "Пожалуйста, выполните все упражнения перед продолжением."
+
+msgid "There was an error completing the lesson. Please try again."
+msgstr "При завершении урока произошла ошибка. Пожалуйста, попробуйте снова."
+
+# Mixed language fixes
+msgid "Web Scraping"
+msgstr "Веб-скрейпинг"
+
+msgid "Web Scraping Books"
+msgstr "Веб-скрейпинг книг"
+
+msgid "Listening Format"
+msgstr "Формат аудирования"
+
+msgid "URL for parsing"
+msgstr "URL для парсинга"
+
+# Technical terms
+msgid "HTTP URL"
+msgstr "HTTP URL"
+
+msgid "Anki Format"
+msgstr "Формат Anki"
+
+msgid "TXT"
+msgstr "TXT"
+
+msgid "CSV"
+msgstr "CSV"
+
+msgid "JSON"
+msgstr "JSON"
+
+# Additional admin translations
+msgid "Create Level"
+msgstr "Создать уровень"
+
+msgid "Create Module"
+msgstr "Создать модуль"
+
+msgid "Edit Level"
+msgstr "Редактировать уровень"
+
+msgid "Edit Lesson"
+msgstr "Редактировать урок"
+
+msgid "Edit Grammar"
+msgstr "Редактировать грамматику"
+
+msgid "Edit Matching"
+msgstr "Редактировать сопоставление"
+
+msgid "Edit Quiz"
+msgstr "Редактировать викторину"
+
+msgid "Edit Text"
+msgstr "Редактировать текст"
+
+msgid "Import"
+msgstr "Импорт"
+
+msgid "Import Curriculum"
+msgstr "Импорт учебной программы"
+
+msgid "Lesson List"
+msgstr "Список уроков"
+
+msgid "Level List"
+msgstr "Список уровней"
+
+msgid "Module List"
+msgstr "Список модулей"
+
+msgid "Overview"
+msgstr "Обзор"
+
+msgid "Progress Details"
+msgstr "Детали прогресса"
+
+msgid "SRS Settings"
+msgstr "Настройки SRS"
+
+msgid "User Progress"
+msgstr "Прогресс пользователя"
+
+msgid "System Status"
+msgstr "Статус системы"
+
+msgid "Database"
+msgstr "База данных"
+
+msgid "Audio Management"
+msgstr "Управление аудио"
+
+msgid "Word Management"
+msgstr "Управление словами"
+
+msgid "Book Cleanup"
+msgstr "Очистка книг"
+
+msgid "Add Books"
+msgstr "Добавить книги"
+
+msgid "Delete Books"
+msgstr "Удалить книги"
+
+msgid "Quick Import"
+msgstr "Быстрый импорт"
+
+msgid "Reminders Dashboard"
+msgstr "Панель напоминаний"
+
+# Email templates
+msgid "Curriculum Notifications"
+msgstr "Уведомления учебной программы"
+
+msgid "Reminder Test"
+msgstr "Тест напоминания"
+
+# Session complete
+msgid "Session Complete"
+msgstr "Сессия завершена"
+
+msgid "Great job!"
+msgstr "Отличная работа!"
+
+msgid "You've completed this study session"
+msgstr "Вы завершили эту учебную сессию"
+
+# Additional curriculum translations
+msgid "Vocabulary"
+msgstr "Словарь"
+
+msgid "Grammar"
+msgstr "Грамматика"
+
+msgid "Text Exercise"
+msgstr "Текстовое упражнение"
+
+msgid "Matching Exercise"
+msgstr "Упражнение на сопоставление"
+
+msgid "Quiz Exercise"
+msgstr "Упражнение-викторина"
+
+msgid "Final Test"
+msgstr "Финальный тест"
+
+msgid "Final Test Results"
+msgstr "Результаты финального теста"
+
+# Book reader translations
+msgid "Font Size"
+msgstr "Размер шрифта"
+
+msgid "Font Family"
+msgstr "Семейство шрифтов"
+
+msgid "Theme"
+msgstr "Тема"
+
+msgid "Light"
+msgstr "Светлая"
+
+msgid "Dark"
+msgstr "Тёмная"
+
+msgid "Reading Mode"
+msgstr "Режим чтения"
+
+msgid "Page"
+msgstr "Страница"
+
+msgid "Chapter"
+msgstr "Глава"
+
+msgid "Selection Mode"
+msgstr "Режим выделения"
+
+msgid "Reading Settings"
+msgstr "Настройки чтения"
+
+# Admin dashboard translations
+msgid "Recent Activity"
+msgstr "Недавняя активность"
+
+msgid "System Health"
+msgstr "Состояние системы"
+
+msgid "Active Users"
+msgstr "Активные пользователи"
+
+msgid "Total Books"
+msgstr "Всего книг"
+
+msgid "Study Sessions Today"
+msgstr "Учебных сессий сегодня"
+
+msgid "New Users This Week"
+msgstr "Новых пользователей за неделю"
+
+# User management
+msgid "User Details"
+msgstr "Данные пользователя"
+
+msgid "Account Status"
+msgstr "Статус аккаунта"
+
+msgid "Active"
+msgstr "Активный"
+
+msgid "Inactive"
+msgstr "Неактивный"
+
+msgid "Banned"
+msgstr "Заблокирован"
+
+msgid "Admin"
+msgstr "Администратор"
+
+msgid "User"
+msgstr "Пользователь"
+
+msgid "Registration Date"
+msgstr "Дата регистрации"
+
+msgid "Last Activity"
+msgstr "Последняя активность"
+
+msgid "Edit User"
+msgstr "Редактировать пользователя"
+
+msgid "Delete User"
+msgstr "Удалить пользователя"
+
+msgid "Ban User"
+msgstr "Заблокировать пользователя"
+
+msgid "Unban User"
+msgstr "Разблокировать пользователя"
+
+# Book management
+msgid "Book Management"
+msgstr "Управление книгами"
+
+msgid "Add Book"
+msgstr "Добавить книгу"
+
+msgid "Import Books"
+msgstr "Импортировать книги"
+
+msgid "Export Books"
+msgstr "Экспортировать книги"
+
+msgid "Book Status"
+msgstr "Статус книги"
+
+msgid "Published"
+msgstr "Опубликовано"
+
+msgid "Draft"
+msgstr "Черновик"
+
+msgid "Processing"
+msgstr "Обрабатывается"
+
+msgid "Error"
+msgstr "Ошибка"
+
+# Study modes
+msgid "Flashcard Mode"
+msgstr "Режим карточек"
+
+msgid "Quiz Mode"
+msgstr "Режим викторины"
+
+msgid "Matching Mode"
+msgstr "Режим сопоставления"
+
+msgid "Mixed Mode"
+msgstr "Смешанный режим"
+
+msgid "Custom Mode"
+msgstr "Настраиваемый режим"
+
+# Progress tracking
+msgid "Daily Goal"
+msgstr "Дневная цель"
+
+msgid "Weekly Goal"
+msgstr "Недельная цель"
+
+msgid "Monthly Progress"
+msgstr "Месячный прогресс"
+
+msgid "Achievement Unlocked"
+msgstr "Достижение разблокировано"
+
+msgid "Streak Bonus"
+msgstr "Бонус за серию"
+
+msgid "Perfect Score"
+msgstr "Идеальный результат"
+
+# Exercise types
+msgid "Multiple Choice"
+msgstr "Множественный выбор"
+
+msgid "Fill in the Blank"
+msgstr "Заполнить пропуск"
+
+msgid "True or False"
+msgstr "Правда или ложь"
+
+msgid "Drag and Drop"
+msgstr "Перетаскивание"
+
+msgid "Type the Answer"
+msgstr "Введите ответ"
+
+msgid "Listen and Choose"
+msgstr "Прослушайте и выберите"
+
+msgid "Listen and Type"
+msgstr "Прослушайте и введите"
+
+# Feedback messages
+msgid "Well done!"
+msgstr "Молодец!"
+
+msgid "Keep it up!"
+msgstr "Так держать!"
+
+msgid "Almost there!"
+msgstr "Почти получилось!"
+
+msgid "Try again!"
+msgstr "Попробуйте снова!"
+
+msgid "Good effort!"
+msgstr "Хорошая попытка!"
+
+msgid "Excellent!"
+msgstr "Отлично!"
+
+msgid "Perfect!"
+msgstr "Идеально!"
+
+# Time-related
+msgid "Today"
+msgstr "Сегодня"
+
+msgid "Yesterday"
+msgstr "Вчера"
+
+msgid "This Week"
+msgstr "На этой неделе"
+
+msgid "Last Week"
+msgstr "На прошлой неделе"
+
+msgid "This Month"
+msgstr "В этом месяце"
+
+msgid "Last Month"
+msgstr "В прошлом месяце"
+
+msgid "All Time"
+msgstr "За всё время"
+
+# Navigation elements
+msgid "Home"
+msgstr "Главная"
+
+msgid "Back"
+msgstr "Назад"
+
+msgid "Forward"
+msgstr "Вперёд"
+
+msgid "Refresh"
+msgstr "Обновить"
+
+msgid "Menu"
+msgstr "Меню"
+
+msgid "Options"
+msgstr "Опции"
+
+msgid "Help"
+msgstr "Помощь"
+
+msgid "About"
+msgstr "О программе"
+
+msgid "Contact"
+msgstr "Контакт"
+
+msgid "Support"
+msgstr "Поддержка"
+
+# Form elements
+msgid "Required"
+msgstr "Обязательно"
+
+msgid "Optional"
+msgstr "Необязательно"
+
+msgid "Select..."
+msgstr "Выберите..."
+
+msgid "Choose..."
+msgstr "Выберите..."
+
+msgid "Browse..."
+msgstr "Обзор..."
+
+msgid "Upload"
+msgstr "Загрузить"
+
+msgid "Download"
+msgstr "Скачать"
+
+msgid "Submit"
+msgstr "Отправить"
+
+msgid "Reset"
+msgstr "Сбросить"
+
+msgid "Clear Form"
+msgstr "Очистить форму"
+
+# Validation messages
+msgid "This field is required"
+msgstr "Это поле обязательно"
+
+msgid "Invalid format"
+msgstr "Неверный формат"
+
+msgid "Too short"
+msgstr "Слишком короткое"
+
+msgid "Too long"
+msgstr "Слишком длинное"
+
+msgid "Invalid email address"
+msgstr "Неверный адрес электронной почты"
+
+msgid "Passwords do not match"
+msgstr "Пароли не совпадают"
+
+msgid "Username already taken"
+msgstr "Имя пользователя уже занято"
+
+msgid "Email already registered"
+msgstr "Email уже зарегистрирован"
+
+# Success messages
+msgid "Successfully saved"
+msgstr "Успешно сохранено"
+
+msgid "Successfully updated"
+msgstr "Успешно обновлено"
+
+msgid "Successfully deleted"
+msgstr "Успешно удалено"
+
+msgid "Successfully created"
+msgstr "Успешно создано"
+
+msgid "Operation completed"
+msgstr "Операция завершена"
+
+msgid "Changes applied"
+msgstr "Изменения применены"
+
+# Error messages
+msgid "An error occurred"
+msgstr "Произошла ошибка"
+
+msgid "Operation failed"
+msgstr "Операция не удалась"
+
+msgid "Access denied"
+msgstr "Доступ запрещён"
+
+msgid "Not found"
+msgstr "Не найдено"
+
+msgid "Server error"
+msgstr "Ошибка сервера"
+
+msgid "Connection error"
+msgstr "Ошибка соединения"
+
+msgid "Timeout error"
+msgstr "Ошибка тайм-аута"
+
+# Confirmation messages
+msgid "Are you sure?"
+msgstr "Вы уверены?"
+
+msgid "Confirm deletion"
+msgstr "Подтвердите удаление"
+
+msgid "Confirm action"
+msgstr "Подтвердите действие"
+
+msgid "This action cannot be undone"
+msgstr "Это действие нельзя отменить"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
+# Study statistics
+msgid "Accuracy"
+msgstr "Точность"
+
+msgid "Speed"
+msgstr "Скорость"
+
+msgid "Consistency"
+msgstr "Постоянство"
+
+msgid "Best Streak"
+msgstr "Лучшая серия"
+
+msgid "Average Score"
+msgstr "Средний балл"
+
+msgid "Total Time"
+msgstr "Общее время"
+
+msgid "Sessions Completed"
+msgstr "Завершено сессий"
+
+msgid "Words Learned Today"
+msgstr "Слов выучено сегодня"
+
+# Settings categories
+msgid "Account Settings"
+msgstr "Настройки аккаунта"
+
+msgid "Privacy Settings"
+msgstr "Настройки приватности"
+
+msgid "Notification Settings"
+msgstr "Настройки уведомлений"
+
+msgid "Display Settings"
+msgstr "Настройки отображения"
+
+msgid "Language Settings"
+msgstr "Языковые настройки"
+
+msgid "Study Settings"
+msgstr "Настройки обучения"
+
+msgid "Advanced Settings"
+msgstr "Расширенные настройки"
+
+# Lesson content types
+msgid "Introduction"
+msgstr "Введение"
+
+msgid "Explanation"
+msgstr "Объяснение"
+
+msgid "Example"
+msgstr "Пример"
+
+msgid "Practice"
+msgstr "Практика"
+
+msgid "Summary"
+msgstr "Резюме"
+
+msgid "Homework"
+msgstr "Домашнее задание"
+
+msgid "Additional Resources"
+msgstr "Дополнительные ресурсы"
+
+# Audio-related
+msgid "Play Audio"
+msgstr "Воспроизвести аудио"
+
+msgid "Pause Audio"
+msgstr "Пауза"
+
+msgid "Stop Audio"
+msgstr "Остановить"
+
+msgid "Volume"
+msgstr "Громкость"
+
+msgid "Mute"
+msgstr "Без звука"
+
+msgid "Unmute"
+msgstr "Включить звук"
+
+msgid "Audio Not Available"
+msgstr "Аудио недоступно"
+
+# Book categories
+msgid "Fiction"
+msgstr "Художественная литература"
+
+msgid "Non-Fiction"
+msgstr "Документальная литература"
+
+msgid "Educational"
+msgstr "Образовательная"
+
+msgid "Children's Books"
+msgstr "Детские книги"
+
+msgid "Classic Literature"
+msgstr "Классическая литература"
+
+msgid "Modern Literature"
+msgstr "Современная литература"
+
+msgid "Poetry"
+msgstr "Поэзия"
+
+msgid "Drama"
+msgstr "Драма"
+
+msgid "Biography"
+msgstr "Биография"
+
+msgid "Self-Help"
+msgstr "Саморазвитие"
+
+# Additional UI elements
+msgid "Loading, please wait..."
+msgstr "Загрузка, пожалуйста подождите..."
+
+msgid "No data available"
+msgstr "Нет доступных данных"
+
+msgid "No results found"
+msgstr "Результаты не найдены"
+
+msgid "Showing"
+msgstr "Показано"
+
+msgid "to"
+msgstr "до"
+
+msgid "of"
+msgstr "из"
+
+msgid "entries"
+msgstr "записей"
+
+msgid "First"
+msgstr "Первая"
+
+msgid "Last"
+msgstr "Последняя"
+
+msgid "Show More"
+msgstr "Показать больше"
+
+msgid "Show Less"
+msgstr "Показать меньше"
+
+msgid "Expand"
+msgstr "Развернуть"
+
+msgid "Collapse"
+msgstr "Свернуть"
+
+msgid "Filter"
+msgstr "Фильтр"
+
+msgid "Sort"
+msgstr "Сортировка"
+
+msgid "Group By"
+msgstr "Группировать по"
+
+msgid "Export Data"
+msgstr "Экспорт данных"
+
+msgid "Import Data"
+msgstr "Импорт данных"
+
+msgid "Print"
+msgstr "Печать"
+
+msgid "Share"
+msgstr "Поделиться"
+
+msgid "Copy"
+msgstr "Копировать"
+
+msgid "Paste"
+msgstr "Вставить"
+
+msgid "Cut"
+msgstr "Вырезать"
+
+msgid "Undo"
+msgstr "Отменить"
+
+msgid "Redo"
+msgstr "Повторить"
+
+msgid "Select All"
+msgstr "Выбрать всё"
+
+msgid "Deselect All"
+msgstr "Снять выделение"
+
+# Curriculum specific
+msgid "Learning Objectives"
+msgstr "Учебные цели"
+
+msgid "Prerequisites"
+msgstr "Предварительные требования"
+
+msgid "Duration"
+msgstr "Продолжительность"
+
+msgid "Difficulty Level"
+msgstr "Уровень сложности"
+
+msgid "Points"
+msgstr "Баллы"
+
+msgid "Experience Points"
+msgstr "Очки опыта"
+
+msgid "Completion Rate"
+msgstr "Процент завершения"
+
+msgid "Pass Rate"
+msgstr "Процент прохождения"
+
+msgid "Average Time"
+msgstr "Среднее время"
+
+msgid "Attempts"
+msgstr "Попытки"
+
+msgid "Best Score"
+msgstr "Лучший результат"
+
+msgid "Current Score"
+msgstr "Текущий результат"
+
+msgid "Required Score"
+msgstr "Требуемый результат"
+
+msgid "Bonus Points"
+msgstr "Бонусные баллы"
+
+msgid "Time Bonus"
+msgstr "Бонус за время"
+
+msgid "Perfect Bonus"
+msgstr "Бонус за идеальный результат"
+
+# Social features
+msgid "Friends"
+msgstr "Друзья"
+
+msgid "Following"
+msgstr "Подписки"
+
+msgid "Followers"
+msgstr "Подписчики"
+
+msgid "Groups"
+msgstr "Группы"
+
+msgid "Challenges"
+msgstr "Вызовы"
+
+msgid "Achievements"
+msgstr "Достижения"
+
+msgid "Badges"
+msgstr "Значки"
+
+msgid "Trophies"
+msgstr "Трофеи"
+
+msgid "Leaderboards"
+msgstr "Таблицы лидеров"
+
+msgid "Rankings"
+msgstr "Рейтинги"
+
+# Mobile-specific
+msgid "Swipe left"
+msgstr "Свайп влево"
+
+msgid "Swipe right"
+msgstr "Свайп вправо"
+
+msgid "Tap to continue"
+msgstr "Нажмите для продолжения"
+
+msgid "Pull to refresh"
+msgstr "Потяните для обновления"
+
+msgid "Offline Mode"
+msgstr "Оффлайн режим"
+
+msgid "Sync Now"
+msgstr "Синхронизировать"
+
+msgid "Last Synced"
+msgstr "Последняя синхронизация"
+
+msgid "Auto-sync"
+msgstr "Автосинхронизация"
+
+# Additional admin panel
+msgid "Reports"
+msgstr "Отчёты"
+
+msgid "Analytics"
+msgstr "Аналитика"
+
+msgid "Logs"
+msgstr "Логи"
+
+msgid "Backup"
+msgstr "Резервная копия"
+
+msgid "Restore"
+msgstr "Восстановить"
+
+msgid "Maintenance"
+msgstr "Обслуживание"
+
+msgid "Updates"
+msgstr "Обновления"
+
+msgid "Permissions"
+msgstr "Разрешения"
+
+msgid "Roles"
+msgstr "Роли"
+
+msgid "Security"
+msgstr "Безопасность"
+
+# Dashboard new translations
+msgid "Structured Learning Path"
+msgstr "Структурированный путь обучения"
+
+msgid "Follow our CEFR-aligned curriculum from A0 to C2 level"
+msgstr "Следуйте нашей программе, соответствующей CEFR, от уровня A0 до C2"
+
+msgid "Start Learning"
+msgstr "Начать обучение"
+
+msgid "Well done!"
+msgstr "Отлично!"
+
+msgid "in study"
+msgstr "изучается"
+
+msgid "Unknown Author"
+msgstr "Неизвестный автор"
+
+msgid "Browse Topics"
+msgstr "Просмотр тем"
+
+msgid "Not played yet"
+msgstr "Ещё не играли"
+
+msgid "pts"
+msgstr "очков"
+
+msgid "Achievements"
+msgstr "Достижения"
 

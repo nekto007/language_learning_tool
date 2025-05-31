@@ -1,0 +1,83 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Create Module{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Create Module</h1>
+        <p class="page-subtitle">Add a new module to the curriculum</p>
+    </div>
+    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">{{ form.level_id.label }}</label>
+                            {{ form.level_id(class="form-select") }}
+                            {% if form.level_id.errors %}
+                                <div class="text-danger small">{{ form.level_id.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.number.label }}</label>
+                            {{ form.number(class="form-control", placeholder="1", min="1") }}
+                            {% if form.number.errors %}
+                                <div class="text-danger small">{{ form.number.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.title.label }}</label>
+                        {{ form.title(class="form-control", placeholder="Introduction to Basic Concepts") }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small">{{ form.title.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        {{ form.description(class="form-control", rows="4", placeholder="Describe what this module covers...") }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Module Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>Module numbers should be sequential within each level</li>
+                    <li>Each module can contain multiple lessons</li>
+                    <li>Modules are displayed in numerical order</li>
+                    <li>A good module covers related topics or skills</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

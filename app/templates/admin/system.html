@@ -1,0 +1,267 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}System Information{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">System Information</h1>
+    <p class="page-subtitle">Server and application status overview</p>
+</div>
+
+<!-- System Resources -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-microchip fa-3x text-primary"></i>
+                </div>
+                <h6 class="text-muted">CPU Usage</h6>
+                <h2 class="mb-0">{{ system_info.cpu_percent }}%</h2>
+                <small class="text-muted">{{ system_info.cpu_count }} cores</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-memory fa-3x text-success"></i>
+                </div>
+                <h6 class="text-muted">Memory Usage</h6>
+                <h2 class="mb-0">{{ system_info.memory.percent }}%</h2>
+                <small class="text-muted">{{ system_info.memory.used }} / {{ system_info.memory.total }} MB</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-hdd fa-3x text-warning"></i>
+                </div>
+                <h6 class="text-muted">Disk Usage</h6>
+                <h2 class="mb-0">{{ system_info.disk.percent }}%</h2>
+                <small class="text-muted">{{ system_info.disk.used }} / {{ system_info.disk.total }} GB</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fab fa-python fa-3x text-info"></i>
+                </div>
+                <h6 class="text-muted">Python Version</h6>
+                <h2 class="mb-0">{{ system_info.python_version.split('.')[0] }}.{{ system_info.python_version.split('.')[1] }}</h2>
+                <small class="text-muted">{{ system_info.python_version }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- System Details -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">System Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted">Platform</td>
+                            <td>{{ system_info.platform }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Python Version</td>
+                            <td>{{ system_info.python_version }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Flask Version</td>
+                            <td>{{ system_info.flask_version }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Environment</td>
+                            <td>
+                                {% if app_info.environment == 'production' %}
+                                    <span class="badge bg-success">{{ app_info.environment }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{{ app_info.environment }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Debug Mode</td>
+                            <td>
+                                {% if app_info.debug %}
+                                    <span class="badge bg-danger">Enabled</span>
+                                {% else %}
+                                    <span class="badge bg-success">Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Database</td>
+                            <td>{{ app_info.database_url }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Statistics -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Database Statistics</h5>
+                <form action="{{ url_for('admin.clear_cache') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Очистить кэш?')">
+                        <i class="fas fa-broom"></i> Очистить кэш
+                    </button>
+                </form>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted">Users</td>
+                            <td>{{ db_stats.users }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Books</td>
+                            <td>{{ db_stats.books }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Words</td>
+                            <td>{{ db_stats.words }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Topics</td>
+                            <td>{{ db_stats.topics }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Collections</td>
+                            <td>{{ db_stats.collections }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">CEFR Levels</td>
+                            <td>{{ db_stats.levels }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Modules</td>
+                            <td>{{ db_stats.modules }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Lessons</td>
+                            <td>{{ db_stats.lessons }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Usage Charts -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Resource Usage</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <h6 class="text-center mb-3">CPU Usage</h6>
+                <canvas id="cpuChart" height="200"></canvas>
+            </div>
+            <div class="col-md-4 mb-4">
+                <h6 class="text-center mb-3">Memory Usage</h6>
+                <canvas id="memoryChart" height="200"></canvas>
+            </div>
+            <div class="col-md-4 mb-4">
+                <h6 class="text-center mb-3">Disk Usage</h6>
+                <canvas id="diskChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// CPU Usage Chart
+const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+new Chart(cpuCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Used', 'Free'],
+        datasets: [{
+            data: [{{ system_info.cpu_percent }}, {{ 100 - system_info.cpu_percent }}],
+            backgroundColor: ['#4f46e5', '#e5e7eb'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Memory Usage Chart
+const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+new Chart(memoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Used', 'Free'],
+        datasets: [{
+            data: [{{ system_info.memory.percent }}, {{ 100 - system_info.memory.percent }}],
+            backgroundColor: ['#10b981', '#e5e7eb'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Disk Usage Chart
+const diskCtx = document.getElementById('diskChart').getContext('2d');
+new Chart(diskCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Used', 'Free'],
+        datasets: [{
+            data: [{{ system_info.disk.percent }}, {{ 100 - system_info.disk.percent }}],
+            backgroundColor: ['#f59e0b', '#e5e7eb'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

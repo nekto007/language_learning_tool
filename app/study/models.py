@@ -209,7 +209,8 @@ class UserCardDirection(db.Model):
     ease_factor = db.Column(db.Float, default=2.5)
     interval = db.Column(db.Integer, default=0)
     last_reviewed = db.Column(db.DateTime, nullable=True)
-    next_review = db.Column(db.DateTime, nullable=True)
+    next_review = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    session_attempts = db.Column(db.Integer, default=0)
 
     # Stats
     correct_count = db.Column(db.Integer, default=0)
@@ -229,6 +230,7 @@ class UserCardDirection(db.Model):
         self.interval = 0
         self.correct_count = 0
         self.incorrect_count = 0
+        self.next_review = datetime.utcnow()
 
     def update_after_review(self, quality):
         """

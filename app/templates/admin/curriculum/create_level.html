@@ -1,0 +1,95 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Create CEFR Level{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Create CEFR Level</h1>
+        <p class="page-subtitle">Add a new language proficiency level</p>
+    </div>
+    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.code.label }}</label>
+                            {{ form.code(class="form-control text-uppercase", placeholder="A1", maxlength="2") }}
+                            {% if form.code.errors %}
+                                <div class="text-danger small">{{ form.code.errors[0] }}</div>
+                            {% endif %}
+                            <div class="form-text">2 characters (e.g., A0, A1, B2)</div>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label">{{ form.name.label }}</label>
+                            {{ form.name(class="form-control", placeholder="Beginner") }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">{{ form.name.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        {{ form.description(class="form-control", rows="3", placeholder="Description of this proficiency level...") }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">{{ form.order.label }}</label>
+                        {{ form.order(class="form-control", style="width: 100px") }}
+                        {% if form.order.errors %}
+                            <div class="text-danger small">{{ form.order.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">Order in which levels appear (0 = first)</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">CEFR Level Guide</h5>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>A0</dt>
+                    <dd>Pre-Beginner</dd>
+                    <dt>A1</dt>
+                    <dd>Beginner</dd>
+                    <dt>A2</dt>
+                    <dd>Elementary</dd>
+                    <dt>B1</dt>
+                    <dd>Intermediate</dd>
+                    <dt>B2</dt>
+                    <dd>Upper Intermediate</dd>
+                    <dt>C1</dt>
+                    <dd>Advanced</dd>
+                    <dt>C2</dt>
+                    <dd>Proficiency</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

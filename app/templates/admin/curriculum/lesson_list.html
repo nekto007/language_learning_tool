@@ -1,0 +1,266 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Lessons{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Lessons</h1>
+        <p class="page-subtitle">Manage curriculum lessons</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.create_lesson') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>New Lesson
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin.lesson_list') }}" class="row align-items-end">
+            <div class="col-md-3">
+                <label for="level_id" class="form-label">Level</label>
+                <select name="level_id" id="level_id" class="form-select" onchange="updateModules()">
+                    <option value="">All Levels</option>
+                    {% for level in levels %}
+                        <option value="{{ level.id }}" {% if level_id == level.id %}selected{% endif %}>
+                            {{ level.code }} - {{ level.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="module_id" class="form-label">Module</label>
+                <select name="module_id" id="module_id" class="form-select">
+                    <option value="">All Modules</option>
+                    {% for module in modules %}
+                        <option value="{{ module.id }}" {% if module_id == module.id %}selected{% endif %}>
+                            Module {{ module.number }}: {{ module.title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" name="search" id="search" class="form-control"
+                       value="{{ search }}" placeholder="Search lessons...">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </div>
+            {% if level_id or module_id or search %}
+            <div class="col-md-1">
+                <a href="{{ url_for('admin.lesson_list') }}" class="btn btn-secondary w-100">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Lessons table -->
+<div class="card">
+    <div class="card-body p-0">
+        {% if lessons %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th width="80">Level</th>
+                        <th width="120">Module</th>
+                        <th width="80">Lesson #</th>
+                        <th>Title</th>
+                        <th width="120">Type</th>
+                        <th width="80">Order</th>
+                        <th width="180" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lesson in lessons %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-primary">{{ lesson.module.level.code }}</span>
+                        </td>
+                        <td>
+                            <small>Module {{ lesson.module.number }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ lesson.number }}</strong>
+                        </td>
+                        <td>
+                            <strong>{{ lesson.title }}</strong>
+                            {% if lesson.description %}
+                            <br><small class="text-muted">{{ lesson.description[:60] }}{% if lesson.description|length > 60 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set type_badges = {
+                                'card': 'dark',
+                                'vocabulary': 'primary',
+                                'grammar': 'success',
+                                'quiz': 'warning',
+                                'matching': 'info',
+                                'text': 'secondary',
+                                'checkpoint': 'danger'
+                            } %}
+                            <span class="badge bg-{{ type_badges.get(lesson.type, 'secondary') }}">
+                                {{ lesson.type }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {{ lesson.order }}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}"
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if lesson.type == 'vocabulary' %}
+                                    <a href="{{ url_for('admin.edit_collection', collection_id=lesson.collection_id) if lesson.collection_id else '#' }}"
+                                       class="btn btn-outline-info {% if not lesson.collection_id %}disabled{% endif %}" title="Edit Collection">
+                                        <i class="fas fa-book"></i>
+                                    </a>
+                                {% elif lesson.type == 'grammar' %}
+                                    <a href="{{ url_for('admin.edit_grammar_lesson', lesson_id=lesson.id) }}"
+                                       class="btn btn-outline-info" title="Edit Grammar">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </a>
+                                {% elif lesson.type in ['quiz', 'checkpoint'] %}
+                                    <a href="{{ url_for('admin.edit_quiz_lesson', lesson_id=lesson.id) }}"
+                                       class="btn btn-outline-info" title="Edit Quiz">
+                                        <i class="fas fa-question-circle"></i>
+                                    </a>
+                                {% elif lesson.type == 'matching' %}
+                                    <a href="{{ url_for('admin.edit_matching_lesson', lesson_id=lesson.id) }}"
+                                       class="btn btn-outline-info" title="Edit Matching">
+                                        <i class="fas fa-link"></i>
+                                    </a>
+                                {% elif lesson.type == 'text' %}
+                                    <a href="{{ url_for('admin.edit_text_lesson', lesson_id=lesson.id) }}"
+                                       class="btn btn-outline-info" title="Edit Text">
+                                        <i class="fas fa-file-alt"></i>
+                                    </a>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}"
+                                      class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            onclick="return confirm('Delete this lesson?')"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
+            <p class="text-muted">
+                {% if search %}
+                    No lessons found matching "{{ search }}"
+                {% elif module_id %}
+                    No lessons in this module yet
+                {% elif level_id %}
+                    No lessons at this level
+                {% else %}
+                    No lessons created yet
+                {% endif %}
+            </p>
+            <a href="{{ url_for('admin.create_lesson', module_id=module_id) }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create Lesson
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics -->
+{% if lessons %}
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Lesson Types Distribution</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% set type_counts = {} %}
+                    {% for lesson in lessons %}
+                        {% if lesson.type not in type_counts %}
+                            {% set _ = type_counts.update({lesson.type: 0}) %}
+                        {% endif %}
+                        {% set _ = type_counts.update({lesson.type: type_counts[lesson.type] + 1}) %}
+                    {% endfor %}
+
+                    {% for type, count in type_counts.items() %}
+                    <div class="col-md-4 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                {% set type_icons = {
+                                    'card': 'id-card',
+                                    'vocabulary': 'book',
+                                    'grammar': 'graduation-cap',
+                                    'quiz': 'question-circle',
+                                    'matching': 'link',
+                                    'text': 'file-alt',
+                                    'checkpoint': 'check-circle'
+                                } %}
+                                <i class="fas fa-{{ type_icons.get(type, 'circle') }} fa-2x text-muted"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h5 class="mb-0">{{ count }}</h5>
+                                <small class="text-muted">{{ type|title }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                        <i class="fas fa-file-import me-2"></i>Import Lessons
+                    </a>
+                    <a href="{{ url_for('admin.module_list') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-book me-2"></i>View Modules
+                    </a>
+                    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Curriculum
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function updateModules() {
+    const levelId = document.getElementById('level_id').value;
+    const moduleSelect = document.getElementById('module_id');
+
+    if (levelId) {
+        // In a real application, this would make an AJAX call to get modules for the selected level
+        // For now, we'll just submit the form to filter
+        document.querySelector('form').submit();
+    }
+}
+</script>
+{% endblock %}

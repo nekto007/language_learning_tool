@@ -2,23 +2,25 @@ import os
 
 from flask import Flask
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 
 from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
 from app.utils.i18n import init_babel
 from config.settings import Config
-from flask_wtf.csrf import CSRFProtect
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
+csrf = CSRFProtect()
+
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
-    csrf = CSRFProtect(app)
+    csrf.init_app(app)
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
@@ -64,6 +66,25 @@ def create_app(config_class=Config):
 
     from app.api.topics_collections import api_topics_collections
     app.register_blueprint(api_topics_collections, url_prefix='/api')
+
+    from app.curriculum import curriculum_bp, init_curriculum_module
+    app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
+
+    # Initialize curriculum module with all components
+    init_curriculum_module(app)
+
+    app.jinja_env.globals.update(enumerate=enumerate)
+    app.jinja_env.globals.update(chr=chr)
+
+    # Add CSRF error handler for AJAX requests
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        from flask import request, jsonify
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'CSRF token missing or invalid'}), 400
+        return e.description, 400
 
     @login_manager.user_loader
     def load_user(user_id):

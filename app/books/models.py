@@ -49,3 +49,29 @@ class ReadingProgress(db.Model):
         Index('idx_reading_progress_user', 'user_id'),
         Index('idx_reading_progress_book', 'book_id'),
     )
+
+
+class Bookmark(db.Model):
+    """
+    Bookmarks for reading positions in books
+    """
+    __tablename__ = 'bookmarks'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    book_id = Column(Integer, ForeignKey('book.id', ondelete='CASCADE'), nullable=False)
+
+    name = Column(String(255), nullable=False)
+    position = Column(Integer, default=0)  # Position in pixels for scrolling
+    context = Column(Text)  # Short text snippet for context
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship('User', backref=db.backref('bookmarks', lazy='dynamic'))
+    book = relationship('Book', backref=db.backref('bookmarks', lazy='dynamic'))
+
+    __table_args__ = (
+        Index('idx_bookmarks_user', 'user_id'),
+        Index('idx_bookmarks_book', 'book_id'),
+        Index('idx_bookmarks_user_book', 'user_id', 'book_id'),
+    )

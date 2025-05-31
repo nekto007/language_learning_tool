@@ -1,0 +1,285 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Curriculum Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Curriculum Overview</h1>
+    <p class="page-subtitle">Complete view of your language learning curriculum</p>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-layer-group fa-2x text-primary mb-3"></i>
+            <div class="stat-value">{{ levels_count }}</div>
+            <div class="stat-label">CEFR Levels</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-book fa-2x text-success mb-3"></i>
+            <div class="stat-value">{{ modules_count }}</div>
+            <div class="stat-label">Modules</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-graduation-cap fa-2x text-info mb-3"></i>
+            <div class="stat-value">{{ lessons_count }}</div>
+            <div class="stat-label">Lessons</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-users fa-2x text-warning mb-3"></i>
+            <div class="stat-value">{{ user_progress_count }}</div>
+            <div class="stat-label">Active Learners</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Curriculum Structure -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Curriculum Structure</h5>
+                <div>
+                    <a href="{{ url_for('admin.create_level') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus me-1"></i>New Level
+                    </a>
+                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-info btn-sm ms-2">
+                        <i class="fas fa-upload me-1"></i>Import
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if levels %}
+                <div class="accordion" id="curriculumAccordion">
+                    {% for level in levels %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#level{{ level.id }}">
+                                <div class="d-flex align-items-center justify-content-between w-100 me-3">
+                                    <div>
+                                        <span class="badge bg-primary me-2">{{ level.code }}</span>
+                                        <strong>{{ level.name }}</strong>
+                                    </div>
+                                    <div class="text-muted">
+                                        {{ level.modules|length }} modules
+                                    </div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="level{{ level.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                             data-bs-parent="#curriculumAccordion">
+                            <div class="accordion-body">
+                                {% if level.modules %}
+                                    {% for module in level.modules|sort(attribute='number') %}
+                                    <div class="module-item mb-3 p-3 border rounded">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">
+                                                    Module {{ module.number }}: {{ module.title }}
+                                                    {% if module.raw_content %}
+                                                    <span class="badge bg-info ms-2" title="Imported from JSON">
+                                                        <i class="fas fa-file-import"></i>
+                                                    </span>
+                                                    {% endif %}
+                                                </h6>
+                                                <p class="text-muted small mb-2">
+                                                    {{ module.description[:100] if module.description else 'No description' }}
+                                                    {% if module.description and module.description|length > 100 %}...{% endif %}
+                                                </p>
+                                                <div class="lessons-preview">
+                                                    {% for lesson in module.lessons|sort(attribute='number')[:5] %}
+                                                    <span class="badge bg-{{ {'vocabulary': 'primary', 'grammar': 'success', 'quiz': 'warning', 'matching': 'info', 'text': 'secondary', 'checkpoint': 'danger', 'card': 'dark'}.get(lesson.type, 'secondary') }} me-1">
+                                                        {{ lesson.number }}. {{ lesson.type }}
+                                                    </span>
+                                                    {% endfor %}
+                                                    {% if module.lessons|length > 5 %}
+                                                    <span class="text-muted small">+{{ module.lessons|length - 5 }} more</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('admin.edit_module', module_id=module.id) }}"
+                                                   class="btn btn-outline-primary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{{ url_for('admin.lesson_list', module_id=module.id) }}"
+                                                   class="btn btn-outline-info" title="View Lessons">
+                                                    <i class="fas fa-list"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                <p class="text-muted">No modules in this level yet.</p>
+                                {% endif %}
+                                <a href="{{ url_for('admin.create_module', level_id=level.id) }}"
+                                   class="btn btn-sm btn-outline-success">
+                                    <i class="fas fa-plus me-1"></i>Add Module
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted py-4">No curriculum structure created yet.</p>
+                <div class="text-center">
+                    <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Create First Level
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Student Progress Overview -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Student Progress by Level</h5>
+            </div>
+            <div class="card-body">
+                {% if level_progress %}
+                <div class="progress-chart">
+                    {% for code, data in level_progress.items() %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><strong>{{ code }}</strong> ({{ data.completed }}/{{ data.total }} lessons)</span>
+                            <span>{{ data.percentage }}%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-{{ loop.cycle('danger', 'warning', 'info', 'primary', 'success') }}"
+                                 style="width: {{ data.percentage }}%">
+                                {{ data.percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No student progress data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Recent Components -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recently Added</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_components %}
+                <div class="list-group list-group-flush">
+                    {% for component in recent_components %}
+                    <a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}"
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ component.title }}</h6>
+                                <small class="text-muted">
+                                    {% if component.module %}
+                                    {{ component.module.level.code }} - Module {{ component.module.number }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <span class="badge bg-{{ {'vocabulary': 'primary', 'grammar': 'success', 'quiz': 'warning', 'matching': 'info', 'text': 'secondary', 'checkpoint': 'danger', 'card': 'dark'}.get(component.type, 'secondary') }}">
+                                {{ component.type }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No components added yet</p>
+                {% endif %}
+            </div>
+            {% if recent_components %}
+            <div class="card-footer text-center">
+                <a href="{{ url_for('admin.lesson_list') }}" class="text-decoration-none">
+                    View all lessons <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-success">
+                        <i class="fas fa-file-import me-2"></i>Import from JSON
+                    </a>
+                    <a href="{{ url_for('admin.level_list') }}" class="btn btn-primary">
+                        <i class="fas fa-layer-group me-2"></i>Manage Levels
+                    </a>
+                    <a href="{{ url_for('admin.module_list') }}" class="btn btn-primary">
+                        <i class="fas fa-book me-2"></i>Manage Modules
+                    </a>
+                    <a href="{{ url_for('admin.lesson_list') }}" class="btn btn-primary">
+                        <i class="fas fa-graduation-cap me-2"></i>Manage Lessons
+                    </a>
+                    <a href="{{ url_for('admin.user_progress') }}" class="btn btn-info">
+                        <i class="fas fa-chart-line me-2"></i>View Progress
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Curriculum Stats</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-7">Total Lessons:</dt>
+                    <dd class="col-sm-5">{{ lessons_count }}</dd>
+
+                    <dt class="col-sm-7">Avg per Module:</dt>
+                    <dd class="col-sm-5">{{ (lessons_count / modules_count)|round(1) if modules_count > 0 else 0 }}</dd>
+
+                    <dt class="col-sm-7">Active Students:</dt>
+                    <dd class="col-sm-5">{{ user_progress_count }}</dd>
+
+                    <dt class="col-sm-7">Components:</dt>
+                    <dd class="col-sm-5">{{ components_count }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.module-item {
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.module-item:hover {
+    background-color: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.lessons-preview {
+    margin-top: 0.5rem;
+}
+
+.progress-chart .progress {
+    background-color: #e9ecef;
+}
+</style>
+{% endblock %}

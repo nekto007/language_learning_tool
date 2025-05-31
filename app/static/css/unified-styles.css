@@ -1,0 +1,630 @@
+/* General Styling */
+:root {
+  --primary-color: #0d6efd;
+  --success-color: #198754;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #0dcaf0;
+  --light-bg: #f8f9fa;
+  --border-color: #dee2e6;
+  --text-color: #212529;
+  --text-muted: #6c757d;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 2px 10px rgba(0,0,0,0.05);
+  --transition: all 0.2s ease-in-out;
+}
+
+body {
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+/* Breadcrumb Standardization */
+.breadcrumb {
+  background-color: transparent;
+  padding: 0.75rem 0;
+  margin-bottom: 1.5rem;
+}
+
+.breadcrumb-item a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-item.active {
+  color: var(--text-muted);
+}
+
+/* Lesson Header Section */
+.lesson-header {
+  margin-bottom: 2rem;
+}
+
+.lesson-header h1 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.lesson-header .lead {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+/* Unified Progress Bar */
+.lesson-progress {
+  margin-bottom: 1.5rem;
+}
+
+.lesson-progress .progress {
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background-color: #e9ecef;
+  margin-bottom: 0.5rem;
+}
+
+.lesson-progress .progress-bar {
+  background-color: var(--primary-color);
+  border-radius: var(--radius-sm);
+  transition: width 0.6s ease;
+}
+
+.lesson-progress-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Standardized Card Container */
+.lesson-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.lesson-card-header {
+  background-color: #f1f8ff;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lesson-card-body {
+  padding: 1.5rem;
+}
+
+.lesson-card-footer {
+  background-color: var(--light-bg);
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Instruction Block */
+.instruction-block {
+  background-color: #fff3cd;
+  border-left: 4px solid var(--warning-color);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.instruction-block h5 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.instruction-block p {
+  margin-bottom: 0;
+}
+
+/* Standardized Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.btn-success:hover {
+  background-color: #157347;
+  border-color: #146c43;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-danger {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+  background-color: #bb2d3b;
+  border-color: #b02a37;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-outline-primary {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Unified Navigation Controls */
+.lesson-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+
+.lesson-navigation .btn-prev {
+  background-color: var(--light-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.lesson-navigation .btn-next {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.lesson-navigation .btn-complete {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+/* Completion Celebration */
+.completion-celebration {
+  margin: 2.5rem 0;
+  text-align: center;
+  animation: slide-up 0.7s ease;
+}
+
+.celebration-card {
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.celebration-header {
+  background-color: var(--success-color);
+  color: white;
+  padding: 1.25rem;
+}
+
+.celebration-body {
+  padding: 2.5rem;
+  text-align: center;
+}
+
+.trophy-image {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1.5rem;
+  animation: trophy-pulse 2s infinite alternate;
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+}
+
+.celebration-score {
+  margin-top: 2rem;
+}
+
+.celebration-actions {
+  margin-top: 2rem;
+}
+
+/* Feedback Messages */
+.feedback-item {
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.feedback-correct {
+  background-color: rgba(25, 135, 84, 0.1);
+}
+
+.feedback-incorrect {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Animations */
+@keyframes slide-up {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes trophy-pulse {
+  from { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5)); }
+  to { transform: scale(1.08); filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.9)); }
+}
+
+/* Canvas for confetti */
+#confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 100;
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+/* Special components styling */
+/* Anki card styling */
+.anki-container {
+  perspective: 1000px;
+  height: 350px;
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.anki-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.anki-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.anki-card-front, .anki-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  border-radius: var(--radius-md);
+}
+
+.anki-card-front {
+  background-color: var(--light-bg);
+  border: 1px solid var(--border-color);
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.anki-card-back {
+  background-color: #e7f5ff;
+  border: 1px solid #4dabf7;
+  transform: rotateY(180deg);
+  font-size: 2rem;
+}
+
+/* Exercise styles */
+.exercise-card {
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.exercise-header {
+  background-color: var(--light-bg);
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.exercise-body {
+  padding: 1.5rem;
+}
+
+.option-label {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 15px;
+  background-color: var(--light-bg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 0.5rem;
+}
+
+.option-label:hover {
+  background-color: #e9ecef;
+}
+
+/* Vocabulary table styling */
+.vocabulary-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vocabulary-table th {
+  background-color: var(--light-bg);
+  padding: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
+  text-align: left;
+}
+
+.vocabulary-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+/* Matching exercise styling */
+.matching-item {
+  background-color: var(--light-bg);
+  border-radius: var(--radius-md);
+  padding: 15px;
+  margin-bottom: 15px;
+  transition: background-color 0.2s;
+}
+
+.matching-left {
+  font-weight: 500;
+  margin-bottom: 10px;
+  padding: 10px 15px;
+  background-color: #e7f3ff;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--primary-color);
+}
+
+.matching-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+/* Text reading styling */
+.text-container {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  line-height: 1.7;
+  margin-bottom: 30px;
+}
+
+.word-highlight {
+  color: var(--primary-color);
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+/* Media queries for responsive design */
+@media (max-width: 768px) {
+  .lesson-navigation {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .lesson-navigation .btn {
+    width: 100%;
+  }
+}
+
+/* Lesson Header Section */
+.lesson-header {
+  margin-bottom: 2rem;
+}
+
+.lesson-header h1 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.lesson-header .lead {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+/* Unified Progress Bar */
+.lesson-progress {
+  margin-bottom: 1.5rem;
+}
+
+.lesson-progress .progress {
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background-color: #e9ecef;
+  margin-bottom: 0.5rem;
+}
+
+.lesson-progress .progress-bar {
+  background-color: var(--primary-color);
+  border-radius: var(--radius-sm);
+  transition: width 0.6s ease;
+}
+
+.lesson-progress-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Standardized Card Container */
+.lesson-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.lesson-card-header {
+  background-color: #f1f8ff;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lesson-card-body {
+  padding: 1.5rem;
+}
+
+.lesson-card-footer {
+  background-color: var(--light-bg);
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Instruction Block */
+.instruction-block {
+  background-color: #fff3cd;
+  border-left: 4px solid var(--warning-color);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.instruction-block h5 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.instruction-block p {
+  margin-bottom: 0;
+}
+
+/* Unified Navigation Controls */
+.lesson-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+
+.lesson-navigation .btn-prev {
+  background-color: var(--light-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.lesson-navigation .btn-next {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+/* Completion Celebration */
+.completion-celebration {
+  margin: 2.5rem 0;
+  text-align: center;
+  animation: slide-up 0.7s ease;
+}
+
+.celebration-card {
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.celebration-header {
+  background-color: var(--success-color);
+  color: white;
+  padding: 1.25rem;
+}
+
+.celebration-body {
+  padding: 2.5rem;
+  text-align: center;
+}
+
+.trophy-image {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1.5rem;
+  animation: trophy-pulse 2s infinite alternate;
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+}
+
+/* Anki card styling */
+.anki-container {
+  perspective: 1000px;
+  height: 350px;
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.anki-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.anki-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.anki-card-front {
+  background-color: var(--light-bg);
+  border: 1px solid var(--border-color);
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.anki-card-back {
+  background-color: #e7f5ff;
+  border: 1px solid #4dabf7;
+  transform: rotateY(180deg);
+  font-size: 2rem;
+}
+
+/* Animations */
+@keyframes slide-up {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes trophy-pulse {
+  from { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5)); }
+  to { transform: scale(1.08); filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.9)); }
+}

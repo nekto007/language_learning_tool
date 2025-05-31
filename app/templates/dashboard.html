@@ -1,95 +1,211 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - English Learning App{% endblock %}
+{% block title %}{{ _('Dashboard') }} - {{ _('English Learning App') }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <h1 class="mb-4">{{ _('Welcome,') }} {{ current_user.username }}!</h1>
+<!-- Hero Section -->
+<div class="hero-section mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="display-6 fw-bold mb-3">{{ _('Welcome,') }} {{ current_user.username }}! 👋</h1>
+            <p class="lead text-muted">{{ _('Improve your English vocabulary') }}</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="d-inline-block">
+                <div class="text-center">
+                    <div class="h2 mb-0 fw-bold text-primary">{{ progress }}%</div>
+                    <small class="text-muted">{{ _('Progress') }}</small>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-12">
-    <!-- Quick Actions -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('Quick Actions') }}</h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-4">
-                        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary d-block">
-                            <i class="fas fa-list me-1"></i> {{ _('Browse Words') }}
+<!-- Priority 1: Curriculum (if available) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 bg-gradient-primary text-white">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h3 class="fw-bold mb-2">
+                            <i class="fas fa-graduation-cap me-2"></i>{{ _('Structured Learning Path') }}
+                        </h3>
+                        <p class="mb-3 opacity-90">{{ _('Follow our CEFR-aligned curriculum from A0 to C2 level') }}</p>
+                        <a href="{{ url_for('curriculum.index') }}" class="btn btn-light btn-lg shadow-sm">
+                            <i class="fas fa-book-open me-2"></i>{{ _('Start Learning') }}
                         </a>
                     </div>
-                    <div class="col-4">
-                        <a href="{{ url_for('study.index') }}" class="btn btn-success d-block">
-                            <i class="fas fa-graduation-cap me-1"></i> {{ _('Study Now') }}
-                        </a>
+                    <div class="col-md-4 text-center d-none d-md-block">
+                        <i class="fas fa-route fa-5x opacity-25"></i>
                     </div>
-
-                    <!-- New buttons for reading functionality -->
-                    <div class="col-4">
-                        <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary d-block">
-                            <i class="fas fa-book me-1"></i> {{ _('Find Books') }}
-                        </a>
-                    </div>
-
-                    {% if current_user.get_reading_progress_count() > 0 %}
-                    {% set last_book = current_user.get_last_read_book() %}
-                    {% if last_book %}
-                    <div class="col-4">
-                        <a href="{{ url_for('books.read_book', book_id=last_book.book_id) }}" class="btn btn-outline-success d-block">
-                            <i class="fas fa-book-reader me-1"></i> {{ _('Continue Reading') }}
-                        </a>
-                    </div>
-                    {% endif %}
-                    {% endif %}
                 </div>
             </div>
         </div>
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">{{ _('Word Topics') }}</h5>
-                <a href="{{ url_for('study.topics') }}" class="btn btn-sm btn-outline-primary">{{ _('View All') }}</a>
+    </div>
+</div>
+
+<!-- Priority 2: Quick Actions & Stats -->
+<div class="row g-3 mb-4">
+    <!-- Study Stats Card -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 shadow-sm border-0 hover-lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-primary-soft text-primary mb-3">
+                    <i class="fas fa-book fa-2x"></i>
+                </div>
+                <h3 class="h2 fw-bold mb-1">{{ status_stats[1] }}</h3>
+                <p class="text-muted mb-0">{{ _('Learning') }}</p>
+                <div class="mt-3">
+                    <a href="{{ url_for('study.index') }}" class="btn btn-sm btn-primary">
+                        {{ _('Study Now') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Stats Card -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 shadow-sm border-0 hover-lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-warning-soft text-warning mb-3">
+                    <i class="fas fa-redo fa-2x"></i>
+                </div>
+                <h3 class="h2 fw-bold mb-1">{{ status_stats[2] }}</h3>
+                <p class="text-muted mb-0">{{ _('Review') }}</p>
+                <div class="mt-3">
+                    <a href="{{ url_for('study.cards', word_source='review') }}" class="btn btn-sm btn-warning">
+                        {{ _('Review') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mastered Stats Card -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 shadow-sm border-0 hover-lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-success-soft text-success mb-3">
+                    <i class="fas fa-check-circle fa-2x"></i>
+                </div>
+                <h3 class="h2 fw-bold mb-1">{{ status_stats[3] }}</h3>
+                <p class="text-muted mb-0">{{ _('Mastered') }}</p>
+                <div class="mt-3">
+                    <span class="badge bg-success">{{ _('Well done!') }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Words Card -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100 shadow-sm border-0 hover-lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-info-soft text-info mb-3">
+                    <i class="fas fa-language fa-2x"></i>
+                </div>
+                <h3 class="h2 fw-bold mb-1">{{ total_words }}</h3>
+                <p class="text-muted mb-0">{{ _('Total') }}</p>
+                <div class="mt-3">
+                    <a href="{{ url_for('words.word_list') }}" class="btn btn-sm btn-info text-white">
+                        {{ _('Browse') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Priority 3: Active Learning Content -->
+<div class="row g-4">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+        <!-- Reading Progress -->
+        {% if current_user.get_reading_progress_count() > 0 %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
+                <h5 class="fw-bold mb-0">
+                    <i class="fas fa-book-reader me-2 text-primary"></i>{{ _('Continue Reading') }}
+                </h5>
+                <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">
+                    {{ _('All Books') }}
+                </a>
+            </div>
+            <div class="card-body">
+                {% for progress in current_user.get_recent_reading_progress(2) %}
+                <div class="reading-item p-3 rounded-3 mb-3 hover-bg-light">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold mb-1">{{ progress.book.title }}</h6>
+                            <p class="text-muted small mb-2">{{ progress.book.author or _('Unknown Author') }}</p>
+                        </div>
+                        <small class="text-muted">{{ progress.last_read.strftime('%d %b') }}</small>
+                    </div>
+                    
+                    {% set percent_read = ((progress.position or 0) / 100 * 100)|int %}
+                    <div class="progress mb-2" style="height: 6px;">
+                        <div class="progress-bar bg-gradient" role="progressbar" 
+                             style="width: {{ percent_read }}%"></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">{{ percent_read }}% {{ _('completed') }}</small>
+                        <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}" 
+                           class="btn btn-sm btn-primary">
+                            <i class="fas fa-book-open me-1"></i>{{ _('Continue') }}
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Word Topics -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
+                <h5 class="fw-bold mb-0">
+                    <i class="fas fa-layer-group me-2 text-primary"></i>{{ _('Word Topics') }}
+                </h5>
+                <a href="{{ url_for('study.topics') }}" class="btn btn-sm btn-outline-primary">
+                    {{ _('View All') }}
+                </a>
             </div>
             <div class="card-body">
                 {% if recent_topics %}
-                <div class="row row-cols-1 row-cols-md-3 g-4">
-                    {% for topic in recent_topics %}
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h6 class="card-title">{{ topic.name }}</h6>
-
-                                <div class="d-flex justify-content-between my-2">
-                                    <small class="text-muted">{{ topic.word_count }} {{ _('words') }}</small>
-                                </div>
-
-                                {% if topic.words_in_study > 0 %}
-                                <div class="progress mb-2" style="height: 6px;">
-                                    <div class="progress-bar" role="progressbar"
-                                        style="width: {{ (topic.words_in_study / topic.word_count * 100) | int }}%;">
-                                    </div>
-                                </div>
-                                <small class="text-muted">{{ topic.words_in_study }}/{{ topic.word_count }} {{ _('in study') }}</small>
-                                {% endif %}
+                <div class="row g-3">
+                    {% for topic in recent_topics[:6] %}
+                    <div class="col-md-6">
+                        <div class="topic-card p-3 rounded-3 border hover-shadow h-100">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="fw-bold mb-0">{{ topic.name }}</h6>
+                                <span class="badge bg-light text-dark">{{ topic.word_count }} {{ _('words') }}</span>
                             </div>
-                            <div class="card-footer bg-transparent text-center">
-                                <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="btn btn-sm btn-outline-primary">{{ _('View') }}</a>
-
+                            
+                            {% if topic.words_in_study > 0 %}
+                            <div class="progress mb-2" style="height: 4px;">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ (topic.words_in_study / topic.word_count * 100)|int }}%"></div>
+                            </div>
+                            <small class="text-muted d-block mb-2">
+                                {{ topic.words_in_study }}/{{ topic.word_count }} {{ _('in study') }}
+                            </small>
+                            {% endif %}
+                            
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" 
+                                   class="btn btn-sm btn-outline-primary flex-fill">
+                                    {{ _('View') }}
+                                </a>
                                 {% if topic.words_in_study < topic.word_count %}
-                                <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="d-inline">
+                                <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="flex-fill">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-success">
-                                        <i class="fas fa-plus me-1"></i> {{ _('Add to Study') }}
+                                    <button type="submit" class="btn btn-sm btn-success w-100">
+                                        <i class="fas fa-plus"></i> {{ _('Add') }}
                                     </button>
                                 </form>
-                                {% else %}
-                                <button class="btn btn-sm btn-outline-success" disabled>
-                                    <i class="fas fa-check me-1"></i> {{ _('Added') }}
-                                </button>
                                 {% endif %}
                             </div>
                         </div>
@@ -97,135 +213,46 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-book-open fa-3x mb-3 text-muted"></i>
+                <div class="text-center py-5">
+                    <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
                     <p class="text-muted">{{ _('Explore our word topics to enhance your vocabulary!') }}</p>
                     <a href="{{ url_for('study.topics') }}" class="btn btn-primary">
-                        {{ _('Browse Tpoics') }}
+                        {{ _('Browse Topics') }}
                     </a>
                 </div>
                 {% endif %}
             </div>
         </div>
-    <!-- Word Statistics -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('Your Word Statistics') }}</h5>
+
+        <!-- Recent Words -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="fw-bold mb-0">
+                    <i class="fas fa-history me-2 text-primary"></i>{{ _('Recently Studied Words') }}
+                </h5>
             </div>
             <div class="card-body">
-                <div class="progress mb-3">
-                    <div class="progress-bar" role="progressbar" style="width: {{ progress }}%;" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">{{ progress }}%</div>
-                </div>
-                <div class="row">
-                    <div class="col-6 col-md-3 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">{{ _('Learning') }}</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[1] }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">{{ _('Review') }}</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[2] }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">{{ _('Mastered') }}</h6>
-                                <p class="card-text fw-bold fs-4">{{ status_stats[3] }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3 mb-3">
-                        <div class="card bg-light">
-                            <div class="card-body text-center">
-                                <h6 class="card-title">{{ _('Total') }}</h6>
-                                <p class="card-text fw-bold fs-4">{{ total_words }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recently Studied -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('Recently Studied Words') }}</h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    {% if recent_words %}
-                        {% for word in recent_words %}
-                        <a href="{{ url_for('words.word_details', word_id=word.id) }}" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ word.english_word }}</h6>
-                                <small>{{ word.level or 'N/A' }}</small>
-                            </div>
-                            <p class="mb-1">{{ word.russian_word }}</p>
-                        </a>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted">{{ _('No words studied yet. Start browsing the word list to begin learning!') }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Recently Read Books - New section -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">{{ _('Your Reading Activity') }}</h5>
-                <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">{{ _('View All Books') }}</a>
-            </div>
-            <div class="card-body">
-                {% if current_user.get_reading_progress_count() > 0 %}
-                <div class="list-group">
-                    {% for progress in current_user.get_recent_reading_progress(3) %}
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between align-items-center">
-                            <h6 class="mb-1">{{ progress.book.title }}</h6>
-                            <small class="text-muted">{{ progress.last_read.strftime('%d %b %Y') }}</small>
-                        </div>
-
-                        {% set reading_position = progress.position %}
-                        {% set total_length = 100 %}  <!-- Replace with actual book length calculation -->
-                        {% set percent_read = (reading_position / total_length * 100)|int if total_length > 0 else 0 %}
-
-                        <div class="progress mt-2 mb-2" style="height: 5px;">
-                            <div class="progress-bar" role="progressbar" style="width: {{ percent_read }}%;"
-                                aria-valuenow="{{ percent_read }}" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-
+                {% if recent_words %}
+                <div class="list-group list-group-flush">
+                    {% for word in recent_words %}
+                    <a href="{{ url_for('words.word_details', word_id=word.id) }}" 
+                       class="list-group-item list-group-item-action border-0 px-0 py-3 hover-bg-light">
                         <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">{{ percent_read }}% {{ _('completed') }}</small>
-                            <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}" class="btn btn-sm btn-primary">
-                                {{ _('Continue Reading') }}
-                            </a>
+                            <div>
+                                <h6 class="mb-1 fw-bold">{{ word.english_word }}</h6>
+                                <p class="mb-0 text-muted">{{ word.russian_word }}</p>
+                            </div>
+                            <span class="badge bg-light text-dark">{{ word.level or 'A1' }}</span>
                         </div>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
-
-                {% if current_user.get_reading_progress_count() > 3 %}
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary btn-sm">
-                        {{ _('View All Books') }} ({{ current_user.get_reading_progress_count() }})
-                    </a>
-                </div>
-                {% endif %}
-
                 {% else %}
                 <div class="text-center py-4">
-                    <i class="fas fa-book fa-3x mb-3 text-muted"></i>
-                    <p class="text-muted">{{ _('You have not started reading any books yet.') }}</p>
-                    <a href="{{ url_for('books.book_list') }}" class="btn btn-primary">
-                        {{ _('Find Books to Read') }}
+                    <i class="fas fa-history fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">{{ _('No words studied yet. Start browsing the word list to begin learning!') }}</p>
+                    <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">
+                        {{ _('Browse Words') }}
                     </a>
                 </div>
                 {% endif %}
@@ -233,143 +260,215 @@
         </div>
     </div>
 
-    <div class="col-md-12">
-        <!-- Reading Stats Section - New section -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('Reading Statistics') }}</h5>
+    <!-- Right Column -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="fw-bold mb-0">{{ _('Quick Actions') }}</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-4 text-center">
-                        <div class="h2 mb-0 fw-bold">{{ current_user.get_reading_progress_count() }}</div>
-                        <div class="small text-muted">{{ _('Books') }}</div>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('curriculum.index') }}" class="btn btn-primary">
+                        <i class="fas fa-graduation-cap me-2"></i>{{ _('Curriculum') }}
+                    </a>
+                    <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-clone me-2"></i>{{ _('Flashcards') }}
+                    </a>
+                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="btn btn-outline-success">
+                        <i class="fas fa-question-circle me-2"></i>{{ _('Take Quiz') }}
+                    </a>
+                    <a href="{{ url_for('study.matching', word_source='all') }}" class="btn btn-outline-info">
+                        <i class="fas fa-th me-2"></i>{{ _('Matching Game') }}
+                    </a>
+                    <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-book me-2"></i>{{ _('Find Books') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Study Stats -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="fw-bold mb-0">{{ _('Your Stats') }}</h5>
+            </div>
+            <div class="card-body">
+                <!-- Reading Stats -->
+                <div class="stat-item mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted">{{ _('Books Reading') }}</span>
+                        <span class="fw-bold">{{ current_user.get_reading_progress_count() }}</span>
                     </div>
-                    <div class="col-4 text-center">
-                        <div class="h2 mb-0 fw-bold">
-                            {% set last_read = current_user.get_last_read_book() %}
-                            {% if last_read %}
-                                {{ (last_read.last_read - last_read.last_read.replace(hour=0, minute=0, second=0)).seconds // 60 }}
-                            {% else %}
-                                0
-                            {% endif %}
-                        </div>
-                        <div class="small text-muted">{{ _('Minutes Read') }}</div>
+                </div>
+
+                <!-- Words Learning -->
+                <div class="stat-item mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted">{{ _('Words Learning') }}</span>
+                        <span class="fw-bold">{{ status_stats[1] + status_stats[2] }}</span>
                     </div>
-                    <div class="col-4 text-center">
-                        <div class="h2 mb-0 fw-bold">
-                            {% set found_words = 0 %}
-                            {% for progress in current_user.reading_progress %}
-                                {% set found_words = found_words + progress.book.words|length %}
-                            {% endfor %}
-                            {{ found_words }}
-                        </div>
-                        <div class="small text-muted">{{ _('Vocab Found') }}</div>
+                </div>
+
+                <!-- Last Login -->
+                <div class="stat-item">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted">{{ _('Last Login') }}</span>
+                        <span class="fw-bold">{{ _('Today') }}</span>
                     </div>
                 </div>
 
                 <hr>
-
-                <div class="text-center">
-                    <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-chart-line me-1"></i> {{ _('View Detailed Stats') }}
+                
+                <div class="d-grid">
+                    <a href="{{ url_for('api_anki.export_anki') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-download me-2"></i>{{ _('Export to Anki') }}
                     </a>
                 </div>
             </div>
         </div>
-         <div class="card mt-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">{{ _('Game Achievements') }}</h5>
-                <a href="{{ url_for('study.leaderboard') }}" class="btn btn-sm btn-outline-primary">{{ _('View Leaderboard') }}</a>
+
+        <!-- Game Achievements -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
+                <h5 class="fw-bold mb-0">{{ _('Achievements') }}</h5>
+                <a href="{{ url_for('study.leaderboard') }}" class="btn btn-sm btn-link text-decoration-none">
+                    <i class="fas fa-trophy"></i>
+                </a>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <!-- Matching Game -->
-                    <div class="col-md-6 mb-3">
-                        <div class="card h-100">
-                            <div class="card-header bg-light py-2">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-th me-2 text-primary"></i>
-                                    <h6 class="card-title mb-0">{{ _('Matching Game') }}</h6>
-                                </div>
+                <!-- Matching Game -->
+                <div class="achievement-item mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-th fa-lg text-primary me-3"></i>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">{{ _('Matching Game') }}</h6>
+                            {% if user_best_matching %}
+                            <div class="d-flex align-items-center mt-1">
+                                <span class="badge bg-primary me-2">#{{ user_best_matching.get_rank() }}</span>
+                                <span class="fw-bold">{{ user_best_matching.score }} pts</span>
                             </div>
-                            <div class="card-body">
-                                {% if user_best_matching %}
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="me-auto">
-                                        <span class="badge bg-primary me-1">#{{ user_best_matching.get_rank() }}</span>
-                                        <span class="text-muted">{{ _('Rank') }}</span>
-                                    </div>
-                                    <div class="h4 mb-0 text-primary">{{ user_best_matching.score }}</div>
-                                </div>
-                                <div class="small text-muted mb-2">
-                                    {{ user_best_matching.pairs_matched }}/{{ user_best_matching.total_pairs }} {{ _('pairs in') }} {{ user_best_matching.moves }} {{ _('moves') }}
-                                </div>
-                                <div class="small text-muted">
-                                    {{ _('Difficulty') }}: <span class="badge {% if user_best_matching.difficulty == 'easy' %}bg-success{% elif user_best_matching.difficulty == 'medium' %}bg-warning{% else %}bg-danger{% endif %}">
-                                        {{ user_best_matching.difficulty|capitalize }}
-                                    </span>
-                                </div>
-                                {% else %}
-                                <div class="text-center py-3">
-                                    <i class="fas fa-gamepad fa-2x mb-2 text-muted"></i>
-                                    <p class="mb-0 text-muted">{{ _('You have not played the matching game yet.') }}</p>
-                                </div>
-                                <div class="text-center mt-2">
-                                    <a href="{{ url_for('study.matching', word_source='all') }}" class="btn btn-sm btn-outline-primary">{{ _('Play Now') }}</a>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quiz -->
-                    <div class="col-md-6 mb-3">
-                        <div class="card h-100">
-                            <div class="card-header bg-light py-2">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-question-circle me-2 text-success"></i>
-                                    <h6 class="card-title mb-0">{{ _('Quiz') }}</h6>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                {% if user_best_quiz %}
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="me-auto">
-                                        <span class="badge bg-success me-1">#{{ user_best_quiz.get_rank() }}</span>
-                                        <span class="text-muted">{{ _('Rank') }}</span>
-                                    </div>
-                                    <div class="h4 mb-0 text-success">{{ user_best_quiz.score }}%</div>
-                                </div>
-                                <div class="small text-muted">
-                                    {{ user_best_quiz.correct_answers }}/{{ user_best_quiz.total_questions }} {{ _('correct answers') }}
-                                </div>
-                                <div class="small text-muted">
-                                    {% set minutes = user_best_quiz.time_taken // 60 %}
-                                    {% set seconds = user_best_quiz.time_taken % 60 %}
-                                    {{ _('Time') }}: {{ minutes }}:{{ '%02d' % seconds }}
-                                </div>
-                                {% else %}
-                                <div class="text-center py-3">
-                                    <i class="fas fa-brain fa-2x mb-2 text-muted"></i>
-                                    <p class="mb-0 text-muted">{{ _('You have not taken a quiz yet.') }}</p>
-                                </div>
-                                <div class="text-center mt-2">
-                                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="btn btn-sm btn-outline-success">{{ _('Take Quiz') }}</a>
-                                </div>
-                                {% endif %}
-                            </div>
+                            {% else %}
+                            <small class="text-muted">{{ _('Not played yet') }}</small>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <div class="text-center mt-2">
-                    <a href="{{ url_for('study.leaderboard') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-trophy me-2"></i>{{ _('View Full Leaderboard') }}
-                    </a>
+                <!-- Quiz -->
+                <div class="achievement-item">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-question-circle fa-lg text-success me-3"></i>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">{{ _('Quiz') }}</h6>
+                            {% if user_best_quiz %}
+                            <div class="d-flex align-items-center mt-1">
+                                <span class="badge bg-success me-2">#{{ user_best_quiz.get_rank() }}</span>
+                                <span class="fw-bold">{{ user_best_quiz.score }}%</span>
+                            </div>
+                            {% else %}
+                            <small class="text-muted">{{ _('Not played yet') }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Custom styles for dashboard */
+.hero-section {
+    padding: 2rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.icon-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.bg-primary-soft { background-color: rgba(13, 110, 253, 0.1); }
+.bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
+.bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
+.bg-info-soft { background-color: rgba(13, 202, 240, 0.1); }
+
+.hover-lift {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.hover-bg-light {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.hover-bg-light:hover {
+    background-color: var(--light-bg);
+}
+
+.hover-shadow {
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.topic-card {
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease-in-out;
+}
+
+.topic-card:hover {
+    border-color: var(--primary-color);
+}
+
+.reading-item {
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+.reading-item:hover {
+    background-color: var(--light-bg);
+}
+
+.stat-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-section h1 {
+        font-size: 1.75rem;
+    }
+    
+    .icon-circle {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .icon-circle i {
+        font-size: 1.5rem !important;
+    }
+}
+</style>
 {% endblock %}

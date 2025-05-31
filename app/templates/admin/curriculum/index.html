@@ -1,0 +1,265 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Curriculum Management{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Curriculum Management</h1>
+        <p class="page-subtitle">Manage CEFR levels, modules, and lessons</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-primary">
+            <i class="fas fa-upload me-2"></i> Import
+        </a>
+        <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i> New Level
+        </a>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-layer-group fa-2x text-primary mb-3"></i>
+            <div class="stat-value">{{ levels|length }}</div>
+            <div class="stat-label">CEFR Levels</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-book fa-2x text-success mb-3"></i>
+            <div class="stat-value">
+                {% set module_count = namespace(value=0) %}
+                {% for level in levels %}
+                    {% set module_count.value = module_count.value + level.modules|length %}
+                {% endfor %}
+                {{ module_count.value }}
+            </div>
+            <div class="stat-label">Modules</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-graduation-cap fa-2x text-info mb-3"></i>
+            <div class="stat-value">{{ recent_lessons|length }}</div>
+            <div class="stat-label">Recent Lessons</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-users fa-2x text-warning mb-3"></i>
+            <div class="stat-value">{{ user_progress_count }}</div>
+            <div class="stat-label">Active Learners</div>
+        </div>
+    </div>
+</div>
+
+<!-- CEFR Levels Overview -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">CEFR Levels Structure</h5>
+    </div>
+    <div class="card-body">
+        {% if levels %}
+        <div class="accordion" id="levelsAccordion">
+            {% for level in levels %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#level{{ level.id }}">
+                        <div class="d-flex align-items-center justify-content-between w-100 me-3">
+                            <div>
+                                <span class="badge bg-primary me-2">{{ level.code }}</span>
+                                <strong>{{ level.name }}</strong>
+                                {% if level.description %}
+                                <small class="text-muted ms-2">{{ level.description[:50] }}...</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted">
+                                {{ level.modules|length }} modules
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div id="level{{ level.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                     data-bs-parent="#levelsAccordion">
+                    <div class="accordion-body">
+                        {% if level.modules|length > 0 %}
+                        <div class="list-group">
+                            {% for module in level.modules|sort(attribute='number') %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">Module {{ module.number }}: {{ module.title }}</h6>
+                                        <p class="mb-1 text-muted small">
+                                            {{ module.description[:100] if module.description else 'No description' }}
+                                            {% if module.description and module.description|length > 100 %}...{% endif %}
+                                        </p>
+                                        <small class="text-muted">{{ module.lessons|length }} lessons</small>
+                                    </div>
+                                    <div class="btn-group btn-group-sm ms-3">
+                                        <a href="{{ url_for('admin.edit_module', module_id=module.id) }}"
+                                           class="btn btn-outline-primary" title="Edit Module">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('admin.create_lesson', module_id=module.id) }}"
+                                           class="btn btn-outline-success" title="Add Lesson">
+                                            <i class="fas fa-plus"></i>
+                                        </a>
+                                        <form action="{{ url_for('admin.delete_module', module_id=module.id) }}"
+                                              method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                    onclick="return confirm('Delete this module?')" title="Delete Module">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                {% if module.lessons|length > 0 %}
+                                <div class="mt-3">
+                                    <small class="text-muted d-block mb-2">Lessons:</small>
+                                    <div class="ms-3">
+                                        {% for lesson in module.lessons|sort(attribute='number') %}
+                                        <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}"
+                                           class="text-decoration-none">
+                                            <small class="d-block">
+                                                <i class="fas fa-chevron-right text-muted me-1"></i>
+                                                Lesson {{ lesson.number }}: {{ lesson.title }}
+                                                <span class="badge bg-secondary ms-1">{{ lesson.type }}</span>
+                                            </small>
+                                        </a>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('admin.create_module', level_id=level.id) }}"
+                               class="btn btn-sm btn-success">
+                                <i class="fas fa-plus me-1"></i> Add Module
+                            </a>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-3">No modules yet.</p>
+                        <a href="{{ url_for('admin.create_module', level_id=level.id) }}"
+                           class="btn btn-success">
+                            <i class="fas fa-plus me-1"></i> Create First Module
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">No CEFR levels created yet.</p>
+        <div class="text-center">
+            <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Create First Level
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Activity and Quick Actions -->
+<div class="row g-4 mt-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Lessons</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_lessons %}
+                <div class="list-group list-group-flush">
+                    {% for lesson in recent_lessons[:5] %}
+                    <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}"
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ lesson.title }}</h6>
+                                <small class="text-muted">
+                                    {% if lesson.module %}
+                                        {% if lesson.module.level %}
+                                            {{ lesson.module.level.code }} -
+                                        {% endif %}
+                                        Module {{ lesson.module.number }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% set type_colors = {
+                                'vocabulary': 'primary',
+                                'grammar': 'success',
+                                'quiz': 'warning',
+                                'matching': 'info',
+                                'text': 'secondary',
+                                'checkpoint': 'danger'
+                            } %}
+                            <span class="badge bg-{{ type_colors.get(lesson.type, 'secondary') }}">
+                                {{ lesson.type }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No lessons created yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                        <i class="fas fa-file-import me-2"></i> Import from JSON
+                    </a>
+                    <a href="{{ url_for('admin.collection_list') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-layer-group me-2"></i> Manage Collections
+                    </a>
+                    <a href="{{ url_for('admin.topic_list') }}" class="btn btn-outline-info">
+                        <i class="fas fa-tags me-2"></i> Manage Topics
+                    </a>
+                    {% if levels|length > 0 and levels[0].modules|length > 0 %}
+                    <hr>
+                    <a href="{{ url_for('admin.create_lesson', module_id=levels[0].modules[0].id) }}"
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-2"></i> Create New Lesson
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add smooth animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate stat cards on page load
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

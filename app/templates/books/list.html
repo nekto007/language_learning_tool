@@ -12,7 +12,7 @@
     <!-- Add Book button - only visible to admins -->
     {% if current_user.is_authenticated and current_user.is_admin %}
     <div class="col-md-4 text-end">
-        <a href="{{ url_for('books.add_book') }}" class="btn btn-primary">
+        <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> {{ _('Add New Book') }}
         </a>
     </div>
@@ -297,7 +297,7 @@
                     <i class="fas fa-undo"></i> {{ _('Clear Filters') }}
                 </a>
                 {% if current_user.is_authenticated and current_user.is_admin %}
-                <a href="{{ url_for('books.add_book') }}" class="btn btn-primary ms-2">
+                <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-primary ms-2">
                     <i class="fas fa-plus"></i> {{ _('Add Book') }}
                 </a>
                 {% endif %}

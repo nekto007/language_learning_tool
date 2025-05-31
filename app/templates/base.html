@@ -9,11 +9,13 @@
     <!-- Font Awesome для иконок -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css/') }}">
+    <!-- Unified Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/unified-styles.css') }}">
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% if progress and progress.status == 'completed' %}lesson-completed{% endif %}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container">
@@ -111,6 +113,45 @@
                             {% endif %}
                         </ul>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') %}active{% endif %}"
+                           href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-graduation-cap me-1"></i>{{ _('Courses') }}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="coursesDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('curriculum.index') }}">
+                                    <i class="fas fa-list me-1"></i>{{ _('All Courses') }}
+                                </a>
+                            </li>
+
+                            {% if get_cefr_levels() %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">{{ _('CEFR Levels') }}</h6></li>
+
+                            {% for level in get_cefr_levels() %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('curriculum.level_modules', level_code=level.code) }}">
+                                    <i class="fas fa-layer-group me-1"></i>{{ level.code }} - {{ level.name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                            {% endif %}
+
+                            {% if current_user.is_authenticated and get_user_lessons() %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">{{ _('Your Active Lessons') }}</h6></li>
+
+                            {% for lesson in get_user_lessons() %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id) }}">
+                                    {{ lesson.module.level.code }} - {{ _('Lesson') }} {{ lesson.number }}: {{ lesson.title|truncate(20) }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                            {% endif %}
+                        </ul>
+                    </li>
                     <!-- Добавляем новый раздел Reading -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint == 'books.read_book' %}active{% endif %}" href="#" id="readingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -145,26 +186,6 @@
                     </li>
                     {% endif %}
                 </ul>
-                {% if current_user.is_admin %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-book me-1"></i> {{ _('Words Management') }}
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('admin.topic_list') }}">
-                                    <i class="fas fa-tags me-1"></i> {{ _('Manage Topics') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('admin.collection_list') }}">
-                                    <i class="fas fa-layer-group me-1"></i> {{ _('Manage Collections') }}
-                                </a>
-                            </li>
-                            <!-- Другие пункты меню администрирования -->
-                        </ul>
-                    </li>
-                {% endif %}
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
@@ -246,7 +267,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Unified JavaScript -->
+    <script src="{{ url_for('static', filename='js/unified-js.js') }}"></script>
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
+
+    <!-- Canvas for confetti effects -->
+    <canvas id="confetti-canvas"></canvas>
 </body>
 </html>

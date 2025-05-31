@@ -31,3 +31,6 @@ pymorphy2==0.9.1
 pymorphy2-dicts-ru==2.4.417127.4579844
 setuptools==78.1.0
 psutil==7.0.0
+Flask-JWT-Extended==4.7.1
+bleach==6.2.0           # Для санитизации HTML контента
+marshmallow==3.23.2     # Для валидации данных

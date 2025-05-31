@@ -1,0 +1,669 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Контрольная точка') %}
+{% set instruction_text = _('Ответьте на все вопросы, чтобы завершить модуль. Необходимо набрать минимум ') ~ passing_score ~ _('%% для успешного прохождения.') %}
+{% set block_description = _('Финальная проверка знаний по всему модулю') %}
+{% set show_score = true %}
+
+{% block lesson_content %}
+<!-- CSRF Token для AJAX запросов -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
+<div class="checkpoint-lesson">
+  <!-- Информация о тесте -->
+  <div class="checkpoint-info">
+    <div class="info-grid">
+      <div class="info-item">
+        <i class="fas fa-question-circle"></i>
+        <div>
+          <span class="info-value">{{ exercises|length }}</span>
+          <span class="info-label">{{ _('Вопросов') }}</span>
+        </div>
+      </div>
+      <div class="info-item">
+        <i class="fas fa-percentage"></i>
+        <div>
+          <span class="info-value">{{ passing_score }}%</span>
+          <span class="info-label">{{ _('Проходной балл') }}</span>
+        </div>
+      </div>
+      <div class="info-item">
+        <i class="fas fa-clock"></i>
+        <div>
+          <span class="info-value">~{{ ((exercises|length * 1.5)|round)|int }}</span>
+          <span class="info-label">{{ _('Минут') }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Предупреждение -->
+  <div class="checkpoint-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    <p>{{ _('После отправки ответов вы не сможете их изменить. Убедитесь, что ответили на все вопросы.') }}</p>
+  </div>
+
+  <!-- Форма с вопросами -->
+  <form method="post" id="checkpoint-form">
+    {% if form and form.csrf_token %}
+      {{ form.csrf_token }}
+    {% else %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    {% endif %}
+
+    <div class="questions-list">
+      {% for question in exercises %}
+        {% set question_index = loop.index0 %}
+        <div class="question-block" data-question="{{ question_index }}">
+          <div class="question-header">
+            <span class="question-number">{{ loop.index }}</span>
+            <span class="question-type">
+              {% if question.type == 'multiple_choice' %}
+                <i class="fas fa-list-ul"></i> {{ _('Выбор варианта') }}
+              {% elif question.type == 'true_false' %}
+                <i class="fas fa-check-double"></i> {{ _('Верно/Неверно') }}
+              {% elif question.type == 'fill_in_blank' %}
+                <i class="fas fa-pen"></i> {{ _('Заполнить пропуск') }}
+              {% elif question.type == 'translation' %}
+                <i class="fas fa-language"></i> {{ _('Перевод') }}
+              {% elif question.type == 'reorder' %}
+                <i class="fas fa-sort"></i> {{ _('Порядок слов') }}
+              {% endif %}
+            </span>
+          </div>
+
+          <div class="question-content">
+            <p class="question-text">{{ question.question or question.prompt }}</p>
+
+            {% if question.type == 'multiple_choice' and question.options %}
+              <div class="answer-options">
+                {% for option in question.options %}
+                  <label class="option-label">
+                    <input type="radio"
+                           name="answer_{{ question_index }}"
+                           value="{{ loop.index0 }}"
+                           class="option-input"
+                           required>
+                    <span class="option-content">
+                      <span class="option-marker">{{ 'ABCD'[loop.index0] }}</span>
+                      <span class="option-text">{{ option }}</span>
+                    </span>
+                  </label>
+                {% endfor %}
+              </div>
+
+            {% elif question.type == 'true_false' %}
+              <div class="answer-options binary">
+                <label class="option-label">
+                  <input type="radio"
+                         name="answer_{{ question_index }}"
+                         value="true"
+                         class="option-input"
+                         required>
+                  <span class="option-content">
+                    <span class="option-marker">T</span>
+                    <span class="option-text">{{ _('Верно') }}</span>
+                  </span>
+                </label>
+                <label class="option-label">
+                  <input type="radio"
+                         name="answer_{{ question_index }}"
+                         value="false"
+                         class="option-input"
+                         required>
+                  <span class="option-content">
+                    <span class="option-marker">F</span>
+                    <span class="option-text">{{ _('Неверно') }}</span>
+                  </span>
+                </label>
+              </div>
+
+            {% elif question.type in ['fill_in_blank', 'translation'] %}
+              <div class="text-answer">
+                <input type="text"
+                       name="answer_{{ question_index }}"
+                       class="form-control"
+                       placeholder="{{ _('Ваш ответ') }}"
+                       required>
+              </div>
+              
+            {% elif question.type == 'reorder' %}
+              {% if question.words %}
+                <div class="reorder-exercise" data-exercise-index="{{ question_index }}">
+                  <small class="text-muted">{{ _('Кликайте на слова для составления предложения:') }}</small>
+                  <div class="word-chips available-words mt-2" id="available-words-{{ question_index }}">
+                    {% for word in question.words %}
+                      <button type="button" 
+                              class="word-chip"
+                              data-word="{{ word }}">
+                        {{ word }}
+                      </button>
+                    {% endfor %}
+                  </div>
+                  
+                  <div class="selected-words-container mt-3">
+                    <small class="text-muted">{{ _('Ваше предложение:') }}</small>
+                    <div class="selected-words" id="selected-words-{{ question_index }}">
+                      <!-- Selected words will appear here -->
+                    </div>
+                  </div>
+                  
+                  <input type="hidden"
+                         name="answer_{{ question_index }}"
+                         id="answer_{{ question_index }}"
+                         value=""
+                         required>
+                  
+                  <button type="button" 
+                          class="btn btn-sm btn-outline-secondary mt-2"
+                          onclick="clearReorderExercise({{ question_index }})">
+                    <i class="fas fa-undo"></i> {{ _('Очистить') }}
+                  </button>
+                </div>
+              {% else %}
+                <!-- Fallback to text input if no words provided -->
+                <div class="text-answer">
+                  <input type="text"
+                         name="answer_{{ question_index }}"
+                         class="form-control"
+                         placeholder="{{ _('Составьте предложение') }}"
+                         required>
+                </div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Прогресс заполнения -->
+    <div class="completion-progress">
+      <div class="progress-info">
+        <span>{{ _('Отвечено') }}: <span id="answered-count">0</span> / {{ exercises|length }}</span>
+      </div>
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar-fill" id="completion-progress" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Кнопка отправки -->
+    <div class="submit-section">
+      <button type="submit" class="btn btn-danger btn-lg" id="submit-checkpoint">
+        <i class="fas fa-paper-plane"></i> {{ _('Отправить ответы') }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+let preventUnload = true;
+
+// Reorder exercise functions
+function initReorderExercise(index) {
+  const availableWords = document.getElementById(`available-words-${index}`);
+  const selectedWords = document.getElementById(`selected-words-${index}`);
+  const hiddenInput = document.getElementById(`answer_${index}`);
+  
+  if (!availableWords || !selectedWords) return;
+  
+  // Add click handlers to word chips
+  availableWords.querySelectorAll('.word-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      if (this.disabled) return;
+      
+      // Move to selected
+      this.classList.add('selected');
+      selectedWords.appendChild(this);
+      
+      // Update hidden input
+      updateReorderAnswer(index);
+    });
+  });
+  
+  // Add click handlers to selected words (to remove them)
+  selectedWords.addEventListener('click', function(e) {
+    if (e.target.classList.contains('word-chip')) {
+      const chip = e.target;
+      chip.classList.remove('selected');
+      availableWords.appendChild(chip);
+      updateReorderAnswer(index);
+    }
+  });
+}
+
+function updateReorderAnswer(index) {
+  const selectedWords = document.getElementById(`selected-words-${index}`);
+  const hiddenInput = document.getElementById(`answer_${index}`);
+  
+  const words = Array.from(selectedWords.querySelectorAll('.word-chip'))
+    .map(chip => chip.dataset.word);
+  
+  hiddenInput.value = words.join(' ');
+  updateProgress(); // Update overall progress
+}
+
+function clearReorderExercise(index) {
+  const availableWords = document.getElementById(`available-words-${index}`);
+  const selectedWords = document.getElementById(`selected-words-${index}`);
+  const hiddenInput = document.getElementById(`answer_${index}`);
+  
+  // Move all words back to available
+  Array.from(selectedWords.querySelectorAll('.word-chip')).forEach(chip => {
+    chip.classList.remove('selected');
+    availableWords.appendChild(chip);
+  });
+  
+  hiddenInput.value = '';
+  updateProgress();
+}
+
+// Отслеживание прогресса заполнения
+function updateProgress() {
+  let answered = 0;
+  const total = {{ exercises|length }};
+
+  {% for i in range(exercises|length) %}
+    {% set question = exercises[i] %}
+    {% if question.type in ['multiple_choice', 'true_false'] %}
+      if (document.querySelector('input[name="answer_{{ i }}"]:checked')) {
+        answered++;
+      }
+    {% elif question.type in ['fill_in_blank', 'translation'] %}
+      {
+        const textInput = document.querySelector('[name="answer_{{ i }}"]');
+        if (textInput && textInput.value.trim()) {
+          answered++;
+        }
+      }
+    {% elif question.type == 'reorder' %}
+      {
+        const hiddenInput = document.querySelector('[name="answer_{{ i }}"]');
+        if (hiddenInput && hiddenInput.value.trim()) {
+          answered++;
+        }
+      }
+    {% endif %}
+  {% endfor %}
+
+  document.getElementById('answered-count').textContent = answered;
+  const percent = (answered / total) * 100;
+  document.getElementById('completion-progress').style.width = percent + '%';
+
+  const submitBtn = document.getElementById('submit-checkpoint');
+  submitBtn.disabled = answered < total;
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('checkpoint-form');
+
+  // Обработчики для отслеживания изменений
+  form.querySelectorAll('input[type="radio"]').forEach(input => {
+    input.addEventListener('change', updateProgress);
+  });
+
+  form.querySelectorAll('input[type="text"]').forEach(input => {
+    input.addEventListener('input', updateProgress);
+  });
+  
+  // Initialize reorder exercises
+  {% for i in range(exercises|length) %}
+    {% if exercises[i].type == 'reorder' %}
+      initReorderExercise({{ i }});
+    {% endif %}
+  {% endfor %}
+
+  // Начальная проверка
+  updateProgress();
+
+  // Обработчик отправки формы
+  form.addEventListener('submit', function(e) {
+    preventUnload = false;
+    window.onbeforeunload = null;
+
+    const submitBtn = document.getElementById('submit-checkpoint');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Отправка...") }}';
+    submitBtn.disabled = true;
+
+    return true;
+  });
+
+  // Подсветка текущего вопроса при фокусе
+  form.querySelectorAll('input').forEach(input => {
+    input.addEventListener('focus', function() {
+      document.querySelectorAll('.question-block').forEach(block => {
+        block.classList.remove('focused');
+      });
+
+      const questionBlock = this.closest('.question-block');
+      if (questionBlock) {
+        questionBlock.classList.add('focused');
+      }
+    });
+  });
+});
+
+// Предотвращение случайного закрытия страницы
+window.addEventListener('beforeunload', function(e) {
+  if (!preventUnload) return;
+
+  const answered = parseInt(document.getElementById('answered-count').textContent);
+  if (answered > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  .checkpoint-lesson {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* Информация о тесте */
+  .checkpoint-info {
+    background: var(--lesson-light);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .info-item i {
+    font-size: 1.5rem;
+    color: var(--lesson-primary);
+  }
+
+  .info-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: block;
+    color: #212529;
+  }
+
+  .info-label {
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+  }
+
+  /* Предупреждение */
+  .checkpoint-warning {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 193, 7, 0.1);
+    border-left: 4px solid var(--lesson-warning);
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+
+  .checkpoint-warning i {
+    color: var(--lesson-warning);
+    font-size: 1.25rem;
+  }
+
+  .checkpoint-warning p {
+    margin: 0;
+    color: #856404;
+  }
+
+  /* Список вопросов */
+  .questions-list {
+    margin-bottom: 2rem;
+  }
+
+  /* Блок вопроса */
+  .question-block {
+    background: var(--lesson-light);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+  }
+
+  .question-block:hover {
+    box-shadow: var(--lesson-shadow-hover);
+  }
+
+  .question-block.focused {
+    border-color: var(--lesson-primary);
+    background: white;
+  }
+
+  /* Заголовок вопроса */
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .question-number {
+    width: 32px;
+    height: 32px;
+    background: var(--lesson-danger);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+
+  .question-type {
+    font-size: 0.875rem;
+    color: var(--lesson-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Текст вопроса */
+  .question-text {
+    font-size: 1.0625rem;
+    margin-bottom: 1rem;
+    color: #212529;
+  }
+
+  /* Варианты ответов */
+  .answer-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .answer-options.binary {
+    flex-direction: row;
+    gap: 1rem;
+  }
+
+  .option-label {
+    cursor: pointer;
+  }
+
+  .option-input {
+    position: absolute;
+    opacity: 0;
+  }
+
+  .option-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 2px solid var(--lesson-border);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .option-input:checked + .option-content {
+    border-color: var(--lesson-primary);
+    background: rgba(13, 110, 253, 0.05);
+  }
+
+  .option-label:hover .option-content {
+    border-color: var(--lesson-primary);
+  }
+
+  .option-marker {
+    width: 28px;
+    height: 28px;
+    background: var(--lesson-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  /* Текстовые ответы */
+  .text-answer input {
+    border: 2px solid var(--lesson-border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  .text-answer input:focus {
+    border-color: var(--lesson-primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+  }
+
+  /* Прогресс заполнения */
+  .completion-progress {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    border-top: 1px solid var(--lesson-border);
+    padding: 1rem 0;
+    margin: 0 -2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .progress-bar-wrapper {
+    height: 8px;
+    background: var(--lesson-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--lesson-danger);
+    transition: width 0.3s ease;
+  }
+
+  /* Кнопка отправки */
+  .submit-section {
+    text-align: center;
+    padding: 2rem 0;
+  }
+
+  #submit-checkpoint:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Reorder exercise styles */
+  .reorder-exercise {
+    margin: 1rem 0;
+  }
+
+  .word-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 50px;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+  }
+
+  .selected-words {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 50px;
+    padding: 0.75rem;
+    background: white;
+    border: 2px solid var(--lesson-primary);
+    border-radius: 8px;
+  }
+
+  .word-chip {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 2px solid var(--lesson-primary);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .word-chip:hover {
+    background: var(--lesson-primary);
+    color: white;
+  }
+
+  .word-chip.selected {
+    background: var(--lesson-primary);
+    color: white;
+  }
+
+  .word-chip:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .selected-words-container {
+    margin-top: 1rem;
+  }
+
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    .info-grid {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .answer-options.binary {
+      flex-direction: column;
+    }
+
+    .question-block {
+      padding: 1rem;
+    }
+  }
+</style>
+{% endblock %}

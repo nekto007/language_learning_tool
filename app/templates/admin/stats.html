@@ -1,0 +1,382 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Statistics{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">Platform Statistics</h1>
+    <p class="page-subtitle">Detailed analytics and user behavior insights</p>
+</div>
+
+<!-- Time Period Selector -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary active" onclick="updatePeriod('week')">Last 7 Days</button>
+            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('month')">Last 30 Days</button>
+            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('quarter')">Last 90 Days</button>
+        </div>
+    </div>
+</div>
+
+<!-- Main Charts Row -->
+<div class="row g-4 mb-4">
+    <!-- User Registration Trends -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">User Registration Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="registrationChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Activity by Hour -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Activity by Hour</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="hourlyActivityChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Learning Progress Row -->
+<div class="row g-4 mb-4">
+    <!-- Course Progress -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Course Completion by Level</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="courseProgressChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Statistics -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Content Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="contentDistributionChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Stats Tables -->
+<div class="row g-4">
+    <!-- Top Active Users -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Active Users</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Sessions</th>
+                                <th>Words Learned</th>
+                                <th>Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>john_doe</td>
+                                <td>45</td>
+                                <td>320</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" style="width: 75%;">75%</div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>jane_smith</td>
+                                <td>38</td>
+                                <td>280</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" style="width: 65%;">65%</div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>mike_wilson</td>
+                                <td>32</td>
+                                <td>250</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-warning" style="width: 55%;">55%</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Content -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Most Popular Content</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Content</th>
+                                <th>Type</th>
+                                <th>Views</th>
+                                <th>Completion Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Basic Greetings</td>
+                                <td><span class="badge bg-primary">Lesson</span></td>
+                                <td>1,234</td>
+                                <td>89%</td>
+                            </tr>
+                            <tr>
+                                <td>Travel Vocabulary</td>
+                                <td><span class="badge bg-info">Collection</span></td>
+                                <td>987</td>
+                                <td>76%</td>
+                            </tr>
+                            <tr>
+                                <td>Business English</td>
+                                <td><span class="badge bg-success">Topic</span></td>
+                                <td>856</td>
+                                <td>82%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="card mt-4">
+    <div class="card-body text-center">
+        <h5 class="mb-3">Export Statistics</h5>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" onclick="exportData('csv')">
+                <i class="fas fa-file-csv me-2"></i> Export CSV
+            </button>
+            <button class="btn btn-outline-primary" onclick="exportData('pdf')">
+                <i class="fas fa-file-pdf me-2"></i> Export PDF
+            </button>
+            <button class="btn btn-outline-primary" onclick="exportData('excel')">
+                <i class="fas fa-file-excel me-2"></i> Export Excel
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Registration Chart
+const registrationData = {
+    {% for reg in user_registrations %}
+    '{{ reg.date }}': {{ reg.count }},
+    {% endfor %}
+};
+
+const loginData = {
+    {% for login in user_logins %}
+    '{{ login.date }}': {{ login.count }},
+    {% endfor %}
+};
+
+// Generate date labels for the last 30 days
+const labels = [];
+const regValues = [];
+const loginValues = [];
+for (let i = 29; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    labels.push(date.toLocaleDateString('en', { month: 'short', day: 'numeric' }));
+    regValues.push(registrationData[dateStr] || 0);
+    loginValues.push(loginData[dateStr] || 0);
+}
+
+const registrationCtx = document.getElementById('registrationChart').getContext('2d');
+new Chart(registrationCtx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'New Registrations',
+            data: regValues,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'User Logins',
+            data: loginValues,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Hourly Activity Chart
+const hourlyData = [
+    {% for hour_data in user_activity_by_hour %}
+    { hour: {{ hour_data.hour }}, count: {{ hour_data.count }} },
+    {% endfor %}
+];
+
+// Fill missing hours with 0
+const hourlyActivity = Array(24).fill(0);
+hourlyData.forEach(d => {
+    hourlyActivity[d.hour] = d.count;
+});
+
+const hourlyCtx = document.getElementById('hourlyActivityChart').getContext('2d');
+new Chart(hourlyCtx, {
+    type: 'bar',
+    data: {
+        labels: Array.from({length: 24}, (_, i) => i + ':00'),
+        datasets: [{
+            label: 'Activity',
+            data: hourlyActivity,
+            backgroundColor: '#4f46e5',
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Course Progress Chart
+const courseProgressCtx = document.getElementById('courseProgressChart').getContext('2d');
+new Chart(courseProgressCtx, {
+    type: 'bar',
+    data: {
+        labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
+        datasets: [{
+            label: 'Completion Rate',
+            data: [85, 72, 68, 45, 32, 15],
+            backgroundColor: [
+                '#10b981',
+                '#10b981',
+                '#3b82f6',
+                '#3b82f6',
+                '#f59e0b',
+                '#ef4444'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                max: 100
+            }
+        }
+    }
+});
+
+// Content Distribution Chart
+const contentCtx = document.getElementById('contentDistributionChart').getContext('2d');
+new Chart(contentCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Vocabulary', 'Grammar', 'Reading', 'Exercises', 'Other'],
+        datasets: [{
+            data: [35, 25, 20, 15, 5],
+            backgroundColor: [
+                '#4f46e5',
+                '#10b981',
+                '#f59e0b',
+                '#ef4444',
+                '#6b7280'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+            }
+        }
+    }
+});
+
+// Helper functions
+function updatePeriod(period) {
+    // Update button states
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Here you would typically reload the data for the selected period
+    console.log('Loading data for:', period);
+}
+
+function exportData(format) {
+    // Here you would implement the export functionality
+    console.log('Exporting data as:', format);
+}
+</script>
+{% endblock %}

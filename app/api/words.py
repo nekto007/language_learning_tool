@@ -208,7 +208,15 @@ def update_word_status():
     try:
         # Уже используется метод User.set_word_status, который мы обновили
         current_user.set_word_status(word_id, status)
-        return jsonify({'success': True})
+
+        # Получаем обновленный статус в строковом формате
+        from app.utils.db import status_to_string
+        updated_status = status_to_string(status)
+
+        return jsonify({
+            'success': True,
+            'status': updated_status
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -289,8 +297,8 @@ def search_words():
         search_term_lower = search_term.lower()
         words = CollectionWords.query.filter(
             or_(
-                CollectionWords.english_word  == search_term_lower,
-                CollectionWords.russian_word  == search_term_lower
+                CollectionWords.english_word == search_term_lower,
+                CollectionWords.russian_word == search_term_lower
             )
         ).order_by(CollectionWords.english_word).limit(50).all()
 
@@ -308,3 +316,54 @@ def search_words():
         print(f"Error in search API: {str(e)}")
         # Вместо простого повторного вызова исключения, отправляем понятный ответ с ошибкой
         return jsonify({"error": str(e)}), 500
+
+
+# Добавьте этот endpoint в файл app/api/words.py
+
+@api_words.route('/user-words-status', methods=['POST'])
+@api_login_required
+def get_user_words_status():
+    """Получить статусы слов пользователя для списка word_ids"""
+    if not request.is_json:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid JSON format'
+        }), 400
+
+    data = request.get_json()
+    word_ids = data.get('word_ids', [])
+
+    if not word_ids:
+        return jsonify({
+            'success': True,
+            'words': []
+        })
+
+    # Получаем статусы слов для пользователя
+    from app.study.models import UserWord
+
+    # Получаем все UserWord записи для данного пользователя и слов
+    user_words = UserWord.query.filter(
+        UserWord.user_id == current_user.id,
+        UserWord.word_id.in_(word_ids)
+    ).all()
+
+    # Создаем словарь для быстрого доступа
+    word_status_map = {}
+    for uw in user_words:
+        # Преобразуем строковый статус в строку для JS
+        word_status_map[uw.word_id] = uw.status
+
+    # Формируем ответ
+    result = []
+    for word_id in word_ids:
+        status = word_status_map.get(word_id, 'new')
+        result.append({
+            'word_id': word_id,
+            'status': status
+        })
+
+    return jsonify({
+        'success': True,
+        'words': result
+    })

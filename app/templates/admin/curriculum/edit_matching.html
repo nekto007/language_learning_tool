@@ -1,0 +1,370 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Edit Matching - {{ component.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Edit Matching Exercise</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.curriculum') }}">Curriculum</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}">{{ component.title }}</a></li>
+            <li class="breadcrumb-item active">Edit Matching</li>
+        </ol>
+    </nav>
+</div>
+
+<form method="POST" action="">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Settings -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Exercise Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="time_limit" class="form-label">Time Limit (seconds)</label>
+                                <input type="number" name="time_limit" id="time_limit" class="form-control"
+                                       value="{{ time_limit }}" min="0">
+                                <small class="form-text text-muted">0 = no time limit</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Total Pairs</label>
+                                <input type="text" class="form-control" id="totalPairs" value="{{ pairs|length }}" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matching Pairs -->
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Matching Pairs</h5>
+                    <button type="button" class="btn btn-success btn-sm" onclick="addPair()">
+                        <i class="fas fa-plus me-1"></i>Add Pair
+                    </button>
+                </div>
+                <div class="card-body">
+                    <input type="hidden" name="pairs_count" id="pairsCount" value="{{ pairs|length }}">
+
+                    <div class="row mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Left Side</label>
+                        </div>
+                        <div class="col-md-2"></div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Right Side</label>
+                        </div>
+                    </div>
+
+                    <div id="pairsList">
+                        {% for i, pair in enumerate(pairs) %}
+                        <div class="pair-item mb-3" data-index="{{ i }}">
+                            <div class="row align-items-center">
+                                <div class="col-md-5">
+                                    <input type="text" name="pair_left_{{ i }}" class="form-control"
+                                           value="{{ pair.left }}" placeholder="English word or phrase" required>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <i class="fas fa-arrows-alt-h text-muted"></i>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" name="pair_right_{{ i }}" class="form-control"
+                                           value="{{ pair.right }}" placeholder="Translation or match" required>
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removePair(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        {% if not pairs %}
+                        <div class="pair-item mb-3" data-index="0">
+                            <div class="row align-items-center">
+                                <div class="col-md-5">
+                                    <input type="text" name="pair_left_0" class="form-control"
+                                           placeholder="English word or phrase" required>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <i class="fas fa-arrows-alt-h text-muted"></i>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" name="pair_right_0" class="form-control"
+                                           placeholder="Translation or match" required>
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removePair(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit buttons -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Matching Exercise
+                        </button>
+                        <a href="{{ url_for('admin.edit_lesson', lesson_id=component.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Preview</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">How the exercise will appear to students:</p>
+                    <div class="border rounded p-3 bg-light">
+                        <h6 class="mb-3">Match the items:</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="list-group" id="previewLeft">
+                                    {% for pair in pairs[:3] %}
+                                    <div class="list-group-item small">{{ pair.left }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="list-group" id="previewRight">
+                                    {% for pair in pairs[:3] %}
+                                    <div class="list-group-item small">{{ pair.right }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% if pairs|length > 3 %}
+                        <p class="text-center text-muted small mt-2">... and {{ pairs|length - 3 }} more pairs</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li class="mb-2">Keep pairs clear and unambiguous</li>
+                        <li class="mb-2">Use consistent formatting</li>
+                        <li class="mb-2">5-10 pairs work best for most exercises</li>
+                        <li class="mb-2">Consider difficulty when setting time limits</li>
+                        <li class="mb-0">Items will be shuffled when displayed to students</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Import Options</h5>
+                </div>
+                <div class="card-body">
+                    <button type="button" class="btn btn-info btn-sm w-100 mb-2" onclick="importFromVocabulary()">
+                        <i class="fas fa-book me-1"></i>Import from Vocabulary
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm w-100" onclick="bulkImport()">
+                        <i class="fas fa-file-import me-1"></i>Bulk Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Import Pairs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Enter pairs in the format: <code>left item | right item</code></p>
+                <textarea id="bulkImportText" class="form-control" rows="10"
+                          placeholder="Hello | Привет
+Good morning | Доброе утро
+Thank you | Спасибо"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processBulkImport()">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let pairIndex = {{ pairs|length }} || 1;
+
+function updatePairIndices() {
+    const pairs = document.querySelectorAll('.pair-item');
+    pairs.forEach((pair, index) => {
+        pair.dataset.index = index;
+        pair.querySelector('input[name^="pair_left_"]').name = `pair_left_${index}`;
+        pair.querySelector('input[name^="pair_right_"]').name = `pair_right_${index}`;
+    });
+
+    document.getElementById('pairsCount').value = pairs.length;
+    document.getElementById('totalPairs').value = pairs.length;
+
+    updatePreview();
+}
+
+function removePair(button) {
+    const pairs = document.querySelectorAll('.pair-item');
+    if (pairs.length > 1) {
+        button.closest('.pair-item').remove();
+        updatePairIndices();
+    } else {
+        alert('You must have at least one pair.');
+    }
+}
+
+function addPair() {
+    const pairsList = document.getElementById('pairsList');
+    const div = document.createElement('div');
+    div.className = 'pair-item mb-3';
+    div.dataset.index = pairIndex;
+
+    div.innerHTML = `
+        <div class="row align-items-center">
+            <div class="col-md-5">
+                <input type="text" name="pair_left_${pairIndex}" class="form-control"
+                       placeholder="English word or phrase" required>
+            </div>
+            <div class="col-md-2 text-center">
+                <i class="fas fa-arrows-alt-h text-muted"></i>
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="pair_right_${pairIndex}" class="form-control"
+                       placeholder="Translation or match" required>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removePair(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    pairsList.appendChild(div);
+    pairIndex++;
+    updatePairIndices();
+}
+
+function updatePreview() {
+    const pairs = document.querySelectorAll('.pair-item');
+    const previewLeft = document.getElementById('previewLeft');
+    const previewRight = document.getElementById('previewRight');
+
+    previewLeft.innerHTML = '';
+    previewRight.innerHTML = '';
+
+    const maxPreview = Math.min(3, pairs.length);
+
+    for (let i = 0; i < maxPreview; i++) {
+        const leftValue = pairs[i].querySelector('input[name^="pair_left_"]').value || 'Item ' + (i + 1);
+        const rightValue = pairs[i].querySelector('input[name^="pair_right_"]').value || 'Match ' + (i + 1);
+
+        previewLeft.innerHTML += `<div class="list-group-item small">${leftValue}</div>`;
+        previewRight.innerHTML += `<div class="list-group-item small">${rightValue}</div>`;
+    }
+}
+
+function bulkImport() {
+    const modal = new bootstrap.Modal(document.getElementById('bulkImportModal'));
+    modal.show();
+}
+
+function processBulkImport() {
+    const text = document.getElementById('bulkImportText').value.trim();
+    if (!text) return;
+
+    const lines = text.split('\n');
+    const pairs = [];
+
+    lines.forEach(line => {
+        const parts = line.split('|').map(part => part.trim());
+        if (parts.length === 2 && parts[0] && parts[1]) {
+            pairs.push({ left: parts[0], right: parts[1] });
+        }
+    });
+
+    if (pairs.length > 0) {
+        // Clear existing pairs
+        document.getElementById('pairsList').innerHTML = '';
+
+        // Add new pairs
+        pairs.forEach((pair, index) => {
+            const div = document.createElement('div');
+            div.className = 'pair-item mb-3';
+            div.dataset.index = index;
+
+            div.innerHTML = `
+                <div class="row align-items-center">
+                    <div class="col-md-5">
+                        <input type="text" name="pair_left_${index}" class="form-control"
+                               value="${pair.left}" placeholder="English word or phrase" required>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <i class="fas fa-arrows-alt-h text-muted"></i>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="pair_right_${index}" class="form-control"
+                               value="${pair.right}" placeholder="Translation or match" required>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removePair(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('pairsList').appendChild(div);
+        });
+
+        updatePairIndices();
+        bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+        document.getElementById('bulkImportText').value = '';
+    }
+}
+
+function importFromVocabulary() {
+    alert('This feature would allow importing pairs from the module vocabulary. Implementation pending.');
+}
+
+// Update preview on input change
+document.addEventListener('input', function(e) {
+    if (e.target.matches('input[name^="pair_"]')) {
+        updatePreview();
+    }
+});
+
+// Initial preview update
+updatePreview();
+</script>
+{% endblock %}
