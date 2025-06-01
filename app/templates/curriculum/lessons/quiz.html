@@ -746,26 +746,43 @@ window.QuizApp = {
     // Scroll to results
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
     
-    // Show navigation buttons
-    const retryBtn = document.getElementById('retry-button');
-    const nextBtn = document.getElementById('complete-exercise');
-    const completeModuleBtn = document.getElementById('complete-module');
-    
-    // Show retry button
-    if (retryBtn) {
-      retryBtn.style.display = 'inline-flex';
-    }
-    
-    // Show next/complete button if passed
-    if (isPassed) {
-      if (nextBtn) {
-        nextBtn.style.display = 'inline-flex';
-        nextBtn.disabled = false;
-      } else if (completeModuleBtn) {
-        completeModuleBtn.style.display = 'inline-flex';
-        completeModuleBtn.disabled = false;
+    // Show navigation buttons with delay to ensure DOM is ready
+    setTimeout(() => {
+      const retryBtn = document.getElementById('retry-button');
+      const nextBtn = document.getElementById('complete-exercise');
+      const completeModuleBtn = document.getElementById('complete-module');
+      
+      // Show retry button
+      if (retryBtn) {
+        retryBtn.style.display = 'inline-flex';
+        console.log('Retry button shown');
+      } else {
+        console.error('Retry button not found in DOM');
       }
-    }
+      
+      // Show next/complete button if passed
+      if (isPassed) {
+        if (nextBtn) {
+          nextBtn.style.display = 'inline-flex';
+          nextBtn.disabled = false;
+          console.log('Next lesson button shown');
+        } else if (completeModuleBtn) {
+          completeModuleBtn.style.display = 'inline-flex';
+          completeModuleBtn.disabled = false;
+          console.log('Complete module button shown');
+        } else {
+          console.error('Navigation buttons not found in DOM');
+        }
+      }
+      
+      // Force redraw to ensure buttons are visible
+      const footer = document.getElementById('lesson-footer');
+      if (footer) {
+        footer.style.display = 'none';
+        footer.offsetHeight; // Force reflow
+        footer.style.display = '';
+      }
+    }, 100); // Small delay to ensure DOM is ready
   }
 };
 

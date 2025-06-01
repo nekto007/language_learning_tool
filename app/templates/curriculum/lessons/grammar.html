@@ -471,36 +471,59 @@ function showResultsAndNavigation(data) {
   `;
   
   // Добавляем результаты в конец страницы, перед lesson-footer
-  const lessonContent = document.querySelector('.lesson-content');
-  const lessonFooter = document.querySelector('.lesson-footer');
+  const lessonContent = document.querySelector('.lesson-content') || document.querySelector('.lesson-content-wrapper') || document.querySelector('.grammar-lesson');
+  const lessonFooter = document.querySelector('.lesson-footer') || document.querySelector('#lesson-footer');
   
-  if (lessonFooter) {
-    lessonContent.insertBefore(resultsDiv, lessonFooter);
+  if (lessonContent) {
+    if (lessonFooter) {
+      lessonContent.insertBefore(resultsDiv, lessonFooter);
+    } else {
+      lessonContent.appendChild(resultsDiv);
+    }
   } else {
-    lessonContent.appendChild(resultsDiv);
+    // Fallback: добавляем в конец body
+    console.warn('Could not find lesson content container, appending to body');
+    document.body.appendChild(resultsDiv);
   }
   
   // Прокручиваем к результатам
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
   
-  // Показываем кнопки навигации в lesson-footer
-  const retryBtn = document.getElementById('retry-button');
-  const nextBtn = document.getElementById('complete-exercise');
-  const completeModuleBtn = document.getElementById('complete-module');
-  
-  // Показываем кнопку "Пройти заново"
-  if (retryBtn) {
-    retryBtn.style.display = 'inline-flex';
-  }
-  
-  // Показываем кнопку "Далее" или "Завершить модуль" всегда после проверки
-  if (nextBtn) {
-    nextBtn.style.display = 'inline-flex';
-    nextBtn.disabled = false;
-  } else if (completeModuleBtn) {
-    completeModuleBtn.style.display = 'inline-flex';
-    completeModuleBtn.disabled = false;
-  }
+  // Показываем кнопки навигации с задержкой для обеспечения готовности DOM
+  setTimeout(() => {
+    const retryBtn = document.getElementById('retry-button');
+    const nextBtn = document.getElementById('complete-exercise');
+    const completeModuleBtn = document.getElementById('complete-module');
+    
+    // Показываем кнопку "Пройти заново"
+    if (retryBtn) {
+      retryBtn.style.display = 'inline-flex';
+      console.log('Retry button shown');
+    } else {
+      console.error('Retry button not found in DOM');
+    }
+    
+    // Показываем кнопку "Далее" или "Завершить модуль" всегда после проверки
+    if (nextBtn) {
+      nextBtn.style.display = 'inline-flex';
+      nextBtn.disabled = false;
+      console.log('Next lesson button shown');
+    } else if (completeModuleBtn) {
+      completeModuleBtn.style.display = 'inline-flex';
+      completeModuleBtn.disabled = false;
+      console.log('Complete module button shown');
+    } else {
+      console.error('Navigation buttons not found in DOM');
+    }
+    
+    // Принудительная перерисовка для обеспечения видимости кнопок
+    const footer = document.getElementById('lesson-footer');
+    if (footer) {
+      footer.style.display = 'none';
+      footer.offsetHeight; // Force reflow
+      footer.style.display = '';
+    }
+  }, 100); // Небольшая задержка для обеспечения готовности DOM
 }
 
 function completeAndReturn() {

@@ -41,110 +41,107 @@
     </div>
   </div>
 
-  <!-- Группировка модулей по статусу -->
-  {% set current_modules = [] %}
-  {% set completed_modules = [] %}
-  {% set locked_modules = [] %}
-
-  {% for module in modules %}
-    {% if module.id in user_module_progress %}
-      {% if user_module_progress[module.id].percentage == 100 %}
-        {% set _ = completed_modules.append(module) %}
-      {% else %}
-        {% set _ = current_modules.append(module) %}
-      {% endif %}
-    {% else %}
-      {% set _ = locked_modules.append(module) %}
-    {% endif %}
-  {% endfor %}
-
-  <!-- Текущие модули -->
-  {% if current_modules %}
-    <div class="module-section mb-5">
-      <h3 class="section-title">{{ _('Текущие модули') }}</h3>
-      <div class="modules-grid">
-        {% for module in current_modules %}
-          {% set progress = user_module_progress[module.id] %}
-          <div class="module-card current">
-            <div class="module-header">
-              <span class="module-number">{{ module.number }}</span>
-              <div class="module-progress-ring">
-                <svg width="60" height="60">
-                  <circle cx="30" cy="30" r="25" fill="none" stroke="#e9ecef" stroke-width="5"></circle>
-                  <circle cx="30" cy="30" r="25" fill="none" stroke="#0d6efd" stroke-width="5"
-                          stroke-dasharray="{{ (progress.percentage / 100 * 157)|round }} 157"
-                          stroke-dashoffset="0"
-                          transform="rotate(-90 30 30)"></circle>
-                </svg>
-                <span class="progress-value">{{ progress.percentage }}%</span>
-              </div>
-            </div>
-            <h4 class="module-title">{{ module.title }}</h4>
-            <p class="module-description">{{ module.description or _('Продолжайте изучение этого модуля') }}</p>
-            <div class="module-stats">
-              <span>{{ progress.completed_lessons }} / {{ progress.total_lessons }} уроков</span>
-            </div>
-            <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
-               class="btn btn-primary btn-block">{{ _('Продолжить') }}</a>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
-
-  <!-- Новые модули -->
-  {% if locked_modules %}
-    <div class="module-section mb-5">
-      <h3 class="section-title">{{ _('Доступные модули') }}</h3>
-      <div class="modules-grid">
-        {% for module in locked_modules %}
-          <div class="module-card new">
-            <div class="module-header">
-              <span class="module-number">{{ module.number }}</span>
-            </div>
-            <h4 class="module-title">{{ module.title }}</h4>
-            <p class="module-description">{{ module.description or _('Начните изучение нового модуля') }}</p>
-            <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
-               class="btn btn-outline-primary btn-block">{{ _('Начать') }}</a>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
-
-  <!-- Завершенные модули (сворачиваемые) -->
-  {% if completed_modules %}
-    <div class="module-section">
-      <div class="section-header-collapsible">
-        <h3 class="section-title mb-0">{{ _('Завершенные модули') }}</h3>
-        <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse"
-                data-bs-target="#completedModules" aria-expanded="false">
-          <span class="toggle-text">{{ _('Показать') }}</span>
-          <i class="fas fa-chevron-down ms-1"></i>
-        </button>
-      </div>
-
-      <div class="collapse" id="completedModules">
-        <div class="modules-list mt-3">
-          {% for module in completed_modules %}
-            <div class="module-item-completed">
-              <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center gap-3">
-                  <span class="module-check"><i class="fas fa-check"></i></span>
-                  <div>
-                    <h5 class="mb-0">{{ _('Модуль') }} {{ module.number }}: {{ module.title }}</h5>
-                    <small class="text-muted">{{ user_module_progress[module.id].total_lessons }} {{ _('уроков завершено') }}</small>
-                  </div>
+  <!-- Отображение модулей в порядке изучения -->
+  <div class="module-section mb-5">
+    <h3 class="section-title">{{ _('Модули курса') }}</h3>
+    
+    {% if modules %}
+      <div class="modules-list-sequential">
+        {% for module in modules %}
+          {% set progress = user_module_progress.get(module.id, {}) %}
+          {% set is_accessible = progress.get('is_accessible', False) %}
+          {% set is_completed = progress.get('is_completed', False) %}
+          {% set is_locked = progress.get('is_locked', True) %}
+          {% set percentage = progress.get('percentage', 0) %}
+          
+          <div class="module-card-sequential 
+                      {% if is_completed %}completed{% elif is_accessible %}current{% else %}locked{% endif %}">
+            
+            <!-- Левая сторона: номер и прогресс -->
+            <div class="module-left">
+              <div class="module-number-large">{{ module.number }}</div>
+              
+              {% if is_accessible and not is_completed %}
+                <!-- Кольцо прогресса для текущих модулей -->
+                <div class="module-progress-ring">
+                  <svg width="50" height="50">
+                    <circle cx="25" cy="25" r="20" fill="none" stroke="#e9ecef" stroke-width="4"></circle>
+                    <circle cx="25" cy="25" r="20" fill="none" stroke="#0d6efd" stroke-width="4"
+                            stroke-dasharray="{{ (percentage / 100 * 125.6)|round }} 125.6"
+                            stroke-dashoffset="0"
+                            transform="rotate(-90 25 25)"></circle>
+                  </svg>
+                  <span class="progress-text">{{ percentage }}%</span>
                 </div>
-                <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
-                   class="btn btn-sm btn-outline-secondary">{{ _('Повторить') }}</a>
-              </div>
+              {% elif is_completed %}
+                <!-- Галочка для завершенных -->
+                <div class="module-completed-icon">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+              {% else %}
+                <!-- Замок для заблокированных -->
+                <div class="module-locked-icon">
+                  <i class="fas fa-lock"></i>
+                </div>
+              {% endif %}
             </div>
-          {% endfor %}
-        </div>
+            
+            <!-- Основной контент -->
+            <div class="module-content">
+              <div class="module-header-content">
+                <h4 class="module-title">{{ module.title }}</h4>
+                {% if progress.get('total_lessons', 0) > 0 %}
+                  <span class="module-lessons-count">
+                    {{ progress.get('completed_lessons', 0) }} / {{ progress.get('total_lessons', 0) }} {{ _('уроков') }}
+                  </span>
+                {% endif %}
+              </div>
+              
+              <p class="module-description">
+                {% if is_locked %}
+                  {{ _('Завершите предыдущий модуль, чтобы разблокировать этот') }}
+                {% else %}
+                  {{ module.description or _('Описание модуля') }}
+                {% endif %}
+              </p>
+              
+              {% if is_completed %}
+                <div class="completion-badge">
+                  <i class="fas fa-trophy"></i>
+                  {{ _('Модуль завершен!') }}
+                </div>
+              {% endif %}
+            </div>
+            
+            <!-- Правая сторона: действия -->
+            <div class="module-actions">
+              {% if is_accessible %}
+                <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
+                   class="btn {% if is_completed %}btn-outline-secondary{% else %}btn-primary{% endif %}">
+                  {% if is_completed %}
+                    {{ _('Повторить') }}
+                  {% elif percentage > 0 %}
+                    {{ _('Продолжить') }}
+                  {% else %}
+                    {{ _('Начать') }}
+                  {% endif %}
+                </a>
+              {% else %}
+                <button class="btn btn-outline-secondary" disabled>
+                  <i class="fas fa-lock me-1"></i>{{ _('Заблокировано') }}
+                </button>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
       </div>
-    </div>
-  {% endif %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
+        <p class="text-muted">{{ _('В этом уровне пока нет модулей') }}</p>
+      </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
 
@@ -231,15 +228,15 @@
     margin-bottom: 1rem;
   }
 
-  /* Сетка модулей */
-  .modules-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
+  /* Последовательный список модулей */
+  .modules-list-sequential {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
-  /* Карточки модулей */
-  .module-card {
+  /* Карточки модулей в последовательном режиме */
+  .module-card-sequential {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
@@ -247,45 +244,66 @@
     transition: all 0.3s ease;
     border: 2px solid transparent;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    position: relative;
   }
 
-  .module-card:hover {
+  .module-card-sequential:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
-  .module-card.current {
+  .module-card-sequential.current {
     border-color: #0d6efd;
+    background: #f8f9ff;
   }
 
-  .module-card.new {
+  .module-card-sequential.completed {
+    border-color: #198754;
+    background: #f8fff9;
+  }
+
+  .module-card-sequential.locked {
     background: #f8f9fa;
+    opacity: 0.7;
   }
 
-  .module-header {
+  /* Левая сторона: номер и индикатор */
+  .module-left {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
+    gap: 0.5rem;
+    min-width: 80px;
   }
 
-  .module-number {
-    width: 40px;
-    height: 40px;
+  .module-number-large {
+    width: 50px;
+    height: 50px;
     background: #e9ecef;
-    border-radius: 8px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     color: #495057;
   }
 
-  .module-card.current .module-number {
+  .module-card-sequential.current .module-number-large {
     background: #0d6efd;
     color: white;
+  }
+
+  .module-card-sequential.completed .module-number-large {
+    background: #198754;
+    color: white;
+  }
+
+  .module-card-sequential.locked .module-number-large {
+    background: #adb5bd;
+    color: #6c757d;
   }
 
   /* Прогресс кольцо */
@@ -293,35 +311,85 @@
     position: relative;
   }
 
-  .progress-value {
+  .progress-text {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     font-weight: 700;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     color: #0d6efd;
   }
 
-  .module-title {
-    font-size: 1.125rem;
-    font-weight: 600;
+  /* Иконки состояния */
+  .module-completed-icon,
+  .module-locked-icon {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+
+  .module-completed-icon {
+    color: #198754;
+  }
+
+  .module-locked-icon {
+    color: #adb5bd;
+  }
+
+  /* Основной контент */
+  .module-content {
+    flex-grow: 1;
+    min-width: 0; /* Для корректного переноса текста */
+  }
+
+  .module-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .module-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
     color: #212529;
+  }
+
+  .module-lessons-count {
+    font-size: 0.875rem;
+    color: #6c757d;
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
   }
 
   .module-description {
     font-size: 0.875rem;
     color: #6c757d;
     line-height: 1.5;
-    flex-grow: 1;
-    margin-bottom: 1rem;
+    margin: 0.5rem 0;
   }
 
-  .module-stats {
+  .completion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #d1e7dd;
+    color: #0f5132;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
     font-size: 0.875rem;
-    color: #6c757d;
-    margin-bottom: 1rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+  }
+
+  /* Действия справа */
+  .module-actions {
+    display: flex;
+    align-items: center;
   }
 
   /* Завершенные модули */
@@ -369,8 +437,34 @@
       font-size: 1.5rem;
     }
 
-    .modules-grid {
-      grid-template-columns: 1fr;
+    /* Мобильная адаптация для последовательных модулей */
+    .module-card-sequential {
+      flex-direction: column;
+      text-align: center;
+      gap: 1rem;
+    }
+
+    .module-left {
+      min-width: auto;
+    }
+
+    .module-header-content {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .module-title {
+      font-size: 1.125rem;
+    }
+
+    .module-actions {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .module-actions .btn {
+      min-width: 120px;
     }
   }
 </style>
@@ -378,22 +472,4 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
-  // Изменение текста кнопки при сворачивании/разворачивании
-  document.addEventListener('DOMContentLoaded', function() {
-    const collapseEl = document.getElementById('completedModules');
-    const toggleBtn = document.querySelector('[data-bs-target="#completedModules"]');
-    const toggleText = toggleBtn.querySelector('.toggle-text');
-
-    if (collapseEl) {
-      collapseEl.addEventListener('show.bs.collapse', function () {
-        toggleText.textContent = '{{ _("Скрыть") }}';
-      });
-
-      collapseEl.addEventListener('hide.bs.collapse', function () {
-        toggleText.textContent = '{{ _("Показать") }}';
-      });
-    }
-  });
-</script>
 {% endblock %}

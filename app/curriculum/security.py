@@ -247,7 +247,7 @@ def check_module_access(module_id: int) -> bool:
     if module.id == first_module.id:
         return True
 
-    # Check if user has completed previous module
+    # Check if user has completed previous module (80% threshold)
     if module.number > 1:
         prev_module = Module.query.filter_by(
             level_id=module.level_id,
@@ -255,8 +255,10 @@ def check_module_access(module_id: int) -> bool:
         ).first()
 
         if prev_module:
-            # Check if all lessons in previous module are completed
-            prev_lessons = Lessons.query.filter_by(module_id=prev_module.id).all()
+            # Check completion percentage of previous module
+            from sqlalchemy import func
+            
+            total_lessons = Lessons.query.filter_by(module_id=prev_module.id).count()
             completed_count = LessonProgress.query.filter_by(
                 user_id=current_user.id,
                 status='completed'
@@ -264,7 +266,10 @@ def check_module_access(module_id: int) -> bool:
                 Lessons.module_id == prev_module.id
             ).count()
 
-            if completed_count >= len(prev_lessons):
+            completion_percentage = (completed_count / total_lessons * 100) if total_lessons > 0 else 0
+            
+            # Require 80% completion to unlock next module
+            if completion_percentage >= 80:
                 return True
 
     return False
