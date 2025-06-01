@@ -1369,6 +1369,8 @@ def process_grammar(grammar_data):
 
             if exercise_type == 'fill_in_blank':
                 exercise_data['answer'] = exercise.get('correct_answer', [])
+                if exercise.get('alternative_answers'):
+                    exercise_data['alternative_answers'] = exercise.get('alternative_answers', [])
             elif exercise_type == 'multiple_choice':
                 exercise_data['options'] = exercise.get('options', [])
                 exercise_data['question'] = exercise.get('question', '')
@@ -1381,6 +1383,9 @@ def process_grammar(grammar_data):
             elif exercise_type == 'reorder':
                 exercise_data['words'] = exercise.get('words', [])
                 exercise_data['answer'] = exercise.get('correct_answer', '')
+            elif exercise_type == 'translation':
+                exercise_data['answer'] = exercise.get('correct_answer', '')
+                exercise_data['alternative_answers'] = exercise.get('alternative_answers', [])
             else:
                 # Для других типов сохраняем как есть
                 exercise_data['answer'] = exercise.get('answer', '')

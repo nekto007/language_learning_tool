@@ -82,7 +82,7 @@
             </div>
 
             <div class="exercise-content">
-              {% if exercise.type in ['fill-blank', 'fill_in_blank'] %}
+              {% if exercise.type in ['fill-blank', 'fill_in_blank', 'translation'] %}
                 <p class="exercise-prompt">{{ exercise.prompt or exercise.text }}</p>
                 <div class="answer-input">
                   {% set prev_answer = previous_feedback.get(loop.index0|string, {}).get('user_answer', '') %}
@@ -231,6 +231,9 @@
                         {% if exercise.explanation %}
                           <p class="explanation"><strong>{{ _('Пояснение:') }}</strong> {{ exercise.explanation }}</p>
                         {% endif %}
+                        {% if exercise.alternative_answers %}
+                          <p class="alternative_answers"><strong>{{ _('Дополнительные варианты ответа:') }}</strong> {{ exercise.alternative_answers }}</p>
+                        {% endif %}
                       </div>
                     </div>
                   {% else %}
@@ -275,7 +278,7 @@ function checkAnswers() {
     const answerInput = document.querySelector(`[name="answer_${index}"]`);
     let userAnswer = null;
 
-    if (exercise.type === 'fill-blank' || exercise.type === 'fill_in_blank' || exercise.type === 'reorder') {
+    if (exercise.type === 'fill-blank' || exercise.type === 'fill_in_blank' || exercise.type === 'translation' || exercise.type === 'reorder') {
       userAnswer = answerInput.value.trim();
     } else {
       const checked = document.querySelector(`[name="answer_${index}"]:checked`);
@@ -358,7 +361,10 @@ function submitResults() {
           if (exercise && exercise.explanation) {
             explanationHtml = `<p class="explanation"><strong>{{ _('Пояснение:') }}</strong> ${exercise.explanation}</p>`;
           }
-          
+          if (exercise && exercise.alternative_answers) {
+            explanationHtml = `<p class="alternative_answers"><strong>{{ _('Дополнительные варианты ответа:') }}</strong> ${exercise.alternative_answers}</p>`;
+          }
+
           feedbackEl.innerHTML = `
             <div class="feedback-message feedback-correct">
               <i class="fas fa-check-circle"></i>
@@ -951,8 +957,20 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.95rem;
     line-height: 1.6;
   }
-  
+
+  .feedback-message .alternative_answers {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed rgba(0,0,0,0.1);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
   .feedback-message .explanation strong {
+    color: var(--lesson-primary);
+  }
+
+   .feedback-message .alternative_answers strong {
     color: var(--lesson-primary);
   }
 
