@@ -242,6 +242,9 @@ let vocabularyState = {
   wordsMastered: {{ mastered_count }}
 };
 
+// Логируем начальное состояние
+console.log('Initial vocabularyState:', vocabularyState);
+
 
 // Аудио плеер
 const audioPlayer = new Audio();
@@ -400,9 +403,13 @@ document.addEventListener('click', async function(e) {
       if (data.success) {
         updateWordCard(wordId, data.status || 'learning');
         vocabularyState.wordsAdded++;
-        updateCounters();
-        updateProgress();
-        checkCompletion();
+        
+        // Задержка для обновления DOM в updateWordCard
+        setTimeout(() => {
+          updateCounters();
+          updateProgress();
+          checkCompletion();
+        }, 350); // Чуть больше чем задержка в updateWordCard (300ms)
       }
     } catch (error) {
       console.error('Error:', error);
@@ -443,9 +450,13 @@ document.addEventListener('click', async function(e) {
       if (data.success) {
         updateWordCard(wordId, data.status || 'mastered');
         vocabularyState.wordsMastered++;
-        updateCounters();
-        updateProgress();
-        checkCompletion();
+        
+        // Задержка для обновления DOM в updateWordCard
+        setTimeout(() => {
+          updateCounters();
+          updateProgress();
+          checkCompletion();
+        }, 350); // Чуть больше чем задержка в updateWordCard (300ms)
       }
     } catch (error) {
       console.error('Error:', error);
@@ -517,9 +528,12 @@ async function processBulkAction(status, loadingText) {
     
     await Promise.all(promises);
     
-    updateCounters();
-    updateProgress();
-    checkCompletion();
+    // Задержка для обновления всех карточек в DOM
+    setTimeout(() => {
+      updateCounters();
+      updateProgress();
+      checkCompletion();
+    }, 350);
     
     // Восстанавливаем кнопки
     restoreBulkButtons();
@@ -541,12 +555,27 @@ function restoreBulkButtons() {
 
 // Обновление счетчиков
 function updateCounters() {
+  // Пересчитываем текущее состояние из DOM
+  const allCards = document.querySelectorAll('.modern-word-card');
   const processedCards = document.querySelectorAll('.modern-word-card:not([data-status="new"])');
+  const learningCards = document.querySelectorAll('.modern-word-card[data-status="learning"]');
+  const masteredCards = document.querySelectorAll('.modern-word-card[data-status="mastered"]');
+  
+  // Защита от обнуления totalWords
+  if (allCards.length > 0 && vocabularyState.totalWords === 0) {
+    vocabularyState.totalWords = allCards.length;
+    console.warn(`totalWords was 0, restored to ${vocabularyState.totalWords}`);
+  }
+  
   vocabularyState.processedWords = processedCards.length;
+  vocabularyState.wordsAdded = learningCards.length;
+  vocabularyState.wordsMastered = masteredCards.length;
 
   const newCount = vocabularyState.totalWords - vocabularyState.processedWords;
   document.getElementById('new-count').textContent = newCount;
   document.getElementById('processed-count').textContent = vocabularyState.processedWords;
+  
+  console.log(`Updated counters: processed=${vocabularyState.processedWords}, total=${vocabularyState.totalWords}, allCards=${allCards.length}`);
 }
 
 // Обновление прогресса
@@ -591,18 +620,32 @@ async function checkCompletion() {
         // Показываем результаты
         showCompletionResults();
         
-        // Показываем кнопки навигации
-        const nextBtn = document.getElementById('complete-exercise');
-        const completeModuleBtn = document.getElementById('complete-module');
-        const retryBtn = document.getElementById('retry-button');
-        
-        if (nextBtn) {
-          nextBtn.style.display = 'inline-flex';
-          nextBtn.disabled = false;
-        } else if (completeModuleBtn) {
-          completeModuleBtn.style.display = 'inline-flex';
-          completeModuleBtn.disabled = false;
-        }
+        // Показываем кнопки навигации с задержкой
+        setTimeout(() => {
+          const nextBtn = document.getElementById('complete-exercise');
+          const completeModuleBtn = document.getElementById('complete-module');
+          const retryBtn = document.getElementById('retry-button');
+          
+          if (nextBtn) {
+            nextBtn.style.display = 'inline-flex';
+            nextBtn.disabled = false;
+            console.log('Next lesson button shown in checkCompletion');
+          } else if (completeModuleBtn) {
+            completeModuleBtn.style.display = 'inline-flex';
+            completeModuleBtn.disabled = false;
+            console.log('Complete module button shown in checkCompletion');
+          } else {
+            console.error('Navigation buttons not found in checkCompletion');
+          }
+          
+          // Принудительная перерисовка для обеспечения видимости кнопок
+          const footer = document.getElementById('lesson-footer');
+          if (footer) {
+            footer.style.display = 'none';
+            footer.offsetHeight; // Force reflow
+            footer.style.display = '';
+          }
+        }, 100);
         
         // Для уроков словаря не показываем кнопку "Пройти заново"
       }
@@ -666,41 +709,121 @@ function showCompletionResults() {
   
   // Прокручиваем к результатам
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  // Показываем кнопки навигации с задержкой для обеспечения готовности DOM
+  setTimeout(() => {
+    const retryBtn = document.getElementById('retry-button');
+    const nextBtn = document.getElementById('complete-exercise');
+    const completeModuleBtn = document.getElementById('complete-module');
+    
+    // Показываем кнопку повтора
+    if (retryBtn) {
+      retryBtn.style.display = 'inline-flex';
+      console.log('Retry button shown');
+    } else {
+      console.error('Retry button not found in DOM');
+    }
+    
+    // Показываем кнопку следующего урока или завершения модуля
+    if (nextBtn) {
+      nextBtn.style.display = 'inline-flex';
+      nextBtn.disabled = false;
+      console.log('Next lesson button shown');
+    } else if (completeModuleBtn) {
+      completeModuleBtn.style.display = 'inline-flex';
+      completeModuleBtn.disabled = false;
+      console.log('Complete module button shown');
+    } else {
+      console.error('Navigation buttons not found in DOM');
+    }
+    
+    // Принудительная перерисовка для обеспечения видимости кнопок
+    const footer = document.getElementById('lesson-footer');
+    if (footer) {
+      footer.style.display = 'none';
+      footer.offsetHeight; // Force reflow
+      footer.style.display = '';
+    }
+  }, 100); // Небольшая задержка для обеспечения готовности DOM
+}
+
+// Функция синхронизации DOM с начальными данными
+function syncDOMWithInitialData() {
+  const cards = document.querySelectorAll('.modern-word-card');
+  let processedCount = 0;
+  let learningCount = 0;
+  let masteredCount = 0;
+  
+  // Сохраняем исходное количество слов
+  const originalTotalWords = vocabularyState.totalWords;
+  
+  cards.forEach(card => {
+    const status = card.getAttribute('data-status');
+    if (status && status !== 'new') {
+      processedCount++;
+      if (status === 'learning') learningCount++;
+      if (status === 'mastered') masteredCount++;
+    }
+  });
+  
+  // Синхронизируем состояние с тем, что реально есть в DOM
+  vocabularyState.processedWords = processedCount;
+  vocabularyState.wordsAdded = learningCount;
+  vocabularyState.wordsMastered = masteredCount;
+  // Важно: не меняем totalWords!
+  vocabularyState.totalWords = originalTotalWords;
+  
+  console.log(`DOM sync: processed=${processedCount}, learning=${learningCount}, mastered=${masteredCount}, total=${vocabularyState.totalWords}`);
 }
 
 // Функция инициализации
 function initializeVocabularyLesson() {
   try {
     
-    // Сначала обновляем счетчики на основе начальных статусов
+    // Сначала синхронизируем DOM с начальными данными
+    syncDOMWithInitialData();
+    
+    // Затем обновляем счетчики и прогресс
     updateCounters();
     updateProgress();
     
     // Если все слова обработаны (15 из 15), показываем кнопки
     if (vocabularyState.processedWords === vocabularyState.totalWords && vocabularyState.totalWords > 0) {
-      // Ищем кнопки навигации
-      const nextBtn = document.getElementById('complete-exercise');
-      const completeModuleBtn = document.getElementById('complete-module');
-      const retryBtn = document.getElementById('retry-button');
-      
-      // Показываем соответствующие кнопки
-      if (nextBtn) {
-        nextBtn.style.display = 'inline-flex';
-        nextBtn.disabled = false;
-      }
-      
-      if (completeModuleBtn) {
-        completeModuleBtn.style.display = 'inline-flex';
-        completeModuleBtn.disabled = false;
-      }
-      
-      // Для уроков словаря не показываем кнопку "Пройти заново"
-      // if (retryBtn) {
-      //   retryBtn.style.display = 'inline-flex';
-      //   console.log('Retry button shown');
-      // }
-      
-      {% if not is_completed %}
+      {% if is_completed %}
+        // Урок уже завершен, показываем кнопки с задержкой
+        setTimeout(() => {
+          const nextBtn = document.getElementById('complete-exercise');
+          const completeModuleBtn = document.getElementById('complete-module');
+          const retryBtn = document.getElementById('retry-button');
+          
+          // Показываем соответствующие кнопки
+          if (nextBtn) {
+            nextBtn.style.display = 'inline-flex';
+            nextBtn.disabled = false;
+            console.log('Next lesson button shown in initialization');
+          }
+          
+          if (completeModuleBtn) {
+            completeModuleBtn.style.display = 'inline-flex';
+            completeModuleBtn.disabled = false;
+            console.log('Complete module button shown in initialization');
+          }
+          
+          // Показываем кнопку "Пройти заново" для завершенных уроков
+          if (retryBtn) {
+            retryBtn.style.display = 'inline-flex';
+            console.log('Retry button shown in initialization');
+          }
+          
+          // Принудительная перерисовка для обеспечения видимости кнопок
+          const footer = document.getElementById('lesson-footer');
+          if (footer) {
+            footer.style.display = 'none';
+            footer.offsetHeight; // Force reflow
+            footer.style.display = '';
+          }
+        }, 100);
+      {% else %}
         // Отправляем завершение урока
         checkCompletion();
       {% endif %}
