@@ -333,6 +333,143 @@
             background: #f1f5f9;
         }
 
+        /* Form Controls */
+        .form-control, .form-select, .form-control-file {
+            background-color: #ffffff !important;
+            border: 1px solid #d1d5db !important;
+            color: #1f2937 !important;
+            padding: 0.75rem !important;
+            border-radius: 0.375rem !important;
+            font-size: 0.875rem !important;
+            line-height: 1.25rem !important;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: #ffffff !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+            color: #1f2937 !important;
+        }
+
+        .form-control::placeholder {
+            color: #6b7280 !important;
+            opacity: 1 !important;
+        }
+
+        .form-label {
+            color: #374151 !important;
+            font-weight: 500 !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        /* Textareas */
+        textarea.form-control {
+            min-height: 100px !important;
+            resize: vertical !important;
+        }
+
+        /* Select boxes */
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+            background-position: right 0.75rem center !important;
+            background-repeat: no-repeat !important;
+            background-size: 16px 12px !important;
+        }
+
+        /* Checkboxes and radio buttons */
+        .form-check-input {
+            background-color: #ffffff !important;
+            border: 1px solid #d1d5db !important;
+            color: var(--primary-color) !important;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+
+        .form-check-label {
+            color: #374151 !important;
+        }
+
+        /* Input groups */
+        .input-group-text {
+            background-color: #f9fafb !important;
+            border: 1px solid #d1d5db !important;
+            color: #6b7280 !important;
+        }
+
+        /* File inputs */
+        .form-control-file {
+            background-color: #ffffff !important;
+            border: 1px solid #d1d5db !important;
+            color: #1f2937 !important;
+        }
+
+        /* Pre elements for code display */
+        pre {
+            background-color: #f8f9fa !important;
+            border: 1px solid #e9ecef !important;
+            color: #212529 !important;
+            padding: 1rem !important;
+            border-radius: 0.375rem !important;
+        }
+
+        /* Code elements */
+        code {
+            background-color: #f1f3f4 !important;
+            color: #d63384 !important;
+            padding: 0.2rem 0.4rem !important;
+            border-radius: 0.25rem !important;
+        }
+
+        /* Table text */
+        .table td, .table th {
+            color: #1f2937 !important;
+        }
+
+        /* Badge text */
+        .badge {
+            color: #ffffff !important;
+        }
+
+        .badge-primary {
+            background-color: var(--primary-color) !important;
+            color: #ffffff !important;
+        }
+
+        .badge-warning {
+            background-color: #f59e0b !important;
+            color: #ffffff !important;
+        }
+
+        .badge-success {
+            background-color: #10b981 !important;
+            color: #ffffff !important;
+        }
+
+        .badge-danger {
+            background-color: #ef4444 !important;
+            color: #ffffff !important;
+        }
+
+        .badge-info {
+            background-color: #3b82f6 !important;
+            color: #ffffff !important;
+        }
+
+        .badge-secondary {
+            background-color: #6b7280 !important;
+            color: #ffffff !important;
+        }
+
+        /* Alert text improvements */
+        .alert-warning {
+            background: #fef3c7 !important;
+            color: #92400e !important;
+            border: 1px solid #fbbf24 !important;
+        }
+
         /* Sidebar Overlay for Mobile */
         .sidebar-overlay {
             display: none;
