@@ -242,7 +242,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 <form method="POST" action="{{ url_for('admin.init_database') }}" style="display: inline;">
-                    {{ csrf_token() }}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-database"></i> Инициализировать
                     </button>

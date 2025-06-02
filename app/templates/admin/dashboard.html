@@ -142,6 +142,7 @@
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if user.active else 'success' }}" title="{{ 'Deactivate' if user.active else 'Activate' }}">
                                         <i class="fas fa-{{ 'ban' if user.active else 'check' }}"></i>
                                     </button>
