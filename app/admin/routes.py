@@ -9,7 +9,7 @@ import os
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import desc, distinct, func
@@ -588,63 +588,134 @@ def export_words():
 def import_translations():
     """Импорт переводов из файла"""
     if request.method == 'POST':
+        action = request.form.get('action', 'preview')
+        
         try:
-            # Проверяем, был ли загружен файл
-            if 'translation_file' not in request.files:
-                flash('Файл не выбран', 'danger')
-                return redirect(request.url)
+            if action == 'preview':
+                # Первый этап - предварительный просмотр
+                if 'translation_file' not in request.files:
+                    flash('Файл не выбран', 'danger')
+                    return redirect(request.url)
 
-            file = request.files['translation_file']
-            if file.filename == '':
-                flash('Файл не выбран', 'danger')
-                return redirect(request.url)
+                file = request.files['translation_file']
+                if file.filename == '':
+                    flash('Файл не выбран', 'danger')
+                    return redirect(request.url)
 
-            # Читаем содержимое файла
-            content = file.read().decode('utf-8')
-            lines = content.strip().split('\n')
+                # Читаем содержимое файла
+                content = file.read().decode('utf-8')
+                lines = content.strip().split('\n')
 
-            updated_count = 0
-            errors = []
+                existing_words = []
+                missing_words = []
+                errors = []
 
-            for line_num, line in enumerate(lines, 1):
-                line = line.strip()
-                if not line or line.startswith('#'):  # Пропускаем пустые строки и комментарии
-                    continue
+                for line_num, line in enumerate(lines, 1):
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
 
-                # Ожидаем формат: english_word;russian_translate;english_sentence;russian_sentence;level
-                parts = line.split(';')
-                if len(parts) != 5:
-                    errors.append(f'Строка {line_num}: неверный формат "{line}" (ожидается 5 частей через ;)')
-                    continue
+                    # Ожидаем формат: english_word;russian_translate;english_sentence;russian_sentence;level
+                    parts = line.split(';')
+                    if len(parts) != 5:
+                        errors.append({
+                            'line_num': line_num,
+                            'line': line,
+                            'error': 'неверный формат (ожидается 5 частей через ;)'
+                        })
+                        continue
 
-                english_word = parts[0].strip().lower()
-                russian_translate = parts[1].strip()
-                english_sentence = parts[2].strip()
-                russian_sentence = parts[3].strip()
-                level = parts[4].strip()
+                    english_word = parts[0].strip().lower()
+                    russian_translate = parts[1].strip()
+                    english_sentence = parts[2].strip()
+                    russian_sentence = parts[3].strip()
+                    level = parts[4].strip()
 
-                # Найти слово в базе
-                word = CollectionWords.query.filter_by(english_word=english_word).first()
-                if word:
-                    # Обновляем поля согласно новому формату
-                    word.russian_word = russian_translate
-                    word.sentences = f"{english_sentence}<br>{russian_sentence}"
-                    word.level = level
-                    word.listening = f"[sound:pronunciation_en_{english_word.replace(' ', '_').lower()}.mp3]"
-                    updated_count += 1
+                    word_data = {
+                        'line_num': line_num,
+                        'english_word': english_word,
+                        'russian_translate': russian_translate,
+                        'english_sentence': english_sentence,
+                        'russian_sentence': russian_sentence,
+                        'level': level
+                    }
+
+                    # Найти слово в базе
+                    word = CollectionWords.query.filter_by(english_word=english_word).first()
+                    if word:
+                        existing_words.append(word_data)
+                    else:
+                        missing_words.append(word_data)
+
+                # Сохраняем данные в сессии для следующего этапа
+                session['import_data'] = {
+                    'existing_words': existing_words,
+                    'missing_words': missing_words,
+                    'errors': errors
+                }
+
+                return render_template('admin/words/import_preview.html',
+                                     existing_words=existing_words,
+                                     missing_words=missing_words,
+                                     errors=errors)
+
+            elif action == 'confirm':
+                # Второй этап - подтверждение импорта
+                import_data = session.get('import_data')
+                if not import_data:
+                    flash('Данные для импорта не найдены. Загрузите файл заново.', 'danger')
+                    return redirect(request.url)
+
+                existing_words = import_data['existing_words']
+                missing_words = import_data['missing_words']
+                
+                # Получаем выбранные для добавления отсутствующие слова
+                words_to_add = request.form.getlist('add_missing_words')
+                
+                updated_count = 0
+                added_count = 0
+
+                # Обновляем существующие слова
+                for word_data in existing_words:
+                    word = CollectionWords.query.filter_by(english_word=word_data['english_word']).first()
+                    if word:
+                        word.russian_word = word_data['russian_translate']
+                        word.sentences = f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}"
+                        word.level = word_data['level']
+                        word.listening = f"[sound:pronunciation_en_{word_data['english_word'].replace(' ', '_').lower()}.mp3]"
+                        updated_count += 1
+
+                # Добавляем новые слова (если выбраны)
+                for word_data in missing_words:
+                    if str(word_data['line_num']) in words_to_add:
+                        new_word = CollectionWords(
+                            english_word=word_data['english_word'],
+                            russian_word=word_data['russian_translate'],
+                            sentences=f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}",
+                            level=word_data['level'],
+                            listening=f"[sound:pronunciation_en_{word_data['english_word'].replace(' ', '_').lower()}.mp3]"
+                        )
+                        db.session.add(new_word)
+                        added_count += 1
+
+                db.session.commit()
+
+                # Очищаем данные из сессии
+                session.pop('import_data', None)
+
+                messages = []
+                if updated_count > 0:
+                    messages.append(f'Обновлено слов: {updated_count}')
+                if added_count > 0:
+                    messages.append(f'Добавлено новых слов: {added_count}')
+                
+                if messages:
+                    flash('; '.join(messages), 'success')
                 else:
-                    errors.append(f'Строка {line_num}: слово "{english_word}" не найдено в базе')
+                    flash('Никаких изменений не было внесено', 'info')
 
-            db.session.commit()
-
-            if updated_count > 0:
-                flash(f'Успешно обновлено переводов: {updated_count}', 'success')
-
-            if errors:
-                flash(f'Ошибки ({len(errors)}): ' + '; '.join(errors[:5]), 'warning')
-
-            logger.info(
-                f"Translations import completed by {current_user.username}: {updated_count} updated, {len(errors)} errors")
+                logger.info(
+                    f"Translations import completed by {current_user.username}: {updated_count} updated, {added_count} added")
 
         except Exception as e:
             logger.error(f"Error importing translations: {str(e)}")
