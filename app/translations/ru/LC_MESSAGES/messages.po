@@ -690,8 +690,8 @@ msgstr "Type"
 msgid "Слова"
 msgstr "Words"
 
-msgid "Правильно"
-msgstr "Correct"
+msgid "Correct"
+msgstr "Правильно"
 
 msgid "Оценка"
 msgstr "Score"
@@ -857,8 +857,8 @@ msgstr "Your results"
 msgid "Слов изучено"
 msgstr "Words studied"
 
-msgid "Правильных ответов"
-msgstr "Correct answers"
+msgid "Correct answers"
+msgstr "Правильных ответов"
 
 msgid "Опыт получен"
 msgstr "Experience gained"
@@ -902,14 +902,14 @@ msgstr "SKIP"
 msgid "НОВОЕ СЛОВО"
 msgstr "NEW WORD"
 
-msgid "Правильно!"
-msgstr "Correct!"
+msgid "Correct!"
+msgstr "Правильно!"
 
 msgid "Неправильно"
 msgstr "Incorrect"
 
-msgid "Правильный ответ:"
-msgstr "Correct answer:"
+msgid "Correct answer:"
+msgstr "Правильный ответ:"
 
 msgid "ДАЛЕЕ"
 msgstr "NEXT"
