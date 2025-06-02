@@ -1,52 +1,79 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Study Settings') }}{% endblock %}
+{% block title %}{{ _('Настройки изучения') }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+.settings-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.settings-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container py-4">
+    <!-- Hero Section -->
+    <div class="settings-hero">
+        <h1 class="display-6 fw-bold mb-2">{{ _('Настройки изучения') }}</h1>
+        <p class="lead mb-0">{{ _('Персонализируйте свой опыт изучения') }}</p>
+    </div>
+
     <div class="row">
         <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h2 class="mb-0">{{ _('Study Settings') }}</h2>
+            <div class="settings-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">{{ _('Основные настройки') }}</h2>
                     <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> {{ _('Back to Study') }}
+                        <i class="fas fa-arrow-left"></i> {{ _('Назад') }}
                     </a>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('study.settings') }}">
-                        {{ form.csrf_token }}
+                <form method="POST" action="{{ url_for('study.settings') }}">
+                    {{ form.csrf_token }}
 
-                        <h4 class="mt-3 mb-3">{{ _('Daily Limits') }}</h4>
+                    <h4 class="mb-3">{{ _('Ежедневные лимиты') }}</h4>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label>{{ form.new_words_per_day.label }}</label>
+                                    <label class="form-label">{{ form.new_words_per_day.label }}</label>
                                     {{ form.new_words_per_day(class="form-control") }}
                                     <small class="form-text text-muted">
-                                        {{ _('Maximum number of new words to learn each day') }}
+                                        {{ _('Максимальное количество новых слов в день') }}
                                     </small>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label>{{ form.reviews_per_day.label }}</label>
+                                    <label class="form-label">{{ form.reviews_per_day.label }}</label>
                                     {{ form.reviews_per_day(class="form-control") }}
                                     <small class="form-text text-muted">
-                                        {{ _('Maximum number of reviews to do each day') }}
+                                        {{ _('Максимальное количество повторений в день') }}
                                     </small>
                                 </div>
                             </div>
                         </div>
 
-                        <h4 class="mt-4 mb-3">{{ _('Study Preferences') }}</h4>
+                    <h4 class="mt-4 mb-3">{{ _('Настройки обучения') }}</h4>
                         <div class="form-check mb-3">
                             {{ form.include_translations(class="form-check-input") }}
                             <label class="form-check-label">
                                 {{ form.include_translations.label }}
                             </label>
                             <small class="form-text text-muted d-block">
-                                {{ _('Show word translations during study') }}
+                                {{ _('Показывать переводы слов во время изучения') }}
                             </small>
                         </div>
 
@@ -56,7 +83,7 @@
                                 {{ form.include_examples.label }}
                             </label>
                             <small class="form-text text-muted d-block">
-                                {{ _('Show example sentences during study') }}
+                                {{ _('Показывать примеры предложений во время изучения') }}
                             </small>
                         </div>
 
@@ -66,97 +93,93 @@
                                 {{ form.include_audio.label }}
                             </label>
                             <small class="form-text text-muted d-block">
-                                {{ _('Automatically play word pronunciation when showing cards') }}
+                                {{ _('Автоматически воспроизводить произношение слов при показе карточек') }}
                             </small>
                         </div>
                         <div class="form-group mb-3">
-                            <label>{{ form.show_hint_time.label }}</label>
+                            <label class="form-label">{{ form.show_hint_time.label }}</label>
                             {{ form.show_hint_time(class="form-control") }}
                             <small class="form-text text-muted">
-                                {{ _('Time in seconds before hints appear (0 to disable hints)') }}
+                                {{ _('Время в секундах до появления подсказок (0 для отключения)') }}
                             </small>
                         </div>
 
-                        <div class="mt-4">
-                            {{ form.submit(class="btn btn-primary") }}
-                        </div>
-                    </form>
-                </div>
+                    <div class="mt-4">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
             </div>
 
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h4 class="mb-0">{{ _('About Spaced Repetition') }}</h4>
-                </div>
-                <div class="card-body">
-                    <p>
-                        {{ _('This app uses an enhanced SM-2 spaced repetition algorithm (similar to Anki) to help you efficiently memorize vocabulary. The system adjusts the interval between reviews based on how well you know each word.') }}
-                    </p>
+            <div class="settings-card">
+                <h3 class="mb-4">{{ _('О методе интервального повторения') }}</h3>
+                <p>
+                    {{ _('Это приложение использует улучшенный алгоритм SM-2 (похожий на Anki) для эффективного запоминания словаря. Система корректирует интервалы между повторениями на основе того, насколько хорошо вы знаете каждое слово.') }}
+                </p>
 
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
-                                    <th>{{ _('Button') }}</th>
-                                    <th>{{ _('Quality') }}</th>
-                                    <th>{{ _('Meaning') }}</th>
-                                    <th>{{ _('Effect on Next Review') }}</th>
+                                    <th>{{ _('Кнопка') }}</th>
+                                    <th>{{ _('Качество') }}</th>
+                                    <th>{{ _('Значение') }}</th>
+                                    <th>{{ _('Влияние на следующий повтор') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><span class="badge bg-danger">{{ _('Again') }}</span></td>
+                                    <td><span class="badge bg-danger">{{ _('Повторить') }}</span></td>
                                     <td>0-2</td>
-                                    <td>{{ _('Incorrect answer or complete blackout') }}</td>
-                                    <td>{{ _('Resets interval to 0, decreases ease factor by 0.20') }}</td>
+                                    <td>{{ _('Неправильный ответ или полная потеря памяти') }}</td>
+                                    <td>{{ _('Сброс интервала до 0, снижение коэффициента легкости на 0.20') }}</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="badge bg-warning text-dark">{{ _('Hard') }}</span></td>
+                                    <td><span class="badge bg-warning text-dark">{{ _('Трудно') }}</span></td>
                                     <td>3</td>
-                                    <td>{{ _('Correct but with significant difficulty') }}</td>
-                                    <td>{{ _('Applies 20%% penalty to interval calculation') }}</td>
+                                    <td>{{ _('Правильно, но с большими трудностями') }}</td>
+                                    <td>{{ _('Применяет 20%% штраф к расчету интервала') }}</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="badge bg-primary">{{ _('Good') }}</span></td>
+                                    <td><span class="badge bg-primary">{{ _('Хорошо') }}</span></td>
                                     <td>4</td>
-                                    <td>{{ _('Correct with some hesitation') }}</td>
-                                    <td>{{ _('Standard interval increase based on ease factor') }}</td>
+                                    <td>{{ _('Правильно с небольшими колебаниями') }}</td>
+                                    <td>{{ _('Стандартное увеличение интервала на основе коэффициента легкости') }}</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="badge bg-success">{{ _('Easy') }}</span></td>
+                                    <td><span class="badge bg-success">{{ _('Легко') }}</span></td>
                                     <td>5</td>
-                                    <td>{{ _('Perfect recall, no hesitation') }}</td>
-                                    <td>{{ _('Applies 30%% bonus to interval calculation') }}</td>
+                                    <td>{{ _('Перфектное воспоминание, без колебаний') }}</td>
+                                    <td>{{ _('Применяет 30%% бонус к расчету интервала') }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <h5 class="mt-4">{{ _('How the algorithm works') }}</h5>
-                    <p>
-                        {{ _('For each card, the system tracks:') }}
-                    </p>
-                    <ul>
-                        <li>{{ _('Ease Factor (EF) - starts at 2.5 and adjusts based on your performance') }}</li>
-                        <li>{{ _('Interval - number of days until the next review') }}</li>
-                        <li>{{ _('Repetitions - number of times you\'ve successfully reviewed the card') }}</li>
-                    </ul>
+                <h5 class="mt-4">{{ _('Как работает алгоритм') }}</h5>
+                <p>
+                    {{ _('Для каждой карточки система отслеживает:') }}
+                </p>
+                <ul>
+                    <li>{{ _('Коэффициент легкости (EF) - начинается с 2.5 и корректируется на основе вашей эффективности') }}</li>
+                    <li>{{ _('Интервал - количество дней до следующего повторения') }}</li>
+                    <li>{{ _('Повторения - количество раз, когда вы успешно повторили карточку') }}</li>
+                </ul>
 
-                    <p>
-                        {{ _('When you first learn a card and answer correctly:') }}
-                    </p>
-                    <ul>
-                        <li>{{ _('1st correct review: Next interval = 1 day') }}</li>
-                        <li>{{ _('2nd correct review: Next interval = 6 days') }}</li>
-                        <li>{{ _('Subsequent reviews: Interval is calculated based on previous interval, ease factor, and your response quality') }}</li>
-                    </ul>
+                <p>
+                    {{ _('Когда вы впервые изучаете карточку и отвечаете правильно:') }}
+                </p>
+                <ul>
+                    <li>{{ _('1-е правильное повторение: Следующий интервал = 1 день') }}</li>
+                    <li>{{ _('2-е правильное повторение: Следующий интервал = 6 дней') }}</li>
+                    <li>{{ _('Последующие повторения: Интервал рассчитывается на основе предыдущего интервала, коэффициента легкости и качества вашего ответа') }}</li>
+                </ul>
 
-                    <p>
-                        {{ _('A word is considered "mastered" when its interval reaches 30 days or more.') }}
-                    </p>
+                <p>
+                    {{ _('Слово считается "изученным", когда его интервал достигает 30 дней или больше.') }}
+                </p>
 
                     <div class="alert alert-info mt-3">
-                        <strong>{{ _('Tip') }}:</strong> {{ _('Be honest with your ratings for the best learning results. Consistently using "Easy" for words you find difficult will lead to forgetting. Similarly, using "Hard" for words you know well will slow down your progress unnecessarily.') }}
+                        <strong>{{ _('Совет') }}:</strong> {{ _('Будьте честны в оценках для лучших результатов. Постоянное использование "Легко" для слов, которые вы считаете сложными, приведет к забыванию.') }}
                     </div>
                 </div>
             </div>

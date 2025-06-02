@@ -1,90 +1,99 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Study Statistics') }}{% endblock %}
+{% block title %}{{ _('Статистика изучения') }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+.stats-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row mb-3">
-        <div class="col">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('study.index') }}">{{ _('Study') }}</a></li>
-                    <li class="breadcrumb-item active">{{ _('Statistics') }}</li>
-                </ol>
-            </nav>
+<div class="container py-4">
+    <!-- Hero Section -->
+    <div class="stats-hero">
+        <h1 class="display-6 fw-bold mb-2">{{ _('Статистика изучения') }}</h1>
+        <p class="lead mb-0">{{ _('Отслеживайте свой прогресс в изучении слов') }}</p>
+        <a href="{{ url_for('study.index') }}" class="btn btn-outline-light mt-3">
+            <i class="fas fa-arrow-left me-1"></i> {{ _('Назад к изучению') }}
+        </a>
+    </div>
+
+    <!-- Statistics Grid -->
+    <div class="stats-grid">
+        <div class="stats-card text-center">
+            <div class="stat-number text-primary">{{ total_items }}</div>
+            <div class="stat-label">{{ _('Слов в коллекции') }}</div>
+        </div>
+        
+        <div class="stats-card text-center">
+            <div class="stat-number text-success">{{ mastered_items }}</div>
+            <div class="stat-label">{{ _('Изученные слова') }}</div>
+            <small class="text-muted">(интервал ≥ 30 дней)</small>
+        </div>
+        
+        <div class="stats-card text-center">
+            <div class="stat-number text-info">{{ mastery_percentage }}%</div>
+            <div class="stat-label">{{ _('Уровень освоения') }}</div>
+        </div>
+        
+        <div class="stats-card text-center">
+            <div class="stat-number text-warning">{{ study_streak }}</div>
+            <div class="stat-label">{{ _('Дней подряд') }}</div>
+            <small class="text-muted">последовательно</small>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h2 class="mb-0">{{ _('Study Statistics') }}</h2>
-                    <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> {{ _('Back to Study') }}
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <!-- Summary statistics cards -->
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ _('Words in Collection') }}</h5>
-                    <h2 class="card-text text-primary">{{ total_items }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ _('Mastered Words') }}</h5>
-                    <h2 class="card-text text-success">{{ mastered_items }}</h2>
-                    <small class="text-muted">({{ _('interval') }} ≥ 30 {{ _('days') }})</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ _('Mastery Rate') }}</h5>
-                    <h2 class="card-text text-info">{{ mastery_percentage }}%</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ _('Study Streak') }}</h5>
-                    <h2 class="card-text text-warning">{{ study_streak }}</h2>
-                    <small class="text-muted">{{ _('consecutive days') }}</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Recent sessions table -->
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="mb-0">{{ _('Recent Study Sessions') }}</h3>
-                </div>
-                <div class="card-body">
+    <!-- Recent Sessions -->
+    <div class="stats-card">
+        <h3 class="mb-4">{{ _('Последние сессии изучения') }}</h3>
                     {% if recent_sessions %}
                         <div class="table-responsive">
                             <table class="table table-striped">
                                 <thead>
                                     <tr>
-                                        <th>{{ _('Date & Time') }}</th>
-                                        <th>{{ _('Type') }}</th>
-                                        <th>{{ _('Words Studied') }}</th>
-                                        <th>{{ _('Correct/Incorrect') }}</th>
-                                        <th>{{ _('Performance') }}</th>
-                                        <th>{{ _('Duration') }}</th>
+                                        <th>{{ _('Дата и время') }}</th>
+                                        <th>{{ _('Тип') }}</th>
+                                        <th>{{ _('Изучено слов') }}</th>
+                                        <th>{{ _('Правильно/Неправильно') }}</th>
+                                        <th>{{ _('Производительность') }}</th>
+                                        <th>{{ _('Продолжительность') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -106,87 +115,78 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>{{ session.duration }} {{ _('min') }}</td>
+                                            <td>{{ session.duration }} {{ _('мин') }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     {% else %}
-                        <div class="alert alert-info">
-                            {{ _('You haven\'t completed any study sessions yet. Start studying to see your progress!') }}
+                        <div class="text-center py-4">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <h4>{{ _('Начните изучение') }}</h4>
+                            <p class="text-muted">{{ _('Завершите несколько сессий, чтобы увидеть свою статистику!') }}</p>
                         </div>
                     {% endif %}
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Additional information -->
-    <div class="row mt-4">
+    <div class="row">
         <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="mb-0">{{ _('About Spaced Repetition') }}</h3>
-                </div>
-                <div class="card-body">
-                    <p>
-                        {{ _('This application uses a spaced repetition system (SRS) similar to Anki to help you learn vocabulary efficiently.') }}
-                    </p>
+            <div class="stats-card">
+                <h3 class="mb-3">{{ _('О методе интервального повторения') }}</h3>
+                <p>
+                    {{ _('Это приложение использует систему интервального повторения (похожую на Anki) для эффективного изучения словаря.') }}
+                </p>
 
-                    <h5>{{ _('How it works:') }}</h5>
-                    <ul>
-                        <li>{{ _('Words you know well are shown less frequently') }}</li>
-                        <li>{{ _('Difficult words appear more often') }}</li>
-                        <li>{{ _('Intervals between reviews increase gradually') }}</li>
-                        <li>{{ _('The system adapts to your learning performance') }}</li>
-                    </ul>
+                <h5>{{ _('Как это работает:') }}</h5>
+                <ul>
+                    <li>{{ _('Хорошо известные слова показываются реже') }}</li>
+                    <li>{{ _('Сложные слова появляются чаще') }}</li>
+                    <li>{{ _('Интервалы между повторениями постепенно увеличиваются') }}</li>
+                    <li>{{ _('Система адаптируется к вашим результатам') }}</li>
+                </ul>
 
-                    <p>
-                        <strong>{{ _('Regular study') }}</strong> {{ _('is key to making progress. Even just 10-15 minutes daily will lead to significant improvements in your vocabulary over time.') }}
-                    </p>
-                </div>
+                <p>
+                    <strong>{{ _('Регулярное изучение') }}</strong> {{ _('является ключом к прогрессу. Даже 10-15 минут в день приведут к значительным улучшениям в вашем словарном запасе со временем.') }}
+                </p>
             </div>
         </div>
 
         <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="mb-0">{{ _('Study Recommendations') }}</h3>
-                </div>
-                <div class="card-body">
-                    <h5>{{ _('Based on your statistics:') }}</h5>
+            <div class="stats-card">
+                <h3 class="mb-3">{{ _('Рекомендации по изучению') }}</h3>
+                <h5>{{ _('На основе вашей статистики:') }}</h5>
 
                     {% if total_items > 0 %}
                         {% if mastery_percentage < 30 %}
                             <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle"></i> {{ _('You\'re just getting started! Focus on learning a few words at a time and reviewing them regularly.') }}
+                                <i class="fas fa-exclamation-triangle"></i> {{ _('Вы только начинаете! Сосредоточьтесь на изучении нескольких слов за раз и регулярном повторении.') }}
                             </div>
                         {% elif mastery_percentage < 70 %}
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i> {{ _('You\'re making good progress! Continue regular reviews and gradually add new words to your collection.') }}
+                                <i class="fas fa-info-circle"></i> {{ _('Вы делаете хорошие успехи! Продолжайте регулярные повторения и постепенно добавляйте новые слова.') }}
                             </div>
                         {% else %}
                             <div class="alert alert-success">
-                                <i class="fas fa-check-circle"></i> {{ _('Excellent work! You\'ve mastered most of your collection. Consider adding more challenging words or focusing on using these words in context.') }}
+                                <i class="fas fa-check-circle"></i> {{ _('Отличная работа! Вы освоили большую часть своей коллекции. Подумайте о добавлении более сложных слов.') }}
                             </div>
                         {% endif %}
                     {% else %}
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> {{ _('Start adding words to your study collection to see personalized recommendations.') }}
+                            <i class="fas fa-info-circle"></i> {{ _('Начните добавлять слова в свою коллекцию для получения персонализированных рекомендаций.') }}
                         </div>
                     {% endif %}
 
-                    <h5 class="mt-3">{{ _('Next steps:') }}</h5>
+                <h5 class="mt-3">{{ _('Следующие шаги:') }}</h5>
                     <div class="d-grid gap-2">
                         <a href="{{ url_for('study.cards', word_source='due', max_words=20) }}" class="btn btn-outline-primary">
-                            <i class="fas fa-sync-alt me-2"></i> {{ _('Review Due Words') }}
+                            <i class="fas fa-sync-alt me-2"></i> {{ _('Повторить слова') }}
                         </a>
                         <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-success">
-                            <i class="fas fa-plus me-2"></i> {{ _('Add More Words to Study') }}
+                            <i class="fas fa-plus me-2"></i> {{ _('Добавить слова для изучения') }}
                         </a>
                     </div>
-                </div>
             </div>
         </div>
     </div>
