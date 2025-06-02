@@ -19,7 +19,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
-                        {{ csrf_token() }}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         
                         <div class="form-group">
                             <label for="translation_file">Файл с переводами:</label>
