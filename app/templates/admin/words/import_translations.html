@@ -32,10 +32,12 @@
 
                         <div class="alert alert-info">
                             <h6><i class="fas fa-info-circle"></i> Формат файла:</h6>
-                            <p>Каждая строка должна содержать английское слово и русский перевод, разделенные символом "|":</p>
-                            <pre>apple|яблоко
-book|книга
-computer|компьютер</pre>
+                            <p>Каждая строка должна содержать 5 частей, разделенных символом ";":</p>
+                            <pre>english_word;russian_translate;english_sentence;russian_sentence;level</pre>
+                            <p><strong>Пример:</strong></p>
+                            <pre>apple;яблоко;I eat an apple;Я ем яблоко;A1
+book;книга;This is a good book;Это хорошая книга;A1
+computer;компьютер;I use a computer;Я использую компьютер;A2</pre>
                         </div>
 
                         <div class="alert alert-warning">
@@ -64,18 +66,13 @@ computer|компьютер</pre>
                 <div class="card-body">
                     <p>Создайте текстовый файл со следующим содержимым:</p>
                     <pre class="small"># Переводы слов
-# Формат: английское_слово|русский_перевод
+# Формат: english_word;russian_translate;english_sentence;russian_sentence;level
 
-apple|яблоко
-book|книга
-computer|компьютер
-house|дом
-car|автомобиль
-water|вода
-food|еда
-time|время
-people|люди
-work|работа</pre>
+apple;яблоко;I eat an apple every day;Я ем яблоко каждый день;A1
+book;книга;This book is very interesting;Эта книга очень интересная;A1
+computer;компьютер;I work on my computer;Я работаю на своем компьютере;A2
+house;дом;My house is big;Мой дом большой;A1
+car;автомобиль;I drive a red car;Я вожу красную машину;A2</pre>
                 </div>
             </div>
 

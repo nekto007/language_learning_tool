@@ -611,19 +611,26 @@ def import_translations():
                 if not line or line.startswith('#'):  # Пропускаем пустые строки и комментарии
                     continue
 
-                # Ожидаем формат: english_word|russian_translation
-                parts = line.split('|')
-                if len(parts) != 2:
-                    errors.append(f'Строка {line_num}: неверный формат "{line}"')
+                # Ожидаем формат: english_word;russian_translate;english_sentence;russian_sentence;level
+                parts = line.split(';')
+                if len(parts) != 5:
+                    errors.append(f'Строка {line_num}: неверный формат "{line}" (ожидается 5 частей через ;)')
                     continue
 
                 english_word = parts[0].strip().lower()
-                russian_translation = parts[1].strip()
+                russian_translate = parts[1].strip()
+                english_sentence = parts[2].strip()
+                russian_sentence = parts[3].strip()
+                level = parts[4].strip()
 
                 # Найти слово в базе
                 word = CollectionWords.query.filter_by(english_word=english_word).first()
                 if word:
-                    word.russian_word = russian_translation
+                    # Обновляем поля согласно новому формату
+                    word.russian_word = russian_translate
+                    word.sentences = f"{english_sentence}<br>{russian_sentence}"
+                    word.level = level
+                    word.listening = f"[sound:pronunciation_en_{english_word.replace(' ', '_').lower()}.mp3]"
                     updated_count += 1
                 else:
                     errors.append(f'Строка {line_num}: слово "{english_word}" не найдено в базе')
