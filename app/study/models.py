@@ -34,7 +34,22 @@ class StudySession(db.Model):
     def duration(self):
         """Calculate session duration in minutes"""
         end = self.end_time or datetime.now(timezone.utc)
-        delta = end - self.start_time
+        
+        # Ensure both datetimes are timezone-aware
+        if self.start_time and self.start_time.tzinfo is None:
+            # If start_time is naive, assume it's UTC
+            start = self.start_time.replace(tzinfo=timezone.utc)
+        else:
+            start = self.start_time
+            
+        if end and end.tzinfo is None:
+            # If end is naive, assume it's UTC
+            end = end.replace(tzinfo=timezone.utc)
+        
+        if not start:
+            return 0
+            
+        delta = end - start
         return round(delta.total_seconds() / 60, 1)
 
     @property
@@ -209,7 +224,7 @@ class UserCardDirection(db.Model):
     ease_factor = db.Column(db.Float, default=2.5)
     interval = db.Column(db.Integer, default=0)
     last_reviewed = db.Column(db.DateTime, nullable=True)
-    next_review = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    next_review = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     session_attempts = db.Column(db.Integer, default=0)
 
     # Stats
@@ -230,7 +245,7 @@ class UserCardDirection(db.Model):
         self.interval = 0
         self.correct_count = 0
         self.incorrect_count = 0
-        self.next_review = datetime.utcnow()
+        self.next_review = datetime.now(timezone.utc)
 
     def update_after_review(self, quality):
         """
@@ -326,12 +341,28 @@ class UserCardDirection(db.Model):
     @property
     def due_for_review(self):
         """Check if this direction is due for review"""
-        return self.next_review and datetime.now(timezone.utc) >= self.next_review
+        if not self.next_review:
+            return True
+            
+        # Ensure next_review is timezone-aware
+        if self.next_review.tzinfo is None:
+            next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
+        else:
+            next_review_aware = self.next_review
+            
+        return datetime.now(timezone.utc) >= next_review_aware
 
     @property
     def days_until_review(self):
         """Calculate days until next review"""
         if not self.next_review or self.due_for_review:
             return 0
-        delta = self.next_review - datetime.now(timezone.utc)
+            
+        # Ensure next_review is timezone-aware
+        if self.next_review.tzinfo is None:
+            next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
+        else:
+            next_review_aware = self.next_review
+            
+        delta = next_review_aware - datetime.now(timezone.utc)
         return max(0, delta.days)

@@ -260,9 +260,26 @@ def batch_update_status():
                 'status_code': 404
             }), 404
 
+        # Преобразуем строковый статус в числовой
+        status_mapping = {
+            'new': 0,
+            'learning': 1,
+            'review': 2,
+            'mastered': 3
+        }
+        
+        if status not in status_mapping:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid status: {status}',
+                'status_code': 400
+            }), 400
+            
+        numeric_status = status_mapping[status]
+
         # Update statuses
         for word_id in word_ids:
-            current_user.set_word_status(word_id, status)
+            current_user.set_word_status(word_id, numeric_status)
 
         return jsonify({
             'success': True,
@@ -272,9 +289,15 @@ def batch_update_status():
 
     except Exception as e:
         db.session.rollback()
+        import traceback
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        print(f"Error in batch update: {error_msg}")
+        print(f"Stack trace: {stack_trace}")
+        
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': f'Database error: {error_msg}',
             'status_code': 500
         }), 500
 
@@ -319,6 +342,65 @@ def search_words():
 
 
 # Добавьте этот endpoint в файл app/api/words.py
+
+@api_words.route('/words/<int:word_id>/status', methods=['POST'])
+@api_login_required
+def update_single_word_status(word_id):
+    """Update status for a single word - endpoint used by templates"""
+    if not request.is_json:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid JSON format'
+        }), 400
+
+    data = request.get_json()
+    status = data.get('status')
+
+    if not status:
+        return jsonify({
+            'success': False,
+            'error': 'Missing status'
+        }), 400
+
+    word = CollectionWords.query.get_or_404(word_id)
+    
+    try:
+        # Преобразуем строковый статус в числовой
+        status_mapping = {
+            'new': 0,
+            'learning': 1,
+            'review': 2,
+            'mastered': 3
+        }
+        
+        if status not in status_mapping:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid status: {status}'
+            }), 400
+            
+        numeric_status = status_mapping[status]
+        
+        # Use the updated method User.set_word_status
+        current_user.set_word_status(word_id, numeric_status)
+        
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        print(f"Error updating word status: {error_msg}")
+        print(f"Stack trace: {stack_trace}")
+        
+        return jsonify({
+            'success': False,
+            'error': f'Database error: {error_msg}'
+        }), 500
+
 
 @api_words.route('/user-words-status', methods=['POST'])
 @api_login_required

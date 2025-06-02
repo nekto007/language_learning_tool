@@ -304,18 +304,20 @@ def get_download_words(args: argparse.Namespace) -> None:
 
     logger.info("Getting words for download")
 
-    # Form query
+    # Form query with proper parameterization to prevent SQL injection
     query = f"""
         SELECT english_word FROM {COLLECTIONS_TABLE}
-        WHERE russian_word IS NOT NULL AND get_download = 0 or get_download IS NULL
+        WHERE russian_word IS NOT NULL AND (get_download = 0 OR get_download IS NULL)
     """
-
+    
+    parameters = ()
     if pattern:
-        query += f" AND english_word LIKE '{pattern}'"
+        query += " AND english_word LIKE %s"
+        parameters = (f"{pattern}%",)
 
-    # Execute query
+    # Execute query with parameters
     repo = DatabaseRepository()
-    result = repo.execute_query(query, fetch=True)
+    result = repo.execute_query(query, parameters, fetch=True)
 
     if not result:
         logger.info("No words found for download")

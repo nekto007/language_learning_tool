@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
@@ -26,7 +26,7 @@ def index():
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
         UserWord.user_id == current_user.id,
-        UserCardDirection.next_review <= datetime.utcnow()
+        UserCardDirection.next_review <= datetime.now(timezone.utc)
     ).count()
 
     # Считаем общее количество слов, которые изучает пользователь
@@ -164,7 +164,7 @@ def get_study_items():
     settings = StudySettings.get_settings(current_user.id)
 
     # Count how many new cards and reviews were done today
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Get new cards reviewed today
     new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
@@ -277,7 +277,7 @@ def get_study_items():
                 .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
                 .filter(
                 UserWord.user_id == current_user.id,
-                UserCardDirection.next_review <= datetime.utcnow()
+                UserCardDirection.next_review <= datetime.now(timezone.utc)
             )
 
         # Get the direction objects
@@ -427,7 +427,7 @@ def stats():
         .order_by(StudySession.start_time.desc()).limit(10).all()
 
     # Статистика за сегодня
-    today = datetime.now().date()
+    today = datetime.now(timezone.utc).date()
     today_sessions = StudySession.query.filter_by(user_id=current_user.id) \
         .filter(func.date(StudySession.start_time) == today).all()
 
@@ -1000,7 +1000,7 @@ def complete_matching_game():
             pairs_matched=pairs_matched,
             total_pairs=total_pairs,
             moves=moves,
-            date_achieved=datetime.utcnow()
+            date_achieved=datetime.now(timezone.utc)
         )
 
         # Явно добавляем объект в сессию и коммитим изменения
@@ -1066,7 +1066,7 @@ def complete_quiz():
         time_taken=time_taken,
         correct_answers=correct_answers,
         total_questions=total_questions,
-        date_achieved=datetime.utcnow()
+        date_achieved=datetime.now(timezone.utc)
     )
     db.session.add(game_score)
     db.session.commit()

@@ -2,13 +2,65 @@
 Settings module for application configuration.
 """
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Path to the project directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Database settings
+# Critical environment variables validation
+REQUIRED_ENV_VARS = [
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD', 
+    'POSTGRES_DB',
+    'SECRET_KEY'
+]
+
+# Optional but recommended environment variables
+RECOMMENDED_ENV_VARS = [
+    'FLASK_ENV',
+    'FLASK_APP'
+]
+
+def validate_environment():
+    """Validate that all required environment variables are set."""
+    missing_required = []
+    missing_recommended = []
+    
+    # Check required variables
+    for var in REQUIRED_ENV_VARS:
+        if not os.environ.get(var):
+            missing_required.append(var)
+    
+    # Check recommended variables
+    for var in RECOMMENDED_ENV_VARS:
+        if not os.environ.get(var):
+            missing_recommended.append(var)
+    
+    # Critical error for missing required variables
+    if missing_required:
+        print(f"❌ CRITICAL ERROR: Missing required environment variables:")
+        for var in missing_required:
+            print(f"   - {var}")
+        print(f"💡 Please set these variables before starting the application.")
+        sys.exit(1)
+    
+    # Warning for missing recommended variables
+    if missing_recommended:
+        print(f"⚠️  WARNING: Missing recommended environment variables:")
+        for var in missing_recommended:
+            print(f"   - {var}")
+        print(f"💡 Consider setting these for optimal functionality.")
+    
+    # Success message
+    if not missing_required and not missing_recommended:
+        print(f"✅ All environment variables are properly configured.")
+
+# Validate environment on import
+validate_environment()
+
+# Database settings - now guaranteed to exist
 DB_USER = os.environ.get("POSTGRES_USER")
 DB_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
 DB_NAME = os.environ.get("POSTGRES_DB")
@@ -78,3 +130,14 @@ class Config:
     # Security
     SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
     REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
+
+
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_SECRET_KEY = 'csrf-test-key'
+    SECRET_KEY = 'test-secret-key'
+    SERVER_NAME = 'localhost.localdomain'
