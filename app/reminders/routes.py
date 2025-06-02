@@ -13,6 +13,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import desc
 
 from app.auth.models import User
+from app.reminders.models import ReminderLog
 from app.utils.db import db
 
 reminders = Blueprint('reminders', __name__, url_prefix='/admin/reminders')
@@ -244,16 +245,3 @@ def preview_template(template_name):
         return redirect(url_for('reminders.list_templates'))
 
 
-# Модель для логирования отправленных напоминаний
-class ReminderLog(db.Model):
-    __tablename__ = 'reminder_logs'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    template = db.Column(db.String(64), nullable=False)
-    subject = db.Column(db.String(255), nullable=False)
-    sent_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    sent_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-
-    # Отношения
-    user = db.relationship('User', foreign_keys=[user_id], backref='received_reminders')
