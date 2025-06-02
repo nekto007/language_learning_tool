@@ -98,6 +98,7 @@
                         Delete books that have no content. This will free up database space.
                     </p>
                     <form method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="action" value="remove_empty_books">
                         <button type="submit" class="btn btn-warning btn-sm" 
                                 onclick="return confirm('Are you sure you want to delete {{ stats.books_no_content }} books without content?')">
@@ -135,6 +136,7 @@
                         Remove temporary files from metadata extraction and file processing.
                     </p>
                     <form method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="action" value="clean_temp_files">
                         <button type="submit" class="btn btn-info btn-sm">
                             <i class="fas fa-broom"></i>
