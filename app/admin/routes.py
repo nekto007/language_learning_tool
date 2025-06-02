@@ -707,9 +707,7 @@ def topic_list():
     """Отображение списка всех тем"""
     topics = Topic.query.order_by(Topic.name).all()
 
-    # Добавляем к каждой теме количество слов
-    for topic in topics:
-        topic.word_count = len(topic.words)
+    # Количество слов вычисляется автоматически через гибридное свойство
 
     return render_template('admin/topics/list.html', topics=topics)
 
@@ -828,10 +826,9 @@ def collection_list():
     """Отображение списка всех коллекций"""
     collections = Collection.query.order_by(Collection.name).all()
 
-    # Для каждой коллекции получаем создателя и количество слов
+    # Для каждой коллекции получаем создателя
     for collection in collections:
         collection.creator_name = collection.creator.username if collection.creator else "Admin"
-        collection.word_count = len(collection.words)
 
     return render_template('admin/collections/list.html', collections=collections)
 
