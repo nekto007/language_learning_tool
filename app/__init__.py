@@ -114,9 +114,10 @@ def create_app(config_class=Config):
             # Set up database specific configurations
             if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
                 # PostgreSQL specific optimizations
-                db.session.execute("SET synchronous_commit = OFF")  # Improves performance, slightly less durable
-                db.session.execute("SET statement_timeout = '30s'")  # Prevents long-running queries
-                db.session.execute("SET idle_in_transaction_session_timeout = '60s'")  # Prevents idle transactions
+                from sqlalchemy import text
+                db.session.execute(text("SET synchronous_commit = OFF"))  # Improves performance, slightly less durable
+                db.session.execute(text("SET statement_timeout = '30s'"))  # Prevents long-running queries
+                db.session.execute(text("SET idle_in_transaction_session_timeout = '60s'"))  # Prevents idle transactions
 
                 # Enable connection pooling
                 db.engine.pool_size = 10

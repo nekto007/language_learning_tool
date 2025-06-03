@@ -1,0 +1,640 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Дашборд изучения') }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+.study-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.study-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm0 0c0-11.046 8.954-20 20-20s20 8.954 20 20-8.954 20-20 20-20-8.954-20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    opacity: 0.1;
+}
+
+.study-hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.action-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.recommended-session {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    padding: 2rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.recommended-session::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpolygon points='20,0 32,12 20,24 8,12'/%3E%3C/g%3E%3C/svg%3E") repeat;
+    opacity: 0.1;
+}
+
+.recommended-content {
+    position: relative;
+    z-index: 1;
+}
+
+.study-modes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.mode-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.mode-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    border-color: #007bff;
+}
+
+.mode-card.recommended {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #f8fff8 0%, #e6ffe6 100%);
+}
+
+.mode-card.recommended .mode-badge {
+    background: #28a745;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.mode-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.mode-icon.cards { background: #e3f2fd; color: #1976d2; }
+.mode-icon.quiz { background: #fff3e0; color: #f57c00; }
+.mode-icon.matching { background: #ffebee; color: #d32f2f; }
+
+.difficulty-indicator {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.difficulty-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dee2e6;
+}
+
+.difficulty-dot.filled { background: #28a745; }
+
+.session-stats {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.goal-progress {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.progress-ring {
+    width: 80px;
+    height: 80px;
+    position: relative;
+}
+
+.progress-ring svg {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    fill: none;
+    stroke: #e9ecef;
+    stroke-width: 8;
+}
+
+.progress-ring-progress {
+    fill: none;
+    stroke: #28a745;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+.achievement-badge {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #b8860b;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.motivation-message {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    position: relative;
+}
+
+.smart-recommendations {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    border-left: 4px solid #007bff;
+}
+
+.time-selection {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.time-btn {
+    flex: 1;
+    padding: 0.75rem;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.time-btn:hover, .time-btn.active {
+    border-color: #007bff;
+    background: #f8f9ff;
+    color: #007bff;
+}
+
+@media (max-width: 768px) {
+    .study-modes {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .time-selection {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Hero Section with Personalized Greeting -->
+    <div class="study-hero">
+        <div class="study-hero-content">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="display-5 fw-bold mb-3">
+                        {% if current_time_hour < 12 %}
+                            {{ _('Доброе утро!') }} 🌅
+                        {% elif current_time_hour < 18 %}
+                            {{ _('Добрый день!') }} ☀️
+                        {% else %}
+                            {{ _('Добрый вечер!') }} 🌙
+                        {% endif %}
+                    </h1>
+                    <p class="lead mb-0">
+                        {% if due_items_count > 0 %}
+                            {{ _('У вас есть %(count)d слов для повторения', count=due_items_count) }}
+                        {% elif total_items == 0 %}
+                            {{ _('Начните свое путешествие в изучении английского!') }}
+                        {% else %}
+                            {{ _('Отличная работа! Все слова актуальны.') }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-lg-4 text-end">
+                    {% if user_streak > 0 %}
+                        <div class="achievement-badge mb-2">
+                            <i class="fas fa-fire"></i>
+                            {{ user_streak }} {{ _('дней подряд') }}
+                        </div>
+                    {% endif %}
+                    <div class="d-flex flex-column align-items-end">
+                        <div class="fs-1 fw-bold">{{ due_items_count }}</div>
+                        <div class="opacity-75">{{ _('к повторению') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Goal Progress -->
+    {% if daily_goal %}
+    <div class="goal-progress">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <div class="progress-ring">
+                    <svg width="80" height="80">
+                        <circle class="progress-ring-circle" cx="40" cy="40" r="36"></circle>
+                        <circle class="progress-ring-progress" cx="40" cy="40" r="36" 
+                                stroke-dasharray="{{ (daily_progress / daily_goal * 226) if daily_goal > 0 else 0 }} 226"></circle>
+                    </svg>
+                    <div class="position-absolute top-50 start-50 translate-middle text-center">
+                        <div class="fw-bold">{{ daily_progress }}</div>
+                        <small class="text-muted">{{ daily_goal }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <h4 class="mb-1">{{ _('Дневная цель') }}</h4>
+                <p class="text-muted mb-2">{{ _('Изучено %(progress)d из %(goal)d слов', progress=daily_progress, goal=daily_goal) }}</p>
+                {% if daily_progress >= daily_goal %}
+                    <div class="motivation-message">
+                        <i class="fas fa-trophy me-2"></i>
+                        {{ _('Поздравляем! Вы достигли дневной цели!') }}
+                    </div>
+                {% elif daily_progress > 0 %}
+                    <div class="motivation-message">
+                        <i class="fas fa-thumbs-up me-2"></i>
+                        {{ _('Отличное начало! Осталось всего %(remaining)d слов.', remaining=daily_goal - daily_progress) }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Smart Recommendations -->
+    {% if recommended_action %}
+    <div class="recommended-session">
+        <div class="recommended-content">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <span class="badge bg-warning text-dark">{{ _('Рекомендуется') }}</span>
+                    </div>
+                    <h3 class="mb-2">{{ recommended_action.title }}</h3>
+                    <p class="mb-3">{{ recommended_action.description }}</p>
+                    <div class="session-stats">
+                        <small class="text-white-50">
+                            <i class="fas fa-clock me-1"></i> {{ recommended_action.estimated_time }} {{ _('мин') }} |
+                            <i class="fas fa-list me-1"></i> {{ recommended_action.word_count }} {{ _('слов') }} |
+                            <i class="fas fa-chart-line me-1"></i> {{ recommended_action.difficulty }}
+                        </small>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-end">
+                    <a href="{{ recommended_action.url }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-play me-2"></i>{{ _('Начать') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Time-based Sessions -->
+    <div class="action-card">
+        <h3 class="mb-3">{{ _('Быстрый старт') }}</h3>
+        <p class="text-muted mb-3">{{ _('Сколько времени у вас есть для изучения?') }}</p>
+        
+        <div class="time-selection">
+            <div class="time-btn" data-time="5">
+                <div class="fw-bold">5 {{ _('мин') }}</div>
+                <small class="text-muted">{{ _('~10 слов') }}</small>
+            </div>
+            <div class="time-btn" data-time="15">
+                <div class="fw-bold">15 {{ _('мин') }}</div>
+                <small class="text-muted">{{ _('~25 слов') }}</small>
+            </div>
+            <div class="time-btn" data-time="30">
+                <div class="fw-bold">30 {{ _('мин') }}</div>
+                <small class="text-muted">{{ _('~50 слов') }}</small>
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <button class="btn btn-primary btn-lg" id="startQuickSession" disabled>
+                <i class="fas fa-rocket me-2"></i>{{ _('Начать сессию') }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Study Mode Selection -->
+    <div class="action-card">
+        <h3 class="mb-3">{{ _('Выберите режим изучения') }}</h3>
+        <div class="study-modes">
+            <div class="mode-card" data-mode="cards">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="mode-icon cards">
+                        <i class="fas fa-copy"></i>
+                    </div>
+                    {% if user_level == 'beginner' %}
+                        <span class="mode-badge">{{ _('Рекомендуется') }}</span>
+                    {% endif %}
+                </div>
+                <h4>{{ _('Карточки') }}</h4>
+                <p class="text-muted mb-2">{{ _('Классическое изучение с интервальными повторениями') }}</p>
+                <div class="difficulty-indicator">
+                    <div class="difficulty-dot filled"></div>
+                    <div class="difficulty-dot"></div>
+                    <div class="difficulty-dot"></div>
+                </div>
+                <small class="text-muted">{{ _('Легко') }}</small>
+            </div>
+
+            <div class="mode-card" data-mode="quiz">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="mode-icon quiz">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    {% if user_level == 'intermediate' %}
+                        <span class="mode-badge">{{ _('Рекомендуется') }}</span>
+                    {% endif %}
+                </div>
+                <h4>{{ _('Тесты') }}</h4>
+                <p class="text-muted mb-2">{{ _('Проверьте знания с помощью разнообразных вопросов') }}</p>
+                <div class="difficulty-indicator">
+                    <div class="difficulty-dot filled"></div>
+                    <div class="difficulty-dot filled"></div>
+                    <div class="difficulty-dot"></div>
+                </div>
+                <small class="text-muted">{{ _('Средне') }}</small>
+            </div>
+
+            <div class="mode-card" data-mode="matching">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="mode-icon matching">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    {% if user_level == 'advanced' %}
+                        <span class="mode-badge">{{ _('Рекомендуется') }}</span>
+                    {% endif %}
+                </div>
+                <h4>{{ _('Игра на совпадения') }}</h4>
+                <p class="text-muted mb-2">{{ _('Весело изучайте через игровой процесс') }}</p>
+                <div class="difficulty-indicator">
+                    <div class="difficulty-dot filled"></div>
+                    <div class="difficulty-dot filled"></div>
+                    <div class="difficulty-dot filled"></div>
+                </div>
+                <small class="text-muted">{{ _('Сложно') }}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number text-primary">{{ due_items_count }}</div>
+            <div class="stat-label">{{ _('К повторению') }}</div>
+            {% if due_items_count > 0 %}
+                <small class="text-success">{{ _('Готовы к изучению!') }}</small>
+            {% endif %}
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-number text-success">{{ total_items }}</div>
+            <div class="stat-label">{{ _('Всего слов') }}</div>
+            {% if total_items > 0 %}
+                <small class="text-muted">{{ _('В вашей коллекции') }}</small>
+            {% endif %}
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-number text-info">{{ learned_percentage }}%</div>
+            <div class="stat-label">{{ _('Прогресс изучения') }}</div>
+            <div class="progress mt-2" style="height: 4px;">
+                <div class="progress-bar bg-info" style="width: {{ learned_percentage }}%"></div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-number text-warning">{{ user_streak }}</div>
+            <div class="stat-label">{{ _('Дней подряд') }}</div>
+            {% if user_streak > 0 %}
+                <small class="text-success">
+                    <i class="fas fa-fire me-1"></i>{{ _('Отличная серия!') }}
+                </small>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Advanced Options (Collapsible) -->
+    <div class="action-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">{{ _('Расширенные настройки') }}</h4>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#advancedOptions">
+                <i class="fas fa-cog me-1"></i>{{ _('Настроить') }}
+            </button>
+        </div>
+        
+        <div class="collapse" id="advancedOptions">
+            <form method="POST" action="{{ url_for('study.start_session') }}">
+                {{ form.csrf_token }}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ _('Режим обучения') }}</label>
+                        {{ form.session_type(class="form-select") }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ _('Источник слов') }}</label>
+                        {{ form.word_source(class="form-select") }}
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mt-3">
+                    {{ form.submit(class="btn btn-primary btn-lg px-4", value=_('Начать сеанс')) }}
+                    <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary px-4">
+                        <i class="fas fa-cog me-2"></i> {{ _('Настройки') }}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Recent Sessions (if any) -->
+    {% if recent_sessions %}
+    <div class="action-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">{{ _('Последние сессии') }}</h3>
+            <a href="{{ url_for('study.stats') }}" class="btn btn-outline-primary btn-sm">{{ _('Вся статистика') }}</a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{{ _('Дата') }}</th>
+                        <th>{{ _('Тип') }}</th>
+                        <th>{{ _('Слова') }}</th>
+                        <th>{{ _('Точность') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in recent_sessions[:3] %}
+                    <tr>
+                        <td>{{ session.start_time.strftime('%d.%m, %H:%M') }}</td>
+                        <td>{{ _(session.session_type|capitalize) }}</td>
+                        <td>{{ session.words_studied }}</td>
+                        <td>
+                            <span class="badge {% if session.performance_percentage >= 80 %}bg-success{% elif session.performance_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ session.performance_percentage }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Time selection functionality
+    const timeButtons = document.querySelectorAll('.time-btn');
+    const startButton = document.getElementById('startQuickSession');
+    let selectedTime = null;
+
+    timeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            timeButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            selectedTime = this.dataset.time;
+            startButton.disabled = false;
+        });
+    });
+
+    // Quick session start
+    startButton.addEventListener('click', function() {
+        if (selectedTime) {
+            // Determine best mode and word source based on time and user data
+            let mode = 'cards';
+            let source = 'learning';
+            
+            if ({{ due_items_count }} > 0) {
+                source = 'learning';
+            } else if ({{ total_items }} === 0) {
+                source = 'new';
+            } else {
+                source = 'all';
+            }
+            
+            // Redirect to appropriate study mode
+            window.location.href = `/study/${mode}?word_source=${source}&time_limit=${selectedTime}`;
+        }
+    });
+
+    // Mode card selection
+    const modeCards = document.querySelectorAll('.mode-card');
+    modeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const mode = this.dataset.mode;
+            let source = 'learning';
+            
+            if ({{ due_items_count }} > 0) {
+                source = 'learning';
+            } else if ({{ total_items }} === 0) {
+                source = 'new';
+            } else {
+                source = 'all';
+            }
+            
+            window.location.href = `/study/${mode}?word_source=${source}`;
+        });
+    });
+});
+</script>
+{% endblock %}
