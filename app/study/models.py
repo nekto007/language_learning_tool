@@ -154,6 +154,7 @@ class UserWord(db.Model):
     # Status: new, learning, review, mastered
     status = db.Column(db.String(20), default='new')
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user = db.relationship('User', backref=db.backref('user_words', lazy='dynamic', cascade='all, delete-orphan'))
