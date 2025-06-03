@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Достижение разблокировано!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
+            border-radius: 8px 8px 0 0;
+            margin: -20px -20px 30px -20px;
+        }
+        .header h1 {
+            color: white;
+            margin: 0;
+            font-size: 28px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .streak-banner {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+        .fire-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            display: block;
+            animation: fire-animation 2s infinite;
+        }
+        @keyframes fire-animation {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .streak-number {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .streak-level {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 16px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .content {
+            padding: 20px 0;
+        }
+        .progress-bar {
+            background-color: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        .milestones {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .milestone {
+            text-align: center;
+            padding: 15px 10px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .milestone.achieved {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+        }
+        .milestone.upcoming {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            border: 2px dashed #dee2e6;
+        }
+        .tips {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        .tips h3 {
+            margin-top: 0;
+            color: white;
+        }
+        .tip-list {
+            list-style: none;
+            padding: 0;
+        }
+        .tip-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        .tip-list li:before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 20px 0;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            min-width: 120px;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b6b;
+            display: block;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            border-top: 1px solid #eee;
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 Вы в огне!</h1>
+        </div>
+        
+        <div class="content">
+            <div class="streak-banner">
+                <span class="fire-icon">🔥</span>
+                <div class="streak-number">{{ notification.data.streak_days }}</div>
+                <div style="font-size: 18px; margin: 10px 0;">дней подряд</div>
+                <div class="streak-level">
+                    {% if notification.data.achievement_level == 'legend' %}
+                        🏆 ЛЕГЕНДА
+                    {% elif notification.data.achievement_level == 'master' %}
+                        👑 МАСТЕР
+                    {% elif notification.data.achievement_level == 'expert' %}
+                        🥇 ЭКСПЕРТ
+                    {% elif notification.data.achievement_level == 'dedicated' %}
+                        🎯 ПРЕДАННЫЙ
+                    {% elif notification.data.achievement_level == 'committed' %}
+                        💪 НАСТОЙЧИВЫЙ
+                    {% else %}
+                        🌱 НОВИЧОК
+                    {% endif %}
+                </div>
+                <p style="margin: 15px 0 0 0; font-size: 16px;">
+                    Потрясающе! Ваша последовательность впечатляет!
+                </p>
+            </div>
+            
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #856404;">🎯 Значение последовательности</h3>
+                <p style="color: #856404; margin-bottom: 0;">
+                    Регулярные занятия — это ключ к успешному изучению языка. Вы показываете отличную дисциплину 
+                    и преданность своей цели. Такая последовательность обязательно принесет свои плоды!
+                </p>
+            </div>
+            
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-number">{{ notification.data.streak_days }}</span>
+                    <div class="stat-label">Дней подряд</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ (notification.data.streak_days * 15) // 60 }}ч {{ (notification.data.streak_days * 15) % 60 }}м</span>
+                    <div class="stat-label">Примерное время</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ notification.data.streak_days * 3 }}</span>
+                    <div class="stat-label">Примерно заданий</div>
+                </div>
+            </div>
+            
+            <h3>🏅 Достижения серии</h3>
+            <div class="milestones">
+                {% set milestones = [7, 14, 30, 60, 100, 365] %}
+                {% for milestone in milestones %}
+                <div class="milestone {% if notification.data.streak_days >= milestone %}achieved{% else %}upcoming{% endif %}">
+                    <div style="font-size: 18px;">
+                        {% if notification.data.streak_days >= milestone %}✅{% else %}🎯{% endif %}
+                    </div>
+                    <div>{{ milestone }}</div>
+                    <div style="font-size: 10px;">
+                        {% if milestone == 7 %}Неделя{% elif milestone == 14 %}2 недели{% elif milestone == 30 %}Месяц{% elif milestone == 60 %}2 месяца{% elif milestone == 100 %}100 дней{% else %}Год{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if notification.data.streak_days < 365 %}
+            <div style="margin: 20px 0;">
+                <p><strong>До следующего достижения:</strong></p>
+                {% set next_milestone = [7, 14, 30, 60, 100, 365] | selectattr('__gt__', notification.data.streak_days) | first %}
+                {% if next_milestone %}
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (notification.data.streak_days / next_milestone * 100) | round }}%;"></div>
+                </div>
+                <p style="text-align: center; margin: 10px 0; color: #666;">
+                    {{ next_milestone - notification.data.streak_days }} дней до достижения "{{ next_milestone }} дней"
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <div class="tips">
+                <h3>💪 Как поддержать серию:</h3>
+                <ul class="tip-list">
+                    <li>Установите напоминания на удобное время</li>
+                    <li>Начинайте с малого — даже 10 минут в день важны</li>
+                    <li>Используйте мобильное приложение для занятий в дороге</li>
+                    <li>Найдите время, которое лучше всего подходит именно вам</li>
+                    <li>Отмечайте свой прогресс и празднуйте достижения</li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{ url_for('curriculum.index', _external=True) }}" class="button">
+                    🔥 Продолжить серию
+                </a>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); border-radius: 12px; text-align: center;">
+                <h3 style="margin-top: 0; color: #333;">🏆 Вы вдохновляете!</h3>
+                <p style="color: #555; margin-bottom: 0;">
+                    Ваша последовательность — это пример для других учеников. 
+                    Продолжайте в том же духе, и результаты не заставят себя ждать!
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Поздравляем с достижением серии {{ notification.data.streak_days }} дней!</strong></p>
+            <p>
+                <a href="{{ url_for('auth.profile', _external=True) }}">Настроить уведомления</a> | 
+                <a href="mailto:support@example.com">Поддержка</a>
+            </p>
+            <p>© 2024 Language Learning Tool. Все права защищены.</p>
+        </div>
+    </div>
+</body>
+</html>
