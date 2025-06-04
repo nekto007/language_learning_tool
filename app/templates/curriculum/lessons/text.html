@@ -99,7 +99,7 @@
               <strong>{{ word.word }}</strong>
               <span class="translation">{{ word.translation }}</span>
               {% if word.audio %}
-                <button class="vocab-audio-btn" onclick="playAudio('{{ word.audio }}')">
+                <button class="vocab-audio-btn" onclick="playAudio('{{ word.audio }}', this)">
                   <i class="fas fa-volume-up"></i>
                 </button>
               {% endif %}
@@ -260,10 +260,40 @@ function filterVocabulary() {
 }
 
 // Воспроизведение аудио
-function playAudio(audioFile) {
+function playAudio(audioFile, buttonElement) {
   const audio = document.getElementById('vocab-audio');
+  
+  // Если нажали на кнопку того же аудио, которое играет - ставим паузу
+  if (!audio.paused && audio.src.includes(audioFile)) {
+    audio.pause();
+    return;
+  }
+  
+  // Сбрасываем все кнопки в исходное состояние
+  document.querySelectorAll('.vocab-audio-btn').forEach(btn => {
+    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+  });
+  
+  // Воспроизводим новое аудио
   audio.src = `/static/audio/${audioFile}`;
   audio.play().catch(e => console.log('Audio playback failed:', e));
+  
+  // Обновляем иконку на текущей кнопке
+  if (buttonElement) {
+    buttonElement.innerHTML = '<i class="fas fa-pause"></i>';
+    
+    // Возвращаем иконку когда аудио закончится
+    audio.onended = function() {
+      buttonElement.innerHTML = '<i class="fas fa-volume-up"></i>';
+    };
+    
+    // Возвращаем иконку при паузе
+    audio.onpause = function() {
+      if (!audio.ended) {
+        buttonElement.innerHTML = '<i class="fas fa-volume-up"></i>';
+      }
+    };
+  }
 }
 
 // Воспроизведение аудио диалога
@@ -271,14 +301,33 @@ function playDialogueAudio(audioFile) {
   const audio = document.getElementById('vocab-audio');
   const playBtn = document.querySelector('.audio-play-btn');
 
-  audio.src = `/static/audio/${audioFile}`;
+  // Проверяем, играет ли аудио в данный момент
+  if (!audio.paused && audio.src.includes(audioFile)) {
+    // Если играет - ставим на паузу
+    audio.pause();
+    playBtn.innerHTML = '<i class="fas fa-play-circle"></i> {{ _("Прослушать диалог") }}';
+    return;
+  }
 
-  playBtn.innerHTML = '<i class="fas fa-pause-circle"></i> ' + playBtn.textContent.replace(/^\s*<i[^>]*><\/i>\s*/, '');
+  // Если это новый файл или аудио на паузе - воспроизводим
+  if (!audio.src.includes(audioFile)) {
+    audio.src = `/static/audio/${audioFile}`;
+  }
+
+  playBtn.innerHTML = '<i class="fas fa-pause-circle"></i> {{ _("Пауза") }}';
 
   audio.play().catch(e => console.log('Audio playback failed:', e));
 
+  // Обработчик окончания воспроизведения
   audio.onended = function() {
-    playBtn.innerHTML = '<i class="fas fa-play-circle"></i> ' + playBtn.textContent.replace(/^\s*<i[^>]*><\/i>\s*/, '');
+    playBtn.innerHTML = '<i class="fas fa-play-circle"></i> {{ _("Прослушать диалог") }}';
+  };
+
+  // Обработчик паузы (на случай если пауза вызвана извне)
+  audio.onpause = function() {
+    if (!audio.ended) {
+      playBtn.innerHTML = '<i class="fas fa-play-circle"></i> {{ _("Прослушать диалог") }}';
+    }
   };
 }
 
