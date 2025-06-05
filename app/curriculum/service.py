@@ -1338,7 +1338,7 @@ def get_cards_for_lesson(lesson_id, user_id):
                     'front': word.english_word if direction.direction == 'eng-rus' else word.russian_word,
                     'back': word.russian_word if direction.direction == 'eng-rus' else word.english_word,
                     'examples': word.sentences,
-                    'audio': f'pronunciation_en_{word.english_word}.mp3' if word.get_download == 1 else None,
+                    'audio': f'{word.listening[7:-1]}' if word.get_download == 1 else None,
                     'is_new': False,
                     'interval': direction.interval,
                     'ease_factor': direction.ease_factor,
@@ -1365,7 +1365,7 @@ def get_cards_for_lesson(lesson_id, user_id):
         for direction in new_directions:
             user_word = UserWord.query.get(direction.user_word_id)
             word = CollectionWords.query.get(user_word.word_id)
-
+            print('word.', type(word.listening))
             if word and word.russian_word:
                 card_data = {
                     'word_id': word.id,
@@ -1374,7 +1374,7 @@ def get_cards_for_lesson(lesson_id, user_id):
                     'front': word.english_word if direction.direction == 'eng-rus' else word.russian_word,
                     'back': word.russian_word if direction.direction == 'eng-rus' else word.english_word,
                     'examples': word.sentences,
-                    'audio': f'pronunciation_en_{word.english_word}.mp3' if word.get_download == 1 else None,
+                    'audio': f'{word.listening[7:-1]}' if word.get_download == 1 else None,
                     'is_new': True,
                     'interval': 0,
                     'ease_factor': 2.5,

@@ -228,7 +228,8 @@ def get_study_items():
         for word in new_words:
             audio_url = None
             if hasattr(word, 'get_download') and word.get_download == 1:
-                audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+                print('word',word)
+                audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
             # Add both directions (eng-rus and rus-eng)
             # English to Russian
@@ -293,7 +294,7 @@ def get_study_items():
 
             audio_url = None
             if hasattr(word, 'get_download') and word.get_download == 1:
-                audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+                audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
             if direction.direction == 'eng-rus':
                 result_items.append({
@@ -670,7 +671,7 @@ def create_multiple_choice_question(word, all_words, direction):
     # Audio for English word
     audio_url = None
     if direction == 'eng_to_rus' and word.get_download == 1:
-        audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+        audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = correct_answer.split(',')[0]
     letter_form = _("letters")
@@ -739,7 +740,7 @@ def create_true_false_question(word, all_words, direction):
     # Audio for English word
     audio_url = None
     # if word.get_download == 1:
-    #     audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+    #     audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = answer.split(',')[0]
     letter_form = _("letters")
@@ -779,7 +780,7 @@ def create_fill_blank_question(word, direction):
     # Audio for English word
     audio_url = None
     if direction == 'eng_to_rus' and word.get_download == 1:
-        audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+        audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = answer.split(',')[0]
     letter_form = _("letters")
@@ -945,7 +946,7 @@ def get_matching_words():
         # Get audio URL if available
         audio_url = None
         if hasattr(word, 'get_download') and word.get_download == 1:
-            audio_url = url_for('static', filename=f'audio/pronunciation_en_{word.english_word}.mp3')
+            audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
         game_words.append({
             'id': word.id,
