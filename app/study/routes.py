@@ -18,9 +18,7 @@ study = Blueprint('study', __name__, template_folder='templates')
 @study.route('/')
 @login_required
 def index():
-    """Main study dashboard"""
-    # Получаем статистику по изучению на основе новых моделей
-
+    """Simplified study dashboard - no forms, just 3 buttons"""
     # Считаем слова, ожидающие повторения
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
@@ -29,32 +27,33 @@ def index():
         UserCardDirection.next_review <= datetime.now(timezone.utc)
     ).count()
 
-    # Считаем общее количество слов, которые изучает пользователь
-    total_items = UserWord.query.filter_by(user_id=current_user.id).count()
-
-    # Получаем последние сессии
-    recent_sessions = StudySession.query.filter_by(user_id=current_user.id) \
-        .order_by(StudySession.start_time.desc()).limit(5).all()
+    # Считаем активные слова (исключая mastered)
+    total_items = UserWord.query.filter_by(
+        user_id=current_user.id
+    ).filter(
+        UserWord.status != 'mastered'
+    ).count()
+    
+    # Считаем выученные слова
+    mastered_count = UserWord.query.filter_by(
+        user_id=current_user.id,
+        status='mastered'
+    ).count()
 
     # Получаем процент изученных слов
-    total_words = CollectionWords.query.count()
-    learned_words = total_items  # Используем количество слов из UserWord
-
-    if total_words > 0:
-        learned_percentage = int((learned_words / total_words) * 100)
+    all_words_count = total_items + mastered_count
+    if all_words_count > 0:
+        learned_percentage = int((mastered_count / all_words_count) * 100)
     else:
         learned_percentage = 0
 
-    # Получаем форму для начала сессии
-    form = StudySessionForm()
-
+    # БЕЗ ФОРМЫ! Просто передаем данные для отображения
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
         total_items=total_items,
-        learned_percentage=learned_percentage,
-        recent_sessions=recent_sessions,
-        form=form
+        mastered_count=mastered_count,
+        learned_percentage=learned_percentage
     )
 
 
@@ -76,13 +75,13 @@ def settings():
     return render_template('study/settings.html', form=form)
 
 
+# Маршрут /learn убран - используем отдельные страницы cards, quiz, matching
+
+
 @study.route('/cards')
 @login_required
 def cards():
     """Anki-style flashcard study interface"""
-    # Get query parameters
-    word_source = request.args.get('word_source', 'all')
-
     # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
@@ -98,7 +97,7 @@ def cards():
         'study/cards.html',
         session_id=session.id,
         settings=settings,
-        word_source=word_source
+        word_source='auto'  # Always use automatic selection
     )
 
 
@@ -106,9 +105,6 @@ def cards():
 @login_required
 def quiz():
     """Quiz study interface"""
-    # Get query parameters
-    word_source = request.args.get('word_source', 'all')
-
     # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
@@ -124,7 +120,7 @@ def quiz():
         'study/quiz.html',
         session_id=session.id,
         settings=settings,
-        word_source=word_source
+        word_source='auto'  # Always use automatic selection
     )
 
 
@@ -156,8 +152,9 @@ def start_session():
 @study.route('/api/get-study-items', methods=['GET'])
 @login_required
 def get_study_items():
-    """Get words for study based on source and limits"""
-    word_source = request.args.get('source', 'all')
+    """Get words for study - automatic selection with priorities"""
+    # Always use automatic selection
+    word_source = 'auto'
     extra_study = request.args.get('extra_study', 'false').lower() == 'true'
 
     # Get user settings
@@ -212,8 +209,54 @@ def get_study_items():
         new_limit = max(0, settings.new_words_per_day - new_cards_today)
         review_limit = max(0, settings.reviews_per_day - reviews_today)
 
-    # Get new cards if needed
-    if word_source in ['new', 'all'] and new_limit > 0:
+    # PRIORITY 1: Get due review cards (excluding mastered)
+    if review_limit > 0:
+        review_directions = UserCardDirection.query \
+            .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+            .filter(
+                UserWord.user_id == current_user.id,
+                UserWord.status.in_(['learning', 'review']),  # EXCLUDE 'mastered'
+                UserCardDirection.next_review <= datetime.now(timezone.utc)
+            ).order_by(
+                UserCardDirection.next_review  # Most overdue first
+            ).limit(review_limit).all()
+        
+        for direction in review_directions:
+            user_word = UserWord.query.get(direction.user_word_id)
+            word = user_word.word
+            
+            if not word or not word.russian_word:
+                continue
+            
+            audio_url = None
+            if hasattr(word, 'get_download') and word.get_download == 1:
+                audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
+            
+            if direction.direction == 'eng-rus':
+                result_items.append({
+                    'id': direction.id,
+                    'word_id': word.id,
+                    'direction': 'eng-rus',
+                    'word': word.english_word,
+                    'translation': word.russian_word,
+                    'examples': word.sentences,
+                    'audio_url': audio_url,
+                    'is_new': False
+                })
+            else:
+                result_items.append({
+                    'id': direction.id,
+                    'word_id': word.id,
+                    'direction': 'rus-eng',
+                    'word': word.russian_word,
+                    'translation': word.english_word,
+                    'examples': word.sentences,
+                    'audio_url': audio_url,
+                    'is_new': False
+                })
+
+    # PRIORITY 2: Get new cards if needed
+    if new_limit > 0:
         # Get words user hasn't studied yet
         existing_word_ids = db.session.query(UserWord.word_id) \
             .filter_by(user_id=current_user.id).subquery()
@@ -259,65 +302,6 @@ def get_study_items():
             # Only get up to the limit
             if len(result_items) >= new_limit * 2:  # x2 because we add both directions
                 break
-
-    # Get cards for review
-    if word_source in ['learning', 'all'] and review_limit > 0:
-        review_query = None
-
-        if word_source == 'learning':
-            # Get directions for words with 'learning' status
-            review_query = UserCardDirection.query \
-                .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
-                .filter(
-                UserWord.user_id == current_user.id,
-                UserWord.status == 'learning'
-            )
-        else:
-            # Get due directions
-            review_query = UserCardDirection.query \
-                .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
-                .filter(
-                UserWord.user_id == current_user.id,
-                UserCardDirection.next_review <= datetime.now(timezone.utc)
-            )
-
-        # Get the direction objects
-        review_directions = review_query.order_by(func.random()).limit(review_limit).all()
-
-        # Add each direction to results
-        for direction in review_directions:
-            user_word = UserWord.query.get(direction.user_word_id)
-            word = user_word.word
-
-            if not word or not word.russian_word:
-                continue
-
-            audio_url = None
-            if hasattr(word, 'get_download') and word.get_download == 1:
-                audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
-
-            if direction.direction == 'eng-rus':
-                result_items.append({
-                    'id': direction.id,
-                    'word_id': word.id,
-                    'direction': 'eng-rus',
-                    'word': word.english_word,
-                    'translation': word.russian_word,
-                    'examples': word.sentences,
-                    'audio_url': audio_url,
-                    'is_new': False
-                })
-            else:
-                result_items.append({
-                    'id': direction.id,
-                    'word_id': word.id,
-                    'direction': 'rus-eng',
-                    'word': word.russian_word,
-                    'translation': word.english_word,
-                    'examples': word.sentences,
-                    'audio_url': audio_url,
-                    'is_new': False
-                })
 
     # Return results with stats
     return jsonify({
@@ -463,9 +447,6 @@ def stats():
 @login_required
 def matching():
     """Matching game study interface"""
-    # Get query parameters
-    word_source = request.args.get('word_source', 'all')
-
     # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
@@ -481,25 +462,34 @@ def matching():
         'study/matching.html',
         session_id=session.id,
         settings=settings,
-        word_source=word_source
+        word_source='auto'  # Always use automatic selection
     )
 
 
 @study.route('/api/get-quiz-questions', methods=['GET'])
 @login_required
 def get_quiz_questions():
-    """Get questions for quiz mode"""
-    word_source = request.args.get('source', 'all')
+    """Get questions for quiz mode - automatic selection"""
     question_count = min(int(request.args.get('count', 20)), 50)  # Limit max questions
 
-    # Get words based on source
+    # Get words with same priority as cards
     words = []
 
-    # Используем новую модель UserWord
-    from app.study.models import UserWord
+    # PRIORITY 1: Words in learning/review status (exclude mastered)
+    learning_words = db.session.query(CollectionWords).join(
+        UserWord,
+        (CollectionWords.id == UserWord.word_id) &
+        (UserWord.user_id == current_user.id)
+    ).filter(
+        UserWord.status.in_(['learning', 'review']),  # EXCLUDE 'mastered'
+        CollectionWords.russian_word != None,
+        CollectionWords.russian_word != ''
+    ).order_by(func.random()).limit(question_count // 2).all()
+    
+    words.extend(learning_words)
 
-    if word_source in ['new', 'all']:
-        # Get new words (слова без записи в UserWord)
+    # PRIORITY 2: New words not yet in user's collection
+    if len(words) < question_count:
         new_words = CollectionWords.query.filter(
             ~CollectionWords.id.in_(
                 db.session.query(UserWord.word_id)
@@ -507,40 +497,9 @@ def get_quiz_questions():
             ),
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
-        ).order_by(func.random()).limit(question_count // 2).all()
-
+        ).order_by(func.random()).limit(question_count - len(words)).all()
+        
         words.extend(new_words)
-
-    if word_source in ['learning', 'all']:
-        # Modified: Get words with status 'learning' if word_source is 'learning'
-        if word_source == 'learning':
-            # Get words being learned (status = 'learning')
-            learning_words_query = db.session.query(CollectionWords).join(
-                UserWord,
-                (CollectionWords.id == UserWord.word_id) &
-                (UserWord.user_id == current_user.id)
-            ).filter(
-                UserWord.status == 'learning',
-                CollectionWords.russian_word != None,
-                CollectionWords.russian_word != ''
-            ).order_by(func.random()).limit(question_count - len(words))
-
-            learning_words = learning_words_query.all()
-            words.extend(learning_words)
-        else:
-            # Get all words with статусом 'learning' или 'review'
-            reviewed_words_query = db.session.query(CollectionWords).join(
-                UserWord,
-                (CollectionWords.id == UserWord.word_id) &
-                (UserWord.user_id == current_user.id)
-            ).filter(
-                UserWord.status.in_(['learning', 'review']),
-                CollectionWords.russian_word != None,
-                CollectionWords.russian_word != ''
-            ).order_by(func.random()).limit(question_count - len(words))
-
-            reviewed_words = reviewed_words_query.all()
-            words.extend(reviewed_words)
 
     # Ensure we have words to create questions
     if not words:
@@ -854,35 +813,27 @@ def submit_quiz_answer():
 @study.route('/api/get-matching-words', methods=['GET'])
 @login_required
 def get_matching_words():
-    """Get words for matching game"""
-    word_source = request.args.get('source', 'all')
+    """Get words for matching game - automatic selection"""
     word_count = min(int(request.args.get('count', 10)), 20)  # Limit max pairs
 
-    # Get words based on source
+    # Get words with same priority as cards
     words = []
 
-    from app.study.models import UserWord
+    # PRIORITY 1: Words in learning/review status (exclude mastered)
+    learning_words = db.session.query(CollectionWords).join(
+        UserWord,
+        (CollectionWords.id == UserWord.word_id) &
+        (UserWord.user_id == current_user.id)
+    ).filter(
+        UserWord.status.in_(['learning', 'review']),  # EXCLUDE 'mastered'
+        CollectionWords.russian_word != None,
+        CollectionWords.russian_word != ''
+    ).order_by(func.random()).limit(word_count // 2).all()
+    
+    words.extend(learning_words)
 
-    if word_source == 'learning':
-        # Используем только слова со статусом 'learning'
-        print("Выбираем слова со статусом 'learning'")
-
-        learning_words_query = db.session.query(CollectionWords).join(
-            UserWord,
-            (CollectionWords.id == UserWord.word_id) &
-            (UserWord.user_id == current_user.id)
-        ).filter(
-            UserWord.status == 'learning',
-            CollectionWords.russian_word != None,
-            CollectionWords.russian_word != ''
-        ).order_by(func.random()).limit(word_count)
-
-        learning_words = learning_words_query.all()
-        words.extend(learning_words)
-
-    elif word_source == 'new':
-        # Get new words (не имеющие записи в UserWord)
-        print("Выбираем новые слова")
+    # PRIORITY 2: New words not yet in user's collection
+    if len(words) < word_count:
         new_words = CollectionWords.query.filter(
             ~CollectionWords.id.in_(
                 db.session.query(UserWord.word_id)
@@ -890,38 +841,9 @@ def get_matching_words():
             ),
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
-        ).order_by(func.random()).limit(word_count).all()
-
+        ).order_by(func.random()).limit(word_count - len(words)).all()
+        
         words.extend(new_words)
-
-    elif word_source == 'all':
-        print("Выбираем смешанные слова (new + learning)")
-        # Сначала добавим слова со статусом learning
-        learning_words_query = db.session.query(CollectionWords).join(
-            UserWord,
-            (CollectionWords.id == UserWord.word_id) &
-            (UserWord.user_id == current_user.id)
-        ).filter(
-            UserWord.status == 'learning',
-            CollectionWords.russian_word != None,
-            CollectionWords.russian_word != ''
-        ).order_by(func.random()).limit(word_count // 2)
-
-        learning_words = learning_words_query.all()
-        words.extend(learning_words)
-
-        # Затем добавим новые слова до нужного количества
-        if len(words) < word_count:
-            new_words = CollectionWords.query.filter(
-                ~CollectionWords.id.in_(
-                    db.session.query(UserWord.word_id)
-                    .filter(UserWord.user_id == current_user.id)
-                ),
-                CollectionWords.russian_word != None,
-                CollectionWords.russian_word != ''
-            ).order_by(func.random()).limit(word_count - len(words)).all()
-
-            words.extend(new_words)
 
     # Ensure we have words
     if not words:
@@ -1259,7 +1181,7 @@ def collection_details(collection_id):
     topics = collection.topics
 
     return render_template(
-        'study/collection_details.html',
+        'study/collections_details.html',
         collection=collection,
         words=words,
         topics=topics

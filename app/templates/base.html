@@ -9,7 +9,7 @@
     <!-- Font Awesome для иконок -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css/') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Unified Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/unified-styles.css') }}">
     {% block styles %}{% endblock %}
@@ -45,28 +45,27 @@
                         <ul class="dropdown-menu" aria-labelledby="studyDropdown">
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('study.index') }}">
-                                    <i class="fas fa-home me-1"></i>{{ _('Дашборд изучения') }}
+                                    <i class="fas fa-home me-1"></i>{{ _('Главная') }}
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('study.cards', word_source='learning') }}">
-                                    <i class="fas fa-sticky-note me-1"></i>{{ _('Карточки') }}
+                                <a class="dropdown-item" href="{{ url_for('study.cards') }}">
+                                    <i class="fas fa-layer-group me-1"></i>{{ _('Карточки') }}
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('study.quiz', word_source='learning') }}">
-                                    <i class="fas fa-question-circle me-1"></i>{{ _('Тесты') }}
+                                <a class="dropdown-item" href="{{ url_for('study.quiz') }}">
+                                    <i class="fas fa-question-circle me-1"></i>{{ _('Квиз') }}
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('study.matching', word_source='learning') }}">
-                                    <i class="fas fa-th me-1"></i>{{ _('Игра на совпадения') }}
+                                <a class="dropdown-item" href="{{ url_for('study.matching') }}">
+                                    <i class="fas fa-puzzle-piece me-1"></i>{{ _('Совпадения') }}
                                 </a>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('study.collections') }}">
-                                    <i class="fas fa-layer-group me-1"></i>{{ _('Коллекции') }}
+                                    <i class="fas fa-plus-circle me-1"></i>{{ _('Коллекции') }}
                                 </a>
                             </li>
                             <li>
@@ -82,12 +81,12 @@
                             </li>
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('study.leaderboard') }}">
-                                    <i class="fas fa-trophy me-1"></i>{{ _('Таблица лидеров') }}
+                                    <i class="fas fa-trophy me-1"></i>{{ _('Лидеры') }}
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('study.settings') }}">
-                                    <i class="fas fa-cog me-1"></i>{{ _('Настройки изучения') }}
+                                    <i class="fas fa-cog me-1"></i>{{ _('Настройки') }}
                                 </a>
                             </li>
                         </ul>

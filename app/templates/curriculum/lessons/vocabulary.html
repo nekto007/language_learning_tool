@@ -122,7 +122,7 @@
           <h3 class="word-english">{{ word.english }}</h3>
           {% if word.get('audio_url') or (word.get('english') and word.get('get_download') == 1) %}
           <button class="audio-btn word-pronunciation" 
-                  data-audio="{% if word.get('audio_url') %}{{ word.audio_url }}{% else %}{{ url_for('static', filename='audio/pronunciation_en_' + word.english.lower().replace(' ', '_') + '.mp3') }}{% endif %}" 
+                  data-audio="{% if word.get('audio_url') %}{{ word.audio_url }}{% else %}{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}{% endif %}"
                   title="{{ _('Прослушать произношение') }}">
             <i class="fas fa-volume-up"></i>
             <span class="audio-wave">

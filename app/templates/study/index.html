@@ -1,286 +1,369 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Дашборд изучения') }}{% endblock %}
+{% block title %}{{ _('Изучение слов') }}{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
-.study-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 16px;
-    padding: 3rem 2rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
+/* Светлая тема для страницы изучения */
+body {
+    background: linear-gradient(135deg, #f8faff 0%, #fff5f5 100%);
+    min-height: 100vh;
+    color: #1a365d;
 }
 
-.study-hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm0 0c0-11.046 8.954-20 20-20s20 8.954 20 20-8.954 20-20 20-20-8.954-20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
-    opacity: 0.1;
+/* Переопределение темной темы */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(135deg, #f8faff 0%, #fff5f5 100%) !important;
+        color: #1a365d !important;
+    }
 }
 
-.study-hero-content {
-    position: relative;
-    z-index: 1;
+.study-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    background: transparent !important;
+    color: #1a365d !important;
 }
 
-.stats-grid {
+/* ПРИНУДИТЕЛЬНО СВЕТЛЫЕ ТОНА ДЛЯ ВСЕХ ЭЛЕМЕНТОВ */
+.study-container * {
+    color: inherit !important;
+}
+
+.study-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.study-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #1a365d;
+    margin-bottom: 0.5rem;
+}
+
+.study-subtitle {
+    font-size: 1.1rem;
+    color: #4a5568;
+}
+
+/* Карточки режимов обучения - светлые тона */
+.study-modes {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 1fr;
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
 }
 
-.stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border: 1px solid #e9ecef;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-}
-
-.stat-number {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-}
-
-.stat-label {
-    color: #6c757d;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-}
-
-.action-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-}
-
-.action-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-
-.action-btn {
-    padding: 1rem;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
+.study-mode-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(203, 213, 224, 0.3);
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+    cursor: pointer;
     text-decoration: none;
-    color: #495057;
-    transition: all 0.2s ease;
+    color: #1a365d;
+    display: block;
+}
+
+.study-mode-card:hover {
+    box-shadow: 0 8px 25px rgba(129, 140, 248, 0.25);
+    border-color: #a5b4fc;
+    transform: translateY(-3px);
+    text-decoration: none;
+    color: #1a365d;
+    background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+}
+
+.study-mode-icon {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem auto;
+    font-size: 2rem;
+    color: #6366f1;
+    border: 2px solid #c7d2fe;
+}
+
+.study-mode-card:hover .study-mode-icon {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    border-color: #6366f1;
+    transform: scale(1.05);
+}
+
+.study-mode-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1e293b;
     text-align: center;
 }
 
-.action-btn:hover {
-    border-color: #007bff;
-    background: #f8f9ff;
-    color: #007bff;
-    text-decoration: none;
+.study-mode-description {
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    text-align: center;
 }
 
-.action-btn i {
-    font-size: 1.5rem;
-    display: block;
-    margin-bottom: 0.5rem;
+/* Статистика - светлые тона */
+.stats-simple {
+    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    border-radius: 16px;
+    padding: 2.5rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(203, 213, 224, 0.2);
+    border: 1px solid #e2e8f0;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+/* Информационная панель - светлые тона */
+.info-panel {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%);
+    border: 2px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 10px rgba(34, 197, 94, 0.1);
+}
+
+.info-icon {
+    color: #16a34a;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.info-text {
+    color: #14532d;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Адаптивность */
+@media (min-width: 768px) {
+    .study-modes {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .study-header {
+        margin-bottom: 4rem;
+    }
+    
+    .study-title {
+        font-size: 2.5rem;
+    }
+}
+
+/* Мобильная оптимизация */
+@media (max-width: 380px) {
+    .study-container {
+        padding: 1rem 0.5rem;
+    }
+    
+    .study-mode-card {
+        padding: 1.5rem;
+    }
+    
+    .stats-row {
+        gap: 2rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+    }
+}
+
+/* Убрано дублирование темной темы - уже есть выше */
+
+/* Индикатор загрузки */
+.loading-indicator {
+    text-align: center;
+    padding: 3rem;
+    color: #718096;
+}
+
+.loading-indicator i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Кнопка быстрого старта - светлая */
+.quick-start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 1.2rem 2.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    font-size: 1rem;
+}
+
+.quick-start-btn:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: white;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.quick-start-btn i {
+    font-size: 1.1rem;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Hero Section -->
-    <div class="study-hero">
-        <div class="study-hero-content">
-            <div class="row align-items-center">
-                <div class="col-lg-8">
-                    <h1 class="display-5 fw-bold mb-3">{{ _('Дашборд изучения') }}</h1>
-                    <p class="lead mb-0">{{ _('Изучайте новые слова с помощью интервального повторения') }}</p>
-                </div>
-                <div class="col-lg-4 text-end">
-                    <div class="d-flex flex-column align-items-end">
-                        <div class="fs-1 fw-bold">{{ due_items_count }}</div>
-                        <div class="opacity-75">{{ _('к повторению') }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="study-container">
+    <!-- Заголовок -->
+    <div class="study-header">
+        <h1 class="study-title">{{ _('Изучение слов') }}</h1>
+        <p class="study-subtitle">{{ _('Выберите режим обучения') }}</p>
     </div>
 
-    <!-- Statistics Grid -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-number text-primary">{{ due_items_count }}</div>
-            <div class="stat-label">{{ _('К повторению') }}</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-number text-success">{{ total_items }}</div>
-            <div class="stat-label">{{ _('Всего слов') }}</div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-number text-info">{{ learned_percentage }}%</div>
-            <div class="stat-label">{{ _('Прогресс изучения') }}</div>
-            <div class="progress mt-2" style="height: 4px;">
-                <div class="progress-bar bg-info" style="width: {{ learned_percentage }}%"></div>
-            </div>
-        </div>
+    <!-- Информационная панель -->
+    {% if due_items_count > 0 %}
+    <div class="info-panel">
+        <i class="fas fa-info-circle info-icon"></i>
+        <p class="info-text">
+            {{ _('У вас есть %(count)d слов для повторения. Система автоматически выберет их для изучения.', count=due_items_count) }}
+        </p>
     </div>
-
-    <!-- Start Study Session -->
-    <div class="action-card">
-        <h3 class="mb-3">{{ _('Начать изучение') }}</h3>
-        <form method="POST" action="{{ url_for('study.start_session') }}">
-            {{ form.csrf_token }}
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">{{ _('Режим обучения') }}</label>
-                    {{ form.session_type(class="form-select") }}
-                    <small class="form-text text-muted">{{ _('Выберите, как вы хотите изучать свои слова') }}</small>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">{{ _('Источник слов') }}</label>
-                    {{ form.word_source(class="form-select") }}
-                    <small class="form-text text-muted">{{ _('Выберите слова для изучения') }}</small>
-                </div>
-            </div>
-            <div class="d-flex justify-content-between mt-3">
-                {{ form.submit(class="btn btn-primary btn-lg px-4", value=_('Начать сеанс')) }}
-                <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary px-4">
-                    <i class="fas fa-cog me-2"></i> {{ _('Настройки') }}
-                </a>
-            </div>
-        </form>
-    </div>
-
-    <!-- Study Tips -->
-    <div class="action-card">
-        <h3 class="mb-3">{{ _('Советы по изучению') }}</h3>
-        <div class="row">
-            <div class="col-md-6">
-                <ul class="list-unstyled">
-                    <li class="mb-3 d-flex align-items-start">
-                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
-                        <span>{{ _('Регулярно занимайтесь, чтобы повысить успеваемость') }}</span>
-                    </li>
-                    <li class="mb-3 d-flex align-items-start">
-                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
-                        <span>{{ _('Используйте интервальное повторение') }}</span>
-                    </li>
-                    <li class="mb-3 d-flex align-items-start">
-                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
-                        <span>{{ _('Создавайте ассоциации с новой лексикой') }}</span>
-                    </li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <ul class="list-unstyled">
-                    <li class="mb-3 d-flex align-items-start">
-                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
-                        <span>{{ _('Чаще просматривайте трудные слова') }}</span>
-                    </li>
-                    <li class="mb-3 d-flex align-items-start">
-                        <i class="fas fa-check-circle text-success me-2 mt-1"></i>
-                        <span>{{ _('Тренируйтесь в контексте') }}</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="action-card">
-        <h3 class="mb-3">{{ _('Быстрые действия') }}</h3>
-        <div class="action-buttons">
-            <a href="{{ url_for('study.cards', word_source='new') }}" class="action-btn">
-                <i class="fas fa-plus"></i>
-                <div class="fw-semibold">{{ _('Новые слова') }}</div>
-                <small class="text-muted">{{ _('Начать изучение') }}</small>
-            </a>
-            
-            <a href="{{ url_for('study.cards', word_source='learning') }}" class="action-btn">
-                <i class="fas fa-graduation-cap"></i>
-                <div class="fw-semibold">{{ _('Повторить') }}</div>
-                <small class="text-muted">{{ _('Продолжить изучение') }}</small>
-            </a>
-            
-            <a href="{{ url_for('words.word_list') }}" class="action-btn">
-                <i class="fas fa-list"></i>
-                <div class="fw-semibold">{{ _('Все слова') }}</div>
-                <small class="text-muted">{{ _('Просмотреть список') }}</small>
-            </a>
-            
-            <a href="{{ url_for('study.stats') }}" class="action-btn">
-                <i class="fas fa-chart-bar"></i>
-                <div class="fw-semibold">{{ _('Статистика') }}</div>
-                <small class="text-muted">{{ _('Просмотреть прогресс') }}</small>
-            </a>
-        </div>
-    </div>
-
-    <!-- Recent Sessions -->
-    {% if recent_sessions %}
-    <div class="action-card">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="mb-0">{{ _('Последние сессии') }}</h3>
-            <a href="{{ url_for('study.stats') }}" class="btn btn-outline-primary btn-sm">{{ _('Вся статистика') }}</a>
-        </div>
-        
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>{{ _('Дата') }}</th>
-                        <th>{{ _('Тип') }}</th>
-                        <th>{{ _('Слова') }}</th>
-                        <th>{{ _('Правильно') }}</th>
-                        <th>{{ _('Оценка') }}</th>
-                        <th>{{ _('Время') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for session in recent_sessions %}
-                    <tr>
-                        <td>{{ session.start_time.strftime('%b %d, %H:%M') }}</td>
-                        <td>{{ _(session.session_type|capitalize) }}</td>
-                        <td>{{ session.words_studied }}</td>
-                        <td>{{ session.correct_answers }}/{{ session.words_studied }}</td>
-                        <td>
-                            <span class="badge {% if session.performance_percentage >= 80 %}bg-success{% elif session.performance_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ session.performance_percentage }}%
-                            </span>
-                        </td>
-                        <td>{{ session.duration }} {{ _('мин') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    {% elif total_items == 0 %}
+    <div class="info-panel" style="background: #fed7d7; border-color: #fc8181;">
+        <i class="fas fa-exclamation-circle info-icon" style="color: #c53030;"></i>
+        <p class="info-text" style="color: #742a2a;">
+            {{ _('У вас пока нет слов для изучения. Система автоматически добавит новые слова из коллекций.') }}
+        </p>
     </div>
     {% else %}
-    <div class="action-card text-center">
-        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-        <h4>{{ _('Начните изучение слов') }}</h4>
-        <p class="text-muted">{{ _('Завершите несколько сессий, чтобы увидеть свой прогресс') }}</p>
+    <div class="info-panel">
+        <i class="fas fa-check-circle info-icon"></i>
+        <p class="info-text">
+            {{ _('Отлично! Все слова на сегодня повторены. Можете добавить новые слова для изучения.') }}
+        </p>
     </div>
     {% endif %}
+
+    <!-- Режимы обучения -->
+    <div class="study-modes">
+        <!-- Карточки -->
+        <a href="{{ url_for('study.cards') }}" class="study-mode-card">
+            <div class="study-mode-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <h3 class="study-mode-title">{{ _('Карточки') }}</h3>
+            <p class="study-mode-description">{{ _('Классические карточки с интервальным повторением.') }}</p>
+        </a>
+
+        <!-- Квиз -->
+        <a href="{{ url_for('study.quiz') }}" class="study-mode-card">
+            <div class="study-mode-icon">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <h3 class="study-mode-title">{{ _('Квиз') }}</h3>
+            <p class="study-mode-description">{{ _('Проверьте свои знания с помощью вопросов.') }}</p>
+        </a>
+
+        <!-- Игра на совпадение -->
+        <a href="{{ url_for('study.matching') }}" class="study-mode-card">
+            <div class="study-mode-icon">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <h3 class="study-mode-title">{{ _('Совпадения') }}</h3>
+            <p class="study-mode-description">{{ _('Сопоставьте слова с переводами.') }}</p>
+        </a>
+    </div>
+
+    <!-- Простая статистика -->
+    <div class="stats-simple">
+        <div class="stats-row">
+            <div class="stat-item">
+                <div class="stat-value">{{ total_items }}</div>
+                <div class="stat-label">{{ _('Слов в изучении') }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ mastered_count }}</div>
+                <div class="stat-label">{{ _('Выучено') }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ learned_percentage }}%</div>
+                <div class="stat-label">{{ _('Прогресс') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Дополнительные действия -->
+    <div class="text-center">
+        <a href="{{ url_for('study.collections') }}" class="quick-start-btn">
+            <i class="fas fa-plus-circle"></i>
+            {{ _('Добавить слова из коллекций') }}
+        </a>
+    </div>
 </div>
+
+<script>
+// Простое применение светлой темы
+document.addEventListener('DOMContentLoaded', function() {
+    // Убираем класс dark-mode если есть
+    document.documentElement.classList.remove('dark-mode');
+    document.body.classList.remove('dark-mode');
+    
+    console.log('Светлая тема применена');
+});
+</script>
 {% endblock %}
