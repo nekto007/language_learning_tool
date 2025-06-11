@@ -13,9 +13,9 @@
                 <form method="POST" action="{{ url_for('auth.login') }}">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
-                        {{ form.username.label(class="form-label") }}
-                        {{ form.username(class="form-control") }}
-                        {% for error in form.username.errors %}
+                        {{ form.username_or_email.label(class="form-label") }}
+                        {{ form.username_or_email(class="form-control", placeholder=_("Enter username or email")) }}
+                        {% for error in form.username_or_email.errors %}
                         <div class="text-danger">{{ error }}</div>
                         {% endfor %}
                     </div>
