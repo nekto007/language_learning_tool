@@ -48,25 +48,28 @@ def reset_request():
         form = RequestResetForm()
         if form.validate_on_submit():
             user = User.query.filter_by(email=form.email.data).first()
-            token = get_reset_token(user.id)
+            if user:
+                token = get_reset_token(user.id)
+                reset_url = url_for('auth.reset_password', token=token, _external=True)
 
-            reset_url = url_for('auth.reset_password', token=token, _external=True)
+                # Отправляем электронное письмо
+                email_sent = email_sender.send_email(
+                    subject="Сброс пароля",
+                    to_email=user.email,
+                    template_name="password_reset",
+                    context={
+                        "username": user.username,
+                        "reset_url": reset_url
+                    }
+                )
 
-            # Отправляем электронное письмо
-            email_sent = email_sender.send_email(
-                subject="Сброс пароля",
-                to_email=user.email,
-                template_name="password_reset",
-                context={
-                    "username": user.username,
-                    "reset_url": reset_url
-                }
-            )
-
-            if email_sent:
-                flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
+                if email_sent:
+                    flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
+                else:
+                    flash('Возникла проблема при отправке электронного письма. Пожалуйста, попробуйте позже.', 'danger')
             else:
-                flash('Возникла проблема при отправке электронного письма. Пожалуйста, попробуйте позже.', 'danger')
+                # Всегда показываем положительное сообщение из соображений безопасности
+                flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
 
             return redirect(url_for('auth.login'))
 

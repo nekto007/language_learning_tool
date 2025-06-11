@@ -5,7 +5,8 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
-
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
 # Path to the project directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -130,14 +131,30 @@ class Config:
     # Security
     SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
     REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
+    
+    # CSRF Protection
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = 3600  # 1 hour
 
 
 
 class TestConfig(Config):
+    """Тестовая конфигурация - использует отдельную PostgreSQL базу"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    
+    # Используем отдельную тестовую базу данных PostgreSQL
+    TEST_DB_NAME = f"{DB_NAME}_test"
+    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{TEST_DB_NAME}"
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     WTF_CSRF_ENABLED = True
     WTF_CSRF_SECRET_KEY = 'csrf-test-key'
     SECRET_KEY = 'test-secret-key'
     SERVER_NAME = 'localhost.localdomain'
+    
+    # Отключаем validation в тестах для быстрой работы
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'echo': False  # Включить True для отладки SQL запросов
+    }
