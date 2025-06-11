@@ -11,7 +11,7 @@ class EmailSender:
         self.email_port = int(os.environ.get('EMAIL_PORT', 587))
         self.email_user = os.environ.get('EMAIL_HOST_USER')
         self.email_password = os.environ.get('EMAIL_HOST_PASSWORD')
-        self.use_tls = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+        self.use_tls = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
         self.default_from_email = os.environ.get('DEFAULT_FROM_EMAIL')
 
     def send_email(self, subject, to_email, template_name, context=None):
@@ -47,16 +47,27 @@ class EmailSender:
         msg.attach(part2)
 
         try:
+            # Проверяем настройки email
+            if not all([self.email_host, self.email_user, self.email_password, self.default_from_email]):
+                print("Email configuration incomplete:")
+                print(f"  HOST: {self.email_host}")
+                print(f"  USER: {self.email_user}")
+                print(f"  PASSWORD: {'*' * len(self.email_password) if self.email_password else 'Not set'}")
+                print(f"  FROM: {self.default_from_email}")
+                return False
+
             # Подключение к SMTP-серверу
             with smtplib.SMTP(self.email_host, self.email_port) as server:
+                server.set_debuglevel(1)  # Включаем отладку SMTP
                 if self.use_tls:
                     server.starttls()
                 server.login(self.email_user, self.email_password)
                 server.send_message(msg)
+            print(f"Email sent successfully to {to_email}")
             return True
         except Exception as e:
-            # В реальном приложении здесь должен быть логгер
-            print(f"Error sending email: {str(e)}")
+            print(f"Error sending email to {to_email}: {str(e)}")
+            print(f"Email settings: host={self.email_host}, port={self.email_port}, user={self.email_user}, tls={self.use_tls}")
             return False
 
 
