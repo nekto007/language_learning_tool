@@ -119,7 +119,16 @@ def login():
 
         form = LoginForm()
         if form.validate_on_submit():
-            user = User.query.filter_by(username=form.username.data).first()
+            # Check if input is email or username
+            login_input = form.username_or_email.data.strip()
+            
+            if '@' in login_input:
+                # It's an email
+                user = User.query.filter_by(email=login_input).first()
+            else:
+                # It's a username
+                user = User.query.filter_by(username=login_input).first()
+                
             if user and user.check_password(form.password.data):
                 # Check if user is active
                 if not user.is_active:
