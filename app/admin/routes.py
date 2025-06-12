@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -26,6 +27,53 @@ admin = Blueprint('admin', __name__, url_prefix='/admin')
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
+
+# Директория для временных файлов импорта
+IMPORT_TEMP_DIR = 'app/temp/import_translations'
+os.makedirs(IMPORT_TEMP_DIR, exist_ok=True)
+
+def save_import_data(data):
+    """Сохраняет данные импорта во временный файл"""
+    import_id = str(uuid.uuid4())
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    # Удаляем старые файлы (старше 1 часа)
+    cleanup_old_imports()
+    
+    return import_id
+
+def load_import_data(import_id):
+    """Загружает данные импорта из временного файла"""
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
+    
+    if not os.path.exists(file_path):
+        return None
+    
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def delete_import_data(import_id):
+    """Удаляет временный файл импорта"""
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
+    
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+def cleanup_old_imports():
+    """Удаляет старые файлы импорта"""
+    current_time = datetime.now().timestamp()
+    
+    for filename in os.listdir(IMPORT_TEMP_DIR):
+        if filename.endswith('.json'):
+            file_path = os.path.join(IMPORT_TEMP_DIR, filename)
+            file_time = os.path.getmtime(file_path)
+            
+            # Удаляем файлы старше 1 часа
+            if current_time - file_time > 3600:
+                os.remove(file_path)
 
 # Простое in-memory кэширование для статистики
 _cache = {}
@@ -647,23 +695,33 @@ def import_translations():
                     else:
                         missing_words.append(word_data)
 
-                # Сохраняем данные в сессии для следующего этапа
-                session['import_data'] = {
+                # Сохраняем данные во временный файл вместо сессии
+                import_id = save_import_data({
                     'existing_words': existing_words,
                     'missing_words': missing_words,
                     'errors': errors
-                }
+                })
+                
+                # Сохраняем только ID в сессии
+                session['import_id'] = import_id
 
                 return render_template('admin/words/import_preview.html',
                                      existing_words=existing_words,
                                      missing_words=missing_words,
-                                     errors=errors)
+                                     errors=errors,
+                                     import_id=import_id)
 
             elif action == 'confirm':
                 # Второй этап - подтверждение импорта
-                import_data = session.get('import_data')
-                if not import_data:
+                import_id = request.form.get('import_id') or session.get('import_id')
+                
+                if not import_id:
                     flash('Данные для импорта не найдены. Загрузите файл заново.', 'danger')
+                    return redirect(request.url)
+                
+                import_data = load_import_data(import_id)
+                if not import_data:
+                    flash('Данные для импорта устарели. Загрузите файл заново.', 'danger')
                     return redirect(request.url)
 
                 existing_words = import_data['existing_words']
@@ -699,9 +757,10 @@ def import_translations():
                         added_count += 1
 
                 db.session.commit()
-
-                # Очищаем данные из сессии
-                session.pop('import_data', None)
+                
+                # Удаляем временный файл
+                delete_import_data(import_id)
+                session.pop('import_id', None)
 
                 messages = []
                 if updated_count > 0:
