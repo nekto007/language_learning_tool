@@ -57,7 +57,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Перемещаем обложку книги в начало контента
     function moveBookCoverToContent() {
-    // Находим обложку книги
+        // Проверяем, не добавлена ли уже обложка в контент
+        if (bookContent.querySelector('.content-book-header')) {
+            return; // Обложка уже добавлена, выходим
+        }
+
+        // Находим обложку книги
         const coverContainer = document.querySelector('.book-cover-container');
 
         // Если обложка существует
@@ -83,50 +88,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Вставляем новую обложку в начало контента
             bookContent.insertBefore(contentCover, bookContent.firstChild);
+        }
 
-            // Более надежное скрытие оригинальной обложки в шапке
-            // Используем несколько методов для большей надежности
-
-            // Метод 1: Скрываем .book-header напрямую
-            const bookHeader = document.querySelector('.book-header');
-            if (bookHeader) {
-                bookHeader.style.display = 'none';
-                bookHeader.style.visibility = 'hidden';
-                bookHeader.style.opacity = '0';
-                bookHeader.style.height = '0';
-                bookHeader.style.overflow = 'hidden';
-            }
-
-            // Метод 2: Добавляем CSS-правило в <style> для перекрытия всех возможных стилей
-            const styleEl = document.createElement('style');
-            styleEl.textContent = `
-                .book-header {
-                    display: none !important;
-                    visibility: hidden !important;
-                    opacity: 0 !important;
-                    height: 0 !important;
-                    overflow: hidden !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                
-                .book-cover-container {
-                    display: none !important;
-                }
-            `;
-            document.head.appendChild(styleEl);
-
-            // Метод 3: Полностью удаляем элемент из DOM, если это не нарушит структуру
-            setTimeout(() => {
-                const headerElem = document.querySelector('.book-header');
-                if (headerElem && headerElem.parentNode) {
-                    try {
-                        headerElem.parentNode.removeChild(headerElem);
-                    } catch (e) {
-                        console.log("Couldn't remove header element, using CSS hiding instead");
-                    }
-                }
-            }, 100);
+        // Скрываем оригинальную обложку в шапке (она уже скрыта в HTML)
+        const bookHeader = document.querySelector('.book-header');
+        if (bookHeader) {
+            bookHeader.style.display = 'none';
         }
     }
 
@@ -198,6 +165,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const word = event.target;
         const wordText = word.textContent.toLowerCase();
 
+        console.log('Showing translation for word:', wordText);
+
         // Удаляем существующие подсказки, если есть
         document.querySelectorAll('.word-tooltip').forEach(t => t.remove());
 
@@ -211,17 +180,71 @@ document.addEventListener('DOMContentLoaded', function() {
         positionTooltip(tooltip, word);
 
         // Запрашиваем перевод
-        fetch(`/api/word-translation/${wordText}`)
-            .then(response => response.json())
+        console.log(`Fetching translation from: /books/api/word-translation/${wordText}`);
+        fetch(`/books/api/word-translation/${wordText}`)
+            .then(response => {
+                console.log('Translation response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Translation data received:', data);
                 if (data.translation) {
+                    // Создаем контейнер для заголовка с аудио
+                    const headerContainer = document.createElement('div');
+                    headerContainer.className = 'tooltip-header';
+                    headerContainer.style.display = 'flex';
+                    headerContainer.style.alignItems = 'center';
+                    headerContainer.style.justifyContent = 'space-between';
+                    headerContainer.style.marginBottom = '5px';
+
                     // Создаем индикатор статуса
                     const statusDot = document.createElement('span');
                     statusDot.className = `word-status status-${data.status || 0}`;
 
+                    // Создаем кнопку аудио, если доступно
+                    let audioButton = null;
+                    if (data.has_audio && data.audio_url) {
+                        audioButton = document.createElement('button');
+                        audioButton.className = 'tooltip-audio-btn';
+                        audioButton.innerHTML = '<i class="fas fa-volume-up"></i>';
+                        audioButton.title = 'Произношение';
+                        audioButton.style.cssText = `
+                            background: #4e73df;
+                            color: white;
+                            border: none;
+                            border-radius: 3px;
+                            padding: 4px 8px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            margin-left: 5px;
+                        `;
+                        
+                        // Обработчик клика для воспроизведения аудио
+                        audioButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            playWordAudio(data.audio_url);
+                        });
+
+                        // Автоматическое воспроизведение через 1 секунду (опционально)
+                        // Можно закомментировать, если не нужно
+                        setTimeout(() => {
+                            playWordAudio(data.audio_url);
+                        }, 1000);
+                    }
+
                     // Обновляем содержимое
                     tooltip.innerHTML = '';
-                    tooltip.appendChild(statusDot);
+                    
+                    // Добавляем заголовок с статусом и аудио
+                    headerContainer.appendChild(statusDot);
+                    if (audioButton) {
+                        headerContainer.appendChild(audioButton);
+                    }
+                    tooltip.appendChild(headerContainer);
 
                     // Если это форма другого слова (например, прошедшее время)
                     if (data.is_form && data.form_text && data.base_form) {
@@ -274,8 +297,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 positionTooltip(tooltip, word);
             })
             .catch(error => {
-                tooltip.textContent = 'Error loading translation';
                 console.error('Error fetching translation:', error);
+                tooltip.textContent = `Error: ${error.message}`;
+                tooltip.style.backgroundColor = '#ff6b6b';
+                tooltip.style.color = 'white';
             });
     }
 
@@ -325,6 +350,80 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tooltip) {
             tooltip.remove();
         }
+    }
+
+    // Функция для воспроизведения аудио слова
+    function playWordAudio(audioUrl) {
+        console.log('Playing audio:', audioUrl);
+        
+        // Используем существующий audio элемент или создаем новый
+        let audio = document.getElementById('wordAudio');
+        if (!audio) {
+            audio = document.createElement('audio');
+            audio.id = 'wordAudio';
+            audio.style.display = 'none';
+            document.body.appendChild(audio);
+        }
+
+        // Останавливаем текущее воспроизведение, если есть
+        audio.pause();
+        audio.currentTime = 0;
+
+        // Устанавливаем новый источник и воспроизводим
+        audio.src = audioUrl;
+        audio.play().catch(error => {
+            console.error('Ошибка воспроизведения аудио:', error);
+        });
+    }
+
+
+    // Простая подсказка для полноэкранного режима
+    function showSimpleMobileHint() {
+        // Проверяем, показывали ли уже подсказку
+        const hasSeenHint = localStorage.getItem('simple_mobile_reader_hint_shown');
+        if (hasSeenHint) return;
+
+        const hint = document.createElement('div');
+        hint.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10002;
+            max-width: 250px;
+            text-align: center;
+            font-size: 16px;
+        `;
+
+        hint.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <strong>Режим чтения</strong><br>
+                Тапните на слово для перевода<br>
+                Кнопка ✕ для выхода
+            </div>
+            <button onclick="this.parentNode.remove(); localStorage.setItem('simple_mobile_reader_hint_shown', 'true')" style="
+                background: #4e73df;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 5px;
+                cursor: pointer;
+            ">ОК</button>
+        `;
+
+        document.body.appendChild(hint);
+
+        // Автозакрытие через 4 секунды
+        setTimeout(() => {
+            if (hint.parentNode) {
+                hint.remove();
+                localStorage.setItem('simple_mobile_reader_hint_shown', 'true');
+            }
+        }, 4000);
     }
 
     // Добавление слова в очередь изучения
@@ -446,13 +545,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelectorAll('header, footer, .breadcrumb, .btn-outline-primary').forEach(el => {
                     if (el) el.style.display = 'none';
                 });
+                
                 addExitFullscreenButton();
+                
                 // Обновляем кнопку
                 toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
                 toggleFullscreenBtn.title = 'Exit fullscreen';
 
-                // Прокручиваем в начало содержимого книги для полного погружения
-                window.scrollTo(0, bookContent.offsetTop - 20);
+                // Показываем подсказку пользователю (только первый раз)
+                showSimpleMobileHint();
 
                 return; // Выходим из функции, чтобы не выполнять стандартный fullscreen API
             }
@@ -480,7 +581,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.body.classList.add('dark-mode');
                 }
                 element.classList.add('mobile-fullscreen');
+                addExitFullscreenButton();
                 toggleFullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                
+                // Показываем подсказку пользователю (только первый раз)
+                showSimpleMobileHint();
             }
 
         } else {
@@ -1014,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        /* Стили для мобильного псевдо-полноэкранного режима */
+        /* Улучшенные стили для мобильного полноэкранного режима */
         .mobile-fullscreen-mode {
             overflow: hidden !important;
             position: fixed;
@@ -1022,6 +1127,12 @@ document.addEventListener('DOMContentLoaded', function() {
             height: 100%;
             margin: 0;
             padding: 0;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-fullscreen-mode.dark-mode {
+            background: #1a1a1a;
         }
 
         .mobile-fullscreen-mode .reading-container {
@@ -1033,48 +1144,120 @@ document.addEventListener('DOMContentLoaded', function() {
             width: 100vw;
             height: 100vh;
             margin: 0;
-            padding: 10px;
+            padding: 0;
             z-index: 9999;
             background-color: white;
-            overflow-y: auto;
+            overflow: hidden;
             max-width: none;
         }
 
         .mobile-fullscreen-mode.dark-mode .reading-container {
-            background-color: #2c2c2c;
+            background-color: #1a1a1a;
         }
 
+        /* Полностью скрываем тулбар в полноэкранном режиме */
         .mobile-fullscreen-mode .reading-toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 9999;
-            background-color: rgba(248, 249, 252, 0.95);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            display: none !important;
         }
 
-        .mobile-fullscreen-mode.dark-mode .reading-toolbar {
-            background-color: rgba(44, 44, 44, 0.95);
-        }
-
+        /* Максимальный полноэкранный контент - только текст */
         .mobile-fullscreen-mode #book-content.scroll-container {
-            height: calc(100vh - 170px);
-            max-height: calc(100vh - 170px);
-            margin-bottom: 0;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            width: 100vw !important;
+            margin: 0 !important;
+            padding: 15px !important;
+            padding-top: 25px !important;
+            padding-bottom: 25px !important;
+            overflow-y: auto !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            font-size: 22px !important;
+            line-height: 1.7 !important;
+            max-width: none !important;
         }
 
+        /* Увеличенный и оптимизированный текст */
+        .mobile-fullscreen-mode #book-content p {
+            font-size: 1.2em !important;
+            margin-bottom: 1.8em !important;
+            text-align: justify !important;
+            color: inherit !important;
+        }
+
+        .mobile-fullscreen-mode #book-content h1,
+        .mobile-fullscreen-mode #book-content h2,
+        .mobile-fullscreen-mode #book-content h3 {
+            margin-top: 2em !important;
+            margin-bottom: 1em !important;
+        }
+
+        /* Полностью скрываем контролы */
         .mobile-fullscreen-mode #reading-controls {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            display: none !important;
         }
 
-        .mobile-fullscreen-mode.dark-mode #reading-controls {
-            background-color: rgba(44, 44, 44, 0.95);
+        /* Скрываем прогресс-бар */
+        .mobile-fullscreen-mode .progress.mb-4 {
+            display: none !important;
+        }
+
+        /* Скрытие ВСЕХ лишних элементов в полноэкранном режиме */
+        .mobile-fullscreen-mode .breadcrumb,
+        .mobile-fullscreen-mode .book-header,
+        .mobile-fullscreen-mode .progress.mb-4,
+        .mobile-fullscreen-mode .reading-toolbar,
+        .mobile-fullscreen-mode #reading-controls {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* Минималистичная кнопка выхода */
+        #mobile-exit-fullscreen {
+            position: fixed !important;
+            top: 10px !important;
+            right: 10px !important;
+            z-index: 10001 !important;
+            background-color: rgba(0, 0, 0, 0.6) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 50% !important;
+            width: 36px !important;
+            height: 36px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 14px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            opacity: 0.7 !important;
+        }
+
+        .mobile-fullscreen-mode.dark-mode #mobile-exit-fullscreen {
+            background-color: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        #mobile-exit-fullscreen:hover,
+        #mobile-exit-fullscreen:active {
+            opacity: 1 !important;
+            transform: scale(1.1) !important;
+        }
+
+        /* Убираем отступы контейнера */
+        .mobile-fullscreen-mode .reading-container {
+            padding: 0 !important;
+            margin: 0 !important;
         }
     `;
     document.head.appendChild(containerStyle);

@@ -1105,6 +1105,16 @@ def get_word_translation(word):
             elif form_type == 'continuous':
                 form_text = 'длительная форма от'
 
+        # Проверяем наличие аудио
+        audio_url = None
+        has_audio = word_entry.get_download == 1 and word_entry.listening
+        if has_audio:
+            # Извлекаем имя файла из поля listening (убираем audio/ и .mp3)
+            audio_filename = word_entry.listening
+            if audio_filename.startswith('audio/') and audio_filename.endswith('.mp3'):
+                audio_filename = audio_filename[6:-4]  # Убираем 'audio/' и '.mp3'
+                audio_url = url_for('static', filename=f'audio/{audio_filename}.mp3')
+
         # Формируем JSON-ответ
         response = {
             'word': original_word,
@@ -1115,6 +1125,8 @@ def get_word_translation(word):
             'is_form': word_form_info is not None,
             'form_text': form_text,
             'base_form': word_form_info['base_form'] if word_form_info else None,
+            'has_audio': has_audio,
+            'audio_url': audio_url,
         }
 
         # Добавляем варианты перевода, если они есть

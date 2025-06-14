@@ -91,6 +91,36 @@
     display: block;
 }
 
+/* Заголовок подсказки с аудио кнопкой */
+.tooltip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+/* Кнопка аудио в подсказке */
+.tooltip-audio-btn {
+    background: #4e73df !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 3px !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    margin-left: 5px !important;
+    transition: background-color 0.2s;
+}
+
+.tooltip-audio-btn:hover {
+    background: #3653c7 !important;
+    transform: scale(1.05);
+}
+
+.tooltip-audio-btn:active {
+    transform: scale(0.95);
+}
+
 .word-tooltip:after {
     content: "";
     position: absolute;
