@@ -4,456 +4,180 @@
 
 {% block styles %}
 {{ super() }}
-<style>
-:root {
-    --reader-bg: #fefefe;
-    --reader-text: #2c3e50;
-    --reader-accent: #3498db;
-    --reader-border: #e1e8ed;
-    --sidebar-width: 320px;
-}
-
-[data-theme="dark"] {
-    --reader-bg: #1a1a1a;
-    --reader-text: #e1e1e1;
-    --reader-accent: #64b5f6;
-    --reader-border: #333;
-}
-
-body.reading-mode {
-    margin: 0;
-    padding: 0;
-    background: var(--reader-bg);
-    color: var(--reader-text);
-    font-family: 'Georgia', serif;
-    line-height: 1.6;
-}
-
-.reader-container {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* Modern Sidebar */
-.reader-sidebar {
-    width: var(--sidebar-width);
-    background: var(--reader-bg);
-    border-right: 1px solid var(--reader-border);
-    display: flex;
-    flex-direction: column;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    position: fixed;
-    height: 100vh;
-    z-index: 1000;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-}
-
-.reader-sidebar.open {
-    transform: translateX(0);
-}
-
-.sidebar-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--reader-border);
-    display: flex;
-    justify-content-between;
-    align-items: center;
-}
-
-.sidebar-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-}
-
-/* Main Content */
-.reader-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    transition: margin-left 0.3s ease;
-}
-
-.reader-topbar {
-    background: var(--reader-bg);
-    border-bottom: 1px solid var(--reader-border);
-    padding: 0.75rem 1rem;
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(10px);
-}
-
-.reader-content {
-    flex: 1;
-    padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-    overflow-y: auto;
-    font-size: var(--reader-font-size, 18px);
-}
-
-/* Reading Controls */
-.reading-controls {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-.control-btn {
-    background: none;
-    border: 1px solid var(--reader-border);
-    color: var(--reader-text);
-    padding: 0.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.control-btn:hover {
-    background: var(--reader-accent);
-    color: white;
-    border-color: var(--reader-accent);
-}
-
-.control-btn.active {
-    background: var(--reader-accent);
-    color: white;
-    border-color: var(--reader-accent);
-}
-
-/* Progress Bar */
-.reading-progress {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--reader-border);
-    z-index: 1001;
-}
-
-.progress-fill {
-    height: 100%;
-    background: var(--reader-accent);
-    transition: width 0.3s ease;
-    width: 0%;
-}
-
-/* Word Translation Popup */
-.translation-popup {
-    position: absolute;
-    background: var(--reader-bg);
-    border: 1px solid var(--reader-border);
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    max-width: 300px;
-    z-index: 1000;
-    display: none;
-}
-
-.translation-word {
-    font-weight: bold;
-    color: var(--reader-accent);
-    margin-bottom: 0.5rem;
-}
-
-.translation-text {
-    margin-bottom: 0.5rem;
-}
-
-.translation-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-/* Book Content Styling */
-.book-content p {
-    margin-bottom: 1.5rem;
-    text-align: justify;
-}
-
-.book-content h1, .book-content h2, .book-content h3 {
-    color: var(--reader-accent);
-    margin: 2rem 0 1rem 0;
-}
-
-.book-content .word-clickable {
-    cursor: pointer;
-    transition: background-color 0.2s;
-    padding: 0 2px;
-    border-radius: 3px;
-}
-
-.book-content .word-clickable:hover {
-    background: rgba(52, 152, 219, 0.1);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .reader-sidebar {
-        width: 100vw;
-    }
-    
-    .reader-content {
-        padding: 1rem;
-        font-size: 16px;
-    }
-    
-    .reader-topbar {
-        padding: 0.5rem;
-    }
-}
-
-/* Font Controls */
-.font-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.font-size-display {
-    min-width: 3rem;
-    text-align: center;
-    font-size: 0.875rem;
-    background: var(--reader-border);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-
-/* Bookmark Styles */
-.bookmark-item {
-    padding: 0.75rem;
-    border: 1px solid var(--reader-border);
-    border-radius: 6px;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.bookmark-item:hover {
-    border-color: var(--reader-accent);
-    background: rgba(52, 152, 219, 0.05);
-}
-
-.bookmark-title {
-    font-weight: 500;
-    margin-bottom: 0.25rem;
-}
-
-.bookmark-context {
-    font-size: 0.875rem;
-    color: #666;
-    font-style: italic;
-}
-
-/* Table of Contents */
-.toc-item {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--reader-border);
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.toc-item:hover {
-    color: var(--reader-accent);
-}
-
-.toc-item.active {
-    color: var(--reader-accent);
-    font-weight: 500;
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-reader.css') }}">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 {% endblock %}
 
 {% block content %}
-<div class="reader-container">
-    <!-- Reading Progress -->
-    <div class="reading-progress">
-        <div class="progress-fill" id="reading-progress"></div>
+<!-- Mobile Reading Interface -->
+<div class="mobile-reader" id="mobileReader">
+    <!-- Header Controls (Hidden in fullscreen) -->
+    <div class="reader-header" id="readerHeader">
+        <div class="header-left">
+            <button class="btn-icon" id="backBtn" onclick="window.history.back()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="book-info">
+                <h1 class="book-title">{{ book.title }}</h1>
+                <p class="book-author">{{ book.author or _('Неизвестный автор') }}</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn-icon" id="menuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
     </div>
 
-    <!-- Sidebar -->
-    <div class="reader-sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h5 class="mb-0">{{ book.title }}</h5>
-            <button class="control-btn" id="closeSidebar">
+    <!-- Reading Progress Bar -->
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- Main Reading Content -->
+    <div class="reading-content" id="readingContent" data-book-id="{{ book.id }}" data-position="{{ progress.position or 0 }}">
+        <div class="content-wrapper">
+            {{ book.content|safe }}
+        </div>
+    </div>
+
+    <!-- Bottom Controls (Hidden in fullscreen) -->
+    <div class="reader-controls" id="readerControls">
+        <button class="control-btn" id="settingsBtn">
+            <i class="fas fa-cog"></i>
+            <span>{{ _('Настройки') }}</span>
+        </button>
+        <button class="control-btn" id="bookmarksBtn">
+            <i class="fas fa-bookmark"></i>
+            <span>{{ _('Закладки') }}</span>
+        </button>
+        <button class="control-btn" id="fullscreenBtn">
+            <i class="fas fa-expand"></i>
+            <span>{{ _('Полный экран') }}</span>
+        </button>
+    </div>
+
+    <!-- Mobile Side Menu -->
+    <div class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            <h3>{{ book.title }}</h3>
+            <button class="btn-close" id="closeSideMenu">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         
-        <div class="sidebar-content">
-            <!-- Book Info -->
-            <div class="mb-4">
-                {% if book.cover_image %}
-                <img src="{{ url_for('static', filename=book.cover_image) }}" 
-                     alt="{{ book.title }}" 
-                     class="img-fluid rounded mb-3" 
-                     style="max-height: 200px;">
-                {% endif %}
-                
-                {% if book.author %}
-                <p class="text-muted mb-2">
-                    <i class="fas fa-user"></i> {{ book.author }}
-                </p>
-                {% endif %}
-                
-                {% if book.level %}
-                <span class="badge bg-primary mb-3">{{ book.level }}</span>
-                {% endif %}
-            </div>
-
-            <!-- Reading Stats -->
-            <div class="mb-4">
-                <h6>{{ _('Прогресс чтения') }}</h6>
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between small">
-                        <span>{{ _('Прогресс') }}</span>
-                        <span id="progress-percent">0%</span>
+        <div class="menu-content">
+            <!-- Reading Progress -->
+            <div class="menu-section">
+                <h4>{{ _('Прогресс чтения') }}</h4>
+                <div class="progress-info">
+                    <div class="progress-circle">
+                        <span id="progressPercent">0%</span>
                     </div>
-                    <div class="progress" style="height: 6px;">
-                        <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+                    <div class="progress-text">
+                        <p>{{ _('Позиция:') }} <span id="currentPosition">0</span></p>
+                        <p>{{ _('Всего слов:') }} {{ book.total_words or 0 }}</p>
                     </div>
-                </div>
-                <div class="small text-muted">
-                    <div>{{ _('Позиция:') }} <span id="current-position">0</span></div>
-                    <div>{{ _('Слов:') }} {{ book.total_words or 0 }}</div>
                 </div>
             </div>
 
-            <!-- Table of Contents -->
-            <div class="mb-4">
-                <h6>{{ _('Оглавление') }}</h6>
-                <div id="toc-container">
-                    <!-- TOC will be generated by JavaScript -->
+            <!-- Quick Settings -->
+            <div class="menu-section">
+                <h4>{{ _('Быстрые настройки') }}</h4>
+                <div class="quick-settings">
+                    <div class="setting-row">
+                        <span>{{ _('Размер шрифта') }}</span>
+                        <div class="font-controls">
+                            <button class="btn-small" id="decreaseFont">A-</button>
+                            <span id="fontSize">18px</span>
+                            <button class="btn-small" id="increaseFont">A+</button>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <span>{{ _('Темная тема') }}</span>
+                        <label class="switch">
+                            <input type="checkbox" id="darkModeToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
             <!-- Bookmarks -->
-            <div class="mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">{{ _('Закладки') }}</h6>
-                    <button class="control-btn" id="addBookmark">
-                        <i class="fas fa-plus"></i>
-                    </button>
+            <div class="menu-section">
+                <h4>{{ _('Закладки') }}</h4>
+                <div class="bookmarks-list" id="bookmarksList">
+                    <p class="no-bookmarks">{{ _('Нет закладок') }}</p>
                 </div>
-                <div id="bookmarks-container">
-                    <!-- Bookmarks will be loaded here -->
-                </div>
+                <button class="btn-primary btn-small" id="addBookmarkBtn">
+                    <i class="fas fa-plus"></i> {{ _('Добавить закладку') }}
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="reader-main">
-        <!-- Top Bar -->
-        <div class="reader-topbar">
-            <div class="d-flex align-items-center">
-                <button class="control-btn me-3" id="toggleSidebar">
-                    <i class="fas fa-bars"></i>
+    <!-- Overlay for side menu -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Word Translation Popup -->
+    <div class="word-popup" id="wordPopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <span class="word-text" id="popupWord"></span>
+                <button class="btn-audio" id="playAudio" style="display: none;">
+                    <i class="fas fa-volume-up"></i>
                 </button>
-                
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0 small">
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('books.book_list') }}">{{ _('Книги') }}</a>
-                        </li>
-                        <li class="breadcrumb-item">
-                            <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title[:30] }}{% if book.title|length > 30 %}...{% endif %}</a>
-                        </li>
-                        <li class="breadcrumb-item active">{{ _('Чтение') }}</li>
-                    </ol>
-                </nav>
             </div>
-
-            <div class="reading-controls">
-                <!-- Font Controls -->
-                <div class="font-controls">
-                    <button class="control-btn" id="decrease-font">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <div class="font-size-display" id="font-size-display">18px</div>
-                    <button class="control-btn" id="increase-font">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-
-                <!-- Font Family -->
-                <button class="control-btn" id="toggle-font" title="{{ _('Переключить шрифт') }}"
-                    <i class="fas fa-font"></i>
+            <div class="popup-body">
+                <div class="translation" id="popupTranslation"></div>
+                <div class="word-form-info" id="wordFormInfo" style="display: none;"></div>
+            </div>
+            <div class="popup-actions">
+                <button class="btn-learn" id="addToLearning" style="display: none;">
+                    <i class="fas fa-plus"></i> {{ _('Изучать') }}
                 </button>
-
-                <!-- Dark Mode -->
-                <button class="control-btn" id="toggle-theme">
-                    <i class="fas fa-moon"></i>
-                </button>
-
-                <!-- Fullscreen -->
-                <button class="control-btn" id="toggle-fullscreen">
-                    <i class="fas fa-expand"></i>
-                </button>
-
-                <!-- Save Position -->
-                <button class="control-btn" id="save-position">
-                    <i class="fas fa-save"></i> {{ _('Сохранить') }}
+                <button class="btn-close-popup" id="closePopup">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
+    </div>
 
-        <!-- Reading Content -->
-        <div class="reader-content" id="reader-content">
-            <div class="book-content" id="book-content" data-book-id="{{ book.id }}" data-position="{{ progress.position or 0 }}">
-                {{ book.content|safe }}
-            </div>
+    <!-- Fullscreen Exit Button -->
+    <button class="fullscreen-exit" id="fullscreenExit" style="display: none;">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+
+<!-- Add Bookmark Modal -->
+<div class="modal" id="bookmarkModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>{{ _('Добавить закладку') }}</h3>
+            <button class="btn-close" id="closeBookmarkModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="bookmarkName" placeholder="{{ _('Название закладки') }}" class="input-field">
+            <p class="bookmark-context" id="bookmarkContext"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" id="cancelBookmark">{{ _('Отмена') }}</button>
+            <button class="btn-primary" id="saveBookmark">{{ _('Сохранить') }}</button>
         </div>
     </div>
 </div>
 
-<!-- Translation Popup -->
-<div class="translation-popup" id="translation-popup">
-    <div class="translation-word" id="popup-word"></div>
-    <div class="translation-text" id="popup-translation"></div>
-    <div class="translation-actions">
-        <button class="btn btn-sm btn-primary" id="add-to-learning">
-            <i class="fas fa-plus"></i> {{ _('Изучать') }}
-        </button>
-        <button class="btn btn-sm btn-secondary" id="close-popup">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
+<!-- Loading indicator -->
+<div class="loading" id="loading" style="display: none;">
+    <div class="spinner"></div>
+    <p>{{ _('Загрузка...') }}</p>
 </div>
 
-<!-- Quick Bookmark Modal -->
-<div class="modal fade" id="bookmarkModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title">{{ _('Добавить закладку') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="text" class="form-control" id="bookmark-name" placeholder="{{ _('Название закладки') }}">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">{{ _('Отмена') }}</button>
-                <button type="button" class="btn btn-sm btn-primary" id="save-bookmark">{{ _('Сохранить') }}</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/reader-optimized.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mobile-reader.js') }}"></script>
 {% endblock %}
