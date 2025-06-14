@@ -254,6 +254,8 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div class="progress-stats">
+                    <span class="stat-counter" style="background-color: #2196F3;" id="new-cards-counter" title="{{ _('New cards') }}">{{ _('New') }}: 0</span>
+                    <span class="stat-counter" style="background-color: #FF9800;" id="review-cards-counter" title="{{ _('Review cards') }}">{{ _('Review') }}: 0</span>
                     <span class="stat-counter stat-correct" id="correct-counter">0</span>
                     <span class="stat-counter stat-incorrect" id="incorrect-counter">0</span>
                 </div>
@@ -434,7 +436,9 @@
         let sessionStats = {
             total: 0,
             correct: 0,
-            incorrect: 0
+            incorrect: 0,
+            new_cards: 0,
+            review_cards: 0
         };
         let hintTimeout = null;
 
@@ -454,6 +458,8 @@
         const cardCounter = document.getElementById('card-counter');
         const correctCounter = document.getElementById('correct-counter');
         const incorrectCounter = document.getElementById('incorrect-counter');
+        const newCardsCounter = document.getElementById('new-cards-counter');
+        const reviewCardsCounter = document.getElementById('review-cards-counter');
         const progressFill = document.getElementById('progress-fill');
         const showAnswerBtn = document.getElementById('show-answer-btn');
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -802,6 +808,29 @@
                     return;
                 }
 
+                // Count new and review cards
+                let newCount = 0;
+                let reviewCount = 0;
+                
+                for (let card of cards) {
+                    if (card.is_new) {
+                        newCount++;
+                    } else {
+                        reviewCount++;
+                    }
+                }
+                
+                sessionStats.new_cards = newCount;
+                sessionStats.review_cards = reviewCount;
+                
+                // Update counters
+                if (newCardsCounter) {
+                    newCardsCounter.textContent = `{{ _('New') }}: ${newCount}`;
+                }
+                if (reviewCardsCounter) {
+                    reviewCardsCounter.textContent = `{{ _('Review') }}: ${reviewCount}`;
+                }
+
                 // Update UI
                 loadingSpinner.style.display = 'none';
                 flashcardView.style.display = 'block';
@@ -886,6 +915,17 @@
             hintTimeout = setTimeout(() => {
                 hintText.classList.add('visible');
             }, hintTime * 1000);
+
+            // Auto-play audio if enabled and available
+            if (hasAudio && playAudio && card.audio_url) {
+                // Delay auto-play slightly to ensure audio element is ready
+                setTimeout(() => {
+                    wordAudio.play().catch(error => {
+                        console.log('Auto-play failed:', error);
+                        // Auto-play failed (likely due to browser policy), but that's okay
+                    });
+                }, 500);
+            }
 
             // Set example if available
             if (showExamples && card.examples) {
@@ -1013,6 +1053,19 @@
                 } else {
                     sessionStats.incorrect++;
                     incorrectCounter.textContent = sessionStats.incorrect;
+                }
+
+                // Update card type counters
+                if (card.is_new) {
+                    sessionStats.new_cards--;
+                    if (newCardsCounter) {
+                        newCardsCounter.textContent = `{{ _('New') }}: ${Math.max(0, sessionStats.new_cards)}`;
+                    }
+                } else {
+                    sessionStats.review_cards--;
+                    if (reviewCardsCounter) {
+                        reviewCardsCounter.textContent = `{{ _('Review') }}: ${Math.max(0, sessionStats.review_cards)}`;
+                    }
                 }
 
                 // Move to next card
