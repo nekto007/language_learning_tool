@@ -624,6 +624,7 @@ def get_word_base_form(word):
     # Dictionary of irregular verbs (past -> base form)
     irregular_verbs = {
         # Past forms -> base form
+        'was': 'be', 'were': 'be', 'been': 'be',
         'went': 'go', 'saw': 'see', 'ate': 'eat', 'drank': 'drink',
         'spoke': 'speak', 'drove': 'drive', 'flew': 'fly', 'grew': 'grow',
         'knew': 'know', 'ran': 'run', 'came': 'come', 'took': 'take',
@@ -831,6 +832,7 @@ def setup_morphology():
 # Словарь для хранения английских неправильных глаголов
 irregular_verbs = {
     # Past forms -> base form
+    'was': 'be', 'were': 'be', 'been': 'be',
     'went': 'go', 'saw': 'see', 'ate': 'eat', 'drank': 'drink',
     'spoke': 'speak', 'drove': 'drive', 'flew': 'fly', 'grew': 'grow',
     'knew': 'know', 'ran': 'run', 'came': 'come', 'took': 'take',
@@ -852,7 +854,15 @@ if not pymorphy2_available:
     logger.warning("Работа без pymorphy2: анализ русской морфологии будет ограничен")
 
 
-@books.route('/api/word-translation/<word>')
+@books.route('/api/test', methods=['GET'])
+@login_required
+def api_test():
+    """Test API endpoint"""
+    print("DEBUG: Test API endpoint called!")
+    return jsonify({'status': 'ok', 'message': 'API is working'})
+
+
+@books.route('/books/word-translation/<word>', methods=['GET'])
 @login_required
 def get_word_translation(word):
     """
@@ -861,7 +871,8 @@ def get_word_translation(word):
     анализом форм слов на основе правил
     """
     # Логгируем запрос для отладки
-    logger.debug(f"Запрос перевода слова: {word}")
+    logger.info(f"API word-translation called for word: {word}")
+    print(f"DEBUG: Translation API called for word: {word}")
 
     word = word.lower().strip()
     original_word = word
