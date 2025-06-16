@@ -74,7 +74,7 @@
             {% for word in words %}
               <tr>
                 <td>
-                  <a href="{{ url_for('words.word_details', word_id=word.id) }}" class="word-link">
+                  <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="word-link">
                     {{ word.english_word }}
                   </a>
                 </td>
