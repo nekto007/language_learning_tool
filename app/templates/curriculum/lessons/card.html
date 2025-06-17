@@ -197,6 +197,11 @@
             <div class="rating-section">
               <p class="rating-prompt">{{ _('Насколько хорошо вы знаете это слово?') }}</p>
               <div class="rating-buttons">
+                <button class="rating-btn rating-postpone" data-action="postpone">
+                  <i class="fas fa-clock"></i>
+                  <span class="rating-text">{{ _('Отложить') }}</span>
+                  <span class="interval-hint">{{ _('На конец') }}</span>
+                </button>
                 <button class="rating-btn rating-again" data-rating="0">
                   <i class="fas fa-times"></i>
                   <span class="rating-text">{{ _('Не помню') }}</span>
@@ -343,6 +348,20 @@
           if (confirm('{{ _("Вы уверены, что хотите начать новую сессию?") }}')) {
               window.location.href = '{{ url_for("curriculum_lessons.card_lesson", lesson_id=lesson.id, reset="true") }}';
           }
+      }
+
+      // Функция для откладывания карточки
+      function postponeCard() {
+          const card = sessionState.currentCard;
+          if (!card) return;
+          
+          // Добавляем карточку в конец очереди
+          sessionState.availableCards.push(card);
+          
+          console.log(`Card postponed: ${card.front} (${card.direction})`);
+          
+          // Переходим к следующей карточке без оценки
+          showNextCard();
       }
 
       // Global retry function for navigation button
@@ -513,15 +532,25 @@
           elements.frontWord.textContent = card.front || card.word;
           elements.translationText.textContent = card.back || card.translation;
 
-          // Аудио
+          // Аудио - показываем кнопку только для eng-rus карточек на фронтальной стороне
           if (card.audio && card.direction === 'eng-rus') {
               elements.frontAudioBtn.style.display = 'inline-flex';
               elements.wordAudio.src = `/static/audio/${card.audio}`;
-              console.log(`Audio set for card: ${card.front || card.word} -> ${card.audio}`);
+              console.log(`Audio set for eng-rus card: ${card.front || card.word} -> ${card.audio}`);
+              
+              // Автовоспроизведение для eng-rus карточек
+              setTimeout(() => {
+                  elements.wordAudio.play().catch(e => {
+                      console.log('Auto-play prevented:', e);
+                  });
+              }, 300);
           } else {
               elements.frontAudioBtn.style.display = 'none';
-              elements.wordAudio.src = ''; // Очищаем аудио
-              console.log(`No audio for card: ${card.front || card.word} (direction: ${card.direction})`);
+              // Для rus-eng карточек аудио будет доступно только на обратной стороне
+              if (card.audio) {
+                  elements.wordAudio.src = `/static/audio/${card.audio}`;
+                  console.log(`Audio prepared for rus-eng card (will be available on back): ${card.front || card.word}`);
+              }
           }
 
           // Подсказка
@@ -574,15 +603,24 @@
 
           elements.backWord.textContent = elements.frontWord.textContent;
 
-          // Аудио на обратной стороне - показываем для обеих направлений, если аудио доступно
+          // Аудио на обратной стороне - показываем всегда, если есть аудио
           if (sessionState.currentCard.audio) {
               elements.backAudioBtn.style.display = 'inline-flex';
               // Убеждаемся, что аудио src правильно установлен
               elements.wordAudio.src = `/static/audio/${sessionState.currentCard.audio}`;
-              console.log(`Back audio confirmed for: ${sessionState.currentCard.front || sessionState.currentCard.word} -> ${sessionState.currentCard.audio}`);
+              console.log(`Back audio available: ${sessionState.currentCard.audio}`);
+              
+              // Для rus-eng карточек автоматически воспроизводим при показе ответа
+              if (sessionState.currentCard.direction === 'rus-eng') {
+                  setTimeout(() => {
+                      elements.wordAudio.play().catch(e => {
+                          console.log('Auto-play on back prevented:', e);
+                      });
+                  }, 300);
+              }
           } else {
               elements.backAudioBtn.style.display = 'none';
-              console.log(`No back audio for: ${sessionState.currentCard.front || sessionState.currentCard.word} (direction: ${sessionState.currentCard.direction})`);
+              console.log(`No audio available for this card`);
           }
 
           // Обновляем интервалы на кнопках
@@ -996,6 +1034,12 @@
 
       document.querySelectorAll('.rating-btn').forEach(btn => {
           btn.addEventListener('click', function () {
+              // Проверяем, это кнопка отложить или обычная оценка
+              if (this.dataset.action === 'postpone') {
+                  postponeCard();
+                  return;
+              }
+              
               const rating = parseInt(this.dataset.rating);
               rateCard(rating);
           });
@@ -1400,7 +1444,7 @@
 
       .rating-buttons {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(5, 1fr);
           gap: 0.75rem;
       }
 
@@ -1478,6 +1522,18 @@
 
       .rating-easy:hover {
           background: var(--lesson-success);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: var(--lesson-shadow);
+      }
+
+      .rating-postpone {
+          border-color: #6c757d;
+          color: #6c757d;
+      }
+
+      .rating-postpone:hover {
+          background: #6c757d;
           color: white;
           transform: translateY(-2px);
           box-shadow: var(--lesson-shadow);
@@ -1705,7 +1761,7 @@
           }
 
           .rating-buttons {
-              grid-template-columns: repeat(2, 1fr);
+              grid-template-columns: repeat(3, 1fr);
           }
 
           .srs-card {
