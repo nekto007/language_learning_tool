@@ -192,9 +192,7 @@
         background-color: #FFC107;
     }
 
-    .btn-good {
-        background-color: #4FC3F7;
-    }
+    /* Removed btn-good styles since we no longer have Good button */
 
     .btn-easy {
         background-color: #4CAF50;
@@ -254,10 +252,9 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div class="progress-stats">
-                    <span class="stat-counter" style="background-color: #2196F3;" id="new-cards-counter" title="{{ _('New cards') }}">{{ _('New') }}: 0</span>
-                    <span class="stat-counter" style="background-color: #FF9800;" id="review-cards-counter" title="{{ _('Review cards') }}">{{ _('Review') }}: 0</span>
-                    <span class="stat-counter stat-correct" id="correct-counter">0</span>
-                    <span class="stat-counter stat-incorrect" id="incorrect-counter">0</span>
+                    <span class="stat-counter" style="background-color: #2196F3;" id="new-cards-counter" title="{{ _('New cards') }}">{{ _('Новых') }}: 0</span>
+                    <span class="stat-counter" style="background-color: #4CAF50;" id="studied-cards-counter" title="{{ _('Studied cards') }}">{{ _('Изучено') }}: 0</span>
+                    <span class="stat-counter" style="background-color: #FF9800;" id="review-cards-counter" title="{{ _('Review cards') }}">{{ _('Повторить') }}: 0</span>
                 </div>
                 <button id="end-session-btn" class="end-session-btn">{{ _('End Session') }}</button>
             </div>
@@ -321,16 +318,13 @@
 
             <div class="rating-container">
                 <button type="button" class="rating-btn btn-again" data-rating="0">
-                    {{ _('Again') }}
+                    {{ _('Снова') }}
                 </button>
-                <button type="button" class="rating-btn btn-hard" data-rating="1">
-                    {{ _('Hard') }}
+                <button type="button" class="rating-btn btn-hard" data-rating="2">
+                    {{ _('Трудно') }}
                 </button>
-                <button type="button" class="rating-btn btn-good" data-rating="3">
-                    {{ _('Good') }}
-                </button>
-                <button type="button" class="rating-btn btn-easy" data-rating="5">
-                    {{ _('Easy') }}
+                <button type="button" class="rating-btn btn-easy" data-rating="4">
+                    {{ _('Легко') }}
                 </button>
             </div>
         </div>
@@ -459,6 +453,7 @@
         const correctCounter = document.getElementById('correct-counter');
         const incorrectCounter = document.getElementById('incorrect-counter');
         const newCardsCounter = document.getElementById('new-cards-counter');
+        const studiedCardsCounter = document.getElementById('studied-cards-counter');
         const reviewCardsCounter = document.getElementById('review-cards-counter');
         const progressFill = document.getElementById('progress-fill');
         const showAnswerBtn = document.getElementById('show-answer-btn');
@@ -825,10 +820,13 @@
                 
                 // Update counters
                 if (newCardsCounter) {
-                    newCardsCounter.textContent = `{{ _('New') }}: ${newCount}`;
+                    newCardsCounter.textContent = `{{ _('Новых') }}: ${newCount}`;
+                }
+                if (studiedCardsCounter) {
+                    studiedCardsCounter.textContent = `{{ _('Изучено') }}: 0`;
                 }
                 if (reviewCardsCounter) {
-                    reviewCardsCounter.textContent = `{{ _('Review') }}: ${reviewCount}`;
+                    reviewCardsCounter.textContent = `{{ _('Повторить') }}: ${reviewCount}`;
                 }
 
                 // Update UI
@@ -895,16 +893,29 @@
             hintText.textContent = formatHint(card.translation);
 
             if (hasAudio && playAudio) {
-                // Всегда показываем кнопку произношения, если есть аудио
-                frontAudioBtn.hidden = true;
-                backAudioBtn.hidden = false;
-
-                if (card.direction === 'eng-rus') {
-                    frontAudioBtn.hidden = false;
-                }
                 // Настраиваем аудио источник
                 if (card.audio_url) {
                     wordAudio.src = card.audio_url;
+                }
+                
+                // Логика показа кнопок аудио и автовоспроизведения
+                if (card.direction === 'eng-rus') {
+                    // Для eng-rus карточек показываем кнопку на фронтальной стороне
+                    frontAudioBtn.hidden = false;
+                    backAudioBtn.hidden = false; // Также доступно на обратной стороне
+                    
+                    // Автовоспроизведение для eng-rus карточек на фронтальной стороне
+                    setTimeout(() => {
+                        wordAudio.play().catch(error => {
+                            console.log('Auto-play prevented:', error);
+                        });
+                    }, 300);
+                } else {
+                    // Для rus-eng карточек НЕ показываем кнопку на фронтальной стороне
+                    frontAudioBtn.hidden = true;
+                    backAudioBtn.hidden = false; // Показываем только на обратной стороне
+                    
+                    // НЕТ автовоспроизведения на фронтальной стороне для rus-eng
                 }
             } else {
                 frontAudioBtn.hidden = true;
@@ -915,17 +926,6 @@
             hintTimeout = setTimeout(() => {
                 hintText.classList.add('visible');
             }, hintTime * 1000);
-
-            // Auto-play audio if enabled and available
-            if (hasAudio && playAudio && card.audio_url) {
-                // Delay auto-play slightly to ensure audio element is ready
-                setTimeout(() => {
-                    wordAudio.play().catch(error => {
-                        console.log('Auto-play failed:', error);
-                        // Auto-play failed (likely due to browser policy), but that's okay
-                    });
-                }, 500);
-            }
 
             // Set example if available
             if (showExamples && card.examples) {
@@ -1005,10 +1005,12 @@
                 hintTimeout = null;
             }
 
-            // Play audio on card flip for rus-eng mode
+            // Автовоспроизведение аудио при показе ответа для rus-eng карточек
             const card = cards[currentCardIndex];
             if (card.direction === 'rus-eng' && card.audio_url && playAudio) {
-                wordAudio.play().catch(e => console.log('Auto-play prevented:', e));
+                setTimeout(() => {
+                    wordAudio.play().catch(e => console.log('Auto-play on answer prevented:', e));
+                }, 300);
             }
         }
 
@@ -1022,6 +1024,22 @@
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfMeta && csrfMeta.content;
             const card = cards[currentCardIndex];
+
+            // Implement card shuffling for "Again" rating to avoid immediate repetition
+            if (quality === 0) {
+                // "Снова" - shuffle remaining cards to avoid showing the same card immediately
+                const remainingCards = cards.slice(currentCardIndex + 1);
+                if (remainingCards.length > 1) {
+                    // Shuffle remaining cards
+                    for (let i = remainingCards.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [remainingCards[i], remainingCards[j]] = [remainingCards[j], remainingCards[i]];
+                    }
+                    // Replace remaining cards in the original array
+                    cards.splice(currentCardIndex + 1, remainingCards.length, ...remainingCards);
+                    console.log('Cards shuffled after "Again" rating to avoid immediate repetition');
+                }
+            }
 
             try {
                 // Send rating to server with direction
@@ -1047,25 +1065,23 @@
                 // Update session stats
                 sessionStats.total++;
 
-                if (quality >= 3) {
-                    sessionStats.correct++;
-                    correctCounter.textContent = sessionStats.correct;
-                } else {
-                    sessionStats.incorrect++;
-                    incorrectCounter.textContent = sessionStats.incorrect;
-                }
-
-                // Update card type counters
+                // Update simplified counters based on user request
                 if (card.is_new) {
                     sessionStats.new_cards--;
                     if (newCardsCounter) {
-                        newCardsCounter.textContent = `{{ _('New') }}: ${Math.max(0, sessionStats.new_cards)}`;
+                        newCardsCounter.textContent = `{{ _('Новых') }}: ${Math.max(0, sessionStats.new_cards)}`;
                     }
                 } else {
                     sessionStats.review_cards--;
                     if (reviewCardsCounter) {
-                        reviewCardsCounter.textContent = `{{ _('Review') }}: ${Math.max(0, sessionStats.review_cards)}`;
+                        reviewCardsCounter.textContent = `{{ _('Повторить') }}: ${Math.max(0, sessionStats.review_cards)}`;
                     }
+                }
+                
+                // Update studied cards counter
+                const studiedCount = sessionStats.total;
+                if (studiedCardsCounter) {
+                    studiedCardsCounter.textContent = `{{ _('Изучено') }}: ${studiedCount}`;
                 }
 
                 // Move to next card
@@ -1156,11 +1172,28 @@
             }
         });
 
-        // Add emergency exit button handler
-        // Если кнопка выше не сработает, эта должна
+        // Keyboard shortcuts for rating cards
         document.addEventListener('keydown', function(e) {
+            // Rating shortcuts when card back is visible
+            if (cardBack.style.display === 'flex') {
+                if (e.key === '1') {
+                    e.preventDefault();
+                    rateCard(0); // Снова
+                } else if (e.key === '2') {
+                    e.preventDefault();
+                    rateCard(2); // Трудно
+                } else if (e.key === '3') {
+                    e.preventDefault();
+                    rateCard(4); // Легко
+                }
+            }
+            // Show answer when front card is visible and spacebar is pressed
+            else if (cardFront.style.display === 'flex' && e.code === 'Space') {
+                e.preventDefault();
+                flipCard();
+            }
             // Ctrl+Shift+X для экстренного выхода
-            if (e.ctrlKey && e.shiftKey && e.key === 'X') {
+            else if (e.ctrlKey && e.shiftKey && e.key === 'X') {
                 console.log('Emergency exit triggered');
                 window.location.href = '{{ url_for("study.index") }}';
             }
