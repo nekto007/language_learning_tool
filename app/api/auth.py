@@ -1,9 +1,10 @@
 import functools
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_user
 
+from app import csrf
 from app.auth.models import User
 from app.utils.db import db
 
@@ -25,6 +26,7 @@ def api_login_required(f):
 
 
 @api_auth.route('/login', methods=['POST'])
+@csrf.exempt
 def api_login():
     if not request.is_json:
         return jsonify({
@@ -47,7 +49,7 @@ def api_login():
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password):
         login_user(user)
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.session.commit()
 
         return jsonify({

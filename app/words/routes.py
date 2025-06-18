@@ -122,7 +122,11 @@ def word_list():
 
     # Применяем фильтр по книге
     if book_id:
-        query = query.filter(CollectionWords.book_id == book_id)
+        from app.utils.db import word_book_link
+        query = query.join(
+            word_book_link,
+            CollectionWords.id == word_book_link.c.word_id
+        ).filter(word_book_link.c.book_id == book_id)
 
     # Сортировка
     query = query.order_by(CollectionWords.english_word.asc())
@@ -208,7 +212,7 @@ class DummyCSRFForm(FlaskForm):
 @words.route('/update-word-status/<int:word_id>/<int:status>', methods=['POST'])
 @login_required
 def update_word_status(word_id, status):
-    form = DummyCSRFForm()
+    form = DummyCSRFForm(request.form)
     if not form.validate_on_submit():
         from flask import abort
         abort(400, description="CSRF token missing or invalid.")

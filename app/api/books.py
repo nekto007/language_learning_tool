@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, url_for
 from flask_login import current_user
 from sqlalchemy import func
 import logging
+from datetime import timezone
 
 from app import csrf
 from app.api.auth import api_login_required
@@ -369,7 +370,7 @@ def save_reading_position():
             logger.info(f"Created new reading progress for user {current_user.id}, book {book_id}")
         else:
             progress.position = position
-            progress.last_read = datetime.utcnow()
+            progress.last_read = datetime.now(timezone.utc)
             logger.debug(f"Updated reading position to {position} for user {current_user.id}, book {book_id}")
 
         db.session.commit()

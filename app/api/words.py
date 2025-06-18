@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy import func, or_
 
+from app import csrf
 from app.api.auth import api_login_required
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -177,6 +178,7 @@ def get_word(word_id):
 
 
 @api_words.route('/update-word-status', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def update_word_status():
     if not request.is_json:
@@ -227,6 +229,7 @@ def update_word_status():
 
 
 @api_words.route('/batch-update-status', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def batch_update_status():
     if not request.is_json:
@@ -316,12 +319,11 @@ def search_words():
 
     try:
         # Поиск слов по частичному совпадению
-        search_term = f"{term}"
-        search_term_lower = search_term.lower()
+        search_term = f"%{term}%"
         words = CollectionWords.query.filter(
             or_(
-                CollectionWords.english_word == search_term_lower,
-                CollectionWords.russian_word == search_term_lower
+                CollectionWords.english_word.like(search_term),
+                CollectionWords.russian_word.like(search_term)
             )
         ).order_by(CollectionWords.english_word).limit(50).all()
 
@@ -344,6 +346,7 @@ def search_words():
 # Добавьте этот endpoint в файл app/api/words.py
 
 @api_words.route('/words/<int:word_id>/status', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def update_single_word_status(word_id):
     """Update status for a single word - endpoint used by templates"""
@@ -403,6 +406,7 @@ def update_single_word_status(word_id):
 
 
 @api_words.route('/user-words-status', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def get_user_words_status():
     """Получить статусы слов пользователя для списка word_ids"""

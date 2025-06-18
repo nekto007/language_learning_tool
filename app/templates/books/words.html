@@ -100,7 +100,7 @@
                             </div>
                         </td>
                         <td>
-                            <a href="{{ url_for('words.word_details', word_id=word.id) }}">{{ word.english_word }}</a>
+                            <a href="{{ url_for('words.word_detail', word_id=word.id) }}">{{ word.english_word }}</a>
                             {% if word.get_download %}
                             <i class="bi bi-volume-up text-muted ms-1"></i>
                             {% endif %}

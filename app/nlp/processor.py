@@ -84,7 +84,7 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     words = nltk.word_tokenize(text)
     # Filter only alphabetic characters and convert to lowercase
     words = [word.lower() for word in words if word.isalpha()]
-    stop_words = ["i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don"]
+    stop_words = ["i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don", "https"]
     # Remove stop words
     words = [word for word in words if word not in stop_words]
 
@@ -123,6 +123,7 @@ def filter_english_words(words: List[str], english_vocab: Set[str]) -> List[str]
     Returns:
         List[str]: List of English words.
     """
+
     return [word for word in words if word.lower() in english_vocab]
 
 
@@ -169,7 +170,6 @@ def process_html_content(html_content: str, selector: str = None) -> List[str]:
     """
     # Initialize NLTK resources
     english_vocab, _, stop_words = initialize_nltk()
-
     # Extract text
     text = extract_text_from_html(html_content, selector)
 

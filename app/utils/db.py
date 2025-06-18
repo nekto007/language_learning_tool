@@ -48,6 +48,7 @@ def string_to_status(status_string):
         'new': 0,
         'learning': 1,
         'review': 2,
-        'mastered': 3
+        'mastered': 3,
+        'active': 3  # Alias for mastered
     }
     return status_map.get(status_string, 0)

@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
@@ -139,7 +139,7 @@ def login():
                 login_user(user, remember=form.remember_me.data)
 
                 # Update last login timestamp
-                user.last_login = datetime.utcnow()
+                user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
 
                 # Redirect to requested page or dashboard

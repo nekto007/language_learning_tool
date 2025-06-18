@@ -30,7 +30,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% set total_download = download_stats|sum(attribute='count') %}
+                                {% set total_download = download_stats|map(attribute='count')|sum %}
                                 {% for stat in download_stats %}
                                 <tr>
                                     <td>
@@ -79,7 +79,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% set total_listening = listening_stats|sum(attribute='count') %}
+                                {% set total_listening = listening_stats|map(attribute='count')|sum %}
                                 {% for stat in listening_stats %}
                                 <tr>
                                     <td>

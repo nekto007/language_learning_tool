@@ -11,7 +11,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
             flash('You need administrator privileges to access this page.', 'danger')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('words.dashboard'))
         return f(*args, **kwargs)
 
     return decorated_function
