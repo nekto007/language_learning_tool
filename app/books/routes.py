@@ -13,6 +13,8 @@ from PIL import Image
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
+
+from app import csrf
 from sqlalchemy import desc, func
 from werkzeug.utils import secure_filename
 from wtforms.fields.choices import SelectField
@@ -401,6 +403,7 @@ def read_book(book_id):
 
 
 @books.route('/api/save-reading-position', methods=['POST'])
+@csrf.exempt
 @login_required
 def save_reading_position():
     """
@@ -440,6 +443,7 @@ def save_reading_position():
 
 
 @books.route('/api/translate', methods=['POST'])
+@csrf.exempt
 @login_required
 def api_translate():
     """
@@ -473,6 +477,7 @@ def api_translate():
 
 
 @books.route('/api/add-word-to-learning', methods=['POST'])
+@csrf.exempt
 @login_required
 def add_word_to_learning():
     """
@@ -548,6 +553,7 @@ def get_bookmarks(book_id):
 
 
 @books.route('/api/bookmarks', methods=['POST'])
+@csrf.exempt
 @login_required
 def save_bookmark():
     """
@@ -583,6 +589,7 @@ def save_bookmark():
 
 
 @books.route('/api/save-progress', methods=['POST'])
+@csrf.exempt
 @login_required
 def save_progress():
     """
@@ -1157,6 +1164,7 @@ def get_word_translation(word):
 
 
 @books.route('/api/add-to-learning', methods=['POST'])
+@csrf.exempt
 @login_required
 def add_to_learning():
     """
@@ -1420,7 +1428,6 @@ def book_words(book_id):
 
     # Фильтрация по статусу
     if status is not None:
-        from app.study.models import UserWord
         from app.utils.db import status_to_string
 
         status_str = status_to_string(status)

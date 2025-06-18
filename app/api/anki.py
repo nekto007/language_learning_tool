@@ -4,6 +4,7 @@ import tempfile
 from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user
 
+from app import csrf
 from app.api.auth import api_login_required
 from app.utils.anki_export import create_anki_package
 from app.words.models import CollectionWords
@@ -12,6 +13,7 @@ api_anki = Blueprint('api_anki', __name__)
 
 
 @api_anki.route('/export-anki', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def export_anki():
     if not request.is_json:

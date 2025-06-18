@@ -95,7 +95,7 @@
                         <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
                         <td>
                             {% if user.last_login %}
-                                {% set days_inactive = ((now - user.last_login).total_seconds() / 86400)|round|int %}
+                                {% set days_inactive = ((now.replace(tzinfo=None) - (user.last_login.replace(tzinfo=None) if user.last_login.tzinfo else user.last_login)).total_seconds() / 86400)|round|int %}
                                 {{ user.last_login.strftime('%d %b %Y') }}
                                 {% if days_inactive > 30 %}
                                     <span class="badge bg-danger ms-1">{{ days_inactive }}d inactive</span>
@@ -124,6 +124,7 @@
                                 <ul class="dropdown-menu">
                                     <li>
                                         <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                            {{ csrf_token() }}
                                             <button type="submit" class="dropdown-item">
                                                 <i class="fas fa-{{ 'ban' if user.active else 'check' }} me-2"></i>
                                                 {{ 'Deactivate' if user.active else 'Activate' }}
@@ -133,6 +134,7 @@
                                     {% if current_user.id != user.id %}
                                     <li>
                                         <form action="{{ url_for('admin.toggle_admin_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                            {{ csrf_token() }}
                                             <button type="submit" class="dropdown-item">
                                                 <i class="fas fa-user-{{ 'minus' if user.is_admin else 'shield' }} me-2"></i>
                                                 {{ 'Remove Admin' if user.is_admin else 'Make Admin' }}

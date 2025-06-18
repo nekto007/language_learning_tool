@@ -6,6 +6,7 @@ from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 
+from app import csrf
 from app.study.forms import StudySessionForm, StudySettingsForm
 from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
@@ -229,7 +230,7 @@ def get_study_items():
                 continue
             
             audio_url = None
-            if hasattr(word, 'get_download') and word.get_download == 1:
+            if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
                 audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
             
             if direction.direction == 'eng-rus':
@@ -270,7 +271,7 @@ def get_study_items():
         # Add new words to result
         for word in new_words:
             audio_url = None
-            if hasattr(word, 'get_download') and word.get_download == 1:
+            if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
                 print('word',word)
                 audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
@@ -317,6 +318,7 @@ def get_study_items():
 
 
 @study.route('/api/update-study-item', methods=['POST'])
+@csrf.exempt
 @login_required
 def update_study_item():
     """Update study item after review"""
@@ -363,6 +365,7 @@ def update_study_item():
 
 
 @study.route('/api/complete-session', methods=['POST'])
+@csrf.exempt
 @login_required
 def complete_session():
     """Mark a study session as complete"""
@@ -629,7 +632,7 @@ def create_multiple_choice_question(word, all_words, direction):
 
     # Audio for English word
     audio_url = None
-    if direction == 'eng_to_rus' and word.get_download == 1:
+    if direction == 'eng_to_rus' and word.get_download == 1 and word.listening:
         audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = correct_answer.split(',')[0]
@@ -738,7 +741,7 @@ def create_fill_blank_question(word, direction):
 
     # Audio for English word
     audio_url = None
-    if direction == 'eng_to_rus' and word.get_download == 1:
+    if direction == 'eng_to_rus' and word.get_download == 1 and word.listening:
         audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = answer.split(',')[0]
@@ -759,6 +762,7 @@ def create_fill_blank_question(word, direction):
 
 
 @study.route('/api/submit-quiz-answer', methods=['POST'])
+@csrf.exempt
 @login_required
 def submit_quiz_answer():
     """Process a submitted quiz answer"""
@@ -867,7 +871,7 @@ def get_matching_words():
 
         # Get audio URL if available
         audio_url = None
-        if hasattr(word, 'get_download') and word.get_download == 1:
+        if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
             audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
         game_words.append({
@@ -887,6 +891,7 @@ def get_matching_words():
 
 
 @study.route('/api/complete-matching-game', methods=['POST'])
+@csrf.exempt
 @login_required
 def complete_matching_game():
     """Process a completed matching game"""
@@ -965,6 +970,7 @@ def complete_matching_game():
 
 
 @study.route('/api/complete-quiz', methods=['POST'])
+@csrf.exempt
 @login_required
 def complete_quiz():
     """Process a completed quiz"""

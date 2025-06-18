@@ -133,3 +133,6 @@ class User(db.Model, UserMixin):
 
     def get_id(self):
         return str(self.id)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'

@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
@@ -91,13 +91,13 @@ def cache_result(key, timeout=_cache_timeout):
             # Проверяем кэш
             if cache_key in _cache:
                 cached_data, cached_time = _cache[cache_key]
-                if (datetime.utcnow() - cached_time).seconds < timeout:
+                if (datetime.now(timezone.utc) - cached_time).seconds < timeout:
                     logger.debug(f"Cache hit for {cache_key}")
                     return cached_data
 
             # Выполняем функцию и кэшируем результат
             result = func(*args, **kwargs)
-            _cache[cache_key] = (result, datetime.utcnow())
+            _cache[cache_key] = (result, datetime.now(timezone.utc))
             logger.debug(f"Cache miss for {cache_key}, result cached")
 
             return result
@@ -163,7 +163,7 @@ def admin_required(view_func):
 @cache_result('dashboard_stats', timeout=180)  # Кэш на 3 минуты
 def get_dashboard_statistics():
     """Получает статистику для дашборда с кэшированием"""
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
     # Основная статистика пользователей
     total_users = User.query.count()
@@ -252,7 +252,7 @@ def users():
     )
 
     users = pagination.items
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     return render_template(
         'admin/users.html',
@@ -300,7 +300,7 @@ def toggle_admin_status(user_id):
 def stats():
     """Статистика приложения"""
     # Данные по регистрациям пользователей по дням за последний месяц
-    month_ago = datetime.utcnow() - timedelta(days=30)
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
     user_registrations = db.session.query(
         func.date(User.created_at).label('date'),
         func.count(User.id).label('count')
@@ -1677,7 +1677,7 @@ def get_recent_db_operations():
         recent_lessons = Lessons.query.order_by(Lessons.created_at.desc()).limit(5).all()
 
         # Недавно зарегистрированные пользователи
-        week_ago = datetime.utcnow() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         recent_users = User.query.filter(User.created_at >= week_ago).order_by(User.created_at.desc()).limit(5).all()
 
         return {
@@ -1721,7 +1721,7 @@ def export_words_json(words, status=None):
         words_data.append(word_dict)
 
     response_data = {
-        'export_date': datetime.utcnow().isoformat(),
+        'export_date': datetime.now(timezone.utc).isoformat(),
         'total_words': len(words_data),
         'status_filter': status,
         'words': words_data
@@ -1729,7 +1729,7 @@ def export_words_json(words, status=None):
 
     response = make_response(json.dumps(response_data, ensure_ascii=False, indent=2))
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response
@@ -1759,7 +1759,7 @@ def export_words_csv(words, status=None):
 
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response
@@ -1769,7 +1769,7 @@ def export_words_txt(words, status=None):
     """Экспорт слов в текстовом формате"""
     from flask import make_response
 
-    lines = [f"# Words Export - {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"]
+    lines = [f"# Words Export - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"]
     if status:
         lines.append(f"# Status filter: {status}")
     lines.append(f"# Total words: {len(words)}")
@@ -1784,7 +1784,7 @@ def export_words_txt(words, status=None):
     content = '\n'.join(lines)
     response = make_response(content)
     response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.txt"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response
@@ -1929,7 +1929,7 @@ def update_book_statistics():
                 # Обновляем статистику книги
                 book.unique_words = unique_words or 0
                 book.total_words = total_words or 0
-                book.scrape_date = datetime.utcnow()
+                book.scrape_date = datetime.now(timezone.utc)
                 updated_count += 1
 
             except Exception as e:
@@ -2080,7 +2080,7 @@ def add_book():
             title=form.title.data,
             author=form.author.data,
             level=form.level.data,
-            scrape_date=datetime.utcnow()
+            scrape_date=datetime.now(timezone.utc)
         )
 
         # Обрабатываем обложку, если она загружена
@@ -2608,7 +2608,7 @@ def get_audio_download_list():
             return redirect(url_for('admin.audio_management'))
 
         # Получаем список слов
-        words = [row[0] for row in result]
+        words = [row[0] for row in result if row and len(row) > 0]
 
         if format_type == 'json':
             return export_audio_list_json(words, pattern)
@@ -2634,7 +2634,7 @@ def audio_statistics():
         repo = DatabaseRepository()
 
         # Статистика по статусу загрузки
-        download_stats = repo.execute_query(f"""
+        download_stats_raw = repo.execute_query(f"""
             SELECT 
                 CASE 
                     WHEN get_download = 1 THEN 'Available'
@@ -2646,9 +2646,18 @@ def audio_statistics():
             GROUP BY get_download
             ORDER BY get_download DESC
         """, fetch=True)
+        
+        # Преобразуем в словари
+        download_stats = []
+        for row in download_stats_raw or []:
+            if row and len(row) >= 2:
+                download_stats.append({
+                    'status': row[0],
+                    'count': row[1]
+                })
 
         # Статистика по форматам listening
-        listening_stats = repo.execute_query(f"""
+        listening_stats_raw = repo.execute_query(f"""
             SELECT 
                 CASE 
                     WHEN listening LIKE 'http%' THEN 'HTTP URL'
@@ -2667,9 +2676,18 @@ def audio_statistics():
                 END
             ORDER BY count DESC
         """, fetch=True)
+        
+        # Преобразуем в словари
+        listening_stats = []
+        for row in listening_stats_raw or []:
+            if row and len(row) >= 2:
+                listening_stats.append({
+                    'format_type': row[0],
+                    'count': row[1]
+                })
 
         # Слова по уровням с аудио
-        level_audio_stats = repo.execute_query(f"""
+        level_audio_stats_raw = repo.execute_query(f"""
             SELECT 
                 COALESCE(level, 'Unknown') as level,
                 COUNT(*) as total_words,
@@ -2678,6 +2696,16 @@ def audio_statistics():
             GROUP BY level
             ORDER BY level
         """, fetch=True)
+        
+        # Преобразуем в словари
+        level_audio_stats = []
+        for row in level_audio_stats_raw or []:
+            if row and len(row) >= 3:
+                level_audio_stats.append({
+                    'level': row[0],
+                    'total_words': row[1],
+                    'with_audio': row[2]
+                })
 
         return render_template(
             'admin/audio/statistics.html',
@@ -2707,7 +2735,7 @@ def export_audio_list_json(words, pattern=None):
         })
 
     response_data = {
-        'export_date': datetime.utcnow().isoformat(),
+        'export_date': datetime.now(timezone.utc).isoformat(),
         'total_words': len(words),
         'pattern_filter': pattern,
         'purpose': 'forvo_audio_download_list',
@@ -2716,7 +2744,7 @@ def export_audio_list_json(words, pattern=None):
 
     response = make_response(json.dumps(response_data, ensure_ascii=False, indent=2))
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response
@@ -2741,7 +2769,7 @@ def export_audio_list_csv(words, pattern=None):
 
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response
@@ -2751,7 +2779,7 @@ def export_audio_list_txt(words, pattern=None):
     """Экспорт списка аудио в текстовом формате с Forvo URL"""
     from flask import make_response
 
-    lines = [f"# Audio Download List - {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"]
+    lines = [f"# Audio Download List - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"]
     if pattern:
         lines.append(f"# Pattern filter: {pattern}")
     lines.append(f"# Total words: {len(words)}")
@@ -2766,7 +2794,7 @@ def export_audio_list_txt(words, pattern=None):
     content = '\n'.join(lines)
     response = make_response(content)
     response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.txt"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response

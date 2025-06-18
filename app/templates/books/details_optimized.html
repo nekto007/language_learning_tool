@@ -509,7 +509,7 @@
             {% if frequent_words %}
             <div class="word-grid">
                 {% for word, frequency in frequent_words %}
-                <div class="word-card" onclick="window.location.href='{{ url_for('words.word_details', word_id=word.id) }}'">
+                <div class="word-card" onclick="window.location.href='{{ url_for('words.word_detail', word_id=word.id) }}'">
                     <div class="word-text">{{ word.english_word }}</div>
                     <div class="word-frequency">{{ frequency }} {{ _('раз') }}</div>
                     <div class="word-status {{ word_statuses.get(word.id, 'new') }}"></div>

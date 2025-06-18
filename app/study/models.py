@@ -184,6 +184,18 @@ class UserWord(db.Model):
             db.session.commit()
         return user_word
 
+    def update_status(self, new_status):
+        """Update the status of the user word"""
+        self.status = new_status
+        self.updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+    def set_next_review(self, days=1):
+        """Set next review date"""
+        self.updated_at = datetime.now(timezone.utc)
+        # This is a simplified implementation
+        # In practice, you might want to implement spaced repetition logic
+
     @hybrid_property
     def performance_percentage(self):
         """Calculate percentage of correct answers across all directions"""

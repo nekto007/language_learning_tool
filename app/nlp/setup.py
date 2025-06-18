@@ -93,5 +93,4 @@ def initialize_nltk():
     english_vocab = get_english_vocabulary()
     brown_words_set = get_brown_words()
     stop_words = get_stopwords()
-
     return english_vocab, brown_words_set, stop_words

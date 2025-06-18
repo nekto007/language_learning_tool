@@ -3,7 +3,7 @@
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Dict, List, Optional
 
@@ -23,7 +23,7 @@ class SimpleCache:
         """Get value from cache"""
         if key in self._cache:
             # Check if expired
-            if key in self._expiry and datetime.utcnow() > self._expiry[key]:
+            if key in self._expiry and datetime.now(timezone.utc) > self._expiry[key]:
                 self.delete(key)
                 return None
             return self._cache[key]
@@ -33,7 +33,7 @@ class SimpleCache:
         """Set value in cache with timeout in seconds"""
         self._cache[key] = value
         if timeout:
-            self._expiry[key] = datetime.utcnow() + timedelta(seconds=timeout)
+            self._expiry[key] = datetime.now(timezone.utc) + timedelta(seconds=timeout)
 
     def delete(self, key: str) -> None:
         """Delete key from cache"""

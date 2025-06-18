@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy import func, or_
 
+from app import csrf
 from app.api.auth import api_login_required
 from app.study.models import UserWord
 from app.utils.db import db
@@ -201,6 +202,7 @@ def get_topic_words(topic_id):
 
 
 @api_topics_collections.route('/topics/<int:topic_id>/add-to-study', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def add_topic_to_study(topic_id):
     """Добавление всех слов темы в список изучения"""
@@ -221,7 +223,7 @@ def add_topic_to_study(topic_id):
     # Добавление слов в изучение
     added_count = 0
     for word_id in words_to_add:
-        user_word = UserWord(user_id=current_user.id, word_id=word_id, status='new')
+        user_word = UserWord(user_id=current_user.id, word_id=word_id)
         db.session.add(user_word)
         added_count += 1
 
@@ -477,6 +479,7 @@ def get_collection_words(collection_id):
 
 
 @api_topics_collections.route('/collections/<int:collection_id>/add-to-study', methods=['POST'])
+@csrf.exempt
 @api_login_required
 def add_collection_to_study(collection_id):
     """Добавление всех слов коллекции в список изучения"""
@@ -497,7 +500,7 @@ def add_collection_to_study(collection_id):
     # Добавление слов в изучение
     added_count = 0
     for word_id in words_to_add:
-        user_word = UserWord(user_id=current_user.id, word_id=word_id, status='new')
+        user_word = UserWord(user_id=current_user.id, word_id=word_id)
         db.session.add(user_word)
         added_count += 1
 
