@@ -197,3 +197,57 @@ def logout():
     logout_user()
     flash('Вы вышли из системы.', 'info')
     return redirect(url_for('auth.login'))
+
+
+@auth.route('/profile')
+@login_required
+def profile():
+    """Basic profile view"""
+    return render_template('auth/profile.html', user=current_user)
+
+
+@auth.route('/profile', methods=['POST'])
+@login_required  
+def profile_update():
+    """Basic profile update"""
+    username_or_email = request.form.get('username_or_email')
+    email = request.form.get('email')
+    
+    if username_or_email:
+        current_user.username = username_or_email
+    if email:
+        current_user.email = email
+        
+    try:
+        db.session.commit()
+        flash('Профиль обновлен успешно.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Ошибка при обновлении профиля.', 'danger')
+    
+    return render_template('auth/profile.html', user=current_user)
+
+
+@auth.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Basic password change"""
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_user.check_password(current_password):
+            flash('Текущий пароль неверен.', 'danger')
+        elif new_password != confirm_password:
+            flash('Новые пароли не совпадают.', 'danger')  
+        else:
+            current_user.set_password(new_password)
+            try:
+                db.session.commit()
+                flash('Пароль изменен успешно.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash('Ошибка при изменении пароля.', 'danger')
+    
+    return render_template('auth/change_password.html')
