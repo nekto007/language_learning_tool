@@ -725,17 +725,17 @@
               });
 
               try {
-                  const response = await fetch('/curriculum/api/rate-card', {
+                  const response = await fetch('/study/api/update-study-item', {
                       method: 'POST',
                       headers: {
                           'Content-Type': 'application/json',
                           'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
                       },
                       body: JSON.stringify({
-                          lesson_id: lessonConfig.lessonId,
                           word_id: card.word_id,
                           direction: card.direction,
-                          rating: rating
+                          quality: rating,
+                          session_id: null
                       })
                   });
 
