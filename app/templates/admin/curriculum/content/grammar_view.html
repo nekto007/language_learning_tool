@@ -1,0 +1,126 @@
+<!-- Grammar lesson content view -->
+<div class="alert alert-success mb-3">
+    <i class="fas fa-graduation-cap me-2"></i>
+    <strong>Урок грамматики</strong>
+</div>
+
+{% if lesson.content and lesson.content is iterable %}
+    {% if lesson.content is mapping %}
+        <!-- Rule and explanation -->
+        {% if lesson.content.rule %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Правило</h6>
+                </div>
+                <div class="card-body">
+                    <p>{{ lesson.content.rule }}</p>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Explanation -->
+        {% if lesson.content.explanation %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Объяснение</h6>
+                </div>
+                <div class="card-body">
+                    <p>{{ lesson.content.explanation }}</p>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Examples -->
+        {% if lesson.content.examples %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Примеры</h6>
+                </div>
+                <div class="card-body">
+                    {% for example in lesson.content.examples %}
+                        <div class="mb-3">
+                            {% if example is mapping %}
+                                {% if example.sentence %}
+                                    <p class="mb-1"><strong>{{ example.sentence }}</strong></p>
+                                {% endif %}
+                                {% if example.translation %}
+                                    <p class="text-muted mb-1">{{ example.translation }}</p>
+                                {% endif %}
+                                {% if example.explanation %}
+                                    <small class="text-info">{{ example.explanation }}</small>
+                                {% endif %}
+                            {% else %}
+                                <p>{{ example }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Exercises -->
+        {% if lesson.content.exercises %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Упражнения ({{ lesson.content.exercises|length }})</h6>
+                </div>
+                <div class="card-body">
+                    {% for exercise in lesson.content.exercises %}
+                        <div class="mb-3 p-3 border rounded">
+                            {% if exercise.instruction %}
+                                <h6 class="text-primary">{{ exercise.instruction }}</h6>
+                            {% endif %}
+                            {% if exercise.sentence %}
+                                <p>{{ exercise.sentence }}</p>
+                            {% endif %}
+                            {% if exercise.answer %}
+                                <p><strong>Ответ:</strong> <span class="text-success">{{ exercise.answer }}</span></p>
+                            {% endif %}
+                            {% if exercise.explanation %}
+                                <small class="text-muted">{{ exercise.explanation }}</small>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Other content -->
+        {% for key, value in lesson.content.items() %}
+            {% if key not in ['rule', 'explanation', 'examples', 'exercises'] %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">{{ key|title }}</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if value is iterable and value is not string %}
+                            {% for item in value %}
+                                <p>{{ item }}</p>
+                            {% endfor %}
+                        {% else %}
+                            <p>{{ value }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
+    {% else %}
+        <!-- If content is a list -->
+        <div class="alert alert-info">
+            <strong>Содержимое в виде списка:</strong>
+        </div>
+        {% for item in lesson.content %}
+            <div class="card mb-2">
+                <div class="card-body">
+                    <p>{{ item }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Содержимое урока грамматики пустое или неверного формата
+    </div>
+{% endif %}

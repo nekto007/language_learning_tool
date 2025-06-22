@@ -1,0 +1,75 @@
+<!-- Vocabulary lesson content view -->
+<div class="alert alert-info mb-3">
+    <i class="fas fa-book me-2"></i>
+    <strong>Урок словаря</strong>
+    {% if lesson.collection_id %}
+        - Привязан к коллекции ID: {{ lesson.collection_id }}
+        {% if lesson.collection %}
+            ({{ lesson.collection.name }})
+        {% endif %}
+    {% else %}
+        - Коллекция не назначена
+    {% endif %}
+</div>
+
+{% if lesson.content and lesson.content is iterable %}
+    {% if lesson.content is mapping %}
+        <!-- If content is a dictionary -->
+        {% for key, value in lesson.content.items() %}
+            <div class="mb-3">
+                <h6 class="text-primary">{{ key|title }}</h6>
+                {% if value is iterable and value is not string %}
+                    {% if value is mapping %}
+                        <dl class="row">
+                            {% for subkey, subvalue in value.items() %}
+                                <dt class="col-sm-3">{{ subkey }}:</dt>
+                                <dd class="col-sm-9">{{ subvalue }}</dd>
+                            {% endfor %}
+                        </dl>
+                    {% else %}
+                        <ul class="list-unstyled">
+                            {% for item in value %}
+                                <li>• {{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% else %}
+                    <p>{{ value }}</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <!-- If content is a list -->
+        <div class="row">
+            {% for item in lesson.content %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            {% if item is mapping %}
+                                {% if item.word %}
+                                    <h6 class="card-title">{{ item.word }}</h6>
+                                {% endif %}
+                                {% if item.translation %}
+                                    <p class="card-text text-muted">{{ item.translation }}</p>
+                                {% endif %}
+                                {% if item.example %}
+                                    <small class="text-success">Пример: {{ item.example }}</small>
+                                {% endif %}
+                                {% if item.audio %}
+                                    <br><small class="text-info">Аудио: {{ item.audio }}</small>
+                                {% endif %}
+                            {% else %}
+                                <p class="card-text">{{ item }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Содержимое урока пустое или неверного формата
+    </div>
+{% endif %}

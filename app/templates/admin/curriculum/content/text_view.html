@@ -1,0 +1,181 @@
+<!-- Text lesson content view -->
+<div class="alert alert-secondary mb-3">
+    <i class="fas fa-file-alt me-2"></i>
+    <strong>Урок чтения</strong>
+    {% if lesson.book_id %}
+        - Привязан к книге ID: {{ lesson.book_id }}
+        {% if lesson.book %}
+            ({{ lesson.book.title }})
+        {% endif %}
+    {% else %}
+        - Книга не назначена
+    {% endif %}
+</div>
+
+{% if lesson.content and lesson.content is iterable %}
+    {% if lesson.content is mapping %}
+        <!-- Title -->
+        {% if lesson.content.title %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ lesson.content.title }}</h5>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Text content -->
+        {% if lesson.content.text %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Текст для чтения</h6>
+                </div>
+                <div class="card-body">
+                    {% if lesson.content.text is iterable and lesson.content.text is not string %}
+                        {% for paragraph in lesson.content.text %}
+                            <p class="mb-3">{{ paragraph }}</p>
+                        {% endfor %}
+                    {% else %}
+                        <div style="white-space: pre-wrap;">{{ lesson.content.text }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Questions -->
+        {% if lesson.content.questions %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Вопросы на понимание ({{ lesson.content.questions|length }})</h6>
+                </div>
+                <div class="card-body">
+                    {% for question in lesson.content.questions %}
+                        <div class="mb-3 p-3 border-start border-primary border-3">
+                            {% if question is mapping %}
+                                <h6 class="text-primary">{{ loop.index }}. {{ question.question }}</h6>
+                                {% if question.options %}
+                                    <ul class="list-unstyled mt-2">
+                                        {% for option in question.options %}
+                                            <li class="mb-1">
+                                                {% if question.correct_answer and option == question.correct_answer %}
+                                                    <span class="text-success">✓ {{ option }}</span>
+                                                {% else %}
+                                                    <span>○ {{ option }}</span>
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                                {% if question.answer and not question.options %}
+                                    <p class="text-success"><strong>Ответ:</strong> {{ question.answer }}</p>
+                                {% endif %}
+                            {% else %}
+                                <p>{{ question }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Vocabulary -->
+        {% if lesson.content.vocabulary %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Словарь</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for word in lesson.content.vocabulary %}
+                            <div class="col-md-6 mb-2">
+                                {% if word is mapping %}
+                                    <div class="d-flex justify-content-between">
+                                        <strong>{{ word.word }}</strong>
+                                        <span class="text-muted">{{ word.translation or word.meaning }}</span>
+                                    </div>
+                                    {% if word.definition %}
+                                        <small class="text-info">{{ word.definition }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span>{{ word }}</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Audio -->
+        {% if lesson.content.audio %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Аудио</h6>
+                </div>
+                <div class="card-body">
+                    {% if lesson.content.audio is iterable and lesson.content.audio is not string %}
+                        {% for audio in lesson.content.audio %}
+                            <p><i class="fas fa-volume-up text-info"></i> {{ audio }}</p>
+                        {% endfor %}
+                    {% else %}
+                        <p><i class="fas fa-volume-up text-info"></i> {{ lesson.content.audio }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Settings -->
+        {% if lesson.content.settings %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Настройки</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        {% for key, value in lesson.content.settings.items() %}
+                            <dt class="col-sm-4">{{ key|replace('_', ' ')|title }}:</dt>
+                            <dd class="col-sm-8">{{ value }}</dd>
+                        {% endfor %}
+                    </dl>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Other content -->
+        {% for key, value in lesson.content.items() %}
+            {% if key not in ['title', 'text', 'questions', 'vocabulary', 'audio', 'settings'] %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">{{ key|title }}</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if value is iterable and value is not string %}
+                            {% for item in value %}
+                                <p>{{ item }}</p>
+                            {% endfor %}
+                        {% else %}
+                            <p>{{ value }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
+    {% else %}
+        <!-- If content is a list -->
+        <div class="alert alert-info">
+            <strong>Содержимое в виде списка:</strong>
+        </div>
+        {% for item in lesson.content %}
+            <div class="card mb-2">
+                <div class="card-body">
+                    <p>{{ item }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Содержимое урока чтения пустое или неверного формата
+    </div>
+{% endif %}
