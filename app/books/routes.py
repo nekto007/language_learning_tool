@@ -1390,10 +1390,24 @@ def book_details(book_id):
 
     frequent_words = db.session.execute(frequent_words_query).all()
 
-    # Get word statuses
+    # Get word statuses efficiently
     word_statuses = {}
-    for word, _ in frequent_words:
-        word_statuses[word.id] = current_user.get_word_status(word.id)
+    if frequent_words:
+        word_ids = [word.id for word, _ in frequent_words]
+        # Bulk query for user word statuses
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        
+        # Create status mapping
+        for user_word in user_words:
+            word_statuses[user_word.word_id] = user_word.status
+        
+        # Fill missing words with 'new' status
+        for word_id in word_ids:
+            if word_id not in word_statuses:
+                word_statuses[word_id] = 'new'
 
     # A/B testing for optimized version
     use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']

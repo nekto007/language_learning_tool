@@ -5,50 +5,23 @@
 {% block styles %}
 {{ super() }}
 <style>
-:root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --success-gradient: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    --warning-gradient: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
-    --info-gradient: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-}
-
-/* Header Section */
-.page-header {
-    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+.words-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 2rem 0;
+    border-radius: 16px;
+    padding: 2rem;
     margin-bottom: 2rem;
 }
 
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.header-title h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-}
-
-.header-meta {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.875rem;
-    opacity: 0.9;
-}
-
-/* Filter Bar */
-.filter-bar {
+.filter-panel {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     margin-bottom: 2rem;
 }
 
+/* Filter Chips */
 .filter-chips {
     display: flex;
     gap: 0.5rem;
@@ -75,7 +48,7 @@
 }
 
 .filter-chip.active {
-    background: var(--primary-gradient);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-color: transparent;
 }
@@ -85,127 +58,228 @@
 .filter-chip.review { border-left: 3px solid #667eea; }
 .filter-chip.mastered { border-left: 3px solid #48bb78; }
 
-/* Word Cards Grid */
-.words-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
+/* Words Table */
+.words-table {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
     margin-bottom: 2rem;
 }
 
-.word-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+.words-table table {
+    margin-bottom: 0;
+}
+
+.words-table th {
+    background: #ffffff;
+    color: #1a202c;
+    border-bottom: 3px solid #667eea;
+    border-top: 2px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    font-weight: 700;
+    padding: 1.2rem 0.75rem;
+    white-space: nowrap;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+    user-select: none;
     position: relative;
-    overflow: hidden;
 }
 
-.word-card::before {
-    content: '';
+.words-table th:first-child {
+    border-left: 2px solid #e2e8f0;
+    border-top-left-radius: 8px;
+}
+
+.words-table th:last-child {
+    border-right: 2px solid #e2e8f0;
+    border-top-right-radius: 8px;
+}
+
+.words-table th.sortable::after {
+    content: '\f0dc';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
+    right: 0.75rem;
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
 }
 
-.word-card.status-new::before { background: #4299e1; }
-.word-card.status-learning::before { background: #ed8936; }
-.word-card.status-review::before { background: #667eea; }
-.word-card.status-mastered::before { background: #48bb78; }
-
-.word-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+.words-table th.sortable:hover::after {
+    opacity: 0.7;
 }
 
-.word-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    margin-bottom: 1rem;
+.words-table th.sort-asc::after {
+    content: '\f0de';
+    opacity: 1;
+    color: #667eea;
 }
 
-.word-main {
-    font-size: 1.25rem;
-    font-weight: 600;
+.words-table th.sort-desc::after {
+    content: '\f0dd';
+    opacity: 1;
+    color: #667eea;
+}
+
+.words-table td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.words-table tbody tr:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    transform: scale(1.01);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.word-english {
+    font-weight: 700;
     color: #2d3748;
-    margin-bottom: 0.25rem;
+    font-size: 1.15rem;
+    letter-spacing: 0.5px;
 }
 
-.word-translation {
-    color: #718096;
-    font-size: 0.875rem;
+.word-russian {
+    color: #4a5568;
+    font-size: 1rem;
+    font-weight: 500;
 }
 
-.word-frequency {
-    background: #f7fafc;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
+.word-frequency-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
     font-size: 0.75rem;
-    color: #4a5568;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    letter-spacing: 1px;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+    border-color: #3182ce;
 }
 
-.word-context {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 0.75rem;
-    margin: 1rem 0;
-    font-size: 0.875rem;
+.word-context-preview {
     color: #4a5568;
+    font-size: 0.875rem;
     font-style: italic;
-    max-height: 60px;
+    max-width: 200px;
+    white-space: nowrap;
     overflow: hidden;
-    position: relative;
+    text-overflow: ellipsis;
 }
 
-.word-context::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background: linear-gradient(transparent, #f8f9fa);
+.status-indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.word-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
+.status-new { 
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    box-shadow: 0 2px 6px rgba(108, 117, 125, 0.4);
+}
+.status-learning { 
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
+}
+.status-review { 
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    box-shadow: 0 2px 6px rgba(23, 162, 184, 0.4);
+}
+.status-mastered { 
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.4);
 }
 
-.btn-word-action {
-    flex: 1;
-    padding: 0.5rem;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
+.action-btn {
+    padding: 0.5rem 0.75rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
     background: white;
-    color: #4a5568;
-    font-size: 0.875rem;
-    transition: all 0.3s ease;
-    text-align: center;
+    color: #495057;
     text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    margin-right: 0.25rem;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.btn-word-action:hover {
+.action-btn:hover {
+    background: #f8f9fa;
     border-color: #667eea;
     color: #667eea;
-    background: #f0f4ff;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.btn-word-action.primary {
-    background: var(--primary-gradient);
+.action-btn.primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border-color: #007bff;
     color: white;
-    border: none;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }
 
-.btn-word-action.primary:hover {
-    transform: scale(1.05);
+.action-btn.primary:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    border-color: #0056b3;
     color: white;
+    box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+}
+
+.action-btn.success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-color: #28a745;
+    color: white;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.action-btn.review {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    border-color: #17a2b8;
+    color: white;
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+.action-btn.mastered {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-color: #28a745;
+    color: white;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Checkbox */
+.form-check-input {
+    width: 1.2em;
+    height: 1.2em;
+    border: 2px solid #667eea;
+    border-radius: 4px;
+}
+
+.form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.form-check-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 /* Bulk Actions */
@@ -306,177 +380,385 @@
     100% { background-position: -200% 0; }
 }
 
+/* Stats Bar */
+.stats-bar {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+    background: rgba(102, 126, 234, 0.05);
+    transform: translateY(-2px);
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    color: #4a5568;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Bulk Actions Panel */
+.bulk-actions-panel {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 2px solid #5a67d8;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    transform: translateY(-10px);
+    opacity: 0;
+}
+
+.bulk-actions-panel.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.selected-count {
+    font-weight: 700;
+    color: white;
+    font-size: 1.1rem;
+}
+
+.bulk-action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bulk-action-buttons .btn {
+    white-space: nowrap;
+    font-weight: 600;
+    border: 2px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.15);
+    color: white;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+
+.bulk-action-buttons .btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.5);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.bulk-action-buttons .btn:active {
+    transform: translateY(0);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Pagination */
+.pagination-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
-    .words-grid {
-        grid-template-columns: 1fr;
+    .words-table {
+        font-size: 0.875rem;
     }
     
-    .header-content {
+    .words-table th,
+    .words-table td {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .words-table th {
+        font-size: 0.8rem;
+        padding: 1rem 0.5rem;
+    }
+    
+    .word-english {
+        font-size: 1rem;
+    }
+    
+    .action-btn {
+        padding: 0.25rem 0.25rem;
+        font-size: 0.75rem;
+        margin-right: 0.125rem;
+    }
+    
+    .stats-bar {
         flex-direction: column;
-        align-items: start;
+        text-align: center;
     }
     
-    .search-sort-bar {
-        flex-direction: column;
+    .filter-panel .row {
+        gap: 1rem;
     }
     
-    .bulk-actions {
+    /* Скрываем контекст на мобильных */
+    .words-table th:nth-child(6),
+    .words-table td:nth-child(6) {
+        display: none;
+    }
+    
+    .bulk-actions-panel {
         flex-direction: column;
         gap: 1rem;
+    }
+    
+    .bulk-action-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .bulk-action-buttons .btn {
+        font-size: 0.875rem;
     }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Header -->
-<div class="page-header">
-    <div class="container">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb bg-transparent p-0 mb-3">
-                <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}" class="text-white-50">{{ _('Книги') }}</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-white-50">{{ book.title[:30] }}...</a></li>
-                <li class="breadcrumb-item active text-white">{{ _('Слова') }}</li>
-            </ol>
-        </nav>
-        
-        <div class="header-content">
-            <div class="header-title">
-                <h1>{{ book.title }} - {{ _('Слова') }}</h1>
-                <div class="header-meta">
-                    <span><i class="fas fa-font me-1"></i> {{ pagination.total }} {{ _('слов') }}</span>
-                    <span><i class="fas fa-book me-1"></i> {{ _('Страница') }} {{ pagination.page }} {{ _('из') }} {{ pagination.pages }}</span>
-                </div>
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="words-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb bg-transparent p-0 mb-0">
+                        <li class="breadcrumb-item"><a href="{{ url_for('books.book_list') }}" class="text-white-50">{{ _('Книги') }}</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-white-50">{{ book.title[:30] }}...</a></li>
+                        <li class="breadcrumb-item active text-white">{{ _('Слова') }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-6 fw-bold mb-2">{{ book.title }} - {{ _('Слова') }}</h1>
+                <p class="mb-0 opacity-75">
+                    <i class="fas fa-font me-1"></i> {{ pagination.total }} {{ _('слов') }} • 
+                    <i class="fas fa-book me-1"></i> {{ _('Страница') }} {{ pagination.page }} {{ _('из') }} {{ pagination.pages }}
+                </p>
             </div>
-            <div class="header-actions">
+            <div class="col-lg-4 text-end">
                 <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-light">
                     <i class="fas fa-book-reader me-2"></i>{{ _('Читать книгу') }}
                 </a>
             </div>
         </div>
     </div>
-</div>
 
-<div class="container">
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-        <h5 class="mb-3">{{ _('Фильтр по статусу') }}</h5>
-        <div class="filter-chips">
-            <a href="{{ url_for('books.book_words', book_id=book.id) }}" 
-               class="filter-chip {% if status is none %}active{% endif %}">
-                <i class="fas fa-th"></i> {{ _('Все слова') }}
-            </a>
-            <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" 
-               class="filter-chip new {% if status == 0 %}active{% endif %}">
-                <i class="fas fa-sparkles"></i> {{ _('Новые') }} ({{ word_stats.new if word_stats else 0 }})
-            </a>
-            <a href="{{ url_for('books.book_words', book_id=book.id, status=1) }}" 
-               class="filter-chip learning {% if status == 1 %}active{% endif %}">
-                <i class="fas fa-graduation-cap"></i> {{ _('Изучаются') }} ({{ word_stats.learning if word_stats else 0 }})
-            </a>
-            <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" 
-               class="filter-chip review {% if status == 2 %}active{% endif %}">
-                <i class="fas fa-redo"></i> {{ _('Повторение') }} ({{ word_stats.review if word_stats else 0 }})
-            </a>
-            <a href="{{ url_for('books.book_words', book_id=book.id, status=3) }}" 
-               class="filter-chip mastered {% if status == 3 %}active{% endif %}">
-                <i class="fas fa-trophy"></i> {{ _('Изучено') }} ({{ word_stats.mastered if word_stats else 0 }})
-            </a>
+    <!-- Stats Bar -->
+    {% if book_words %}
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-number text-primary">{{ pagination.total }}</div>
+            <div class="stat-label">{{ _('Всего слов') }}</div>
         </div>
-        
-        <div class="search-sort-bar">
-            <div class="search-box">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" 
-                       class="search-input" 
-                       id="wordSearch" 
-                       placeholder="{{ _('Поиск слов...') }}">
+        <div class="stat-item">
+            <div class="stat-number text-success">{{ word_stats.learning if word_stats else 0 }}</div>
+            <div class="stat-label">{{ _('Изучаемых') }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number text-info">{{ word_stats.review if word_stats else 0 }}</div>
+            <div class="stat-label">{{ _('На повторении') }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number text-warning">{{ word_stats.mastered if word_stats else 0 }}</div>
+            <div class="stat-label">{{ _('Выученных') }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <!-- Search -->
+        <div class="row g-3 justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <label class="form-label fw-semibold">{{ _('Поиск слов') }}</label>
+                <div class="position-relative">
+                    <i class="fas fa-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #718096;"></i>
+                    <input type="text" 
+                           class="form-control ps-5" 
+                           id="wordSearch" 
+                           placeholder="{{ _('Поиск по слову или переводу...') }}">
+                </div>
             </div>
-            
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle sort-dropdown" 
-                        type="button" 
-                        data-bs-toggle="dropdown">
-                    <i class="fas fa-sort me-2"></i>
-                    {{ _('Сортировать по') }} {{ sort_by | replace('_', ' ') | title }}
-                </button>
-                <ul class="dropdown-menu">
-                    <li>
-                        <a class="dropdown-item {% if sort_by == 'frequency' %}active{% endif %}" 
-                           href="{{ url_for('books.book_words', book_id=book.id, sort='frequency', order='desc', status=status) }}">
-                            {{ _('Частота (от высокой к низкой)') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item {% if sort_by == 'frequency' and sort_order == 'asc' %}active{% endif %}" 
-                           href="{{ url_for('books.book_words', book_id=book.id, sort='frequency', order='asc', status=status) }}">
-                            {{ _('Частота (от низкой к высокой)') }}
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item {% if sort_by == 'english_word' %}active{% endif %}" 
-                           href="{{ url_for('books.book_words', book_id=book.id, sort='english_word', order='asc', status=status) }}">
-                            {{ _('По алфавиту (A-Z)') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item {% if sort_by == 'english_word' and sort_order == 'desc' %}active{% endif %}" 
-                           href="{{ url_for('books.book_words', book_id=book.id, sort='english_word', order='desc', status=status) }}">
-                            {{ _('По алфавиту (Z-A)') }}
-                        </a>
-                    </li>
-                </ul>
+        </div>
+
+        <!-- Status Filter Chips -->
+        <div class="col-12 mt-3">
+            <label class="form-label fw-semibold">{{ _('Фильтр по статусу') }}</label>
+            <div class="filter-chips">
+                <a href="{{ url_for('books.book_words', book_id=book.id) }}" 
+                   class="filter-chip {% if status is none %}active{% endif %}">
+                    <i class="fas fa-th"></i> {{ _('Все слова') }}
+                </a>
+                <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" 
+                   class="filter-chip new {% if status == 0 %}active{% endif %}">
+                    <i class="fas fa-sparkles"></i> {{ _('Новые') }} ({{ word_stats.new if word_stats else 0 }})
+                </a>
+                <a href="{{ url_for('books.book_words', book_id=book.id, status=1) }}" 
+                   class="filter-chip learning {% if status == 1 %}active{% endif %}">
+                    <i class="fas fa-graduation-cap"></i> {{ _('Изучаются') }} ({{ word_stats.learning if word_stats else 0 }})
+                </a>
+                <a href="{{ url_for('books.book_words', book_id=book.id, status=2) }}" 
+                   class="filter-chip review {% if status == 2 %}active{% endif %}">
+                    <i class="fas fa-redo"></i> {{ _('Повторение') }} ({{ word_stats.review if word_stats else 0 }})
+                </a>
+                <a href="{{ url_for('books.book_words', book_id=book.id, status=3) }}" 
+                   class="filter-chip mastered {% if status == 3 %}active{% endif %}">
+                    <i class="fas fa-trophy"></i> {{ _('Изучено') }} ({{ word_stats.mastered if word_stats else 0 }})
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Words Grid -->
-    {% if book_words %}
-    <div class="words-grid" id="wordsGrid">
-        {% for word, frequency in book_words %}
-        {% set status_class = word_statuses.get(word.id, 'new') %}
-        <div class="word-card status-{{ status_class }}" data-word="{{ word.english_word.lower() }}">
-            <input type="checkbox" class="word-checkbox" data-word-id="{{ word.id }}">
-            
-            <div class="word-header">
-                <div>
-                    <div class="word-main">{{ word.english_word }}</div>
-                    {% if word.russian_word %}
-                    <div class="word-translation">{{ word.russian_word }}</div>
-                    {% endif %}
-                </div>
-                <div class="word-frequency">
-                    {{ frequency }} {{ _('раз') }}
-                </div>
+    <!-- Bulk Actions Panel -->
+    <div class="bulk-actions-panel" id="bulkActionsPanel" style="display: none;">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="selected-count">
+                <span id="selectedCount">0</span> {{ _('слов выбрано') }}
             </div>
-            
-            {% if word.context %}
-            <div class="word-context">
-                "{{ word.context }}"
-            </div>
-            {% endif %}
-            
-            <div class="word-actions">
-                <a href="{{ url_for('words.word_detail', word_id=word.id) }}" 
-                   class="btn-word-action">
-                    <i class="fas fa-info-circle me-1"></i> {{ _('Подробнее') }}
-                </a>
-                {% if status_class == 'new' %}
-                <button class="btn-word-action primary" 
-                        onclick="addToLearning({{ word.id }})">
-                    <i class="fas fa-plus me-1"></i> {{ _('Изучать') }}
+            <div class="bulk-action-buttons">
+                <button class="btn btn-primary btn-sm" onclick="bulkUpdateStatus('learning')">
+                    <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
                 </button>
-                {% else %}
-                <button class="btn-word-action" 
-                        onclick="updateStatus({{ word.id }})">
-                    <i class="fas fa-sync me-1"></i> {{ _('Обновить') }}
+                <button class="btn btn-info btn-sm" onclick="bulkUpdateStatus('review')">
+                    <i class="fas fa-redo me-1"></i>{{ _('Повторение') }}
                 </button>
-                {% endif %}
+                <button class="btn btn-success btn-sm" onclick="bulkUpdateStatus('mastered')">
+                    <i class="fas fa-check me-1"></i>{{ _('Знаю') }}
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
+                    <i class="fas fa-times me-1"></i>{{ _('Отмена') }}
+                </button>
             </div>
         </div>
-        {% endfor %}
+    </div>
+
+    <!-- Words Table -->
+    <div class="words-table">
+        <table class="table table-hover mb-0" id="wordsTable">
+            <thead>
+                <tr>
+                    <th style="width: 4%">
+                        <input type="checkbox" id="selectAll" class="form-check-input" onchange="toggleSelectAll()">
+                    </th>
+                    <th style="width: 4%">{{ _('Статус') }}</th>
+                    <th style="width: 18%">{{ _('Английское слово') }}</th>
+                    <th style="width: 18%">{{ _('Перевод') }}</th>
+                    <th style="width: 8%">{{ _('Уровень') }}</th>
+                    <th style="width: 12%">{{ _('Книга') }}</th>
+                    <th style="width: 8%">{{ _('Аудио') }}</th>
+                    <th style="width: 16%">{{ _('Действия') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for word, frequency in book_words %}
+                {% set status_class = word_statuses.get(word.id, 'new') %}
+                <tr data-word="{{ word.english_word.lower() }}" data-status="{{ status_class }}">
+                    <td>
+                        <input type="checkbox" class="form-check-input word-checkbox" value="{{ word.id }}" data-word-id="{{ word.id }}">
+                    </td>
+                    <td>
+                        <div class="status-indicator status-{{ status_class }}" 
+                             title="{{ _('Выучено') if status_class == 'mastered' else _('Изучается') if status_class == 'learning' else _('Повторение') if status_class == 'review' else _('Новое') }}"></div>
+                    </td>
+                    <td>
+                        <div class="word-english">{{ word.english_word }}</div>
+                    </td>
+                    <td>
+                        <div class="word-russian">{{ word.russian_word }}</div>
+                    </td>
+                    <td>
+                        {% if word.level %}
+                        <span class="word-level level-{{ word.level }}">{{ word.level }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="text-muted small">
+                            <i class="fas fa-book me-1"></i>{{ book.title[:15] }}...
+                        </span>
+                    </td>
+                    <td>
+                        {% if word.get_download and word.listening %}
+                        <button class="audio-btn" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-1">
+                            <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="action-btn" title="{{ _('Подробно') }}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if status_class == 'new' %}
+                            <a href="#" class="action-btn primary" onclick="changeWordStatus({{ word.id }}, 'learning')" title="{{ _('Изучать') }}">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                            {% elif status_class == 'learning' %}
+                            <a href="#" class="action-btn review" onclick="changeWordStatus({{ word.id }}, 'review')" title="{{ _('На повторение') }}">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                            {% elif status_class == 'review' %}
+                            <a href="#" class="action-btn mastered" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
+                                <i class="fas fa-check"></i>
+                            </a>
+                            {% else %}
+                            <span class="action-btn success" title="{{ _('Изучено') }}">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            {% endif %}
+                            {% if status_class != 'mastered' %}
+                            <a href="#" class="action-btn mastered" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
+                                <i class="fas fa-star"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
     <!-- Pagination -->
@@ -514,7 +796,7 @@
             {% endif %}
         </ul>
     </nav>
-    {% endif %}
+{#    {% endif %}#}
     
     {% else %}
     <div class="empty-state">
@@ -523,162 +805,343 @@
         <p>{{ _('Попробуйте изменить фильтры или критерии поиска.') }}</p>
     </div>
     {% endif %}
-
-    <!-- Bulk Actions Bar -->
-    <div class="bulk-actions" id="bulkActions">
-        <div class="bulk-info">
-            <span id="selectedCount">0</span> {{ _('слов выбрано') }}
-        </div>
-        <div class="bulk-buttons">
-            <button class="btn btn-outline-secondary" onclick="clearSelection()">
-                {{ _('Очистить') }}
-            </button>
-            <button class="btn btn-primary" onclick="bulkAddToLearning()">
-                <i class="fas fa-plus me-2"></i>{{ _('Добавить в изучение') }}
-            </button>
         </div>
     </div>
 </div>
+
+<!-- Audio Element -->
+<audio id="audioPlayer" style="display: none;"></audio>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
+function playAudio(audioUrl) {
+    const audio = document.getElementById('audioPlayer');
+    audio.src = audioUrl;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+}
+
 // Search functionality
 document.getElementById('wordSearch').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
-    const wordCards = document.querySelectorAll('.word-card');
+    const tableRows = document.querySelectorAll('#wordsTable tbody tr');
     
-    wordCards.forEach(card => {
-        const word = card.dataset.word;
-        if (word.includes(searchTerm)) {
-            card.style.display = '';
+    tableRows.forEach(row => {
+        const word = row.dataset.word;
+        const translation = row.querySelector('.word-russian')?.textContent.toLowerCase() || '';
+        
+        if (word.includes(searchTerm) || translation.includes(searchTerm)) {
+            row.style.display = '';
         } else {
-            card.style.display = 'none';
+            row.style.display = 'none';
         }
     });
 });
 
-// Checkbox handling
-let selectedWords = new Set();
 
-document.querySelectorAll('.word-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        const wordId = this.dataset.wordId;
-        
-        if (this.checked) {
-            selectedWords.add(wordId);
-        } else {
-            selectedWords.delete(wordId);
-        }
-        
-        updateBulkActions();
+// Mass actions functionality
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const wordCheckboxes = document.querySelectorAll('.word-checkbox');
+    
+    wordCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
     });
-});
+    
+    updateBulkActionsPanel();
+}
 
-function updateBulkActions() {
-    const bulkActions = document.getElementById('bulkActions');
+function updateBulkActionsPanel() {
+    const checkedBoxes = document.querySelectorAll('.word-checkbox:checked');
+    const bulkPanel = document.getElementById('bulkActionsPanel');
     const selectedCount = document.getElementById('selectedCount');
     
-    if (selectedWords.size > 0) {
-        bulkActions.classList.add('show');
-        selectedCount.textContent = selectedWords.size;
+    if (checkedBoxes.length > 0) {
+        bulkPanel.style.display = 'block';
+        selectedCount.textContent = checkedBoxes.length;
+        // Добавляем небольшую задержку для плавной анимации
+        setTimeout(() => {
+            bulkPanel.classList.add('show');
+        }, 10);
     } else {
-        bulkActions.classList.remove('show');
+        bulkPanel.classList.remove('show');
+        // Скрываем панель после завершения анимации
+        setTimeout(() => {
+            bulkPanel.style.display = 'none';
+        }, 300);
     }
 }
 
 function clearSelection() {
-    selectedWords.clear();
-    document.querySelectorAll('.word-checkbox').forEach(checkbox => {
+    const checkboxes = document.querySelectorAll('.word-checkbox, #selectAll');
+    checkboxes.forEach(checkbox => {
         checkbox.checked = false;
     });
-    updateBulkActions();
+    updateBulkActionsPanel();
 }
 
-// Word actions
-async function addToLearning(wordId) {
-    try {
-        const response = await fetch('/api/add-word-to-learning', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({ word_id: wordId })
-        });
-        
-        if (response.ok) {
-            // Update UI
-            const card = document.querySelector(`[data-word-id="${wordId}"]`).closest('.word-card');
-            card.classList.remove('status-new');
-            card.classList.add('status-learning');
-            
-            // Show success message
-            showToast('Word added to learning list!', 'success');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Failed to add word', 'error');
+// Word status change function
+function changeWordStatus(wordId, status) {
+    // Валидация входных данных
+    if (!wordId || !status) {
+        alert('{{ _("Ошибка: некорректные данные") }}');
+        return;
     }
-}
-
-async function bulkAddToLearning() {
-    if (selectedWords.size === 0) return;
     
-    try {
-        const response = await fetch('/api/bulk-add-words', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({ word_ids: Array.from(selectedWords) })
-        });
-        
-        if (response.ok) {
-            // Update UI for all selected words
-            selectedWords.forEach(wordId => {
-                const card = document.querySelector(`[data-word-id="${wordId}"]`).closest('.word-card');
-                card.classList.remove('status-new');
-                card.classList.add('status-learning');
-            });
-            
-            clearSelection();
-            showToast(`${selectedWords.size} words added to learning list!`, 'success');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showToast('Failed to add words', 'error');
+    const validStatuses = ['new', 'learning', 'review', 'mastered'];
+    if (!validStatuses.includes(status)) {
+        alert('{{ _("Ошибка: некорректный статус") }}');
+        return;
     }
+    
+    // Проверка CSRF токена
+    const csrfToken = document.querySelector('meta[name=csrf-token]');
+    if (!csrfToken) {
+        alert('{{ _("Ошибка: отсутствует токен безопасности") }}');
+        return;
+    }
+    
+    // AJAX запрос для изменения статуса
+    fetch(`/api/words/${wordId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken.getAttribute('content')
+        },
+        body: JSON.stringify({ status: status })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            console.error('API Error:', data.error);
+            alert(`{{ _("Ошибка при обновлении статуса") }}: ${data.error || 'Unknown error'}`);
+        }
+    })
+    .catch(error => {
+        console.error('Network Error:', error);
+        alert(`{{ _("Ошибка сети при обновлении статуса") }}: ${error.message}`);
+    });
 }
 
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type === 'error' ? 'danger' : 'success'} position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 2000; min-width: 250px;';
-    toast.textContent = message;
+function bulkUpdateStatus(status) {
+    const checkedBoxes = document.querySelectorAll('.word-checkbox:checked');
     
-    document.body.appendChild(toast);
+    if (checkedBoxes.length === 0) {
+        alert('{{ _("Выберите слова для обновления") }}');
+        return;
+    }
     
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
+    // Валидация статуса
+    const validStatuses = ['new', 'learning', 'review', 'mastered'];
+    if (!validStatuses.includes(status)) {
+        alert('{{ _("Ошибка: некорректный статус") }}');
+        return;
+    }
+    
+    // Проверка CSRF токена
+    const csrfToken = document.querySelector('meta[name=csrf-token]');
+    if (!csrfToken) {
+        alert('{{ _("Ошибка: отсутствует токен безопасности") }}');
+        return;
+    }
+    
+    const wordIds = Array.from(checkedBoxes).map(checkbox => {
+        const id = parseInt(checkbox.value);
+        if (isNaN(id)) {
+            throw new Error(`Invalid word ID: ${checkbox.value}`);
+        }
+        return id;
+    });
+    
+    // Показываем индикатор загрузки
+    const buttons = document.querySelectorAll('.bulk-action-buttons .btn');
+    const originalTexts = Array.from(buttons).map(btn => btn.innerHTML);
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{{ _("Обновление...") }}';
+    });
+    
+    fetch('/api/batch-update-status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken.getAttribute('content')
+        },
+        body: JSON.stringify({ 
+            word_ids: wordIds,
+            status: status 
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(`{{ _("Успешно обновлено") }} ${data.updated_count} {{ _("слов") }}`);
+            location.reload();
+        } else {
+            console.error('API Error:', data.error);
+            alert(`{{ _("Ошибка при массовом обновлении статуса") }}: ${data.error || 'Unknown error'}`);
+        }
+    })
+    .catch(error => {
+        console.error('Network Error:', error);
+        alert(`{{ _("Ошибка сети при массовом обновлении статуса") }}: ${error.message}`);
+    })
+    .finally(() => {
+        // Возвращаем кнопки в активное состояние
+        buttons.forEach((btn, index) => {
+            btn.disabled = false;
+            btn.innerHTML = originalTexts[index];
+        });
+    });
 }
 
-// Keyboard shortcuts
-document.addEventListener('keydown', function(e) {
-    if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'a') {
+// Function to attach sorting event listeners
+function attachSortingListeners() {
+    document.querySelectorAll('.sortable').forEach(header => {
+        // Remove existing listeners to avoid duplicates
+        const newHeader = header.cloneNode(true);
+        header.parentNode.replaceChild(newHeader, header);
+        
+        newHeader.addEventListener('click', function(e) {
             e.preventDefault();
-            // Select all visible words
-            document.querySelectorAll('.word-card:not([style*="display: none"]) .word-checkbox').forEach(checkbox => {
-                checkbox.checked = true;
-                selectedWords.add(checkbox.dataset.wordId);
-            });
-            updateBulkActions();
-        }
+            
+            const sortBy = this.dataset.sort;
+            
+            // Special handling for status column (client-side sorting)
+            if (sortBy === 'status') {
+                handleStatusSort(this);
+                return;
+            }
+            
+            const currentSort = this.classList.contains('sort-asc') ? 'asc' : 
+                               this.classList.contains('sort-desc') ? 'desc' : 'none';
+            
+            let newOrder = 'asc';
+            if (currentSort === 'asc') {
+                newOrder = 'desc';
+            }
+            
+            // Construct URL with current filters and new sort
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('sort', sortBy);
+            urlParams.set('order', newOrder);
+            
+            // Save current scroll position
+            const scrollY = window.scrollY;
+            
+            // Navigate to new URL with preserved scroll position
+            fetch(window.location.pathname + '?' + urlParams.toString())
+                .then(response => response.text())
+                .then(html => {
+                    // Parse the new HTML
+                    const parser = new DOMParser();
+                    const newDoc = parser.parseFromString(html, 'text/html');
+                    
+                    // Replace the table content
+                    const newTable = newDoc.querySelector('#wordsTable');
+                    const currentTable = document.querySelector('#wordsTable');
+                    if (newTable && currentTable) {
+                        currentTable.innerHTML = newTable.innerHTML;
+                        
+                        // Update pagination if present
+                        const newPagination = newDoc.querySelector('nav[aria-label="Page navigation"]');
+                        const currentPagination = document.querySelector('nav[aria-label="Page navigation"]');
+                        if (newPagination && currentPagination) {
+                            currentPagination.innerHTML = newPagination.innerHTML;
+                        }
+                        
+                        // Re-attach all event listeners
+                        attachEventListeners();
+                        
+                        // Restore scroll position
+                        window.scrollTo(0, scrollY);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Fallback to full page reload
+                    window.location.href = window.location.pathname + '?' + urlParams.toString();
+                });
+        });
+    });
+}
+
+// Client-side sorting for status column (since it's not in backend)
+function sortTableByStatus(order = 'asc') {
+    const tbody = document.querySelector('#wordsTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    const statusOrder = { 'new': 0, 'learning': 1, 'review': 2, 'mastered': 3 };
+    
+    rows.sort((a, b) => {
+        const aStatus = a.dataset.status;
+        const bStatus = b.dataset.status;
+        const aVal = statusOrder[aStatus] || 999;
+        const bVal = statusOrder[bStatus] || 999;
+        
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Handle status column sorting (client-side)
+function handleStatusSort(header) {
+    const currentSort = header.classList.contains('sort-asc') ? 'asc' : 
+                       header.classList.contains('sort-desc') ? 'desc' : 'none';
+    
+    let newOrder = 'asc';
+    if (currentSort === 'asc') {
+        newOrder = 'desc';
     }
+    
+    // Remove sort classes from all headers
+    document.querySelectorAll('.sortable').forEach(h => {
+        h.classList.remove('sort-asc', 'sort-desc');
+    });
+    
+    // Add sort class to current header
+    header.classList.add(`sort-${newOrder}`);
+    
+    // Sort table
+    sortTableByStatus(newOrder);
+}
+
+// Function to attach event listeners
+function attachEventListeners() {
+    // Checkbox event listeners
+    const wordCheckboxes = document.querySelectorAll('.word-checkbox');
+    wordCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActionsPanel);
+    });
+    
+    // Select all checkbox
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', toggleSelectAll);
+    }
+    
+    // Sorting listeners
+    attachSortingListeners();
+}
+
+// Add event listeners for checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    attachEventListeners();
 });
 </script>
 {% endblock %}
