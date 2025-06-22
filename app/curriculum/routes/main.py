@@ -20,118 +20,102 @@ main_bp = Blueprint('curriculum', __name__)
 @main_bp.route('/')
 @login_required
 def index():
-    """Main curriculum page with improved UX and security"""
+    """Главная страница учебной программы - простая и понятная"""
     try:
-        # Get all CEFR levels
-        all_levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
-
-        # If no levels exist, show a helpful message
-        if not all_levels:
+        # Получаем все уровни CEFR
+        levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
+        
+        if not levels:
             flash('Учебные материалы еще не загружены. Обратитесь к администратору.', 'info')
-            return render_template('curriculum/index.html', levels=[], user_progress={}, active_lessons=[],
-                                   recommended_level=None)
-
-        # Filter levels based on sequential completion
-        user_progress = {}
-        active_lessons = []
-        recommended_level = None
-        unlocked_levels = []
-
-        if current_user.is_authenticated:
-            # Determine which levels are accessible based on sequential completion
-            for i, level in enumerate(all_levels):
-                # First level is always accessible
-                if i == 0:
-                    unlocked_levels.append(level)
-                else:
-                    # Check if previous level is sufficiently completed (80%+)
-                    prev_level = all_levels[i-1]
-                    prev_progress = user_progress.get(prev_level.id, {})
-                    if prev_progress.get('percentage', 0) >= 80:
-                        unlocked_levels.append(level)
-                    else:
-                        # Show one locked level for motivation, then stop
-                        unlocked_levels.append(level)
-                        break
-
-            # Get detailed progress for accessible levels
-            for level in unlocked_levels:
-                # Get all modules for the level
-                modules = Module.query.filter_by(level_id=level.id).all()
-                module_ids = [m.id for m in modules]
-
-                if module_ids:
-                    # Count total and completed lessons for the level
-                    total_lessons = db.session.query(func.count(Lessons.id)).filter(
-                        Lessons.module_id.in_(module_ids)
-                    ).scalar() or 0
-
-                    completed_lessons = db.session.query(func.count(LessonProgress.id)).join(
-                        Lessons, Lessons.id == LessonProgress.lesson_id
-                    ).filter(
-                        Lessons.module_id.in_(module_ids),
+            return render_template('curriculum/index.html', levels=[], stats={})
+        
+        # Подготавливаем данные для каждого уровня
+        levels_data = []
+        total_stats = {'total_lessons': 0, 'completed_lessons': 0}
+        
+        for level in levels:
+            # Получаем модули для уровня
+            modules = Module.query.filter_by(level_id=level.id).order_by(Module.number).all()
+            
+            # Считаем уроки в уровне
+            level_lessons = 0
+            level_completed = 0
+            
+            modules_data = []
+            for module in modules:
+                lessons = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).all()
+                module_total = len(lessons)
+                
+                # Считаем завершенные уроки в модуле для текущего пользователя
+                module_completed = 0
+                if current_user.is_authenticated and lessons:
+                    lesson_ids = [lesson.id for lesson in lessons]
+                    completed_count = db.session.query(func.count(LessonProgress.id)).filter(
                         LessonProgress.user_id == current_user.id,
+                        LessonProgress.lesson_id.in_(lesson_ids),
                         LessonProgress.status == 'completed'
                     ).scalar() or 0
-
-                    in_progress_lessons = db.session.query(func.count(LessonProgress.id)).join(
-                        Lessons, Lessons.id == LessonProgress.lesson_id
-                    ).filter(
-                        Lessons.module_id.in_(module_ids),
-                        LessonProgress.user_id == current_user.id,
-                        LessonProgress.status == 'in_progress'
-                    ).scalar() or 0
-
-                    user_progress[level.id] = {
-                        'total_lessons': total_lessons,
-                        'completed_lessons': completed_lessons,
-                        'in_progress_lessons': in_progress_lessons,
-                        'percentage': round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
-                    }
-
-                    # Find active lessons
-                    if in_progress_lessons > 0:
-                        active_lesson_entries = db.session.query(LessonProgress).join(
-                            Lessons, Lessons.id == LessonProgress.lesson_id
-                        ).join(
-                            Module, Module.id == Lessons.module_id
-                        ).filter(
-                            Lessons.module_id.in_(module_ids),
-                            LessonProgress.user_id == current_user.id,
-                            LessonProgress.status == 'in_progress'
-                        ).order_by(LessonProgress.last_activity.desc()).limit(3).all()
-
-                        for progress in active_lesson_entries:
-                            active_lessons.append({
-                                'lesson': progress.lesson,
-                                'module': progress.lesson.module,
-                                'level': level,
-                                'last_activity': progress.last_activity
-                            })
-
-            # Determine recommended level (first level with < 80% completion)
-            for level in unlocked_levels:
-                progress = user_progress.get(level.id, {})
-                if progress.get('percentage', 0) < 80:
-                    recommended_level = level
-                    break
-        else:
-            # For non-authenticated users, show first level as recommended
-            unlocked_levels = all_levels[:1] if all_levels else []
-            recommended_level = unlocked_levels[0] if unlocked_levels else None
-
-        return render_template(
-            'curriculum/index.html',
-            levels=unlocked_levels,  # Only show accessible levels
-            user_progress=user_progress,
-            active_lessons=active_lessons,
-            recommended_level=recommended_level
-        )
-
+                    module_completed = completed_count
+                
+                modules_data.append({
+                    'module': module,
+                    'total_lessons': module_total,
+                    'completed_lessons': module_completed,
+                    'progress_percent': round((module_completed / module_total * 100) if module_total > 0 else 0),
+                    'is_available': True  # Все модули доступны для простоты
+                })
+                
+                level_lessons += module_total
+                level_completed += module_completed
+            
+            # Прогресс по уровню
+            level_progress = round((level_completed / level_lessons * 100) if level_lessons > 0 else 0)
+            
+            level_data = {
+                'level': level,
+                'modules': modules_data,
+                'total_lessons': level_lessons,
+                'completed_lessons': level_completed,
+                'progress_percent': level_progress,
+                'is_available': True  # Все уровни доступны
+            }
+            
+            levels_data.append(level_data)
+            total_stats['total_lessons'] += level_lessons
+            total_stats['completed_lessons'] += level_completed
+        
+        # Последние активности пользователя
+        recent_activity = []
+        if current_user.is_authenticated:
+            recent_progress = db.session.query(LessonProgress)\
+                .join(Lessons).join(Module).join(CEFRLevel)\
+                .filter(LessonProgress.user_id == current_user.id)\
+                .order_by(LessonProgress.last_activity.desc())\
+                .limit(5).all()
+            
+            for progress in recent_progress:
+                recent_activity.append({
+                    'lesson': progress.lesson,
+                    'module': progress.lesson.module,
+                    'level': progress.lesson.module.level,
+                    'status': progress.status,
+                    'score': progress.score,
+                    'last_activity': progress.last_activity
+                })
+        
+        # Общая статистика
+        total_stats['progress_percent'] = round((total_stats['completed_lessons'] / total_stats['total_lessons'] * 100) 
+                                              if total_stats['total_lessons'] > 0 else 0)
+        
+        return render_template('curriculum/index.html',
+                             levels_data=levels_data,
+                             recent_activity=recent_activity,
+                             total_stats=total_stats)
+                             
     except Exception as e:
-        logger.error(f"Error in curriculum index: {str(e)}")
-        flash('Произошла ошибка при загрузке учебного курса', 'error')
-        return redirect(url_for('words.dashboard'))
+        logger.error(f"Ошибка загрузки curriculum: {str(e)}")
+        flash('Произошла ошибка при загрузке учебной программы.', 'error')
+        return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={})
 
 
 @main_bp.route('/levels/<string:level_code>')
