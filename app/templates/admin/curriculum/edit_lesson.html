@@ -30,71 +30,59 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="">
-                    {{ form.hidden_tag() }}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                     <div class="mb-3">
-                        {{ form.module_id.label(class="form-label") }}
-                        {{ form.module_id(class="form-select" + (" is-invalid" if form.module_id.errors else "")) }}
-                        {% if form.module_id.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.module_id.errors %}{{ error }}{% endfor %}
-                            </div>
-                        {% endif %}
+                        <label for="module_id" class="form-label">Модуль</label>
+                        <select name="module_id" id="module_id" class="form-select">
+                            {% for module in modules %}
+                                <option value="{{ module.id }}" {% if module.id == lesson.module_id %}selected{% endif %}>
+                                    {{ module.level.code }} - Модуль {{ module.number }}: {{ module.title }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="row">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                {{ form.number.label(class="form-label") }}
-                                {{ form.number(class="form-control" + (" is-invalid" if form.number.errors else "")) }}
-                                {% if form.number.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.number.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% endif %}
+                                <label for="number" class="form-label">Номер урока</label>
+                                <input type="number" name="number" id="number" class="form-control" 
+                                       value="{{ lesson.number }}" min="1" required>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label class="form-label">Type</label>
+                                <label class="form-label">Тип</label>
                                 <input type="text" class="form-control" value="{{ lesson.type }}" disabled>
-                                <small class="form-text text-muted">Type cannot be changed</small>
+                                <small class="form-text text-muted">Тип нельзя изменить</small>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label class="form-label">Order</label>
+                                <label class="form-label">Порядок</label>
                                 <input type="text" class="form-control" value="{{ lesson.order }}" disabled>
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        {{ form.title.label(class="form-label") }}
-                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
-                        {% if form.title.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.title.errors %}{{ error }}{% endfor %}
-                            </div>
-                        {% endif %}
+                        <label for="title" class="form-label">Название</label>
+                        <input type="text" name="title" id="title" class="form-control" 
+                               value="{{ lesson.title }}" maxlength="200" required>
                     </div>
 
                     <div class="mb-4">
-                        {{ form.description.label(class="form-label") }}
-                        {{ form.description(class="form-control", rows="3") }}
-                        {% if form.description.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.description.errors %}{{ error }}{% endfor %}
-                            </div>
-                        {% endif %}
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea name="description" id="description" class="form-control" rows="3">{{ lesson.description or '' }}</textarea>
                     </div>
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Save Changes
+                            <i class="fas fa-save me-2"></i>Сохранить изменения
                         </button>
-                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-secondary">
-                            <i class="fas fa-times me-2"></i>Cancel
+                        <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Отмена
                         </a>
                     </div>
                 </form>
@@ -103,71 +91,41 @@
 
         <!-- Lesson content editor -->
         <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0">Lesson Content</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Содержимое урока</h5>
+                <div>
+                    <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-eye me-1"></i>Просмотр
+                    </a>
+                </div>
             </div>
             <div class="card-body">
-                {% if lesson.type == 'vocabulary' %}
-                    {% if lesson.collection_id %}
-                        <p class="mb-3">
-                            <strong>Collection:</strong> {{ lesson.collection.name if lesson.collection else 'Not set' }}
-                        </p>
-                        <a href="{{ url_for('admin.edit_collection', collection_id=lesson.collection_id) }}" class="btn btn-primary">
-                            <i class="fas fa-edit me-2"></i>Edit Collection
-                        </a>
-                    {% else %}
-                        <p class="text-muted">No collection assigned to this vocabulary lesson.</p>
-                        <a href="{{ url_for('admin.create_collection') }}" class="btn btn-success">
-                            <i class="fas fa-plus me-2"></i>Create Collection
-                        </a>
-                    {% endif %}
-
-                {% elif lesson.type == 'grammar' %}
-                    <p class="mb-3">Edit grammar rules, examples, and exercises.</p>
-                    <a href="{{ url_for('admin.edit_grammar_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Grammar Content
-                    </a>
-
-                {% elif lesson.type == 'quiz' or lesson.type == 'checkpoint' %}
-                    <p class="mb-3">Edit quiz questions and settings.</p>
-                    <a href="{{ url_for('admin.edit_quiz_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Quiz Content
-                    </a>
-
-                {% elif lesson.type == 'matching' %}
-                    <p class="mb-3">Edit matching pairs and settings.</p>
-                    <a href="{{ url_for('admin.edit_matching_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Matching Content
-                    </a>
-
-                {% elif lesson.type == 'text' %}
-                    <p class="mb-3">Edit reading text and comprehension settings.</p>
-                    <a href="{{ url_for('admin.edit_text_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
-                        <i class="fas fa-edit me-2"></i>Edit Text Content
-                    </a>
-
-                {% elif lesson.type == 'card' %}
-                    <p class="mb-3">Flashcards content is managed through JSON import.</p>
-                    {% if lesson.content %}
-                        <div class="alert alert-info">
-                            <strong>Cards:</strong> {{ lesson.content|length if lesson.content is iterable else 0 }} flashcards
+                <form method="POST" id="contentForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="content" class="form-label">JSON содержимое</label>
+                        <textarea name="content" id="content" class="form-control" rows="20" style="font-family: monospace;">{{ content_json if content_json else '{}' }}</textarea>
+                        <div class="form-text">
+                            Редактируйте содержимое урока в формате JSON. 
+                            <a href="#" data-bs-toggle="modal" data-bs-target="#jsonHelpModal">Помощь по форматам</a>
                         </div>
-                    {% endif %}
-                {% endif %}
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" onclick="validateJSON()">
+                            <i class="fas fa-check me-2"></i>Проверить JSON
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="formatJSON()">
+                            <i class="fas fa-magic me-2"></i>Форматировать
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Сохранить содержимое
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <!-- Content preview if available -->
-        {% if lesson.content %}
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0">Content Preview</h5>
-            </div>
-            <div class="card-body">
-                <pre class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">{{ lesson.content|tojson(indent=2) }}</pre>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <div class="col-lg-4">
@@ -206,18 +164,12 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    {% if lesson.type == 'vocabulary' and not lesson.collection_id %}
-                    <a href="{{ url_for('admin.create_collection') }}?lesson_id={{ lesson.id }}" class="btn btn-success btn-sm">
-                        <i class="fas fa-plus me-1"></i>Create Collection
+                    <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-eye me-1"></i>Просмотреть урок
                     </a>
-                    {% endif %}
-
-                    <a href="{{ url_for('admin.create_lesson', module_id=lesson.module_id) }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i>Add Another Lesson
-                    </a>
-
-                    <a href="{{ url_for('admin.import_curriculum') }}?lesson_id={{ lesson.id }}" class="btn btn-info btn-sm">
-                        <i class="fas fa-upload me-1"></i>Import Content
+                    
+                    <a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-list me-1"></i>Все уроки модуля
                     </a>
                 </div>
             </div>
@@ -229,14 +181,165 @@
             </div>
             <div class="card-body">
                 <p class="text-muted small mb-3">Once you delete a lesson, there is no going back.</p>
-                <form method="POST" action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}"
-                      onsubmit="return confirm('Are you sure you want to delete this lesson?');">
+                <form method="POST" action="{{ url_for('curriculum_admin.delete_lesson', lesson_id=lesson.id) }}"
+                      onsubmit="return confirm('Вы уверены что хотите удалить этот урок?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-danger btn-sm w-100">
-                        <i class="fas fa-trash me-1"></i>Delete Lesson
+                        <i class="fas fa-trash me-1"></i>Удалить урок
                     </button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- JSON Help Modal -->
+<div class="modal fade" id="jsonHelpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Форматы содержимого уроков</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="accordion" id="formatAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#vocabulary-format">
+                                Словарь (vocabulary)
+                            </button>
+                        </h2>
+                        <div id="vocabulary-format" class="accordion-collapse collapse show" data-bs-parent="#formatAccordion">
+                            <div class="accordion-body">
+                                <pre class="bg-light p-3 rounded">[
+  {
+    "word": "apple",
+    "translation": "яблоко",
+    "example": "I eat an apple every day",
+    "audio": "apple.mp3"
+  }
+]</pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#quiz-format">
+                                Тест (quiz)
+                            </button>
+                        </h2>
+                        <div id="quiz-format" class="accordion-collapse collapse" data-bs-parent="#formatAccordion">
+                            <div class="accordion-body">
+                                <pre class="bg-light p-3 rounded">{
+  "questions": [
+    {
+      "question": "What is the capital of France?",
+      "options": ["London", "Berlin", "Paris", "Madrid"],
+      "correct_answer": "Paris",
+      "explanation": "Paris is the capital of France"
+    }
+  ]
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#card-format">
+                                Карточки (card)
+                            </button>
+                        </h2>
+                        <div id="card-format" class="accordion-collapse collapse" data-bs-parent="#formatAccordion">
+                            <div class="accordion-body">
+                                <pre class="bg-light p-3 rounded">[
+  {
+    "question": "Hello",
+    "answer": "Привет",
+    "hint": "A greeting",
+    "difficulty": "easy"
+  }
+]</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function validateJSON() {
+    const textarea = document.getElementById('content');
+    const content = textarea.value;
+    
+    try {
+        JSON.parse(content);
+        showAlert('JSON валиден!', 'success');
+        textarea.classList.remove('is-invalid');
+        textarea.classList.add('is-valid');
+    } catch (e) {
+        showAlert('Ошибка JSON: ' + e.message, 'danger');
+        textarea.classList.remove('is-valid');
+        textarea.classList.add('is-invalid');
+    }
+}
+
+function formatJSON() {
+    const textarea = document.getElementById('content');
+    const content = textarea.value;
+    
+    try {
+        const parsed = JSON.parse(content);
+        const formatted = JSON.stringify(parsed, null, 2);
+        textarea.value = formatted;
+        showAlert('JSON отформатирован!', 'info');
+        textarea.classList.remove('is-invalid');
+    } catch (e) {
+        showAlert('Невозможно форматировать: неверный JSON', 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.card-body');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+// Auto-save draft functionality
+let autoSaveTimeout;
+document.getElementById('content').addEventListener('input', function() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        localStorage.setItem('lesson_{{ lesson.id }}_draft', this.value);
+    }, 1000);
+});
+
+// Load draft on page load
+window.addEventListener('load', function() {
+    const draft = localStorage.getItem('lesson_{{ lesson.id }}_draft');
+    if (draft && draft !== document.getElementById('content').value) {
+        if (confirm('Найден сохраненный черновик. Загрузить его?')) {
+            document.getElementById('content').value = draft;
+        }
+    }
+});
+
+// Clear draft on successful submit
+document.getElementById('contentForm').addEventListener('submit', function() {
+    localStorage.removeItem('lesson_{{ lesson.id }}_draft');
+});
+</script>
 {% endblock %}

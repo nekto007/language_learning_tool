@@ -116,7 +116,11 @@
                         </td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}"
+                                <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}"
+                                   class="btn btn-outline-success" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id) }}"
                                    class="btn btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
@@ -125,31 +129,16 @@
                                        class="btn btn-outline-info {% if not lesson.collection_id %}disabled{% endif %}" title="Edit Collection">
                                         <i class="fas fa-book"></i>
                                     </a>
-                                {% elif lesson.type == 'grammar' %}
-                                    <a href="{{ url_for('admin.edit_grammar_lesson', lesson_id=lesson.id) }}"
-                                       class="btn btn-outline-info" title="Edit Grammar">
-                                        <i class="fas fa-graduation-cap"></i>
-                                    </a>
-                                {% elif lesson.type in ['quiz', 'checkpoint'] %}
-                                    <a href="{{ url_for('admin.edit_quiz_lesson', lesson_id=lesson.id) }}"
-                                       class="btn btn-outline-info" title="Edit Quiz">
-                                        <i class="fas fa-question-circle"></i>
-                                    </a>
-                                {% elif lesson.type == 'matching' %}
-                                    <a href="{{ url_for('admin.edit_matching_lesson', lesson_id=lesson.id) }}"
-                                       class="btn btn-outline-info" title="Edit Matching">
-                                        <i class="fas fa-link"></i>
-                                    </a>
-                                {% elif lesson.type == 'text' %}
-                                    <a href="{{ url_for('admin.edit_text_lesson', lesson_id=lesson.id) }}"
-                                       class="btn btn-outline-info" title="Edit Text">
-                                        <i class="fas fa-file-alt"></i>
+                                {% else %}
+                                    <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}"
+                                       class="btn btn-outline-info" title="View Content">
+                                        <i class="fas fa-file-text"></i>
                                     </a>
                                 {% endif %}
-                                <form method="POST" action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}"
-                                      class="d-inline">
+                                <form method="POST" action="{{ url_for('curriculum_admin.delete_lesson', lesson_id=lesson.id) }}"
+                                      class="d-inline" onsubmit="return confirm('Удалить этот урок?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Delete this lesson?')"
                                             title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>

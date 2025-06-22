@@ -7,20 +7,7 @@ from app.curriculum.routes import admin_bp, api_bp, lessons_bp, main_bp as curri
 def init_curriculum_module(app):
     """Initialize curriculum module with all components"""
 
-    # Add custom unauthorized handler for AJAX requests
-    login_manager = app.extensions.get('flask-login')
-    if login_manager:
-        original_unauthorized = login_manager.unauthorized
-
-        def handle_unauthorized():
-            from flask import request, jsonify
-            # Return JSON for AJAX requests
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'error': 'Authentication required'}), 401
-            # Otherwise use the default handler
-            return original_unauthorized()
-
-        login_manager.unauthorized = handle_unauthorized
+    # Unauthorized handler is now configured globally in __init__.py
 
     # Initialize middleware and monitoring
     from app.curriculum.middleware import init_curriculum_monitoring

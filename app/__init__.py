@@ -104,6 +104,18 @@ def create_app(config_class=Config):
     def load_user(user_id):
         from app.auth.models import User
         return User.query.get(int(user_id))
+    
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        """Custom unauthorized handler that preserves the original URL"""
+        from flask import request, url_for, redirect, jsonify
+        
+        # For AJAX requests, return JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        
+        # For regular requests, redirect to login with next parameter
+        return redirect(url_for('auth.login', next=request.url))
 
     # Create database tables and configure PostgreSQL
     with app.app_context():
