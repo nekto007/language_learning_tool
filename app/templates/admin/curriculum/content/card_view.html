@@ -1,0 +1,165 @@
+<!-- Card lesson content view -->
+<div class="alert alert-dark mb-3">
+    <i class="fas fa-id-card me-2"></i>
+    <strong>Урок с карточками (SRS)</strong>
+</div>
+
+{% if lesson.content and lesson.content is iterable %}
+    {% if lesson.content is mapping %}
+        <!-- Settings -->
+        {% if lesson.content.settings %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Настройки SRS</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        {% for key, value in lesson.content.settings.items() %}
+                            <dt class="col-sm-6">{{ key|replace('_', ' ')|title }}:</dt>
+                            <dd class="col-sm-6">{{ value }}</dd>
+                        {% endfor %}
+                    </dl>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Cards -->
+        {% set cards = lesson.content.cards if lesson.content.cards else lesson.content %}
+    {% else %}
+        {% set cards = lesson.content %}
+    {% endif %}
+    
+    {% if cards and cards is iterable and cards is not string %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Карточки ({{ cards|length }})</h6>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="toggleAllCards()">
+                    <i class="fas fa-eye me-1"></i>Показать все
+                </button>
+            </div>
+        </div>
+        
+        <div class="row">
+            {% for card in cards %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100 card-flip" onclick="flipCard(this)">
+                        <div class="card-body card-front">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <small class="text-muted">Карточка {{ loop.index }}</small>
+                                {% if card.difficulty %}
+                                    <span class="badge bg-{{ 'danger' if card.difficulty == 'hard' else 'warning' if card.difficulty == 'medium' else 'success' }}">
+                                        {{ card.difficulty }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if card.question or card.front %}
+                                <h6 class="card-title">{{ card.question or card.front }}</h6>
+                            {% endif %}
+                            
+                            {% if card.hint %}
+                                <small class="text-info">
+                                    <i class="fas fa-lightbulb"></i> Подсказка: {{ card.hint }}
+                                </small>
+                            {% endif %}
+                            
+                            <div class="mt-3">
+                                <small class="text-muted">Кликните для просмотра ответа</small>
+                            </div>
+                        </div>
+                        
+                        <div class="card-body card-back d-none">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <small class="text-muted">Ответ</small>
+                                <small class="text-muted">Кликните чтобы скрыть</small>
+                            </div>
+                            
+                            {% if card.answer or card.back %}
+                                <h6 class="card-title text-success">{{ card.answer or card.back }}</h6>
+                            {% endif %}
+                            
+                            {% if card.example %}
+                                <p class="card-text">
+                                    <strong>Пример:</strong> {{ card.example }}
+                                </p>
+                            {% endif %}
+                            
+                            {% if card.explanation %}
+                                <small class="text-muted">{{ card.explanation }}</small>
+                            {% endif %}
+                            
+                            {% if card.audio %}
+                                <div class="mt-2">
+                                    <small class="text-info">
+                                        <i class="fas fa-volume-up"></i> Аудио: {{ card.audio }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Карточки не найдены в содержимом урока
+        </div>
+    {% endif %}
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Содержимое урока с карточками пустое или неверного формата
+    </div>
+{% endif %}
+
+<style>
+.card-flip {
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+.card-flip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+
+<script>
+function flipCard(cardElement) {
+    const front = cardElement.querySelector('.card-front');
+    const back = cardElement.querySelector('.card-back');
+    
+    if (back.classList.contains('d-none')) {
+        front.classList.add('d-none');
+        back.classList.remove('d-none');
+    } else {
+        back.classList.add('d-none');
+        front.classList.remove('d-none');
+    }
+}
+
+function toggleAllCards() {
+    const cards = document.querySelectorAll('.card-flip');
+    const button = event.target.closest('button');
+    const allFlipped = Array.from(cards).every(card => !card.querySelector('.card-back').classList.contains('d-none'));
+    
+    cards.forEach(card => {
+        const front = card.querySelector('.card-front');
+        const back = card.querySelector('.card-back');
+        
+        if (allFlipped) {
+            // Hide all answers
+            back.classList.add('d-none');
+            front.classList.remove('d-none');
+        } else {
+            // Show all answers
+            front.classList.add('d-none');
+            back.classList.remove('d-none');
+        }
+    });
+    
+    button.innerHTML = allFlipped ? 
+        '<i class="fas fa-eye me-1"></i>Показать все' : 
+        '<i class="fas fa-eye-slash me-1"></i>Скрыть все';
+}
+</script>

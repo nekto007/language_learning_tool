@@ -1,0 +1,99 @@
+<!-- Quiz lesson content view -->
+<div class="alert alert-warning mb-3">
+    <i class="fas fa-question-circle me-2"></i>
+    <strong>Урок-тест</strong>
+    {% if lesson.type == 'checkpoint' %}
+        (Контрольная точка)
+    {% endif %}
+</div>
+
+{% if lesson.content and lesson.content is iterable %}
+    {% set questions = lesson.content.questions if lesson.content.questions else lesson.content %}
+    
+    {% if lesson.content is mapping and lesson.content.settings %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">Настройки теста</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    {% for key, value in lesson.content.settings.items() %}
+                        <dt class="col-sm-4">{{ key|replace('_', ' ')|title }}:</dt>
+                        <dd class="col-sm-8">{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+            </div>
+        </div>
+    {% endif %}
+    
+    {% if questions %}
+        <h6 class="mb-3">Вопросы ({{ questions|length }})</h6>
+        
+        {% for question in questions %}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between">
+                    <span><strong>Вопрос {{ loop.index }}</strong></span>
+                    {% if question.type %}
+                        <span class="badge bg-info">{{ question.type }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if question.question %}
+                        <h6 class="card-title">{{ question.question }}</h6>
+                    {% endif %}
+                    
+                    {% if question.options %}
+                        <div class="mt-3">
+                            <strong>Варианты ответов:</strong>
+                            <ul class="list-group list-group-flush mt-2">
+                                {% for option in question.options %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        {{ option }}
+                                        {% if question.correct_answer and option == question.correct_answer %}
+                                            <span class="badge bg-success">Правильный</span>
+                                        {% elif question.correct_answers and option in question.correct_answers %}
+                                            <span class="badge bg-success">Правильный</span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    {% if question.correct_answer and not question.options %}
+                        <div class="mt-2">
+                            <strong>Правильный ответ:</strong> 
+                            <span class="text-success">{{ question.correct_answer }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    {% if question.explanation %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <strong>Объяснение:</strong> {{ question.explanation }}
+                            </small>
+                        </div>
+                    {% endif %}
+                    
+                    {% if question.points %}
+                        <div class="mt-2">
+                            <small class="text-info">
+                                <i class="fas fa-star"></i> Баллов: {{ question.points }}
+                            </small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Вопросы не найдены в содержимом урока
+        </div>
+    {% endif %}
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Содержимое теста пустое или неверного формата
+    </div>
+{% endif %}
