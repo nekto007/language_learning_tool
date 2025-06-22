@@ -505,32 +505,47 @@ def process_grammar_submission(exercises, answers):
 
         print(f"User answer: '{user_answer}', Correct answer: '{correct_answer}'")
 
-        # Нормализуем ответы для сравнения
-        user_answer_norm = user_answer.lower()
-        correct_answer_norm = correct_answer.lower()
+        # Используем улучшенную нормализацию для всех типов упражнений
+        def normalize_answer(answer):
+            """Нормализует ответ для корректного сравнения"""
+            if not answer:
+                return ""
+            
+            import re
+            
+            # Убираем лишние пробелы
+            normalized = answer.strip()
+            normalized = re.sub(r'\s+', ' ', normalized)
+            
+            # Нормализуем пробелы вокруг знаков препинания
+            normalized = re.sub(r'\s*,\s*', ', ', normalized)  # "are,are" -> "are, are"
+            normalized = re.sub(r'\s*\.\s*', '. ', normalized)
+            normalized = re.sub(r'\s*!\s*', '! ', normalized)
+            normalized = re.sub(r'\s*\?\s*', '? ', normalized)
+            
+            # Убираем скобки и кавычки
+            for char in ["'", '"', "[", "]"]:
+                normalized = normalized.replace(char, "")
+            
+            return normalized.strip()
 
-        # Удаляем скобки и кавычки, если они есть
-        for chars in [["'", ""], ['"', ""], ["[", ""], ["]", ""]]:
-            correct_answer_norm = correct_answer_norm.replace(chars[0], chars[1])
-            user_answer_norm = user_answer_norm.replace(chars[0], chars[1])
+        # Нормализуем оба ответа
+        user_normalized = normalize_answer(user_answer)
+        correct_normalized = normalize_answer(correct_answer)
 
-        # Проверяем правильность ответа
-        is_correct = user_answer_norm == correct_answer_norm
+        # Сначала проверяем с нормализацией без учета регистра
+        is_correct = user_normalized.lower() == correct_normalized.lower()
 
         # Специальная проверка для упражнений, где важен регистр первой буквы
-        # (например, начало предложения)
         if not is_correct and exercise_type in ['fill-blank', 'fill_in_blank']:
-            # Проверяем, если это начало предложения (есть подчеркивание в начале)
+            # Проверяем, если это начало предложения
             prompt_text = exercise.get('prompt', exercise.get('text', ''))
             if prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_'):
-                # Для начала предложения сравниваем с учетом регистра
-                if isinstance(correct_answer, list):
-                    # Если массив ответов - проверяем точное совпадение с любым из них
-                    is_correct = user_answer in correct_answer
-                else:
-                    # Сравниваем с учетом регистра
-                    is_correct = user_answer == correct_answer
-                print(f"Case-sensitive check for sentence start: '{user_answer}' == '{correct_answer}' -> {is_correct}")
+                # Для начала предложения проверяем точное совпадение нормализованных версий
+                is_correct = user_normalized == correct_normalized
+                print(f"Case-sensitive check for sentence start: '{user_normalized}' == '{correct_normalized}' -> {is_correct}")
+        
+        print(f"User: '{user_answer}' -> '{user_normalized}', Correct: '{correct_answer}' -> '{correct_normalized}'")
         print(f"Is correct: {is_correct} (normalized comparison)")
 
         if is_correct:
