@@ -1,0 +1,284 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Урок: {{ lesson.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">{{ lesson.title }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Панель управления</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('curriculum_admin.admin_lessons') }}">Все уроки</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('curriculum.level_modules', level_code=lesson.module.level.code) }}">{{ lesson.module.level.code }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}">Модуль {{ lesson.module.number }}</a></li>
+                <li class="breadcrumb-item active">Урок {{ lesson.number }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div>
+        <a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Редактировать
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main content -->
+    <div class="col-lg-8">
+        <!-- Lesson info -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Информация об уроке</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Название:</dt>
+                    <dd class="col-sm-9">{{ lesson.title }}</dd>
+                    
+                    <dt class="col-sm-3">Описание:</dt>
+                    <dd class="col-sm-9">{{ lesson.description or "Нет описания" }}</dd>
+                    
+                    <dt class="col-sm-3">Уровень:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-primary">{{ lesson.module.level.code }}</span>
+                        {{ lesson.module.level.name }}
+                    </dd>
+                    
+                    <dt class="col-sm-3">Модуль:</dt>
+                    <dd class="col-sm-9">{{ lesson.module.number }}. {{ lesson.module.title }}</dd>
+                    
+                    <dt class="col-sm-3">Номер урока:</dt>
+                    <dd class="col-sm-9">{{ lesson.number }}</dd>
+                    
+                    <dt class="col-sm-3">Тип:</dt>
+                    <dd class="col-sm-9">
+                        {% set type_badges = {
+                            'card': 'dark',
+                            'vocabulary': 'primary',
+                            'grammar': 'success',
+                            'quiz': 'warning',
+                            'matching': 'info',
+                            'text': 'secondary',
+                            'checkpoint': 'danger'
+                        } %}
+                        <span class="badge bg-{{ type_badges.get(lesson.type, 'secondary') }}">
+                            {{ lesson.type }}
+                        </span>
+                    </dd>
+                    
+                    <dt class="col-sm-3">Порядок:</dt>
+                    <dd class="col-sm-9">{{ lesson.order }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Lesson content -->
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Содержимое урока</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleRawView()">
+                        <i class="fas fa-code me-1"></i>JSON
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="copyContent()">
+                        <i class="fas fa-copy me-1"></i>Копировать
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if lesson.content %}
+                    <!-- Pretty view -->
+                    <div id="pretty-view">
+                        {% if lesson.type == 'vocabulary' %}
+                            {% include 'admin/curriculum/content/vocabulary_view.html' %}
+                        {% elif lesson.type == 'grammar' %}
+                            {% include 'admin/curriculum/content/grammar_view.html' %}
+                        {% elif lesson.type == 'quiz' or lesson.type == 'checkpoint' %}
+                            {% include 'admin/curriculum/content/quiz_view.html' %}
+                        {% elif lesson.type == 'matching' %}
+                            {% include 'admin/curriculum/content/matching_view.html' %}
+                        {% elif lesson.type == 'text' %}
+                            {% include 'admin/curriculum/content/text_view.html' %}
+                        {% elif lesson.type == 'card' %}
+                            {% include 'admin/curriculum/content/card_view.html' %}
+                        {% else %}
+                            <div class="alert alert-info">
+                                <strong>Тип урока:</strong> {{ lesson.type }}<br>
+                                <strong>Содержимое:</strong> Специальный просмотр для данного типа урока не реализован.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Raw JSON view -->
+                    <div id="raw-view" style="display: none;">
+                        <pre id="json-content" class="bg-light p-3 rounded" style="max-height: 600px; overflow-y: auto;">{{ lesson.content|tojson(indent=2) }}</pre>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        У урока нет содержимого
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Статистика</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="mb-2">
+                            <i class="fas fa-users fa-2x text-primary"></i>
+                        </div>
+                        <h4 class="mb-0">{{ progress_stats.total_attempts or 0 }}</h4>
+                        <small class="text-muted">Попыток</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="mb-2">
+                            <i class="fas fa-check-circle fa-2x text-success"></i>
+                        </div>
+                        <h4 class="mb-0">{{ progress_stats.completed or 0 }}</h4>
+                        <small class="text-muted">Завершено</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="mb-2">
+                            <i class="fas fa-star fa-2x text-warning"></i>
+                        </div>
+                        <h4 class="mb-0">{{ "%.1f"|format(progress_stats.avg_score or 0) }}</h4>
+                        <small class="text-muted">Ср. балл</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Редактировать урок
+                    </a>
+                    
+                    {% if lesson.type == 'vocabulary' and lesson.collection_id %}
+                    <a href="{{ url_for('admin.edit_collection', collection_id=lesson.collection_id) }}" class="btn btn-info">
+                        <i class="fas fa-book me-2"></i>Редактировать коллекцию
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id) }}"
+                       class="btn btn-success" target="_blank">
+                        <i class="fas fa-external-link-alt me-2"></i>Открыть урок
+                    </a>
+                    
+                    <hr>
+                    
+                    <a href="{{ url_for('curriculum_admin.admin_lessons') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Ко всем урокам
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent activity -->
+        {% if recent_progress %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Последние попытки</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for progress in recent_progress %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <strong>Пользователь {{ progress.user_id }}</strong><br>
+                            <small class="text-muted">{{ progress.last_activity.strftime('%d.%m.%Y %H:%M') if progress.last_activity else 'N/A' }}</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            {% if progress.status == 'completed' %}
+                                <span class="badge bg-success me-2">{{ progress.rounded_score }}%</span>
+                            {% elif progress.status == 'in_progress' %}
+                                <span class="badge bg-warning me-2">В процессе</span>
+                            {% else %}
+                                <span class="badge bg-secondary me-2">{{ progress.status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Metadata -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Метаданные</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">ID урока:</dt>
+                    <dd class="col-sm-6">{{ lesson.id }}</dd>
+                    
+                    <dt class="col-sm-6">Создан:</dt>
+                    <dd class="col-sm-6">{{ lesson.created_at.strftime('%d.%m.%Y') if lesson.created_at else 'N/A' }}</dd>
+                    
+                    <dt class="col-sm-6">Обновлен:</dt>
+                    <dd class="col-sm-6">{{ lesson.updated_at.strftime('%d.%m.%Y') if lesson.updated_at else 'N/A' }}</dd>
+                    
+                    {% if lesson.collection_id %}
+                    <dt class="col-sm-6">ID коллекции:</dt>
+                    <dd class="col-sm-6">{{ lesson.collection_id }}</dd>
+                    {% endif %}
+                    
+                    {% if lesson.book_id %}
+                    <dt class="col-sm-6">ID книги:</dt>
+                    <dd class="col-sm-6">{{ lesson.book_id }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleRawView() {
+    const prettyView = document.getElementById('pretty-view');
+    const rawView = document.getElementById('raw-view');
+    
+    if (rawView.style.display === 'none') {
+        prettyView.style.display = 'none';
+        rawView.style.display = 'block';
+    } else {
+        prettyView.style.display = 'block';
+        rawView.style.display = 'none';
+    }
+}
+
+function copyContent() {
+    const content = document.getElementById('json-content');
+    if (content) {
+        navigator.clipboard.writeText(content.textContent).then(function() {
+            // Show a temporary success message
+            const button = event.target.closest('button');
+            const originalHtml = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check me-1"></i>Скопировано';
+            button.classList.add('btn-success');
+            setTimeout(function() {
+                button.innerHTML = originalHtml;
+                button.classList.remove('btn-success');
+            }, 2000);
+        });
+    }
+}
+</script>
+{% endblock %}
