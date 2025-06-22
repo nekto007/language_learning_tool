@@ -1,12 +1,12 @@
-from flask import Blueprint, jsonify, url_for
+from flask import Blueprint, jsonify, url_for, request
 from flask_login import current_user
 from sqlalchemy import func
 import logging
-from datetime import timezone
+from datetime import timezone, datetime
 
 from app import csrf
 from app.api.auth import api_login_required
-from app.books.models import Book
+from app.books.models import Book, ReadingProgress
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -379,4 +379,283 @@ def save_reading_position():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error saving reading position: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# Reading Session Management API (Book Integration)
+# ============================================================================
+
+@csrf.exempt
+@api_books.route('/reading-session/start', methods=['POST'])
+@api_login_required
+def start_reading_session():
+    """Start a new reading session for a module lesson"""
+    data = request.get_json()
+    
+    required_fields = ['book_id', 'start_position', 'end_position']
+    missing_fields = [field for field in required_fields if data.get(field) is None]
+    
+    if missing_fields:
+        return jsonify({
+            'success': False, 
+            'error': f'Missing required fields: {missing_fields}'
+        }), 400
+    
+    try:
+        # Note: Since we don't have the ReadingSession model implemented yet,
+        # we'll use a simplified approach with the existing ReadingProgress model
+        book_id = data['book_id']
+        start_position = data['start_position']
+        end_position = data['end_position']
+        module_id = data.get('module_id')
+        lesson_id = data.get('lesson_id')
+        
+        # Validate book exists
+        book = Book.query.get(book_id)
+        if not book:
+            return jsonify({'success': False, 'error': 'Book not found'}), 404
+        
+        # Get or create reading progress
+        progress = ReadingProgress.query.filter_by(
+            user_id=current_user.id,
+            book_id=book_id
+        ).first()
+        
+        if not progress:
+            progress = ReadingProgress(
+                user_id=current_user.id,
+                book_id=book_id,
+                position=start_position
+            )
+            db.session.add(progress)
+        else:
+            # Update position if starting from a specific point
+            progress.position = start_position
+            progress.last_read = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        # Generate a temporary session ID (in real implementation, this would be a proper ReadingSession)
+        session_id = f"{current_user.id}_{book_id}_{int(datetime.now().timestamp())}"
+        
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'book_title': book.title,
+            'start_position': start_position,
+            'end_position': end_position,
+            'reading_features': {
+                'click_translate': True,
+                'vocabulary_highlighting': True,
+                'progress_saving': True,
+                'note_taking': True
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error starting reading session: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@csrf.exempt
+@api_books.route('/reading-session/<session_id>/progress', methods=['PUT'])
+@api_login_required
+def update_reading_progress(session_id):
+    """Update reading progress during a session"""
+    data = request.get_json()
+    
+    current_position = data.get('current_position')
+    if current_position is None:
+        return jsonify({'success': False, 'error': 'current_position is required'}), 400
+    
+    try:
+        # Parse session_id to get book_id (simplified approach)
+        parts = session_id.split('_')
+        if len(parts) < 2:
+            return jsonify({'success': False, 'error': 'Invalid session_id'}), 400
+        
+        book_id = int(parts[1])
+        
+        # Update reading progress
+        progress = ReadingProgress.query.filter_by(
+            user_id=current_user.id,
+            book_id=book_id
+        ).first()
+        
+        if not progress:
+            return jsonify({'success': False, 'error': 'Reading session not found'}), 404
+        
+        progress.position = current_position
+        progress.last_read = datetime.now(timezone.utc)
+        
+        # Track vocabulary interactions if provided
+        vocabulary_interactions = data.get('vocabulary_interactions', [])
+        words_looked_up = len(vocabulary_interactions)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'current_position': current_position,
+            'words_looked_up': words_looked_up
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating reading progress: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@csrf.exempt
+@api_books.route('/reading-session/<session_id>/complete', methods=['POST'])
+@api_login_required
+def complete_reading_session(session_id):
+    """Complete a reading session and process vocabulary"""
+    data = request.get_json()
+    
+    try:
+        # Parse session_id to get book_id
+        parts = session_id.split('_')
+        if len(parts) < 2:
+            return jsonify({'success': False, 'error': 'Invalid session_id'}), 400
+        
+        book_id = int(parts[1])
+        
+        # Get session data
+        final_position = data.get('final_position')
+        duration_minutes = data.get('duration_minutes', 0)
+        comprehension_score = data.get('comprehension_score')
+        vocabulary_learned = data.get('vocabulary_learned', [])
+        notes = data.get('notes', '')
+        
+        # Update reading progress
+        progress = ReadingProgress.query.filter_by(
+            user_id=current_user.id,
+            book_id=book_id
+        ).first()
+        
+        if progress and final_position:
+            progress.position = final_position
+            progress.last_read = datetime.now(timezone.utc)
+        
+        # Process vocabulary learned during reading
+        words_added = 0
+        for word_id in vocabulary_learned:
+            try:
+                word_entry = CollectionWords.query.get(word_id)
+                if word_entry and current_user.get_word_status(word_id) == 0:
+                    current_user.set_word_status(word_id, 1)  # Add to learning queue
+                    words_added += 1
+            except Exception as e:
+                logger.warning(f"Failed to add word {word_id} to learning queue: {e}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'session_completed': True,
+            'words_learned': words_added,
+            'final_position': final_position,
+            'duration_minutes': duration_minutes,
+            'next_lesson_available': True  # This would be determined by curriculum logic
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error completing reading session: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_books.route('/reading-session/<session_id>/vocabulary', methods=['GET'])
+@api_login_required
+def get_session_vocabulary(session_id):
+    """Get vocabulary extracted from a reading session"""
+    try:
+        # Parse session_id to get book_id
+        parts = session_id.split('_')
+        if len(parts) < 2:
+            return jsonify({'success': False, 'error': 'Invalid session_id'}), 400
+        
+        book_id = int(parts[1])
+        
+        # Get position range from query parameters
+        start_pos = request.args.get('start_position', type=int)
+        end_pos = request.args.get('end_position', type=int)
+        
+        # In a real implementation, this would extract vocabulary from the book segment
+        # For now, we'll return a mock response
+        vocabulary_words = [
+            {
+                'word_id': 1,
+                'word': 'marlin',
+                'translation': 'марлин',
+                'frequency_in_segment': 5,
+                'difficulty_level': 'B1',
+                'context_sentence': 'The great marlin that he had hooked.',
+                'already_known': False
+            },
+            {
+                'word_id': 2,
+                'word': 'struggle',
+                'translation': 'борьба',
+                'frequency_in_segment': 3,
+                'difficulty_level': 'B1',
+                'context_sentence': 'His struggle with the fish was legendary.',
+                'already_known': False
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'vocabulary_words': vocabulary_words,
+            'total_words': len(vocabulary_words),
+            'new_words': len([w for w in vocabulary_words if not w['already_known']])
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting session vocabulary: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_books.route('/book/<int:book_id>/content', methods=['GET'])
+@api_login_required
+def get_book_content(book_id):
+    """Get book content for reading assignment"""
+    start_position = request.args.get('start_position', type=int, default=0)
+    end_position = request.args.get('end_position', type=int)
+    
+    try:
+        book = Book.query.get_or_404(book_id)
+        
+        # In a real implementation, this would extract the actual book content
+        # For now, return mock content structure
+        mock_content = {
+            'book_id': book_id,
+            'title': book.title,
+            'start_position': start_position,
+            'end_position': end_position,
+            'content_html': '<p>Sample book content would go here...</p>',
+            'vocabulary_highlights': [
+                {'word': 'marlin', 'position': 50, 'definition': 'large marine fish'},
+                {'word': 'struggle', 'position': 150, 'definition': 'difficult effort'}
+            ],
+            'interactive_elements': [
+                {
+                    'position': 100,
+                    'type': 'comprehension_check',
+                    'question': 'How long has Santiago been without a fish?',
+                    'answer': '84 days'
+                }
+            ]
+        }
+        
+        return jsonify({
+            'success': True,
+            'content': mock_content
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting book content: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
