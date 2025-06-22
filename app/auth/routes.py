@@ -14,6 +14,33 @@ from config.settings import Config
 auth = Blueprint('auth', __name__)
 
 
+def get_safe_redirect_url(next_url, fallback='words.dashboard'):
+    """
+    Get a safe redirect URL, checking for security issues
+    """
+    if not next_url:
+        return url_for(fallback)
+    
+    from urllib.parse import urlparse
+    from flask import request, url_for
+    
+    parsed = urlparse(next_url)
+    
+    # Only allow relative URLs or same-origin URLs
+    if parsed.netloc and parsed.netloc != request.host:
+        return url_for(fallback)
+    
+    # Only allow http/https schemes or no scheme (relative URLs)
+    if parsed.scheme and parsed.scheme not in ['http', 'https']:
+        return url_for(fallback)
+    
+    # Ensure it starts with / for relative URLs
+    if not parsed.netloc and not next_url.startswith('/'):
+        return url_for(fallback)
+    
+    return next_url
+
+
 def get_reset_token(user_id, expiration=3600):
     """Generate a secure password reset token."""
     serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
@@ -143,10 +170,10 @@ def login():
                 db.session.commit()
 
                 # Redirect to requested page or dashboard
-                next_page = request.args.get('next')
-                if not next_page or not next_page.startswith('/'):
-                    next_page = url_for('words.dashboard')
-                return redirect(next_page)
+                # Check both GET args and POST form data for next parameter
+                next_page = request.args.get('next') or request.form.get('next')
+                safe_url = get_safe_redirect_url(next_page)
+                return redirect(safe_url)
             else:
                 flash(_l('Invalid email or password'), 'danger')
                 return render_template('auth/login.html', form=form), 401

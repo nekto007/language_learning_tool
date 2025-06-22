@@ -6,6 +6,7 @@ from datetime import datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy import or_
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import (safe_int, sanitize_json_content, validate_file_upload)
@@ -229,6 +230,58 @@ def admin_levels():
     return render_template('admin/curriculum/levels.html', levels=levels)
 
 
+@admin_bp.route('/admin/lessons')
+@login_required
+@admin_required
+def admin_lessons():
+    """List all lessons for admin"""
+    # Get filter parameters
+    level_id = request.args.get('level_id', type=int)
+    module_id = request.args.get('module_id', type=int)
+    search = request.args.get('search', '').strip()
+    
+    # Start with all lessons
+    query = Lessons.query.join(Module).join(CEFRLevel)
+    
+    # Apply filters
+    if level_id:
+        query = query.filter(CEFRLevel.id == level_id)
+    if module_id:
+        query = query.filter(Module.id == module_id)
+    if search:
+        query = query.filter(
+            or_(
+                Lessons.title.ilike(f'%{search}%'),
+                Lessons.description.ilike(f'%{search}%')
+            )
+        )
+    
+    # Get lessons ordered by level, module, and lesson number
+    lessons = query.order_by(
+        CEFRLevel.order,
+        Module.number,
+        Lessons.number
+    ).all()
+    
+    # Get levels and modules for filters
+    levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
+    modules = Module.query.order_by(Module.level_id, Module.number).all()
+    
+    # Filter modules by level if level is selected
+    if level_id:
+        modules = [m for m in modules if m.level_id == level_id]
+    
+    return render_template(
+        'admin/curriculum/lesson_list.html',
+        lessons=lessons,
+        levels=levels,
+        modules=modules,
+        level_id=level_id,
+        module_id=module_id,
+        search=search
+    )
+
+
 @admin_bp.route('/admin/level/<int:level_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -259,7 +312,7 @@ def edit_level(level_id):
 
             db.session.commit()
             flash('Уровень успешно обновлен', 'success')
-            return redirect(url_for('curriculum.admin_levels'))
+            return redirect(url_for('curriculum_admin.admin_levels'))
 
         except Exception as e:
             db.session.rollback()
@@ -317,78 +370,116 @@ def edit_lesson(lesson_id):
     lesson = Lessons.query.get_or_404(lesson_id)
 
     if request.method == 'POST':
-        try:
-            # Get form data
-            title = request.form.get('title', '').strip()
-            description = request.form.get('description', '').strip()
-            lesson_type = request.form.get('type', lesson.type)
-            order = safe_int(request.form.get('order', lesson.order))
-
-            # Validate basic fields
-            if not title:
-                flash('Название урока обязательно', 'error')
-                return redirect(request.url)
-
-            if len(title) > 200:
-                flash('Название слишком длинное (максимум 200 символов)', 'error')
-                return redirect(request.url)
-
-            # Parse and validate content
-            content_str = request.form.get('content', '{}')
+        # Check if it's the JSON content form
+        if 'content' in request.form:
             try:
-                content = json.loads(content_str)
-            except json.JSONDecodeError:
-                flash('Неверный формат JSON в содержимом', 'error')
+                # Parse and validate content
+                content_str = request.form.get('content', '{}')
+                try:
+                    content = json.loads(content_str)
+                except json.JSONDecodeError:
+                    flash('Неверный формат JSON в содержимом', 'error')
+                    return redirect(request.url)
+
+                # Basic content validation
+                if not isinstance(content, (dict, list)):
+                    flash('Содержимое должно быть объектом или массивом JSON', 'error')
+                    return redirect(request.url)
+
+                # Update lesson content
+                lesson.content = content
+                lesson.updated_at = datetime.utcnow()
+
+                db.session.commit()
+                flash('Содержимое урока успешно обновлено', 'success')
+                return redirect(url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
+
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error updating lesson content: {str(e)}")
+                flash('Ошибка при обновлении содержимого', 'error')
+                return redirect(request.url)
+        
+        # Otherwise handle basic lesson data update
+        else:
+            try:
+                # Get form data
+                title = request.form.get('title', '').strip()
+                description = request.form.get('description', '').strip()
+                module_id = safe_int(request.form.get('module_id', lesson.module_id))
+                number = safe_int(request.form.get('number', lesson.number))
+
+                # Validate basic fields
+                if not title:
+                    flash('Название урока обязательно', 'error')
+                    return redirect(request.url)
+
+                if len(title) > 200:
+                    flash('Название слишком длинное (максимум 200 символов)', 'error')
+                    return redirect(request.url)
+
+                # Update lesson
+                lesson.title = sanitize_json_content(title)
+                lesson.description = sanitize_json_content(description)
+                lesson.module_id = module_id
+                lesson.number = number
+                lesson.updated_at = datetime.utcnow()
+
+                db.session.commit()
+                flash('Урок успешно обновлен', 'success')
+                return redirect(url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
+
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error updating lesson: {str(e)}")
+                flash('Ошибка при обновлении урока', 'error')
                 return redirect(request.url)
 
-            # Validate content based on lesson type
-            if lesson_type != lesson.type:
-                flash('Изменение типа урока не разрешено', 'error')
-                return redirect(request.url)
-
-            is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-                lesson_type, content
-            )
-
-            if not is_valid:
-                flash(f'Ошибка в содержимом урока: {error_msg}', 'error')
-                return redirect(request.url)
-
-            # Update lesson
-            lesson.title = sanitize_json_content(title)
-            lesson.description = sanitize_json_content(description)
-            lesson.order = order
-            lesson.content = cleaned_content
-            lesson.updated_at = datetime.utcnow()
-
-            # Update related fields if needed
-            if lesson_type == 'vocabulary':
-                collection_id = safe_int(request.form.get('collection_id'))
-                if collection_id:
-                    # Verify collection exists
-                    if Collection.query.get(collection_id):
-                        lesson.collection_id = collection_id
-
-            db.session.commit()
-            flash('Урок успешно обновлен', 'success')
-            return redirect(url_for('curriculum.module_lessons', module_id=lesson.module_id))
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error updating lesson: {str(e)}")
-            flash('Ошибка при обновлении урока', 'error')
-            return redirect(request.url)
-
-    # Get collections for vocabulary lessons
-    collections = []
-    if lesson.type == 'vocabulary':
-        collections = Collection.query.order_by(Collection.name).all()
-
+    # Get data for template
+    modules = Module.query.order_by(Module.level_id, Module.number).all()
+    
     return render_template(
         'admin/curriculum/edit_lesson.html',
         lesson=lesson,
-        collections=collections,
-        content_json=json.dumps(lesson.content, ensure_ascii=False, indent=2)
+        modules=modules,
+        content_json=json.dumps(lesson.content, ensure_ascii=False, indent=2) if lesson.content else '{}'
+    )
+
+
+@admin_bp.route('/admin/lesson/<int:lesson_id>/view')
+@login_required
+@admin_required
+def view_lesson(lesson_id):
+    """View lesson details with full content display"""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    
+    # Get lesson progress statistics
+    all_progress = LessonProgress.query.filter_by(lesson_id=lesson_id).all()
+    
+    # Calculate statistics manually
+    total_attempts = len(all_progress)
+    completed = len([p for p in all_progress if p.status == 'completed'])
+    avg_score = sum(p.score for p in all_progress if p.score) / len([p for p in all_progress if p.score]) if any(p.score for p in all_progress) else 0
+    
+    # Create a stats object similar to the query result
+    class ProgressStats:
+        def __init__(self, total, completed, avg):
+            self.total_attempts = total
+            self.completed = completed
+            self.avg_score = avg
+    
+    progress_stats = ProgressStats(total_attempts, completed, avg_score)
+    
+    # Get recent progress entries
+    recent_progress = LessonProgress.query.filter_by(lesson_id=lesson_id)\
+        .order_by(LessonProgress.last_activity.desc())\
+        .limit(10).all()
+    
+    return render_template(
+        'admin/curriculum/view_lesson.html',
+        lesson=lesson,
+        progress_stats=progress_stats,
+        recent_progress=recent_progress
     )
 
 
@@ -399,8 +490,7 @@ def delete_lesson(lesson_id):
     """Delete lesson with confirmation"""
     try:
         lesson = Lessons.query.get_or_404(lesson_id)
-        module_id = lesson.module_id
-
+        
         # Check if lesson has any user progress
         progress_count = LessonProgress.query.filter_by(lesson_id=lesson_id).count()
 
@@ -409,16 +499,18 @@ def delete_lesson(lesson_id):
                 f'Невозможно удалить урок: {progress_count} пользователей имеют прогресс в этом уроке',
                 'error'
             )
-            return redirect(url_for('curriculum.module_lessons', module_id=module_id))
+            # Возвращаемся туда, откуда пришли, или на список уроков по умолчанию
+            return redirect(request.referrer or url_for('curriculum_admin.admin_lessons'))
 
         db.session.delete(lesson)
         db.session.commit()
 
         flash('Урок успешно удален', 'success')
-        return redirect(url_for('curriculum.module_lessons', module_id=module_id))
+        # Возвращаемся туда, откуда пришли, или на список уроков по умолчанию
+        return redirect(request.referrer or url_for('curriculum_admin.admin_lessons'))
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error deleting lesson: {str(e)}")
         flash('Ошибка при удалении урока', 'error')
-        return redirect(url_for('curriculum.index'))
+        return redirect(url_for('curriculum_admin.admin_lessons'))
