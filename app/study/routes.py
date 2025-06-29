@@ -49,12 +49,19 @@ def index():
         learned_percentage = 0
 
     # БЕЗ ФОРМЫ! Просто передаем данные для отображения
+    # Get reading progress
+    from app.books.helpers import get_user_reading_progress, get_recent_books
+    reading_progress = get_user_reading_progress(current_user.id)
+    recent_books = get_recent_books(current_user.id, limit=3)
+    
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
         total_items=total_items,
         mastered_count=mastered_count,
-        learned_percentage=learned_percentage
+        learned_percentage=learned_percentage,
+        reading_progress=reading_progress,
+        recent_books=recent_books
     )
 
 

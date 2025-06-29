@@ -1,10 +1,10 @@
 import os
 
 from flask import Flask
-from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 
 from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
@@ -39,7 +39,7 @@ def create_app(config_class=Config):
     # Initialize template utilities
     from app.utils.template_utils import init_template_utils
     init_template_utils(app)
-    
+
     # Initialize security middleware
     from app.middleware.security import add_security_headers
     add_security_headers(app)
@@ -57,8 +57,9 @@ def create_app(config_class=Config):
     from app.books.routes import books as books_blueprint
     app.register_blueprint(books_blueprint)
 
-    from app.admin.routes import admin as admin_blueprint
-    app.register_blueprint(admin_blueprint)
+    # Register admin routes (handles book courses separately to avoid circular imports)
+    from app.admin import register_admin_routes
+    register_admin_routes(app)
 
     from app.reminders.routes import reminders as reminders_blueprint
     app.register_blueprint(reminders_blueprint)
@@ -104,16 +105,16 @@ def create_app(config_class=Config):
     def load_user(user_id):
         from app.auth.models import User
         return User.query.get(int(user_id))
-    
+
     @login_manager.unauthorized_handler
     def unauthorized():
         """Custom unauthorized handler that preserves the original URL"""
         from flask import request, url_for, redirect, jsonify
-        
+
         # For AJAX requests, return JSON
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
-        
+
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
@@ -129,7 +130,8 @@ def create_app(config_class=Config):
                 from sqlalchemy import text
                 db.session.execute(text("SET synchronous_commit = OFF"))  # Improves performance, slightly less durable
                 db.session.execute(text("SET statement_timeout = '30s'"))  # Prevents long-running queries
-                db.session.execute(text("SET idle_in_transaction_session_timeout = '60s'"))  # Prevents idle transactions
+                db.session.execute(
+                    text("SET idle_in_transaction_session_timeout = '60s'"))  # Prevents idle transactions
 
                 # Enable connection pooling
                 db.engine.pool_size = 10

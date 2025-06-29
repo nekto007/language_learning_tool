@@ -120,7 +120,7 @@
 
         <div class="lesson-action">
           {% if is_available %}
-            <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id) }}"
+            <a href="/learn/{{ module.level.code|lower }}/module-{{ module.number }}/lesson-{{ lesson.number }}-{{ lesson.type }}/"
                class="btn {{ 'btn-success' if is_completed else 'btn-primary' if is_current else 'btn-outline-primary' }}">
               {% if is_completed %}
                 {{ _('Повторить') }}

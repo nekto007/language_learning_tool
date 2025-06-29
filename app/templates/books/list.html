@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Books - English Learning App{% endblock %}
+{% block title %}{{ _('Книги') }} - {{ _('Изучение английского') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -132,7 +132,8 @@
 <div class="card">
     <div class="card-body">
         {% if books %}
-        <div class="table-responsive">
+        <!-- Desktop table view -->
+        <div class="table-responsive d-none d-lg-block">
             <table class="table table-hover">
                 <thead>
                   <tr>
@@ -202,12 +203,24 @@
                         <td>
                             <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
 
-                            {# Добавляем индикатор последнего чтения, если есть #}
+                            {# Добавляем индикатор последнего чтения и кнопку продолжения #}
                             {% if current_user.is_authenticated %}
-                                {% set progress = current_user.reading_progress.filter_by(book_id=book.id).first() %}
-                                {% if progress %}
-                                <div>
-                                    <small class="text-muted">{{ _('Last read') }}: {{ progress.last_read.strftime('%d.%m.%Y') }}</small>
+                                {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+                                {% if chapter_progress %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">{{ _('Last read') }}: {{ chapter_progress.updated_at.strftime('%d.%m.%Y') }}</small>
+                                    {% if chapter_counts.get(book.id, 0) > 0 %}
+                                        {% if book.slug %}
+                                        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" 
+                                           class="btn btn-xs btn-outline-primary">{{ _('Continue') }}</a>
+                                        {% else %}
+                                        <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" 
+                                           class="btn btn-xs btn-outline-primary">{{ _('Continue') }}</a>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" 
+                                           class="btn btn-xs btn-outline-primary">{{ _('Continue') }}</a>
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                             {% endif %}
@@ -218,6 +231,11 @@
                                 <span class="badge bg-{{ 'success' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }}">{{ book.level }}</span>
                             {% else %}
                                 -
+                            {% endif %}
+                            {% if chapter_counts.get(book.id, 0) > 0 %}
+                                <br><small class="text-muted">
+                                    <i class="fas fa-book-open"></i> {{ chapter_counts[book.id] }} {{ _('chapters') }}
+                                </small>
                             {% endif %}
                         </td>
                         <td>
@@ -241,7 +259,48 @@
                         <td>
                             <div class="btn-group">
                                 <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">{{ _('Details') }}</a>
-                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                
+                                {# Умная кнопка чтения - продолжить или начать #}
+                                {% if current_user.is_authenticated %}
+                                    {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+                                    {% if chapter_progress %}
+                                        {# Кнопка "Продолжить" #}
+                                        {% if chapter_counts.get(book.id, 0) > 0 %}
+                                            {% if book.slug %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" 
+                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
+                                            {% else %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" 
+                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
+                                            {% endif %}
+                                        {% else %}
+                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-success">{{ _('Continue') }}</a>
+                                        {% endif %}
+                                    {% else %}
+                                        {# Кнопка "Читать" для новых книг #}
+                                        {% if chapter_counts.get(book.id, 0) > 0 %}
+                                            {% if book.slug %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                            {% else %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                            {% endif %}
+                                        {% else %}
+                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    {# Для неавторизованных пользователей #}
+                                    {% if chapter_counts.get(book.id, 0) > 0 %}
+                                        {% if book.slug %}
+                                        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                        {% else %}
+                                        <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                    {% endif %}
+                                {% endif %}
+                                
                                 {% if current_user.is_authenticated and current_user.is_admin %}
                                 <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-sm btn-outline-secondary">{{ _('Edit') }}</a>
                                 {% endif %}
@@ -251,6 +310,99 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        
+        <!-- Mobile card view -->
+        <div class="d-lg-none">
+            {% for book in books %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-3">
+                            <div class="book-cover-thumbnail">
+                                {% if book.cover_image %}
+                                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-thumbnail w-100">
+                                {% else %}
+                                <div class="no-cover text-center p-2 bg-light rounded">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-9">
+                            <h6 class="card-title mb-1">
+                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-decoration-none">{{ book.title }}</a>
+                            </h6>
+                            
+                            {% if book.author %}
+                            <p class="text-muted mb-1"><small>{{ book.author }}</small></p>
+                            {% endif %}
+                            
+                            <div class="d-flex align-items-center mb-2">
+                                {% if book.level %}
+                                <span class="badge bg-{{ 'success' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }} me-2">{{ book.level }}</span>
+                                {% endif %}
+                                {% if chapter_counts.get(book.id, 0) > 0 %}
+                                <small class="text-muted">
+                                    <i class="fas fa-book-open"></i> {{ chapter_counts[book.id] }} {{ _('chapters') }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            
+                            {% if current_user.is_authenticated %}
+                                {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+                                {% if chapter_progress %}
+                                <div class="mb-2">
+                                    <small class="text-muted">{{ _('Last read') }}: {{ chapter_progress.updated_at.strftime('%d.%m.%Y') }}</small>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                            
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">{{ _('Details') }}</a>
+                                
+                                {% if current_user.is_authenticated %}
+                                    {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+                                    {% if chapter_progress %}
+                                        {% if chapter_counts.get(book.id, 0) > 0 %}
+                                            {% if book.slug %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" 
+                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
+                                            {% else %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" 
+                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
+                                            {% endif %}
+                                        {% else %}
+                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-success">{{ _('Continue') }}</a>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if chapter_counts.get(book.id, 0) > 0 %}
+                                            {% if book.slug %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                            {% else %}
+                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                            {% endif %}
+                                        {% else %}
+                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    {% if chapter_counts.get(book.id, 0) > 0 %}
+                                        {% if book.slug %}
+                                        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                        {% else %}
+                                        <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
 
         <!-- Pagination -->
@@ -315,6 +467,13 @@
 
     .badge a:hover {
         opacity: 0.8;
+    }
+    
+    .btn-xs {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1.5;
+        border-radius: 0.2rem;
     }
 </style>
 {% endblock %}

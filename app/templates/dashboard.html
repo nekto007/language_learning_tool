@@ -32,7 +32,7 @@
                             <i class="fas fa-graduation-cap me-2"></i>{{ _('Structured Learning Path') }}
                         </h3>
                         <p class="mb-3 opacity-90">{{ _('Follow our CEFR-aligned curriculum from A0 to C2 level') }}</p>
-                        <a href="{{ url_for('curriculum.index') }}" class="btn btn-light btn-lg shadow-sm">
+                        <a href="/learn/" class="btn btn-light btn-lg shadow-sm">
                             <i class="fas fa-book-open me-2"></i>{{ _('Start Learning') }}
                         </a>
                     </div>
@@ -269,7 +269,7 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('curriculum.index') }}" class="btn btn-primary">
+                    <a href="/learn/" class="btn btn-primary">
                         <i class="fas fa-graduation-cap me-2"></i>{{ _('Curriculum') }}
                     </a>
                     <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary">

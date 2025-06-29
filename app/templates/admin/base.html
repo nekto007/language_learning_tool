@@ -574,9 +574,13 @@
                     <i class="fas fa-spell-check"></i>
                     <span>Words</span>
                 </a>
-                <a href="{{ url_for('admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_') }}">
+                <a href="{{ url_for('admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_') and not request.endpoint.startswith('admin.book_courses') }}">
                     <i class="fas fa-book"></i>
                     <span>Books</span>
+                </a>
+                <a href="{{ url_for('admin.book_courses') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_courses') }}">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Book Courses</span>
                 </a>
             </div>
 

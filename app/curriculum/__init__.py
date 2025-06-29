@@ -2,6 +2,8 @@
 
 # Import and use main blueprint directly for compatibility
 from app.curriculum.routes import admin_bp, api_bp, lessons_bp, main_bp as curriculum_bp
+from app.curriculum.routes.main import learn_bp
+from app.curriculum.routes.lessons import learn_lessons_bp
 
 
 def init_curriculum_module(app):
@@ -36,8 +38,21 @@ def init_curriculum_module(app):
 
     # Register additional blueprints
     app.register_blueprint(lessons_bp, url_prefix='/curriculum')
-    app.register_blueprint(admin_bp, url_prefix='/curriculum')
+    # Temporarily disable curriculum admin_bp to avoid conflicts
+    # app.register_blueprint(admin_bp, url_prefix='/curriculum')
     app.register_blueprint(api_bp, url_prefix='/curriculum')
+    
+    # Register new beautiful URL blueprints
+    app.register_blueprint(learn_bp, url_prefix='/learn')
+    app.register_blueprint(learn_lessons_bp, url_prefix='/learn')
+    
+    # Register book courses blueprint
+    from app.curriculum.routes.book_courses import book_courses_bp
+    app.register_blueprint(book_courses_bp, url_prefix='/curriculum')
+    
+    # Register SRS API blueprint
+    from app.curriculum.routes.srs_api import srs_api_bp
+    app.register_blueprint(srs_api_bp, url_prefix='/curriculum')
 
     # Warm cache on startup - try to warm cache immediately
     try:

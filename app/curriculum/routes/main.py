@@ -9,6 +9,11 @@ from sqlalchemy import func
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import check_module_access, require_module_access
+from app.curriculum.url_helpers import (
+    level_to_slug, slug_to_level, slug_to_module_number, 
+    get_level_by_beautiful_url, get_module_by_beautiful_url,
+    generate_breadcrumbs
+)
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -18,16 +23,47 @@ main_bp = Blueprint('curriculum', __name__)
 
 
 @main_bp.route('/')
-@login_required
+@login_required 
 def index():
-    """Главная страница учебной программы - простая и понятная"""
+    """Главная страница учебной программы - редирект на красивый URL"""
+    return redirect('/learn/', code=302)
+
+
+@main_bp.route('/levels/<string:level_code>')
+@login_required
+def level_modules(level_code):
+    """Редирект со старого URL уровня на новый красивый URL"""
+    return redirect(f'/learn/{level_to_slug(level_code)}/', code=302)
+
+
+@main_bp.route('/modules/<int:module_id>')
+@login_required
+def module_lessons(module_id):
+    """Редирект со старого URL модуля на новый красивый URL"""
+    module = Module.query.get_or_404(module_id)
+    level_slug = level_to_slug(module.level.code)
+    return redirect(f'/learn/{level_slug}/module-{module.number}/', code=302)
+
+
+# =============================================================================
+# НОВЫЕ КРАСИВЫЕ URL МАРШРУТЫ
+# =============================================================================
+
+# Создаем новый blueprint для красивых URL
+learn_bp = Blueprint('learn', __name__)
+
+
+@learn_bp.route('/')
+@login_required
+def learn_index():
+    """Главная страница обучения - красивый URL"""
     try:
         # Получаем все уровни CEFR
         levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
         
         if not levels:
             flash('Учебные материалы еще не загружены. Обратитесь к администратору.', 'info')
-            return render_template('curriculum/index.html', levels=[], stats={})
+            return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={})
         
         # Подготавливаем данные для каждого уровня
         levels_data = []
@@ -118,10 +154,14 @@ def index():
         return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={})
 
 
-@main_bp.route('/levels/<string:level_code>')
+@learn_bp.route('/<string:level_slug>/')
 @login_required
-def level_modules(level_code):
-    """Display modules for a specific CEFR level with sequential access logic"""
+def learn_level(level_slug):
+    """Модули для уровня - красивый URL"""
+    level_code = slug_to_level(level_slug)
+    if not level_code:
+        abort(404, "Invalid level")
+    
     # Validate level code
     if not level_code or len(level_code) > 2:
         abort(400, "Invalid level code")
@@ -203,13 +243,21 @@ def level_modules(level_code):
     )
 
 
-@main_bp.route('/modules/<int:module_id>')
+@learn_bp.route('/<string:level_slug>/<string:module_slug>/')
 @login_required
-@require_module_access
-def module_lessons(module_id):
-    """Display lessons for selected module with proper access control"""
-    module = Module.query.get_or_404(module_id)
-
+def learn_module(level_slug, module_slug):
+    """Уроки для модуля - красивый URL"""
+    level_code = slug_to_level(level_slug)
+    module_number = slug_to_module_number(module_slug)
+    
+    if not level_code or not module_number:
+        abort(404, "Invalid level or module")
+    
+    # Находим модуль по красивому URL
+    module = get_module_by_beautiful_url(level_code, module_number)
+    if not module:
+        abort(404, "Module not found")
+    
     # Get all module lessons
     lessons = Lessons.query.filter_by(
         module_id=module.id
@@ -217,7 +265,7 @@ def module_lessons(module_id):
 
     if not lessons:
         flash('В этом модуле пока нет уроков', 'info')
-        return redirect(url_for('curriculum.level_modules', level_code=module.level.code))
+        return redirect(f'/learn/{level_slug}/')
 
     # Get user progress for lessons
     user_lesson_progress = {}
@@ -264,3 +312,36 @@ def module_lessons(module_id):
         lessons=lessons,
         user_lesson_progress=user_lesson_progress
     )
+
+
+# =============================================================================
+# РЕДИРЕКТЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+# =============================================================================
+
+@main_bp.route('/redirect-to-beautiful/<path:old_path>')
+def redirect_to_beautiful(old_path):
+    """Редирект со старых URL на новые красивые"""
+    # Простое преобразование основных путей
+    if old_path.startswith('levels/'):
+        level_code = old_path.replace('levels/', '')
+        return redirect(f'/learn/{level_to_slug(level_code)}/', code=301)
+    
+    return redirect('/learn/', code=301)
+
+
+# Обновим существующие функции для редиректа
+def index():
+    """Главная страница учебной программы - с редиректом на красивый URL"""
+    return redirect('/learn/', code=302)  # Temporary redirect
+
+
+def level_modules(level_code):
+    """Модули для уровня - с редиректом на красивый URL"""
+    return redirect(f'/learn/{level_to_slug(level_code)}/', code=302)
+
+
+def module_lessons(module_id):
+    """Уроки для модуля - с редиректом на красивый URL"""
+    module = Module.query.get_or_404(module_id)
+    level_slug = level_to_slug(module.level.code)
+    return redirect(f'/learn/{level_slug}/module-{module.number}/', code=302)

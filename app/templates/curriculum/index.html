@@ -20,7 +20,7 @@
               {{ _('Урок') }} {{ recent_activity[0]['lesson'].number }}
             </p>
           </div>
-          <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=recent_activity[0]['lesson'].id) }}"
+          <a href="/learn/{{ recent_activity[0]['level'].code|lower }}/module-{{ recent_activity[0]['module'].number }}/lesson-{{ recent_activity[0]['lesson'].number }}-{{ recent_activity[0]['lesson'].type }}/"
              class="btn btn-primary">
             {{ _('Продолжить') }} →
           </a>
@@ -66,7 +66,7 @@
                 <p class="timeline-meta">
                   {{ level_data.completed_lessons }} / {{ level_data.total_lessons }} уроков
                 </p>
-                <a href="{{ url_for('curriculum.level_modules', level_code=level_data.level.code) }}"
+                <a href="/learn/{{ level_data.level.code|lower }}/"
                    class="btn btn-sm btn-outline-primary">
                   {{ _('Открыть') }}
                 </a>
@@ -109,7 +109,7 @@
                   <p class="level-description">{{ level_data.level.description|truncate(80) }}</p>
                 </div>
               </div>
-              <a href="{{ url_for('curriculum.level_modules', level_code=level_data.level.code) }}"
+              <a href="/learn/{{ level_data.level.code|lower }}/"
                  class="btn {{ 'btn-primary' if is_current else 'btn-outline-secondary' if is_completed else 'btn-outline-primary' }}">
                 {% if is_current %}
                   {{ _('Продолжить') }}

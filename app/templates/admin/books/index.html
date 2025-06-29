@@ -29,7 +29,7 @@
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Всего книг
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_books }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_books|default(0) }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-book fa-2x text-gray-300"></i>
@@ -47,9 +47,9 @@
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 С обработанными данными
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ books_with_stats }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ books_with_stats|default(0) }}</div>
                             <div class="text-xs">
-                                {% if total_books > 0 %}
+                                {% if total_books and total_books > 0 %}
                                     {{ (books_with_stats / total_books * 100) | round(1) }}%
                                 {% else %}
                                     0%
@@ -72,9 +72,9 @@
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Без статистики
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ books_without_stats }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ books_without_stats|default(0) }}</div>
                             <div class="text-xs">
-                                {% if total_books > 0 %}
+                                {% if total_books and total_books > 0 %}
                                     {{ (books_without_stats / total_books * 100) | round(1) }}%
                                 {% else %}
                                     0%
@@ -97,8 +97,20 @@
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Общее количество слов
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(total_words_all) }}</div>
-                            <div class="text-xs">Уникальных: {{ "{:,}".format(unique_words_all) }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if words_total_all is not none and words_total_all %}
+                                    {{ "{:,}".format(words_total_all|int) }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </div>
+                            <div class="text-xs">Уникальных: 
+                                {% if unique_words_all is not none and unique_words_all %}
+                                    {{ "{:,}".format(unique_words_all|int) }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-font fa-2x text-gray-300"></i>
@@ -195,25 +207,25 @@
                             <tbody>
                                 {% for book in recent_books %}
                                 <tr>
-                                    <td>{{ book.id }}</td>
-                                    <td><strong>{{ book.title }}</strong></td>
+                                    <td>{{ book.id|default('') }}</td>
+                                    <td><strong>{{ book.title|default('') }}</strong></td>
                                     <td>
-                                        {% if book.total_words %}
-                                            {{ "{:,}".format(book.total_words) }}
+                                        {% if book.words_total is not none and book.words_total %}
+                                            {{ "{:,}".format(book.words_total|int) }}
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if book.unique_words %}
-                                            {{ "{:,}".format(book.unique_words) }}
+                                        {% if book.unique_words is not none and book.unique_words %}
+                                            {{ "{:,}".format(book.unique_words|int) }}
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if book.scrape_date %}
-                                            {{ book.scrape_date.strftime('%Y-%m-%d %H:%M') }}
+                                        {% if book.created_at %}
+                                            {{ book.created_at.strftime('%Y-%m-%d %H:%M') }}
                                         {% else %}
                                             <span class="text-muted">Не обработана</span>
                                         {% endif %}
@@ -256,12 +268,24 @@
                             <tbody>
                                 {% for book in top_books %}
                                 <tr>
-                                    <td><strong>{{ book.title }}</strong></td>
-                                    <td>{{ "{:,}".format(book.total_words) }}</td>
-                                    <td>{{ "{:,}".format(book.unique_words) }}</td>
+                                    <td><strong>{{ book.title|default('') }}</strong></td>
                                     <td>
-                                        {% if book.total_words and book.unique_words %}
-                                            {% set ratio = (book.unique_words / book.total_words * 100) | round(1) %}
+                                        {% if book.words_total is not none and book.words_total %}
+                                            {{ "{:,}".format(book.words_total|int) }}
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if book.unique_words is not none and book.unique_words %}
+                                            {{ "{:,}".format(book.unique_words|int) }}
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if book.words_total and book.unique_words and book.words_total > 0 %}
+                                            {% set ratio = (book.unique_words / book.words_total * 100) | round(1) %}
                                             <div class="progress" style="height: 20px;">
                                                 <div class="progress-bar bg-{% if ratio >= 30 %}success{% elif ratio >= 20 %}warning{% else %}danger{% endif %}" 
                                                      role="progressbar" style="width: {{ ratio }}%">

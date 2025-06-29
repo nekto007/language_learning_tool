@@ -383,7 +383,7 @@
                         <i class="fas fa-bookmark me-2"></i>{{ "{:,}".format(book.unique_words or 0) }} {{ _('уникальных') }}
                     </div>
                     <div class="meta-item">
-                        <i class="fas fa-calendar me-2"></i>{{ book.scrape_date.strftime('%b %Y') if book.scrape_date else 'Unknown' }}
+                        <i class="fas fa-calendar me-2"></i>{{ book.created_at.strftime('%b %Y') if book.created_at else 'Unknown' }}
                     </div>
                 </div>
                 
@@ -399,11 +399,7 @@
                         {{ _('Посмотреть слова') }}
                     </a>
                     {% if current_user.is_admin %}
-                    <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" 
-                       class="btn btn-outline-light">
-                        <i class="fas fa-edit"></i>
-                        {{ _('Редактировать') }}
-                    </a>
+                    <!-- Content editing removed - use chapter-based books -->
                     {% endif %}
                 </div>
             </div>
@@ -472,37 +468,42 @@
                         {{ progress }}%
                     </text>
                 </svg>
-                <p class="mt-1 text-muted" style="font-size: 0.7rem;">{{ _('Общий прогресс') }}</p>
+                <p class="mt-1 text-muted" style="font-size: 0.7rem;">{{ _('Прогресс чтения') }}</p>
             </div>
         </div>
     </div>
 
-    <!-- Book Preview Section -->
-    <div class="book-preview-section">
-        <h3 class="mb-4">{{ _('Предпросмотр') }}</h3>
-        {% if book.content %}
-        <div class="content-preview">
-            <div class="preview-text">
-                {{ book.content[:1500]|safe }}...
+    <!-- {{ _('Chapters') }} Section -->
+    {% if chapters %}
+    <div class="book-chapters-section mb-5">
+        <h3 class="mb-4">{{ _('Главы') }}</h3>
+        <div class="chapters-list">
+            {% for chapter in chapters %}
+            <div class="chapter-item d-flex justify-content-between align-items-center p-3 mb-2 bg-light rounded">
+                <div>
+                    <h5 class="mb-1">{{ _('Глава') }} {{ chapter.chap_num }}: {{ chapter.title }}</h5>
+                    <small class="text-muted">{{ chapter.words }} {{ _('слов') }}</small>
+                </div>
+                <a href="{{ url_for('books.read_book_chapters', book_id=book.id, chapter=chapter.chap_num) }}" 
+                   class="btn btn-sm btn-primary">
+                    <i class="fas fa-book-reader"></i> {{ _('Читать') }}
+                </a>
             </div>
+            {% endfor %}
         </div>
-        <div class="text-center mt-4">
-            <a href="{{ url_for('books.read_book', book_id=book.id) }}" 
-               class="btn btn-primary btn-lg">
-                <i class="fas fa-book-open me-2"></i>
-                {{ _('Перейти к книге') }}
-            </a>
-        </div>
-        {% else %}
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            {{ _('У этой книги еще нет содержимого.') }}
-            {% if current_user.is_admin %}
-            <a href="{{ url_for('books.edit_book_content', book_id=book.id) }}" class="alert-link">{{ _('Добавить содержимое') }}</a>
-            {% endif %}
-        </div>
-        {% endif %}
     </div>
+    {% endif %}
+
+    <!-- {{ _('Book Preview') }} Section -->
+    {% if not chapters %}
+    <div class="book-preview-section">
+        <h3 class="mb-4">{{ _('Информация') }}</h3>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            {{ _('Эта книга использует старый формат. Пожалуйста, загрузите книгу в формате FB2 или TXT с главами.') }}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

@@ -135,6 +135,61 @@ def parse_txt(file_path, format_type):
     return html_content, word_count, unique_words
 
 
+def extract_fb2_cover(root, namespace):
+    """Извлекает обложку из FB2 файла"""
+    try:
+        import base64
+        
+        # Ищем coverpage
+        coverpage = root.find('.//' + namespace + 'coverpage')
+        if coverpage is None:
+            return None
+            
+        # Ищем изображение обложки
+        image_ref = coverpage.find('.//' + namespace + 'image')
+        if image_ref is None:
+            return None
+            
+        # Получаем ссылку на изображение
+        href = image_ref.get('{http://www.w3.org/1999/xlink}href', '')
+        if not href and 'href' in image_ref.attrib:
+            href = image_ref.get('href')
+            
+        if not href:
+            return None
+            
+        # Убираем # из начала href
+        if href.startswith('#'):
+            href = href[1:]
+            
+        # Ищем binary элемент с этим id
+        binary = root.find(f'.//{namespace}binary[@id="{href}"]')
+        if binary is None:
+            # Пробуем без namespace
+            binary = root.find(f'.//binary[@id="{href}"]')
+            
+        if binary is None:
+            return None
+            
+        # Декодируем base64
+        try:
+            image_data = base64.b64decode(binary.text)
+            content_type = binary.get('content-type', 'image/jpeg')
+            
+            return {
+                'data': image_data,
+                'content_type': content_type,
+                'size': len(image_data)
+            }
+        except Exception as decode_err:
+            logger.error(f"Error decoding cover image: {str(decode_err)}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error extracting FB2 cover: {str(e)}")
+        return None
+
+
 def extract_fb2_metadata(file_path):
     """Извлекает метаданные из FB2 файла"""
     try:
@@ -162,7 +217,7 @@ def extract_fb2_metadata(file_path):
         if root.tag.startswith('{'):
             namespace = root.tag.split('}')[0] + '}'
 
-        metadata = {'title': '', 'author': ''}
+        metadata = {'title': '', 'author': '', 'cover_image': None}
 
         # Извлекаем информацию из description/title-info
         title_info = root.find('.//' + namespace + 'title-info')
@@ -195,8 +250,13 @@ def extract_fb2_metadata(file_path):
                 if author_parts:
                     metadata['author'] = ' '.join(filter(None, author_parts))
 
+        # Извлекаем обложку
+        cover_data = extract_fb2_cover(root, namespace)
+        if cover_data:
+            metadata['cover_image'] = cover_data
+
         # Логируем для отладки
-        logger.info(f"Extracted FB2 metadata: title='{metadata['title']}', author='{metadata['author']}'")
+        logger.info(f"Extracted FB2 metadata: title='{metadata['title']}', author='{metadata['author']}', cover={'found' if cover_data else 'not found'}")
 
         return metadata
 
