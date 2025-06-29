@@ -220,6 +220,11 @@ def _process_book_words_internal(book_id: int, html_content: str) -> Dict:
         batch_size = 5000
         total_added = 0
 
+        # Очищаем старые записи для этой книги перед повторной обработкой
+        logger.info(f"Очистка старых записей word_book_link для книги ID {book_id}")
+        repo = DatabaseRepository()
+        repo.clear_book_word_links(book_id)
+
         for i in range(0, len(all_words), batch_size):
             batch = all_words[i:i + batch_size]
             word_data_batch = prepare_word_data(batch, brown_words)
@@ -707,6 +712,11 @@ def _process_book_chapters_words_internal(book_id: int) -> Dict:
         # Подготовка данных для вставки с обработкой по частям
         batch_size = 5000
         total_added = 0
+
+        # Очищаем старые записи для этой книги перед повторной обработкой
+        logger.info(f"Очистка старых записей word_book_link для книги ID {book_id}")
+        repo = DatabaseRepository()
+        repo.clear_book_word_links(book_id)
 
         for i in range(0, len(all_words), batch_size):
             batch = all_words[i:i + batch_size]
