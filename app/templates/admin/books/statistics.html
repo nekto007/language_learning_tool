@@ -119,11 +119,11 @@
                                         </span>
                                     </td>
                                     <td><strong>{{ book.title }}</strong></td>
-                                    <td>{{ "{:,}".format(book.total_words) }}</td>
+                                    <td>{{ "{:,}".format(book.words_total) }}</td>
                                     <td>{{ "{:,}".format(book.unique_words) }}</td>
                                     <td>
-                                        {% if book.total_words and book.unique_words %}
-                                            {% set ratio = (book.unique_words / book.total_words * 100) | round(1) %}
+                                        {% if book.words_total and book.unique_words %}
+                                            {% set ratio = (book.unique_words / book.words_total * 100) | round(1) %}
                                             <div class="progress" style="height: 20px;">
                                                 <div class="progress-bar bg-{% if ratio >= 30 %}success{% elif ratio >= 20 %}warning{% else %}danger{% endif %}" 
                                                      role="progressbar" style="width: {{ ratio }}%">
@@ -182,10 +182,10 @@
                                     </td>
                                     <td><strong>{{ book.title }}</strong></td>
                                     <td>{{ "{:,}".format(book.unique_words) }}</td>
-                                    <td>{{ "{:,}".format(book.total_words) }}</td>
+                                    <td>{{ "{:,}".format(book.words_total) }}</td>
                                     <td>
-                                        {% if book.total_words and book.unique_words %}
-                                            {% set richness = (book.unique_words / book.total_words * 100) | round(1) %}
+                                        {% if book.words_total and book.unique_words %}
+                                            {% set richness = (book.unique_words / book.words_total * 100) | round(1) %}
                                             <span class="badge badge-{% if richness >= 30 %}success{% elif richness >= 20 %}warning{% else %}danger{% endif %} badge-lg">
                                                 {{ richness }}%
                                             </span>
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: 'Всего слов',
                 data: [
                     {% for book in top_books_by_words[:10] %}
-                    {{ book.total_words }}{% if not loop.last %},{% endif %}
+                    {{ book.words_total }}{% if not loop.last %},{% endif %}
                     {% endfor %}
                 ],
                 backgroundColor: '#4f46e5',
@@ -356,8 +356,8 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 data: [
                     {% for book in top_books_by_unique[:10] %}
-                    {% if book.total_words and book.unique_words %}
-                    {{ (book.unique_words / book.total_words * 100) | round(1) }}
+                    {% if book.words_total and book.unique_words %}
+                    {{ (book.unique_words / book.words_total * 100) | round(1) }}
                     {% else %}
                     0
                     {% endif %}

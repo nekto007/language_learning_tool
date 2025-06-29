@@ -186,7 +186,7 @@ def edit_book_content(book_id):
 
                     # Сохраняем результаты
                     book.content = result['content']
-                    book.total_words = result['word_count']
+                    book.words_total = result['word_count']
                     book.unique_words = result['unique_words']
                     content_changed = True
 
@@ -210,7 +210,7 @@ def edit_book_content(book_id):
                     # Подсчитываем статистику слов
                     words = re.findall(r'\b[a-zA-Z]+\b', re.sub(r'<[^>]+>', '', content).lower())
                     book.content = content_html
-                    book.total_words = len(words)
+                    book.words_total = len(words)
                     book.unique_words = len(set(words))
                     content_changed = True
 

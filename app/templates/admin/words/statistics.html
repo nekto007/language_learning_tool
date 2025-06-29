@@ -152,11 +152,11 @@
                                 {% for book in book_stats %}
                                 <tr>
                                     <td><strong>{{ book.title }}</strong></td>
-                                    <td>{{ book.total_words }}</td>
+                                    <td>{{ book.words_total }}</td>
                                     <td>{{ book.unique_words }}</td>
                                     <td>
-                                        {% if book.total_words and book.unique_words %}
-                                            {% set ratio = (book.unique_words / book.total_words * 100) | round(1) %}
+                                        {% if book.words_total and book.unique_words %}
+                                            {% set ratio = (book.unique_words / book.words_total * 100) | round(1) %}
                                             <div class="progress" style="height: 20px;">
                                                 <div class="progress-bar" role="progressbar" style="width: {{ ratio }}%">
                                                     {{ ratio }}%
