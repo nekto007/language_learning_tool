@@ -201,6 +201,26 @@ class DatabaseRepository:
         except psycopg2.Error as e:
             logger.error(f"Error bulk linking words to book: {e}")
 
+    def clear_book_word_links(self, book_id):
+        """
+        Удаляет все записи word_book_link для указанной книги.
+        Используется при повторной обработке книги для избежания дублирования.
+
+        Args:
+            book_id: ID книги
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM word_book_link WHERE book_id = %s",
+                        (book_id,)
+                    )
+                    deleted_count = cursor.rowcount
+                    logger.info(f"Удалено {deleted_count} старых записей word_book_link для книги {book_id}")
+        except psycopg2.Error as e:
+            logger.error(f"Error clearing word links for book {book_id}: {e}")
+
     # Этот метод может быть использован в вашем коде для замены медленного цикла
     def process_batch_from_original_format(self, word_data, book_id, batch_size=500):
         """
