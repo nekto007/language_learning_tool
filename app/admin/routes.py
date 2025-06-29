@@ -2214,12 +2214,13 @@ with DST.open("w", encoding="utf-8") as out:
             for i, chapter_data in enumerate(chapters_data, 1):
                 logger.debug(
                     f"[CHAPTER_PROCESS] Creating chapter {i}/{len(chapters_data)}: '{chapter_data['title']}' ({chapter_data['words']} words)")
+                text_raw = chapter_data['text'].replace('\n\n', '\\n\\n')
                 chapter = Chapter(
                     book_id=book.id,
                     chap_num=chapter_data['chap'],
                     title=chapter_data['title'],
                     words=chapter_data['words'],
-                    text_raw=chapter_data['text'].replace('\n\n', '\\n\\n')
+                    text_raw=text_raw
                 )
                 db.session.add(chapter)
 
