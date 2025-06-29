@@ -79,7 +79,7 @@ def parse_txt(file_path, format_type):
     # Удаляем лишние пробелы между словами, НО сохраняем переносы абзацев
     content = re.sub(r'[ \t]+', ' ', content)  # Заменяем только пробелы и табы
 
-    # Подсчет слов
+    # Подсчет слов после нормализации
     words = re.findall(r'\b[a-zA-Z]+\b', content.lower())
     word_count = len(words)
     unique_words = len(set(words))
