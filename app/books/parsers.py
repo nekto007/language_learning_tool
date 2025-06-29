@@ -250,10 +250,15 @@ def extract_fb2_metadata(file_path):
                 if author_parts:
                     metadata['author'] = ' '.join(filter(None, author_parts))
 
-        # Извлекаем обложку
+        # Извлекаем обложку (только информация о наличии для metadata API)
         cover_data = extract_fb2_cover(root, namespace)
         if cover_data:
-            metadata['cover_image'] = cover_data
+            # Для JSON-сериализации сохраняем только метаинформацию
+            metadata['cover_image'] = {
+                'content_type': cover_data['content_type'],
+                'size': cover_data['size'],
+                'has_cover': True
+            }
 
         # Логируем для отладки
         logger.info(f"Extracted FB2 metadata: title='{metadata['title']}', author='{metadata['author']}', cover={'found' if cover_data else 'not found'}")
