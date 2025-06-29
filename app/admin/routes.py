@@ -6,25 +6,20 @@
 import json
 import logging
 import os
-import uuid
 import subprocess
+import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for, abort
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import desc, distinct, func
-from werkzeug.utils import secure_filename
 
 from app import csrf
 from app.auth.models import User
-from app.utils.decorators import admin_required
 from app.books.models import Book, Chapter
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
-
-# Book course admin routes will be registered later to avoid circular imports
 from app.utils.db import db
 from app.words.forms import CollectionForm, TopicForm
 from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
@@ -38,48 +33,53 @@ logger = logging.getLogger(__name__)
 IMPORT_TEMP_DIR = 'app/temp/import_translations'
 os.makedirs(IMPORT_TEMP_DIR, exist_ok=True)
 
+
 def save_import_data(data):
     """Сохраняет данные импорта во временный файл"""
     import_id = str(uuid.uuid4())
     file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
-    
+
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    
+
     # Удаляем старые файлы (старше 1 часа)
     cleanup_old_imports()
-    
+
     return import_id
+
 
 def load_import_data(import_id):
     """Загружает данные импорта из временного файла"""
     file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
-    
+
     if not os.path.exists(file_path):
         return None
-    
+
     with open(file_path, 'r', encoding='utf-8') as f:
         return json.load(f)
+
 
 def delete_import_data(import_id):
     """Удаляет временный файл импорта"""
     file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
-    
+
     if os.path.exists(file_path):
         os.remove(file_path)
+
 
 def cleanup_old_imports():
     """Удаляет старые файлы импорта"""
     current_time = datetime.now().timestamp()
-    
+
     for filename in os.listdir(IMPORT_TEMP_DIR):
         if filename.endswith('.json'):
             file_path = os.path.join(IMPORT_TEMP_DIR, filename)
             file_time = os.path.getmtime(file_path)
-            
+
             # Удаляем файлы старше 1 часа
             if current_time - file_time > 3600:
                 os.remove(file_path)
+
 
 # Простое in-memory кэширование для статистики
 _cache = {}
@@ -643,7 +643,7 @@ def import_translations():
     """Импорт переводов из файла"""
     if request.method == 'POST':
         action = request.form.get('action', 'preview')
-        
+
         try:
             if action == 'preview':
                 # Первый этап - предварительный просмотр
@@ -707,24 +707,24 @@ def import_translations():
                     'missing_words': missing_words,
                     'errors': errors
                 })
-                
+
                 # Сохраняем только ID в сессии
                 session['import_id'] = import_id
 
                 return render_template('admin/words/import_preview.html',
-                                     existing_words=existing_words,
-                                     missing_words=missing_words,
-                                     errors=errors,
-                                     import_id=import_id)
+                                       existing_words=existing_words,
+                                       missing_words=missing_words,
+                                       errors=errors,
+                                       import_id=import_id)
 
             elif action == 'confirm':
                 # Второй этап - подтверждение импорта
                 import_id = request.form.get('import_id') or session.get('import_id')
-                
+
                 if not import_id:
                     flash('Данные для импорта не найдены. Загрузите файл заново.', 'danger')
                     return redirect(request.url)
-                
+
                 import_data = load_import_data(import_id)
                 if not import_data:
                     flash('Данные для импорта устарели. Загрузите файл заново.', 'danger')
@@ -732,10 +732,10 @@ def import_translations():
 
                 existing_words = import_data['existing_words']
                 missing_words = import_data['missing_words']
-                
+
                 # Получаем выбранные для добавления отсутствующие слова
                 words_to_add = request.form.getlist('add_missing_words')
-                
+
                 updated_count = 0
                 added_count = 0
 
@@ -763,7 +763,7 @@ def import_translations():
                         added_count += 1
 
                 db.session.commit()
-                
+
                 # Удаляем временный файл
                 delete_import_data(import_id)
                 session.pop('import_id', None)
@@ -773,7 +773,7 @@ def import_translations():
                     messages.append(f'Обновлено слов: {updated_count}')
                 if added_count > 0:
                     messages.append(f'Добавлено новых слов: {added_count}')
-                
+
                 if messages:
                     flash('; '.join(messages), 'success')
                 else:
@@ -2075,20 +2075,20 @@ def process_book_into_chapters(book_id, file_path, file_ext):
     import tempfile
     import shutil
     import pathlib
-    
+
     try:
         book = Book.query.get(book_id)
         if not book:
             raise ValueError(f"Book with id {book_id} not found")
-        
+
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = pathlib.Path(temp_dir)
-            
+
             # Copy uploaded file to temp directory
             input_file = temp_path / f"book{file_ext}"
             shutil.copy(file_path, input_file)
-            
+
             # Step 1: Convert FB2 to TXT if needed
             if file_ext.lower() == '.fb2':
                 txt_file = temp_path / "book.txt"
@@ -2098,11 +2098,12 @@ def process_book_into_chapters(book_id, file_path, file_ext):
                     raise Exception(f"FB2 conversion failed: {result.stderr}")
                 input_file = txt_file
             elif file_ext.lower() != '.txt':
-                raise ValueError(f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
-            
+                raise ValueError(
+                    f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
+
             # Step 2: Prepare text and create JSONL
             jsonl_file = temp_path / "chapters.jsonl"
-            
+
             # Create prepare_text.py script content inline
             prepare_script = temp_path / "prepare_text_inline.py"
             prepare_script.write_text('''
@@ -2150,30 +2151,30 @@ with DST.open("w", encoding="utf-8") as out:
             "text": text
         }}, ensure_ascii=False) + "\\n")
 '''.format(input_file=input_file, jsonl_file=jsonl_file))
-            
+
             # Run the prepare script
             cmd = f'python "{prepare_script}"'
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if result.returncode != 0:
                 raise Exception(f"Text preparation failed: {result.stderr}")
-            
+
             # Step 3: Load chapters from JSONL into database
             chapters_data = []
             total_words = 0
-            
+
             with jsonl_file.open('r', encoding='utf-8') as f:
                 for line in f:
                     chapter_data = json.loads(line)
                     chapters_data.append(chapter_data)
                     total_words += chapter_data['words']
-            
+
             # Update book statistics
             book.chapters_cnt = len(chapters_data)
             book.words_total = total_words
-            
+
             # Delete existing chapters if any
             Chapter.query.filter_by(book_id=book.id).delete()
-            
+
             # Insert new chapters
             for chapter_data in chapters_data:
                 chapter = Chapter(
@@ -2184,11 +2185,11 @@ with DST.open("w", encoding="utf-8") as out:
                     text_raw=chapter_data['text']
                 )
                 db.session.add(chapter)
-            
+
             db.session.commit()
             logger.info(f"Successfully processed {len(chapters_data)} chapters for book {book.title}")
             return True, f"Successfully imported {len(chapters_data)} chapters"
-            
+
     except Exception as e:
         logger.error(f"Error processing book into chapters: {str(e)}")
         db.session.rollback()
@@ -2202,8 +2203,6 @@ def add_book():
     """Добавление новой книги через админку"""
     from app.books.forms import BookContentForm
     from app.books.parsers import process_uploaded_book
-    from app.books.processors import process_book_words, process_book_chapters_words
-    import threading
     import re
 
     form = BookContentForm()
@@ -2214,10 +2213,10 @@ def add_book():
             func.lower(Book.title) == func.lower(form.title.data),
             func.lower(Book.author) == func.lower(form.author.data)
         ).first()
-        
+
         # Проверяем параметр подтверждения перезаписи
         overwrite = request.form.get('overwrite') == 'true'
-        
+
         if existing_book and not overwrite:
             # Книга существует, возвращаем предупреждение
             return jsonify({
@@ -2227,11 +2226,12 @@ def add_book():
                     'id': existing_book.id,
                     'title': existing_book.title,
                     'author': existing_book.author,
-                    'created_at': existing_book.created_at.strftime('%Y-%m-%d %H:%M') if existing_book.created_at else 'Неизвестно'
+                    'created_at': existing_book.created_at.strftime(
+                        '%Y-%m-%d %H:%M') if existing_book.created_at else 'Неизвестно'
                 },
                 'message': 'Книга с таким названием и автором уже существует!'
             })
-        
+
         if existing_book and overwrite:
             # Перезаписываем существующую книгу
             new_book = existing_book
@@ -2251,7 +2251,7 @@ def add_book():
                 level=form.level.data,
                 created_at=datetime.now(timezone.utc)
             )
-        
+
         # Обновляем основные данные
         new_book.title = form.title.data
         new_book.author = form.author.data
@@ -2270,34 +2270,34 @@ def add_book():
                 from werkzeug.utils import secure_filename
                 filename = secure_filename(form.file.data.filename)
                 file_ext = os.path.splitext(filename)[1].lower()
-                
+
                 # Проверяем, поддерживается ли формат для обработки по главам
                 chapter_formats = ['.fb2', '.txt']
                 use_chapters = file_ext in chapter_formats
-                
+
                 if use_chapters:
                     # Сначала сохраняем книгу без контента
                     if not existing_book or not overwrite:
                         db.session.add(new_book)
                     db.session.commit()
-                    
+
                     # Создаем временный файл
                     temp_dir = os.path.join('app', 'temp')
                     os.makedirs(temp_dir, exist_ok=True)
                     temp_file_path = os.path.join(temp_dir, filename)
                     form.file.data.save(temp_file_path)
-                    
+
                     try:
                         # Обрабатываем книгу по главам
                         success, message = process_book_into_chapters(new_book.id, temp_file_path, file_ext)
                         message_text = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! {message}'
-                        
+
                         if success:
                             # Получаем ссылку на приложение ДО создания потока
                             from flask import current_app
                             app = current_app._get_current_object()
                             book_id_to_process = new_book.id
-                            
+
                             # Запускаем обработку слов для книг с главами в фоновом режиме
                             def start_chapter_processing():
                                 logger.info(f"[ADMIN] Starting chapter processing thread for book {book_id_to_process}")
@@ -2305,18 +2305,22 @@ def add_book():
                                     # Создаем контекст приложения для потока
                                     with app.app_context():
                                         # Используем безопасную обертку
-                                        from app.books.safe_processors import safe_process_book_chapters_words, diagnose_import_issue
-                                        
+                                        from app.books.safe_processors import (
+                                            safe_process_book_chapters_words,
+                                            diagnose_import_issue,
+                                        )
+
                                         # Сначала диагностируем возможные проблемы
                                         logger.info("[ADMIN] Running import diagnostics...")
                                         diagnosis = diagnose_import_issue()
                                         logger.info(f"[ADMIN] Diagnosis results: {diagnosis}")
-                                        
+
                                         # Запускаем обработку
-                                        logger.info(f"[ADMIN] Calling safe_process_book_chapters_words for book {book_id_to_process}")
+                                        logger.info(
+                                            f"[ADMIN] Calling safe_process_book_chapters_words for book {book_id_to_process}")
                                         result = safe_process_book_chapters_words(book_id_to_process)
                                         logger.info(f"[ADMIN] Processing result: {result}")
-                                    
+
                                 except Exception as e:
                                     logger.error(f"[ADMIN] Error in chapter processing thread: {str(e)}")
                                     logger.error(f"[ADMIN] Exception type: {type(e).__name__}")
@@ -2334,7 +2338,7 @@ def add_book():
                             logger.info(f"[ADMIN] Starting processing thread: {processing_thread.name}")
                             processing_thread.start()
                             logger.info(f"[ADMIN] Processing thread started successfully")
-                            
+
                             if request.is_json or request.headers.get('Content-Type') == 'application/json':
                                 return jsonify({'success': True, 'message': message_text})
                             flash(message_text, 'success')
@@ -2347,7 +2351,7 @@ def add_book():
                         # Удаляем временный файл
                         if os.path.exists(temp_file_path):
                             os.remove(temp_file_path)
-                    
+
                     # Очищаем кэш и редиректим
                     clear_admin_cache()
                     action = "overwritten" if existing_book and overwrite else "added"
@@ -2388,7 +2392,7 @@ def add_book():
             new_book.unique_words = len(set(words))
 
         # Если книга не была обработана по главам, сохраняем её обычным способом
-        if not (form.file.data and hasattr(form.file.data, 'filename') and 
+        if not (form.file.data and hasattr(form.file.data, 'filename') and
                 os.path.splitext(secure_filename(form.file.data.filename))[1].lower() in ['.fb2', '.txt']):
             # Сохраняем книгу в базу данных
             if not existing_book or not overwrite:
@@ -2405,7 +2409,7 @@ def add_book():
                 app = current_app._get_current_object()
                 book_id_to_process = new_book.id
                 book_content = new_book.content
-                
+
                 def start_processing():
                     logger.info(f"[ADMIN] Starting word processing thread for book {book_id_to_process}")
                     try:
@@ -2413,11 +2417,11 @@ def add_book():
                         with app.app_context():
                             # Используем безопасную обертку
                             from app.books.safe_processors import safe_process_book_words
-                            
+
                             logger.info(f"[ADMIN] Calling safe_process_book_words for book {book_id_to_process}")
                             result = safe_process_book_words(book_id_to_process, book_content)
                             logger.info(f"[ADMIN] Processing result: {result}")
-                        
+
                     except Exception as e:
                         logger.error(f"[ADMIN] Error in word processing thread: {str(e)}")
                         logger.error(f"[ADMIN] Exception type: {type(e).__name__}")
@@ -2443,7 +2447,7 @@ def add_book():
             # Если это AJAX запрос, возвращаем JSON
             if request.is_json or request.headers.get('Content-Type') == 'application/json':
                 return jsonify({'success': True, 'message': success_message})
-            
+
             flash(success_message, 'success')
             action = "overwritten" if existing_book and overwrite else "added"
             logger.info(f"Book {action} by admin {current_user.username}: {new_book.title}")
@@ -2723,10 +2727,6 @@ def book_statistics():
         return redirect(url_for('admin.books'))
 
 
-# =============================================================================
-# ГРУППА 4: Аудио и медиа управление
-# =============================================================================
-
 @admin.route('/audio')
 @admin_required
 def audio_management():
@@ -2943,7 +2943,7 @@ def audio_statistics():
             GROUP BY get_download
             ORDER BY get_download DESC
         """, fetch=True)
-        
+
         # Преобразуем в словари
         download_stats = []
         for row in download_stats_raw or []:
@@ -2973,7 +2973,7 @@ def audio_statistics():
                 END
             ORDER BY count DESC
         """, fetch=True)
-        
+
         # Преобразуем в словари
         listening_stats = []
         for row in listening_stats_raw or []:
@@ -2993,7 +2993,7 @@ def audio_statistics():
             GROUP BY level
             ORDER BY level
         """, fetch=True)
-        
+
         # Преобразуем в словари
         level_audio_stats = []
         for row in level_audio_stats_raw or []:
@@ -3097,15 +3097,6 @@ def export_audio_list_txt(words, pattern=None):
     return response
 
 
-# =============================================================================
-# ГРУППА 5: Управление Book Courses
-# =============================================================================
-
-# Book Courses management is handled by app/admin/book_courses.py module
-# Routes are registered via register_book_course_routes() in __init__.py
-
-
-# Импортируем роуты из curriculum.py
 try:
     from . import curriculum
 except ImportError:
