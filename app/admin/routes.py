@@ -2112,10 +2112,12 @@ def process_book_into_chapters(book_id, file_path, file_ext):
                     raise Exception(f"FB2 conversion failed: {result.stderr}")
                 input_file = txt_file
                 logger.info("[CHAPTER_PROCESS] FB2 to TXT conversion completed successfully")
+            elif file_ext.lower() == '.txt':
+                logger.info(f"[CHAPTER_PROCESS] Using TXT file as-is (format: {file_ext})")
             else:
-                logger.info(f"[CHAPTER_PROCESS] Using file as-is (format: {file_ext})")
-            raise ValueError(
-                f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
+                logger.error(f"[CHAPTER_PROCESS] Unsupported file format: {file_ext}")
+                raise ValueError(
+                    f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
 
         # Step 2: Prepare text and create JSONL
         logger.info("[CHAPTER_PROCESS] Starting text preparation and JSONL creation")
