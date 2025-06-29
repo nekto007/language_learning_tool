@@ -195,7 +195,7 @@ class DatabaseRepository:
                         (word_id, book_id, frequency)
                         VALUES (%s, %s, %s)
                         ON CONFLICT (word_id, book_id) DO UPDATE
-                        SET frequency = EXCLUDED.frequency
+                        SET frequency = word_book_link.frequency + EXCLUDED.frequency
                     """
                     cursor.executemany(query, link_data)
         except psycopg2.Error as e:
