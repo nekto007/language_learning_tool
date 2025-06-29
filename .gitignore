@@ -172,4 +172,4 @@ cython_debug/
 
 # Babel
 app/translations/messages.pot
-/books_data/
+books_data/
