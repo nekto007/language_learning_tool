@@ -1,0 +1,506 @@
+{% extends "admin/base.html" %}
+{% block title %}Управление курсами-книгами{% endblock %}
+
+{% block extra_css %}
+<style>
+    .course-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+    
+    .course-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    
+    .course-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .course-stats {
+        padding: 1rem 1.5rem;
+        background: #f8f9fa;
+        border-radius: 0 0 12px 12px;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2563eb;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        text-transform: uppercase;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-featured {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .create-course-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .create-course-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    }
+    
+    .overview-stats {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-icon {
+        padding: 0.5rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+    
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    
+    .btn-icon:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .bulk-actions {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: none;
+    }
+    
+    .bulk-actions.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>📚 Управление курсами-книгами</h1>
+    <a href="{{ url_for('admin.create_book_course') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Создать курс
+    </a>
+</div>
+
+<!-- Overview Statistics -->
+<div class="overview-stats">
+    <div class="row">
+        <div class="col-md-2">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.total_courses }}</div>
+                <div class="stat-label">Всего курсов</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.active_courses }}</div>
+                <div class="stat-label">Активных</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.featured_courses }}</div>
+                <div class="stat-label">Рекомендуемых</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.total_enrollments }}</div>
+                <div class="stat-label">Записей</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.total_modules }}</div>
+                <div class="stat-label">Модулей</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.total_daily_lessons }}</div>
+                <div class="stat-label">Уроков</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Available Books Alert -->
+{% if available_books %}
+<div class="alert alert-info">
+    <h5><i class="fas fa-info-circle"></i> Доступные книги для создания курсов</h5>
+    <p>У вас есть <strong>{{ available_books|length }}</strong> книг, которые можно превратить в курсы:</p>
+    <div class="row">
+        {% for book in available_books[:6] %}
+        <div class="col-md-4 mb-2">
+            <small class="text-muted">{{ book.author }}</small><br>
+            <strong>{{ book.title }}</strong>
+        </div>
+        {% endfor %}
+        {% if available_books|length > 6 %}
+        <div class="col-md-12">
+            <small class="text-muted">... и еще {{ available_books|length - 6 }} книг</small>
+        </div>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('admin.create_book_course') }}" class="btn btn-primary btn-sm mt-2">
+        Создать курс из книги
+    </a>
+</div>
+{% endif %}
+
+<!-- Bulk Actions -->
+<div class="bulk-actions" id="bulkActions">
+    <form id="bulkForm" action="{{ url_for('admin.bulk_course_operations') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Операция</label>
+                <select class="form-select" name="operation" required>
+                    <option value="">Выберите операцию</option>
+                    <option value="activate">Активировать</option>
+                    <option value="deactivate">Деактивировать</option>
+                    <option value="feature">Добавить в рекомендуемые</option>
+                    <option value="unfeature">Убрать из рекомендуемых</option>
+                    <option value="delete">Деактивировать (мягкое удаление)</option>
+                    <option value="delete_permanently" style="color: #dc3545; font-weight: bold;">⚠️ Удалить полностью (НАВСЕГДА)</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-play"></i> Выполнить
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearSelection()">
+                    <i class="fas fa-times"></i> Отменить
+                </button>
+                <span class="ms-3 text-muted">
+                    Выбрано: <span id="selectedCount">0</span> курсов
+                </span>
+            </div>
+        </div>
+        <input type="hidden" name="course_ids" id="courseIds" value="">
+    </form>
+</div>
+
+<!-- Courses List -->
+<div class="row">
+    {% for course_data in courses %}
+    {% set course = course_data[0] %}
+    {% set enrollments = course_data.total_enrollments %}
+    {% set modules_count = course_data.total_modules %}
+    
+    <div class="col-md-6 col-lg-4">
+        <div class="course-card">
+            <div class="course-header">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input course-checkbox" type="checkbox" 
+                               value="{{ course.id }}" onchange="updateSelection()">
+                    </div>
+                    <div class="d-flex gap-1">
+                        {% if course.is_active %}
+                        <span class="status-badge status-active">Активен</span>
+                        {% else %}
+                        <span class="status-badge status-inactive">Неактивен</span>
+                        {% endif %}
+                        
+                        {% if course.is_featured %}
+                        <span class="status-badge status-featured">★ Рекомендуемый</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <h5 class="mb-2">
+                    <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" 
+                       class="text-decoration-none">
+                        {{ course.title }}
+                    </a>
+                </h5>
+                
+                <p class="text-muted mb-2">
+                    <small>
+                        <i class="fas fa-book"></i> {{ course.book.title }}<br>
+                        <i class="fas fa-user"></i> {{ course.book.author }}<br>
+                        <i class="fas fa-signal"></i> Уровень {{ course.level }}
+                    </small>
+                </p>
+                
+                <p class="mb-3">{{ course.description|truncate(100) }}</p>
+                
+                <div class="action-buttons">
+                    <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" 
+                       class="btn-icon btn-primary" title="Просмотреть">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="{{ url_for('admin.edit_book_course', course_id=course.id) }}" 
+                       class="btn-icon btn-warning" title="Редактировать">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    {% if not course.is_active %}
+                    <button class="btn-icon btn-success" 
+                            onclick="generateModules({{ course.id }})" title="Сгенерировать модули">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    {% endif %}
+                    <a href="{{ url_for('admin.book_courses_analytics') }}?course_id={{ course.id }}" 
+                       class="btn-icon btn-primary" title="Аналитика">
+                        <i class="fas fa-chart-bar"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="course-stats">
+                <div class="row">
+                    <div class="col-4">
+                        <div class="stat-item">
+                            <div class="stat-number">{{ enrollments }}</div>
+                            <div class="stat-label">Записей</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-item">
+                            <div class="stat-number">{{ modules_count }}</div>
+                            <div class="stat-label">Модулей</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-item">
+                            <div class="stat-number">{{ course.level }}</div>
+                            <div class="stat-label">Уровень</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not courses %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+            <h3 class="text-muted">Курсы не найдены</h3>
+            <p class="text-muted">Создайте первый курс из доступных книг</p>
+            <a href="{{ url_for('admin.create_book_course') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Создать курс
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Links -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-link"></i> Быстрые ссылки</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.book_courses_analytics') }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-chart-line"></i> Аналитика курсов
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.books') }}" class="btn btn-outline-secondary w-100 mb-2">
+                            <i class="fas fa-book"></i> Управление книгами
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-info w-100 mb-2">
+                            <i class="fas fa-graduation-cap"></i> Основная программа
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-success w-100 mb-2">
+                            <i class="fas fa-users"></i> Пользователи
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedCourses = new Set();
+
+function updateSelection() {
+    selectedCourses.clear();
+    
+    document.querySelectorAll('.course-checkbox:checked').forEach(checkbox => {
+        selectedCourses.add(checkbox.value);
+    });
+    
+    document.getElementById('selectedCount').textContent = selectedCourses.size;
+    document.getElementById('courseIds').value = Array.from(selectedCourses).join(',');
+    
+    const bulkActions = document.getElementById('bulkActions');
+    if (selectedCourses.size > 0) {
+        bulkActions.classList.add('show');
+    } else {
+        bulkActions.classList.remove('show');
+    }
+}
+
+function clearSelection() {
+    selectedCourses.clear();
+    document.querySelectorAll('.course-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelection();
+}
+
+function generateModules(courseId) {
+    if (!confirm('Сгенерировать модули и уроки для этого курса? Это может занять некоторое время.')) {
+        return;
+    }
+    
+    fetch(`/admin/book-courses/${courseId}/generate-modules`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showAlert('danger', 'Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Произошла ошибка при генерации модулей');
+    });
+}
+
+// Bulk form submission
+document.getElementById('bulkForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const operation = this.operation.value;
+    const count = selectedCourses.size;
+    
+    if (!operation) {
+        showAlert('warning', 'Выберите операцию');
+        return;
+    }
+    
+    // Специальное подтверждение для операций удаления
+    let confirmMessage = `Выполнить операцию "${operation}" для ${count} курсов?`;
+    
+    if (operation === 'delete_permanently') {
+        confirmMessage = `⚠️ ВНИМАНИЕ! ⚠️\n\nВы собираетесь ПОЛНОСТЬЮ УДАЛИТЬ ${count} курсов.\nЭто действие НЕЛЬЗЯ отменить!\n\nВсе связанные данные (модули, уроки, прогресс пользователей) будут УДАЛЕНЫ НАВСЕГДА!\n\nВы ДЕЙСТВИТЕЛЬНО хотите продолжить?`;
+    } else if (operation === 'delete') {
+        confirmMessage = `Деактивировать ${count} курсов? Курсы будут скрыты, но останутся в базе данных.`;
+    }
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showAlert('danger', 'Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Произошла ошибка при выполнении операции');
+    });
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

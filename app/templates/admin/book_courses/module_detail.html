@@ -1,0 +1,495 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ module.title }} - Детали модуля{% endblock %}
+
+{% block extra_css %}
+<style>
+    .module-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .module-meta {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-top: 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #10b981;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .section-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .section-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content-between;
+        align-items: center;
+    }
+    
+    .section-content {
+        padding: 1.5rem;
+    }
+    
+    .lesson-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .lesson-item:hover {
+        background: #f8fafc;
+        border-color: #10b981;
+    }
+    
+    .lesson-info {
+        flex: 1;
+    }
+    
+    .lesson-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    
+    .lesson-meta {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    
+    .lesson-type-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+    
+    .type-vocabulary { background: #dbeafe; color: #1e40af; }
+    .type-reading { background: #d1fae5; color: #065f46; }
+    .type-grammar { background: #fef3c7; color: #92400e; }
+    .type-exercise { background: #fce7f3; color: #be185d; }
+    .type-test { background: #fee2e2; color: #991b1b; }
+    
+    .lesson-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .progress-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .progress-item:last-child {
+        border-bottom: none;
+    }
+    
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #10b981;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .user-info {
+        flex: 1;
+    }
+    
+    .user-name {
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    
+    .user-status {
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    
+    .progress-bar-container {
+        width: 100px;
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: #10b981;
+        transition: width 0.3s ease;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6b7280;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .vocabulary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .vocabulary-item:last-child {
+        border-bottom: none;
+    }
+    
+    .vocabulary-word {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .vocabulary-translation {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    
+    .vocabulary-frequency {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+    
+    .navigation-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-nav {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-secondary { background: #6b7280; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    
+    .btn-nav:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Navigation -->
+<div class="navigation-buttons">
+    <a href="{{ url_for('admin.book_courses') }}" class="btn-nav btn-secondary">
+        <i class="fas fa-list"></i> Все курсы
+    </a>
+    <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="btn-nav btn-primary">
+        <i class="fas fa-arrow-left"></i> Назад к курсу
+    </a>
+</div>
+
+<!-- Module Header -->
+<div class="module-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1>{{ module.title }}</h1>
+            <p class="mb-0 opacity-75">{{ module.description or 'Описание модуля отсутствует' }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" 
+               class="btn btn-light btn-sm" target="_blank">
+                <i class="fas fa-external-link-alt"></i> Просмотреть как студент
+            </a>
+        </div>
+    </div>
+    
+    <div class="module-meta">
+        <div class="meta-item">
+            <i class="fas fa-book"></i>
+            <span>{{ course.title }}</span>
+        </div>
+        <div class="meta-item">
+            <i class="fas fa-hash"></i>
+            <span>Модуль {{ module.module_number }}</span>
+        </div>
+        <div class="meta-item">
+            <i class="fas fa-clock"></i>
+            <span>{{ module.estimated_reading_time }} мин</span>
+        </div>
+        <div class="meta-item">
+            <i class="fas fa-calendar"></i>
+            <span>{{ module.created_at.strftime('%d.%m.%Y') }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ daily_lessons|length }}</div>
+        <div class="stat-label">Уроков</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number">{{ vocab_stats.total_vocab_words or 0 }}</div>
+        <div class="stat-label">Слов для изучения</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number">{{ user_progress|length }}</div>
+        <div class="stat-label">Студентов изучает</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number">{{ module.start_position }}-{{ module.end_position }}</div>
+        <div class="stat-label">Позиция в книге</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Daily Lessons -->
+    <div class="col-lg-8">
+        <div class="section-card">
+            <div class="section-header">
+                <h3><i class="fas fa-tasks"></i> Ежедневные уроки</h3>
+                <span class="badge bg-primary">{{ daily_lessons|length }} уроков</span>
+            </div>
+            <div class="section-content">
+                {% if daily_lessons %}
+                    {% for lesson in daily_lessons %}
+                    <div class="lesson-item">
+                        <div class="lesson-info">
+                            <div class="lesson-title">
+                                День {{ lesson.day_number }}: {{ lesson.lesson_type.replace('_', ' ').title() }}
+                            </div>
+                            <div class="lesson-meta">
+                                <span><i class="fas fa-book-open"></i> {{ lesson.word_count }} слов</span>
+                                <span><i class="fas fa-calendar"></i> {{ lesson.available_at.strftime('%d.%m.%Y') if lesson.available_at else 'Доступен сразу' }}</span>
+                                {% if lesson.task_id %}
+                                <span><i class="fas fa-tasks"></i> Задание #{{ lesson.task_id }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="lesson-type-badge type-{{ lesson.lesson_type.split('_')[0] }}">
+                                {{ lesson.lesson_type.replace('_', ' ') }}
+                            </span>
+                            <div class="lesson-actions">
+                                <a href="{{ url_for('book_courses.view_lesson', course_id=course.id, module_id=module.id, lesson_number=lesson.day_number) }}" 
+                                   class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-tasks"></i>
+                        <h5>Уроки не созданы</h5>
+                        <p>Ежедневные уроки для этого модуля еще не сгенерированы</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Student Progress -->
+    <div class="col-lg-4">
+        <div class="section-card">
+            <div class="section-header">
+                <h4><i class="fas fa-users"></i> Прогресс студентов</h4>
+            </div>
+            <div class="section-content">
+                {% if user_progress %}
+                    {% for progress in user_progress %}
+                    <div class="progress-item">
+                        <div class="user-avatar">
+                            {{ progress.enrollment.user.username[0].upper() }}
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ progress.enrollment.user.username }}</div>
+                            <div class="user-status">
+                                {% if progress.status == 'completed' %}
+                                    Завершен {{ progress.completed_at.strftime('%d.%m.%Y') if progress.completed_at else '' }}
+                                {% elif progress.status == 'in_progress' %}
+                                    Урок {{ progress.current_lesson_number }} из {{ daily_lessons|length }}
+                                {% else %}
+                                    Не начат
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" 
+                                     style="width: {{ progress.progress_percentage or 0 }}%"></div>
+                            </div>
+                            <div class="text-center mt-1" style="font-size: 0.7rem; color: #6b7280;">
+                                {{ "%.0f"|format(progress.progress_percentage or 0) }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-user-clock"></i>
+                        <h6>Нет студентов</h6>
+                        <p class="mb-0">Пока никто не изучает этот модуль</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Vocabulary Overview -->
+        {% if vocab_stats.total_vocab_words %}
+        <div class="section-card">
+            <div class="section-header">
+                <h4><i class="fas fa-spell-check"></i> Словарь модуля</h4>
+                <span class="badge bg-success">{{ vocab_stats.total_vocab_words }} слов</span>
+            </div>
+            <div class="section-content">
+                <p class="text-muted mb-3">
+                    Всего слов для изучения в этом модуле: <strong>{{ vocab_stats.total_vocab_words }}</strong>
+                </p>
+                <div class="d-grid">
+                    <a href="{{ url_for('admin.word_management') }}?module_id={{ module.id }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-list"></i> Просмотреть все слова
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Module Actions -->
+        <div class="section-card">
+            <div class="section-header">
+                <h4><i class="fas fa-cogs"></i> Действия</h4>
+            </div>
+            <div class="section-content">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" 
+                       class="btn btn-outline-primary" target="_blank">
+                        <i class="fas fa-play"></i> Запустить как студент
+                    </a>
+                    
+                    <button class="btn btn-outline-info" onclick="exportModuleData({{ module.id }})">
+                        <i class="fas fa-download"></i> Экспорт данных модуля
+                    </button>
+                    
+                    <button class="btn btn-outline-warning" onclick="regenerateModule({{ module.id }})">
+                        <i class="fas fa-refresh"></i> Перегенерировать уроки
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function exportModuleData(moduleId) {
+    showAlert('info', 'Функция экспорта данных модуля будет реализована в следующих версиях');
+}
+
+function regenerateModule(moduleId) {
+    if (!confirm('Перегенерировать все уроки для этого модуля? Это действие нельзя отменить.')) {
+        return;
+    }
+    
+    showAlert('info', 'Функция перегенерации модуля будет реализована в следующих версиях');
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

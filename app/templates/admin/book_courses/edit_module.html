@@ -1,0 +1,153 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Edit Course Module{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Edit Module {{ module.module_number }}</h4>
+                <span class="badge bg-info">{{ course.title }}</span>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.edit_course_module', course_id=course.id, module_id=module.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Module Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="{{ module.title }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Module Description *</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="4" required>{{ module.description }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="estimated_reading_time" class="form-label">Estimated Reading Time (minutes)</label>
+                                <input type="number" class="form-control" id="estimated_reading_time" 
+                                       name="estimated_reading_time" min="5" max="300" 
+                                       value="{{ module.estimated_reading_time }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="learning_objectives" class="form-label">Learning Objectives</label>
+                        <textarea class="form-control" id="learning_objectives" name="learning_objectives" 
+                                  rows="4" placeholder="Enter each objective on a new line">{{ '\n'.join(module.learning_objectives or []) }}</textarea>
+                        <small class="form-text text-muted">Enter each objective on a new line</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="vocabulary_focus" class="form-label">Vocabulary Focus</label>
+                                <input type="text" class="form-control" id="vocabulary_focus" name="vocabulary_focus"
+                                       value="{{ ', '.join(module.vocabulary_focus or []) }}"
+                                       placeholder="adventure, mysterious, courage (comma separated)">
+                                <small class="form-text text-muted">Key vocabulary words, separated by commas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="grammar_focus" class="form-label">Grammar Focus</label>
+                                <input type="text" class="form-control" id="grammar_focus" name="grammar_focus"
+                                       value="{{ ', '.join(module.grammar_focus or []) }}"
+                                       placeholder="past tense, conditionals (comma separated)">
+                                <small class="form-text text-muted">Grammar topics, separated by commas</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_locked" name="is_locked"
+                                   {% if module.is_locked %}checked{% endif %}>
+                            <label class="form-check-label" for="is_locked">
+                                🔒 Locked (students must complete previous modules first)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <a href="{{ url_for('admin.edit_book_course', course_id=course.id) }}" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Module Info -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📊 Module Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <h4>{{ module.module_number }}</h4>
+                        <small class="text-muted">Module Number</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <h4>{{ module.estimated_reading_time or 0 }}</h4>
+                        <small class="text-muted">Minutes</small>
+                    </div>
+                    <div class="col-6">
+                        <h4>{{ (module.lessons_data.get('total_lessons', 0) if module.lessons_data else 0) }}</h4>
+                        <small class="text-muted">Lessons</small>
+                    </div>
+                    <div class="col-6">
+                        <h4>{{ (module.vocabulary_focus|length if module.vocabulary_focus else 0) }}</h4>
+                        <small class="text-muted">Vocab Words</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Info -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📚 Course Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Course:</strong> {{ course.title }}</p>
+                <p><strong>Book:</strong> {{ course.book.title }}</p>
+                <p><strong>Level:</strong> <span class="badge bg-info">{{ course.level }}</span></p>
+                <p class="mb-0"><strong>Total Modules:</strong> {{ course.total_modules }}</p>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">🔧 Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('admin.edit_book_course', course_id=course.id) }}" 
+                   class="btn btn-outline-primary btn-sm d-block mb-2">
+                    <i class="fas fa-arrow-left"></i> Back to Course
+                </a>
+                <form method="POST" action="{{ url_for('admin.delete_course_module', course_id=course.id, module_id=module.id) }}" 
+                      onsubmit="return confirm('Are you sure? This will delete the module and all its lessons!');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-outline-danger btn-sm d-block w-100">
+                        <i class="fas fa-trash"></i> Delete Module
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

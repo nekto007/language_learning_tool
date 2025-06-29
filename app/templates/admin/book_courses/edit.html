@@ -1,0 +1,546 @@
+{% extends "admin/base.html" %}
+{% block title %}Редактировать курс - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .course-info-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .book-cover {
+        width: 60px;
+        height: 80px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .course-details {
+        flex: 1;
+    }
+    
+    .course-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .course-meta {
+        opacity: 0.8;
+        font-size: 0.875rem;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        padding: 0.75rem;
+        transition: border-color 0.2s ease;
+        width: 100%;
+    }
+    
+    .form-control:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        outline: none;
+    }
+    
+    .form-text {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .form-check-input {
+        width: 1.1rem;
+        height: 1.1rem;
+    }
+    
+    .form-check-label {
+        font-size: 0.9rem;
+        color: #374151;
+        margin: 0;
+    }
+    
+    .input-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .input-group-text {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+    
+    .loading-spinner {
+        display: none;
+        margin-right: 0.5rem;
+    }
+    
+    .danger-zone {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .danger-zone h4 {
+        color: #dc2626;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .danger-zone p {
+        color: #7f1d1d;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+    
+    .status-preview {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-featured {
+        background: #fef3c7;
+        color: #92400e;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<!-- Course Info Header -->
+<div class="course-info-header">
+    <div class="book-cover">
+        <i class="fas fa-book"></i>
+    </div>
+    <div class="course-details">
+        <div class="course-title">{{ course.title }}</div>
+        <div class="course-meta">
+            📚 {{ course.book.title }} • 👤 {{ course.book.author or 'Неизвестный автор' }} • 
+            📊 Уровень {{ course.level }} • 📅 {{ course.created_at.strftime('%d.%m.%Y') }}
+        </div>
+    </div>
+</div>
+
+<!-- Navigation -->
+<div class="mb-3">
+    <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Назад к курсу
+    </a>
+</div>
+
+<form id="editCourseForm" method="post">
+    {{ csrf_token() }}
+    
+    <!-- Basic Information -->
+    <div class="edit-form-card">
+        <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-info-circle"></i> Основная информация</h3>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label class="form-label" for="title">Название курса *</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="{{ course.title }}" required>
+                        <div class="form-text">Название, которое видят студенты</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label" for="level">Уровень сложности *</label>
+                        <select class="form-control" id="level" name="level" required>
+                            <option value="A1" {% if course.level == 'A1' %}selected{% endif %}>A1 - Начальный</option>
+                            <option value="A2" {% if course.level == 'A2' %}selected{% endif %}>A2 - Элементарный</option>
+                            <option value="B1" {% if course.level == 'B1' %}selected{% endif %}>B1 - Средний</option>
+                            <option value="B2" {% if course.level == 'B2' %}selected{% endif %}>B2 - Выше среднего</option>
+                            <option value="C1" {% if course.level == 'C1' %}selected{% endif %}>C1 - Продвинутый</option>
+                            <option value="C2" {% if course.level == 'C2' %}selected{% endif %}>C2 - Профессиональный</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="description">Описание курса *</label>
+                <textarea class="form-control" id="description" name="description" rows="4" required>{{ course.description }}</textarea>
+                <div class="form-text">Краткое описание целей и содержания курса</div>
+            </div>
+        </div>
+        
+        <!-- Course Settings -->
+        <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-cog"></i> Настройки курса</h3>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label" for="max_daily_lessons">Максимум уроков в день</label>
+                        <input type="number" class="form-control" id="max_daily_lessons" 
+                               name="max_daily_lessons" min="1" max="10" 
+                               value="{{ course.max_daily_lessons or 3 }}">
+                        <div class="form-text">Сколько уроков студент может пройти за день</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label" for="estimated_duration_days">Продолжительность (дни)</label>
+                        <input type="number" class="form-control" id="estimated_duration_days" 
+                               name="estimated_duration_days" min="1" max="365" 
+                               value="{{ course.estimated_duration_days or 30 }}">
+                        <div class="form-text">Примерное время прохождения курса</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="daily_unlock_time">Время открытия новых уроков</label>
+                <div class="input-group">
+                    <input type="time" class="form-control" id="daily_unlock_time" 
+                           name="daily_unlock_time" value="{{ course.daily_unlock_time or '09:00' }}">
+                    <span class="input-group-text">UTC</span>
+                </div>
+                <div class="form-text">Во сколько каждый день открываются новые уроки</div>
+            </div>
+        </div>
+        
+        <!-- Status and Visibility -->
+        <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-eye"></i> Статус и видимость</h3>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_active" 
+                               name="is_active" {% if course.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">
+                            ✅ Курс активен (доступен студентам)
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_featured" 
+                               name="is_featured" {% if course.is_featured %}checked{% endif %}>
+                        <label class="form-check-label" for="is_featured">
+                            ⭐ Рекомендуемый курс (выделяется в списке)
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="requires_prerequisites" 
+                               name="requires_prerequisites" {% if course.requires_prerequisites %}checked{% endif %}>
+                        <label class="form-check-label" for="requires_prerequisites">
+                            🔒 Требует предварительных знаний
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="status-preview">
+                        <span class="status-badge status-active" id="activePreview" 
+                              style="display: {% if course.is_active %}inline{% else %}none{% endif %}">Активен</span>
+                        <span class="status-badge status-inactive" id="inactivePreview" 
+                              style="display: {% if not course.is_active %}inline{% else %}none{% endif %}">Неактивен</span>
+                        <span class="status-badge status-featured" id="featuredPreview" 
+                              style="display: {% if course.is_featured %}inline{% else %}none{% endif %}">★ Рекомендуемый</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="btn-group">
+            <button type="submit" class="btn-primary" id="submitBtn">
+                <i class="fas fa-spinner fa-spin loading-spinner"></i>
+                <i class="fas fa-save"></i> Сохранить изменения
+            </button>
+            
+            <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" 
+               class="btn-secondary">
+                <i class="fas fa-times"></i> Отменить
+            </a>
+        </div>
+    </div>
+    
+    <!-- Danger Zone -->
+    <div class="danger-zone">
+        <h4><i class="fas fa-exclamation-triangle"></i> Опасная зона</h4>
+        <p>Действия в этой зоне могут повлиять на доступность курса для студентов.</p>
+        
+        <div class="btn-group">
+            {% if course.is_active %}
+            <button type="button" class="btn-danger" onclick="deactivateCourse()">
+                <i class="fas fa-pause"></i> Деактивировать курс
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-success" onclick="activateCourse()">
+                <i class="fas fa-play"></i> Активировать курс
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Status preview updates
+document.getElementById('is_active').addEventListener('change', function() {
+    const activePreview = document.getElementById('activePreview');
+    const inactivePreview = document.getElementById('inactivePreview');
+    
+    if (this.checked) {
+        activePreview.style.display = 'inline';
+        inactivePreview.style.display = 'none';
+    } else {
+        activePreview.style.display = 'none';
+        inactivePreview.style.display = 'inline';
+    }
+});
+
+document.getElementById('is_featured').addEventListener('change', function() {
+    const featuredPreview = document.getElementById('featuredPreview');
+    featuredPreview.style.display = this.checked ? 'inline' : 'none';
+});
+
+// Form submission
+document.getElementById('editCourseForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingSpinner = submitBtn.querySelector('.loading-spinner');
+    
+    // Disable form
+    submitBtn.disabled = true;
+    loadingSpinner.style.display = 'inline-block';
+    
+    // Submit form
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 1500);
+        } else {
+            showAlert('danger', 'Ошибка: ' + data.error);
+            
+            // Re-enable form
+            submitBtn.disabled = false;
+            loadingSpinner.style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Произошла ошибка при сохранении изменений');
+        
+        // Re-enable form
+        submitBtn.disabled = false;
+        loadingSpinner.style.display = 'none';
+    });
+});
+
+function activateCourse() {
+    if (!confirm('Активировать курс? Он станет доступен всем студентам.')) {
+        return;
+    }
+    
+    toggleCourseStatus(true);
+}
+
+function deactivateCourse() {
+    if (!confirm('Деактивировать курс? Студенты не смогут записаться на него или продолжить обучение.')) {
+        return;
+    }
+    
+    toggleCourseStatus(false);
+}
+
+function toggleCourseStatus(newStatus) {
+    const formData = new FormData();
+    formData.append('operation', newStatus ? 'activate' : 'deactivate');
+    formData.append('course_ids', {{ course.id }});
+    
+    fetch('/admin/book-courses/bulk-operations', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showAlert('danger', 'Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Произошла ошибка');
+    });
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}
