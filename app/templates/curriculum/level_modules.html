@@ -7,7 +7,7 @@
   <!-- Навигационная крошка минималистичная -->
   <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb-minimal">
-      <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
+      <li><a href="/learn/">{{ _('Курсы') }}</a></li>
       <li>/</li>
       <li class="active">{{ level.code }}</li>
     </ol>
@@ -116,7 +116,7 @@
             <!-- Правая сторона: действия -->
             <div class="module-actions">
               {% if is_accessible %}
-                <a href="{{ url_for('curriculum.module_lessons', module_id=module.id) }}"
+                <a href="/learn/{{ level.code|lower }}/module-{{ module.number }}/"
                    class="btn {% if is_completed %}btn-outline-secondary{% else %}btn-primary{% endif %}">
                   {% if is_completed %}
                     {{ _('Повторить') }}

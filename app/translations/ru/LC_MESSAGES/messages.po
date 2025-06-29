@@ -23,7 +23,7 @@ msgid "English Learning App"
 msgstr "Приложение для изучения английского"
 
 msgid "Dashboard"
-msgstr "Панель управления"
+msgstr "Главная"
 
 msgid "Words"
 msgstr "Слова"
@@ -610,46 +610,46 @@ msgid "Дашборд для обучения"
 msgstr "Учебная панель"
 
 msgid "К просмотру"
-msgstr "Due for review"
+msgstr "К просмотру"
 
 msgid "слова"
-msgstr "words"
+msgstr "слова"
 
 msgid "Всего слов"
-msgstr "Total words"
+msgstr "Всего слов"
 
 msgid "в вашей коллекции"
-msgstr "in your collection"
+msgstr "в вашей коллекции"
 
 msgid "Прогресс"
-msgstr "Progress"
+msgstr "Прогресс"
 
 msgid "количества изученных слов"
-msgstr "of words learned"
+msgstr "количества изученных слов"
 
 msgid "Начните занятия"
-msgstr "Start studying"
+msgstr "Начните занятия"
 
 msgid "Режим обучения"
-msgstr "Study mode"
+msgstr "Режим обучения"
 
 msgid "Выберите, как вы хотите изучать свои слова"
-msgstr "Choose how you want to study your words"
+msgstr "Выберите, как вы хотите изучать свои слова"
 
 msgid "Источник слов"
-msgstr "Word source"
+msgstr "Источник слов"
 
 msgid "Выберите слова для изучения"
-msgstr "Choose words to study"
+msgstr "Выберите слова для изучения"
 
 msgid "Начало сеанса"
-msgstr "Start session"
+msgstr "Начало сеанса"
 
 msgid "Настройки"
-msgstr "Settings"
+msgstr "Настройки"
 
 msgid "Советы по обучению"
-msgstr "Study tips"
+msgstr "Советы по обучению"
 
 msgid "Регулярно занимайтесь, чтобы повысить успеваемость"
 msgstr "Study regularly to improve performance"
@@ -688,7 +688,7 @@ msgid "Тип"
 msgstr "Type"
 
 msgid "Слова"
-msgstr "Words"
+msgstr "Слова"
 
 msgid "Correct"
 msgstr "Правильно"
@@ -852,10 +852,10 @@ msgid "completed"
 msgstr "завершено"
 
 msgid "Ваши результаты"
-msgstr "Your results"
+msgstr "Ваши результаты"
 
 msgid "Слов изучено"
-msgstr "Words studied"
+msgstr "Слов изучено"
 
 msgid "Correct answers"
 msgstr "Правильных ответов"

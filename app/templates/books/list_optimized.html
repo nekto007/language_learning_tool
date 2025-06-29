@@ -204,6 +204,13 @@
                 </span>
                 {% endif %}
                 
+                <!-- Chapter Info -->
+                {% if chapter_counts.get(book.id, 0) > 0 %}
+                <div class="small text-muted mb-2">
+                    <i class="fas fa-book-open"></i> {{ chapter_counts[book.id] }} {{ _('глав') }}
+                </div>
+                {% endif %}
+                
                 <!-- Quick Stats -->
                 {% if current_user.is_authenticated and book_stats[book.id] %}
                 {% set stats = book_stats[book.id] %}
@@ -227,11 +234,46 @@
                         </a>
                     </div>
                     
-                    {% if current_user.is_authenticated and book.content %}
+                    {% if current_user.is_authenticated %}
                     <div class="d-grid mt-2">
-                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-book-open"></i> {{ _('Начать чтение') }}
-                        </a>
+                        {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+                        {% if chapter_progress %}
+                            {% set last_chapter_num = chapter_progress.chapter.chap_num if chapter_progress else 1 %}
+                            
+                            {# Show Continue button for books with progress #}
+                            {% if chapter_counts.get(book.id, 0) > 0 %}
+                                {% if book.slug %}
+                                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=last_chapter_num) }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-play"></i> {{ _('Продолжить') }}
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ last_chapter_num }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-play"></i> {{ _('Продолжить') }}
+                                </a>
+                                {% endif %}
+                            {% else %}
+                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-play"></i> {{ _('Продолжить') }}
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            {# Show Read button for new books #}
+                            {% if chapter_counts.get(book.id, 0) > 0 %}
+                                {% if book.slug %}
+                                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-book-open"></i> {{ _('Читать') }}
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-book-open"></i> {{ _('Читать') }}
+                                </a>
+                                {% endif %}
+                            {% else %}
+                                <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-book-open"></i> {{ _('Читать') }}
+                                </a>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

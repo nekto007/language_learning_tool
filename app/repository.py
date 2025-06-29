@@ -820,13 +820,13 @@ class DatabaseRepository:
             logger.error(f"Error batch updating learning status: {e}")
             return 0
 
-    def update_book_stats(self, book_id: int, total_words: int, unique_words: int) -> bool:
+    def update_book_stats(self, book_id: int, words_total: int, unique_words: int) -> bool:
         """
         Updates book statistics.
 
         Args:
             book_id (int): Book ID.
-            total_words (int): Total word count.
+            words_total (int): Total word count.
             unique_words (int): Unique word count.
 
         Returns:
@@ -834,12 +834,12 @@ class DatabaseRepository:
         """
         query = """
             UPDATE book
-            SET total_words = %s, unique_words = %s, scrape_date = NOW()
+            SET words_total = %s, unique_words = %s, created_at = NOW()
             WHERE id = %s
         """
         try:
-            self.execute_query(query, (total_words, unique_words, book_id))
-            logger.info(f"Updated stats for book ID {book_id}: {total_words} total words, {unique_words} unique words")
+            self.execute_query(query, (words_total, unique_words, book_id))
+            logger.info(f"Updated stats for book ID {book_id}: {words_total} total words, {unique_words} unique words")
             return True
         except Exception as e:
             logger.error(f"Error updating book stats: {e}")
@@ -881,7 +881,7 @@ class DatabaseRepository:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=DictCursor) as cursor:
                     query = """
-                        SELECT b.id, b.title, b.total_words, b.unique_words, b.scrape_date,
+                        SELECT b.id, b.title, b.words_total, b.unique_words, b.created_at,
                             COUNT(DISTINCT wbl.word_id) as linked_words,
                             SUM(wbl.frequency) as word_occurrences
                         FROM book b

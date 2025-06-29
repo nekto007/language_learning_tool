@@ -29,8 +29,6 @@ class User(db.Model, UserMixin):
     #                      secondaryjoin="UserWord.word_id == CollectionWords.id",
     #                      backref="users")
 
-    reading_progress = relationship("ReadingProgress", back_populates="user", lazy="dynamic",
-                                    cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('idx_user_username', 'username'),
@@ -117,15 +115,28 @@ class User(db.Model, UserMixin):
         return user_word
 
     def get_recent_reading_progress(self, limit=3):
-        from app.books.models import ReadingProgress
-        return self.reading_progress.order_by(desc(ReadingProgress.last_read)).limit(limit).all()
+        """Get recent chapter reading progress"""
+        from app.books.models import UserChapterProgress
+        return UserChapterProgress.query.filter_by(
+            user_id=self.id
+        ).order_by(desc(UserChapterProgress.updated_at)).limit(limit).all()
 
     def get_last_read_book(self):
-        from app.books.models import ReadingProgress
-        return self.reading_progress.order_by(desc(ReadingProgress.last_read)).first()
+        """Get last read book from chapter progress"""
+        from app.books.models import UserChapterProgress, Chapter, Book
+        latest_progress = UserChapterProgress.query.filter_by(
+            user_id=self.id
+        ).join(Chapter).join(Book).order_by(
+            desc(UserChapterProgress.updated_at)
+        ).first()
+        return latest_progress.chapter.book if latest_progress else None
 
     def get_reading_progress_count(self):
-        return self.reading_progress.count()
+        """Get count of books with reading progress"""
+        from app.books.models import UserChapterProgress, Chapter, Book
+        return db.session.query(Book.id).join(Chapter).join(
+            UserChapterProgress
+        ).filter(UserChapterProgress.user_id == self.id).distinct().count()
 
     @property
     def is_active(self):

@@ -1057,3 +1057,77 @@ def get_next_review_time(lesson_id):
     except Exception as e:
         logger.error(f"Error getting next review time: {str(e)}")
         return jsonify({'next_review_time': 'Ошибка получения данных'}), 500
+
+
+# =============================================================================
+# КРАСИВЫЕ URL ДЛЯ УРОКОВ
+# =============================================================================
+
+# Импортируем функции для работы с красивыми URL
+from app.curriculum.url_helpers import (
+    slug_to_level, slug_to_module_number, slug_to_lesson_info,
+    get_lesson_by_beautiful_url, generate_breadcrumbs
+)
+
+# Создаем новый blueprint для красивых URL уроков  
+learn_lessons_bp = Blueprint('learn_lessons', __name__)
+
+
+@learn_lessons_bp.route('/<string:level_slug>/<string:module_slug>/<string:lesson_slug>/')
+@login_required
+def beautiful_lesson_detail(level_slug, module_slug, lesson_slug):
+    """Красивый URL для урока"""
+    # Парсим URL
+    level_code = slug_to_level(level_slug)
+    module_number = slug_to_module_number(module_slug)
+    lesson_number, lesson_type = slug_to_lesson_info(lesson_slug)
+    
+    if not all([level_code, module_number, lesson_number]):
+        abort(404, "Invalid lesson URL")
+    
+    # Находим урок
+    lesson = get_lesson_by_beautiful_url(level_code, module_number, lesson_number, lesson_type)
+    if not lesson:
+        abort(404, "Lesson not found")
+    
+    # Генерируем breadcrumbs для навигации
+    breadcrumbs = generate_breadcrumbs(level_code, module_number, lesson_number, lesson_type)
+    
+    # Переадресовываем на соответствующий тип урока
+    if lesson.type == 'vocabulary':
+        return vocabulary_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    elif lesson.type == 'grammar':
+        return grammar_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    elif lesson.type == 'quiz':
+        return quiz_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    elif lesson.type == 'matching':
+        return matching_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    elif lesson.type == 'text':
+        return text_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    elif lesson.type == 'card':
+        return card_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    elif lesson.type == 'final_test':
+        return final_test_lesson(lesson.id, breadcrumbs=breadcrumbs)
+    else:
+        # По умолчанию показываем как детали урока
+        return lesson_detail(lesson.id)
+
+
+# Функции-хелперы для передачи breadcrumbs в существующие функции уроков
+def vocabulary_lesson_with_breadcrumbs(lesson_id, breadcrumbs=None):
+    """Vocabulary урок с breadcrumbs"""
+    response = vocabulary_lesson(lesson_id)
+    if breadcrumbs and hasattr(response, 'template') and response.template:
+        # Добавляем breadcrumbs в контекст шаблона
+        if hasattr(response, 'context') and response.context:
+            response.context['breadcrumbs'] = breadcrumbs
+    return response
+
+
+def grammar_lesson_with_breadcrumbs(lesson_id, breadcrumbs=None):
+    """Grammar урок с breadcrumbs"""
+    response = grammar_lesson(lesson_id)
+    if breadcrumbs and hasattr(response, 'template') and response.template:
+        if hasattr(response, 'context') and response.context:
+            response.context['breadcrumbs'] = breadcrumbs
+    return response

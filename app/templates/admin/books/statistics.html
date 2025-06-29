@@ -135,8 +135,8 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if book.scrape_date %}
-                                            {{ book.scrape_date.strftime('%Y-%m-%d') }}
+                                        {% if book.created_at %}
+                                            {{ book.created_at.strftime('%Y-%m-%d') }}
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}

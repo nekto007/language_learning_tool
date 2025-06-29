@@ -7,18 +7,24 @@ import json
 import logging
 import os
 import uuid
+import subprocess
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for, abort
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import desc, distinct, func
+from werkzeug.utils import secure_filename
 
 from app import csrf
 from app.auth.models import User
-from app.books.models import Book
+from app.utils.decorators import admin_required
+from app.books.models import Book, Chapter
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
+
+# Book course admin routes will be registered later to avoid circular imports
 from app.utils.db import db
 from app.words.forms import CollectionForm, TopicForm
 from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
@@ -182,11 +188,11 @@ def get_dashboard_statistics():
 
     # Статистика по словам
     try:
-        total_words = db.session.query(func.count(CollectionWords.id)).scalar() or 0
+        words_total = db.session.query(func.count(CollectionWords.id)).scalar() or 0
         words_with_audio = CollectionWords.query.filter_by(get_download=1).count()
     except Exception as e:
         logger.warning(f"Error getting word statistics: {e}")
-        total_words = 0
+        words_total = 0
         words_with_audio = 0
 
     # Статистика по учебной программе
@@ -205,7 +211,7 @@ def get_dashboard_statistics():
         'active_recently': active_recently,
         'total_books': total_books,
         'total_readings': total_readings,
-        'total_words': total_words,
+        'words_total': words_total,
         'words_with_audio': words_with_audio,
         'total_lessons': total_lessons,
         'active_lessons': active_lessons
@@ -474,7 +480,7 @@ def word_management():
     """Главная страница управления словами"""
     try:
         # Общая статистика по словам
-        total_words = CollectionWords.query.count()
+        words_total = CollectionWords.query.count()
 
         # Статистика по статусам пользователей
         from app.study.models import UserWord
@@ -496,7 +502,7 @@ def word_management():
 
         return render_template(
             'admin/words/index.html',
-            total_words=total_words,
+            words_total=words_total,
             status_stats=status_stats,
             recent_words=recent_words,
             words_without_translation=words_without_translation
@@ -820,9 +826,9 @@ def word_statistics():
         # Статистика по книгам
         book_stats = db.session.query(
             Book.title,
-            Book.total_words,
+            Book.words_total,
             Book.unique_words
-        ).order_by(Book.total_words.desc()).limit(10).all()
+        ).order_by(Book.words_total.desc()).limit(10).all()
 
         return render_template(
             'admin/words/statistics.html',
@@ -1641,27 +1647,27 @@ def get_book_statistics():
         # Топ-5 книг по количеству слов
         top_books = db.session.query(
             Book.title,
-            Book.total_words,
+            Book.words_total,
             Book.unique_words
-        ).order_by(Book.total_words.desc()).limit(5).all()
+        ).order_by(Book.words_total.desc()).limit(5).all()
 
         # Общая статистика
         total_books = Book.query.count()
-        total_words_all_books = db.session.query(func.sum(Book.total_words)).scalar() or 0
+        words_total_all_books = db.session.query(func.sum(Book.words_total)).scalar() or 0
         total_unique_words_all = db.session.query(func.sum(Book.unique_words)).scalar() or 0
 
         return {
             'top_books': [
                 {
                     'title': book.title,
-                    'total_words': book.total_words,
+                    'words_total': book.words_total,
                     'unique_words': book.unique_words
                 }
                 for book in top_books
             ],
             'totals': {
                 'total_books': total_books,
-                'total_words_all_books': total_words_all_books,
+                'words_total_all_books': words_total_all_books,
                 'total_unique_words_all': total_unique_words_all
             }
         }
@@ -1722,7 +1728,7 @@ def export_words_json(words, status=None):
 
     response_data = {
         'export_date': datetime.now(timezone.utc).isoformat(),
-        'total_words': len(words_data),
+        'words_total': len(words_data),
         'status_filter': status,
         'words': words_data
     }
@@ -1804,33 +1810,33 @@ def books():
 
         # Книги с обработанными данными
         books_with_stats = Book.query.filter(
-            Book.total_words.isnot(None),
-            Book.total_words > 0
+            Book.words_total.isnot(None),
+            Book.words_total > 0
         ).count()
 
         # Книги без статистики
         books_without_stats = total_books - books_with_stats
 
         # Общая статистика слов во всех книгах
-        total_words_all = db.session.query(func.sum(Book.total_words)).scalar() or 0
+        words_total_all = db.session.query(func.sum(Book.words_total)).scalar() or 0
         unique_words_all = db.session.query(func.sum(Book.unique_words)).scalar() or 0
 
         # Недавно добавленные книги
         recent_books = Book.query.order_by(
-            Book.scrape_date.desc().nullslast()
+            Book.created_at.desc().nullslast()
         ).limit(10).all()
 
         # Топ книг по количеству слов
         top_books = Book.query.filter(
-            Book.total_words.isnot(None)
-        ).order_by(Book.total_words.desc()).limit(5).all()
+            Book.words_total.isnot(None)
+        ).order_by(Book.words_total.desc()).limit(5).all()
 
         return render_template(
             'admin/books/index.html',
             total_books=total_books,
             books_with_stats=books_with_stats,
             books_without_stats=books_without_stats,
-            total_words_all=total_words_all,
+            words_total_all=words_total_all,
             unique_words_all=unique_words_all,
             recent_books=recent_books,
             top_books=top_books
@@ -1919,17 +1925,17 @@ def update_book_statistics():
                 unique_words = unique_words_result[0][0] if unique_words_result else 0
 
                 # Получаем общее количество слов (сумма частот)
-                total_words_result = repo.execute_query(
+                words_total_result = repo.execute_query(
                     "SELECT SUM(frequency) FROM word_book_link WHERE book_id = %s",
                     (book.id,),
                     fetch=True
                 )
-                total_words = total_words_result[0][0] if total_words_result else 0
+                words_total = words_total_result[0][0] if words_total_result else 0
 
                 # Обновляем статистику книги
                 book.unique_words = unique_words or 0
-                book.total_words = total_words or 0
-                book.scrape_date = datetime.now(timezone.utc)
+                book.words_total = words_total or 0
+                book.created_at = datetime.now(timezone.utc)
                 updated_count += 1
 
             except Exception as e:
@@ -2061,6 +2067,134 @@ def process_phrasal_verbs():
         }), 500
 
 
+def process_book_into_chapters(book_id, file_path, file_ext):
+    """
+    Process uploaded book file into chapters using the conversion pipeline:
+    FB2 -> TXT -> JSONL -> Database chapters
+    """
+    import tempfile
+    import shutil
+    import pathlib
+    
+    try:
+        book = Book.query.get(book_id)
+        if not book:
+            raise ValueError(f"Book with id {book_id} not found")
+        
+        # Create temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            
+            # Copy uploaded file to temp directory
+            input_file = temp_path / f"book{file_ext}"
+            shutil.copy(file_path, input_file)
+            
+            # Step 1: Convert FB2 to TXT if needed
+            if file_ext.lower() == '.fb2':
+                txt_file = temp_path / "book.txt"
+                cmd = f'python convert_fb2_to_txt.py "{input_file}" "{txt_file}"'
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    raise Exception(f"FB2 conversion failed: {result.stderr}")
+                input_file = txt_file
+            elif file_ext.lower() != '.txt':
+                raise ValueError(f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
+            
+            # Step 2: Prepare text and create JSONL
+            jsonl_file = temp_path / "chapters.jsonl"
+            
+            # Create prepare_text.py script content inline
+            prepare_script = temp_path / "prepare_text_inline.py"
+            prepare_script.write_text('''
+import re, json, pathlib, html
+
+chapter_pat = re.compile(r"^###\\s*CHAPTER_(\\d+)\\s*(.*)", re.I)
+
+def normalize(txt: str) -> str:
+    txt = html.unescape(txt)
+    txt = txt.replace(""", '"').replace(""", '"')
+    txt = txt.replace("'", "'").replace("'", "'")
+    txt = txt.replace("—", "—")
+    txt = re.sub(r"[ \\t]+", " ", txt)
+    return txt.strip()
+
+SRC = pathlib.Path(r"{input_file}")
+DST = pathlib.Path(r"{jsonl_file}")
+
+with DST.open("w", encoding="utf-8") as out:
+    chap_no, chap_title, buff = None, "", []
+    for line in SRC.read_text(encoding="utf-8").splitlines():
+        m = chapter_pat.match(line)
+        if m:
+            if chap_no:
+                text = normalize("\\n".join(buff))
+                words = len(re.findall(r"\\b[\\w']+\\b", text))
+                out.write(json.dumps({{
+                    "chap": chap_no,
+                    "title": chap_title or f"Chapter {{chap_no}}",
+                    "words": words,
+                    "text": text
+                }}, ensure_ascii=False) + "\\n")
+                buff.clear()
+            chap_no, chap_title = int(m[1]), m[2].strip()
+        else:
+            buff.append(line)
+    # Last chapter
+    if chap_no:
+        text = normalize("\\n".join(buff))
+        words = len(re.findall(r"\\b[\\w']+\\b", text))
+        out.write(json.dumps({{
+            "chap": chap_no,
+            "title": chap_title or f"Chapter {{chap_no}}",
+            "words": words,
+            "text": text
+        }}, ensure_ascii=False) + "\\n")
+'''.format(input_file=input_file, jsonl_file=jsonl_file))
+            
+            # Run the prepare script
+            cmd = f'python "{prepare_script}"'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise Exception(f"Text preparation failed: {result.stderr}")
+            
+            # Step 3: Load chapters from JSONL into database
+            chapters_data = []
+            total_words = 0
+            
+            with jsonl_file.open('r', encoding='utf-8') as f:
+                for line in f:
+                    chapter_data = json.loads(line)
+                    chapters_data.append(chapter_data)
+                    total_words += chapter_data['words']
+            
+            # Update book statistics
+            book.chapters_cnt = len(chapters_data)
+            book.words_total = total_words
+            
+            # Delete existing chapters if any
+            Chapter.query.filter_by(book_id=book.id).delete()
+            
+            # Insert new chapters
+            for chapter_data in chapters_data:
+                chapter = Chapter(
+                    book_id=book.id,
+                    chap_num=chapter_data['chap'],
+                    title=chapter_data['title'],
+                    words=chapter_data['words'],
+                    text_raw=chapter_data['text']
+                )
+                db.session.add(chapter)
+            
+            db.session.commit()
+            logger.info(f"Successfully processed {len(chapters_data)} chapters for book {book.title}")
+            return True, f"Successfully imported {len(chapters_data)} chapters"
+            
+    except Exception as e:
+        logger.error(f"Error processing book into chapters: {str(e)}")
+        db.session.rollback()
+        return False, str(e)
+
+
 @admin.route('/books/add', methods=['GET', 'POST'])
 @admin_required
 @handle_admin_errors(return_json=False)
@@ -2068,20 +2202,60 @@ def add_book():
     """Добавление новой книги через админку"""
     from app.books.forms import BookContentForm
     from app.books.parsers import process_uploaded_book
-    from app.books.processors import process_book_words
+    from app.books.processors import process_book_words, process_book_chapters_words
     import threading
     import re
 
     form = BookContentForm()
 
     if form.validate_on_submit():
-        # Создаем новую книгу с основными данными
-        new_book = Book(
-            title=form.title.data,
-            author=form.author.data,
-            level=form.level.data,
-            scrape_date=datetime.now(timezone.utc)
-        )
+        # Проверяем, есть ли уже книга с таким названием и автором
+        existing_book = Book.query.filter(
+            func.lower(Book.title) == func.lower(form.title.data),
+            func.lower(Book.author) == func.lower(form.author.data)
+        ).first()
+        
+        # Проверяем параметр подтверждения перезаписи
+        overwrite = request.form.get('overwrite') == 'true'
+        
+        if existing_book and not overwrite:
+            # Книга существует, возвращаем предупреждение
+            return jsonify({
+                'success': False,
+                'duplicate': True,
+                'existing_book': {
+                    'id': existing_book.id,
+                    'title': existing_book.title,
+                    'author': existing_book.author,
+                    'created_at': existing_book.created_at.strftime('%Y-%m-%d %H:%M') if existing_book.created_at else 'Неизвестно'
+                },
+                'message': 'Книга с таким названием и автором уже существует!'
+            })
+        
+        if existing_book and overwrite:
+            # Перезаписываем существующую книгу
+            new_book = existing_book
+            # Удаляем связанные главы
+            Chapter.query.filter_by(book_id=existing_book.id).delete()
+            # Очищаем данные книги
+            new_book.content = None
+            new_book.words_total = 0
+            new_book.unique_words = 0
+            new_book.cover_image = None
+            db.session.flush()
+        else:
+            # Создаем новую книгу с основными данными
+            new_book = Book(
+                title=form.title.data,
+                author=form.author.data,
+                level=form.level.data,
+                created_at=datetime.now(timezone.utc)
+            )
+        
+        # Обновляем основные данные
+        new_book.title = form.title.data
+        new_book.author = form.author.data
+        new_book.level = form.level.data
 
         # Обрабатываем обложку, если она загружена
         if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
@@ -2092,17 +2266,105 @@ def add_book():
         # Если был загружен файл контента, обрабатываем его
         if form.file.data and hasattr(form.file.data, 'filename'):
             try:
-                # Обрабатываем файл с помощью функции из parsers.py
-                result = process_uploaded_book(
-                    file=form.file.data,
-                    title=form.title.data,
-                    format_type=form.format_type.data
-                )
+                # Сохраняем временный файл
+                from werkzeug.utils import secure_filename
+                filename = secure_filename(form.file.data.filename)
+                file_ext = os.path.splitext(filename)[1].lower()
+                
+                # Проверяем, поддерживается ли формат для обработки по главам
+                chapter_formats = ['.fb2', '.txt']
+                use_chapters = file_ext in chapter_formats
+                
+                if use_chapters:
+                    # Сначала сохраняем книгу без контента
+                    if not existing_book or not overwrite:
+                        db.session.add(new_book)
+                    db.session.commit()
+                    
+                    # Создаем временный файл
+                    temp_dir = os.path.join('app', 'temp')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    temp_file_path = os.path.join(temp_dir, filename)
+                    form.file.data.save(temp_file_path)
+                    
+                    try:
+                        # Обрабатываем книгу по главам
+                        success, message = process_book_into_chapters(new_book.id, temp_file_path, file_ext)
+                        message_text = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! {message}'
+                        
+                        if success:
+                            # Получаем ссылку на приложение ДО создания потока
+                            from flask import current_app
+                            app = current_app._get_current_object()
+                            book_id_to_process = new_book.id
+                            
+                            # Запускаем обработку слов для книг с главами в фоновом режиме
+                            def start_chapter_processing():
+                                logger.info(f"[ADMIN] Starting chapter processing thread for book {book_id_to_process}")
+                                try:
+                                    # Создаем контекст приложения для потока
+                                    with app.app_context():
+                                        # Используем безопасную обертку
+                                        from app.books.safe_processors import safe_process_book_chapters_words, diagnose_import_issue
+                                        
+                                        # Сначала диагностируем возможные проблемы
+                                        logger.info("[ADMIN] Running import diagnostics...")
+                                        diagnosis = diagnose_import_issue()
+                                        logger.info(f"[ADMIN] Diagnosis results: {diagnosis}")
+                                        
+                                        # Запускаем обработку
+                                        logger.info(f"[ADMIN] Calling safe_process_book_chapters_words for book {book_id_to_process}")
+                                        result = safe_process_book_chapters_words(book_id_to_process)
+                                        logger.info(f"[ADMIN] Processing result: {result}")
+                                    
+                                except Exception as e:
+                                    logger.error(f"[ADMIN] Error in chapter processing thread: {str(e)}")
+                                    logger.error(f"[ADMIN] Exception type: {type(e).__name__}")
+                                    logger.error(f"[ADMIN] Traceback: {traceback.format_exc()}")
 
-                # Сохраняем результаты
-                new_book.content = result['content']
-                new_book.total_words = result['word_count']
-                new_book.unique_words = result['unique_words']
+                            # Запускаем поток и не ждем его завершения
+                            import threading
+                            import traceback
+                            logger.info(f"[ADMIN] Creating processing thread for book {new_book.id}")
+                            processing_thread = threading.Thread(
+                                target=start_chapter_processing,
+                                name=f"BookChapterProcessor-{new_book.id}"
+                            )
+                            processing_thread.daemon = True
+                            logger.info(f"[ADMIN] Starting processing thread: {processing_thread.name}")
+                            processing_thread.start()
+                            logger.info(f"[ADMIN] Processing thread started successfully")
+                            
+                            if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                                return jsonify({'success': True, 'message': message_text})
+                            flash(message_text, 'success')
+                        else:
+                            error_text = f'Книга {"перезаписана" if existing_book and overwrite else "добавлена"}, но произошла ошибка при обработке глав: {message}'
+                            if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                                return jsonify({'success': False, 'message': error_text})
+                            flash(error_text, 'warning')
+                    finally:
+                        # Удаляем временный файл
+                        if os.path.exists(temp_file_path):
+                            os.remove(temp_file_path)
+                    
+                    # Очищаем кэш и редиректим
+                    clear_admin_cache()
+                    action = "overwritten" if existing_book and overwrite else "added"
+                    logger.info(f"Book {action} with chapters by admin {current_user.username}: {new_book.title}")
+                    return redirect(url_for('admin.books'))
+                else:
+                    # Для других форматов используем старую логику
+                    result = process_uploaded_book(
+                        file=form.file.data,
+                        title=form.title.data,
+                        format_type=form.format_type.data
+                    )
+
+                    # Сохраняем результаты
+                    new_book.content = result['content']
+                    new_book.words_total = result['word_count']
+                    new_book.unique_words = result['unique_words']
 
             except Exception as e:
                 flash(f'Ошибка при обработке файла: {str(e)}', 'danger')
@@ -2122,35 +2384,70 @@ def add_book():
             # Подсчитываем статистику слов
             words = re.findall(r'\b[a-zA-Z]+\b', content.lower())
             new_book.content = content_html
-            new_book.total_words = len(words)
+            new_book.words_total = len(words)
             new_book.unique_words = len(set(words))
 
-        # Сохраняем книгу в базу данных
-        db.session.add(new_book)
-        db.session.commit()
+        # Если книга не была обработана по главам, сохраняем её обычным способом
+        if not (form.file.data and hasattr(form.file.data, 'filename') and 
+                os.path.splitext(secure_filename(form.file.data.filename))[1].lower() in ['.fb2', '.txt']):
+            # Сохраняем книгу в базу данных
+            if not existing_book or not overwrite:
+                db.session.add(new_book)
+            db.session.commit()
 
-        # Очищаем кэш после добавления книги
-        clear_admin_cache()
+            # Очищаем кэш после добавления книги
+            clear_admin_cache()
 
-        # Запускаем обработку слов в отдельном потоке без ожидания
-        if new_book.content:
-            def start_processing():
-                try:
-                    process_book_words(new_book.id, new_book.content)
-                except Exception as e:
-                    logger.error(f"Ошибка при запуске обработки слов: {str(e)}")
+            # Запускаем обработку слов в отдельном потоке без ожидания
+            if new_book.content:
+                # Получаем ссылку на приложение и данные ДО создания потока
+                from flask import current_app
+                app = current_app._get_current_object()
+                book_id_to_process = new_book.id
+                book_content = new_book.content
+                
+                def start_processing():
+                    logger.info(f"[ADMIN] Starting word processing thread for book {book_id_to_process}")
+                    try:
+                        # Создаем контекст приложения для потока
+                        with app.app_context():
+                            # Используем безопасную обертку
+                            from app.books.safe_processors import safe_process_book_words
+                            
+                            logger.info(f"[ADMIN] Calling safe_process_book_words for book {book_id_to_process}")
+                            result = safe_process_book_words(book_id_to_process, book_content)
+                            logger.info(f"[ADMIN] Processing result: {result}")
+                        
+                    except Exception as e:
+                        logger.error(f"[ADMIN] Error in word processing thread: {str(e)}")
+                        logger.error(f"[ADMIN] Exception type: {type(e).__name__}")
+                        import traceback
+                        logger.error(f"[ADMIN] Traceback: {traceback.format_exc()}")
 
-            # Запускаем поток и не ждем его завершения
-            processing_thread = threading.Thread(target=start_processing)
-            processing_thread.daemon = True
-            processing_thread.start()
+                # Запускаем поток и не ждем его завершения
+                import threading
+                logger.info(f"[ADMIN] Creating word processing thread for book {new_book.id}")
+                processing_thread = threading.Thread(
+                    target=start_processing,
+                    name=f"BookWordProcessor-{new_book.id}"
+                )
+                processing_thread.daemon = True
+                logger.info(f"[ADMIN] Starting processing thread: {processing_thread.name}")
+                processing_thread.start()
+                logger.info(f"[ADMIN] Processing thread started successfully")
 
-            flash('Книга успешно добавлена! Обработка слов запущена в фоновом режиме.', 'success')
-        else:
-            flash('Книга успешно добавлена!', 'success')
+                success_message = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! Обработка слов запущена в фоновом режиме.'
+            else:
+                success_message = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}!'
 
-        logger.info(f"Book added by admin {current_user.username}: {new_book.title}")
-        return redirect(url_for('admin.books'))
+            # Если это AJAX запрос, возвращаем JSON
+            if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                return jsonify({'success': True, 'message': success_message})
+            
+            flash(success_message, 'success')
+            action = "overwritten" if existing_book and overwrite else "added"
+            logger.info(f"Book {action} by admin {current_user.username}: {new_book.title}")
+            return redirect(url_for('admin.books'))
 
     return render_template('admin/books/add.html', form=form)
 
@@ -2225,12 +2522,12 @@ def cleanup_books():
         try:
             # Книги без содержания
             books_no_content = db.session.execute(
-                db.text("SELECT COUNT(*) FROM books WHERE content IS NULL OR content = ''")
+                db.text("SELECT COUNT(*) FROM book WHERE content IS NULL OR content = ''")
             ).scalar()
 
             # Книги с нулевой статистикой
             books_no_stats = db.session.execute(
-                db.text("SELECT COUNT(*) FROM books WHERE total_words = 0 OR total_words IS NULL")
+                db.text("SELECT COUNT(*) FROM book WHERE words_total = 0 OR words_total IS NULL")
             ).scalar()
 
             # Общее количество книг
@@ -2381,9 +2678,9 @@ def book_statistics():
     try:
         # Получаем топ книг по количеству слов
         top_books_by_words = Book.query.filter(
-            Book.total_words.isnot(None),
-            Book.total_words > 0
-        ).order_by(Book.total_words.desc()).limit(20).all()
+            Book.words_total.isnot(None),
+            Book.words_total > 0
+        ).order_by(Book.words_total.desc()).limit(20).all()
 
         # Статистика по уникальным словам
         top_books_by_unique = Book.query.filter(
@@ -2393,15 +2690,15 @@ def book_statistics():
 
         # Книги без статистики
         books_without_stats = Book.query.filter(
-            (Book.total_words.is_(None)) | (Book.total_words == 0)
+            (Book.words_total.is_(None)) | (Book.words_total == 0)
         ).order_by(Book.title).limit(50).all()
 
         # Общая статистика
         total_stats = db.session.query(
             func.count(Book.id).label('total_books'),
-            func.sum(Book.total_words).label('total_words'),
+            func.sum(Book.words_total).label('words_total'),
             func.sum(Book.unique_words).label('unique_words'),
-            func.avg(Book.total_words).label('avg_words'),
+            func.avg(Book.words_total).label('avg_words'),
             func.avg(Book.unique_words).label('avg_unique')
         ).first()
 
@@ -2438,13 +2735,13 @@ def audio_management():
         from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE
 
         # Статистика по аудио файлам
-        total_words = CollectionWords.query.count()
+        words_total = CollectionWords.query.count()
 
         # Слова с доступным аудио (get_download = 1)
         words_with_audio = CollectionWords.query.filter_by(get_download=1).count()
 
         # Слова без аудио
-        words_without_audio = total_words - words_with_audio
+        words_without_audio = words_total - words_with_audio
 
         # Слова с проблемными URL аудио (содержат http)
         problematic_audio = CollectionWords.query.filter(
@@ -2458,7 +2755,7 @@ def audio_management():
 
         return render_template(
             'admin/audio/index.html',
-            total_words=total_words,
+            words_total=words_total,
             words_with_audio=words_with_audio,
             words_without_audio=words_without_audio,
             problematic_audio=problematic_audio,
@@ -2690,7 +2987,7 @@ def audio_statistics():
         level_audio_stats_raw = repo.execute_query(f"""
             SELECT 
                 COALESCE(level, 'Unknown') as level,
-                COUNT(*) as total_words,
+                COUNT(*) as words_total,
                 SUM(CASE WHEN get_download = 1 THEN 1 ELSE 0 END) as with_audio
             FROM {COLLECTIONS_TABLE}
             GROUP BY level
@@ -2703,7 +3000,7 @@ def audio_statistics():
             if row and len(row) >= 3:
                 level_audio_stats.append({
                     'level': row[0],
-                    'total_words': row[1],
+                    'words_total': row[1],
                     'with_audio': row[2]
                 })
 
@@ -2736,7 +3033,7 @@ def export_audio_list_json(words, pattern=None):
 
     response_data = {
         'export_date': datetime.now(timezone.utc).isoformat(),
-        'total_words': len(words),
+        'words_total': len(words),
         'pattern_filter': pattern,
         'purpose': 'forvo_audio_download_list',
         'words': words_data
@@ -2798,6 +3095,14 @@ def export_audio_list_txt(words, pattern=None):
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
     return response
+
+
+# =============================================================================
+# ГРУППА 5: Управление Book Courses
+# =============================================================================
+
+# Book Courses management is handled by app/admin/book_courses.py module
+# Routes are registered via register_book_course_routes() in __init__.py
 
 
 # Импортируем роуты из curriculum.py

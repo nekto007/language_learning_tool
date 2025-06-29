@@ -19,17 +19,17 @@ document.addEventListener('DOMContentLoaded', function() {
     switch (data.status) {
       case 'queued':
         statusIcon = 'fas fa-clock';
-        statusTitle = 'Word Processing Queued';
+        statusTitle = 'Обработка слов поставлена в очередь';
         statusClass = 'info';
         statusContent = `
-          <p>Word processing has been queued and will start soon.</p>
-          <small class="text-muted">Queued at: ${formatDateTime(data.queued_at)}</small>
+          <p>Обработка слов поставлена в очередь и скоро начнется.</p>
+          <small class="text-muted">Поставлено в очередь: ${formatDateTime(data.queued_at)}</small>
         `;
         break;
 
       case 'processing':
         statusIcon = 'fas fa-cogs fa-spin';
-        statusTitle = 'Word Processing In Progress';
+        statusTitle = 'Обработка слов в процессе';
         statusClass = 'primary';
 
         // Показываем прогресс-бар с процентами, если они доступны
@@ -53,43 +53,43 @@ document.addEventListener('DOMContentLoaded', function() {
         // Добавляем информацию о промежуточных результатах, если доступна
         let wordsInfo = '';
         if (data.words_processed_so_far) {
-          wordsInfo = `<p class="small mt-2">Words processed so far: ${data.words_processed_so_far}</p>`;
+          wordsInfo = `<p class="small mt-2">Обработано слов: ${data.words_processed_so_far}</p>`;
         }
 
         statusContent = `
-          <p>${data.message || 'Processing words from the book...'}</p>
-          ${data.book_size ? `<p class="small">Book size: ${formatFileSize(data.book_size)}</p>` : ''}
+          <p>${data.message || 'Обработка слов из книги...'}</p>
+          ${data.book_size ? `<p class="small">Размер книги: ${formatFileSize(data.book_size)}</p>` : ''}
           ${progressBar}
           ${wordsInfo}
-          <small class="text-muted mt-2 d-block">Started at: ${formatDateTime(data.started_at)}</small>
+          <small class="text-muted mt-2 d-block">Начато: ${formatDateTime(data.started_at)}</small>
         `;
         break;
 
       case 'error':
         statusIcon = 'fas fa-exclamation-triangle';
-        statusTitle = 'Word Processing Error';
+        statusTitle = 'Ошибка обработки слов';
         statusClass = 'danger';
         statusContent = `
-          <p>Error during word processing:</p>
+          <p>Ошибка при обработке слов:</p>
           <div class="alert alert-danger">
             ${data.message || 'Unknown error'}
           </div>
           <button class="btn btn-sm btn-outline-primary" onclick="location.href='${window.location.pathname}'">
-            <i class="fas fa-sync-alt"></i> Reload Page
+            <i class="fas fa-sync-alt"></i> Перезагрузить страницу
           </button>
-          ${data.completed_at ? `<small class="text-muted mt-2 d-block">Completed at: ${formatDateTime(data.completed_at)}</small>` : ''}
+          ${data.completed_at ? `<small class="text-muted mt-2 d-block">Завершено: ${formatDateTime(data.completed_at)}</small>` : ''}
         `;
         break;
 
       case 'timeout':
         statusIcon = 'fas fa-exclamation-circle';
-        statusTitle = 'Word Processing Timeout';
+        statusTitle = 'Тайм-аут обработки слов';
         statusClass = 'warning';
         statusContent = `
-          <p>Processing timed out. The book may be too large or contain complex content.</p>
+          <p>Обработка прервана по тайм-ауту. Книга может быть слишком большой или содержать сложное содержимое.</p>
           <p class="small">You can still use the book, but word statistics might be incomplete.</p>
           <button class="btn btn-sm btn-outline-primary" onclick="location.href='${window.location.pathname}'">
-            <i class="fas fa-sync-alt"></i> Reload Page
+            <i class="fas fa-sync-alt"></i> Перезагрузить страницу
           </button>
         `;
         break;

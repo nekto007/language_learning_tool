@@ -9,10 +9,13 @@ from typing import Dict, List
 
 from bs4 import BeautifulSoup
 
-from app.books.models import Book
+from app.books.models import Book, Block, BlockVocab
+from app.words.models import CollectionWords
 from app.nlp.processor import prepare_word_data, process_text
 from app.nlp.setup import download_nltk_resources, initialize_nltk
 from app.repository import DatabaseRepository
+from app.utils.db import db
+from sqlalchemy import func, desc, text
 from config.settings import (
     MAX_CONCURRENT_PROCESSING, MAX_PROCESSING_TIME, MAX_STATUS_AGE, MAX_SYNC_PROCESSING_SIZE, STATUS_CLEANUP_INTERVAL,
     SYNC_PROCESSING_TIMEOUT,
@@ -38,8 +41,17 @@ def get_app():
     """
     global flask_app
     if flask_app is None:
-        from app import create_app
-        flask_app = create_app()
+        # Пробуем получить текущее приложение, если оно уже создано
+        from flask import current_app
+        try:
+            # Если мы в контексте приложения, используем его
+            flask_app = current_app._get_current_object()
+            logger.debug("Using existing Flask app from current_app")
+        except RuntimeError:
+            # Если нет контекста приложения, создаем новое
+            logger.warning("No Flask app context found, creating new app instance")
+            from app import create_app
+            flask_app = create_app()
     return flask_app
 
 
@@ -60,10 +72,10 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
         english_vocab, brown_words, stop_words = initialize_nltk()
 
         # Извлекаем текст порциями, если контент большой
-        chunk_size = 100000  # Примерно 100KB на чанк
+        chunk_size = 300000  # Примерно 300KB на чанк (увеличено для больших книг)
         all_words = []
 
-        if len(html_content) > chunk_size * 3:  # Если книга очень большая (>300KB)
+        if len(html_content) > chunk_size * 3:  # Если книга очень большая (>600KB)
             logger.info(f"Большой HTML контент ({len(html_content)} байт), обрабатываем по частям")
 
             # Используем BeautifulSoup для разбиения на параграфы
@@ -77,11 +89,12 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
 
                 # Если добавление этого параграфа превысит размер чанка, обрабатываем текущий чанк
                 if len(current_chunk) + len(paragraph_text) > chunk_size:
-                    # Обрабатываем текущий чанк
-                    words = process_text(current_chunk, english_vocab, stop_words)
-                    all_words.extend(words)
+                    # Обрабатываем текущий чанк, если он не пустой
+                    if current_chunk.strip():
+                        words = process_text(current_chunk, english_vocab, stop_words)
+                        all_words.extend(words)
 
-                    # Сбрасываем чанк
+                    # Начинаем новый чанк с текущего параграфа
                     current_chunk = paragraph_text
 
                     # Принудительная сборка мусора для освобождения памяти
@@ -89,7 +102,10 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
                     gc.collect()
                 else:
                     # Добавляем параграф к текущему чанку
-                    current_chunk += " " + paragraph_text
+                    if current_chunk:
+                        current_chunk += " " + paragraph_text
+                    else:
+                        current_chunk = paragraph_text
 
             # Обрабатываем последний чанк, если он не пустой
             if current_chunk.strip():
@@ -130,100 +146,124 @@ def process_book_words(book_id: int, html_content: str) -> Dict:
     Returns:
         Dict: Статистика об обработанных словах
     """
-    # Получаем приложение
-    app = get_app()
-
     try:
-        # Запускаем обработку в контексте приложения
-        with app.app_context():
-            # Приобретаем семафор для ограничения числа одновременных обработок
-            with contextlib.ExitStack() as stack:
-                acquired = processing_semaphore.acquire(timeout=5)
-                if acquired:
-                    stack.callback(processing_semaphore.release)
-                else:
-                    logger.warning(
-                        f"Не удалось получить разрешение для обработки книги ID {book_id} - слишком много одновременных задач")
-                    return {"status": "error", "message": "Too many concurrent processing tasks"}
-
-                start_time = time.time()
-                logger.info(f"Начало обработки слов для книги ID {book_id}")
-
-                # Проверяем существование книги (теперь в контексте приложения)
-                try:
-                    book = Book.query.get(book_id)
-                    if not book:
-                        return {"status": "error", "message": f"Book with ID {book_id} not found"}
-                except Exception as db_err:
-                    logger.error(f"Ошибка при проверке существования книги {book_id}: {str(db_err)}")
-                    return {"status": "error", "message": f"Database error: {str(db_err)}"}
-
-                # Извлекаем слова из контента с оптимизированной функцией
-                all_words = extract_words_from_html_content(html_content)
-
-                if not all_words:
-                    logger.warning(f"Не удалось извлечь слова из книги ID {book_id}")
-                    return {"status": "error", "message": "No words extracted"}
-
-                # Получаем статистику
-                total_words = len(all_words)
-                unique_words = len(set(all_words))
-
-                logger.info(f"Извлечено {total_words} слов, {unique_words} уникальных для книги ID {book_id}")
-
-                # Инициализация NLTK ресурсов
-                download_nltk_resources()
-                _, brown_words, _ = initialize_nltk()
-
-                # Подготовка данных для вставки с обработкой по частям
-                # Разбиваем слова на группы по 5000 для обработки
-                batch_size = 5000
-                total_added = 0
-
-                for i in range(0, len(all_words), batch_size):
-                    batch = all_words[i:i + batch_size]
-                    word_data_batch = prepare_word_data(batch, brown_words)
-
-                    # Создание репозитория для работы с БД
-                    repo = DatabaseRepository()
-
-                    # Обрабатываем пакет слов
-                    batch_added = repo.process_batch_from_original_format(word_data_batch, book_id, batch_size=500)
-                    total_added += batch_added
-
-                    # Обновляем статус
-                    processed_percent = min(100, int((i + len(batch)) / len(all_words) * 100))
-                    processing_status[book_id] = {
-                        **processing_status.get(book_id, {}),
-                        "status": "processing",
-                        "progress": processed_percent,
-                        "message": f"Processing words: {processed_percent}% complete",
-                        "words_processed_so_far": total_added
-                    }
-
-                    # Принудительная сборка мусора
-                    import gc
-                    gc.collect()
-
-                # Обновляем статистику книги в конце
-                repo = DatabaseRepository()
-                repo.update_book_stats(book_id, total_words, unique_words)
-
-                elapsed_time = time.time() - start_time
-                logger.info(
-                    f"Завершена обработка {total_added} слов для книги ID {book_id} за {elapsed_time:.2f} секунд")
-
-                return {
-                    "status": "success",
-                    "total_words": total_words,
-                    "unique_words": unique_words,
-                    "words_added": total_added,
-                    "elapsed_time": elapsed_time
-                }
-
+        # Проверяем, есть ли уже контекст приложения
+        from flask import has_app_context
+        
+        if has_app_context():
+            # Если контекст уже есть, работаем напрямую
+            return _process_book_words_internal(book_id, html_content)
+        else:
+            # Если контекста нет, получаем приложение и создаем контекст
+            app = get_app()
+            with app.app_context():
+                return _process_book_words_internal(book_id, html_content)
+                
     except Exception as e:
         logger.error(f"Ошибка при обработке слов для книги ID {book_id}: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+
+def _process_book_words_internal(book_id: int, html_content: str) -> Dict:
+    """
+    Внутренняя функция обработки слов из книги.
+    Должна вызываться только внутри контекста приложения.
+    
+    Args:
+        book_id (int): ID книги
+        html_content (str): HTML-контент книги
+        
+    Returns:
+        Dict: Статистика об обработанных словах
+    """
+    # Приобретаем семафор для ограничения числа одновременных обработок
+    with contextlib.ExitStack() as stack:
+        acquired = processing_semaphore.acquire(timeout=5)
+        if acquired:
+            stack.callback(processing_semaphore.release)
+        else:
+            logger.warning(
+                f"Не удалось получить разрешение для обработки книги ID {book_id} - слишком много одновременных задач")
+            return {"status": "error", "message": "Too many concurrent processing tasks"}
+
+        start_time = time.time()
+        logger.info(f"Начало обработки слов для книги ID {book_id}")
+
+        # Проверяем существование книги (теперь в контексте приложения)
+        try:
+            book = Book.query.get(book_id)
+            if not book:
+                return {"status": "error", "message": f"Book with ID {book_id} not found"}
+        except Exception as db_err:
+            logger.error(f"Ошибка при проверке существования книги {book_id}: {str(db_err)}")
+            return {"status": "error", "message": f"Database error: {str(db_err)}"}
+
+        # Извлекаем слова из контента с оптимизированной функцией
+        all_words = extract_words_from_html_content(html_content)
+
+        if not all_words:
+            logger.warning(f"Не удалось извлечь слова из книги ID {book_id}")
+            return {"status": "error", "message": "No words extracted"}
+
+        # Получаем статистику
+        total_words = len(all_words)
+        unique_words = len(set(all_words))
+
+        logger.info(f"Извлечено {total_words} слов, {unique_words} уникальных для книги ID {book_id}")
+
+        # Инициализация NLTK ресурсов
+        download_nltk_resources()
+        _, brown_words, _ = initialize_nltk()
+
+        # Подготовка данных для вставки с обработкой по частям
+        # Разбиваем слова на группы по 5000 для обработки
+        batch_size = 5000
+        total_added = 0
+
+        for i in range(0, len(all_words), batch_size):
+            batch = all_words[i:i + batch_size]
+            word_data_batch = prepare_word_data(batch, brown_words)
+
+            # Создание репозитория для работы с БД
+            repo = DatabaseRepository()
+
+            # Обрабатываем пакет слов
+            batch_added = repo.process_batch_from_original_format(word_data_batch, book_id, batch_size=500)
+            total_added += batch_added
+
+            # Обновляем статус
+            processed_percent = min(100, int((i + len(batch)) / len(all_words) * 100))
+            processing_status[book_id] = {
+                **processing_status.get(book_id, {}),
+                "status": "processing",
+                "progress": processed_percent,
+                "message": f"Processing words: {processed_percent}% complete",
+                "words_processed_so_far": total_added
+            }
+
+            # Принудительная сборка мусора
+            import gc
+            gc.collect()
+
+        # Обновляем статистику книги в конце
+        repo = DatabaseRepository()
+        repo.update_book_stats(book_id, total_words, unique_words)
+
+        # Заполняем block_vocab если есть блоки
+        block_vocab_result = populate_block_vocab(book_id)
+
+        elapsed_time = time.time() - start_time
+        logger.info(
+            f"Завершена обработка {total_added} слов для книги ID {book_id} за {elapsed_time:.2f} секунд")
+
+        return {
+            "status": "success",
+            "total_words": total_words,
+            "unique_words": unique_words,
+            "words_added": total_added,
+            "block_vocab_populated": block_vocab_result.get("blocks_updated", 0),
+            "elapsed_time": elapsed_time
+        }
 
 
 def enqueue_book_processing(book_id: int, html_content: str) -> Dict:
@@ -487,3 +527,255 @@ def cleanup_old_statuses(max_age=MAX_STATUS_AGE):
             cleanup_timer = threading.Timer(STATUS_CLEANUP_INTERVAL, cleanup_old_statuses, args=(max_age,))
             cleanup_timer.daemon = True
             cleanup_timer.start()
+
+
+
+def populate_block_vocab(book_id: int) -> Dict:
+    """
+    Заполняет таблицу block_vocab для блоков книги на основе частоты слов.
+    
+    Args:
+        book_id (int): ID книги
+        
+    Returns:
+        Dict: Результат заполнения block_vocab
+    """
+    try:
+        # Получаем все блоки для данной книги
+        blocks = Block.query.filter_by(book_id=book_id).all()
+        
+        if not blocks:
+            return {"blocks_updated": 0, "message": "No blocks found for this book"}
+        
+        blocks_updated = 0
+        
+        for block in blocks:
+            # Очищаем старые записи block_vocab для этого блока
+            BlockVocab.query.filter_by(block_id=block.id).delete()
+            
+            # Получаем главы этого блока
+            from app.books.models import BlockChapter, Chapter
+            chapter_ids = db.session.query(BlockChapter.chapter_id).filter_by(block_id=block.id).subquery()
+            
+            # Получаем слова из глав этого блока
+            # Используем word_book_link как источник слов для блока
+            top_words = db.session.execute(text("""
+                SELECT cw.id, cw.english_word, wbl.frequency
+                FROM word_book_link wbl
+                JOIN collection_words cw ON wbl.word_id = cw.id
+                WHERE wbl.book_id = :book_id
+                AND LENGTH(cw.english_word) > 3  -- Исключаем короткие слова
+                AND cw.english_word NOT IN (
+                    'the', 'and', 'that', 'have', 'for', 'not', 'with', 'you', 'this', 'but', 
+                    'his', 'from', 'they', 'she', 'her', 'been', 'than', 'has', 'was', 'were'
+                )  -- Исключаем стоп-слова
+                ORDER BY wbl.frequency DESC
+                LIMIT 20  -- 20 слов на блок
+            """), {"book_id": book_id}).fetchall()
+            
+            # Добавляем слова в block_vocab
+            words_added = 0
+            for word_id, lemma, freq in top_words:
+                block_vocab = BlockVocab(
+                    block_id=block.id,
+                    word_id=word_id,
+                    freq=freq
+                )
+                db.session.add(block_vocab)
+                words_added += 1
+            
+            logger.info(f"Добавлено {words_added} слов в block_vocab для блока {block.block_num}")
+            blocks_updated += 1
+        
+        db.session.commit()
+        
+        logger.info(f"Обновлено {blocks_updated} блоков с vocabulary для книги ID {book_id}")
+        
+        return {
+            "blocks_updated": blocks_updated,
+            "total_blocks": len(blocks)
+        }
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Ошибка при заполнении block_vocab для книги {book_id}: {str(e)}")
+        return {"blocks_updated": 0, "error": str(e)}
+
+
+def process_book_chapters_words(book_id: int) -> Dict:
+    """
+    Обрабатывает слова из глав книги, создает связи слово-книга и обновляет статистику.
+    Эта функция используется для книг, где контент хранится в главах.
+    
+    Args:
+        book_id (int): ID книги
+        
+    Returns:
+        Dict: Статистика об обработанных словах
+    """
+    try:
+        # Проверяем, есть ли уже контекст приложения
+        from flask import has_app_context
+        
+        if has_app_context():
+            # Если контекст уже есть, работаем напрямую
+            return _process_book_chapters_words_internal(book_id)
+        else:
+            # Если контекста нет, получаем приложение и создаем контекст
+            app = get_app()
+            with app.app_context():
+                return _process_book_chapters_words_internal(book_id)
+                
+    except Exception as e:
+        logger.error(f"Ошибка при обработке слов из глав книги {book_id}: {str(e)}")
+        processing_status[book_id] = {
+            "status": "error",
+            "message": f"Error processing words: {str(e)}",
+            "error_time": time.time()
+        }
+        return {"status": "error", "message": str(e)}
+
+
+def _process_book_chapters_words_internal(book_id: int) -> Dict:
+    """
+    Внутренняя функция обработки слов из глав книги.
+    Должна вызываться только внутри контекста приложения.
+    
+    Args:
+        book_id (int): ID книги
+        
+    Returns:
+        Dict: Статистика об обработанных словах
+    """
+    # Приобретаем семафор для ограничения числа одновременных обработок
+    with contextlib.ExitStack() as stack:
+        acquired = processing_semaphore.acquire(timeout=5)
+        if acquired:
+            stack.callback(processing_semaphore.release)
+        else:
+            logger.warning(
+                f"Не удалось получить разрешение для обработки книги ID {book_id} - слишком много одновременных задач")
+            return {"status": "error", "message": "Too many concurrent processing tasks"}
+
+        start_time = time.time()
+        logger.info(f"Начало обработки слов из глав для книги ID {book_id}")
+
+        # Проверяем существование книги
+        try:
+            book = Book.query.get(book_id)
+            if not book:
+                return {"status": "error", "message": f"Book with ID {book_id} not found"}
+        except Exception as db_err:
+            logger.error(f"Ошибка при проверке существования книги {book_id}: {str(db_err)}")
+            return {"status": "error", "message": f"Database error: {str(db_err)}"}
+
+        # Получаем все главы книги
+        from app.books.models import Chapter
+        chapters = Chapter.query.filter_by(book_id=book_id).all()
+        
+        if not chapters:
+            logger.warning(f"Нет глав для книги ID {book_id}")
+            return {"status": "error", "message": "No chapters found"}
+
+        # Объединяем текст всех глав
+        all_text = ""
+        for chapter in chapters:
+            if chapter.text_raw:
+                all_text += chapter.text_raw + " "
+
+        if not all_text.strip():
+            logger.warning(f"Нет текста в главах книги ID {book_id}")
+            return {"status": "error", "message": "No text in chapters"}
+
+        # Извлекаем слова из объединенного текста (обычный текст, не HTML)
+        all_words = extract_words_from_text_content(all_text)
+
+        if not all_words:
+            logger.warning(f"Не удалось извлечь слова из глав книги ID {book_id}")
+            return {"status": "error", "message": "No words extracted"}
+
+        # Получаем статистику
+        total_words = len(all_words)
+        unique_words = len(set(all_words))
+
+        logger.info(f"Извлечено {total_words} слов, {unique_words} уникальных из глав книги ID {book_id}")
+
+        # Инициализация NLTK ресурсов
+        download_nltk_resources()
+        _, brown_words, _ = initialize_nltk()
+
+        # Подготовка данных для вставки с обработкой по частям
+        batch_size = 5000
+        total_added = 0
+
+        for i in range(0, len(all_words), batch_size):
+            batch = all_words[i:i + batch_size]
+            word_data_batch = prepare_word_data(batch, brown_words)
+
+            # Создание репозитория для работы с БД
+            repo = DatabaseRepository()
+
+            # Обрабатываем пакет слов
+            batch_added = repo.process_batch_from_original_format(word_data_batch, book_id, batch_size=500)
+            total_added += batch_added
+
+            # Обновляем статус
+            processed_percent = min(100, int((i + len(batch)) / len(all_words) * 100))
+            processing_status[book_id] = {
+                **processing_status.get(book_id, {}),
+                "status": "processing",
+                "progress": processed_percent,
+                "message": f"Processing words from chapters: {processed_percent}% complete",
+                "words_processed_so_far": total_added
+            }
+
+            # Принудительная сборка мусора
+            import gc
+            gc.collect()
+
+        # Обновляем статистику книги в конце
+        repo = DatabaseRepository()
+        repo.update_book_stats(book_id, total_words, unique_words)
+
+        # Заполняем block_vocab если есть блоки
+        block_vocab_result = populate_block_vocab(book_id)
+
+        elapsed_time = time.time() - start_time
+        logger.info(
+            f"Завершена обработка {total_added} слов из глав для книги ID {book_id} за {elapsed_time:.2f} секунд")
+
+        return {
+            "status": "success",
+            "total_words": total_words,
+            "unique_words": unique_words,
+            "words_added": total_added,
+            "block_vocab_populated": block_vocab_result.get("blocks_updated", 0),
+            "elapsed_time": elapsed_time
+        }
+
+
+def extract_words_from_text_content(text_content: str) -> List[str]:
+    """
+    Извлекает слова из обычного текстового контента (не HTML).
+    Используется для обработки глав книг.
+    
+    Args:
+        text_content (str): Текстовый контент
+        
+    Returns:
+        List[str]: Список обработанных слов
+    """
+    try:
+        # Загружаем ресурсы NLTK
+        download_nltk_resources()
+        english_vocab, brown_words, stop_words = initialize_nltk()
+        
+        # Обрабатываем текст с помощью process_text
+        all_words = process_text(text_content, english_vocab, stop_words)
+        
+        logger.info(f"Извлечено {len(all_words)} слов из текстового контента")
+        return all_words
+        
+    except Exception as e:
+        logger.error(f"Ошибка при извлечении слов из текста: {str(e)}")
+        return []

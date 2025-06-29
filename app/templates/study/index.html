@@ -299,8 +299,11 @@ body {
     </div>
     {% endif %}
 
-    <!-- Режимы обучения -->
-    <div class="study-modes">
+    <!-- Reading Progress Widget -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <!-- Режимы обучения -->
+            <div class="study-modes">
         <!-- Карточки -->
         <a href="{{ url_for('study.cards') }}" class="study-mode-card">
             <div class="study-mode-icon">
@@ -327,6 +330,11 @@ body {
             <h3 class="study-mode-title">{{ _('Совпадения') }}</h3>
             <p class="study-mode-description">{{ _('Сопоставьте слова с переводами.') }}</p>
         </a>
+    </div>
+        </div>
+        <div class="col-lg-4">
+            {% include 'books/reading_widget.html' %}
+        </div>
     </div>
 
     <!-- Простая статистика -->
