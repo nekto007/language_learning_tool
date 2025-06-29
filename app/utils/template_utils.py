@@ -1,7 +1,12 @@
 import copy
 import datetime
+import re
 
 from flask import request
+try:
+    from markupsafe import Markup
+except ImportError:
+    from flask import Markup
 
 
 def url_params_with_updated_args(**updates):
@@ -31,6 +36,39 @@ def url_params_with_updated_args(**updates):
             args[key] = str(value)  # Convert values to strings for URL parameters
 
     return args
+
+
+def format_chapter_text(text):
+    """
+    Format chapter text for HTML display
+    Handles various newline patterns and converts to proper paragraphs
+    """
+    if not text:
+        return ""
+    
+    # Handle different newline patterns
+    # Escaped newlines from database
+    text = text.replace('\\n\\n', '\n\n')
+    text = text.replace('\\n', '\n')
+    
+    # Split into paragraphs
+    if '\n\n' in text:
+        paragraphs = text.split('\n\n')
+    else:
+        # If no double newlines, split by single newlines but be more conservative
+        paragraphs = [text]
+    
+    html_parts = []
+    for paragraph in paragraphs:
+        clean_paragraph = paragraph.strip()
+        if clean_paragraph:
+            # Replace remaining single newlines with spaces within paragraphs
+            clean_paragraph = clean_paragraph.replace('\n', ' ')
+            # Clean up multiple spaces
+            clean_paragraph = re.sub(r'\s+', ' ', clean_paragraph)
+            html_parts.append(f'<p class="mb-4">{clean_paragraph}</p>')
+    
+    return Markup('\n'.join(html_parts))
 
 
 def init_template_utils(app):
@@ -158,3 +196,9 @@ def init_template_utils(app):
             get_curriculum_progress=get_curriculum_progress,
             translate_lesson_type=translate_lesson_type
         )
+
+    # Register custom filters
+    @app.template_filter('format_chapter_text')
+    def format_chapter_text_filter(text):
+        """Jinja filter to format chapter text with proper paragraphs"""
+        return format_chapter_text(text)

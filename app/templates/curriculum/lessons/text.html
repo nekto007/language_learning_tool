@@ -62,11 +62,7 @@
       {% else %}
         <!-- Обычный текст -->
         <div class="prose-container">
-          {% for paragraph in text_content.text.split('\n\n') %}
-            {% if paragraph.strip() %}
-              <p class="text-paragraph">{{ paragraph.replace('\n', ' ') }}</p>
-            {% endif %}
-          {% endfor %}
+          {{ text_content.text | format_chapter_text }}
         </div>
       {% endif %}
     {% else %}

@@ -28,7 +28,7 @@ def get_books():
     book_list = [{
         'id': book.id,
         'title': book.title,
-        'total_words': book.total_words,
+        'words_total': book.words_total,
         'unique_words': book.unique_words,
         'created_at': book.created_at.isoformat() if book.created_at else None
     } for book in books]
@@ -96,7 +96,7 @@ def get_book(book_id):
     return jsonify({
         'id': book.id,
         'title': book.title,
-        'total_words': book.total_words,
+        'words_total': book.words_total,
         'unique_words': book.unique_words,
         'created_at': book.created_at.isoformat() if book.created_at else None,
         'word_stats': word_stats

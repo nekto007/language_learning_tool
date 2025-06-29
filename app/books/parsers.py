@@ -22,8 +22,8 @@ def clean_text(text):
     # Удаляем служебную информацию сайтов
     text = re.sub(r'\s*-\s*[a-zA-Z0-9\-_]+\.(com|ru|org|net)\s*$', '', text)
 
-    # Удаляем лишние пробелы
-    text = re.sub(r'\s+', ' ', text).strip()
+    # Удаляем лишние пробелы, но сохраняем переносы строк
+    text = re.sub(r'[ \t]+', ' ', text).strip()
 
     return text
 
@@ -73,11 +73,11 @@ def parse_txt(file_path, format_type):
                 continue
 
     # Процесс нормализации текста
-    # Удаляем лишние пробелы между словами
-    content = re.sub(r'\s+', ' ', content)
-
-    # Восстанавливаем правильные переносы абзацев
+    # Сначала восстанавливаем правильные переносы абзацев
     content = re.sub(r'\n\s*\n', '\n\n', content)
+    
+    # Удаляем лишние пробелы между словами, НО сохраняем переносы абзацев
+    content = re.sub(r'[ \t]+', ' ', content)  # Заменяем только пробелы и табы
 
     # Подсчет слов
     words = re.findall(r'\b[a-zA-Z]+\b', content.lower())
@@ -91,8 +91,8 @@ def parse_txt(file_path, format_type):
         normalized_paragraphs = []
 
         for paragraph in paragraphs:
-            # Нормализуем текст абзаца
-            normalized_paragraph = re.sub(r'\s+', ' ', paragraph).strip()
+            # Нормализуем текст абзаца, сохраняя переносы строк внутри абзаца
+            normalized_paragraph = re.sub(r'[ \t]+', ' ', paragraph).strip()
             if normalized_paragraph:
                 normalized_paragraphs.append(normalized_paragraph)
 
@@ -109,8 +109,8 @@ def parse_txt(file_path, format_type):
             if not paragraph:
                 continue
 
-            # Нормализуем текст абзаца
-            normalized_paragraph = re.sub(r'\s+', ' ', paragraph).strip()
+            # Нормализуем текст абзаца, сохраняя переносы строк внутри абзаца
+            normalized_paragraph = re.sub(r'[ \t]+', ' ', paragraph).strip()
 
             # Проверяем, является ли абзац заголовком главы
             chapter_match = chapter_pattern.match(normalized_paragraph)
@@ -129,7 +129,7 @@ def parse_txt(file_path, format_type):
 
     else:  # auto
         # Автоматическое обнаружение структуры с нормализованными пробелами
-        normalized_content = re.sub(r'\s+', ' ', content)
+        normalized_content = re.sub(r'[ \t]+', ' ', content)  # Сохраняем переносы строк
         html_content = f'<div>{normalized_content}</div>'
 
     return html_content, word_count, unique_words
@@ -371,14 +371,14 @@ def parse_fb2(file_path, format_type):
             title = section.find('.//' + namespace + 'title')
             if title is not None:
                 title_text = ''.join(title.itertext()).strip()
-                title_text = re.sub(r'\s+', ' ', title_text)  # Нормализуем пробелы
+                title_text = re.sub(r'[ \t]+', ' ', title_text)  # Нормализуем пробелы
                 if title_text:
                     html_parts.append(f"<h2>{title_text}</h2>")
 
             # Обрабатываем абзацы
             for p in section.findall('.//' + namespace + 'p'):
                 p_text = ''.join(p.itertext()).strip()
-                p_text = re.sub(r'\s+', ' ', p_text)  # Нормализуем пробелы
+                p_text = re.sub(r'[ \t]+', ' ', p_text)  # Нормализуем пробелы
                 if p_text:
                     html_parts.append(f'<p class="book-paragraph">{p_text}</p>')
 
@@ -424,7 +424,7 @@ def parse_epub(file_path, format_type):
                 # Извлекаем заголовки и абзацы
                 for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
                     text = tag.get_text().strip()
-                    text = re.sub(r'\s+', ' ', text)  # Нормализуем пробелы
+                    text = re.sub(r'[ \t]+', ' ', text)  # Нормализуем пробелы
                     if text:
                         if tag.name.startswith('h'):
                             html_parts.append(f"<{tag.name}>{text}</{tag.name}>")
@@ -469,8 +469,8 @@ def parse_pdf(file_path, format_type):
                 text += page.extract_text() + "\n\n"
 
         # Нормализация пробелов
-        text = re.sub(r'\s+', ' ', text)
-        text = re.sub(r'\n\s*\n', '\n\n', text)
+        text = re.sub(r'\n\s*\n', '\n\n', text)  # Сначала восстанавливаем абзацы
+        text = re.sub(r'[ \t]+', ' ', text)  # Затем нормализуем пробелы
 
         # Подсчет слов
         words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
@@ -483,7 +483,7 @@ def parse_pdf(file_path, format_type):
             normalized_paragraphs = []
 
             for paragraph in paragraphs:
-                normalized_paragraph = re.sub(r'\s+', ' ', paragraph).strip()
+                normalized_paragraph = re.sub(r'[ \t]+', ' ', paragraph).strip()
                 if normalized_paragraph:
                     normalized_paragraphs.append(normalized_paragraph)
 
@@ -499,7 +499,7 @@ def parse_pdf(file_path, format_type):
                     continue
 
                 # Нормализуем текст
-                normalized_paragraph = re.sub(r'\s+', ' ', paragraph).strip()
+                normalized_paragraph = re.sub(r'[ \t]+', ' ', paragraph).strip()
 
                 # Проверяем, может ли абзац быть заголовком
                 if len(paragraph) < 100 and paragraph.isupper():
@@ -544,7 +544,7 @@ def parse_docx(file_path, format_type):
                 continue
 
             # Нормализуем текст
-            text = re.sub(r'\s+', ' ', text).strip()
+            text = re.sub(r'[ \t]+', ' ', text).strip()
 
             # Проверяем, является ли абзац заголовком
             if paragraph.style.name.startswith('Heading'):
