@@ -158,7 +158,7 @@ def extract_text_from_fb2(fb2_path: str) -> str:
             else:
                 # Regular paragraphs
                 if result_parts and not prev_was_chapter:
-                    result_parts.append(r'\n\n' + part)
+                    result_parts.append('\n\n' + part)
                 else:
                     result_parts.append(part)
                 prev_was_chapter = False

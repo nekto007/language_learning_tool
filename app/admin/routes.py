@@ -2119,47 +2119,32 @@ def process_book_into_chapters(book_id, file_path, file_ext):
                 raise ValueError(
                     f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
 
-        # Step 2: Prepare text and create JSONL
-        logger.info("[CHAPTER_PROCESS] Starting text preparation and JSONL creation")
-        jsonl_file = temp_path / "chapters.jsonl"
+            # Step 2: Prepare text and create JSONL
+            logger.info("[CHAPTER_PROCESS] Starting text preparation and JSONL creation")
+            jsonl_file = temp_path / "chapters.jsonl"
 
-        # Create prepare_text.py script content inline
-        prepare_script = temp_path / "prepare_text_inline.py"
-        prepare_script.write_text('''
-        import re, json, pathlib, html
-        
-        chapter_pat = re.compile(r"^###\\s*CHAPTER_(\\d+)\\s*(.*)", re.I)
-        
-        def normalize(txt: str) -> str:
-            txt = html.unescape(txt)
-            txt = txt.replace(""", '"').replace(""", '"')
-            txt = txt.replace("'", "'").replace("'", "'")
-            txt = txt.replace("—", "—")
-            txt = re.sub(r"[ \\t]+", " ", txt)
-            return txt.strip()
-        
-        SRC = pathlib.Path(r"{input_file}")
-        DST = pathlib.Path(r"{jsonl_file}")
-        
-        with DST.open("w", encoding="utf-8") as out:
-            chap_no, chap_title, buff = None, "", []
-            for line in SRC.read_text(encoding="utf-8").splitlines():
-                m = chapter_pat.match(line)
-                if m:
-                    if chap_no:
-                        text = normalize("\\n".join(buff))
-                        words = len(re.findall(r"\\b[\\w']+\\b", text))
-                        out.write(json.dumps({{
-                            "chap": chap_no,
-                            "title": chap_title or f"Chapter {{chap_no}}",
-                            "words": words,
-                            "text": text
-                        }}, ensure_ascii=False) + "\\n")
-                        buff.clear()
-                    chap_no, chap_title = int(m[1]), m[2].strip()
-                else:
-                    buff.append(line)
-            # Last chapter
+            # Create prepare_text.py script content inline
+            prepare_script = temp_path / "prepare_text_inline.py"
+            prepare_script.write_text('''
+import re, json, pathlib, html
+
+chapter_pat = re.compile(r"^###\\s*CHAPTER_(\\d+)\\s*(.*)", re.I)
+
+def normalize(txt: str) -> str:
+    txt = html.unescape(txt)
+    txt = txt.replace(""", '"').replace(""", '"')
+    txt = txt.replace("'", "'").replace("'", "'")
+    txt = txt.replace("—", "—")
+    txt = re.sub(r"[ \\t]+", " ", txt)
+    return txt.strip()
+
+SRC = pathlib.Path(r"{input_file}")
+DST = pathlib.Path(r"{jsonl_file}")
+with DST.open("w", encoding="utf-8") as out:
+    chap_no, chap_title, buff = None, "", []
+    for line in SRC.read_text(encoding="utf-8").splitlines():
+        m = chapter_pat.match(line)
+        if m:
             if chap_no:
                 text = normalize("\\n".join(buff))
                 words = len(re.findall(r"\\b[\\w']+\\b", text))
@@ -2168,66 +2153,80 @@ def process_book_into_chapters(book_id, file_path, file_ext):
                     "title": chap_title or f"Chapter {{chap_no}}",
                     "words": words,
                     "text": text
-                }}, ensure_ascii=False) + "\\n")'''.format(input_file=input_file, jsonl_file=jsonl_file))
+                }}, ensure_ascii=False) + "\\n")
+                buff.clear()
+            chap_no, chap_title = int(m[1]), m[2].strip()
+        else:
+            buff.append(line)
+    # Last chapter
+    if chap_no:
+        text = normalize("\\n".join(buff))
+        words = len(re.findall(r"\\b[\\w']+\\b", text))
+        out.write(json.dumps({{
+            "chap": chap_no,
+            "title": chap_title or f"Chapter {{chap_no}}",
+            "words": words,
+            "text": text
+        }}, ensure_ascii=False) + "\\n")'''.format(input_file=input_file, jsonl_file=jsonl_file))
 
-        # Run the prepare script
-        logger.info("[CHAPTER_PROCESS] Running text preparation script")
-        cmd = f'python "{prepare_script}"'
-        logger.info(f"[CHAPTER_PROCESS] Executing command: {cmd}")
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        if result.returncode != 0:
-            logger.error(f"[CHAPTER_PROCESS] Text preparation failed with return code {result.returncode}")
-            logger.error(f"[CHAPTER_PROCESS] Error output: {result.stderr}")
-            raise Exception(f"Text preparation failed: {result.stderr}")
-        logger.info("[CHAPTER_PROCESS] Text preparation completed successfully")
+            # Run the prepare script
+            logger.info("[CHAPTER_PROCESS] Running text preparation script")
+            cmd = f'python "{prepare_script}"'
+            logger.info(f"[CHAPTER_PROCESS] Executing command: {cmd}")
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error(f"[CHAPTER_PROCESS] Text preparation failed with return code {result.returncode}")
+                logger.error(f"[CHAPTER_PROCESS] Error output: {result.stderr}")
+                raise Exception(f"Text preparation failed: {result.stderr}")
+            logger.info("[CHAPTER_PROCESS] Text preparation completed successfully")
 
-        # Step 3: Load chapters from JSONL into database
-        logger.info("[CHAPTER_PROCESS] Loading chapters from JSONL into database")
-        chapters_data = []
-        total_words = 0
+            # Step 3: Load chapters from JSONL into database
+            logger.info("[CHAPTER_PROCESS] Loading chapters from JSONL into database")
+            chapters_data = []
+            total_words = 0
 
-        with jsonl_file.open('r', encoding='utf-8') as f:
-            for line_num, line in enumerate(f, 1):
-                try:
-                    chapter_data = json.loads(line)
-                    chapters_data.append(chapter_data)
-                    total_words += chapter_data['words']
-                except json.JSONDecodeError as e:
-                    logger.error(f"[CHAPTER_PROCESS] JSON decode error on line {line_num}: {str(e)}")
-                    raise Exception(f"JSON decode error on line {line_num}: {str(e)}")
+            with jsonl_file.open('r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    try:
+                        chapter_data = json.loads(line)
+                        chapters_data.append(chapter_data)
+                        total_words += chapter_data['words']
+                    except json.JSONDecodeError as e:
+                        logger.error(f"[CHAPTER_PROCESS] JSON decode error on line {line_num}: {str(e)}")
+                        raise Exception(f"JSON decode error on line {line_num}: {str(e)}")
 
-        logger.info(f"[CHAPTER_PROCESS] Loaded {len(chapters_data)} chapters with total {total_words} words")
+            logger.info(f"[CHAPTER_PROCESS] Loaded {len(chapters_data)} chapters with total {total_words} words")
 
-        # Update book statistics
-        book.chapters_cnt = len(chapters_data)
-        book.words_total = total_words
-        logger.info(
-            f"[CHAPTER_PROCESS] Updated book statistics - Chapters: {book.chapters_cnt}, Words: {book.words_total}")
+            # Update book statistics
+            book.chapters_cnt = len(chapters_data)
+            book.words_total = total_words
+            logger.info(
+                f"[CHAPTER_PROCESS] Updated book statistics - Chapters: {book.chapters_cnt}, Words: {book.words_total}")
 
-        # Delete existing chapters if any
-        existing_chapters = Chapter.query.filter_by(book_id=book.id).count()
-        if existing_chapters > 0:
-            logger.info(f"[CHAPTER_PROCESS] Deleting {existing_chapters} existing chapters")
-            Chapter.query.filter_by(book_id=book.id).delete()
+            # Delete existing chapters if any
+            existing_chapters = Chapter.query.filter_by(book_id=book.id).count()
+            if existing_chapters > 0:
+                logger.info(f"[CHAPTER_PROCESS] Deleting {existing_chapters} existing chapters")
+                Chapter.query.filter_by(book_id=book.id).delete()
 
-        # Insert new chapters
-        logger.info("[CHAPTER_PROCESS] Inserting new chapters into database")
-        for i, chapter_data in enumerate(chapters_data, 1):
-            logger.debug(
-                f"[CHAPTER_PROCESS] Creating chapter {i}/{len(chapters_data)}: '{chapter_data['title']}' ({chapter_data['words']} words)")
-            chapter = Chapter(
-                book_id=book.id,
-                chap_num=chapter_data['chap'],
-                title=chapter_data['title'],
-                words=chapter_data['words'],
-                text_raw=chapter_data['text']
-            )
-            db.session.add(chapter)
+            # Insert new chapters
+            logger.info("[CHAPTER_PROCESS] Inserting new chapters into database")
+            for i, chapter_data in enumerate(chapters_data, 1):
+                logger.debug(
+                    f"[CHAPTER_PROCESS] Creating chapter {i}/{len(chapters_data)}: '{chapter_data['title']}' ({chapter_data['words']} words)")
+                chapter = Chapter(
+                    book_id=book.id,
+                    chap_num=chapter_data['chap'],
+                    title=chapter_data['title'],
+                    words=chapter_data['words'],
+                    text_raw=chapter_data['text']
+                )
+                db.session.add(chapter)
 
-        logger.info("[CHAPTER_PROCESS] Committing chapters to database")
-        db.session.commit()
-        logger.info(f"[CHAPTER_PROCESS] Successfully processed {len(chapters_data)} chapters for book '{book.title}'")
-        return True, f"Successfully imported {len(chapters_data)} chapters"
+            logger.info("[CHAPTER_PROCESS] Committing chapters to database")
+            db.session.commit()
+            logger.info(f"[CHAPTER_PROCESS] Successfully processed {len(chapters_data)} chapters for book '{book.title}'")
+            return True, f"Successfully imported {len(chapters_data)} chapters"
 
     except Exception as e:
         logger.error(f"[CHAPTER_PROCESS] Error processing book into chapters: {str(e)}")
@@ -2454,7 +2453,7 @@ def add_book():
             content = re.sub(r'\s+', ' ', content)
 
             # Преобразуем простой текст в HTML с форматированием абзацев
-            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+            paragraphs = [p.strip() for p in content.split('\\n\\n') if p.strip()]
             content_html = '<p>' + '</p><p>'.join(paragraphs) + '</p>'
 
             # Подсчитываем статистику слов
