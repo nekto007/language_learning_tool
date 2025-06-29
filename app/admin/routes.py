@@ -2219,13 +2219,14 @@ with DST.open("w", encoding="utf-8") as out:
                     chap_num=chapter_data['chap'],
                     title=chapter_data['title'],
                     words=chapter_data['words'],
-                    text_raw=chapter_data['text']
+                    text_raw=chapter_data['text'].replace('\n\n', '\\n\\n')
                 )
                 db.session.add(chapter)
 
             logger.info("[CHAPTER_PROCESS] Committing chapters to database")
             db.session.commit()
-            logger.info(f"[CHAPTER_PROCESS] Successfully processed {len(chapters_data)} chapters for book '{book.title}'")
+            logger.info(
+                f"[CHAPTER_PROCESS] Successfully processed {len(chapters_data)} chapters for book '{book.title}'")
             return True, f"Successfully imported {len(chapters_data)} chapters"
 
     except Exception as e:

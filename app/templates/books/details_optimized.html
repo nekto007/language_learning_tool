@@ -377,7 +377,7 @@
                     </div>
                     {% endif %}
                     <div class="meta-item">
-                        <i class="fas fa-font me-2"></i>{{ "{:,}".format(book.total_words or 0) }} {{ _('слов') }}
+                        <i class="fas fa-font me-2"></i>{{ "{:,}".format(book.words_total or 0) }} {{ _('слов') }}
                     </div>
                     <div class="meta-item">
                         <i class="fas fa-bookmark me-2"></i>{{ "{:,}".format(book.unique_words or 0) }} {{ _('уникальных') }}

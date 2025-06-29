@@ -460,14 +460,7 @@
             <h1 class="h3 mb-3">{{ _('Chapter') }} {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
             
             <div id="chapterContent" class="text-size-18">
-                {% set text = current_chapter.text_raw.replace('\\n\\n', '\n\n') %}
-                {% set paragraphs = text.split('\n\n') if '\n\n' in text else text.split('\n') %}
-                {% for paragraph in paragraphs %}
-                    {% set clean_paragraph = paragraph.strip() %}
-                    {% if clean_paragraph %}
-                        <p class="mb-3">{{ clean_paragraph }}</p>
-                    {% endif %}
-                {% endfor %}
+                {{ current_chapter.text_raw | format_chapter_text }}
             </div>
             
             <!-- Chapter navigation at bottom -->
