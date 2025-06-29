@@ -2076,57 +2076,88 @@ def process_book_into_chapters(book_id, file_path, file_ext):
     import shutil
     import pathlib
 
+    logger.info(
+        f"[CHAPTER_PROCESS] Starting chapter processing for book ID: {book_id}, file: {file_path}, format: {file_ext}")
+
     try:
         book = Book.query.get(book_id)
         if not book:
+            logger.error(f"[CHAPTER_PROCESS] Book with id {book_id} not found")
             raise ValueError(f"Book with id {book_id} not found")
 
+        logger.info(f"[CHAPTER_PROCESS] Processing book: '{book.title}' by {book.author}")
+
         # Create temporary directory for processing
+        logger.info("[CHAPTER_PROCESS] Creating temporary directory for processing")
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = pathlib.Path(temp_dir)
+            logger.info(f"[CHAPTER_PROCESS] Temporary directory created: {temp_path}")
 
             # Copy uploaded file to temp directory
             input_file = temp_path / f"book{file_ext}"
+            logger.info(f"[CHAPTER_PROCESS] Copying file to temporary location: {input_file}")
             shutil.copy(file_path, input_file)
+            logger.info("[CHAPTER_PROCESS] File copied successfully")
 
             # Step 1: Convert FB2 to TXT if needed
             if file_ext.lower() == '.fb2':
+                logger.info("[CHAPTER_PROCESS] Converting FB2 to TXT format")
                 txt_file = temp_path / "book.txt"
                 cmd = f'python convert_fb2_to_txt.py "{input_file}" "{txt_file}"'
+                logger.info(f"[CHAPTER_PROCESS] Running conversion command: {cmd}")
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
+                    logger.error(f"[CHAPTER_PROCESS] FB2 conversion failed with return code {result.returncode}")
+                    logger.error(f"[CHAPTER_PROCESS] Error output: {result.stderr}")
                     raise Exception(f"FB2 conversion failed: {result.stderr}")
                 input_file = txt_file
-            elif file_ext.lower() != '.txt':
-                raise ValueError(
-                    f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
+                logger.info("[CHAPTER_PROCESS] FB2 to TXT conversion completed successfully")
+            else:
+                logger.info(f"[CHAPTER_PROCESS] Using file as-is (format: {file_ext})")
+            raise ValueError(
+                f"Unsupported file format: {file_ext}. Only FB2 and TXT files are supported for chapter processing.")
 
-            # Step 2: Prepare text and create JSONL
-            jsonl_file = temp_path / "chapters.jsonl"
+        # Step 2: Prepare text and create JSONL
+        logger.info("[CHAPTER_PROCESS] Starting text preparation and JSONL creation")
+        jsonl_file = temp_path / "chapters.jsonl"
 
-            # Create prepare_text.py script content inline
-            prepare_script = temp_path / "prepare_text_inline.py"
-            prepare_script.write_text('''
-import re, json, pathlib, html
-
-chapter_pat = re.compile(r"^###\\s*CHAPTER_(\\d+)\\s*(.*)", re.I)
-
-def normalize(txt: str) -> str:
-    txt = html.unescape(txt)
-    txt = txt.replace(""", '"').replace(""", '"')
-    txt = txt.replace("'", "'").replace("'", "'")
-    txt = txt.replace("—", "—")
-    txt = re.sub(r"[ \\t]+", " ", txt)
-    return txt.strip()
-
-SRC = pathlib.Path(r"{input_file}")
-DST = pathlib.Path(r"{jsonl_file}")
-
-with DST.open("w", encoding="utf-8") as out:
-    chap_no, chap_title, buff = None, "", []
-    for line in SRC.read_text(encoding="utf-8").splitlines():
-        m = chapter_pat.match(line)
-        if m:
+        # Create prepare_text.py script content inline
+        prepare_script = temp_path / "prepare_text_inline.py"
+        prepare_script.write_text('''
+        import re, json, pathlib, html
+        
+        chapter_pat = re.compile(r"^###\\s*CHAPTER_(\\d+)\\s*(.*)", re.I)
+        
+        def normalize(txt: str) -> str:
+            txt = html.unescape(txt)
+            txt = txt.replace(""", '"').replace(""", '"')
+            txt = txt.replace("'", "'").replace("'", "'")
+            txt = txt.replace("—", "—")
+            txt = re.sub(r"[ \\t]+", " ", txt)
+            return txt.strip()
+        
+        SRC = pathlib.Path(r"{input_file}")
+        DST = pathlib.Path(r"{jsonl_file}")
+        
+        with DST.open("w", encoding="utf-8") as out:
+            chap_no, chap_title, buff = None, "", []
+            for line in SRC.read_text(encoding="utf-8").splitlines():
+                m = chapter_pat.match(line)
+                if m:
+                    if chap_no:
+                        text = normalize("\\n".join(buff))
+                        words = len(re.findall(r"\\b[\\w']+\\b", text))
+                        out.write(json.dumps({{
+                            "chap": chap_no,
+                            "title": chap_title or f"Chapter {{chap_no}}",
+                            "words": words,
+                            "text": text
+                        }}, ensure_ascii=False) + "\\n")
+                        buff.clear()
+                    chap_no, chap_title = int(m[1]), m[2].strip()
+                else:
+                    buff.append(line)
+            # Last chapter
             if chap_no:
                 text = normalize("\\n".join(buff))
                 words = len(re.findall(r"\\b[\\w']+\\b", text))
@@ -2135,65 +2166,72 @@ with DST.open("w", encoding="utf-8") as out:
                     "title": chap_title or f"Chapter {{chap_no}}",
                     "words": words,
                     "text": text
-                }}, ensure_ascii=False) + "\\n")
-                buff.clear()
-            chap_no, chap_title = int(m[1]), m[2].strip()
-        else:
-            buff.append(line)
-    # Last chapter
-    if chap_no:
-        text = normalize("\\n".join(buff))
-        words = len(re.findall(r"\\b[\\w']+\\b", text))
-        out.write(json.dumps({{
-            "chap": chap_no,
-            "title": chap_title or f"Chapter {{chap_no}}",
-            "words": words,
-            "text": text
-        }}, ensure_ascii=False) + "\\n")
-'''.format(input_file=input_file, jsonl_file=jsonl_file))
+                }}, ensure_ascii=False) + "\\n")'''.format(input_file=input_file, jsonl_file=jsonl_file))
 
-            # Run the prepare script
-            cmd = f'python "{prepare_script}"'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"Text preparation failed: {result.stderr}")
+        # Run the prepare script
+        logger.info("[CHAPTER_PROCESS] Running text preparation script")
+        cmd = f'python "{prepare_script}"'
+        logger.info(f"[CHAPTER_PROCESS] Executing command: {cmd}")
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"[CHAPTER_PROCESS] Text preparation failed with return code {result.returncode}")
+            logger.error(f"[CHAPTER_PROCESS] Error output: {result.stderr}")
+            raise Exception(f"Text preparation failed: {result.stderr}")
+        logger.info("[CHAPTER_PROCESS] Text preparation completed successfully")
 
-            # Step 3: Load chapters from JSONL into database
-            chapters_data = []
-            total_words = 0
+        # Step 3: Load chapters from JSONL into database
+        logger.info("[CHAPTER_PROCESS] Loading chapters from JSONL into database")
+        chapters_data = []
+        total_words = 0
 
-            with jsonl_file.open('r', encoding='utf-8') as f:
-                for line in f:
+        with jsonl_file.open('r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                try:
                     chapter_data = json.loads(line)
                     chapters_data.append(chapter_data)
                     total_words += chapter_data['words']
+                except json.JSONDecodeError as e:
+                    logger.error(f"[CHAPTER_PROCESS] JSON decode error on line {line_num}: {str(e)}")
+                    raise Exception(f"JSON decode error on line {line_num}: {str(e)}")
 
-            # Update book statistics
-            book.chapters_cnt = len(chapters_data)
-            book.words_total = total_words
+        logger.info(f"[CHAPTER_PROCESS] Loaded {len(chapters_data)} chapters with total {total_words} words")
 
-            # Delete existing chapters if any
+        # Update book statistics
+        book.chapters_cnt = len(chapters_data)
+        book.words_total = total_words
+        logger.info(
+            f"[CHAPTER_PROCESS] Updated book statistics - Chapters: {book.chapters_cnt}, Words: {book.words_total}")
+
+        # Delete existing chapters if any
+        existing_chapters = Chapter.query.filter_by(book_id=book.id).count()
+        if existing_chapters > 0:
+            logger.info(f"[CHAPTER_PROCESS] Deleting {existing_chapters} existing chapters")
             Chapter.query.filter_by(book_id=book.id).delete()
 
-            # Insert new chapters
-            for chapter_data in chapters_data:
-                chapter = Chapter(
-                    book_id=book.id,
-                    chap_num=chapter_data['chap'],
-                    title=chapter_data['title'],
-                    words=chapter_data['words'],
-                    text_raw=chapter_data['text']
-                )
-                db.session.add(chapter)
+        # Insert new chapters
+        logger.info("[CHAPTER_PROCESS] Inserting new chapters into database")
+        for i, chapter_data in enumerate(chapters_data, 1):
+            logger.debug(
+                f"[CHAPTER_PROCESS] Creating chapter {i}/{len(chapters_data)}: '{chapter_data['title']}' ({chapter_data['words']} words)")
+            chapter = Chapter(
+                book_id=book.id,
+                chap_num=chapter_data['chap'],
+                title=chapter_data['title'],
+                words=chapter_data['words'],
+                text_raw=chapter_data['text']
+            )
+            db.session.add(chapter)
 
-            db.session.commit()
-            logger.info(f"Successfully processed {len(chapters_data)} chapters for book {book.title}")
-            return True, f"Successfully imported {len(chapters_data)} chapters"
+        logger.info("[CHAPTER_PROCESS] Committing chapters to database")
+        db.session.commit()
+        logger.info(f"[CHAPTER_PROCESS] Successfully processed {len(chapters_data)} chapters for book '{book.title}'")
+        return True, f"Successfully imported {len(chapters_data)} chapters"
 
     except Exception as e:
-        logger.error(f"Error processing book into chapters: {str(e)}")
+        logger.error(f"[CHAPTER_PROCESS] Error processing book into chapters: {str(e)}")
+        logger.error(f"[CHAPTER_PROCESS] Exception type: {type(e).__name__}")
         db.session.rollback()
-        return False, str(e)
+    return False, str(e)
 
 
 @admin.route('/books/add', methods=['GET', 'POST'])
@@ -2205,10 +2243,15 @@ def add_book():
     from app.books.parsers import process_uploaded_book
     import re
 
+    logger.info("[BOOK_ADD] Starting book addition process")
     form = BookContentForm()
 
     if form.validate_on_submit():
+        logger.info(
+            f"[BOOK_ADD] Form validated successfully - Title: '{form.title.data}', Author: '{form.author.data}', Level: '{form.level.data}'")
         # Проверяем, есть ли уже книга с таким названием и автором
+        logger.info(
+            f"[BOOK_ADD] Checking for existing book with title '{form.title.data}' and author '{form.author.data}'")
         existing_book = Book.query.filter(
             func.lower(Book.title) == func.lower(form.title.data),
             func.lower(Book.author) == func.lower(form.author.data)
@@ -2216,9 +2259,12 @@ def add_book():
 
         # Проверяем параметр подтверждения перезаписи
         overwrite = request.form.get('overwrite') == 'true'
+        logger.info(f"[BOOK_ADD] Existing book found: {existing_book is not None}, Overwrite: {overwrite}")
 
         if existing_book and not overwrite:
             # Книга существует, возвращаем предупреждение
+            logger.warning(
+                f"[BOOK_ADD] Duplicate book detected - ID: {existing_book.id}, refusing to overwrite without confirmation")
             return jsonify({
                 'success': False,
                 'duplicate': True,
@@ -2234,8 +2280,11 @@ def add_book():
 
         if existing_book and overwrite:
             # Перезаписываем существующую книгу
+            logger.info(f"[BOOK_ADD] Overwriting existing book - ID: {existing_book.id}")
             new_book = existing_book
             # Удаляем связанные главы
+            chapters_count = Chapter.query.filter_by(book_id=existing_book.id).count()
+            logger.info(f"[BOOK_ADD] Deleting {chapters_count} existing chapters")
             Chapter.query.filter_by(book_id=existing_book.id).delete()
             # Очищаем данные книги
             new_book.content = None
@@ -2243,8 +2292,10 @@ def add_book():
             new_book.unique_words = 0
             new_book.cover_image = None
             db.session.flush()
+            logger.info("[BOOK_ADD] Existing book data cleared successfully")
         else:
             # Создаем новую книгу с основными данными
+            logger.info("[BOOK_ADD] Creating new book record")
             new_book = Book(
                 title=form.title.data,
                 author=form.author.data,
@@ -2256,40 +2307,59 @@ def add_book():
         new_book.title = form.title.data
         new_book.author = form.author.data
         new_book.level = form.level.data
+        logger.info(
+            f"[BOOK_ADD] Book data updated - Title: '{new_book.title}', Author: '{new_book.author}', Level: '{new_book.level}'")
 
         # Обрабатываем обложку, если она загружена
         if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
+            logger.info(f"[BOOK_ADD] Processing cover image: {form.cover_image.data.filename}")
             cover_filename = save_cover_image(form.cover_image.data)
             if cover_filename:
                 new_book.cover_image = cover_filename
+                logger.info(f"[BOOK_ADD] Cover image saved as: {cover_filename}")
+            else:
+                logger.warning("[BOOK_ADD] Failed to save cover image")
+        else:
+            logger.info("[BOOK_ADD] No cover image provided")
 
         # Если был загружен файл контента, обрабатываем его
         if form.file.data and hasattr(form.file.data, 'filename'):
+            logger.info(f"[BOOK_ADD] Processing book content file: {form.file.data.filename}")
             try:
                 # Сохраняем временный файл
                 from werkzeug.utils import secure_filename
                 filename = secure_filename(form.file.data.filename)
                 file_ext = os.path.splitext(filename)[1].lower()
+                logger.info(f"[BOOK_ADD] File details - Name: {filename}, Extension: {file_ext}")
 
                 # Проверяем, поддерживается ли формат для обработки по главам
                 chapter_formats = ['.fb2', '.txt']
                 use_chapters = file_ext in chapter_formats
+                logger.info(f"[BOOK_ADD] Will use chapters: {use_chapters} (format: {file_ext})")
 
                 if use_chapters:
+                    logger.info("[BOOK_ADD] Using chapter-based processing")
                     # Сначала сохраняем книгу без контента
                     if not existing_book or not overwrite:
+                        logger.info("[BOOK_ADD] Adding new book to database")
                         db.session.add(new_book)
+                    logger.info("[BOOK_ADD] Committing book record to database")
                     db.session.commit()
+                    logger.info(f"[BOOK_ADD] Book saved with ID: {new_book.id}")
 
                     # Создаем временный файл
                     temp_dir = os.path.join('app', 'temp')
                     os.makedirs(temp_dir, exist_ok=True)
                     temp_file_path = os.path.join(temp_dir, filename)
+                    logger.info(f"[BOOK_ADD] Saving temporary file to: {temp_file_path}")
                     form.file.data.save(temp_file_path)
+                    logger.info("[BOOK_ADD] Temporary file saved successfully")
 
                     try:
                         # Обрабатываем книгу по главам
+                        logger.info(f"[BOOK_ADD] Starting chapter processing for book ID: {new_book.id}")
                         success, message = process_book_into_chapters(new_book.id, temp_file_path, file_ext)
+                        logger.info(f"[BOOK_ADD] Chapter processing result - Success: {success}, Message: {message}")
                         message_text = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! {message}'
 
                         if success:
@@ -2452,7 +2522,10 @@ def add_book():
             action = "overwritten" if existing_book and overwrite else "added"
             logger.info(f"Book {action} by admin {current_user.username}: {new_book.title}")
             return redirect(url_for('admin.books'))
+        else:
+            logger.warning(f"[BOOK_ADD] Form validation failed - Errors: {form.errors}")
 
+    logger.info("[BOOK_ADD] Rendering add book form")
     return render_template('admin/books/add.html', form=form)
 
 
@@ -2461,35 +2534,50 @@ def add_book():
 @handle_admin_errors(return_json=True)
 def extract_book_metadata():
     """API для извлечения метаданных из загруженного файла"""
+    logger.info("[METADATA_EXTRACT] Starting metadata extraction process")
     try:
         if 'file' not in request.files:
+            logger.warning("[METADATA_EXTRACT] No file found in request")
             return jsonify({'success': False, 'error': 'Файл не найден'}), 400
 
         file = request.files['file']
         if file.filename == '':
+            logger.warning("[METADATA_EXTRACT] Empty filename provided")
             return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+
+        logger.info(f"[METADATA_EXTRACT] Processing file: {file.filename}")
 
         # Сохраняем временный файл
         from werkzeug.utils import secure_filename
         filename = secure_filename(file.filename)
         file_ext = os.path.splitext(filename)[1].lower()
+        logger.info(f"[METADATA_EXTRACT] File details - Name: {filename}, Extension: {file_ext}")
 
         # Создаем временную директорию
         temp_dir = os.path.join('app', 'temp')
         os.makedirs(temp_dir, exist_ok=True)
 
         temp_file_path = os.path.join(temp_dir, filename)
+        logger.info(f"[METADATA_EXTRACT] Saving temporary file to: {temp_file_path}")
         file.save(temp_file_path)
+        logger.info("[METADATA_EXTRACT] Temporary file saved successfully")
 
         try:
             # Извлекаем метаданные
+            logger.info(f"[METADATA_EXTRACT] Extracting metadata from {file_ext} file")
             from app.books.parsers import extract_file_metadata
             metadata = extract_file_metadata(temp_file_path, file_ext)
 
             # Логируем для отладки
             logger.info(
-                f"Extracted metadata from {filename}: title='{metadata.get('title', '')}', author='{metadata.get('author', '')}'")
+                f"[METADATA_EXTRACT] Successfully extracted metadata - Title: '{metadata.get('title', '')}', Author: '{metadata.get('author', '')}'")
 
+            # Проверяем наличие обложки
+            if metadata.get('cover_image'):
+                logger.info(
+                    f"[METADATA_EXTRACT] Cover image found - Type: {metadata['cover_image'].get('content_type')}, Size: {metadata['cover_image'].get('size')} bytes")
+
+            logger.info("[METADATA_EXTRACT] Returning successful response")
             return jsonify({
                 'success': True,
                 'metadata': metadata,
@@ -2499,14 +2587,17 @@ def extract_book_metadata():
 
         finally:
             # Удаляем временный файл
+            logger.info(f"[METADATA_EXTRACT] Cleaning up temporary file: {temp_file_path}")
             if os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)
-                except:
-                    pass
+                    logger.info("[METADATA_EXTRACT] Temporary file removed successfully")
+                except Exception as cleanup_e:
+                    logger.warning(f"[METADATA_EXTRACT] Failed to remove temporary file: {str(cleanup_e)}")
 
     except Exception as e:
-        logger.error(f"Error extracting metadata: {str(e)}")
+        logger.error(f"[METADATA_EXTRACT] Error extracting metadata: {str(e)}")
+        logger.error(f"[METADATA_EXTRACT] Exception type: {type(e).__name__}")
         return jsonify({
             'success': False,
             'error': f'Ошибка при извлечении метаданных: {str(e)}'

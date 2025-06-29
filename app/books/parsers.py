@@ -192,30 +192,36 @@ def extract_fb2_cover(root, namespace):
 
 def extract_fb2_metadata(file_path):
     """Извлекает метаданные из FB2 файла"""
+    logger.info(f"[FB2_PARSER] Starting FB2 metadata extraction from: {file_path}")
     try:
         # Пробуем разные кодировки
         encodings = ['utf-8', 'windows-1251', 'cp1251', 'latin-1']
         content = None
 
         for encoding in encodings:
+            logger.debug(f"[FB2_PARSER] Trying encoding: {encoding}")
             try:
                 with open(file_path, 'r', encoding=encoding) as f:
                     content = f.read()
+                logger.info(f"[FB2_PARSER] Successfully read file with encoding: {encoding}")
                 break
             except UnicodeDecodeError:
+                logger.debug(f"[FB2_PARSER] Failed to read with encoding: {encoding}")
                 continue
 
         if content is None:
-            logger.error("Could not decode FB2 file with any encoding")
+            logger.error("[FB2_PARSER] Could not decode FB2 file with any encoding")
             return {'title': '', 'author': ''}
 
         # Парсим XML из строки
+        logger.info("[FB2_PARSER] Parsing XML content")
         root = ET.fromstring(content)
 
         # Определяем namespace
         namespace = ''
         if root.tag.startswith('{'):
             namespace = root.tag.split('}')[0] + '}'
+        logger.info(f"[FB2_PARSER] Using XML namespace: '{namespace}'")
 
         metadata = {'title': '', 'author': '', 'cover_image': None}
 
@@ -261,15 +267,16 @@ def extract_fb2_metadata(file_path):
             }
 
         # Логируем для отладки
-        logger.info(f"Extracted FB2 metadata: title='{metadata['title']}', author='{metadata['author']}', cover={'found' if cover_data else 'not found'}")
+        logger.info(f"[FB2_PARSER] Successfully extracted FB2 metadata: title='{metadata['title']}', author='{metadata['author']}', cover={'found' if cover_data else 'not found'}")
 
         return metadata
 
     except ET.ParseError as e:
-        logger.error(f"XML parsing error in FB2 file: {str(e)}")
+        logger.error(f"[FB2_PARSER] XML parsing error in FB2 file: {str(e)}")
         return {'title': '', 'author': ''}
     except Exception as e:
-        logger.error(f"Error extracting FB2 metadata: {str(e)}")
+        logger.error(f"[FB2_PARSER] Error extracting FB2 metadata: {str(e)}")
+        logger.error(f"[FB2_PARSER] Exception type: {type(e).__name__}")
         return {'title': '', 'author': ''}
 
 
@@ -320,18 +327,25 @@ def extract_docx_metadata(file_path):
 
 def extract_file_metadata(file_path, file_ext):
     """Универсальная функция для извлечения метаданных из файла"""
+    logger.info(f"[METADATA_PARSER] Starting metadata extraction for {file_ext} file: {file_path}")
     file_ext = file_ext.lower()
 
     if file_ext == '.fb2':
+        logger.info("[METADATA_PARSER] Using FB2 metadata extractor")
         return extract_fb2_metadata(file_path)
     elif file_ext == '.epub':
+        logger.info("[METADATA_PARSER] Using EPUB metadata extractor")
         return extract_epub_metadata(file_path)
     elif file_ext == '.docx':
+        logger.info("[METADATA_PARSER] Using DOCX metadata extractor")
         return extract_docx_metadata(file_path)
     else:
         # Для TXT и других форматов пытаемся извлечь из имени файла
+        logger.info(f"[METADATA_PARSER] Unsupported format {file_ext}, extracting title from filename")
         filename = os.path.splitext(os.path.basename(file_path))[0]
-        return {'title': filename, 'author': ''}
+        result = {'title': filename, 'author': ''}
+        logger.info(f"[METADATA_PARSER] Extracted metadata from filename - Title: '{result['title']}'")
+        return result
 
 
 def parse_fb2(file_path, format_type):

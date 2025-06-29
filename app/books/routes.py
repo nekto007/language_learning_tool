@@ -13,20 +13,17 @@ from PIL import Image
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
-
-from app import csrf
 from sqlalchemy import desc, func
 from werkzeug.utils import secure_filename
 from wtforms.fields.choices import SelectField
 from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional
 
+from app import csrf
 from app.books.forms import BookContentForm
 from app.books.models import Book, Bookmark, Chapter
 from app.books.parsers import process_uploaded_book
 from app.books.processors import enqueue_book_processing
-import subprocess
-import json
 from app.study.models import UserWord
 from app.utils.db import db, word_book_link
 from app.utils.decorators import admin_required
@@ -369,10 +366,10 @@ def read_book(book_id):
     Page for reading a book - redirects to chapter-based reader if chapters exist
     """
     book = Book.query.get_or_404(book_id)
-    
+
     # Check if book has chapters
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
-    
+
     if has_chapters:
         # Redirect to chapter-based reader
         return redirect(url_for('books.read_book_chapters', book_id=book_id))
@@ -398,18 +395,18 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         book_id = book.id
     else:
         book = Book.query.get_or_404(book_id)
-    
+
     # Get chapters
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
-    
+
     if not chapters:
         flash('В этой книге нет глав. Перенаправляем к обычному ридеру.', 'info')
         return redirect(url_for('books.read_book', book_id=book_id))
-    
+
     # Get current chapter from URL params, query params or user progress
     if not chapter_num:
         chapter_num = request.args.get('chapter', type=int)
-    
+
     if not chapter_num:
         # Try to get from user progress
         from app.books.models import UserChapterProgress
@@ -418,28 +415,28 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         ).join(Chapter).filter(
             Chapter.book_id == book_id
         ).order_by(UserChapterProgress.updated_at.desc()).first()
-        
+
         if latest_progress:
             chapter_num = latest_progress.chapter.chap_num
         else:
             chapter_num = 1
-    
+
     # Get current chapter
     current_chapter = Chapter.query.filter_by(
-        book_id=book_id, 
+        book_id=book_id,
         chap_num=chapter_num
     ).first()
-    
+
     if not current_chapter:
         current_chapter = chapters[0]  # Default to first chapter
-    
+
     # Get chapter progress
     from app.books.models import UserChapterProgress
     chapter_progress = UserChapterProgress.query.filter_by(
         user_id=current_user.id,
         chapter_id=current_chapter.id
     ).first()
-    
+
     # Determine back URL based on referrer or query parameter
     back_url = request.args.get('from')
     if not back_url:
@@ -454,15 +451,15 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
                 back_url = url_for('books.book_details', book_id=book_id)
         else:
             back_url = url_for('books.book_details', book_id=book_id)
-    
+
     # Use simple reader template
-    return render_template('books/reader_simple.html', 
-        book=book, 
-        chapters=chapters,
-        current_chapter=current_chapter,
-        chapter_progress=chapter_progress,
-        back_url=back_url
-    )
+    return render_template('books/reader_simple.html',
+                           book=book,
+                           chapters=chapters,
+                           current_chapter=current_chapter,
+                           chapter_progress=chapter_progress,
+                           back_url=back_url
+                           )
 
 
 @books.route('/books/<string:book_slug>/reader-v2')
@@ -474,30 +471,30 @@ def read_book_v2(book_slug, chapter_num=None):
     """
     # Get book by slug
     book = Book.query.filter_by(slug=book_slug).first_or_404()
-    
+
     # Get chapters for navigation
     chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
-    
+
     if not chapters:
         flash('This book has no chapters available.', 'warning')
         return redirect(url_for('books.book_details', book_id=book.id))
-    
+
     # Current chapter info (for SEO and title, actual loading is done via API)
     current_chapter = None
     if chapter_num:
         current_chapter = Chapter.query.filter_by(
-            book_id=book.id, 
+            book_id=book.id,
             chap_num=chapter_num
         ).first()
-    
+
     if not current_chapter:
         current_chapter = chapters[0]  # Default to first chapter
-    
+
     return render_template('books/reader-v2.html',
-        book=book,
-        chapters=chapters,
-        current_chapter=current_chapter
-    )
+                           book=book,
+                           chapters=chapters,
+                           current_chapter=current_chapter
+                           )
 
 
 # Old reading position API removed - using chapter-based progress only
@@ -1357,7 +1354,7 @@ def book_list():
         ).where(
             Chapter.book_id.in_(book_ids)
         ).group_by(Chapter.book_id)
-        
+
         chapter_results = db.session.execute(chapter_count_query).all()
         for book_id, count in chapter_results:
             chapter_counts[book_id] = count
@@ -1422,14 +1419,14 @@ def book_details(book_id):
         word_progress = int(((word_stats['mastered']) / book.unique_words) * 100)
     else:
         word_progress = 0
-    
+
     # Расчет процента прогресса чтения книги
     from app.books.models import UserChapterProgress, Chapter
-    
+
     # Get total chapters for the book
     total_chapters = Chapter.query.filter_by(book_id=book_id).count()
     reading_progress = 0
-    
+
     if total_chapters > 0:
         # Get all user's progress for this book's chapters
         user_chapters = db.session.query(
@@ -1440,7 +1437,7 @@ def book_details(book_id):
             Chapter.book_id == book_id,
             UserChapterProgress.user_id == current_user.id
         ).order_by(Chapter.chap_num).all()
-        
+
         if user_chapters:
             # Calculate overall reading progress
             total_progress = 0
@@ -1448,7 +1445,7 @@ def book_details(book_id):
                 # Each chapter contributes 1/total_chapters to overall progress
                 chapter_contribution = progress_record.offset_pct / total_chapters
                 total_progress += chapter_contribution
-            
+
             reading_progress = int(total_progress * 100)
 
     # Get most frequent words in this book
@@ -1475,11 +1472,11 @@ def book_details(book_id):
             UserWord.user_id == current_user.id,
             UserWord.word_id.in_(word_ids)
         ).all()
-        
+
         # Create status mapping
         for user_word in user_words:
             word_statuses[user_word.word_id] = user_word.status
-        
+
         # Fill missing words with 'new' status
         for word_id in word_ids:
             if word_id not in word_statuses:
@@ -1490,7 +1487,7 @@ def book_details(book_id):
 
     # Check if book has chapters
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
-    
+
     template = 'books/details_optimized.html' if use_optimized else 'books/details.html'
 
     return render_template(
