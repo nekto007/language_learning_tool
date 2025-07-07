@@ -56,6 +56,8 @@ body {
     grid-template-columns: 1fr;
     gap: 1.5rem;
     margin-bottom: 3rem;
+    width: 100%;
+    max-width: 100%;
 }
 
 .study-mode-card {
@@ -69,6 +71,8 @@ body {
     text-decoration: none;
     color: #1a365d;
     display: block;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .study-mode-card:hover {
@@ -183,7 +187,13 @@ body {
 }
 
 /* Адаптивность */
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 991px) {
+    .study-modes {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 992px) {
     .study-modes {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -264,6 +274,7 @@ body {
 .quick-start-btn i {
     font-size: 1.1rem;
 }
+
 </style>
 {% endblock %}
 
@@ -299,11 +310,8 @@ body {
     </div>
     {% endif %}
 
-    <!-- Reading Progress Widget -->
-    <div class="row mb-4">
-        <div class="col-lg-8">
-            <!-- Режимы обучения -->
-            <div class="study-modes">
+    <!-- Режимы обучения -->
+    <div class="study-modes">
         <!-- Карточки -->
         <a href="{{ url_for('study.cards') }}" class="study-mode-card">
             <div class="study-mode-icon">
@@ -330,11 +338,6 @@ body {
             <h3 class="study-mode-title">{{ _('Совпадения') }}</h3>
             <p class="study-mode-description">{{ _('Сопоставьте слова с переводами.') }}</p>
         </a>
-    </div>
-        </div>
-        <div class="col-lg-4">
-            {% include 'books/reading_widget.html' %}
-        </div>
     </div>
 
     <!-- Простая статистика -->
