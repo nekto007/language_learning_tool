@@ -1402,7 +1402,7 @@ def import_curriculum_data(data):
         # Обрабатываем контент по типу урока
         if lesson_type == 'grammar':
             theory = lesson_data.get('theory', {})
-            print('lesson_data.get(exercises)', lesson_data.get('exercises'))
+
             grammar_input = {
                 'rule': theory.get('rule', ''),
                 'description': theory.get('description', ''),
@@ -3051,25 +3051,24 @@ def audio_statistics():
         listening_stats_raw = repo.execute_query(f"""
             SELECT 
                 CASE 
-                    WHEN listening LIKE 'http%' THEN 'HTTP URL'
-                    WHEN listening LIKE '[sound:%' THEN 'Anki Format'
+                    WHEN listening LIKE 'http%%' THEN 'HTTP URL'
+                    WHEN listening LIKE '[sound:%%' THEN 'Anki Format'
                     WHEN listening IS NULL OR listening = '' THEN 'Empty'
                     ELSE 'Other Format'
                 END as format_type,
-                COUNT(*) as count
-            FROM {COLLECTIONS_TABLE}
+                COUNT(*) as row_count
+            FROM collection_words
             GROUP BY 
                 CASE 
-                    WHEN listening LIKE 'http%' THEN 'HTTP URL'
-                    WHEN listening LIKE '[sound:%' THEN 'Anki Format'
+                    WHEN listening LIKE 'http%%' THEN 'HTTP URL'
+                    WHEN listening LIKE '[sound:%%' THEN 'Anki Format'
                     WHEN listening IS NULL OR listening = '' THEN 'Empty'
                     ELSE 'Other Format'
                 END
-            ORDER BY count DESC
-        """, fetch=True)
-
+            ORDER BY row_count DESC""", fetch=True)
         # Преобразуем в словари
         listening_stats = []
+
         for row in listening_stats_raw or []:
             if row and len(row) >= 2:
                 listening_stats.append({
@@ -3105,6 +3104,8 @@ def audio_statistics():
             level_audio_stats=level_audio_stats
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error getting audio statistics: {str(e)}")
         flash(f'Ошибка при получении статистики: {str(e)}', 'danger')
         return redirect(url_for('admin.audio_management'))

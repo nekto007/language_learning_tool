@@ -149,19 +149,19 @@
                                             <span class="text-muted">Не указан</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ stat.total_words }}</td>
+                                    <td>{{ stat.words_total }}</td>
                                     <td>{{ stat.with_audio }}</td>
                                     <td>
-                                        {% if stat.total_words > 0 %}
-                                            {% set coverage = (stat.with_audio / stat.total_words * 100) | round(1) %}
+                                        {% if stat.words_total > 0 %}
+                                            {% set coverage = (stat.with_audio / stat.words_total * 100) | round(1) %}
                                             <strong>{{ coverage }}%</strong>
                                         {% else %}
                                             <span class="text-muted">0%</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if stat.total_words > 0 %}
-                                            {% set coverage = (stat.with_audio / stat.total_words * 100) | round(1) %}
+                                        {% if stat.words_total > 0 %}
+                                            {% set coverage = (stat.with_audio / stat.words_total * 100) | round(1) %}
                                             <div class="progress" style="height: 20px;">
                                                 <div class="progress-bar bg-{% if coverage >= 80 %}success{% elif coverage >= 50 %}warning{% else %}danger{% endif %}" 
                                                      role="progressbar" style="width: {{ coverage }}%">
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: 'Всего слов',
                 data: [
                     {% for stat in level_audio_stats %}
-                    {{ stat.total_words }}{% if not loop.last %},{% endif %}
+                    {{ stat.words_total }}{% if not loop.last %},{% endif %}
                     {% endfor %}
                 ],
                 backgroundColor: '#e9ecef',
