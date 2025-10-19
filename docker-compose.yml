@@ -14,7 +14,7 @@ services:
       PGUSER: ${POSTGRES_USER}
       PGDATABASE: ${POSTGRES_DB}
     ports:
-      - "5432:5432"  # Expose PostgreSQL port for external tools (optional)
+      - "127.0.0.1:5432:5432"  # Only expose PostgreSQL locally for external tools
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d  # Add initialization scripts
@@ -69,18 +69,18 @@ services:
     networks:
       - app_network
 
-  opendkim:
-    build:
-      context: ./opendkim-docker
-      dockerfile: Dockerfile.opendkim
-    container_name: opendkim
-    ports:
-      - "8891:8891"
-    networks:
-      - app_network
-    volumes:
-      - ./opendkim-docker/dkim:/etc/opendkim
-    restart: always
+#  opendkim:
+#    build:
+#      context: ./opendkim-docker
+#      dockerfile: Dockerfile.opendkim
+#    container_name: opendkim
+#    ports:
+#      - "8891:8891"
+#    networks:
+#      - app_network
+#    volumes:
+#      - ./opendkim-docker/dkim:/etc/opendkim
+#    restart: always
 
   mail:
     build:
@@ -88,8 +88,8 @@ services:
       dockerfile: Dockerfile.postfix
     container_name: language_learning_tool_mail
     restart: always
-    depends_on:
-      - opendkim
+ #   depends_on:
+ #     - opendkim
     networks:
       - app_network
     ports:

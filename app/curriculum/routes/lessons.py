@@ -1076,58 +1076,34 @@ learn_lessons_bp = Blueprint('learn_lessons', __name__)
 @learn_lessons_bp.route('/<string:level_slug>/<string:module_slug>/<string:lesson_slug>/')
 @login_required
 def beautiful_lesson_detail(level_slug, module_slug, lesson_slug):
-    """Красивый URL для урока"""
+    """Красивый URL для урока - redirects to lesson detail"""
     # Парсим URL
     level_code = slug_to_level(level_slug)
     module_number = slug_to_module_number(module_slug)
     lesson_number, lesson_type = slug_to_lesson_info(lesson_slug)
-    
+
     if not all([level_code, module_number, lesson_number]):
         abort(404, "Invalid lesson URL")
-    
+
     # Находим урок
     lesson = get_lesson_by_beautiful_url(level_code, module_number, lesson_number, lesson_type)
     if not lesson:
         abort(404, "Lesson not found")
-    
-    # Генерируем breadcrumbs для навигации
-    breadcrumbs = generate_breadcrumbs(level_code, module_number, lesson_number, lesson_type)
-    
-    # Переадресовываем на соответствующий тип урока
-    if lesson.type == 'vocabulary':
-        return vocabulary_lesson(lesson.id, breadcrumbs=breadcrumbs)
-    elif lesson.type == 'grammar':
-        return grammar_lesson(lesson.id, breadcrumbs=breadcrumbs)
-    elif lesson.type == 'quiz':
-        return quiz_lesson(lesson.id, breadcrumbs=breadcrumbs)
-    elif lesson.type == 'matching':
-        return matching_lesson(lesson.id, breadcrumbs=breadcrumbs)
-    elif lesson.type == 'text':
-        return text_lesson(lesson.id, breadcrumbs=breadcrumbs)
-    elif lesson.type == 'card':
-        return card_lesson(lesson.id, breadcrumbs=breadcrumbs)
-    elif lesson.type == 'final_test':
-        return final_test_lesson(lesson.id, breadcrumbs=breadcrumbs)
+
+    # Redirect to the appropriate lesson type route using lesson ID
+    route_map = {
+        'vocabulary': 'curriculum_lessons.vocabulary_lesson',
+        'grammar': 'curriculum_lessons.grammar_lesson',
+        'quiz': 'curriculum_lessons.quiz_lesson',
+        'matching': 'curriculum_lessons.matching_lesson',
+        'text': 'curriculum_lessons.text_lesson',
+        'card': 'curriculum_lessons.card_lesson',
+        'final_test': 'curriculum_lessons.final_test_lesson'
+    }
+
+    route_name = route_map.get(lesson.type)
+    if route_name:
+        return redirect(url_for(route_name, lesson_id=lesson.id))
     else:
         # По умолчанию показываем как детали урока
-        return lesson_detail(lesson.id)
-
-
-# Функции-хелперы для передачи breadcrumbs в существующие функции уроков
-def vocabulary_lesson_with_breadcrumbs(lesson_id, breadcrumbs=None):
-    """Vocabulary урок с breadcrumbs"""
-    response = vocabulary_lesson(lesson_id)
-    if breadcrumbs and hasattr(response, 'template') and response.template:
-        # Добавляем breadcrumbs в контекст шаблона
-        if hasattr(response, 'context') and response.context:
-            response.context['breadcrumbs'] = breadcrumbs
-    return response
-
-
-def grammar_lesson_with_breadcrumbs(lesson_id, breadcrumbs=None):
-    """Grammar урок с breadcrumbs"""
-    response = grammar_lesson(lesson_id)
-    if breadcrumbs and hasattr(response, 'template') and response.template:
-        if hasattr(response, 'context') and response.context:
-            response.context['breadcrumbs'] = breadcrumbs
-    return response
+        return redirect(url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id))
