@@ -28,6 +28,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
+                    {% if has_module('words') %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'words.dashboard' %}active{% endif %}" href="{{ url_for('words.dashboard') }}">
                             <i class="fas fa-home me-1"></i>{{ _('Dashboard') }}
@@ -38,6 +39,8 @@
                             <i class="fas fa-list me-1"></i>{{ _('Слова') }}
                         </a>
                     </li>
+                    {% endif %}
+                    {% if has_module('study') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('study.') %}active{% endif %}" href="#" id="studyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-graduation-cap me-1"></i>{{ _('Изучение') }}
@@ -91,6 +94,8 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
+                    {% if has_module('books') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-book me-1"></i>{{ _('Книги') }}
@@ -127,6 +132,8 @@
                             {% endif %}
                         </ul>
                     </li>
+                    {% endif %}
+                    {% if has_module('curriculum') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') %}active{% endif %}"
                            href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -175,7 +182,9 @@
                             {% endif %}
                         </ul>
                     </li>
+                    {% endif %}
                     <!-- Добавляем новый раздел Reading -->
+                    {% if has_module('books') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint == 'books.read_book' %}active{% endif %}" href="#" id="readingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-book-reader me-1"></i>{{ _('Чтение') }}
@@ -216,6 +225,7 @@
                         </ul>
                     </li>
                     {% endif %}
+                    {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
@@ -226,6 +236,9 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" href="#">{{ _('Профиль') }}</a></li>
                             <li><a class="dropdown-item" href="#">{{ _('Настройки') }}</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('modules.settings') }}">
+                                <i class="fas fa-puzzle-piece me-1"></i>{{ _('Модули') }}
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('Выход') }}</a></li>
                         </ul>
