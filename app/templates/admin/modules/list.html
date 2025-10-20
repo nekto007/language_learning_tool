@@ -1,0 +1,610 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Управление модулями{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="page-title">Управление модулями</h1>
+        <p class="page-subtitle">Настройте доступные модули приложения</p>
+    </div>
+    <a href="{{ url_for('admin.modules_create') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i> Создать модуль
+    </a>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Всего модулей</p>
+                        <h3 class="mb-0">{{ modules|length }}</h3>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-puzzle-piece fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Активных</p>
+                        <h3 class="mb-0">{{ modules|selectattr('is_active')|list|length }}</h3>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">По умолчанию</p>
+                        <h3 class="mb-0">{{ modules|selectattr('is_default')|list|length }}</h3>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-star fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Статистика</p>
+                        <a href="{{ url_for('admin.modules_statistics') }}" class="btn btn-sm btn-outline-primary">
+                            Подробнее
+                        </a>
+                    </div>
+                    <div class="text-secondary">
+                        <i class="fas fa-chart-bar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modules List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Модули приложения</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th style="width: 60px;">Иконка</th>
+                        <th>Название</th>
+                        <th>Код</th>
+                        <th style="width: 80px;">Порядок</th>
+                        <th style="width: 100px;">Статус</th>
+                        <th style="width: 120px;">По умолчанию</th>
+                        <th style="width: 150px;">Пользователей</th>
+                        <th style="width: 180px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module in modules %}
+                    <tr>
+                        <td>{{ module.id }}</td>
+                        <td>
+                            {% if module.icon %}
+                            <i class="fas fa-{{ module.icon }} fa-lg text-primary"></i>
+                            {% else %}
+                            <i class="fas fa-puzzle-piece fa-lg text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ module.name }}</strong>
+                            {% if module.description %}
+                            <br><small class="text-muted">{{ module.description[:50] }}{% if module.description|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ module.code }}</code></td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ module.order }}</span>
+                        </td>
+                        <td>
+                            {% if module.is_active %}
+                            <span class="badge bg-success">Активен</span>
+                            {% else %}
+                            <span class="badge bg-danger">Отключен</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if module.is_default %}
+                            <i class="fas fa-check-circle text-success" title="Выдается при регистрации"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-muted" title="Не по умолчанию"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if stats and stats.get(module.code) %}
+                            <a href="{{ url_for('admin.modules_users', module_id=module.id) }}" class="text-decoration-none">
+                                <span class="badge bg-info">
+                                    {{ stats[module.code].enabled_users }} / {{ stats[module.code].total_users }}
+                                </span>
+                            </a>
+                            {% else %}
+                            <span class="badge bg-secondary">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('admin.modules_edit', module_id=module.id) }}"
+                                   class="btn btn-outline-primary" title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-info"
+                                        onclick="openUsersModal({{ module.id }}, '{{ module.name }}')"
+                                        title="Управление пользователями">
+                                    <i class="fas fa-users"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger"
+                                        onclick="deleteModule({{ module.id }}, '{{ module.name }}')"
+                                        title="Удалить">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            Модули не найдены
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Users Management Modal -->
+<div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="usersModalLabel">
+                    <i class="fas fa-users me-2"></i>
+                    Управление пользователями модуля: <span id="modalModuleName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Search and Filter -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="modalUserSearch"
+                                   placeholder="Поиск по имени или email...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary active"
+                                    onclick="filterModalUsers('all')">
+                                Все (<span id="countAll">0</span>)
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success"
+                                    onclick="filterModalUsers('has')">
+                                С модулем (<span id="countWith">0</span>)
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="filterModalUsers('without')">
+                                Без модуля (<span id="countWithout">0</span>)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-sm btn-success" onclick="modalBulkGrant()">
+                        <i class="fas fa-check me-1"></i> Выдать выбранным
+                    </button>
+                    <button type="button" class="btn btn-sm btn-warning" onclick="modalBulkRevoke()">
+                        <i class="fas fa-ban me-1"></i> Отозвать у выбранных
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="modalToggleAll()">
+                        <i class="fas fa-check-square me-1"></i> Выбрать все
+                    </button>
+                </div>
+
+                <!-- Users Table -->
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="modalSelectAll" onclick="modalToggleAll()">
+                                </th>
+                                <th>ID</th>
+                                <th>Пользователь</th>
+                                <th>Email</th>
+                                <th>Статус</th>
+                                <th style="width: 120px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalUsersTable">
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentModalModuleId = null;
+let currentModalUsers = [];
+const csrfToken = '{{ csrf_token() }}';
+
+// Delete module
+function deleteModule(moduleId, moduleName) {
+    if (!confirm(`Вы уверены, что хотите удалить модуль "${moduleName}"?\n\nЭто удалит связи с пользователями!`)) {
+        return;
+    }
+
+    fetch(`/admin/modules/${moduleId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Ошибка при удалении модуля');
+        console.error(error);
+    });
+}
+
+// Open users modal
+function openUsersModal(moduleId, moduleName) {
+    currentModalModuleId = moduleId;
+    document.getElementById('modalModuleName').textContent = moduleName;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('usersModal'));
+    modal.show();
+
+    // Load users data
+    loadModalUsers(moduleId);
+}
+
+// Load users data
+function loadModalUsers(moduleId) {
+    const tbody = document.getElementById('modalUsersTable');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    fetch(`/admin/modules/${moduleId}/users-data`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentModalUsers = data.users;
+                renderModalUsers(data.users);
+                updateModalCounts(data.users);
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-danger">
+                            Ошибка: ${data.error}
+                        </td>
+                    </tr>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-danger">
+                        Ошибка при загрузке данных
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+// Render users in modal
+function renderModalUsers(users) {
+    const tbody = document.getElementById('modalUsersTable');
+    if (users.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                    Пользователи не найдены
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = users.map(user => `
+        <tr class="modal-user-row"
+            data-has-module="${user.has_module}"
+            data-username="${user.username.toLowerCase()}"
+            data-email="${user.email.toLowerCase()}">
+            <td>
+                <input type="checkbox" class="modal-user-checkbox" value="${user.id}">
+            </td>
+            <td>${user.id}</td>
+            <td>
+                <strong>${user.username}</strong>
+                ${user.is_admin ? '<span class="badge bg-danger ms-1">Admin</span>' : ''}
+            </td>
+            <td>${user.email}</td>
+            <td>
+                ${user.has_module ? `
+                    <span class="badge bg-success">
+                        <i class="fas fa-check me-1"></i> Есть доступ
+                    </span>
+                    ${user.granted_by_admin ? '<span class="badge bg-warning ms-1"><i class="fas fa-user-shield"></i></span>' : ''}
+                ` : `
+                    <span class="badge bg-secondary">
+                        <i class="fas fa-times me-1"></i> Нет доступа
+                    </span>
+                `}
+            </td>
+            <td>
+                ${user.has_module ? `
+                    <button type="button" class="btn btn-sm btn-warning"
+                            onclick="modalRevokeModule(${user.id}, '${user.username}')">
+                        <i class="fas fa-ban"></i> Отозвать
+                    </button>
+                ` : `
+                    <button type="button" class="btn btn-sm btn-success"
+                            onclick="modalGrantModule(${user.id}, '${user.username}')">
+                        <i class="fas fa-check"></i> Выдать
+                    </button>
+                `}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Update counts
+function updateModalCounts(users) {
+    const withModule = users.filter(u => u.has_module).length;
+    const withoutModule = users.length - withModule;
+
+    document.getElementById('countAll').textContent = users.length;
+    document.getElementById('countWith').textContent = withModule;
+    document.getElementById('countWithout').textContent = withoutModule;
+}
+
+// Search functionality
+document.getElementById('modalUserSearch')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('.modal-user-row');
+
+    rows.forEach(row => {
+        const username = row.dataset.username;
+        const email = row.dataset.email;
+        const matches = username.includes(searchTerm) || email.includes(searchTerm);
+        row.style.display = matches ? '' : 'none';
+    });
+});
+
+// Filter users
+function filterModalUsers(filter) {
+    const rows = document.querySelectorAll('.modal-user-row');
+    const buttons = document.querySelectorAll('[onclick^="filterModalUsers"]');
+
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    rows.forEach(row => {
+        const hasModule = row.dataset.hasModule === 'true';
+        let show = true;
+
+        if (filter === 'has') show = hasModule;
+        else if (filter === 'without') show = !hasModule;
+
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Toggle all checkboxes
+function modalToggleAll() {
+    const selectAll = document.getElementById('modalSelectAll');
+    const checkboxes = document.querySelectorAll('.modal-user-checkbox');
+    const visibleCheckboxes = Array.from(checkboxes).filter(cb =>
+        cb.closest('tr').style.display !== 'none'
+    );
+
+    const allChecked = visibleCheckboxes.every(cb => cb.checked);
+    visibleCheckboxes.forEach(cb => cb.checked = !allChecked);
+    selectAll.checked = !allChecked;
+}
+
+// Grant module to user
+function modalGrantModule(userId, username) {
+    if (!confirm(`Выдать модуль пользователю "${username}"?`)) return;
+
+    fetch(`/admin/modules/users/${userId}/grant/${currentModalModuleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Модуль выдан успешно', 'success');
+            loadModalUsers(currentModalModuleId);
+            // Reload main page after a delay to update counts
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Ошибка: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Ошибка при выдаче модуля', 'danger');
+        console.error(error);
+    });
+}
+
+// Revoke module from user
+function modalRevokeModule(userId, username) {
+    if (!confirm(`Отозвать модуль у пользователя "${username}"?`)) return;
+
+    fetch(`/admin/modules/users/${userId}/revoke/${currentModalModuleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Модуль отозван успешно', 'success');
+            loadModalUsers(currentModalModuleId);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Ошибка: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Ошибка при отзыве модуля', 'danger');
+        console.error(error);
+    });
+}
+
+// Bulk grant
+function modalBulkGrant() {
+    const selectedIds = getModalSelectedUsers();
+    if (selectedIds.length === 0) {
+        showToast('Выберите пользователей', 'warning');
+        return;
+    }
+
+    if (!confirm(`Выдать модуль ${selectedIds.length} пользователям?`)) return;
+
+    Promise.all(selectedIds.map(userId =>
+        fetch(`/admin/modules/users/${userId}/grant/${currentModalModuleId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+    ))
+    .then(() => {
+        showToast(`Модуль выдан ${selectedIds.length} пользователям`, 'success');
+        loadModalUsers(currentModalModuleId);
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showToast('Ошибка при массовой выдаче', 'danger');
+        console.error(error);
+    });
+}
+
+// Bulk revoke
+function modalBulkRevoke() {
+    const selectedIds = getModalSelectedUsers();
+    if (selectedIds.length === 0) {
+        showToast('Выберите пользователей', 'warning');
+        return;
+    }
+
+    if (!confirm(`Отозвать модуль у ${selectedIds.length} пользователей?`)) return;
+
+    Promise.all(selectedIds.map(userId =>
+        fetch(`/admin/modules/users/${userId}/revoke/${currentModalModuleId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+    ))
+    .then(() => {
+        showToast(`Модуль отозван у ${selectedIds.length} пользователей`, 'success');
+        loadModalUsers(currentModalModuleId);
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showToast('Ошибка при массовом отзыве', 'danger');
+        console.error(error);
+    });
+}
+
+// Get selected user IDs
+function getModalSelectedUsers() {
+    return Array.from(document.querySelectorAll('.modal-user-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+}
+
+// Toast notification
+function showToast(message, type = 'info') {
+    const alertClass = {
+        'success': 'alert-success',
+        'danger': 'alert-danger',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    }[type] || 'alert-info';
+
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}

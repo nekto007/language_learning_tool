@@ -1,0 +1,235 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Пользователи модуля{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">Пользователи модуля "{{ module.name }}"</h1>
+            <p class="page-subtitle">
+                <span class="badge bg-primary">{{ module.code }}</span>
+                {% if module.is_active %}
+                <span class="badge bg-success">Активен</span>
+                {% else %}
+                <span class="badge bg-danger">Отключен</span>
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.modules_edit', module_id=module.id) }}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-edit me-1"></i> Редактировать модуль
+            </a>
+            <a href="{{ url_for('admin.modules_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> К списку модулей
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Всего пользователей</p>
+                        <h3 class="mb-0">{{ user_modules|length }}</h3>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Активных</p>
+                        <h3 class="mb-0">{{ user_modules|selectattr('is_enabled')|list|length }}</h3>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Выдано админом</p>
+                        <h3 class="mb-0">{{ user_modules|selectattr('granted_by_admin')|list|length }}</h3>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-user-shield fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Отключено</p>
+                        <h3 class="mb-0">{{ user_modules|rejectattr('is_enabled')|list|length }}</h3>
+                    </div>
+                    <div class="text-danger">
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Пользователи с доступом к модулю</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>Пользователь</th>
+                        <th>Email</th>
+                        <th style="width: 120px;">Статус</th>
+                        <th style="width: 150px;">Дата выдачи</th>
+                        <th style="width: 150px;">Источник</th>
+                        <th style="width: 150px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_module in user_modules %}
+                    <tr>
+                        <td>{{ user_module.user.id }}</td>
+                        <td>
+                            <strong>{{ user_module.user.username }}</strong>
+                            {% if user_module.user.is_admin %}
+                            <span class="badge bg-danger ms-1">Admin</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user_module.user.email }}</td>
+                        <td>
+                            {% if user_module.is_enabled %}
+                            <span class="badge bg-success">Включен</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Отключен</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ user_module.granted_at.strftime('%d.%m.%Y %H:%M') if user_module.granted_at else 'N/A' }}</small>
+                        </td>
+                        <td>
+                            {% if user_module.granted_by_admin %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-user-shield"></i> Админ
+                            </span>
+                            {% else %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-star"></i> По умолчанию
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('admin.user_modules', user_id=user_module.user.id) }}"
+                                   class="btn btn-outline-primary" title="Модули пользователя">
+                                    <i class="fas fa-list"></i>
+                                </a>
+                                {% if user_module.is_enabled %}
+                                <button type="button" class="btn btn-outline-warning"
+                                        onclick="revokeModule({{ user_module.user.id }}, {{ module.id }}, '{{ user_module.user.username }}')"
+                                        title="Отозвать доступ">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-success"
+                                        onclick="grantModule({{ user_module.user.id }}, {{ module.id }}, '{{ user_module.user.username }}')"
+                                        title="Предоставить доступ">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            Ни один пользователь не имеет доступа к этому модулю
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function revokeModule(userId, moduleId, username) {
+    if (!confirm(`Отозвать доступ к модулю у пользователя "${username}"?`)) {
+        return;
+    }
+
+    fetch(`/admin/modules/users/${userId}/revoke/${moduleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Ошибка при отзыве доступа');
+        console.error(error);
+    });
+}
+
+function grantModule(userId, moduleId, username) {
+    if (!confirm(`Предоставить доступ к модулю пользователю "${username}"?`)) {
+        return;
+    }
+
+    fetch(`/admin/modules/users/${userId}/grant/${moduleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Ошибка при предоставлении доступа');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

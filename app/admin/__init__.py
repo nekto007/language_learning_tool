@@ -16,5 +16,9 @@ def register_admin_routes(app):
     from app.admin.book_courses import register_book_course_routes
     register_book_course_routes(admin)
 
+    # Import and register module management routes
+    from app.admin.modules import register_module_admin_routes
+    register_module_admin_routes(admin)
+
     # Now register the complete blueprint with all routes
     app.register_blueprint(admin)
