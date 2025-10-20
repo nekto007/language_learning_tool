@@ -3,264 +3,40 @@
 {% block title %}{{ _('Flashcards') }}{% endblock %}
 
 {% block styles %}
+{{ super() }}
 <style>
-    body {
-        background-color: #f5f5f5;
-    }
-
-    .progress-container {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-
-    .progress-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-
-    .progress-title {
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin: 0;
-    }
-
-    .card-counter {
-        color: #666;
-        font-size: 1rem;
-        margin: 0;
-    }
-
-    .progress-stats {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .stat-counter {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 5px;
-        font-weight: bold;
-        color: white;
-    }
-
-    .stat-correct {
-        background-color: #4CAF50;
-    }
-
-    .stat-incorrect {
-        background-color: #F44336;
-    }
-
-    .progress-bar {
-        height: 10px;
-        background-color: #eeeeee;
-        border-radius: 5px;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background-color: #4CAF50;
-        width: 0%;
-        transition: width 0.3s ease;
-    }
-
-    .card-container {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        padding: 40px 30px;
-        margin-bottom: 20px;
-        min-height: 400px;
-        position: relative;
-    }
-
-    .word-title {
-        font-size: 2.5rem;
-        margin-bottom: 20px;
-        font-weight: 500;
-        text-align: center;
-    }
-
-    .pronunciation-btn {
-        background-color: white;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 8px 20px;
-        font-size: 1rem;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        margin: 0 auto 30px;
-    }
-
-    .pronunciation-btn:hover {
-        background-color: #f9f9f9;
-    }
-
-    .hint-text {
-        margin: 30px 0;
-        color: #666;
-        font-size: 1.1rem;
-        text-align: center;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .hint-text.visible {
-        opacity: 1;
-    }
-
-    .card-section {
-        margin: 15px 0;
-        text-align: center;
-    }
-
-    .section-title {
-        font-size: 1.1rem;
-        color: #666;
-        margin-bottom: 10px;
-        text-align: center;
-    }
-
-    .translation-text {
-        font-size: 1.3rem;
-        margin: 10px 0;
-        text-align: center;
-        color: red;
-    }
-
-    .example-text {
-        margin: 5px 0;
-        text-align: center;
-    }
-
-    .example-translation {
-        margin-top: 5px;
-        color: #666;
-        text-align: center;
-    }
-
-    .show-answer-btn {
-        background-color: #5B7FFF;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        padding: 12px 30px;
-        font-size: 1.1rem;
-        cursor: pointer;
-        margin: 30px auto 0;
-        display: block;
-    }
-
-    .show-answer-btn:hover {
-        background-color: #4A6FEF;
-    }
-
-    .rating-container {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        width: 100%;
-        margin-top: 20px;
-    }
-
-    .rating-btn {
-        flex: 1;
-        max-width: 200px;
-        padding: 15px 10px;
-        border: none;
-        border-radius: 5px;
-        color: white;
-        font-size: 1rem;
-        cursor: pointer;
-        text-align: center;
-    }
-
-    .btn-again {
-        background-color: #F44336;
-    }
-
-    .btn-hard {
-        background-color: #FFC107;
-    }
-
-    /* Removed btn-good styles since we no longer have Good button */
-
-    .btn-easy {
-        background-color: #4CAF50;
-    }
-
-    .how-well-text {
-        text-align: center;
-        margin-bottom: 15px;
-        color: #666;
-    }
-
-    .end-session-btn {
-        background-color: white;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 8px 20px;
-        font-size: 1rem;
-        cursor: pointer;
-    }
-
-    .end-session-btn:hover {
-        background-color: #f9f9f9;
-    }
-
-    .divider {
-        width: 100%;
-        height: 1px;
-        background-color: #eeeeee;
-        margin: 20px auto;
-        max-width: 500px;
-    }
-
-    .center-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .dash-separator {
-        display: block;
-        text-align: center;
-        margin: 5px 0;
-        color: #999;
-    }
+.hint-text {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.hint-text.visible {
+    opacity: 1;
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4" id="flashcard-app">
     <!-- Progress bar and stats -->
-    <div class="progress-container">
-        <div class="progress-header">
-            <div>
-                <h2 class="progress-title">{{ _('Study Progress') }}</h2>
-                <p class="card-counter" id="card-counter">{{ _('Card 1 of 20') }}</p>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <div class="progress-stats">
-                    <span class="stat-counter" style="background-color: #2196F3;" id="new-cards-counter" title="{{ _('New cards') }}">{{ _('Новых') }}: 0</span>
-                    <span class="stat-counter" style="background-color: #4CAF50;" id="studied-cards-counter" title="{{ _('Studied cards') }}">{{ _('Изучено') }}: 0</span>
-                    <span class="stat-counter" style="background-color: #FF9800;" id="review-cards-counter" title="{{ _('Review cards') }}">{{ _('Повторить') }}: 0</span>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 fw-bold mb-1">{{ _('Study Progress') }}</h2>
+                    <p class="text-secondary mb-0 small" id="card-counter">{{ _('Card 1 of 20') }}</p>
                 </div>
-                <button id="end-session-btn" class="end-session-btn">{{ _('End Session') }}</button>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-info" id="new-cards-counter" title="{{ _('New cards') }}">{{ _('Новых') }}: 0</span>
+                        <span class="badge bg-success" id="studied-cards-counter" title="{{ _('Studied cards') }}">{{ _('Изучено') }}: 0</span>
+                        <span class="badge bg-warning" id="review-cards-counter" title="{{ _('Review cards') }}">{{ _('Повторить') }}: 0</span>
+                    </div>
+                    <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">{{ _('End Session') }}</button>
+                </div>
             </div>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-success" id="progress-fill" style="width: 0%; transition: width 0.3s ease;"></div>
+            </div>
         </div>
     </div>
 
@@ -275,50 +51,47 @@
     <!-- Cards container -->
     <div id="flashcard-view" style="display: none;">
         <!-- Front side (question) -->
-        <div id="card-front" class="card-container center-container">
-            <h1 id="front-word" class="word-title"></h1>
+        <div id="card-front" class="card shadow-sm mb-4 text-center" style="min-height: 400px; padding: 40px 30px; position: relative;">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
-            <div class="center-container">
-                <button id="front-audio-btn" class="pronunciation-btn">
-                    <i class="fas fa-volume-up"></i> {{ _('Pronunciation') }}
+                <button id="front-audio-btn" class="btn btn-outline-secondary mb-4">
+                    <i class="fas fa-volume-up me-2"></i> {{ _('Pronunciation') }}
+                </button>
+
+                <p id="hint-text" class="text-secondary fs-5 my-4 hint-text"></p>
+
+                <button id="show-answer-btn" class="btn btn-primary btn-lg mt-auto">
+                    {{ _('Show Answer') }}
                 </button>
             </div>
-
-            <p id="hint-text" class="hint-text"></p>
-
-            <button id="show-answer-btn" class="show-answer-btn">
-                {{ _('Show Answer') }}
-            </button>
         </div>
 
         <!-- Back side (answer) -->
-        <div id="card-back" class="card-container center-container" style="display: none;">
-            <h1 id="back-word" class="word-title"></h1>
+        <div id="card-back" class="card shadow-sm mb-4 text-center" style="display: none; min-height: 400px; padding: 40px 30px; position: relative;">
+            <div class="card-body">
+                <h1 id="back-word" class="display-3 mb-4 fw-medium"></h1>
 
-            <div class="center-container">
-                <button id="back-audio-btn" class="pronunciation-btn">
-                    <i class="fas fa-volume-up"></i> {{ _('Pronunciation') }}
+                <button id="back-audio-btn" class="btn btn-outline-secondary mb-4">
+                    <i class="fas fa-volume-up me-2"></i> {{ _('Pronunciation') }}
                 </button>
-            </div>
 
-            <div class="divider"></div>
+                <hr class="my-4" style="max-width: 500px; margin-left: auto; margin-right: auto;">
 
-            <div class="card-section">
-                <div class="section-title">{{ _('Translation') }}</div>
-                <div id="translation-text" class="translation-text"></div>
-            </div>
+                <div class="mb-4">
+                    <div class="text-secondary mb-2 fw-semibold">{{ _('Translation') }}</div>
+                    <div id="translation-text" class="fs-4 text-danger"></div>
+                </div>
 
-            <div id="examples-container" class="card-section">
-                <div class="section-title">{{ _('Examples') }}</div>
-                <div id="example-text" class="example-text"></div>
-                <div id="example-translation" class="example-translation"></div>
-            </div>
+                <div id="examples-container" class="mb-4">
+                    <div class="text-secondary mb-2 fw-semibold">{{ _('Examples') }}</div>
+                    <div id="example-text" class="mb-2"></div>
+                    <div id="example-translation" class="text-secondary"></div>
+                </div>
 
-{#            <p class="how-well-text">{{ _('How well did you know this?') }}</p>#}
-
-            <div class="rating-container">
-                <button type="button" class="rating-btn btn-again" data-rating="0">
-                    {{ _('Снова') }}
+                <div class="d-flex justify-content-center gap-2 mt-4">
+                    <button type="button" class="btn btn-danger flex-fill" style="max-width: 200px;" data-rating="0">
+                        {{ _('Снова') }}
                 </button>
                 <button type="button" class="rating-btn btn-hard" data-rating="2">
                     {{ _('Трудно') }}
