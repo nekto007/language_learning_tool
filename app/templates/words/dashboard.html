@@ -4,187 +4,17 @@
 
 {% block styles %}
 {{ super() }}
-<style>
-.words-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 16px;
-    padding: 3rem 2rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.words-hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm0 0c0-11.046 8.954-20 20-20s20 8.954 20 20-8.954 20-20 20-20-8.954-20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
-    opacity: 0.1;
-}
-
-.words-hero-content {
-    position: relative;
-    z-index: 1;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border: 1px solid #e9ecef;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-}
-
-.stat-number {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-}
-
-.stat-label {
-    color: #6c757d;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-}
-
-.stat-progress {
-    height: 4px;
-    background: #e9ecef;
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.stat-progress-bar {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
-.quick-actions {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-}
-
-.action-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-
-.action-btn {
-    padding: 1rem;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    text-decoration: none;
-    color: #495057;
-    transition: all 0.2s ease;
-    text-align: center;
-}
-
-.action-btn:hover {
-    border-color: #007bff;
-    background: #f8f9ff;
-    color: #007bff;
-    text-decoration: none;
-}
-
-.action-btn i {
-    font-size: 1.5rem;
-    display: block;
-    margin-bottom: 0.5rem;
-}
-
-.recent-words {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.word-item {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem;
-    margin: -0.75rem;
-    border-radius: 8px;
-    transition: background 0.2s ease;
-}
-
-.word-item:hover {
-    background: #f8f9fa;
-}
-
-.word-main {
-    flex: 1;
-}
-
-.word-english {
-    font-weight: 600;
-    color: #212529;
-    margin-bottom: 0.25rem;
-}
-
-.word-russian {
-    color: #6c757d;
-    font-size: 0.875rem;
-}
-
-.word-status {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-left: 1rem;
-}
-
-.status-new { background: #6c757d; }
-.status-learning { background: #28a745; }
-.status-review { background: #17a2b8; }
-.status-mastered { background: #007bff; }
-
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #6c757d;
-}
-
-.empty-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <!-- Hero Section -->
-    <div class="words-hero">
-        <div class="words-hero-content">
+    <div class="card bg-primary text-white shadow-lg mb-4" style="border-radius: var(--radius-lg); overflow: hidden;">
+        <div class="card-body p-4" style="position: relative; z-index: 1;">
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <h1 class="display-5 fw-bold mb-3">{{ _('Ваш словарь') }}</h1>
-                    <p class="lead mb-0">{{ _('Изучайте новые слова, повторяйте изученные и отслеживайте свой прогресс') }}</p>
+                    <p class="lead mb-0 opacity-90">{{ _('Изучайте новые слова, повторяйте изученные и отслеживайте свой прогресс') }}</p>
                 </div>
                 <div class="col-lg-4 text-end">
                     <div class="d-flex flex-column align-items-end">
@@ -197,110 +27,122 @@
     </div>
 
     <!-- Statistics Grid -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-number text-primary">{{ status_stats.new }}</div>
-            <div class="stat-label">{{ _('Новые слова') }}</div>
-            <div class="stat-progress">
-                <div class="stat-progress-bar bg-primary" style="width: {{ (status_stats.new / total_words * 100) if total_words > 0 else 0 }}%"></div>
+    <div class="grid grid-cols-4 gap-4 mb-4">
+        <div class="card shadow-sm hover-lift">
+            <div class="card-body">
+                <div class="text-5xl fw-bold text-primary mb-2">{{ status_stats.new }}</div>
+                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Новые слова') }}</div>
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar bg-primary" style="width: {{ (status_stats.new / total_words * 100) if total_words > 0 else 0 }}%"></div>
+                </div>
             </div>
         </div>
-        
-        <div class="stat-card">
-            <div class="stat-number text-success">{{ status_stats.learning }}</div>
-            <div class="stat-label">{{ _('Изучаемые') }}</div>
-            <div class="stat-progress">
-                <div class="stat-progress-bar bg-success" style="width: {{ (status_stats.learning / total_words * 100) if total_words > 0 else 0 }}%"></div>
+
+        <div class="card shadow-sm hover-lift">
+            <div class="card-body">
+                <div class="text-5xl fw-bold text-success mb-2">{{ status_stats.learning }}</div>
+                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Изучаемые') }}</div>
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar bg-success" style="width: {{ (status_stats.learning / total_words * 100) if total_words > 0 else 0 }}%"></div>
+                </div>
             </div>
         </div>
-        
-        <div class="stat-card">
-            <div class="stat-number text-info">{{ status_stats.review }}</div>
-            <div class="stat-label">{{ _('На повторении') }}</div>
-            <div class="stat-progress">
-                <div class="stat-progress-bar bg-info" style="width: {{ (status_stats.review / total_words * 100) if total_words > 0 else 0 }}%"></div>
+
+        <div class="card shadow-sm hover-lift">
+            <div class="card-body">
+                <div class="text-5xl fw-bold text-info mb-2">{{ status_stats.review }}</div>
+                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('На повторении') }}</div>
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar bg-info" style="width: {{ (status_stats.review / total_words * 100) if total_words > 0 else 0 }}%"></div>
+                </div>
             </div>
         </div>
-        
-        <div class="stat-card">
-            <div class="stat-number text-warning">{{ status_stats.mastered }}</div>
-            <div class="stat-label">{{ _('Выученные') }}</div>
-            <div class="stat-progress">
-                <div class="stat-progress-bar bg-warning" style="width: {{ (status_stats.mastered / total_words * 100) if total_words > 0 else 0 }}%"></div>
+
+        <div class="card shadow-sm hover-lift">
+            <div class="card-body">
+                <div class="text-5xl fw-bold text-warning mb-2">{{ status_stats.mastered }}</div>
+                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Выученные') }}</div>
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar bg-warning" style="width: {{ (status_stats.mastered / total_words * 100) if total_words > 0 else 0 }}%"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="quick-actions">
-        <h3 class="mb-3">{{ _('Быстрые действия') }}</h3>
-        <div class="action-buttons">
-            <a href="{{ url_for('words.word_list') }}" class="action-btn">
-                <i class="fas fa-list"></i>
-                <div class="fw-semibold">{{ _('Все слова') }}</div>
-                <small class="text-muted">{{ _('Просмотреть полный список') }}</small>
-            </a>
-            
-            <a href="{{ url_for('words.word_list', status='new') }}" class="action-btn">
-                <i class="fas fa-plus-circle"></i>
-                <div class="fw-semibold">{{ _('Новые слова') }}</div>
-                <small class="text-muted">{{ _('Начать изучение') }}</small>
-            </a>
-            
-            <a href="{{ url_for('words.word_list', status='learning') }}" class="action-btn">
-                <i class="fas fa-graduation-cap"></i>
-                <div class="fw-semibold">{{ _('Изучаемые') }}</div>
-                <small class="text-muted">{{ _('Продолжить изучение') }}</small>
-            </a>
-            
-            <a href="{{ url_for('words.word_list', status='review') }}" class="action-btn">
-                <i class="fas fa-redo"></i>
-                <div class="fw-semibold">{{ _('Повторение') }}</div>
-                <small class="text-muted">{{ _('Закрепить знания') }}</small>
-            </a>
-            
-            <a href="#" class="action-btn" data-bs-toggle="modal" data-bs-target="#exportModal">
-                <i class="fas fa-download"></i>
-                <div class="fw-semibold">{{ _('Экспорт') }}</div>
-                <small class="text-muted">{{ _('Экспорт в Anki') }}</small>
-            </a>
-            
-            <a href="{{ url_for('study.index') }}" class="action-btn">
-                <i class="fas fa-play"></i>
-                <div class="fw-semibold">{{ _('Начать изучение') }}</div>
-                <small class="text-muted">{{ _('Карточки и тесты') }}</small>
-            </a>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="mb-3">{{ _('Быстрые действия') }}</h3>
+            <div class="grid grid-cols-3 gap-3">
+                <a href="{{ url_for('words.word_list') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
+                    <i class="fas fa-list d-block mb-2" style="font-size: 1.5rem;"></i>
+                    <div class="fw-semibold">{{ _('Все слова') }}</div>
+                    <small class="text-muted">{{ _('Просмотреть полный список') }}</small>
+                </a>
+
+                <a href="{{ url_for('words.word_list', status='new') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
+                    <i class="fas fa-plus-circle d-block mb-2" style="font-size: 1.5rem;"></i>
+                    <div class="fw-semibold">{{ _('Новые слова') }}</div>
+                    <small class="text-muted">{{ _('Начать изучение') }}</small>
+                </a>
+
+                <a href="{{ url_for('words.word_list', status='learning') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
+                    <i class="fas fa-graduation-cap d-block mb-2" style="font-size: 1.5rem;"></i>
+                    <div class="fw-semibold">{{ _('Изучаемые') }}</div>
+                    <small class="text-muted">{{ _('Продолжить изучение') }}</small>
+                </a>
+
+                <a href="{{ url_for('words.word_list', status='review') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
+                    <i class="fas fa-redo d-block mb-2" style="font-size: 1.5rem;"></i>
+                    <div class="fw-semibold">{{ _('Повторение') }}</div>
+                    <small class="text-muted">{{ _('Закрепить знания') }}</small>
+                </a>
+
+                <a href="#" class="btn btn-outline text-center p-3 text-decoration-none" data-bs-toggle="modal" data-bs-target="#exportModal" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
+                    <i class="fas fa-download d-block mb-2" style="font-size: 1.5rem;"></i>
+                    <div class="fw-semibold">{{ _('Экспорт') }}</div>
+                    <small class="text-muted">{{ _('Экспорт в Anki') }}</small>
+                </a>
+
+                <a href="{{ url_for('study.index') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
+                    <i class="fas fa-play d-block mb-2" style="font-size: 1.5rem;"></i>
+                    <div class="fw-semibold">{{ _('Начать изучение') }}</div>
+                    <small class="text-muted">{{ _('Карточки и тесты') }}</small>
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Recent Words -->
     {% if recent_words %}
-    <div class="recent-words">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="mb-0">{{ _('Недавно изученные') }}</h3>
-            <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-primary btn-sm">{{ _('Посмотреть все') }}</a>
-        </div>
-        
-        <div class="row">
-            {% for word in recent_words[:8] %}
-            <div class="col-md-6 mb-2">
-                <div class="word-item">
-                    <div class="word-main">
-                        <div class="word-english">{{ word.english_word }}</div>
-                        <div class="word-russian">{{ word.russian_word }}</div>
-                    </div>
-                    <div class="word-status status-{{ word.user_status or 'new' }}"></div>
-                </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">{{ _('Недавно изученные') }}</h3>
+                <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-primary btn-sm">{{ _('Посмотреть все') }}</a>
             </div>
-            {% endfor %}
+
+            <div class="row">
+                {% for word in recent_words[:8] %}
+                <div class="col-md-6 mb-2">
+                    <div class="d-flex align-items-center p-2 rounded hover-bg-light" style="transition: var(--transition-base);">
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold text-dark">{{ word.english_word }}</div>
+                            <div class="text-secondary text-sm">{{ word.russian_word }}</div>
+                        </div>
+                        <div class="rounded-circle ms-3" style="width: 8px; height: 8px; background-color: {% if word.user_status == 'mastered' %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %};"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
     {% else %}
-    <div class="recent-words">
-        <div class="empty-state">
-            <i class="fas fa-book-open"></i>
-            <h4>{{ _('Начните изучение слов') }}</h4>
-            <p>{{ _('Добавьте слова в свой словарь и начните изучение') }}</p>
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-book-open text-muted mb-3" style="font-size: 3rem; opacity: 0.5;"></i>
+            <h4 class="text-secondary">{{ _('Начните изучение слов') }}</h4>
+            <p class="text-muted">{{ _('Добавьте слова в свой словарь и начните изучение') }}</p>
             <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">{{ _('Перейти к словам') }}</a>
         </div>
     </div>

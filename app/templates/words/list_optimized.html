@@ -4,566 +4,135 @@
 
 {% block styles %}
 {{ super() }}
-<style>
-.words-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-}
-
-.filter-panel {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-}
-
-.letter-filter {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 1rem;
-}
-
-.letter-btn {
-    width: 40px;
-    height: 40px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    background: white;
-    color: #495057;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.letter-btn:hover, .letter-btn.active {
-    border-color: #007bff;
-    background: #007bff;
-    color: white;
-    text-decoration: none;
-}
-
-.words-table {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    overflow: hidden;
-    margin-bottom: 2rem;
-}
-
-.words-table table {
-    margin-bottom: 0;
-}
-
-.words-table th {
-    background: #ffffff;
-    color: #1a202c;
-    border-bottom: 3px solid #667eea;
-    border-top: 2px solid #e2e8f0;
-    border-left: 1px solid #e2e8f0;
-    border-right: 1px solid #e2e8f0;
-    font-weight: 700;
-    padding: 1.2rem 0.75rem;
-    white-space: nowrap;
-    font-size: 0.95rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.words-table th:first-child {
-    border-left: 2px solid #e2e8f0;
-    border-top-left-radius: 8px;
-}
-
-.words-table th:last-child {
-    border-right: 2px solid #e2e8f0;
-    border-top-right-radius: 8px;
-}
-
-.words-table td {
-    padding: 1rem 0.75rem;
-    vertical-align: middle;
-    border-bottom: 1px solid #e9ecef;
-    transition: all 0.2s ease;
-}
-
-.words-table tbody tr:hover {
-    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
-    transform: scale(1.01);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-}
-
-.word-english {
-    font-weight: 700;
-    color: #2d3748;
-    font-size: 1.15rem;
-    letter-spacing: 0.5px;
-}
-
-.word-russian {
-    color: #4a5568;
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-.word-level {
-    display: inline-block;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    white-space: nowrap;
-    letter-spacing: 1px;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.level-A1, .level-A2 { 
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
-    color: white; 
-    border-color: #38a169;
-}
-.level-B1, .level-B2 { 
-    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); 
-    color: white; 
-    border-color: #3182ce;
-}
-.level-C1, .level-C2 { 
-    background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
-    color: white; 
-    border-color: #dd6b20;
-}
-
-.action-btn {
-    padding: 0.5rem 0.75rem;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    background: white;
-    color: #495057;
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    margin-right: 0.25rem;
-    white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.action-btn:hover {
-    background: #f8f9fa;
-    border-color: #667eea;
-    color: #667eea;
-    text-decoration: none;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.action-btn.primary {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    border-color: #007bff;
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-}
-
-.action-btn.primary:hover {
-    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
-    border-color: #0056b3;
-    color: white;
-    box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
-}
-
-.action-btn.success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border-color: #28a745;
-    color: white;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-}
-
-.action-btn.review {
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-    border-color: #17a2b8;
-    color: white;
-    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
-}
-
-.action-btn.review:hover {
-    background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
-    border-color: #117a8b;
-    color: white;
-    box-shadow: 0 6px 16px rgba(23, 162, 184, 0.4);
-}
-
-.action-btn.mastered {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border-color: #28a745;
-    color: white;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-}
-
-.action-btn.mastered:hover {
-    background: linear-gradient(135deg, #20c997 0%, #1e7e34 100%);
-    border-color: #1e7e34;
-    color: white;
-    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
-}
-
-.status-indicator {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    display: inline-block;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* Более заметные чекбоксы */
-.form-check-input {
-    width: 1.2em;
-    height: 1.2em;
-    border: 2px solid #667eea;
-    border-radius: 4px;
-}
-
-.form-check-input:checked {
-    background-color: #667eea;
-    border-color: #667eea;
-    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-}
-
-.form-check-input:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.status-new { 
-    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-    box-shadow: 0 2px 6px rgba(108, 117, 125, 0.4);
-}
-.status-learning { 
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.4);
-}
-.status-review { 
-    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-    box-shadow: 0 2px 6px rgba(23, 162, 184, 0.4);
-}
-.status-mastered { 
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.4);
-}
-
-.audio-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: 2px solid #5a67d8;
-    color: white;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-}
-
-.audio-btn:hover {
-    background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.stats-bar {
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    border: 2px solid #e9ecef;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 0.5rem;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.stat-item:hover {
-    background: rgba(102, 126, 234, 0.05);
-    transform: translateY(-2px);
-}
-
-.stat-number {
-    font-size: 1.8rem;
-    font-weight: 800;
-    margin-bottom: 0.25rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.stat-label {
-    color: #4a5568;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: #6c757d;
-}
-
-.empty-state i {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-
-.pagination-wrapper {
-    display: flex;
-    justify-content: center;
-    margin-top: 2rem;
-}
-
-.bulk-actions-panel {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: 2px solid #5a67d8;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    transition: all 0.3s ease;
-    transform: translateY(-10px);
-    opacity: 0;
-}
-
-.bulk-actions-panel.show {
-    transform: translateY(0);
-    opacity: 1;
-}
-
-.selected-count {
-    font-weight: 700;
-    color: white;
-    font-size: 1.1rem;
-}
-
-.bulk-action-buttons {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.bulk-action-buttons .btn {
-    white-space: nowrap;
-    font-weight: 600;
-    border: 2px solid rgba(255,255,255,0.3);
-    background: rgba(255,255,255,0.15);
-    color: white;
-    backdrop-filter: blur(10px);
-    transition: all 0.2s ease;
-}
-
-.bulk-action-buttons .btn:hover {
-    background: rgba(255,255,255,0.25);
-    border-color: rgba(255,255,255,0.5);
-    color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.bulk-action-buttons .btn:active {
-    transform: translateY(0);
-}
-
-@media (max-width: 768px) {
-    .words-table {
-        font-size: 0.875rem;
-    }
-    
-    .words-table th,
-    .words-table td {
-        padding: 0.75rem 0.5rem;
-    }
-    
-    .words-table th {
-        font-size: 0.8rem;
-        padding: 1rem 0.5rem;
-    }
-    
-    .word-english {
-        font-size: 1rem;
-    }
-    
-    .action-btn {
-        padding: 0.25rem 0.25rem;
-        font-size: 0.75rem;
-        margin-right: 0.125rem;
-    }
-    
-    .stats-bar {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .filter-panel .row {
-        gap: 1rem;
-    }
-    
-    /* Скрываем некоторые колонки на мобильных */
-    .words-table th:nth-child(6),
-    .words-table td:nth-child(6) {
-        display: none;
-    }
-    
-    .bulk-actions-panel {
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .bulk-action-buttons {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .bulk-action-buttons .btn {
-        font-size: 0.875rem;
-    }
-}
-</style>
+{# All inline styles removed - using design-system.css #}
 {% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <!-- Header -->
-    <div class="words-header">
-        <div class="row align-items-center">
-            <div class="col-lg-8">
-                <h1 class="display-6 fw-bold mb-2">{{ _('Словарь') }}</h1>
-                <p class="mb-0 opacity-75">{{ _('Изучайте новые слова и отслеживайте прогресс') }}</p>
-            </div>
-            <div class="col-lg-4 text-end">
-                <a href="{{ url_for('words.dashboard') }}" class="btn btn-light">
-                    <i class="fas fa-arrow-left me-2"></i>{{ _('К панели') }}
-                </a>
+    <div class="card bg-primary text-white shadow-lg mb-4" style="border-radius: var(--radius-lg);">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="display-6 fw-bold mb-2">{{ _('Словарь') }}</h1>
+                    <p class="mb-0 opacity-75">{{ _('Изучайте новые слова и отслеживайте прогресс') }}</p>
+                </div>
+                <div class="col-lg-4 text-end">
+                    <a href="{{ url_for('words.dashboard') }}" class="btn btn-light">
+                        <i class="fas fa-arrow-left me-2"></i>{{ _('К панели') }}
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Stats Bar -->
     {% if words %}
-    <div class="stats-bar">
-        <div class="stat-item">
-            <div class="stat-number text-primary">{{ words.total }}</div>
-            <div class="stat-label">{{ _('Всего слов') }}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number text-success">{{ status_counts.get('learning', 0) }}</div>
-            <div class="stat-label">{{ _('Изучаемых') }}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number text-info">{{ status_counts.get('review', 0) }}</div>
-            <div class="stat-label">{{ _('На повторении') }}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number text-warning">{{ status_counts.get('mastered', 0) }}</div>
-            <div class="stat-label">{{ _('Выученных') }}</div>
+    <div class="card shadow-sm mb-4" style="background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="text-center px-3 py-2 rounded hover-lift" style="transition: var(--transition-base);">
+                    <div class="fs-2 fw-bold text-primary">{{ words.total }}</div>
+                    <div class="text-secondary text-sm fw-semibold">{{ _('Всего слов') }}</div>
+                </div>
+                <div class="text-center px-3 py-2 rounded hover-lift" style="transition: var(--transition-base);">
+                    <div class="fs-2 fw-bold text-success">{{ status_counts.get('learning', 0) }}</div>
+                    <div class="text-secondary text-sm fw-semibold">{{ _('Изучаемых') }}</div>
+                </div>
+                <div class="text-center px-3 py-2 rounded hover-lift" style="transition: var(--transition-base);">
+                    <div class="fs-2 fw-bold text-info">{{ status_counts.get('review', 0) }}</div>
+                    <div class="text-secondary text-sm fw-semibold">{{ _('На повторении') }}</div>
+                </div>
+                <div class="text-center px-3 py-2 rounded hover-lift" style="transition: var(--transition-base);">
+                    <div class="fs-2 fw-bold text-warning">{{ status_counts.get('mastered', 0) }}</div>
+                    <div class="text-secondary text-sm fw-semibold">{{ _('Выученных') }}</div>
+                </div>
+            </div>
         </div>
     </div>
     {% endif %}
 
     <!-- Filters -->
-    <div class="filter-panel">
-        <form method="GET" action="{{ url_for('words.word_list') }}">
-            <div class="row g-3">
-                <!-- Search -->
-                <div class="col-md-4">
-                    {{ search_form.search.label(class="form-label fw-semibold") }}
-                    {{ search_form.search(class="form-control", placeholder=_('Поиск слов...')) }}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('words.word_list') }}">
+                <div class="row g-3">
+                    <!-- Search -->
+                    <div class="col-md-4">
+                        {{ search_form.search.label(class="form-label fw-semibold") }}
+                        {{ search_form.search(class="form-control", placeholder=_('Поиск слов...')) }}
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="col-md-3">
+                        {{ filter_form.status.label(class="form-label fw-semibold") }}
+                        {{ filter_form.status(class="form-select") }}
+                    </div>
+
+                    <!-- Book Filter -->
+                    <div class="col-md-3">
+                        {{ filter_form.book_id.label(class="form-label fw-semibold") }}
+                        {{ filter_form.book_id(class="form-select") }}
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>{{ _('Найти') }}
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Status Filter -->
-                <div class="col-md-3">
-                    {{ filter_form.status.label(class="form-label fw-semibold") }}
-                    {{ filter_form.status(class="form-select") }}
+                <!-- Letter Filter -->
+                <div class="col-12 mt-3">
+                    <label class="form-label fw-semibold">{{ _('Фильтр по букве') }}</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('words.word_list') }}"
+                           class="btn btn-sm {{ 'btn-primary' if not filter_form.letter.data else 'btn-outline-secondary' }}"
+                           style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 600;">
+                            {{ _('Все') }}
+                        </a>
+                        {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
+                        <a href="{{ url_for('words.word_list', letter=letter) }}"
+                           class="btn btn-sm {{ 'btn-primary' if filter_form.letter.data == letter else 'btn-outline-secondary' }}"
+                           style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 600;">
+                            {{ letter }}
+                        </a>
+                        {% endfor %}
+                    </div>
                 </div>
-
-                <!-- Book Filter -->
-                <div class="col-md-3">
-                    {{ filter_form.book_id.label(class="form-label fw-semibold") }}
-                    {{ filter_form.book_id(class="form-select") }}
-                </div>
-
-                <!-- Submit Button -->
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search me-2"></i>{{ _('Найти') }}
-                    </button>
-                </div>
-            </div>
-
-            <!-- Letter Filter -->
-            <div class="col-12">
-                <label class="form-label fw-semibold">{{ _('Фильтр по букве') }}</label>
-                <div class="letter-filter">
-                    <a href="{{ url_for('words.word_list') }}" 
-                       class="letter-btn {{ 'active' if not filter_form.letter.data else '' }}">
-                        {{ _('Все') }}
-                    </a>
-                    {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
-                    <a href="{{ url_for('words.word_list', letter=letter) }}" 
-                       class="letter-btn {{ 'active' if filter_form.letter.data == letter else '' }}">
-                        {{ letter }}
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
     <!-- Bulk Actions Panel -->
     {% if words.items %}
-    <div class="bulk-actions-panel" id="bulkActionsPanel" style="display: none;">
-        <div class="d-flex align-items-center justify-content-between">
-            <div class="selected-count">
-                <span id="selectedCount">0</span> {{ _('слов выбрано') }}
-            </div>
-            <div class="bulk-action-buttons">
-                <button class="btn btn-primary btn-sm" onclick="bulkUpdateStatus('learning')">
-                    <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
-                </button>
-                <button class="btn btn-info btn-sm" onclick="bulkUpdateStatus('review')">
-                    <i class="fas fa-redo me-1"></i>{{ _('Повторение') }}
-                </button>
-                <button class="btn btn-success btn-sm" onclick="bulkUpdateStatus('mastered')">
-                    <i class="fas fa-check me-1"></i>{{ _('Знаю') }}
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
-                    <i class="fas fa-times me-1"></i>{{ _('Отмена') }}
-                </button>
+    <div class="card bg-primary text-white shadow-lg mb-4" id="bulkActionsPanel" style="display: none; border-radius: var(--radius-lg); transition: var(--transition-slow); transform: translateY(-10px); opacity: 0;">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="fw-bold fs-5">
+                    <span id="selectedCount">0</span> {{ _('слов выбрано') }}
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-light btn-sm fw-semibold" onclick="bulkUpdateStatus('learning')">
+                        <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
+                    </button>
+                    <button class="btn btn-light btn-sm fw-semibold" onclick="bulkUpdateStatus('review')">
+                        <i class="fas fa-redo me-1"></i>{{ _('Повторение') }}
+                    </button>
+                    <button class="btn btn-light btn-sm fw-semibold" onclick="bulkUpdateStatus('mastered')">
+                        <i class="fas fa-check me-1"></i>{{ _('Знаю') }}
+                    </button>
+                    <button class="btn btn-outline-light btn-sm fw-semibold" onclick="clearSelection()">
+                        <i class="fas fa-times me-1"></i>{{ _('Отмена') }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Words Table -->
-    <div class="words-table">
+    <div class="card shadow-sm mb-4" style="overflow: hidden; border-radius: var(--radius-lg);">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -586,18 +155,18 @@
                         <input type="checkbox" class="form-check-input word-checkbox" value="{{ word.id }}" data-word-id="{{ word.id }}">
                     </td>
                     <td>
-                        <div class="status-indicator status-{{ word.user_status or 'new' }}" 
+                        <div class="rounded-circle d-inline-block" style="width: 14px; height: 14px; background-color: {% if word.user_status == 'mastered' %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %}; border: 2px solid white; box-shadow: var(--shadow-sm);" 
                              title="{{ _('Выучено') if word.user_status == 'mastered' else _('Изучается') if word.user_status == 'learning' else _('Повторение') if word.user_status == 'review' else _('Новое') }}"></div>
                     </td>
                     <td>
-                        <div class="word-english">{{ word.english_word }}</div>
+                        <div class="fw-bold text-dark" style="font-size: 1.1rem;">{{ word.english_word }}</div>
                     </td>
                     <td>
-                        <div class="word-russian">{{ word.russian_word }}</div>
+                        <div class="text-secondary fw-medium">{{ word.russian_word }}</div>
                     </td>
                     <td>
                         {% if word.level %}
-                        <span class="word-level level-{{ word.level }}">{{ word.level }}</span>
+                        <span class="badge rounded-pill px-3 py-2 text-white fw-bold shadow-sm" style="font-size: 0.75rem; letter-spacing: 0.5px; {% if word.level in ['A1', 'A2'] %}background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);{% elif word.level in ['B1', 'B2'] %}background: linear-gradient(135deg, var(--info-500) 0%, var(--info-600) 100%);{% elif word.level in ['C1', 'C2'] %}background: linear-gradient(135deg, var(--warning-500) 0%, var(--warning-600) 100%);{% endif %}">{{ word.level }}</span>
                         {% else %}
                         <span class="text-muted">-</span>
                         {% endif %}
@@ -613,7 +182,7 @@
                     </td>
                     <td>
                         {% if word.get_download and word.listening %}
-                        <button class="audio-btn" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}">
+                        <button class="btn btn-primary btn-sm rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-volume-up"></i>
                         </button>
                         {% else %}
@@ -622,30 +191,30 @@
                     </td>
                     <td>
                         <div class="d-flex align-items-center gap-1">
-                            <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="action-btn" title="{{ _('Подробно') }}">
+                            <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="btn btn-sm btn-outline-secondary" title="{{ _('Подробно') }}">
                                 <i class="fas fa-eye"></i>
                             </a>
                             {% if word.user_status == 'new' %}
-                            <a href="#" class="action-btn primary" onclick="changeWordStatus({{ word.id }}, 'learning')" title="{{ _('Изучать') }}">
+                            <button class="btn btn-sm btn-primary" onclick="changeWordStatus({{ word.id }}, 'learning')" title="{{ _('Изучать') }}">
                                 <i class="fas fa-plus"></i>
-                            </a>
+                            </button>
                             {% elif word.user_status == 'learning' %}
-                            <a href="#" class="action-btn review" onclick="changeWordStatus({{ word.id }}, 'review')" title="{{ _('На повторение') }}">
+                            <button class="btn btn-sm btn-info" onclick="changeWordStatus({{ word.id }}, 'review')" title="{{ _('На повторение') }}">
                                 <i class="fas fa-redo"></i>
-                            </a>
+                            </button>
                             {% elif word.user_status == 'review' %}
-                            <a href="#" class="action-btn mastered" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
+                            <button class="btn btn-sm btn-success" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
                                 <i class="fas fa-check"></i>
-                            </a>
+                            </button>
                             {% else %}
-                            <span class="action-btn success" title="{{ _('Изучено') }}">
+                            <span class="btn btn-sm btn-success disabled" title="{{ _('Изучено') }}">
                                 <i class="fas fa-check"></i>
                             </span>
                             {% endif %}
                             {% if word.user_status != 'mastered' %}
-                            <a href="#" class="action-btn mastered" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
+                            <button class="btn btn-sm btn-warning" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
                                 <i class="fas fa-star"></i>
-                            </a>
+                            </button>
                             {% endif %}
                         </div>
                     </td>
@@ -700,11 +269,13 @@
 
     {% else %}
     <!-- Empty State -->
-    <div class="empty-state">
-        <i class="fas fa-book-open"></i>
-        <h3>{{ _('Слова не найдены') }}</h3>
-        <p>{{ _('Попробуйте изменить параметры поиска или добавьте новые слова') }}</p>
-        <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">{{ _('Сбросить фильтры') }}</a>
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-book-open text-muted mb-3" style="font-size: 4rem; opacity: 0.5;"></i>
+            <h3 class="text-secondary">{{ _('Слова не найдены') }}</h3>
+            <p class="text-muted">{{ _('Попробуйте изменить параметры поиска или добавьте новые слова') }}</p>
+            <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">{{ _('Сбросить фильтры') }}</a>
+        </div>
     </div>
     {% endif %}
 </div>
@@ -784,16 +355,18 @@ function updateBulkActionsPanel() {
     const checkedBoxes = document.querySelectorAll('.word-checkbox:checked');
     const bulkPanel = document.getElementById('bulkActionsPanel');
     const selectedCount = document.getElementById('selectedCount');
-    
+
     if (checkedBoxes.length > 0) {
         bulkPanel.style.display = 'block';
         selectedCount.textContent = checkedBoxes.length;
         // Добавляем небольшую задержку для плавной анимации
         setTimeout(() => {
-            bulkPanel.classList.add('show');
+            bulkPanel.style.transform = 'translateY(0)';
+            bulkPanel.style.opacity = '1';
         }, 10);
     } else {
-        bulkPanel.classList.remove('show');
+        bulkPanel.style.transform = 'translateY(-10px)';
+        bulkPanel.style.opacity = '0';
         // Скрываем панель после завершения анимации
         setTimeout(() => {
             bulkPanel.style.display = 'none';
