@@ -28,6 +28,7 @@ from app.study.models import UserWord
 from app.utils.db import db, word_book_link
 from app.utils.decorators import admin_required
 from app.words.models import CollectionWords
+from app.modules.decorators import module_required
 
 books = Blueprint('books', __name__)
 
@@ -333,6 +334,7 @@ def upload_cover(book_id):
 
 @books.route('/read')
 @login_required
+@module_required('books')
 def read_selection():
     """
     Page for selecting a book to read
@@ -361,6 +363,7 @@ def read_selection():
 
 @books.route('/read/<int:book_id>')
 @login_required
+@module_required('books')
 def read_book(book_id):
     """
     Page for reading a book - redirects to chapter-based reader if chapters exist
@@ -385,6 +388,7 @@ def read_book(book_id):
 @books.route('/reader/<string:book_slug>/<int:chapter_num>')
 @books.route('/read/<int:book_id>/chapters')
 @login_required
+@module_required('books')
 def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     """
     Chapter-based book reader with support for both ID and slug URLs
@@ -465,6 +469,7 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
 @books.route('/books/<string:book_slug>/reader-v2')
 @books.route('/books/<string:book_slug>/chapter/<int:chapter_num>/v2')
 @login_required
+@module_required('books')
 def read_book_v2(book_slug, chapter_num=None):
     """
     Enhanced Reader v2 - Uses new API endpoints

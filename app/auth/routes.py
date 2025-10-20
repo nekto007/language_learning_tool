@@ -207,6 +207,14 @@ def register():
                 db.session.add(user)
                 db.session.commit()
 
+                # Grant default modules to the new user
+                from app.modules.service import ModuleService
+                try:
+                    ModuleService.grant_default_modules_to_user(user.id)
+                except Exception as module_error:
+                    # Log the error but don't fail registration
+                    print(f"Warning: Failed to grant default modules to user {user.id}: {module_error}")
+
                 flash('Регистрация успешна! Теперь вы можете войти в систему.', 'success')
                 return redirect(url_for('auth.login'))
             except Exception as e:

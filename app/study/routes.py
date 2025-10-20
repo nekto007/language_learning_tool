@@ -12,12 +12,14 @@ from app.study.models import GameScore, StudySession, StudySettings, UserCardDir
 from app.utils.db import db
 from app.words.forms import CollectionFilterForm
 from app.words.models import Collection, CollectionWords, Topic
+from app.modules.decorators import module_required
 
 study = Blueprint('study', __name__, template_folder='templates')
 
 
 @study.route('/')
 @login_required
+@module_required('study')
 def index():
     """Simplified study dashboard - no forms, just 3 buttons"""
     # Считаем слова, ожидающие повторения
@@ -67,6 +69,7 @@ def index():
 
 @study.route('/settings', methods=['GET', 'POST'])
 @login_required
+@module_required('study')
 def settings():
     """Study settings page"""
     # Get or create user settings
@@ -88,6 +91,7 @@ def settings():
 
 @study.route('/cards')
 @login_required
+@module_required('study')
 def cards():
     """Anki-style flashcard study interface"""
     # Get user settings
@@ -111,6 +115,7 @@ def cards():
 
 @study.route('/quiz')
 @login_required
+@module_required('study')
 def quiz():
     """Quiz study interface"""
     # Get user settings
@@ -400,6 +405,7 @@ def complete_session():
 
 @study.route('/stats')
 @login_required
+@module_required('study')
 def stats():
     """Study statistics page"""
     # Статистика на основе новых моделей
@@ -455,6 +461,7 @@ def stats():
 
 @study.route('/matching')
 @login_required
+@module_required('study')
 def matching():
     """Matching game study interface"""
     # Get user settings
