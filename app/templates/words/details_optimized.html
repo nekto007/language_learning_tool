@@ -4,286 +4,6 @@
 
 {% block styles %}
 {{ super() }}
-<style>
-.word-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 16px;
-    padding: 3rem 2rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.word-hero::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm0 0c0-11.046 8.954-20 20-20s20 8.954 20 20-8.954 20-20 20-20-8.954-20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
-    opacity: 0.1;
-}
-
-.word-hero-content {
-    position: relative;
-    z-index: 1;
-}
-
-.word-main-title {
-    font-size: 3rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    line-height: 1.1;
-}
-
-.word-translation {
-    font-size: 1.5rem;
-    opacity: 0.9;
-    margin-bottom: 1rem;
-}
-
-.word-meta-badges {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
-}
-
-.meta-badge {
-    padding: 0.5rem 1rem;
-    border-radius: 25px;
-    background: rgba(255,255,255,0.2);
-    backdrop-filter: blur(10px);
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.word-actions-hero {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.action-btn-hero {
-    padding: 0.75rem 1.5rem;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 25px;
-    background: rgba(255,255,255,0.1);
-    color: white;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
-}
-
-.action-btn-hero:hover {
-    background: rgba(255,255,255,0.2);
-    border-color: rgba(255,255,255,0.5);
-    color: white;
-    text-decoration: none;
-    transform: translateY(-1px);
-}
-
-.action-btn-hero.primary {
-    background: rgba(255,255,255,0.9);
-    color: #667eea;
-    border-color: transparent;
-}
-
-.action-btn-hero.primary:hover {
-    background: white;
-    color: #667eea;
-}
-
-.content-section {
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.section-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    color: #212529;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.section-title i {
-    color: #667eea;
-}
-
-.audio-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-}
-
-.audio-btn {
-    width: 48px;
-    height: 48px;
-    border: none;
-    border-radius: 50%;
-    background: #667eea;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.audio-btn:hover {
-    background: #5a6fd8;
-    transform: scale(1.05);
-}
-
-.audio-btn:disabled {
-    background: #6c757d;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.example-sentence {
-    background: #f8f9fa;
-    border-left: 4px solid #667eea;
-    padding: 1rem;
-    border-radius: 0 8px 8px 0;
-    margin-bottom: 1rem;
-    font-style: italic;
-}
-
-.status-section {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 12px;
-    padding: 2rem;
-    text-align: center;
-}
-
-.status-indicator-large {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    margin: 0 auto 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    color: white;
-}
-
-.status-new { background: #6c757d; }
-.status-learning { background: #28a745; }
-.status-review { background: #17a2b8; }
-.status-mastered { background: #007bff; }
-
-.status-label {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.status-description {
-    color: #6c757d;
-    margin-bottom: 1.5rem;
-}
-
-.status-actions {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.status-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #dee2e6;
-    border-radius: 25px;
-    background: white;
-    color: #495057;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.status-btn:hover {
-    background: #f8f9fa;
-    border-color: #adb5bd;
-    color: #495057;
-    text-decoration: none;
-}
-
-.status-btn.active {
-    background: #667eea;
-    border-color: #667eea;
-    color: white;
-}
-
-.related-words {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-
-.related-word {
-    padding: 1rem;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    text-decoration: none;
-    color: #495057;
-    transition: all 0.2s ease;
-}
-
-.related-word:hover {
-    border-color: #667eea;
-    background: #f8f9ff;
-    color: #495057;
-    text-decoration: none;
-    transform: translateY(-1px);
-}
-
-.related-word-english {
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-}
-
-.related-word-russian {
-    font-size: 0.875rem;
-    color: #6c757d;
-}
-
-@media (max-width: 768px) {
-    .word-main-title {
-        font-size: 2rem;
-    }
-    
-    .word-translation {
-        font-size: 1.25rem;
-    }
-    
-    .word-actions-hero {
-        justify-content: center;
-    }
-    
-    .status-actions {
-        flex-direction: column;
-    }
-    
-    .related-words {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -302,40 +22,40 @@
     </nav>
 
     <!-- Hero Section -->
-    <div class="word-hero">
-        <div class="word-hero-content">
+    <div class="card bg-primary text-white shadow-lg mb-4" style="border-radius: var(--radius-lg); overflow: hidden;">
+        <div class="card-body p-4" style="position: relative; z-index: 1;">
             <div class="row align-items-center">
                 <div class="col-lg-8">
-                    <h1 class="word-main-title">{{ word.english_word }}</h1>
-                    <div class="word-translation">{{ word.russian_word }}</div>
-                    
-                    <div class="word-meta-badges">
+                    <h1 class="display-3 fw-bold mb-2" style="line-height: 1.1;">{{ word.english_word }}</h1>
+                    <div class="display-6 mb-3 opacity-90">{{ word.russian_word }}</div>
+
+                    <div class="d-flex gap-2 flex-wrap mb-3">
                         {% if word.level %}
-                        <span class="meta-badge">
+                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
                             <i class="fas fa-layer-group me-2"></i>{{ word.level }}
                         </span>
                         {% endif %}
-                        
+
                         {% if word.books %}
-                        <span class="meta-badge">
+                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
                             <i class="fas fa-book me-2"></i>{{ word.books[0].title }}
                         </span>
                         {% endif %}
-                        
-                        <span class="meta-badge">
+
+                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
                             <i class="fas fa-{{ 'check' if word.user_status == 'mastered' else 'plus' if word.user_status == 'learning' else 'clock' if word.user_status == 'review' else 'star' }} me-2"></i>
                             {{ _('Выучено') if word.user_status == 'mastered' else _('Изучается') if word.user_status == 'learning' else _('Повторение') if word.user_status == 'review' else _('Новое') }}
                         </span>
                     </div>
 
-                    <div class="word-actions-hero">
+                    <div class="d-flex gap-2 flex-wrap">
                         {% if word.get_download and word.listening %}
-                        <button class="action-btn-hero" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')">
+                        <button class="btn text-white fw-semibold" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" style="border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 0.75rem 1.5rem;">
                             <i class="fas fa-volume-up me-2"></i>{{ _('Произношение') }}
                         </button>
                         {% endif %}
-                        
-                        <a href="{{ url_for('study.index') }}" class="action-btn-hero primary">
+
+                        <a href="{{ url_for('study.index') }}" class="btn fw-semibold text-primary" style="border-radius: 25px; background: rgba(255,255,255,0.9); padding: 0.75rem 1.5rem;">
                             <i class="fas fa-play me-2"></i>{{ _('Изучать') }}
                         </a>
                     </div>
@@ -348,17 +68,19 @@
         <div class="col-lg-8">
             <!-- Audio Section -->
             {% if word.get_download and word.listening %}
-            <div class="content-section">
-                <h3 class="section-title">
-                    <i class="fas fa-volume-up"></i>{{ _('Произношение') }}
-                </h3>
-                <div class="audio-controls">
-                    <button class="audio-btn" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Воспроизвести') }}">
-                        <i class="fas fa-play"></i>
-                    </button>
-                    <div>
-                        <div class="fw-semibold">{{ word.english_word }}</div>
-                        <small class="text-muted">{{ _('Нажмите для воспроизведения') }}</small>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-volume-up text-primary"></i>{{ _('Произношение') }}
+                    </h3>
+                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+                        <button class="btn btn-primary rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Воспроизвести') }}" style="width: 48px; height: 48px; padding: 0;">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <div>
+                            <div class="fw-semibold">{{ word.english_word }}</div>
+                            <small class="text-muted">{{ _('Нажмите для воспроизведения') }}</small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -366,29 +88,35 @@
 
             <!-- Examples Section -->
             {% if word.sentences %}
-            <div class="content-section">
-                <h3 class="section-title">
-                    <i class="fas fa-quote-left"></i>{{ _('Примеры использования') }}
-                </h3>
-                <div class="example-sentence">
-                    {{ word.sentences|safe }}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-quote-left text-primary"></i>{{ _('Примеры использования') }}
+                    </h3>
+                    <div class="bg-light p-3 rounded fst-italic" style="border-left: 4px solid var(--primary-500);">
+                        {{ word.sentences|safe }}
+                    </div>
                 </div>
             </div>
             {% endif %}
 
             <!-- Related Words -->
             {% if related_words %}
-            <div class="content-section">
-                <h3 class="section-title">
-                    <i class="fas fa-link"></i>{{ _('Похожие слова') }}
-                </h3>
-                <div class="related-words">
-                    {% for related in related_words[:6] %}
-                    <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="related-word">
-                        <div class="related-word-english">{{ related.english_word }}</div>
-                        <div class="related-word-russian">{{ related.russian_word }}</div>
-                    </a>
-                    {% endfor %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-link text-primary"></i>{{ _('Похожие слова') }}
+                    </h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        {% for related in related_words[:6] %}
+                        <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="card hover-lift text-decoration-none" style="transition: var(--transition-base);">
+                            <div class="card-body">
+                                <div class="fw-semibold text-dark">{{ related.english_word }}</div>
+                                <div class="text-sm text-secondary">{{ related.russian_word }}</div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -396,49 +124,53 @@
 
         <div class="col-lg-4">
             <!-- Status Section -->
-            <div class="status-section">
-                <div class="status-indicator-large status-{{ word.user_status or 'new' }}">
-                    <i class="fas fa-{{ 'check' if word.user_status == 'mastered' else 'graduation-cap' if word.user_status == 'learning' else 'redo' if word.user_status == 'review' else 'star' }}"></i>
-                </div>
-                
-                <div class="status-label">
-                    {{ _('Выученное слово') if word.user_status == 'mastered' else _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое слово') }}
-                </div>
-                
-                <div class="status-description">
-                    {{ _('Вы знаете это слово хорошо') if word.user_status == 'mastered' else _('Это слово в процессе изучения') if word.user_status == 'learning' else _('Нужно повторить это слово') if word.user_status == 'review' else _('Начните изучение этого слова') }}
-                </div>
+            <div class="card shadow-sm text-center mb-4" style="background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);">
+                <div class="card-body p-4">
+                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center text-white" style="width: 80px; height: 80px; font-size: 2rem; background-color: {% if word.user_status == 'mastered' %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %};">
+                        <i class="fas fa-{{ 'check' if word.user_status == 'mastered' else 'graduation-cap' if word.user_status == 'learning' else 'redo' if word.user_status == 'review' else 'star' }}"></i>
+                    </div>
 
-                <div class="status-actions">
-                    <button class="status-btn {{ 'active' if word.user_status == 'learning' else '' }}" 
-                            onclick="changeStatus('learning')">
-                        {{ _('Изучаю') }}
-                    </button>
-                    <button class="status-btn {{ 'active' if word.user_status == 'review' else '' }}" 
-                            onclick="changeStatus('review')">
-                        {{ _('Повторяю') }}
-                    </button>
-                    <button class="status-btn {{ 'active' if word.user_status == 'mastered' else '' }}" 
-                            onclick="changeStatus('mastered')">
-                        {{ _('Знаю') }}
-                    </button>
+                    <h4 class="fw-semibold mb-2">
+                        {{ _('Выученное слово') if word.user_status == 'mastered' else _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое слово') }}
+                    </h4>
+
+                    <p class="text-secondary mb-3">
+                        {{ _('Вы знаете это слово хорошо') if word.user_status == 'mastered' else _('Это слово в процессе изучения') if word.user_status == 'learning' else _('Нужно повторить это слово') if word.user_status == 'review' else _('Начните изучение этого слова') }}
+                    </p>
+
+                    <div class="d-flex gap-2 justify-content-center flex-wrap">
+                        <button class="btn {{ 'btn-primary' if word.user_status == 'learning' else 'btn-outline-secondary' }} rounded-pill"
+                                onclick="changeStatus('learning')">
+                            {{ _('Изучаю') }}
+                        </button>
+                        <button class="btn {{ 'btn-primary' if word.user_status == 'review' else 'btn-outline-secondary' }} rounded-pill"
+                                onclick="changeStatus('review')">
+                            {{ _('Повторяю') }}
+                        </button>
+                        <button class="btn {{ 'btn-primary' if word.user_status == 'mastered' else 'btn-outline-secondary' }} rounded-pill"
+                                onclick="changeStatus('mastered')">
+                            {{ _('Знаю') }}
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <!-- Books Section -->
             {% if books %}
-            <div class="content-section">
-                <h3 class="section-title">
-                    <i class="fas fa-books"></i>{{ _('Встречается в книгах') }}
-                </h3>
-                {% for book, frequency in books %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-decoration-none">
-                        {{ book.title }}
-                    </a>
-                    <span class="badge bg-primary">{{ frequency }}x</span>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-books text-primary"></i>{{ _('Встречается в книгах') }}
+                    </h3>
+                    {% for book, frequency in books %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-decoration-none">
+                            {{ book.title }}
+                        </a>
+                        <span class="badge bg-primary rounded-pill">{{ frequency }}x</span>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
             {% endif %}
         </div>
