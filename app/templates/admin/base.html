@@ -590,6 +590,10 @@
                     <i class="fas fa-bell"></i>
                     <span>Reminders</span>
                 </a>
+                <a href="{{ url_for('admin.modules_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.modules_') }}">
+                    <i class="fas fa-puzzle-piece"></i>
+                    <span>Modules</span>
+                </a>
                 <a href="{{ url_for('admin.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.import_curriculum' }}">
                     <i class="fas fa-upload"></i>
                     <span>Import Curriculum</span>
