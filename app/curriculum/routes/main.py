@@ -1,22 +1,100 @@
 # app/curriculum/routes/main.py
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import check_module_access, require_module_access
 from app.curriculum.url_helpers import (
-    level_to_slug, slug_to_level, slug_to_module_number, 
+    level_to_slug, slug_to_level, slug_to_module_number,
     get_level_by_beautiful_url, get_module_by_beautiful_url,
     generate_breadcrumbs
 )
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_gamification_stats(user_id):
+    """Calculate gamification statistics for user"""
+    # Calculate learning streak (consecutive days)
+    streak = 0
+    current_date = datetime.utcnow().date()
+
+    # Get all distinct activity dates, ordered by date descending
+    activity_dates = db.session.query(
+        func.date(LessonProgress.last_activity).label('activity_date')
+    ).filter(
+        LessonProgress.user_id == user_id
+    ).distinct().order_by(
+        func.date(LessonProgress.last_activity).desc()
+    ).all()
+
+    # Calculate consecutive days
+    if activity_dates:
+        activity_dates_list = [d[0] for d in activity_dates]
+
+        # Check if user was active today or yesterday
+        if activity_dates_list and (
+            activity_dates_list[0] == current_date or
+            activity_dates_list[0] == current_date - timedelta(days=1)
+        ):
+            streak = 1
+            check_date = activity_dates_list[0] - timedelta(days=1)
+
+            for date in activity_dates_list[1:]:
+                if date == check_date:
+                    streak += 1
+                    check_date -= timedelta(days=1)
+                else:
+                    break
+
+    # Calculate total points (based on completed lessons and scores)
+    points_data = db.session.query(
+        func.count(LessonProgress.id).label('completed_count'),
+        func.coalesce(func.avg(LessonProgress.score), 0).label('avg_score')
+    ).filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed'
+    ).first()
+
+    completed_lessons = points_data[0] or 0
+    avg_score = points_data[1] or 0
+
+    # Points formula: 10 points per lesson + bonus for high scores
+    total_points = completed_lessons * 10
+    if avg_score >= 90:
+        total_points += completed_lessons * 5  # +5 bonus for excellent scores
+    elif avg_score >= 80:
+        total_points += completed_lessons * 3  # +3 bonus for good scores
+
+    # Calculate user level based on points
+    user_level = 1 + (total_points // 100)  # Level up every 100 points
+
+    # Calculate today's progress
+    today_completed = db.session.query(func.count(LessonProgress.id)).filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+        func.date(LessonProgress.completed_at) == current_date
+    ).scalar() or 0
+
+    # Daily goal: 3 lessons per day
+    daily_goal = 3
+    daily_progress = min(today_completed, daily_goal)
+
+    return {
+        'streak': streak,
+        'total_points': total_points,
+        'user_level': user_level,
+        'daily_progress': daily_progress,
+        'daily_goal': daily_goal,
+        'completed_lessons': completed_lessons,
+        'avg_score': round(avg_score, 1)
+    }
 
 # Create blueprint for main routes - use curriculum name for compatibility
 main_bp = Blueprint('curriculum', __name__)
@@ -60,28 +138,28 @@ def learn_index():
     try:
         # Получаем все уровни CEFR
         levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
-        
+
         if not levels:
             flash('Учебные материалы еще не загружены. Обратитесь к администратору.', 'info')
-            return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={})
-        
+            return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={}, gamification={})
+
         # Подготавливаем данные для каждого уровня
         levels_data = []
         total_stats = {'total_lessons': 0, 'completed_lessons': 0}
-        
+
         for level in levels:
             # Получаем модули для уровня
             modules = Module.query.filter_by(level_id=level.id).order_by(Module.number).all()
-            
+
             # Считаем уроки в уровне
             level_lessons = 0
             level_completed = 0
-            
+
             modules_data = []
             for module in modules:
                 lessons = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).all()
                 module_total = len(lessons)
-                
+
                 # Считаем завершенные уроки в модуле для текущего пользователя
                 module_completed = 0
                 if current_user.is_authenticated and lessons:
@@ -92,7 +170,7 @@ def learn_index():
                         LessonProgress.status == 'completed'
                     ).scalar() or 0
                     module_completed = completed_count
-                
+
                 modules_data.append({
                     'module': module,
                     'total_lessons': module_total,
@@ -100,26 +178,31 @@ def learn_index():
                     'progress_percent': round((module_completed / module_total * 100) if module_total > 0 else 0),
                     'is_available': True  # Все модули доступны для простоты
                 })
-                
+
                 level_lessons += module_total
                 level_completed += module_completed
-            
+
             # Прогресс по уровню
             level_progress = round((level_completed / level_lessons * 100) if level_lessons > 0 else 0)
-            
+
+            # Рассчитываем примерное время до завершения (в минутах, ~15 мин на урок)
+            remaining_lessons = level_lessons - level_completed
+            estimated_time = remaining_lessons * 15
+
             level_data = {
                 'level': level,
                 'modules': modules_data,
                 'total_lessons': level_lessons,
                 'completed_lessons': level_completed,
                 'progress_percent': level_progress,
+                'estimated_hours': round(estimated_time / 60, 1),
                 'is_available': True  # Все уровни доступны
             }
-            
+
             levels_data.append(level_data)
             total_stats['total_lessons'] += level_lessons
             total_stats['completed_lessons'] += level_completed
-        
+
         # Последние активности пользователя
         recent_activity = []
         if current_user.is_authenticated:
@@ -128,7 +211,7 @@ def learn_index():
                 .filter(LessonProgress.user_id == current_user.id)\
                 .order_by(LessonProgress.last_activity.desc())\
                 .limit(5).all()
-            
+
             for progress in recent_progress:
                 recent_activity.append({
                     'lesson': progress.lesson,
@@ -138,15 +221,19 @@ def learn_index():
                     'score': progress.score,
                     'last_activity': progress.last_activity
                 })
-        
+
         # Общая статистика
-        total_stats['progress_percent'] = round((total_stats['completed_lessons'] / total_stats['total_lessons'] * 100) 
+        total_stats['progress_percent'] = round((total_stats['completed_lessons'] / total_stats['total_lessons'] * 100)
                                               if total_stats['total_lessons'] > 0 else 0)
-        
+
+        # Геймификация - рассчитываем стрики и очки
+        gamification = calculate_gamification_stats(current_user.id)
+
         return render_template('curriculum/index.html',
                              levels_data=levels_data,
                              recent_activity=recent_activity,
-                             total_stats=total_stats)
+                             total_stats=total_stats,
+                             gamification=gamification)
                              
     except Exception as e:
         logger.error(f"Ошибка загрузки curriculum: {str(e)}")
@@ -161,7 +248,7 @@ def learn_level(level_slug):
     level_code = slug_to_level(level_slug)
     if not level_code:
         abort(404, "Invalid level")
-    
+
     # Validate level code
     if not level_code or len(level_code) > 2:
         abort(400, "Invalid level code")
@@ -174,6 +261,7 @@ def learn_level(level_slug):
     # Get user progress for modules and determine sequential access
     user_module_progress = {}
     unlocked_up_to = 0  # Index of the last unlocked module
+    next_lesson_info = None  # Info about the next lesson to continue
 
     if current_user.is_authenticated:
         for i, module in enumerate(modules):
@@ -189,7 +277,7 @@ def learn_level(level_slug):
             ).scalar() or 0
 
             percentage = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
-            
+
             # Sequential access logic:
             # 1. First module is always accessible
             # 2. Next module is accessible only if previous is completed (80%+)
@@ -206,6 +294,32 @@ def learn_level(level_slug):
                     is_accessible = True
                     unlocked_up_to = i
 
+            # Find next lesson for this module if it's in progress
+            next_lesson_for_module = None
+            if is_accessible and percentage < 100:
+                # Get the first incomplete lesson in this module
+                all_lessons = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).all()
+                for lesson in all_lessons:
+                    lesson_progress = LessonProgress.query.filter_by(
+                        user_id=current_user.id,
+                        lesson_id=lesson.id
+                    ).first()
+
+                    if not lesson_progress or lesson_progress.status != 'completed':
+                        next_lesson_for_module = lesson
+                        # Set this as the main next lesson if we don't have one yet
+                        if not next_lesson_info:
+                            next_lesson_info = {
+                                'lesson': lesson,
+                                'module': module,
+                                'progress': lesson_progress
+                            }
+                        break
+
+            # Calculate estimated time (15 min per lesson)
+            remaining = total_lessons - completed_lessons
+            estimated_hours = round((remaining * 15) / 60, 1)
+
             user_module_progress[module.id] = {
                 'total_lessons': total_lessons,
                 'completed_lessons': completed_lessons,
@@ -213,7 +327,9 @@ def learn_level(level_slug):
                 'is_accessible': is_accessible,
                 'is_current': is_accessible and percentage < 100,
                 'is_completed': percentage >= 80,
-                'is_locked': not is_accessible
+                'is_locked': not is_accessible,
+                'estimated_hours': estimated_hours,
+                'next_lesson': next_lesson_for_module
             }
 
     # Filter modules based on sequential access:
@@ -235,11 +351,28 @@ def learn_level(level_slug):
         if i > unlocked_up_to + 1 and not progress.get('is_completed'):
             break
 
+    # Calculate overall level statistics
+    total_lessons = sum(p.get('total_lessons', 0) for p in user_module_progress.values())
+    completed_lessons = sum(p.get('completed_lessons', 0) for p in user_module_progress.values())
+    level_progress = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
+    estimated_hours_total = round((total_lessons - completed_lessons) * 15 / 60, 1)
+
+    level_stats = {
+        'total_lessons': total_lessons,
+        'completed_lessons': completed_lessons,
+        'progress_percent': level_progress,
+        'estimated_hours': estimated_hours_total,
+        'total_modules': len(modules),
+        'completed_modules': sum(1 for p in user_module_progress.values() if p.get('is_completed'))
+    }
+
     return render_template(
         'curriculum/level_modules.html',
         level=level,
         modules=visible_modules,  # Only show relevant modules
-        user_module_progress=user_module_progress
+        user_module_progress=user_module_progress,
+        next_lesson_info=next_lesson_info,
+        level_stats=level_stats
     )
 
 

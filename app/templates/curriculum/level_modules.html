@@ -4,472 +4,672 @@
 
 {% block content %}
 <div class="container py-4">
-  <!-- Навигационная крошка минималистичная -->
-  <nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb-minimal">
-      <li><a href="/learn/">{{ _('Курсы') }}</a></li>
-      <li>/</li>
-      <li class="active">{{ level.code }}</li>
-    </ol>
-  </nav>
-
-  <!-- Заголовок уровня -->
-  <div class="level-header-section mb-5">
-    <div class="row align-items-center">
-      <div class="col-md-8">
-        <div class="d-flex align-items-center gap-3">
-          <span class="level-icon level-{{ level.code[0]|lower }}">{{ level.code }}</span>
+  <!-- Hero Section -->
+  <div class="hero-section mb-4">
+    <div class="hero-content">
+      <div class="hero-header">
+        <a href="/learn/" class="back-link">← Назад к курсам</a>
+        <div class="hero-title-group">
+          <div class="level-badge-large level-{{ level.code[0]|lower }}">{{ level.code }}</div>
           <div>
-            <h1 class="mb-1">{{ level.name }}</h1>
-            <p class="text-muted mb-0">{{ level.description }}</p>
+            <h1>{{ level.name }}</h1>
+            <p class="hero-subtitle">{{ level.description }}</p>
           </div>
         </div>
       </div>
-      <div class="col-md-4 text-md-end mt-3 mt-md-0">
-        {% set ns = namespace(completed=0, total=0) %}
-        {% for module_id, progress in user_module_progress.items() %}
-          {% set ns.completed = ns.completed + progress.completed_lessons %}
-          {% set ns.total = ns.total + progress.total_lessons %}
-        {% endfor %}
-        {% if ns.total > 0 %}
-          <div class="level-stats">
-            <div class="stat-value">{{ ((ns.completed / ns.total) * 100)|round }}%</div>
-            <div class="stat-label">{{ _('Общий прогресс') }}</div>
+
+      {% if next_lesson_info %}
+        <div class="hero-cta">
+          <a href="{{ get_lesson_url(next_lesson_info['lesson']) }}"
+             class="btn-hero">
+            <span class="btn-hero-text">
+              <strong>Продолжить обучение</strong>
+              <small>{{ next_lesson_info['lesson'].title }}</small>
+            </span>
+            <span class="btn-hero-icon">→</span>
+          </a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Level Stats -->
+    {% if level_stats %}
+      <div class="level-stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-value">{{ level_stats.completed_lessons }}/{{ level_stats.total_lessons }}</div>
+          <div class="stat-label">уроков завершено</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-value">{{ level_stats.progress_percent }}%</div>
+          <div class="stat-label">прогресс</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-value">{{ level_stats.completed_modules }}/{{ level_stats.total_modules }}</div>
+          <div class="stat-label">модулей</div>
+        </div>
+
+        {% if level_stats.estimated_hours > 0 %}
+          <div class="stat-card">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-value">~{{ level_stats.estimated_hours }} ч</div>
+            <div class="stat-label">осталось</div>
           </div>
         {% endif %}
       </div>
-    </div>
+    {% endif %}
   </div>
 
-  <!-- Отображение модулей в порядке изучения -->
-  <div class="module-section mb-5">
-    <h3 class="section-title">{{ _('Модули курса') }}</h3>
-    
-    {% if modules %}
-      <div class="modules-list-sequential">
-        {% for module in modules %}
-          {% set progress = user_module_progress.get(module.id, {}) %}
-          {% set is_accessible = progress.get('is_accessible', False) %}
-          {% set is_completed = progress.get('is_completed', False) %}
-          {% set is_locked = progress.get('is_locked', True) %}
-          {% set percentage = progress.get('percentage', 0) %}
-          
-          <div class="module-card-sequential 
-                      {% if is_completed %}completed{% elif is_accessible %}current{% else %}locked{% endif %}">
-            
-            <!-- Левая сторона: номер и прогресс -->
-            <div class="module-left">
-              <div class="module-number-large">{{ module.number }}</div>
-              
-              {% if is_accessible and not is_completed %}
-                <!-- Кольцо прогресса для текущих модулей -->
-                <div class="module-progress-ring">
-                  <svg width="50" height="50">
-                    <circle cx="25" cy="25" r="20" fill="none" stroke="#e9ecef" stroke-width="4"></circle>
-                    <circle cx="25" cy="25" r="20" fill="none" stroke="#0d6efd" stroke-width="4"
-                            stroke-dasharray="{{ (percentage / 100 * 125.6)|round }} 125.6"
-                            stroke-dashoffset="0"
-                            transform="rotate(-90 25 25)"></circle>
-                  </svg>
-                  <span class="progress-text">{{ percentage }}%</span>
+  <!-- Modules List -->
+  <div class="section-card">
+    <div class="section-header">
+      <h2>📖 Модули курса</h2>
+      <p class="section-subtitle">Изучайте модули последовательно для лучшего результата</p>
+    </div>
+    <div class="section-content">
+      {% if modules %}
+        <div class="modules-list">
+          {% for module in modules %}
+            {% set progress = user_module_progress.get(module.id, {}) %}
+            {% set is_accessible = progress.get('is_accessible', False) %}
+            {% set is_completed = progress.get('is_completed', False) %}
+            {% set is_locked = progress.get('is_locked', True) %}
+            {% set percentage = progress.get('percentage', 0) %}
+
+            <div class="module-card {{ 'current' if progress.get('is_current') else 'completed' if is_completed else 'locked' if is_locked else '' }}">
+              <div class="module-header">
+                <div class="module-number">
+                  <span class="number-badge">{{ module.number }}</span>
+                  {% if is_completed %}
+                    <span class="status-icon completed">✓</span>
+                  {% elif is_locked %}
+                    <span class="status-icon locked">🔒</span>
+                  {% elif percentage > 0 %}
+                    <div class="progress-ring">
+                      <svg width="24" height="24">
+                        <circle cx="12" cy="12" r="10" fill="none" stroke="#e9ecef" stroke-width="3"></circle>
+                        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3"
+                                stroke-dasharray="{{ (percentage / 100 * 62.8)|round }} 62.8"
+                                stroke-dashoffset="0"
+                                transform="rotate(-90 12 12)"></circle>
+                      </svg>
+                    </div>
+                  {% endif %}
                 </div>
-              {% elif is_completed %}
-                <!-- Галочка для завершенных -->
-                <div class="module-completed-icon">
-                  <i class="fas fa-check-circle"></i>
+
+                <div class="module-info">
+                  <h3>{{ module.title }}</h3>
+                  <p class="module-desc">
+                    {% if is_locked %}
+                      Завершите предыдущий модуль, чтобы разблокировать
+                    {% else %}
+                      {{ module.description or 'Изучите основы грамматики и лексики' }}
+                    {% endif %}
+                  </p>
                 </div>
-              {% else %}
-                <!-- Замок для заблокированных -->
-                <div class="module-locked-icon">
-                  <i class="fas fa-lock"></i>
-                </div>
-              {% endif %}
-            </div>
-            
-            <!-- Основной контент -->
-            <div class="module-content">
-              <div class="module-header-content">
-                <h4 class="module-title">{{ module.title }}</h4>
-                {% if progress.get('total_lessons', 0) > 0 %}
-                  <span class="module-lessons-count">
-                    {{ progress.get('completed_lessons', 0) }} / {{ progress.get('total_lessons', 0) }} {{ _('уроков') }}
-                  </span>
+
+                {% if is_completed %}
+                  <div class="completion-badge">✓ Завершен</div>
+                {% elif progress.get('is_current') %}
+                  <div class="current-badge">В процессе</div>
                 {% endif %}
               </div>
-              
-              <p class="module-description">
-                {% if is_locked %}
-                  {{ _('Завершите предыдущий модуль, чтобы разблокировать этот') }}
-                {% else %}
-                  {{ module.description or _('Описание модуля') }}
-                {% endif %}
-              </p>
-              
-              {% if is_completed %}
-                <div class="completion-badge">
-                  <i class="fas fa-trophy"></i>
-                  {{ _('Модуль завершен!') }}
+
+              {% if is_accessible %}
+                <div class="module-body">
+                  <div class="module-stats-row">
+                    <div class="module-stat">
+                      <span class="stat-icon">📝</span>
+                      <span class="stat-text">{{ progress.get('completed_lessons', 0) }}/{{ progress.get('total_lessons', 0) }} уроков</span>
+                    </div>
+
+                    {% if progress.get('estimated_hours', 0) > 0 %}
+                      <div class="module-stat">
+                        <span class="stat-icon">⏱️</span>
+                        <span class="stat-text">~{{ progress.get('estimated_hours') }} ч</span>
+                      </div>
+                    {% endif %}
+
+                    {% if percentage > 0 %}
+                      <div class="module-stat">
+                        <span class="stat-icon">🎯</span>
+                        <span class="stat-text">{{ percentage }}%</span>
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  {% if percentage > 0 and percentage < 100 %}
+                    <div class="progress-bar">
+                      <div class="progress-fill" style="width: {{ percentage }}%"></div>
+                    </div>
+                  {% endif %}
+
+                  <div class="module-actions">
+                    <a href="/learn/{{ level.code|lower }}/module-{{ module.number }}/"
+                       class="btn-module {{ 'btn-primary' if progress.get('is_current') else 'btn-secondary' }}">
+                      {% if is_completed %}
+                        Повторить →
+                      {% elif percentage > 0 %}
+                        Продолжить →
+                      {% else %}
+                        Начать обучение →
+                      {% endif %}
+                    </a>
+                  </div>
+                </div>
+              {% else %}
+                <div class="module-body locked">
+                  <p class="locked-message">
+                    <span class="locked-icon">🔒</span>
+                    Завершите {{ module.number - 1 }} модуль, чтобы разблокировать
+                  </p>
                 </div>
               {% endif %}
             </div>
-            
-            <!-- Правая сторона: действия -->
-            <div class="module-actions">
-              {% if is_accessible %}
-                <a href="/learn/{{ level.code|lower }}/module-{{ module.number }}/"
-                   class="btn {% if is_completed %}btn-outline-secondary{% else %}btn-primary{% endif %}">
-                  {% if is_completed %}
-                    {{ _('Повторить') }}
-                  {% elif percentage > 0 %}
-                    {{ _('Продолжить') }}
-                  {% else %}
-                    {{ _('Начать') }}
-                  {% endif %}
-                </a>
-              {% else %}
-                <button class="btn btn-outline-secondary" disabled>
-                  <i class="fas fa-lock me-1"></i>{{ _('Заблокировано') }}
-                </button>
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="text-center py-5">
-        <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
-        <p class="text-muted">{{ _('В этом уровне пока нет модулей') }}</p>
-      </div>
-    {% endif %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">📚</div>
+          <h4>В этом уровне пока нет модулей</h4>
+          <p>Скоро здесь появятся учебные материалы</p>
+        </div>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block styles %}
 <style>
-  /* Минималистичная навигация */
-  .breadcrumb-minimal {
+  :root {
+    --primary: #0d6efd;
+    --primary-dark: #0b5ed7;
+    --success: #198754;
+    --warning: #ffc107;
+    --muted: #6c757d;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --border: #dee2e6;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--radius);
+    padding: 2rem;
+    color: white;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .hero-content {
+    margin-bottom: 2rem;
+  }
+
+  .back-link {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+  }
+
+  .back-link:hover {
+    color: white;
+  }
+
+  .hero-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-title-group {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0;
-    margin: 0;
-    list-style: none;
-    font-size: 0.875rem;
+    gap: 1.5rem;
   }
 
-  .breadcrumb-minimal a {
-    color: #6c757d;
-    text-decoration: none;
-  }
-
-  .breadcrumb-minimal a:hover {
-    color: #0d6efd;
-  }
-
-  .breadcrumb-minimal .active {
-    color: #212529;
-    font-weight: 500;
-  }
-
-  /* Заголовок уровня */
-  .level-header-section h1 {
-    font-size: 2rem;
-    font-weight: 600;
-  }
-
-  .level-icon {
+  .level-badge-large {
     width: 80px;
     height: 80px;
-    border-radius: 16px;
+    border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
     font-size: 2rem;
+    flex-shrink: 0;
   }
 
   .level-a { background: #e3f2fd; color: #1976d2; }
   .level-b { background: #fff3e0; color: #f57c00; }
   .level-c { background: #ffebee; color: #d32f2f; }
 
-  .level-stats {
+  .hero-title-group h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .hero-subtitle {
+    font-size: 1.125rem;
+    opacity: 0.9;
+    margin: 0;
+  }
+
+  .hero-cta {
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-hero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    color: var(--dark);
+    padding: 1.25rem 2rem;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    gap: 1rem;
+    min-width: 320px;
+  }
+
+  .btn-hero:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    color: var(--primary);
+  }
+
+  .btn-hero-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .btn-hero-text strong {
+    font-size: 1.125rem;
+  }
+
+  .btn-hero-text small {
+    font-size: 0.875rem;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+
+  .btn-hero-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+  }
+
+  .btn-hero:hover .btn-hero-icon {
+    transform: translateX(4px);
+  }
+
+  /* Level Stats */
+  .level-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  .stat-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
     text-align: center;
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+  }
+
+  .stat-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
   }
 
   .stat-value {
-    font-size: 2.5rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    color: #0d6efd;
-    line-height: 1;
+    margin-bottom: 0.25rem;
   }
 
   .stat-label {
     font-size: 0.875rem;
-    color: #6c757d;
+    opacity: 0.9;
   }
 
-  /* Секции модулей */
-  .module-section {
-    margin-bottom: 3rem;
+  /* Section Card */
+  .section-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
   }
 
-  .section-title {
+  .section-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--light);
+  }
+
+  .section-header h2 {
+    margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
-    color: #212529;
+    color: var(--dark);
   }
 
-  .section-header-collapsible {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
+  .section-subtitle {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--muted);
   }
 
-  /* Последовательный список модулей */
-  .modules-list-sequential {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  /* Карточки модулей в последовательном режиме */
-  .module-card-sequential {
-    background: white;
-    border-radius: 12px;
+  .section-content {
     padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    position: relative;
   }
 
-  .module-card-sequential:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  .module-card-sequential.current {
-    border-color: #0d6efd;
-    background: #f8f9ff;
-  }
-
-  .module-card-sequential.completed {
-    border-color: #198754;
-    background: #f8fff9;
-  }
-
-  .module-card-sequential.locked {
-    background: #f8f9fa;
-    opacity: 0.7;
-  }
-
-  /* Левая сторона: номер и индикатор */
-  .module-left {
+  /* Modules List */
+  .modules-list {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 80px;
+    gap: 1.5rem;
   }
 
-  .module-number-large {
-    width: 50px;
-    height: 50px;
-    background: #e9ecef;
-    border-radius: 12px;
+  .module-card {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .module-card:hover {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .module-card.current {
+    border-color: var(--primary);
+    background: linear-gradient(to right, rgba(13, 110, 253, 0.02), white);
+  }
+
+  .module-card.completed {
+    border-color: var(--success);
+    background: linear-gradient(to right, rgba(25, 135, 84, 0.02), white);
+  }
+
+  .module-card.locked {
+    opacity: 0.6;
+    background: var(--light);
+  }
+
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--light);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .module-number {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .number-badge {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--muted);
+    color: white;
+    border-radius: var(--radius-sm);
     font-weight: 700;
-    font-size: 1.5rem;
-    color: #495057;
+    font-size: 1.25rem;
   }
 
-  .module-card-sequential.current .module-number-large {
-    background: #0d6efd;
-    color: white;
+  .module-card.current .number-badge {
+    background: var(--primary);
   }
 
-  .module-card-sequential.completed .module-number-large {
-    background: #198754;
-    color: white;
+  .module-card.completed .number-badge {
+    background: var(--success);
   }
 
-  .module-card-sequential.locked .module-number-large {
-    background: #adb5bd;
-    color: #6c757d;
-  }
-
-  /* Прогресс кольцо */
-  .module-progress-ring {
-    position: relative;
-  }
-
-  .progress-text {
+  .status-icon {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-weight: 700;
-    font-size: 0.75rem;
-    color: #0d6efd;
-  }
-
-  /* Иконки состояния */
-  .module-completed-icon,
-  .module-locked-icon {
-    font-size: 1.5rem;
-    text-align: center;
-  }
-
-  .module-completed-icon {
-    color: #198754;
-  }
-
-  .module-locked-icon {
-    color: #adb5bd;
-  }
-
-  /* Основной контент */
-  .module-content {
-    flex-grow: 1;
-    min-width: 0; /* Для корректного переноса текста */
-  }
-
-  .module-header-content {
+    bottom: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    justify-content: center;
+    font-size: 0.75rem;
   }
 
-  .module-title {
+  .status-icon.completed {
+    color: var(--success);
+  }
+
+  .status-icon.locked {
+    font-size: 0.625rem;
+  }
+
+  .progress-ring {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    color: var(--primary);
+  }
+
+  .module-info {
+    flex: 1;
+  }
+
+  .module-info h3 {
+    margin: 0 0 0.25rem 0;
     font-size: 1.25rem;
     font-weight: 600;
+  }
+
+  .module-desc {
     margin: 0;
-    color: #212529;
+    font-size: 0.875rem;
+    color: var(--muted);
   }
 
-  .module-lessons-count {
+  .completion-badge,
+  .current-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
     font-size: 0.875rem;
-    color: #6c757d;
-    background: #f8f9fa;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-  }
-
-  .module-description {
-    font-size: 0.875rem;
-    color: #6c757d;
-    line-height: 1.5;
-    margin: 0.5rem 0;
+    font-weight: 600;
   }
 
   .completion-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: #d1e7dd;
-    color: #0f5132;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-top: 0.5rem;
+    background: rgba(25, 135, 84, 0.1);
+    color: var(--success);
   }
 
-  /* Действия справа */
-  .module-actions {
-    display: flex;
-    align-items: center;
+  .current-badge {
+    background: rgba(13, 110, 253, 0.1);
+    color: var(--primary);
   }
 
-  /* Завершенные модули */
-  .module-item-completed {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
+  .module-body {
+    padding: 1.5rem;
   }
 
-  .module-check {
-    width: 32px;
-    height: 32px;
-    background: #198754;
-    color: white;
-    border-radius: 50%;
+  .module-body.locked {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .locked-message {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
+    margin: 0;
+    color: var(--muted);
   }
 
-  /* Кнопки */
-  .btn-block {
-    width: 100%;
+  .locked-icon {
+    font-size: 1.25rem;
   }
 
-  /* Анимация для collapse */
-  .section-header-collapsible button {
-    transition: transform 0.3s ease;
+  .module-stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
   }
 
-  .section-header-collapsible button[aria-expanded="true"] .fa-chevron-down {
-    transform: rotate(180deg);
+  .module-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--muted);
   }
 
-  /* Адаптивность */
+  .progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width 0.6s ease;
+    border-radius: 3px;
+  }
+
+  .module-actions {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .btn-module {
+    padding: 0.75rem 2rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+  }
+
+  .btn-secondary {
+    background: var(--light);
+    color: var(--dark);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--border);
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  .empty-state h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.125rem;
+  }
+
+  .empty-state p {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  /* Responsive */
   @media (max-width: 768px) {
-    .level-header-section h1 {
-      font-size: 1.5rem;
+    .hero-section {
+      padding: 1.5rem;
     }
 
-    .level-icon {
-      width: 60px;
-      height: 60px;
-      font-size: 1.5rem;
-    }
-
-    /* Мобильная адаптация для последовательных модулей */
-    .module-card-sequential {
+    .hero-title-group {
       flex-direction: column;
-      text-align: center;
+      align-items: flex-start;
       gap: 1rem;
     }
 
-    .module-left {
+    .level-badge-large {
+      width: 64px;
+      height: 64px;
+      font-size: 1.5rem;
+    }
+
+    .hero-title-group h1 {
+      font-size: 1.5rem;
+    }
+
+    .btn-hero {
       min-width: auto;
-    }
-
-    .module-header-content {
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-
-    .module-title {
-      font-size: 1.125rem;
-    }
-
-    .module-actions {
       width: 100%;
-      justify-content: center;
     }
 
-    .module-actions .btn {
-      min-width: 120px;
+    .level-stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .module-header {
+      flex-wrap: wrap;
+    }
+
+    .module-stats-row {
+      flex-direction: column;
+      gap: 0.75rem;
     }
   }
 </style>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
 {% endblock %}
