@@ -174,3 +174,22 @@ cython_debug/
 app/translations/messages.pot
 books_data/
 /lessons_data/
+
+# Application specific
+myenv/
+app/static/audio/
+app/static/uploads/
+*.db
+words.db
+old_words.db
+app/data/
+dkim/
+opendkim-docker/
+postfix-mail-docker/
+*.dmg
+_docker-compose.override.yml
+config/old_settings.py
+app/utils/_email_utils.py
+transfer_db_data.py
+Dockerfile.opendkim
+opendkim.sh
