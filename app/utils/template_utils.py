@@ -190,11 +190,17 @@ def init_template_utils(app):
             }
             return translations.get(lesson_type, lesson_type.capitalize())
 
+        def get_lesson_url(lesson):
+            """Получить URL для урока"""
+            from app.curriculum.url_helpers import get_beautiful_lesson_url
+            return get_beautiful_lesson_url(lesson)
+
         return dict(
             get_cefr_levels=get_cefr_levels,
             get_user_lessons=get_user_lessons,
             get_curriculum_progress=get_curriculum_progress,
-            translate_lesson_type=translate_lesson_type
+            translate_lesson_type=translate_lesson_type,
+            get_lesson_url=get_lesson_url
         )
 
     # Register custom filters

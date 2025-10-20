@@ -1754,3 +1754,84 @@ def edit_book_info_with_cover(book_id):
             flash(f'Ошибка обновления информации о книге: {str(e)}', 'danger')
 
     return render_template('books/edit_info_with_cover.html', form=form, book=book)
+
+
+# ========================================
+# URL Redirects for Backward Compatibility
+# New standard: /books/{id}/{action}
+# ========================================
+
+@books.route('/books/<int:book_id>/read')
+@login_required
+@module_required('books')
+def book_read(book_id):
+    """
+    Standardized URL for reading a book
+    Works directly without redirects
+    """
+    book = Book.query.get_or_404(book_id)
+
+    # Check if book has chapters
+    has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
+
+    if has_chapters:
+        # Render chapter-based reader directly
+        chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
+
+        # Get chapter number from query params or user progress
+        chapter_num = request.args.get('chapter', type=int)
+
+        if not chapter_num:
+            # Try to get from user progress
+            from app.books.models import UserChapterProgress
+            latest_progress = UserChapterProgress.query.filter_by(
+                user_id=current_user.id
+            ).join(Chapter).filter(
+                Chapter.book_id == book_id
+            ).order_by(UserChapterProgress.updated_at.desc()).first()
+
+            if latest_progress:
+                chapter_num = latest_progress.chapter.chap_num
+            else:
+                chapter_num = 1
+
+        # Get current chapter
+        current_chapter = Chapter.query.filter_by(
+            book_id=book_id,
+            chap_num=chapter_num
+        ).first()
+
+        if not current_chapter:
+            current_chapter = chapters[0]
+
+        # Get chapter progress
+        chapter_progress = UserChapterProgress.query.filter_by(
+            user_id=current_user.id,
+            chapter_id=current_chapter.id
+        ).first()
+
+        # Determine back URL
+        back_url = request.args.get('from')
+        if not back_url:
+            back_url = url_for('books.book_details', book_id=book_id)
+
+        return render_template('books/reader_simple.html',
+                             book=book,
+                             chapters=chapters,
+                             current_chapter=current_chapter,
+                             chapter_progress=chapter_progress,
+                             back_url=back_url)
+
+    # For books without chapters
+    flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
+    return render_template('books/book_details', book=book)
+
+
+@books.route('/books/<int:book_id>/edit')
+@login_required
+@admin_required
+def book_edit(book_id):
+    """
+    Standardized URL for editing a book
+    """
+    return redirect(url_for('books.edit_book_info', book_id=book_id))

@@ -189,6 +189,24 @@ def learn_index():
             remaining_lessons = level_lessons - level_completed
             estimated_time = remaining_lessons * 15
 
+            # Найти следующий урок для этого уровня
+            next_lesson = None
+            if current_user.is_authenticated and modules:
+                # Ищем первый незавершенный урок в порядке модулей
+                for module in modules:
+                    lessons = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).all()
+                    for lesson in lessons:
+                        lesson_progress = LessonProgress.query.filter_by(
+                            user_id=current_user.id,
+                            lesson_id=lesson.id
+                        ).first()
+
+                        if not lesson_progress or lesson_progress.status != 'completed':
+                            next_lesson = lesson
+                            break
+                    if next_lesson:
+                        break
+
             level_data = {
                 'level': level,
                 'modules': modules_data,
@@ -196,7 +214,8 @@ def learn_index():
                 'completed_lessons': level_completed,
                 'progress_percent': level_progress,
                 'estimated_hours': round(estimated_time / 60, 1),
-                'is_available': True  # Все уровни доступны
+                'is_available': True,  # Все уровни доступны
+                'next_lesson': next_lesson  # Следующий урок для быстрого доступа
             }
 
             levels_data.append(level_data)
