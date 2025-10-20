@@ -7,12 +7,14 @@ from app.study.models import GameScore
 from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords, Topic
+from app.modules.decorators import module_required
 
 words = Blueprint('words', __name__)
 
 
 @words.route('/')
 @login_required
+@module_required('words')
 def dashboard():
     # Получение статистики по словам пользователя на основе новых моделей
     from app.study.models import UserWord
@@ -67,6 +69,7 @@ def dashboard():
 
 @words.route('/words')
 @login_required
+@module_required('words')
 def word_list():
     from app.study.models import UserWord
     
@@ -171,6 +174,7 @@ def word_list():
 
 @words.route('/words/<int:word_id>')
 @login_required
+@module_required('words')
 def word_detail(word_id):
     from app.study.models import UserWord
     

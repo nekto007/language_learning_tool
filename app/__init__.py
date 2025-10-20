@@ -88,8 +88,31 @@ def create_app(config_class=Config):
     # Initialize curriculum module with all components
     init_curriculum_module(app)
 
+    # Register modules blueprint
+    from app.modules import modules_bp
+    app.register_blueprint(modules_bp, url_prefix='/modules')
+
+    # Add module utilities to Jinja globals
+    from app.modules.service import ModuleService
+
+    def has_module(module_code):
+        """Check if current user has access to a module"""
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            return False
+        return ModuleService.is_module_enabled_for_user(current_user.id, module_code)
+
+    def get_user_modules():
+        """Get all enabled modules for current user"""
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            return []
+        return ModuleService.get_user_modules(current_user.id, enabled_only=True)
+
     app.jinja_env.globals.update(enumerate=enumerate)
     app.jinja_env.globals.update(chr=chr)
+    app.jinja_env.globals.update(has_module=has_module)
+    app.jinja_env.globals.update(get_user_modules=get_user_modules)
 
     # Add CSRF error handler for AJAX requests
     from flask_wtf.csrf import CSRFError
