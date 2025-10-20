@@ -1073,10 +1073,14 @@ from app.curriculum.url_helpers import (
 learn_lessons_bp = Blueprint('learn_lessons', __name__)
 
 
-@learn_lessons_bp.route('/<string:level_slug>/<string:module_slug>/<string:lesson_slug>/')
+@learn_lessons_bp.route('/<string:level_slug>/<string:module_slug>/<string:lesson_slug>/', methods=['GET', 'POST'])
 @login_required
 def beautiful_lesson_detail(level_slug, module_slug, lesson_slug):
-    """Красивый URL для урока - redirects to lesson detail"""
+    """Красивый URL для урока - transparent redirect to actual lesson handler
+
+    This route provides SEO-friendly URLs but internally redirects to the actual
+    lesson handlers. Users see beautiful URLs in their browser and all links.
+    """
     # Парсим URL
     level_code = slug_to_level(level_slug)
     module_number = slug_to_module_number(module_slug)
@@ -1090,7 +1094,7 @@ def beautiful_lesson_detail(level_slug, module_slug, lesson_slug):
     if not lesson:
         abort(404, "Lesson not found")
 
-    # Redirect to the appropriate lesson type route using lesson ID
+    # Map lesson types to routes
     route_map = {
         'vocabulary': 'curriculum_lessons.vocabulary_lesson',
         'grammar': 'curriculum_lessons.grammar_lesson',
@@ -1103,7 +1107,8 @@ def beautiful_lesson_detail(level_slug, module_slug, lesson_slug):
 
     route_name = route_map.get(lesson.type)
     if route_name:
+        # Redirect to actual lesson handler
         return redirect(url_for(route_name, lesson_id=lesson.id))
     else:
-        # По умолчанию показываем как детали урока
+        # Default fallback
         return redirect(url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id))

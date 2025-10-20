@@ -181,11 +181,24 @@ def slug_to_lesson_info(slug: str) -> Tuple[Optional[int], Optional[str]]:
 def build_beautiful_lesson_url(level_code: str, module_number: int, lesson_number: int, lesson_type: str = None) -> str:
     """Строит красивый URL для урока"""
     base_url = f"/learn/{level_to_slug(level_code)}/module-{module_number}/lesson-{lesson_number}"
-    
+
     if lesson_type:
         base_url += f"-{lesson_type}"
-    
+
     return base_url + "/"
+
+
+def get_beautiful_url_for_lesson(lesson) -> str:
+    """Получить красивый URL для урока по его объекту"""
+    if not lesson or not lesson.module or not lesson.module.level:
+        return None
+
+    return build_beautiful_lesson_url(
+        lesson.module.level.code,
+        lesson.module.number,
+        lesson.number,
+        lesson.type
+    )
 
 
 def get_lesson_by_beautiful_url(level_code: str, module_number: int, lesson_number: int, lesson_type: str = None) -> Optional[Lessons]:
