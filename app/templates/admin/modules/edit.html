@@ -1,0 +1,578 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Редактировать модуль{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">Редактировать модуль</h1>
+            <p class="page-subtitle">
+                {{ module.name }}
+                <span class="badge bg-secondary">{{ module.code }}</span>
+                {% if module.is_active %}
+                <span class="badge bg-success">Активен</span>
+                {% else %}
+                <span class="badge bg-danger">Неактивен</span>
+                {% endif %}
+            </p>
+        </div>
+        <a href="{{ url_for('admin.modules_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Назад к списку
+        </a>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<ul class="nav nav-tabs mb-4" id="moduleTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info"
+                type="button" role="tab" aria-controls="info" aria-selected="true">
+            <i class="fas fa-info-circle me-1"></i> Информация
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users"
+                type="button" role="tab" aria-controls="users" aria-selected="false">
+            <i class="fas fa-users me-1"></i> Пользователи
+            <span class="badge bg-primary ms-1">{{ all_users|length if all_users else 0 }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats"
+                type="button" role="tab" aria-controls="stats" aria-selected="false">
+            <i class="fas fa-chart-bar me-1"></i> Статистика
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="moduleTabContent">
+    <!-- Information Tab -->
+    <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Основная информация</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('admin.modules_edit', module_id=module.id) }}" id="moduleForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="mb-3">
+                                <label class="form-label">Код модуля</label>
+                                <input type="text" class="form-control" value="{{ module.code }}" disabled>
+                                <div class="form-text text-warning">
+                                    <i class="fas fa-lock me-1"></i>
+                                    Код модуля нельзя изменить после создания
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="name" class="form-label">
+                                    Название <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       value="{{ module.name }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Описание</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ module.description or '' }}</textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="icon" class="form-label">Иконка FontAwesome</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-{{ module.icon or 'icons' }}"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="icon" name="icon"
+                                               value="{{ module.icon or '' }}" placeholder="graduation-cap">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="order" class="form-label">Порядок</label>
+                                    <input type="number" class="form-control" id="order" name="order"
+                                           value="{{ module.order }}" min="0">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="blueprint_name" class="form-label">Blueprint Name</label>
+                                    <input type="text" class="form-control" id="blueprint_name" name="blueprint_name"
+                                           value="{{ module.blueprint_name or '' }}">
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="url_prefix" class="form-label">URL Prefix</label>
+                                    <input type="text" class="form-control" id="url_prefix" name="url_prefix"
+                                           value="{{ module.url_prefix or '' }}">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="is_active"
+                                               name="is_active" {% if module.is_active %}checked{% endif %}>
+                                        <label class="form-check-label" for="is_active">
+                                            <strong>Модуль активен</strong>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="is_default"
+                                               name="is_default" {% if module.is_default %}checked{% endif %}>
+                                        <label class="form-check-label" for="is_default">
+                                            <strong>По умолчанию для новых пользователей</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('admin.modules_list') }}" class="btn btn-outline-secondary">
+                                    Отмена
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i> Сохранить изменения
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Информация</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <small class="text-muted">ID:</small>
+                            <div><strong>{{ module.id }}</strong></div>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Создан:</small>
+                            <div>{{ module.created_at.strftime('%d.%m.%Y %H:%M') if module.created_at else 'N/A' }}</div>
+                        </div>
+                        <div>
+                            <small class="text-muted">Обновлен:</small>
+                            <div>{{ module.updated_at.strftime('%d.%m.%Y %H:%M') if module.updated_at else 'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Опасная зона</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-2">
+                            Удаление модуля необратимо и удалит все связи с пользователями.
+                        </p>
+                        <button type="button" class="btn btn-danger w-100"
+                                onclick="deleteModule({{ module.id }}, '{{ module.name }}')">
+                            <i class="fas fa-trash me-1"></i> Удалить модуль
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="mb-0">Управление пользователями</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="userSearch"
+                                   placeholder="Поиск по имени или email...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Filter Buttons -->
+                <div class="btn-group mb-3" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="filterUsers('all')">
+                        Все пользователи ({{ all_users|length if all_users else 0 }})
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="filterUsers('has')">
+                        С модулем ({{ users_with_module|length if users_with_module else 0 }})
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="filterUsers('without')">
+                        Без модуля ({{ users_without_module|length if users_without_module else 0 }})
+                    </button>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-sm btn-success" onclick="bulkGrant()">
+                        <i class="fas fa-check me-1"></i> Выдать выбранным
+                    </button>
+                    <button type="button" class="btn btn-sm btn-warning" onclick="bulkRevoke()">
+                        <i class="fas fa-ban me-1"></i> Отозвать у выбранных
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="toggleAll()">
+                        <i class="fas fa-check-square me-1"></i> Выбрать все
+                    </button>
+                </div>
+
+                <!-- Users Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAll" onclick="toggleAll()">
+                                </th>
+                                <th>ID</th>
+                                <th>Пользователь</th>
+                                <th>Email</th>
+                                <th>Статус</th>
+                                <th style="width: 120px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in all_users %}
+                            {% set user_module = user_modules_map.get(user.id) %}
+                            <tr class="user-row" data-has-module="{{ 'true' if user_module and user_module.is_enabled else 'false' }}"
+                                data-username="{{ user.username|lower }}" data-email="{{ user.email|lower }}">
+                                <td>
+                                    <input type="checkbox" class="user-checkbox" value="{{ user.id }}">
+                                </td>
+                                <td>{{ user.id }}</td>
+                                <td>
+                                    <strong>{{ user.username }}</strong>
+                                    {% if user.is_admin %}
+                                    <span class="badge bg-danger ms-1">Admin</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    {% if user_module and user_module.is_enabled %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i> Есть доступ
+                                    </span>
+                                    {% if user_module.granted_by_admin %}
+                                    <span class="badge bg-warning ms-1">
+                                        <i class="fas fa-user-shield"></i>
+                                    </span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-times me-1"></i> Нет доступа
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user_module and user_module.is_enabled %}
+                                    <button type="button" class="btn btn-sm btn-warning"
+                                            onclick="revokeModule({{ user.id }}, '{{ user.username }}')">
+                                        <i class="fas fa-ban"></i> Отозвать
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-success"
+                                            onclick="grantModule({{ user.id }}, '{{ user.username }}')">
+                                        <i class="fas fa-check"></i> Выдать
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    Пользователи не найдены
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Tab -->
+    <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                        <h3 class="mb-0">{{ module_stats.total_users if module_stats else 0 }}</h3>
+                        <p class="text-muted mb-0">Всего пользователей</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h3 class="mb-0">{{ module_stats.enabled_users if module_stats else 0 }}</h3>
+                        <p class="text-muted mb-0">Активных</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-shield fa-3x text-warning mb-3"></i>
+                        <h3 class="mb-0">{{ module_stats.granted_by_admin if module_stats else 0 }}</h3>
+                        <p class="text-muted mb-0">Выдано админом</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-star fa-3x text-info mb-3"></i>
+                        <h3 class="mb-0">{{ (module_stats.total_users - module_stats.granted_by_admin) if module_stats else 0 }}</h3>
+                        <p class="text-muted mb-0">По умолчанию</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const moduleId = {{ module.id }};
+const csrfToken = '{{ csrf_token() }}';
+
+// Search functionality
+document.getElementById('userSearch')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('.user-row');
+
+    rows.forEach(row => {
+        const username = row.dataset.username;
+        const email = row.dataset.email;
+        const matches = username.includes(searchTerm) || email.includes(searchTerm);
+        row.style.display = matches ? '' : 'none';
+    });
+});
+
+// Filter functionality
+function filterUsers(filter) {
+    const rows = document.querySelectorAll('.user-row');
+    const buttons = document.querySelectorAll('[onclick^="filterUsers"]');
+
+    // Update button states
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    rows.forEach(row => {
+        const hasModule = row.dataset.hasModule === 'true';
+        let show = true;
+
+        if (filter === 'has') show = hasModule;
+        else if (filter === 'without') show = !hasModule;
+
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Toggle all checkboxes
+function toggleAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    const visibleCheckboxes = Array.from(checkboxes).filter(cb =>
+        cb.closest('tr').style.display !== 'none'
+    );
+
+    const allChecked = visibleCheckboxes.every(cb => cb.checked);
+    visibleCheckboxes.forEach(cb => cb.checked = !allChecked);
+    selectAll.checked = !allChecked;
+}
+
+// Grant module to user
+function grantModule(userId, username) {
+    if (!confirm(`Выдать модуль пользователю "${username}"?`)) return;
+
+    fetch(`/admin/modules/users/${userId}/grant/${moduleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Модуль выдан успешно', 'success');
+            location.reload();
+        } else {
+            showToast('Ошибка: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Ошибка при выдаче модуля', 'danger');
+        console.error(error);
+    });
+}
+
+// Revoke module from user
+function revokeModule(userId, username) {
+    if (!confirm(`Отозвать модуль у пользователя "${username}"?`)) return;
+
+    fetch(`/admin/modules/users/${userId}/revoke/${moduleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Модуль отозван успешно', 'success');
+            location.reload();
+        } else {
+            showToast('Ошибка: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Ошибка при отзыве модуля', 'danger');
+        console.error(error);
+    });
+}
+
+// Bulk grant
+function bulkGrant() {
+    const selectedIds = getSelectedUsers();
+    if (selectedIds.length === 0) {
+        showToast('Выберите пользователей', 'warning');
+        return;
+    }
+
+    if (!confirm(`Выдать модуль ${selectedIds.length} пользователям?`)) return;
+
+    Promise.all(selectedIds.map(userId =>
+        fetch(`/admin/modules/users/${userId}/grant/${moduleId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+    ))
+    .then(() => {
+        showToast(`Модуль выдан ${selectedIds.length} пользователям`, 'success');
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showToast('Ошибка при массовой выдаче', 'danger');
+        console.error(error);
+    });
+}
+
+// Bulk revoke
+function bulkRevoke() {
+    const selectedIds = getSelectedUsers();
+    if (selectedIds.length === 0) {
+        showToast('Выберите пользователей', 'warning');
+        return;
+    }
+
+    if (!confirm(`Отозвать модуль у ${selectedIds.length} пользователей?`)) return;
+
+    Promise.all(selectedIds.map(userId =>
+        fetch(`/admin/modules/users/${userId}/revoke/${moduleId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+    ))
+    .then(() => {
+        showToast(`Модуль отозван у ${selectedIds.length} пользователей`, 'success');
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showToast('Ошибка при массовом отзыве', 'danger');
+        console.error(error);
+    });
+}
+
+// Get selected user IDs
+function getSelectedUsers() {
+    return Array.from(document.querySelectorAll('.user-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+}
+
+// Delete module
+function deleteModule(moduleId, moduleName) {
+    if (!confirm(`Вы уверены, что хотите удалить модуль "${moduleName}"?\n\nЭто удалит связи с пользователями!\n\nДействие необратимо!`)) {
+        return;
+    }
+
+    if (!confirm('Вы действительно уверены? Введите подтверждение еще раз.')) {
+        return;
+    }
+
+    fetch(`/admin/modules/${moduleId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{{ url_for("admin.modules_list") }}';
+        } else {
+            showToast('Ошибка: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Ошибка при удалении модуля', 'danger');
+        console.error(error);
+    });
+}
+
+// Toast notification
+function showToast(message, type = 'info') {
+    // Simple alert for now, can be replaced with proper toast library
+    const alertClass = {
+        'success': 'alert-success',
+        'danger': 'alert-danger',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    }[type] || 'alert-info';
+
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}Настройки модулей{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h2">Настройки модулей</h1>
+            <p class="text-muted">Управляйте доступными разделами приложения</p>
+        </div>
+    </div>
+
+    <!-- Info Alert -->
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Подсказка:</strong> Вы можете включать и отключать модули в соответствии с вашими потребностями. Отключенные модули не будут отображаться в навигации.
+    </div>
+
+    <!-- Modules List -->
+    <div class="row">
+        {% for module in all_modules %}
+        {% set user_module = user_module_map.get(module.id) %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 {% if user_module and user_module.is_enabled %}border-primary{% else %}border-secondary{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                {% if module.icon %}
+                                <i class="fas fa-{{ module.icon }} fa-2x me-3 text-primary"></i>
+                                {% else %}
+                                <i class="fas fa-puzzle-piece fa-2x me-3 text-muted"></i>
+                                {% endif %}
+                                <div>
+                                    <h5 class="card-title mb-0">{{ module.name }}</h5>
+                                    <small class="text-muted"><code>{{ module.code }}</code></small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   id="module_{{ module.id }}"
+                                   {% if user_module and user_module.is_enabled %}checked{% endif %}
+                                   {% if not user_module %}disabled{% endif %}
+                                   onchange="toggleModule({{ module.id }}, this.checked)">
+                        </div>
+                    </div>
+
+                    <p class="card-text text-muted small">
+                        {% if module.description %}
+                        {{ module.description }}
+                        {% else %}
+                        Функциональный модуль приложения
+                        {% endif %}
+                    </p>
+
+                    <div class="mt-3">
+                        {% if user_module %}
+                            {% if user_module.is_enabled %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> Включен
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-times-circle"></i> Отключен
+                            </span>
+                            {% endif %}
+
+                            {% if user_module.granted_by_admin %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-user-shield"></i> Выдан админом
+                            </span>
+                            {% endif %}
+
+                            {% if module.is_default %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-star"></i> По умолчанию
+                            </span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-dark">
+                                <i class="fas fa-lock"></i> Недоступен
+                            </span>
+                            <p class="small text-muted mt-2 mb-0">
+                                Этот модуль не доступен для вашей учетной записи. Обратитесь к администратору для получения доступа.
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    {% if user_module and user_module.granted_at %}
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="far fa-calendar"></i>
+                            Добавлен: {{ user_module.granted_at.strftime('%d.%m.%Y') }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Нет доступных модулей. Обратитесь к администратору.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Help Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Справка</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Что такое модули?</h6>
+                    <p class="small text-muted">
+                        Модули - это функциональные разделы приложения. Вы можете включать и отключать их в зависимости от ваших потребностей.
+                    </p>
+
+                    <h6 class="mt-3">Доступные модули:</h6>
+                    <ul class="small text-muted">
+                        <li><strong>Учебная программа</strong> - структурированные уроки по уровням</li>
+                        <li><strong>Словарь</strong> - коллекция слов для изучения</li>
+                        <li><strong>Книги</strong> - чтение книг с изучением слов</li>
+                        <li><strong>Повторение</strong> - система интервального повторения</li>
+                        <li><strong>Напоминания</strong> - уведомления о занятиях</li>
+                    </ul>
+
+                    <h6 class="mt-3">Примечание:</h6>
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Отключенные модули не будут отображаться в меню навигации. Вы можете в любой момент включить их снова.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast for notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="successToast" class="toast" role="alert">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong class="me-auto">Успешно</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="successToastBody"></div>
+    </div>
+
+    <div id="errorToast" class="toast" role="alert">
+        <div class="toast-header bg-danger text-white">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong class="me-auto">Ошибка</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="errorToastBody"></div>
+    </div>
+</div>
+
+<script>
+function toggleModule(moduleId, enabled) {
+    fetch(`/modules/api/modules/${moduleId}/toggle`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const status = data.enabled ? 'включен' : 'отключен';
+            showToast('success', `Модуль успешно ${status}`);
+
+            // Reload after a short delay to update navigation
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showToast('error', data.error || 'Ошибка при изменении модуля');
+            // Revert checkbox state
+            document.getElementById(`module_${moduleId}`).checked = !enabled;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'Произошла ошибка при обновлении модуля');
+        // Revert checkbox state
+        document.getElementById(`module_${moduleId}`).checked = !enabled;
+    });
+}
+
+function showToast(type, message) {
+    const toastId = type === 'success' ? 'successToast' : 'errorToast';
+    const toastBodyId = type === 'success' ? 'successToastBody' : 'errorToastBody';
+
+    document.getElementById(toastBodyId).textContent = message;
+
+    const toast = new bootstrap.Toast(document.getElementById(toastId));
+    toast.show();
+}
+</script>
+{% endblock %}

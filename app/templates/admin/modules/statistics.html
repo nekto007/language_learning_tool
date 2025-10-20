@@ -1,0 +1,259 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Статистика модулей{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">Статистика использования модулей</h1>
+            <p class="page-subtitle">Аналитика по использованию модулей пользователями</p>
+        </div>
+        <a href="{{ url_for('admin.modules_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> К списку модулей
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Table -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Общая статистика</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Модуль</th>
+                        <th style="width: 150px;">Всего пользователей</th>
+                        <th style="width: 150px;">Активных</th>
+                        <th style="width: 150px;">Выдано админом</th>
+                        <th style="width: 120px;">Статус</th>
+                        <th style="width: 120px;">По умолчанию</th>
+                        <th style="width: 150px;">Процент активации</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for code, stat in stats.items() %}
+                    <tr>
+                        <td><strong>{{ stat.name }}</strong><br><small class="text-muted"><code>{{ code }}</code></small></td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ stat.total_users }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success">{{ stat.enabled_users }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning">{{ stat.granted_by_admin }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if stat.is_active %}
+                            <span class="badge bg-success">Активен</span>
+                            {% else %}
+                            <span class="badge bg-danger">Отключен</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if stat.is_default %}
+                            <i class="fas fa-check-circle text-success fa-lg"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-muted fa-lg"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if stat.total_users > 0 %}
+                            {% set percentage = (stat.enabled_users / stat.total_users * 100)|round(1) %}
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar {% if percentage >= 75 %}bg-success{% elif percentage >= 50 %}bg-info{% elif percentage >= 25 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     role="progressbar" style="width: {{ percentage }}%"
+                                     aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                    {{ percentage }}%
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            Нет данных для отображения
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Распределение пользователей по модулям</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="userDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Активация модулей</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="activationChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Источник выдачи модулей</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Prepare data for charts
+const moduleNames = [{% for code, stat in stats.items() %}'{{ stat.name }}',{% endfor %}];
+const totalUsers = [{% for code, stat in stats.items() %}{{ stat.total_users }},{% endfor %}];
+const enabledUsers = [{% for code, stat in stats.items() %}{{ stat.enabled_users }},{% endfor %}];
+const grantedByAdmin = [{% for code, stat in stats.items() %}{{ stat.granted_by_admin }},{% endfor %}];
+
+// Colors
+const colors = [
+    'rgba(79, 70, 229, 0.8)',   // Primary
+    'rgba(16, 185, 129, 0.8)',  // Success
+    'rgba(245, 158, 11, 0.8)',  // Warning
+    'rgba(239, 68, 68, 0.8)',   // Danger
+    'rgba(99, 102, 241, 0.8)',  // Info
+    'rgba(236, 72, 153, 0.8)',  // Pink
+];
+
+// User Distribution Chart
+const userDistCtx = document.getElementById('userDistributionChart').getContext('2d');
+new Chart(userDistCtx, {
+    type: 'bar',
+    data: {
+        labels: moduleNames,
+        datasets: [{
+            label: 'Всего пользователей',
+            data: totalUsers,
+            backgroundColor: colors,
+            borderColor: colors.map(c => c.replace('0.8', '1')),
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Activation Chart
+const activationCtx = document.getElementById('activationChart').getContext('2d');
+new Chart(activationCtx, {
+    type: 'bar',
+    data: {
+        labels: moduleNames,
+        datasets: [
+            {
+                label: 'Активных',
+                data: enabledUsers,
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+            },
+            {
+                label: 'Отключено',
+                data: totalUsers.map((total, i) => total - enabledUsers[i]),
+                backgroundColor: 'rgba(209, 213, 219, 0.8)',
+                borderColor: 'rgba(209, 213, 219, 1)',
+                borderWidth: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            x: {
+                stacked: true
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Source Chart
+const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+new Chart(sourceCtx, {
+    type: 'bar',
+    data: {
+        labels: moduleNames,
+        datasets: [
+            {
+                label: 'Выдано админом',
+                data: grantedByAdmin,
+                backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                borderColor: 'rgba(245, 158, 11, 1)',
+                borderWidth: 1
+            },
+            {
+                label: 'По умолчанию',
+                data: totalUsers.map((total, i) => total - grantedByAdmin[i]),
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            x: {
+                stacked: true
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

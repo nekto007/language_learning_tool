@@ -1,0 +1,291 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Модули пользователя{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">Модули пользователя</h1>
+            <p class="page-subtitle">
+                <strong>{{ user.username }}</strong> ({{ user.email }})
+                {% if user.is_admin %}
+                <span class="badge bg-danger ms-1">Admin</span>
+                {% endif %}
+            </p>
+        </div>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> К списку пользователей
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Всего модулей</p>
+                        <h3 class="mb-0">{{ user_modules|length }}</h3>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-puzzle-piece fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Активных</p>
+                        <h3 class="mb-0">{{ user_modules|selectattr('is_enabled')|list|length }}</h3>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted mb-1">Доступно для добавления</p>
+                        <h3 class="mb-0">{{ available_modules|length }}</h3>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-plus-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Modules -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Текущие модули пользователя</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Иконка</th>
+                        <th>Модуль</th>
+                        <th>Код</th>
+                        <th style="width: 120px;">Статус</th>
+                        <th style="width: 150px;">Дата выдачи</th>
+                        <th style="width: 150px;">Источник</th>
+                        <th style="width: 150px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module in user_modules %}
+                    {% set user_module = namespace(obj=None) %}
+                    {% for um in module.user_modules if um.user_id == user.id %}
+                        {% set user_module.obj = um %}
+                    {% endfor %}
+
+                    {% if user_module.obj %}
+                    <tr>
+                        <td class="text-center">
+                            {% if module.icon %}
+                            <i class="fas fa-{{ module.icon }} fa-lg text-primary"></i>
+                            {% else %}
+                            <i class="fas fa-puzzle-piece fa-lg text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ module.name }}</strong>
+                            {% if module.description %}
+                            <br><small class="text-muted">{{ module.description[:60] }}{% if module.description|length > 60 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ module.code }}</code></td>
+                        <td>
+                            {% if user_module.obj.is_enabled %}
+                            <span class="badge bg-success">Включен</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Отключен</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ user_module.obj.granted_at.strftime('%d.%m.%Y %H:%M') if user_module.obj.granted_at else 'N/A' }}</small>
+                        </td>
+                        <td>
+                            {% if user_module.obj.granted_by_admin %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-user-shield"></i> Админ
+                            </span>
+                            {% else %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-star"></i> По умолчанию
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('admin.modules_users', module_id=module.id) }}"
+                                   class="btn btn-outline-info" title="Пользователи модуля">
+                                    <i class="fas fa-users"></i>
+                                </a>
+                                {% if user_module.obj.is_enabled %}
+                                <button type="button" class="btn btn-outline-warning"
+                                        onclick="revokeModule({{ user.id }}, {{ module.id }}, '{{ module.name }}')"
+                                        title="Отозвать">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-success"
+                                        onclick="grantModule({{ user.id }}, {{ module.id }}, '{{ module.name }}')"
+                                        title="Включить">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            У пользователя нет назначенных модулей
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Available Modules -->
+{% if available_modules %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Доступные для добавления модули</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Иконка</th>
+                        <th>Модуль</th>
+                        <th>Код</th>
+                        <th style="width: 100px;">Статус</th>
+                        <th style="width: 120px;">По умолчанию</th>
+                        <th style="width: 120px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module in available_modules %}
+                    <tr>
+                        <td class="text-center">
+                            {% if module.icon %}
+                            <i class="fas fa-{{ module.icon }} fa-lg text-primary"></i>
+                            {% else %}
+                            <i class="fas fa-puzzle-piece fa-lg text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ module.name }}</strong>
+                            {% if module.description %}
+                            <br><small class="text-muted">{{ module.description[:60] }}{% if module.description|length > 60 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ module.code }}</code></td>
+                        <td>
+                            {% if module.is_active %}
+                            <span class="badge bg-success">Активен</span>
+                            {% else %}
+                            <span class="badge bg-danger">Отключен</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if module.is_default %}
+                            <i class="fas fa-check-circle text-success" title="По умолчанию"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary"
+                                    onclick="grantModule({{ user.id }}, {{ module.id }}, '{{ module.name }}')">
+                                <i class="fas fa-plus me-1"></i> Добавить
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function grantModule(userId, moduleId, moduleName) {
+    if (!confirm(`Выдать модуль "${moduleName}" пользователю?`)) {
+        return;
+    }
+
+    fetch(`/admin/modules/users/${userId}/grant/${moduleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Ошибка при выдаче модуля');
+        console.error(error);
+    });
+}
+
+function revokeModule(userId, moduleId, moduleName) {
+    if (!confirm(`Отозвать модуль "${moduleName}" у пользователя?`)) {
+        return;
+    }
+
+    fetch(`/admin/modules/users/${userId}/revoke/${moduleId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Ошибка при отзыве модуля');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}
