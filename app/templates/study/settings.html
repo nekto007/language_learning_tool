@@ -4,38 +4,23 @@
 
 {% block styles %}
 {{ super() }}
-<style>
-.settings-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    text-align: center;
-}
-
-.settings-card {
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-}
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <!-- Hero Section -->
-    <div class="settings-hero">
-        <h1 class="display-6 fw-bold mb-2">{{ _('Настройки изучения') }}</h1>
-        <p class="lead mb-0">{{ _('Персонализируйте свой опыт изучения') }}</p>
+    <div class="card bg-primary text-white shadow-lg mb-4 text-center" style="border-radius: var(--radius-lg);">
+        <div class="card-body p-4">
+            <h1 class="display-6 fw-bold mb-2">{{ _('Настройки изучения') }}</h1>
+            <p class="lead mb-0 opacity-90">{{ _('Персонализируйте свой опыт изучения') }}</p>
+        </div>
     </div>
 
     <div class="row">
         <div class="col-md-8 mx-auto">
-            <div class="settings-card">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="mb-0">{{ _('Основные настройки') }}</h2>
                     <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> {{ _('Назад') }}
@@ -108,10 +93,12 @@
                         {{ form.submit(class="btn btn-primary btn-lg") }}
                     </div>
                 </form>
+                </div>
             </div>
 
-            <div class="settings-card">
-                <h3 class="mb-4">{{ _('О методе интервального повторения') }}</h3>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="mb-4">{{ _('О методе интервального повторения') }}</h3>
                 <p>
                     {{ _('Это приложение использует улучшенный алгоритм SM-2 (похожий на Anki) для эффективного запоминания словаря. Система корректирует интервалы между повторениями на основе того, насколько хорошо вы знаете каждое слово.') }}
                 </p>
