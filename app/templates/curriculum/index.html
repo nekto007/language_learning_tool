@@ -128,16 +128,34 @@
                 {% endif %}
 
                 <div class="level-actions">
-                  <a href="/learn/{{ level_data.level.code|lower }}/"
-                     class="btn-level {{ 'btn-primary' if is_current or is_new else 'btn-secondary' }}">
-                    {% if is_current %}
-                      Продолжить →
-                    {% elif is_completed %}
-                      Повторить
-                    {% else %}
-                      Начать обучение →
-                    {% endif %}
-                  </a>
+                  {% if level_data.next_lesson and (is_current or is_new) %}
+                    {# Прямая кнопка к следующему уроку #}
+                    <a href="{{ get_lesson_url(level_data.next_lesson) }}"
+                       class="btn-level btn-primary">
+                      {% if is_current %}
+                        Продолжить урок →
+                      {% else %}
+                        Начать обучение →
+                      {% endif %}
+                    </a>
+                    {# Дополнительная кнопка для просмотра всех модулей #}
+                    <a href="/learn/{{ level_data.level.code|lower }}/"
+                       class="btn-level btn-outline">
+                      Все модули
+                    </a>
+                  {% else %}
+                    {# Fallback к списку модулей если нет следующего урока #}
+                    <a href="/learn/{{ level_data.level.code|lower }}/"
+                       class="btn-level {{ 'btn-primary' if is_current or is_new else 'btn-secondary' }}">
+                      {% if is_current %}
+                        Продолжить →
+                      {% elif is_completed %}
+                        Повторить
+                      {% else %}
+                        Начать обучение →
+                      {% endif %}
+                    </a>
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -162,7 +180,7 @@
       <div class="section-content p-0">
         <div class="activity-list">
           {% for activity in recent_activity[:5] %}
-            <div class="activity-item">
+            <a href="{{ get_lesson_url(activity.lesson) }}" class="activity-item activity-link">
               <div class="activity-dot {{ 'completed' if activity.status == 'completed' else 'in-progress' }}"></div>
               <div class="activity-info">
                 <div class="activity-title">{{ activity.lesson.title }}</div>
@@ -174,7 +192,7 @@
               {% if activity.score %}
                 <div class="activity-score">{{ activity.score }}%</div>
               {% endif %}
-            </div>
+            </a>
           {% endfor %}
         </div>
       </div>
@@ -526,6 +544,17 @@
     background: var(--border);
   }
 
+  .btn-outline {
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+  }
+
+  .btn-outline:hover {
+    background: var(--primary);
+    color: white;
+  }
+
   /* Activity List */
   .activity-list {
     display: flex;
@@ -538,15 +567,25 @@
     gap: 1rem;
     padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--border);
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
   }
 
   .activity-item:last-child {
     border-bottom: none;
   }
 
-  .activity-item:hover {
+  .activity-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .activity-link:hover {
     background: var(--light);
+    transform: translateX(4px);
+  }
+
+  .activity-link:hover .activity-title {
+    color: var(--primary);
   }
 
   .activity-dot {
