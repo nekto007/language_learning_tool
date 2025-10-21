@@ -197,3 +197,4 @@ opendkim.sh
 # Migration scripts with credentials
 migrate_sqlite_to_postgres.py
 transfer_db_data.py
+claude.md
