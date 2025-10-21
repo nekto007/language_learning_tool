@@ -197,4 +197,10 @@ opendkim.sh
 # Migration scripts with credentials
 migrate_sqlite_to_postgres.py
 transfer_db_data.py
+
+# Local documentation files (AI-generated progress tracking)
 claude.md
+REFACTORING_REPORT.md
+DESIGN_UNIFICATION_COMPLETED.md
+DESIGN_UNIFICATION_PLAN.md
+MODULE_SYSTEM_PROGRESS.md
