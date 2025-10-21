@@ -2761,3 +2761,312 @@ body.dark-theme #translationPopup {
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 999;
 }
+
+/* ========================================
+   Curriculum Module - Base Components
+   ======================================== */
+
+/* Hero Section for Level Pages */
+.hero-section {
+    background: var(--gradient-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+    color: white;
+    box-shadow: var(--shadow-lg);
+}
+
+.hero-content {
+    margin-bottom: var(--space-8);
+}
+
+.back-link {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-4);
+    transition: var(--transition-base);
+}
+
+.back-link:hover {
+    color: white;
+}
+
+.hero-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.hero-title-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.level-badge-large {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-bold);
+    font-size: var(--text-4xl);
+    flex-shrink: 0;
+}
+
+.level-a {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.level-b {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.level-c {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.hero-title-group h1 {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.hero-subtitle {
+    font-size: var(--text-lg);
+    opacity: 0.9;
+    margin: 0;
+}
+
+.hero-cta {
+    margin-bottom: var(--space-6);
+}
+
+.btn-hero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    color: var(--text-primary);
+    padding: var(--space-5) var(--space-8);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-weight: var(--font-semibold);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    gap: var(--space-4);
+}
+
+.btn-hero:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    color: var(--text-primary);
+}
+
+.btn-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.btn-hero-text strong {
+    font-size: var(--text-base);
+}
+
+.btn-hero-text small {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    font-weight: var(--font-normal);
+}
+
+.btn-hero-icon {
+    font-size: var(--text-2xl);
+    color: var(--primary-500);
+}
+
+/* Level Stats Grid */
+.level-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-4);
+}
+
+/* Section Cards */
+.section-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.section-header {
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.section-header h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    margin: 0 0 var(--space-2) 0;
+}
+
+.section-subtitle {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.section-content {
+    padding: var(--space-6);
+}
+
+/* Module Cards */
+.modules-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.module-card {
+    background: white;
+    border: 2px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.module-card:hover {
+    border-color: var(--primary-500);
+    box-shadow: var(--shadow-md);
+    transform: translateX(4px);
+}
+
+.module-card.completed {
+    background: var(--success-50);
+    border-color: var(--success-500);
+}
+
+.module-card.current {
+    background: var(--primary-50);
+    border-color: var(--primary-500);
+}
+
+.module-card.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.module-card.locked:hover {
+    transform: none;
+    border-color: var(--border-default);
+    box-shadow: none;
+}
+
+.module-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.module-number {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.number-badge {
+    width: 32px;
+    height: 32px;
+    background: var(--gray-200);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-bold);
+    font-size: var(--text-sm);
+}
+
+.module-card.completed .number-badge {
+    background: var(--success-500);
+    color: white;
+}
+
+.module-card.current .number-badge {
+    background: var(--primary-500);
+    color: white;
+}
+
+.status-icon {
+    font-size: var(--text-lg);
+}
+
+.status-icon.completed {
+    color: var(--success-500);
+}
+
+.status-icon.locked {
+    color: var(--text-secondary);
+}
+
+.progress-ring {
+    color: var(--primary-500);
+}
+
+.module-title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.module-description {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: var(--space-2) 0;
+}
+
+.module-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-top: var(--space-3);
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.module-progress {
+    margin-top: var(--space-4);
+}
+
+.progress-bar-mini {
+    height: 6px;
+    background: var(--gray-200);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: var(--space-2);
+}
+
+.progress-bar-mini .progress-fill {
+    height: 100%;
+    background: var(--primary-500);
+    transition: width 0.3s ease;
+}
+
+.module-card.completed .progress-bar-mini .progress-fill {
+    background: var(--success-500);
+}
