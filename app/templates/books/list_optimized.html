@@ -2,81 +2,9 @@
 
 {% block title %}{{ _('Книги - Приложение для изучения английского') }}{% endblock %}
 
-{% block styles %}
-{{ super() }}
-<style>
-.book-card {
-    transition: transform 0.2s, box-shadow 0.2s;
-    height: 100%;
-}
-
-.book-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-.book-cover {
-    height: 200px;
-    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-}
-
-.book-cover img {
-    max-height: 100%;
-    max-width: 100%;
-    border-radius: 8px;
-}
-
-.book-cover-placeholder {
-    color: #6c757d;
-    font-size: 3rem;
-}
-
-.progress-mini {
-    height: 4px;
-    border-radius: 2px;
-}
-
-.filter-chip {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    margin: 0.25rem;
-    background: #e9ecef;
-    border-radius: 1rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.filter-chip:hover,
-.filter-chip.active {
-    background: #007bff;
-    color: white;
-    text-decoration: none;
-}
-
-.search-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 1rem;
-    padding: 2rem;
-    color: white;
-    margin-bottom: 2rem;
-}
-
-.stats-badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-}
-</style>
-{% endblock %}
-
 {% block content %}
 <!-- Modern Header with Search -->
-<div class="search-header">
+<div class="page-header-primary">
     <div class="row align-items-center">
         <div class="col-md-8">
             <h1 class="mb-2">📚 {{ _('Коллекция книг') }}</h1>
@@ -177,7 +105,7 @@
 <div class="row g-4">
     {% for book in books %}
     <div class="col-lg-3 col-md-4 col-sm-6">
-        <div class="card book-card h-100">
+        <div class="card h-100">
             <!-- Book Cover -->
             <div class="book-cover">
                 {% if book.cover_image %}
@@ -199,7 +127,7 @@
                 
                 <!-- Level Badge -->
                 {% if book.level %}
-                <span class="badge bg-{{ 'primary' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }} stats-badge mb-2">
+                <span class="badge bg-{{ 'primary' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }} text-xs mb-2">
                     {{ book.level }}
                 </span>
                 {% endif %}
