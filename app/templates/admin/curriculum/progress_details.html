@@ -1,43 +1,6 @@
 {% extends 'admin/base.html' %}
 
 {% block title %}Progress Details - {{ user.username }}{% endblock %}
-
-{% block content %}
-<div class="page-header">
-    <h1 class="page-title">Progress Details</h1>
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.user_progress') }}">User Progress</a></li>
-            <li class="breadcrumb-item active">Details</li>
-        </ol>
-    </nav>
-</div>
-
-<div class="row">
-    <div class="col-lg-8">
-        <!-- Progress Overview -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Progress Overview</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <dl class="row">
-                            <dt class="col-sm-4">Student:</dt>
-                            <dd class="col-sm-8">
-                                <strong>{{ user.username }}</strong><br>
-                                <small class="text-muted">{{ user.email }}</small>
-                            </dd>
-
-                            <dt class="col-sm-4">Level:</dt>
-                            <dd class="col-sm-8">
-                                <span class="badge bg-primary">{{ level.code }}</span> {{ level.name }}
-                            </dd>
-
-                            <dt class="col-sm-4">Module:</dt>
-                            <dd class="col-sm-8">
                                 Module {{ module.number }}: {{ module.title }}
                             </dd>
 
@@ -304,41 +267,4 @@
     </div>
 </div>
 
-<style>
-.timeline {
-    position: relative;
-    padding-left: 30px;
-}
-
-.timeline::before {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: #e9ecef;
-}
-
-.timeline-item {
-    position: relative;
-    padding-bottom: 20px;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: -25px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
-}
-
-.timeline-content {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-}
-</style>
 {% endblock %}

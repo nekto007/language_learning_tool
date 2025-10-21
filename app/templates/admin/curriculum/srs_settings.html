@@ -1,22 +1,6 @@
 <!-- templates/admin/curriculum/srs_settings.html -->
 
 {% extends "admin/base.html" %}
-
-{% block title %}Настройки SRS для уроков{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-12">
-      <h1 class="mb-4">
-        <i class="fas fa-cog me-2"></i>Настройки SRS для уроков
-      </h1>
-
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title mb-0">Уроки с карточками</h3>
-        </div>
-        <div class="card-body">
           <div class="table-responsive">
             <table class="table table-hover">
               <thead>
@@ -401,20 +385,4 @@ function showToast(message, type) {
 }
 </script>
 
-<style>
-.editable {
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.editable:hover {
-  background-color: #f0f0f0;
-}
-
-.table td {
-  vertical-align: middle;
-}
-</style>
 {% endblock %}
