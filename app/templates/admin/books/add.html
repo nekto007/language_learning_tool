@@ -1,40 +1,6 @@
 {% extends 'admin/base.html' %}
 
 {% block title %}Добавить книгу{% endblock %}
-
-{% block styles %}
-{{ super() }}
-<style>
-.auto-filled {
-    background-color: #e8f5e8 !important;
-    border-color: #28a745 !important;
-}
-
-.auto-filled:focus {
-    background-color: #ffffff !important;
-    border-color: #80bdff !important;
-    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
-}
-
-.field-success {
-    animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-#metadata-loading {
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-#metadata-alert {
     animation: slideDown 0.3s ease-out;
 }
 </style>

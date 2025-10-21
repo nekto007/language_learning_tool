@@ -1,20 +1,6 @@
 {% extends 'admin/base.html' %}
 
 {% block title %}Users Management{% endblock %}
-
-{% block content %}
-<!-- Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Users Management</h1>
-        <p class="page-subtitle">Manage user accounts and permissions</p>
-    </div>
-    <button class="btn btn-primary" onclick="window.location.reload()">
-        <i class="fas fa-sync-alt me-2"></i> Refresh
-    </button>
-</div>
-
-<!-- Search and Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" action="{{ url_for('admin.users') }}" class="row g-3">
@@ -243,20 +229,6 @@
     </div>
 </div>
 
-<style>
-.avatar-initials {
-    width: 36px;
-    height: 36px;
-    background: #4f46e5;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.875rem;
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
