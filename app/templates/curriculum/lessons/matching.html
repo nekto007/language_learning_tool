@@ -338,7 +338,7 @@ async function fetchWords() {
   const requiredPairs = settings.pairs;
   
   try {
-    const response = await fetch(`{{ url_for('api_words.get_matching_words') }}?lesson_id=${gameConfig.lessonId}&count=${requiredPairs}`);
+    const response = await fetch(`{{ url_for('study.get_matching_words') }}?lesson_id=${gameConfig.lessonId}&count=${requiredPairs}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch words');
