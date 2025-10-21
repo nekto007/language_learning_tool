@@ -155,6 +155,22 @@
     --z-modal: 1050;
     --z-popover: 1060;
     --z-tooltip: 1070;
+
+    /* Word Status Colors (unified across all modules) */
+    --status-new: var(--info-500);
+    --status-new-light: var(--info-100);
+    --status-learning: var(--warning-500);
+    --status-learning-light: var(--warning-100);
+    --status-review: var(--primary-500);
+    --status-review-light: var(--primary-100);
+    --status-mastered: var(--success-500);
+    --status-mastered-light: var(--success-100);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
+    --gradient-success: linear-gradient(135deg, var(--success-500) 0%, var(--success-700) 100%);
+    --gradient-info: linear-gradient(135deg, var(--info-500) 0%, var(--info-700) 100%);
+    --gradient-warning: linear-gradient(135deg, var(--warning-500) 0%, var(--warning-700) 100%);
 }
 
 /* ========================================
@@ -1149,19 +1165,19 @@ select.form-control {
 }
 
 .stat-card.new::before {
-    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    background: var(--gradient-info);
 }
 
 .stat-card.learning::before {
-    background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+    background: var(--gradient-warning);
 }
 
 .stat-card.review::before {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
 }
 
 .stat-card.mastered::before {
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    background: var(--gradient-success);
 }
 
 .stat-card:hover {
@@ -1181,23 +1197,23 @@ select.form-control {
 }
 
 .stat-icon.new {
-    background: rgba(66, 153, 225, 0.1);
-    color: #4299e1;
+    background: var(--status-new-light);
+    color: var(--status-new);
 }
 
 .stat-icon.learning {
-    background: rgba(237, 137, 54, 0.1);
-    color: #ed8936;
+    background: var(--status-learning-light);
+    color: var(--status-learning);
 }
 
 .stat-icon.review {
-    background: rgba(102, 126, 234, 0.1);
-    color: #667eea;
+    background: var(--status-review-light);
+    color: var(--status-review);
 }
 
 .stat-icon.mastered {
-    background: rgba(72, 187, 120, 0.1);
-    color: #48bb78;
+    background: var(--status-mastered-light);
+    color: var(--status-mastered);
 }
 
 .stat-value {
@@ -1264,7 +1280,7 @@ select.form-control {
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
 }
 
 /* Content Preview */
@@ -1333,10 +1349,10 @@ select.form-control {
     margin: var(--space-2) auto 0;
 }
 
-.word-status.new { background: #4299e1; }
-.word-status.learning { background: #ed8936; }
-.word-status.review { background: #667eea; }
-.word-status.mastered { background: #48bb78; }
+.word-status.new { background: var(--status-new); }
+.word-status.learning { background: var(--status-learning); }
+.word-status.review { background: var(--status-review); }
+.word-status.mastered { background: var(--status-mastered); }
 
 /* Action Buttons */
 .action-buttons {
@@ -1358,26 +1374,26 @@ select.form-control {
 }
 
 .btn-primary-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: white;
     border: none;
 }
 
 .btn-primary-gradient:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
     color: white;
 }
 
 .btn-success-gradient {
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    background: var(--gradient-success);
     color: white;
     border: none;
 }
 
 .btn-success-gradient:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(72, 187, 120, 0.3);
+    box-shadow: 0 5px 15px rgba(34, 197, 94, 0.3);
     color: white;
 }
 
