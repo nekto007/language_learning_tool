@@ -2,19 +2,6 @@
 
 {% block title %}{{ _('Flashcards') }}{% endblock %}
 
-{% block styles %}
-{{ super() }}
-<style>
-.hint-text {
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-.hint-text.visible {
-    opacity: 1;
-}
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container mt-4" id="flashcard-app">
     <!-- Progress bar and stats -->
