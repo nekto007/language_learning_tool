@@ -506,7 +506,6 @@ def read_book_v2(book_slug, chapter_num=None):
 
 
 @books.route('/api/translate', methods=['POST'])
-@csrf.exempt
 @login_required
 def api_translate():
     """
@@ -540,7 +539,6 @@ def api_translate():
 
 
 @books.route('/api/add-word-to-learning', methods=['POST'])
-@csrf.exempt
 @login_required
 def add_word_to_learning():
     """
@@ -616,7 +614,6 @@ def get_bookmarks(book_id):
 
 
 @books.route('/api/bookmarks', methods=['POST'])
-@csrf.exempt
 @login_required
 def save_bookmark():
     """
@@ -898,7 +895,6 @@ if not pymorphy2_available:
 @login_required
 def api_test():
     """Test API endpoint"""
-    print("DEBUG: Test API endpoint called!")
     return jsonify({'status': 'ok', 'message': 'API is working'})
 
 
@@ -912,7 +908,6 @@ def get_word_translation(word):
     """
     # Логгируем запрос для отладки
     logger.info(f"API word-translation called for word: {word}")
-    print(f"DEBUG: Translation API called for word: {word}")
 
     word = word.lower().strip()
     original_word = word
@@ -1197,7 +1192,6 @@ def get_word_translation(word):
 
 
 @books.route('/api/add-to-learning', methods=['POST'])
-@csrf.exempt
 @login_required
 def add_to_learning():
     """

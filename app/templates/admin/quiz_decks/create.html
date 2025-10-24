@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Создать колоду{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('admin.quiz_decks_list') }}" class="btn btn-outline-secondary mb-3">
+        <i class="fas fa-arrow-left me-2"></i>Назад к списку
+    </a>
+    <h1><i class="fas fa-plus-circle me-2"></i>Создать колоду для квиза</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="mb-3">
+                <label for="title" class="form-label">Название колоды *</label>
+                <input type="text" class="form-control" id="title" name="title" required
+                       placeholder="Например: Базовые глаголы">
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Описание</label>
+                <textarea class="form-control" id="description" name="description" rows="3"
+                          placeholder="Краткое описание колоды..."></textarea>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="is_public" name="is_public">
+                <label class="form-check-label" for="is_public">
+                    Публичная колода (можно делиться по ссылке)
+                </label>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                После создания колоды вы сможете добавить в неё слова
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>Создать колоду
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

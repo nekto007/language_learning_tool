@@ -295,8 +295,6 @@ def batch_update_status():
         import traceback
         error_msg = str(e)
         stack_trace = traceback.format_exc()
-        print(f"Error in batch update: {error_msg}")
-        print(f"Stack trace: {stack_trace}")
         
         return jsonify({
             'success': False,
@@ -311,10 +309,8 @@ def search_words():
     term = request.args.get('term', '')
 
     # Отладочная информация
-    print(f"Search API called with term: '{term}'")
 
     if not term or len(term) < 2:
-        print(f"Search term too short: '{term}'")
         return jsonify([])
 
     try:
@@ -335,10 +331,8 @@ def search_words():
             'level': word.level
         } for word in words]
 
-        print(f"Search results for '{term}': {len(result)} words found")
         return jsonify(result)
     except Exception as e:
-        print(f"Error in search API: {str(e)}")
         # Вместо простого повторного вызова исключения, отправляем понятный ответ с ошибкой
         return jsonify({"error": str(e)}), 500
 
@@ -396,8 +390,6 @@ def update_single_word_status(word_id):
         import traceback
         error_msg = str(e)
         stack_trace = traceback.format_exc()
-        print(f"Error updating word status: {error_msg}")
-        print(f"Stack trace: {stack_trace}")
         
         return jsonify({
             'success': False,

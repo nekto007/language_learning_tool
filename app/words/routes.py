@@ -131,8 +131,30 @@ def word_list():
             CollectionWords.id == word_book_link.c.word_id
         ).filter(word_book_link.c.book_id == book_id)
 
-    # Сортировка
-    query = query.order_by(CollectionWords.english_word.asc())
+    # Smart sorting: prioritize exact matches when searching
+    if search:
+        from sqlalchemy import case
+
+        search_lower = search.lower()
+        query = query.order_by(
+            # Priority 1: Exact match (case-insensitive)
+            case(
+                (func.lower(CollectionWords.english_word) == search_lower, 1),
+                (func.lower(CollectionWords.russian_word) == search_lower, 1),
+                else_=10
+            ),
+            # Priority 2: Starts with search term
+            case(
+                (func.lower(CollectionWords.english_word).startswith(search_lower), 2),
+                (func.lower(CollectionWords.russian_word).startswith(search_lower), 2),
+                else_=10
+            ),
+            # Priority 3: Alphabetically by English word
+            CollectionWords.english_word.asc()
+        )
+    else:
+        # Default sorting when not searching
+        query = query.order_by(CollectionWords.english_word.asc())
 
     # Пагинация
     words = query.paginate(

@@ -1,0 +1,328 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Редактировать: {{ deck.title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('admin.quiz_deck_view', deck_id=deck.id) }}" class="btn btn-outline-secondary mb-3">
+        <i class="fas fa-arrow-left me-2"></i>Назад к колоде
+    </a>
+    <h1><i class="fas fa-edit me-2"></i>Редактировать: {{ deck.title }}</h1>
+</div>
+
+<!-- Deck Settings -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Настройки колоды</h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="title" class="form-label">Название *</label>
+                    <input type="text" class="form-control" id="title" name="title"
+                           value="{{ deck.title }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="form-check mt-4">
+                        <input type="checkbox" class="form-check-input" id="is_public" name="is_public"
+                               {% if deck.is_public %}checked{% endif %}>
+                        <label class="form-check-label" for="is_public">
+                            Публичная колода
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Описание</label>
+                <textarea class="form-control" id="description" name="description" rows="2">{{ deck.description or '' }}</textarea>
+            </div>
+
+            {% if deck.is_public and deck.share_code %}
+            <div class="alert alert-success">
+                <i class="fas fa-share-alt me-2"></i>
+                <strong>Ссылка для шаринга:</strong>
+                <code>{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}</code>
+                <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="copyShareLink()">
+                    <i class="fas fa-copy"></i> Копировать
+                </button>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>Сохранить изменения
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Words in Deck -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Слова в колоде ({{ words|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if words %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 40px">#</th>
+                        <th>English</th>
+                        <th>Русский</th>
+                        <th style="width: 100px">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="words-list">
+                    {% for word in words %}
+                    <tr data-word-id="{{ word.id }}">
+                        <td>{{ loop.index }}</td>
+                        <td>{{ word.english_word }}</td>
+                        <td>{{ word.russian_word }}</td>
+                        <td>
+                            <form method="post" action="{{ url_for('admin.quiz_deck_remove_word', deck_id=deck.id, word_id=word.id) }}"
+                                  onsubmit="return confirm('Удалить это слово из колоды?')" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle me-2"></i>
+            В колоде пока нет слов. Добавьте первое слово ниже.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Words -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Добавить слова</h5>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="existing-tab" data-bs-toggle="tab"
+                        data-bs-target="#existing" type="button" role="tab">
+                    Из базы слов
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="custom-tab" data-bs-toggle="tab"
+                        data-bs-target="#custom" type="button" role="tab">
+                    Своё слово
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Add from existing words -->
+            <div class="tab-pane fade show active" id="existing" role="tabpanel">
+                <form method="post" action="{{ url_for('admin.quiz_deck_add_word', deck_id=deck.id) }}" id="add-words-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="word_ids" id="selected-word-ids" value="">
+
+                    <div class="mb-3">
+                        <label for="word-search" class="form-label">Поиск слов</label>
+                        <input type="text" class="form-control" id="word-search"
+                               placeholder="Начните вводить английское или русское слово...">
+                        <small class="form-text text-muted">
+                            Выберите нужные слова из списка ниже (можно выбрать несколько)
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted" id="selected-count">Выбрано: 0</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                                <i class="fas fa-times"></i> Снять выбор
+                            </button>
+                        </div>
+
+                        <div id="words-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                            <div id="loading-words" class="text-center p-3">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Загрузка...</span>
+                                </div>
+                                Загрузка слов...
+                            </div>
+                            <div id="words-list" style="display: none;"></div>
+                            <div id="no-results" style="display: none;" class="text-center text-muted p-3">
+                                Ничего не найдено
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success" id="add-words-btn" disabled>
+                        <i class="fas fa-plus me-2"></i>Добавить выбранные слова (<span id="btn-count">0</span>)
+                    </button>
+                </form>
+            </div>
+
+            <!-- Add custom word -->
+            <div class="tab-pane fade" id="custom" role="tabpanel">
+                <form method="post" action="{{ url_for('admin.quiz_deck_add_word', deck_id=deck.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="custom_english" class="form-label">English *</label>
+                            <input type="text" class="form-control" id="custom_english"
+                                   name="custom_english" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="custom_russian" class="form-label">Русский *</label>
+                            <input type="text" class="form-control" id="custom_russian"
+                                   name="custom_russian" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Добавить своё слово
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyShareLink() {
+    const link = "{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}";
+    navigator.clipboard.writeText(link).then(() => {
+        alert('Ссылка скопирована!');
+    });
+}
+
+// Word selection for quiz deck
+let allWords = [];
+let selectedWords = new Set();
+let searchTimeout = null;
+
+// Load words on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadWords();
+
+    // Search input handler with debounce
+    document.getElementById('word-search').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            filterWords(e.target.value);
+        }, 300);
+    });
+
+    // Form submit handler
+    document.getElementById('add-words-form').addEventListener('submit', function(e) {
+        if (selectedWords.size === 0) {
+            e.preventDefault();
+            alert('Выберите хотя бы одно слово');
+            return false;
+        }
+        // Set selected word IDs to hidden input
+        document.getElementById('selected-word-ids').value = Array.from(selectedWords).join(',');
+    });
+});
+
+async function loadWords() {
+    try {
+        const response = await fetch('{{ url_for("admin.api_words_search") }}?limit=500');
+        const words = await response.json();
+
+        // Filter out words already in deck
+        // Note: words is QuizDeckWord objects, need to extract word_id
+        const existingWordIds = new Set([
+            {% for w in words if w.word_id %}{{ w.word_id }},{% endfor %}
+        ]);
+        allWords = words.filter(w => !existingWordIds.has(w.id));
+
+        document.getElementById('loading-words').style.display = 'none';
+        renderWords(allWords);
+    } catch (error) {
+        console.error('Error loading words:', error);
+        document.getElementById('loading-words').innerHTML =
+            '<div class="alert alert-danger">Ошибка загрузки слов</div>';
+    }
+}
+
+function filterWords(query) {
+    if (!query.trim()) {
+        renderWords(allWords);
+        return;
+    }
+
+    const searchLower = query.toLowerCase();
+    const filtered = allWords.filter(w =>
+        w.english.toLowerCase().includes(searchLower) ||
+        w.russian.toLowerCase().includes(searchLower)
+    );
+
+    renderWords(filtered);
+}
+
+function renderWords(words) {
+    const container = document.getElementById('words-list');
+    const noResults = document.getElementById('no-results');
+
+    if (words.length === 0) {
+        container.style.display = 'none';
+        noResults.style.display = 'block';
+        return;
+    }
+
+    container.style.display = 'block';
+    noResults.style.display = 'none';
+
+    container.innerHTML = words.map(word => `
+        <div class="form-check mb-2 p-2 hover-bg" style="border-bottom: 1px solid #f0f0f0;">
+            <input class="form-check-input" type="checkbox"
+                   id="word-${word.id}"
+                   value="${word.id}"
+                   ${selectedWords.has(word.id) ? 'checked' : ''}
+                   onchange="toggleWord(${word.id})">
+            <label class="form-check-label w-100" for="word-${word.id}" style="cursor: pointer;">
+                <strong>${word.english}</strong> — ${word.russian}
+            </label>
+        </div>
+    `).join('');
+}
+
+function toggleWord(wordId) {
+    if (selectedWords.has(wordId)) {
+        selectedWords.delete(wordId);
+    } else {
+        selectedWords.add(wordId);
+    }
+    updateSelectionUI();
+}
+
+function clearSelection() {
+    selectedWords.clear();
+    // Uncheck all checkboxes
+    document.querySelectorAll('#words-list input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelectionUI();
+}
+
+function updateSelectionUI() {
+    const count = selectedWords.size;
+    document.getElementById('selected-count').textContent = `Выбрано: ${count}`;
+    document.getElementById('btn-count').textContent = count;
+    document.getElementById('add-words-btn').disabled = count === 0;
+}
+</script>
+
+<style>
+.hover-bg:hover {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}

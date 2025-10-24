@@ -77,11 +77,14 @@
                 </div>
 
                 <div class="d-flex justify-content-center gap-2 mt-4">
-                    <button type="button" class="btn btn-danger flex-fill" style="max-width: 200px;" data-rating="0">
+                    <button type="button" class="rating-btn btn-danger flex-fill" style="max-width: 150px;" data-rating="0">
                         {{ _('Снова') }}
                 </button>
                 <button type="button" class="rating-btn btn-hard" data-rating="2">
                     {{ _('Трудно') }}
+                </button>
+                <button type="button" class="rating-btn btn-good" data-rating="3">
+                    {{ _('Хорошо') }}
                 </button>
                 <button type="button" class="rating-btn btn-easy" data-rating="4">
                     {{ _('Легко') }}
@@ -814,13 +817,21 @@
                         word_id: card.word_id,
                         direction: card.direction,  // Include the direction
                         quality: quality,
-                        session_id: sessionId
+                        session_id: sessionId,
+                        is_new: card.is_new  // Include new card flag for limit validation
                     }),
                 });
 
-
                 const data = await response.json();
                 console.log('Rating response:', data);
+
+                // Check if daily limit was exceeded (race condition protection)
+                if (!data.success && data.error === 'daily_limit_exceeded') {
+                    alert('{{ _("Daily limit for new cards has been reached. This card was not counted.") }}');
+                    // Move to next card without updating stats
+                    showCard(currentCardIndex + 1);
+                    return;
+                }
 
                 // Update session stats
                 sessionStats.total++;
@@ -943,6 +954,9 @@
                     e.preventDefault();
                     rateCard(2); // Трудно
                 } else if (e.key === '3') {
+                    e.preventDefault();
+                    rateCard(3); // Хорошо
+                } else if (e.key === '4') {
                     e.preventDefault();
                     rateCard(4); // Легко
                 }

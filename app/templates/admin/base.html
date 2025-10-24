@@ -109,6 +109,10 @@
                     <i class="fas fa-graduation-cap"></i>
                     <span>Book Courses</span>
                 </a>
+                <a href="{{ url_for('admin.quiz_decks_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.quiz_deck') }}">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Quiz Decks</span>
+                </a>
             </div>
 
             <div class="nav-section">

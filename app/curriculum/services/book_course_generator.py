@@ -575,7 +575,6 @@ def create_course_from_book_cli(
 
     book = Book.query.get(book_id)
     if not book:
-        print(f"❌ Book with ID {book_id} not found")
         return None
 
     # Use defaults if not provided
@@ -592,11 +591,8 @@ def create_course_from_book_cli(
             importer = BlockSchemaImporter(book_id)
             schema_data = importer.import_from_file(schema_file)
         except Exception as e:
-            print(f"⚠️ Could not load schema file: {e}")
-            print("Will use default schema instead")
 
     # Create the course
-    print(f"🚀 Creating course from book: {book.title}")
     generator = BookCourseGenerator(book_id)
 
     course = generator.create_course_from_book(
@@ -608,14 +604,8 @@ def create_course_from_book_cli(
     )
 
     if course:
-        print(f"✅ Course created successfully: {course.title}")
-        print(f"   - Course ID: {course.id}")
-        print(f"   - Modules: {course.total_modules}")
-        print(f"   - Level: {course.level}")
-        print(f"   - Duration: {course.estimated_duration_weeks} weeks")
         return course
     else:
-        print("❌ Course creation failed")
         return None
 
 

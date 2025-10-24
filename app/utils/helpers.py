@@ -42,7 +42,6 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> No
             file_handler.setFormatter(logging.Formatter(log_format, date_format))
             handlers.append(file_handler)
         except (IOError, PermissionError) as e:
-            print(f"Warning: Could not set up log file: {e}")
 
     # Configure root logger
     logging.basicConfig(
