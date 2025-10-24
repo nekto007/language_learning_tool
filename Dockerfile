@@ -9,9 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies (copy only requirements first for better caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
 # Копируем только необходимые файлы и директории
 # Не копируем аудиофайлы
@@ -36,7 +37,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_ENV=production
 
 # Set permissions
-RUN chmod -R 755 /app
+#RUN chmod -R 755 /app
 
 # Run application
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "run:app"]
