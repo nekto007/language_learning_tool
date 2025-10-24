@@ -55,7 +55,13 @@ def index():
     from app.books.helpers import get_user_reading_progress, get_recent_books
     reading_progress = get_user_reading_progress(current_user.id)
     recent_books = get_recent_books(current_user.id, limit=3)
-    
+
+    # Get quiz decks statistics
+    from app.study.models import QuizDeck, QuizResult
+    my_decks_count = QuizDeck.query.filter_by(user_id=current_user.id).count()
+    public_decks_count = QuizDeck.query.filter_by(is_public=True).count()
+    my_quiz_attempts = QuizResult.query.filter_by(user_id=current_user.id).count()
+
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
@@ -63,7 +69,10 @@ def index():
         mastered_count=mastered_count,
         learned_percentage=learned_percentage,
         reading_progress=reading_progress,
-        recent_books=recent_books
+        recent_books=recent_books,
+        my_decks_count=my_decks_count,
+        public_decks_count=public_decks_count,
+        my_quiz_attempts=my_quiz_attempts
     )
 
 
@@ -117,7 +126,30 @@ def cards():
 @login_required
 @module_required('study')
 def quiz():
-    """Quiz study interface"""
+    """Quiz deck selection page"""
+    from app.study.models import QuizDeck
+
+    # Get user's decks
+    my_decks = QuizDeck.query.filter_by(user_id=current_user.id).order_by(QuizDeck.created_at.desc()).all()
+
+    # Get public decks (not created by current user)
+    public_decks = QuizDeck.query.filter(
+        QuizDeck.is_public == True,
+        QuizDeck.user_id != current_user.id
+    ).order_by(QuizDeck.times_played.desc()).limit(10).all()
+
+    return render_template(
+        'study/quiz_deck_select.html',
+        my_decks=my_decks,
+        public_decks=public_decks
+    )
+
+
+@study.route('/quiz/auto')
+@login_required
+@module_required('study')
+def quiz_auto():
+    """Automatic quiz (old behavior) - random questions from user's words"""
     # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
@@ -133,8 +165,66 @@ def quiz():
         'study/quiz.html',
         session_id=session.id,
         settings=settings,
-        word_source='auto'  # Always use automatic selection
+        word_source='auto',
+        deck_id=None
     )
+
+
+@study.route('/quiz/deck/<int:deck_id>')
+@login_required
+@module_required('study')
+def quiz_deck(deck_id):
+    """Quiz from specific deck"""
+    from app.study.models import QuizDeck
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user has access (own deck or public)
+    if not deck.is_public and deck.user_id != current_user.id:
+        flash('У вас нет доступа к этой колоде', 'danger')
+        return redirect(url_for('study.quiz'))
+
+    # Check if deck has words
+    if deck.word_count == 0:
+        flash('В колоде нет слов', 'warning')
+        return redirect(url_for('study.quiz'))
+
+    # Get user settings
+    settings = StudySettings.get_settings(current_user.id)
+
+    # Create new study session
+    session = StudySession(
+        user_id=current_user.id,
+        session_type='quiz'
+    )
+    db.session.add(session)
+    db.session.commit()
+
+    # Increment times played
+    deck.times_played += 1
+    db.session.commit()
+
+    return render_template(
+        'study/quiz.html',
+        session_id=session.id,
+        settings=settings,
+        word_source='deck',
+        deck_id=deck_id,
+        deck_title=deck.title
+    )
+
+
+@study.route('/quiz/shared/<code>')
+@login_required
+@module_required('study')
+def quiz_deck_shared(code):
+    """Access quiz deck via share code"""
+    from app.study.models import QuizDeck
+
+    deck = QuizDeck.query.filter_by(share_code=code, is_public=True).first_or_404()
+
+    # Redirect to regular deck quiz
+    return redirect(url_for('study.quiz_deck', deck_id=deck.id))
 
 
 @study.route('/start-session', methods=['POST'])
@@ -270,21 +360,23 @@ def get_study_items():
 
     # PRIORITY 2: Get new cards if needed
     if new_limit > 0:
-        # Get words user hasn't studied yet
-        existing_word_ids = db.session.query(UserWord.word_id) \
-            .filter_by(user_id=current_user.id).subquery()
-
-        new_words = CollectionWords.query.filter(
-            ~CollectionWords.id.in_(existing_word_ids),
-            CollectionWords.russian_word != None,
+        # Use efficient LEFT JOIN instead of NOT IN subquery
+        # This avoids N+1 problem and performs better on large datasets
+        new_words = db.session.query(CollectionWords).outerjoin(
+            UserWord,
+            (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
+        ).filter(
+            UserWord.id == None,  # Words not in user's collection
+            CollectionWords.russian_word.isnot(None),
             CollectionWords.russian_word != ''
-        ).order_by(func.random()).limit(new_limit).all()
+        ).order_by(
+            CollectionWords.id.desc()  # Deterministic ordering (most recent first), indexed
+        ).limit(new_limit).all()
 
         # Add new words to result
         for word in new_words:
             audio_url = None
             if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
-                print('word',word)
                 audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
             # Add both directions (eng-rus and rus-eng)
@@ -330,15 +422,15 @@ def get_study_items():
 
 
 @study.route('/api/update-study-item', methods=['POST'])
-@csrf.exempt
 @login_required
 def update_study_item():
-    """Update study item after review"""
+    """Update study item after review with daily limit validation"""
     data = request.json
     word_id = data.get('word_id')
     direction_str = data.get('direction', 'eng-rus')  # Get direction from request
     quality = int(data.get('quality', 0))  # 0-5 rating
     session_id = data.get('session_id')
+    is_new = data.get('is_new', False)  # Whether this is a new card
 
     # Get or create user word
     user_word = UserWord.get_or_create(current_user.id, word_id)
@@ -350,6 +442,35 @@ def update_study_item():
     ).first()
 
     if not direction:
+        # This is a new card - check daily limit to prevent race condition
+        if is_new:
+            # Use SELECT FOR UPDATE to lock the settings row and prevent race conditions
+            settings = StudySettings.query.filter_by(user_id=current_user.id).with_for_update().first()
+            if not settings:
+                settings = StudySettings(user_id=current_user.id)
+                db.session.add(settings)
+                db.session.flush()
+
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+            # Re-check new cards count with database lock to prevent race condition
+            new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+                UserCardDirection.user_word_id.in_(
+                    db.session.query(UserWord.id).filter_by(user_id=current_user.id)
+                ),
+                UserCardDirection.last_reviewed >= today_start,
+                UserCardDirection.repetitions == 1
+            ).scalar() or 0
+
+            # If limit would be exceeded, reject the update
+            if new_cards_today >= settings.new_words_per_day:
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': 'daily_limit_exceeded',
+                    'message': 'Daily limit for new cards has been reached'
+                }), 429  # 429 Too Many Requests
+
         # Create new direction if it doesn't exist
         direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
         db.session.add(direction)
@@ -377,7 +498,6 @@ def update_study_item():
 
 
 @study.route('/api/complete-session', methods=['POST'])
-@csrf.exempt
 @login_required
 def complete_session():
     """Mark a study session as complete"""
@@ -486,37 +606,84 @@ def matching():
 @study.route('/api/get-quiz-questions', methods=['GET'])
 @login_required
 def get_quiz_questions():
-    """Get questions for quiz mode - automatic selection"""
-    question_count = min(int(request.args.get('count', 20)), 50)  # Limit max questions
+    """Get questions for quiz mode - supports both auto and deck mode"""
+    from app.study.models import QuizDeck, QuizDeckWord
 
-    # Get words with same priority as cards
+    question_count = min(int(request.args.get('count', 20)), 50)  # Limit max questions
+    deck_id = request.args.get('deck_id', type=int)
+
     words = []
 
-    # PRIORITY 1: Words in learning/review status (exclude mastered)
-    learning_words = db.session.query(CollectionWords).join(
-        UserWord,
-        (CollectionWords.id == UserWord.word_id) &
-        (UserWord.user_id == current_user.id)
-    ).filter(
-        UserWord.status.in_(['learning', 'review']),  # EXCLUDE 'mastered'
-        CollectionWords.russian_word != None,
-        CollectionWords.russian_word != ''
-    ).order_by(func.random()).limit(question_count // 2).all()
-    
-    words.extend(learning_words)
+    if deck_id:
+        # DECK MODE: Get words from specific deck
+        deck = QuizDeck.query.get_or_404(deck_id)
 
-    # PRIORITY 2: New words not yet in user's collection
-    if len(words) < question_count:
-        new_words = CollectionWords.query.filter(
-            ~CollectionWords.id.in_(
-                db.session.query(UserWord.word_id)
-                .filter(UserWord.user_id == current_user.id)
-            ),
+        # Check access
+        if not deck.is_public and deck.user_id != current_user.id:
+            return jsonify({
+                'status': 'error',
+                'message': 'Access denied',
+                'questions': []
+            }), 403
+
+        # Get words from deck
+        deck_words = deck.words.order_by(QuizDeckWord.order_index).all()
+
+        if not deck_words:
+            return jsonify({
+                'status': 'error',
+                'message': 'No words in deck',
+                'questions': []
+            })
+
+        # Convert QuizDeckWord to CollectionWords format for question generation
+        # We'll create a temporary object with same interface
+        class DeckWordAdapter:
+            def __init__(self, deck_word):
+                self.id = deck_word.id
+                self.english_word = deck_word.english_word
+                self.russian_word = deck_word.russian_word
+                self.get_download = 0  # Deck words don't have audio by default
+                self.listening = None
+                if deck_word.word_id and deck_word.word:
+                    # If it's a reference to collection word, get audio
+                    self.get_download = deck_word.word.get_download
+                    self.listening = deck_word.word.listening
+
+        words = [DeckWordAdapter(dw) for dw in deck_words]
+
+        # Limit to question count (or use all words if less than count)
+        if len(words) > question_count:
+            import random
+            words = random.sample(words, question_count)
+
+    else:
+        # AUTO MODE: Get words with same priority as cards
+        # PRIORITY 1: Words in learning/review status (exclude mastered)
+        learning_words = db.session.query(CollectionWords).join(
+            UserWord,
+            (CollectionWords.id == UserWord.word_id) &
+            (UserWord.user_id == current_user.id)
+        ).filter(
+            UserWord.status.in_(['learning', 'review']),  # EXCLUDE 'mastered'
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
-        ).order_by(func.random()).limit(question_count - len(words)).all()
-        
-        words.extend(new_words)
+        ).order_by(func.random()).limit(question_count // 2).all()
+
+        words.extend(learning_words)
+
+        # PRIORITY 2: New words not yet in user's collection
+        if len(words) < question_count:
+            new_words = CollectionWords.query.filter(
+                ~CollectionWords.id.in_(
+                    db.session.query(UserWord.word_id)
+                    .filter(UserWord.user_id == current_user.id)
+                ),
+                CollectionWords.russian_word != None,
+                CollectionWords.russian_word != ''
+            ).order_by(func.random()).limit(question_count - len(words)).all()
+
+            words.extend(new_words)
 
     # Ensure we have words to create questions
     if not words:
@@ -612,8 +779,8 @@ def generate_quiz_questions(words, count):
 def create_multiple_choice_question(word, all_words, direction):
     """Create a multiple choice question"""
     if direction == 'eng_to_rus':
-        question_template = _('What is the translation of "{english}"?')
-        question_text = question_template.format(english=word.english_word)
+        question_template = _('Translate to Russian:')
+        question_text = word.english_word
         correct_answer = word.russian_word
 
         # Find distractors (other Russian words)
@@ -626,8 +793,8 @@ def create_multiple_choice_question(word, all_words, direction):
                 if len(distractors) >= 3:
                     break
     else:
-        question_template = _('What is the English word for "{russian}"?')
-        question_text = question_template.format(russian=word.russian_word)
+        question_template = _('Translate to English:')
+        question_text = word.russian_word
         correct_answer = word.english_word
 
         # Find distractors (other English words)
@@ -649,20 +816,22 @@ def create_multiple_choice_question(word, all_words, direction):
     if direction == 'eng_to_rus' and word.get_download == 1 and word.listening:
         audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
-    first_word = correct_answer.split(',')[0]
+    first_word = correct_answer.split(',')[0].strip()
     letter_form = _("letters")
 
-    hint = f"{correct_answer[0]}{"_" * len(first_word)} ({len(first_word)} {letter_form})"
+    hint = f"{_('Starts with')}: {first_word[0]}... ({len(first_word)} {letter_form})"
 
     return {
         'id': f'mc_{word.id}_{direction}',
         'word_id': word.id,
         'type': 'multiple_choice',
         'text': question_text,
+        'question_label': question_template,
         'options': options,
         'answer': correct_answer,
         'hint': hint,
-        'audio_url': audio_url
+        'audio_url': audio_url,
+        'direction': direction
     }
 
 
@@ -688,9 +857,9 @@ def create_true_false_question(word, all_words, direction):
                 russian_word = word.russian_word + 'ский'
             answer = 'false'
 
-        # question_text = f'Does {english_word} translate to {russian_word}?'
-        question_template = _('Does "{english}" translate to {russian}?')
-        question_text = question_template.format(english=english_word, russian=russian_word)
+        question_template = _('Is this the correct translation?')
+        question_text = f"{english_word} = {russian_word}"
+        hint_word = word.russian_word
 
     else:
         russian_word = word.russian_word
@@ -709,25 +878,26 @@ def create_true_false_question(word, all_words, direction):
                 english_word = 'un' + word.english_word
             answer = 'false'
 
-        # question_text = f'Does "{russian_word}" translate to "{english_word}"?'
-        question_template = _('Does "{russian}" translate to {english}?')
-        question_text = question_template.format(english=english_word, russian=russian_word)
+        question_template = _('Is this the correct translation?')
+        question_text = f"{russian_word} = {english_word}"
+        hint_word = word.english_word
 
     # Audio for English word
     audio_url = None
     # if word.get_download == 1:
     #     audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
-    first_word = answer.split(',')[0]
+    # Create hint based on the actual correct translation, not "true"/"false"
+    first_word = hint_word.split(',')[0].strip()
     letter_form = _("letters")
-
-    hint = f"{answer[0]}{"_" * len(first_word)} ({len(first_word)} {letter_form})"
+    hint = f"{_('Correct answer')}: {first_word[0]}{"_" * (len(first_word) - 1)} ({len(first_word)} {letter_form})"
 
     return {
         'id': f'tf_{word.id}_{direction}',
         'word_id': word.id,
         'type': 'true_false',
         'text': question_text,
+        'question_label': question_template,
         'answer': answer,
         'hint': hint,
         'audio_url': audio_url
@@ -737,12 +907,12 @@ def create_true_false_question(word, all_words, direction):
 def create_fill_blank_question(word, direction):
     """Create a fill-in-the-blank question"""
     if direction == 'eng_to_rus':
-        question_template = _('Translate "{english}" to Russian:')
-        question_text = question_template.format(english=word.english_word)
+        question_template = _('Type the Russian translation:')
+        question_text = word.english_word
         answer = word.russian_word
     else:
-        question_template = _('Translate "{russian}" to English:')
-        question_text = question_template.format(russian=word.russian_word)
+        question_template = _('Type the English translation:')
+        question_text = word.russian_word
         answer = word.english_word
 
     # Get acceptable alternative answers
@@ -758,25 +928,26 @@ def create_fill_blank_question(word, direction):
     if direction == 'eng_to_rus' and word.get_download == 1 and word.listening:
         audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
-    first_word = answer.split(',')[0]
+    first_word = answer.split(',')[0].strip()
     letter_form = _("letters")
 
-    hint = f"{answer[0]}{"_" * len(first_word)} ({len(first_word)} {letter_form})"
+    hint = f"{_('Starts with')}: {first_word[0]}... ({len(first_word)} {letter_form})"
 
     return {
         'id': f'fb_{word.id}_{direction}',
         'word_id': word.id,
         'type': 'fill_blank',
         'text': question_text,
+        'question_label': question_template,
         'answer': answer,
         'acceptable_answers': acceptable_answers,
         'hint': hint,
-        'audio_url': audio_url
+        'audio_url': audio_url,
+        'direction': direction
     }
 
 
 @study.route('/api/submit-quiz-answer', methods=['POST'])
-@csrf.exempt
 @login_required
 def submit_quiz_answer():
     """Process a submitted quiz answer"""
@@ -896,30 +1067,128 @@ def get_matching_words():
             'audio_url': audio_url
         })
 
-    print(f"Отправляем {len(game_words)} слов для игры")
-
     return jsonify({
         'status': 'success',
         'words': game_words
     })
 
 
+def _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken, moves):
+    """
+    Server-side score calculation for matching game
+    Returns calculated score or 0 if data is invalid
+    """
+    # Validate difficulty
+    if difficulty not in ['easy', 'medium', 'hard']:
+        return 0
+
+    # Difficulty settings
+    settings = {
+        'easy': {'time_limit': 60, 'multiplier': 1},
+        'medium': {'time_limit': 120, 'multiplier': 1.5},
+        'hard': {'time_limit': 180, 'multiplier': 2}
+    }
+
+    config = settings[difficulty]
+    time_limit = config['time_limit']
+    multiplier = config['multiplier']
+
+    # Validate game data
+    if not (0 <= pairs_matched <= total_pairs):
+        return 0
+    if time_taken < 0 or moves < 0:
+        return 0
+    if total_pairs == 0:
+        return 0
+    # Minimum valid moves is pairs_matched * 2 (perfect play)
+    if moves < pairs_matched * 2:
+        return 0
+
+    # Calculate score components
+    time_bonus = max(0, time_limit - time_taken)
+    move_efficiency = min(1.0, (total_pairs * 2) / moves) if moves > 0 else 0
+
+    # Calculate base score
+    base_score = (
+        (pairs_matched * 10) +
+        (time_bonus * 2) +
+        (move_efficiency * 30)
+    )
+
+    # Apply difficulty multiplier
+    score = int(base_score * multiplier)
+
+    # Cap between 0 and reasonable maximum
+    return max(0, min(score, 500))
+
+
 @study.route('/api/complete-matching-game', methods=['POST'])
-@csrf.exempt
 @login_required
 def complete_matching_game():
-    """Process a completed matching game"""
+    """Process a completed matching game with server-side score validation"""
     data = request.json
     session_id = data.get('session_id')
     difficulty = data.get('difficulty', 'easy')
-    pairs_matched = data.get('pairs_matched', 0)
-    total_pairs = data.get('total_pairs', 0)
-    moves = data.get('moves', 0)
-    time_taken = data.get('time_taken', 0)
-    score = data.get('score', 0)
 
-    # Добавим отладочную информацию
-    print(f"Получены данные игры: {data}")
+    # Validate and parse numeric values
+    try:
+        pairs_matched = int(data.get('pairs_matched', 0))
+        total_pairs = int(data.get('total_pairs', 0))
+        moves = int(data.get('moves', 0))
+        time_taken = int(data.get('time_taken', 0))
+        word_ids = data.get('word_ids', [])  # IDs of words used in game
+    except (ValueError, TypeError):
+        return jsonify({
+            'success': False,
+            'error': 'Invalid game data'
+        }), 400
+
+    # Calculate score on server side (ignore client-submitted score)
+    score = _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken, moves)
+
+    # Update SRS data for words used in matching game
+    # Quality is determined by performance: perfect match = 4 (Easy), good = 3, poor = 2
+    if word_ids and pairs_matched > 0:
+        # Calculate performance ratio to determine quality
+        performance = pairs_matched / total_pairs if total_pairs > 0 else 0
+        efficiency = (total_pairs * 2) / moves if moves > 0 else 0
+
+        # Determine quality based on performance
+        if performance >= 1.0 and efficiency > 0.8:
+            quality = 4  # Easy - perfect match with good efficiency
+        elif performance >= 1.0:
+            quality = 3  # Good - perfect match but not efficient
+        elif performance >= 0.7:
+            quality = 2  # Hard - decent performance
+        else:
+            quality = 0  # Again - poor performance
+
+        # Update each word's SRS data
+        for word_id in word_ids:
+            try:
+                # Get or create user word
+                user_word = UserWord.get_or_create(current_user.id, word_id)
+
+                # Update both directions (eng-rus and rus-eng)
+                for direction_str in ['eng-rus', 'rus-eng']:
+                    direction = UserCardDirection.query.filter_by(
+                        user_word_id=user_word.id,
+                        direction=direction_str
+                    ).first()
+
+                    if not direction:
+                        direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
+                        db.session.add(direction)
+                        db.session.flush()
+
+                    # Update with calculated quality
+                    direction.update_after_review(quality)
+
+            except Exception as e:
+                # Continue with other words even if one fails
+                pass
+
+        db.session.commit()
 
     # Update session
     if session_id:
@@ -929,7 +1198,6 @@ def complete_matching_game():
             session.correct_answers = pairs_matched
             session.complete_session()
             db.session.commit()
-            print(f"Обновлена сессия: {session_id}")
 
     try:
         # Save score to leaderboard
@@ -948,8 +1216,6 @@ def complete_matching_game():
         # Явно добавляем объект в сессию и коммитим изменения
         db.session.add(game_score)
         db.session.commit()
-
-        print(f"Сохранен результат игры: {game_score.id}")
 
         # Get user's rank
         rank = game_score.get_rank()
@@ -971,11 +1237,8 @@ def complete_matching_game():
             'game_score_id': game_score.id  # Возвращаем ID созданной записи для проверки
         })
     except Exception as e:
-        # В случае ошибки откатываем транзакцию и логируем ошибку
+        # В случае ошибки откатываем транзакцию
         db.session.rollback()
-        print(f"Ошибка при сохранении результата: {str(e)}")
-        import traceback
-        traceback.print_exc()
 
         return jsonify({
             'success': False,
@@ -984,12 +1247,14 @@ def complete_matching_game():
 
 
 @study.route('/api/complete-quiz', methods=['POST'])
-@csrf.exempt
 @login_required
 def complete_quiz():
     """Process a completed quiz"""
+    from app.study.models import QuizDeck, QuizResult
+
     data = request.json
     session_id = data.get('session_id')
+    deck_id = data.get('deck_id')
     score = data.get('score', 0)
     total_questions = data.get('total_questions', 0)
     correct_answers = data.get('correct_answers', 0)
@@ -1000,6 +1265,28 @@ def complete_quiz():
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
             session.complete_session()
+
+    # If this is a deck quiz, save result to deck
+    if deck_id:
+        deck = QuizDeck.query.get(deck_id)
+        if deck:
+            # Save quiz result
+            quiz_result = QuizResult(
+                deck_id=deck_id,
+                user_id=current_user.id,
+                total_questions=total_questions,
+                correct_answers=correct_answers,
+                score_percentage=score,
+                time_taken=time_taken
+            )
+            db.session.add(quiz_result)
+
+            # Update deck average score
+            deck.average_score = db.session.query(func.avg(QuizResult.score_percentage)).filter(
+                QuizResult.deck_id == deck_id
+            ).scalar() or 0
+
+            db.session.commit()
 
     # Save score to leaderboard
     game_score = GameScore(
