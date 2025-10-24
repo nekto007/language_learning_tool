@@ -86,13 +86,24 @@ class StudySettings(db.Model):
     user = db.relationship('User', backref=db.backref('study_settings', uselist=False, cascade='all, delete-orphan'))
 
     @classmethod
-    def get_settings(cls, user_id):
-        """Get or create settings for user"""
-        settings = cls.query.filter_by(user_id=user_id).first()
+    def get_settings(cls, user_id, lock_for_update=False):
+        """Get or create settings for user
+
+        Args:
+            user_id: User ID
+            lock_for_update: If True, use SELECT FOR UPDATE to prevent race conditions
+        """
+        query = cls.query.filter_by(user_id=user_id)
+        if lock_for_update:
+            query = query.with_for_update()
+        settings = query.first()
         if not settings:
             settings = cls(user_id=user_id)
             db.session.add(settings)
-            db.session.commit()
+            if not lock_for_update:
+                db.session.commit()
+            else:
+                db.session.flush()
         return settings
 
 
@@ -120,8 +131,10 @@ class GameScore(db.Model):
 
     @classmethod
     def get_leaderboard(cls, game_type, difficulty=None, limit=10):
-        """Get leaderboard for a game type"""
-        query = cls.query.filter_by(game_type=game_type)
+        """Get leaderboard for a game type with eager loading to avoid N+1 queries"""
+        from sqlalchemy.orm import joinedload
+
+        query = cls.query.options(joinedload(cls.user)).filter_by(game_type=game_type)
 
         if difficulty:
             query = query.filter_by(difficulty=difficulty)
@@ -282,18 +295,29 @@ class UserCardDirection(db.Model):
         old_ease_factor = self.ease_factor
 
         # Implement SM-2 algorithm (Anki-like)
-        if quality < 3:
-            # If response was wrong, start over
+        # Quality mapping: 0=Again, 2=Hard, 3=Good, 4=Easy
+        if quality == 0:
+            # "Again" - response was wrong, start over
             self.repetitions = 0
             self.interval = 0
             # EF decreases but should not go below 1.3
             self.ease_factor = max(1.3, old_ease_factor - 0.20)
         else:
+            # Correct answer (quality 2, 3, or 4)
             self.repetitions += 1
-            # Update ease factor
-            self.ease_factor = max(1.3, old_ease_factor - 0.8 + (0.28 * quality) - (0.02 * quality * quality))
 
-            # Make sure ease factor doesn't go below 1.3
+            # Update ease factor based on quality
+            if quality == 2:
+                # "Hard" - decrease EF slightly
+                self.ease_factor = max(1.3, old_ease_factor - 0.15)
+            elif quality == 3:
+                # "Good" - maintain EF (Anki default behavior)
+                self.ease_factor = old_ease_factor
+            elif quality == 4:
+                # "Easy" - increase EF
+                self.ease_factor = min(2.5, old_ease_factor + 0.15)  # Cap at 2.5
+
+            # Calculate interval based on repetitions
             if self.repetitions == 1:
                 # First correct repetition
                 self.interval = 1
@@ -302,21 +326,28 @@ class UserCardDirection(db.Model):
                 self.interval = 6
             else:
                 # For subsequent repetitions, calculate based on previous interval and ease factor
-                if quality == 3:
-                    # "Hard" button - apply penalty
-                    hard_penalty = 0.8  # 20% penalty for difficult cards
-                    self.interval = max(1, round(self.interval * self.ease_factor * hard_penalty))
-                elif quality == 4:
+                if quality == 2:
+                    # "Hard" button - apply penalty (relearn faster)
+                    hard_multiplier = 1.2  # Slightly increase interval
+                    self.interval = max(1, round(self.interval * hard_multiplier))
+                elif quality == 3:
                     # "Good" button - standard calculation
                     self.interval = max(1, round(self.interval * self.ease_factor))
-                elif quality == 5:
+                elif quality == 4:
                     # "Easy" button - apply bonus
-                    easy_bonus = 1.3  # 30% bonus for easy cards
-                    self.interval = max(1, round(self.interval * self.ease_factor * easy_bonus))
+                    easy_multiplier = self.ease_factor * 1.3  # 30% bonus
+                    self.interval = max(1, round(self.interval * easy_multiplier))
 
         # Update review dates
         self.last_reviewed = datetime.now(timezone.utc)
-        self.next_review = datetime.now(timezone.utc) + timedelta(days=self.interval)
+
+        # Add ±10% variance to prevent review cliffs (all cards reviewing at once)
+        # This is a standard practice in spaced repetition systems
+        import random
+        variance = random.uniform(0.9, 1.1)
+        adjusted_interval = max(1, round(self.interval * variance))
+
+        self.next_review = datetime.now(timezone.utc) + timedelta(days=adjusted_interval)
 
         # Update the parent UserWord status if needed
         self.update_user_word_status()
@@ -370,12 +401,151 @@ class UserCardDirection(db.Model):
         """Calculate days until next review"""
         if not self.next_review or self.due_for_review:
             return 0
-            
+
         # Ensure next_review is timezone-aware
         if self.next_review.tzinfo is None:
             next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
         else:
             next_review_aware = self.next_review
-            
+
         delta = next_review_aware - datetime.now(timezone.utc)
         return max(0, delta.days)
+
+
+class QuizDeck(db.Model):
+    """
+    Quiz deck - a collection of words for quiz
+    """
+    __tablename__ = 'quiz_decks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+    # Owner
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+
+    # Sharing
+    is_public = db.Column(db.Boolean, default=False)
+    share_code = db.Column(db.String(20), unique=True, nullable=True, index=True)
+
+    # Stats
+    times_played = db.Column(db.Integer, default=0)
+    average_score = db.Column(db.Float, default=0.0)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('quiz_decks', lazy='dynamic', cascade='all, delete-orphan'))
+    words = db.relationship('QuizDeckWord', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
+    results = db.relationship('QuizResult', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
+
+    def generate_share_code(self):
+        """Generate unique share code for this deck"""
+        import secrets
+        import string
+        while True:
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            if not QuizDeck.query.filter_by(share_code=code).first():
+                self.share_code = code
+                return code
+
+    @property
+    def word_count(self):
+        """Get total number of words in deck"""
+        return self.words.count()
+
+    def __repr__(self):
+        return f'<QuizDeck {self.title}>'
+
+
+class QuizDeckWord(db.Model):
+    """
+    Word in a quiz deck
+    Can reference existing word from collection_words or be a custom word
+    """
+    __tablename__ = 'quiz_deck_words'
+
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('quiz_decks.id', ondelete='CASCADE'), nullable=False)
+
+    # Reference to existing word (optional)
+    word_id = db.Column(db.Integer, db.ForeignKey('collection_words.id', ondelete='SET NULL'), nullable=True)
+
+    # Custom word fields (used if word_id is NULL)
+    custom_english = db.Column(db.String(200), nullable=True)
+    custom_russian = db.Column(db.String(200), nullable=True)
+    custom_audio_url = db.Column(db.String(500), nullable=True)
+
+    # Order in deck
+    order_index = db.Column(db.Integer, default=0)
+
+    # Timestamps
+    added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    deck = db.relationship('QuizDeck', back_populates='words')
+    word = db.relationship('CollectionWords', foreign_keys=[word_id])
+
+    __table_args__ = (
+        Index('idx_deck_word_deck_id', 'deck_id'),
+        Index('idx_deck_word_word_id', 'word_id'),
+    )
+
+    @property
+    def english_word(self):
+        """Get English word from collection_words or custom"""
+        if self.word:
+            return self.word.english_word
+        return self.custom_english
+
+    @property
+    def russian_word(self):
+        """Get Russian word from collection_words or custom"""
+        if self.word:
+            return self.word.russian_word
+        return self.custom_russian
+
+    @property
+    def audio_url(self):
+        """Get audio URL from collection_words or custom"""
+        if self.word and self.word.get_download == 1 and self.word.listening:
+            return f'/static/audio/{self.word.listening[7:-1]}'
+        return self.custom_audio_url
+
+    def __repr__(self):
+        return f'<QuizDeckWord {self.english_word}>'
+
+
+class QuizResult(db.Model):
+    """
+    Result of completing a quiz deck
+    """
+    __tablename__ = 'quiz_results'
+
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('quiz_decks.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+
+    # Results
+    total_questions = db.Column(db.Integer, nullable=False)
+    correct_answers = db.Column(db.Integer, nullable=False)
+    score_percentage = db.Column(db.Float, nullable=False)
+    time_taken = db.Column(db.Integer, nullable=False)  # seconds
+
+    # Timestamps
+    completed_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    deck = db.relationship('QuizDeck', back_populates='results')
+    user = db.relationship('User', backref=db.backref('quiz_results', lazy='dynamic', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        Index('idx_quiz_result_deck_user', 'deck_id', 'user_id'),
+        Index('idx_quiz_result_completed', 'completed_at'),
+    )
+
+    def __repr__(self):
+        return f'<QuizResult user={self.user_id} deck={self.deck_id} score={self.score_percentage}%>'

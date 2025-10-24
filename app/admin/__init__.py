@@ -6,7 +6,7 @@ Handles blueprint registration and avoids circular imports
 """
 
 
-def register_admin_routes(app):
+def register_admin_routes(flask_app):
     """Register all admin routes with the Flask app"""
 
     # Import the main admin blueprint (this creates the blueprint object)
@@ -20,5 +20,8 @@ def register_admin_routes(app):
     from app.admin.modules import register_module_admin_routes
     register_module_admin_routes(admin)
 
+    # Import quiz decks routes (they are already added via @admin.route decorators)
+    import app.admin.quiz_decks
+
     # Now register the complete blueprint with all routes
-    app.register_blueprint(admin)
+    flask_app.register_blueprint(admin)

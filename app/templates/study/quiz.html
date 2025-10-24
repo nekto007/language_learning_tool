@@ -8,7 +8,12 @@
     <div class="progress-container">
         <div class="progress-header">
             <div>
-                <h2 class="progress-title">{{ _('Quiz Progress') }}</h2>
+                <h2 class="progress-title">
+                    {{ _('Quiz Progress') }}
+                    {% if deck_title %}
+                    <span class="badge bg-primary ms-2">{{ deck_title }}</span>
+                    {% endif %}
+                </h2>
                 <p class="question-counter" id="question-counter">{{ _('Question 1 of 20') }}</p>
             </div>
             <div class="d-flex align-items-center gap-3">
@@ -41,18 +46,18 @@
                 <span class="timer-value" id="timer-value">30</span>
             </div>
 
-            <!-- Question header -->
+            <!-- Question header with label -->
             <div class="quiz-header">
                 <span class="question-type" id="question-type">{{ _('Multiple Choice') }}</span>
+                <span class="question-label" id="question-label"></span>
             </div>
 
-            <!-- Question text -->
-            <h2 class="question-text" id="question-text"></h2>
-
-            <!-- Audio button (if available) -->
-            <div class="text-center mb-4">
-                <button id="audio-btn" class="audio-btn" style="display: none;">
-                    <i class="fas fa-volume-up"></i> {{ _('Listen') }}
+            <!-- Question text (the word to translate) -->
+            <div class="question-word-container">
+                <h2 class="question-text" id="question-text"></h2>
+                <!-- Audio button (if available) -->
+                <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="{{ _('Listen') }}">
+                    <i class="fas fa-volume-up"></i>
                 </button>
             </div>
 
@@ -143,6 +148,7 @@
         // Config from server
         const sessionId = {{ session_id }};
         const wordSource = '{{ word_source }}';
+        const deckId = {{ deck_id|default('null') }};
         const showTranslations = {{ settings.include_translations|lower }};
         const showExamples = {{ settings.include_examples|lower }};
         const playAudio = {{ settings.include_audio|lower }};
@@ -198,7 +204,12 @@
         // Fetch questions from API
         async function fetchQuestions() {
             try {
-                const response = await fetch(`/study/api/get-quiz-questions?source=${wordSource}`);
+                let url = `/study/api/get-quiz-questions?source=${wordSource}`;
+                if (deckId) {
+                    url += `&deck_id=${deckId}`;
+                }
+
+                const response = await fetch(url);
 
                 if (!response.ok) {
                     throw new Error('Failed to fetch questions');
@@ -218,23 +229,82 @@
             }
         }
 
+        // Save quiz state to localStorage
+        function saveQuizState() {
+            const state = {
+                sessionId: sessionId,
+                questions: questions,
+                currentQuestionIndex: currentQuestionIndex,
+                sessionStats: sessionStats,
+                sessionStartTime: sessionStartTime
+            };
+            localStorage.setItem('quizState', JSON.stringify(state));
+        }
+
+        // Load quiz state from localStorage
+        function loadQuizState() {
+            const savedState = localStorage.getItem('quizState');
+            if (savedState) {
+                try {
+                    const state = JSON.parse(savedState);
+                    // Check if session ID matches
+                    if (state.sessionId === sessionId) {
+                        return state;
+                    }
+                } catch (error) {
+                    console.error('Error loading quiz state:', error);
+                }
+            }
+            return null;
+        }
+
+        // Clear quiz state from localStorage
+        function clearQuizState() {
+            localStorage.removeItem('quizState');
+        }
+
         // Initialize quiz
         async function initQuiz() {
             try {
-                // Fetch questions
-                questions = await fetchQuestions();
+                // Try to load saved state first
+                const savedState = loadQuizState();
 
-                if (!questions || questions.length === 0) {
-                    showNoQuestionsMessage();
-                    return;
+                if (savedState && savedState.questions && savedState.questions.length > 0) {
+                    // Restore from saved state
+                    questions = savedState.questions;
+                    currentQuestionIndex = savedState.currentQuestionIndex || 0;
+                    sessionStats = savedState.sessionStats || {total: 0, correct: 0, incorrect: 0, timeSpent: 0};
+                    sessionStartTime = savedState.sessionStartTime || Date.now();
+
+                    // Update counters
+                    correctCounter.textContent = sessionStats.correct;
+                    incorrectCounter.textContent = sessionStats.incorrect;
+
+                    // Show UI
+                    loadingSpinner.style.display = 'none';
+                    quizView.style.display = 'block';
+
+                    // Show current question
+                    showQuestion(currentQuestionIndex);
+                } else {
+                    // Fetch new questions
+                    questions = await fetchQuestions();
+
+                    if (!questions || questions.length === 0) {
+                        showNoQuestionsMessage();
+                        return;
+                    }
+
+                    // Update UI
+                    loadingSpinner.style.display = 'none';
+                    quizView.style.display = 'block';
+
+                    // Show first question
+                    showQuestion(0);
+
+                    // Save initial state
+                    saveQuizState();
                 }
-
-                // Update UI
-                loadingSpinner.style.display = 'none';
-                quizView.style.display = 'block';
-
-                // Show first question
-                showQuestion(0);
             } catch (error) {
                 console.error('Error initializing quiz:', error);
                 showNoQuestionsMessage();
@@ -262,6 +332,15 @@
             // Set question details
             questionText.textContent = question.text;
             questionTypeEl.textContent = getQuestionTypeLabel(question.type);
+
+            // Set question label if available
+            const questionLabel = document.getElementById('question-label');
+            if (question.question_label) {
+                questionLabel.textContent = question.question_label;
+                questionLabel.style.display = 'inline-block';
+            } else {
+                questionLabel.style.display = 'none';
+            }
 
             // Setup audio if available
             if (question.audio_url && playAudio) {
@@ -537,16 +616,24 @@
             // Update UI for next action
             submitAnswerBtn.style.display = 'none';
             nextBtn.style.display = 'block';
+
+            // Save state after submitting answer
+            saveQuizState();
         }
 
         // Move to the next question
         function nextQuestion() {
             showQuestion(currentQuestionIndex + 1);
+            // Save state after moving to next question
+            saveQuizState();
         }
 
         // Complete the quiz
         async function completeQuiz() {
             try {
+                // Clear saved state when quiz is completed
+                clearQuizState();
+
                 // Calculate score percentage
                 const scorePercentage = sessionStats.total > 0 ?
                     Math.round((sessionStats.correct / sessionStats.total) * 100) : 0;
@@ -561,6 +648,7 @@
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
+                        deck_id: deckId,
                         score: scorePercentage,
                         total_questions: sessionStats.total,
                         correct_answers: sessionStats.correct,

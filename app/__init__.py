@@ -82,6 +82,9 @@ def create_app(config_class=Config):
     from app.api.topics_collections import api_topics_collections
     app.register_blueprint(api_topics_collections, url_prefix='/api')
 
+    from app.api.telegram import api_telegram as api_telegram_blueprint
+    app.register_blueprint(api_telegram_blueprint, url_prefix='/api')
+
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
 

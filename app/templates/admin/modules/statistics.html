@@ -99,7 +99,9 @@
                 <h5 class="mb-0">Распределение пользователей по модулям</h5>
             </div>
             <div class="card-body">
-                <canvas id="userDistributionChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="userDistributionChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -110,7 +112,9 @@
                 <h5 class="mb-0">Активация модулей</h5>
             </div>
             <div class="card-body">
-                <canvas id="activationChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="activationChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -123,7 +127,9 @@
                 <h5 class="mb-0">Источник выдачи модулей</h5>
             </div>
             <div class="card-body">
-                <canvas id="sourceChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="sourceChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -162,7 +168,7 @@ new Chart(userDistCtx, {
     },
     options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         scales: {
             y: {
                 beginAtZero: true,
@@ -199,7 +205,7 @@ new Chart(activationCtx, {
     },
     options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         scales: {
             x: {
                 stacked: true
@@ -240,7 +246,7 @@ new Chart(sourceCtx, {
     },
     options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         scales: {
             x: {
                 stacked: true

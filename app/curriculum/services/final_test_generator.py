@@ -518,26 +518,15 @@ if __name__ == "__main__":
 
     if args.save:
         if generator.save_final_test_task(args.block_id):
-            print(f"✅ Final test saved for block {args.block_id}")
         else:
-            print("❌ Failed to save final test")
 
     elif args.preview:
         test = generator.generate_final_test(args.block_id)
         if test:
-            print(f"Title: {test['title']}")
-            print(f"Total questions: {test['metadata']['total_questions']}")
-            print(f"Time limit: {test['time_limit']} minutes")
-            print(f"Sections: {test['metadata']['total_sections']}")
-            print("\nSection breakdown:")
             for section in test['sections']:
-                print(f"  - {section['title']}: {section['question_count']} questions")
         else:
-            print("❌ Failed to generate final test")
 
     else:
         test = generator.generate_final_test(args.block_id)
         if test:
-            print(json.dumps(test, indent=2, ensure_ascii=False))
         else:
-            print("❌ Failed to generate final test")

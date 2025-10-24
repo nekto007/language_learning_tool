@@ -312,8 +312,18 @@ function setupEventListeners() {
 // Начало игры
 async function startGame() {
   try {
+    // Очищаем все таймеры перед началом новой игры
+    if (gameState.gameTimer) {
+      clearInterval(gameState.gameTimer);
+      gameState.gameTimer = null;
+    }
+    if (gameState.hintTimeout) {
+      clearTimeout(gameState.hintTimeout);
+      gameState.hintTimeout = null;
+    }
+
     elements.gameSetup.style.display = 'none';
-    
+
     // Загружаем слова
     await fetchWords();
     
@@ -396,15 +406,15 @@ function createGameBoard() {
   // Создаем DOM элементы карточек
   gameState.cards.forEach((card, index) => {
     const cardElement = document.createElement('div');
-    cardElement.className = 'game-card';
+    cardElement.className = 'flip-card';
     cardElement.dataset.index = index;
     
     cardElement.innerHTML = `
-      <div class="card-inner">
-        <div class="card-front">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
           <i class="fas fa-language"></i>
         </div>
-        <div class="card-back">
+        <div class="flip-card-back">
           <span class="card-text">${card.text}</span>
         </div>
       </div>
@@ -566,9 +576,9 @@ function showHint() {
   
   gameState.lockBoard = true;
   gameState.showingHint = true;
-  
+
   // Показываем все неоткрытые карточки
-  const unmatched = document.querySelectorAll('.game-card:not(.matched)');
+  const unmatched = document.querySelectorAll('.flip-card:not(.matched)');
   unmatched.forEach(card => {
     card.classList.add('flipped');
   });
@@ -593,9 +603,15 @@ function showHint() {
 
 // Запуск таймера
 function startTimer() {
+  // Очищаем предыдущий таймер, если есть
+  if (gameState.gameTimer) {
+    clearInterval(gameState.gameTimer);
+    gameState.gameTimer = null;
+  }
+
   gameState.gameStartTime = Date.now();
   gameState.gameSeconds = 0;
-  
+
   gameState.gameTimer = setInterval(() => {
     gameState.gameSeconds++;
     updateTimerDisplay();
@@ -632,11 +648,17 @@ function endGame(userInitiated = true) {
       return;
     }
   }
-  
+
+  // Очищаем все таймеры
   if (gameState.gameTimer) {
     clearInterval(gameState.gameTimer);
+    gameState.gameTimer = null;
   }
-  
+  if (gameState.hintTimeout) {
+    clearTimeout(gameState.hintTimeout);
+    gameState.hintTimeout = null;
+  }
+
   completeGame();
 }
 

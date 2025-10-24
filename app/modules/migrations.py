@@ -22,7 +22,6 @@ def seed_initial_modules():
     """
     # Проверяем, есть ли уже модули
     if SystemModule.query.count() > 0:
-        print("Модули уже существуют, пропускаем заполнение")
         return
 
     # Определяем начальные модули
@@ -90,7 +89,6 @@ def seed_initial_modules():
         db.session.add(module)
 
     db.session.commit()
-    print(f"Создано {len(initial_modules)} модулей")
 
 
 def migrate_existing_users():
@@ -125,28 +123,22 @@ def migrate_existing_users():
         migrated_count += 1
 
     db.session.commit()
-    print(f"Мигрировано {migrated_count} пользователей")
 
 
 def run_migration():
     """
     Запускает полную миграцию
     """
-    print("Начинаем миграцию модульной системы...")
 
     # Создаем таблицы
-    print("Создание таблиц...")
     create_module_tables()
 
     # Заполняем начальными модулями
-    print("Заполнение начальными модулями...")
     seed_initial_modules()
 
     # Мигрируем существующих пользователей
-    print("Миграция существующих пользователей...")
     migrate_existing_users()
 
-    print("Миграция завершена!")
 
 
 if __name__ == '__main__':

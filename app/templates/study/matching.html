@@ -354,15 +354,15 @@
             // Create card elements
             cards.forEach((card, index) => {
                 const cardElement = document.createElement('div');
-                cardElement.className = 'card';
+                cardElement.className = 'flip-card';
                 cardElement.dataset.index = index;
 
                 cardElement.innerHTML = `
-                    <div class="card-inner">
-                        <div class="card-front">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
                             <i class="fas fa-language"></i>
                         </div>
-                        <div class="card-back">
+                        <div class="flip-card-back">
                             ${card.text}
                         </div>
                     </div>
@@ -643,6 +643,9 @@
 
             // Send completion to server
             try {
+                // Extract unique word IDs from game words for SRS integration
+                const word_ids = [...new Set(gameWords.map(w => w.id))];
+
                 const response = await fetch('/study/api/complete-matching-game', {
                     method: 'POST',
                     headers: {
@@ -655,7 +658,8 @@
                         total_pairs: totalPairs,
                         moves,
                         time_taken: gameSeconds,
-                        score
+                        score,
+                        word_ids  // Include word IDs for SRS integration
                     }),
                 });
 

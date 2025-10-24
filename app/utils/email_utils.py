@@ -49,11 +49,6 @@ class EmailSender:
         try:
             # Проверяем настройки email
             if not all([self.email_host, self.email_user, self.email_password, self.default_from_email]):
-                print("Email configuration incomplete:")
-                print(f"  HOST: {self.email_host}")
-                print(f"  USER: {self.email_user}")
-                print(f"  PASSWORD: {'*' * len(self.email_password) if self.email_password else 'Not set'}")
-                print(f"  FROM: {self.default_from_email}")
                 return False
 
             # Подключение к SMTP-серверу
@@ -63,11 +58,8 @@ class EmailSender:
                     server.starttls()
                 server.login(self.email_user, self.email_password)
                 server.send_message(msg)
-            print(f"Email sent successfully to {to_email}")
             return True
         except Exception as e:
-            print(f"Error sending email to {to_email}: {str(e)}")
-            print(f"Email settings: host={self.email_host}, port={self.email_port}, user={self.email_user}, tls={self.use_tls}")
             return False
 
 

@@ -265,7 +265,6 @@ class DatabaseRepository:
                     self.bulk_link_words_to_book(link_data)
                     total_processed += len(link_data)
 
-                print(f"Processed batch {batch_num}, words: {len(words_batch)}, linked: {len(link_data)}")
 
                 # Очищаем пакеты для следующей итерации
                 words_batch = []

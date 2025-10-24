@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Выбор колоды для квиза{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px;">
+    <!-- Header -->
+    <div class="mb-5 py-3">
+        <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary mb-3">
+            <i class="fas fa-arrow-left me-2"></i>Назад к обучению
+        </a>
+        <h1 class="display-5 fw-bold mb-2">
+            <i class="fas fa-layer-group me-2 text-success"></i>Quiz колоды
+        </h1>
+        <p class="lead text-secondary">Выберите тематическую колоду или создайте свою</p>
+    </div>
+
+    <!-- Mode Selection -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-6">
+            <a href="{{ url_for('study.quiz_auto') }}" class="text-decoration-none">
+                <div class="card h-100 shadow-sm hover-lift" style="transition: var(--transition-base);">
+                    <div class="card-body text-center p-4">
+                        <div class="rounded-4 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                            <i class="fas fa-magic text-primary" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-2">Автоматический квиз</h4>
+                        <p class="text-muted mb-0">Случайные вопросы из ваших слов для изучения</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm border-success" style="border-width: 2px;">
+                <div class="card-body text-center p-4">
+                    <div class="rounded-4 bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-layer-group text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h4 class="fw-bold text-success mb-2">Тематические колоды</h4>
+                    <p class="text-muted mb-0">Специально подобранные наборы слов по темам</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Decks -->
+    {% if my_decks %}
+    <div class="mb-5">
+        <h3 class="fw-bold mb-4">
+            <i class="fas fa-user me-2 text-primary"></i>Мои колоды
+            <span class="badge bg-primary ms-2">{{ my_decks|length }}</span>
+        </h3>
+        <div class="row g-4">
+            {% for deck in my_decks %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm hover-lift" style="transition: var(--transition-base);">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-dark">{{ deck.title }}</h5>
+                        {% if deck.description %}
+                        <p class="card-text text-muted small">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
+                        {% endif %}
+
+                        <div class="mt-3 d-flex flex-wrap gap-2">
+                            <span class="badge bg-primary rounded-pill">
+                                <i class="fas fa-book me-1"></i>{{ deck.word_count }} слов
+                            </span>
+                            {% if deck.times_played > 0 %}
+                            <span class="badge bg-info rounded-pill">
+                                <i class="fas fa-play me-1"></i>{{ deck.times_played }} раз
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-top">
+                        <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary w-100">
+                            <i class="fas fa-play me-2"></i>Начать квиз
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Public Decks -->
+    {% if public_decks %}
+    <div class="mb-5">
+        <h3 class="fw-bold mb-4">
+            <i class="fas fa-globe me-2 text-success"></i>Публичные колоды
+            <span class="badge bg-success ms-2">{{ public_decks|length }}</span>
+        </h3>
+        <div class="row g-4">
+            {% for deck in public_decks %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm hover-lift" style="transition: var(--transition-base); border-left: 4px solid var(--bs-success);">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title fw-bold text-dark mb-0">{{ deck.title }}</h5>
+                            <span class="badge bg-success rounded-pill">PUBLIC</span>
+                        </div>
+                        {% if deck.description %}
+                        <p class="card-text text-muted small">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
+                        {% endif %}
+
+                        <div class="mt-3 d-flex flex-wrap gap-2">
+                            <span class="badge bg-primary rounded-pill">
+                                <i class="fas fa-book me-1"></i>{{ deck.word_count }} слов
+                            </span>
+                            {% if deck.times_played > 0 %}
+                            <span class="badge bg-info rounded-pill">
+                                <i class="fas fa-users me-1"></i>{{ deck.times_played }} раз сыграно
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-top">
+                        <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-success w-100">
+                            <i class="fas fa-play me-2"></i>Начать квиз
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- No Decks Message -->
+    {% if not my_decks and not public_decks %}
+    <div class="alert alert-warning shadow-sm" role="alert">
+        <div class="d-flex align-items-center">
+            <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+            </div>
+            <div>
+                <h5 class="alert-heading mb-1">Пока нет доступных колод</h5>
+                <p class="mb-0">
+                    {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin.quiz_deck_create') }}" class="alert-link fw-bold">Создайте первую колоду</a> в админ-панели
+                    {% else %}
+                    Обратитесь к администратору для создания колод
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.hover-lift {
+    transition: all 0.3s ease;
+}
+.hover-lift:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+{% endblock %}

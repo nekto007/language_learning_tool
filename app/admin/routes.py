@@ -1276,7 +1276,6 @@ def user_progress():
     )
 
 
-@csrf.exempt
 @admin.route('/curriculum/import', methods=['GET', 'POST'])
 @admin_required
 def import_curriculum():
@@ -1531,7 +1530,7 @@ def process_grammar(grammar_data):
                 exercise_data['answer'] = exercise.get('answer', '')
 
             exercises.append(exercise_data)
-            print(exercise_data)
+
     return {
         'rule': grammar_data.get('rule', ''),
         'description': grammar_data.get('description', ''),
@@ -3104,8 +3103,6 @@ def audio_statistics():
             level_audio_stats=level_audio_stats
         )
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         logger.error(f"Error getting audio statistics: {str(e)}")
         flash(f'Ошибка при получении статистики: {str(e)}', 'danger')
         return redirect(url_for('admin.audio_management'))

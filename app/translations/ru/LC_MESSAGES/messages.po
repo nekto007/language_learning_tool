@@ -2560,3 +2560,122 @@ msgstr "очков"
 msgid "Achievements"
 msgstr "Достижения"
 
+
+# Quiz translations
+msgid "Starts with"
+msgstr "Начинается с"
+
+msgid "Correct answer"
+msgstr "Правильный ответ"
+
+msgid "Translate to Russian:"
+msgstr "Переведите на русский:"
+
+msgid "Translate to English:"
+msgstr "Переведите на английский:"
+
+msgid "Type the Russian translation:"
+msgstr "Введите перевод на русский:"
+
+msgid "Type the English translation:"
+msgstr "Введите перевод на английский:"
+
+msgid "Is this the correct translation?"
+msgstr "Это правильный перевод?"
+
+msgid "letters"
+msgstr "букв"
+
+msgid "Listen"
+msgstr "Прослушать"
+
+msgid "Show Hint"
+msgstr "Показать подсказку"
+
+msgid "Quiz Progress"
+msgstr "Прогресс викторины"
+
+msgid "Question"
+msgstr "Вопрос"
+
+msgid "of"
+msgstr "из"
+
+msgid "End Quiz"
+msgstr "Завершить викторину"
+
+msgid "Loading..."
+msgstr "Загрузка..."
+
+msgid "Loading questions..."
+msgstr "Загрузка вопросов..."
+
+msgid "Submit Answer"
+msgstr "Отправить ответ"
+
+msgid "Next Question"
+msgstr "Следующий вопрос"
+
+msgid "Correct!"
+msgstr "Правильно!"
+
+msgid "Incorrect."
+msgstr "Неправильно."
+
+msgid "Quiz Complete!"
+msgstr "Викторина завершена!"
+
+msgid "Your Score"
+msgstr "Ваш результат"
+
+msgid "Questions"
+msgstr "Вопросов"
+
+msgid "Correct"
+msgstr "Правильно"
+
+msgid "Time"
+msgstr "Время"
+
+msgid "Back to Study"
+msgstr "Назад к обучению"
+
+msgid "Take Another Quiz"
+msgstr "Пройти ещё викторину"
+
+msgid "Are you sure you want to end the quiz?"
+msgstr "Вы уверены, что хотите завершить викторину?"
+
+msgid "No Questions Available"
+msgstr "Вопросы недоступны"
+
+msgid "There are no words matching your study criteria."
+msgstr "Нет слов, соответствующих вашим критериям обучения."
+
+msgid "Return to Study Dashboard"
+msgstr "Вернуться к панели обучения"
+
+msgid "Quiz Question"
+msgstr "Вопрос викторины"
+
+msgid "Your Rank"
+msgstr "Ваш рейтинг"
+
+msgid "New personal best!"
+msgstr "Новый личный рекорд!"
+
+msgid "View Leaderboard"
+msgstr "Посмотреть таблицу лидеров"
+
+msgid "True"
+msgstr "Да"
+
+msgid "False"
+msgstr "Нет"
+
+msgid "Type your answer here..."
+msgstr "Введите ваш ответ..."
+
+msgid "Quiz Mode"
+msgstr "Режим викторины"
+

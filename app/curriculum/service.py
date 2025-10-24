@@ -184,7 +184,6 @@ def complete_lesson(user_id, lesson_id, score=100.0):
         return True
     except Exception as e:
         db.session.rollback()
-        print(f"Error completing lesson: {e}")
         return False
 
 
@@ -205,36 +204,14 @@ def process_grammar_submission(exercises, answers):
     total_count = len(exercises)
     feedback = {}
 
-    print("\n" + "=" * 50)
-    print("PROCESS_GRAMMAR_SUBMISSION START")
-    print("=" * 50)
-    print(f"Exercises count: {total_count}")
-    print(f"Answers: {answers}")
-
-    # Выводим информацию о каждом упражнении
-    for i, ex in enumerate(exercises):
-        print(f"\nExercise {i}:")
-        print(f"  Type: {ex.get('type')}")
-        print(f"  Has 'answer': {'answer' in ex}")
-        print(f"  Has 'correct_answer': {'correct_answer' in ex}")
-        print(f"  Has 'correct': {'correct' in ex}")
-        if 'answer' in ex:
-            print(f"  Answer value: {ex['answer']} (type: {type(ex['answer'])})")
-
     for i, exercise in enumerate(exercises):
         # Преобразуем строковые ключи в числовые для совместимости
         str_i = str(i)
 
-        print(f"Processing exercise {i}, type: {exercise.get('type', 'unknown')}")
-
         # Обработка упражнения типа 'reorder'
         if exercise.get('type') == 'reorder':
-            print(f"Processing reorder exercise {i}")
             user_answer = answers.get(i, answers.get(str_i, ''))
-            print(exercise)
             correct_answer = exercise.get('answer', '')
-
-            print(f"Reorder - User answer: '{user_answer}', Correct answer: '{correct_answer}'")
 
             # Улучшенная нормализация предложений для сравнения
             def normalize_sentence(sentence):
@@ -271,9 +248,6 @@ def process_grammar_submission(exercises, answers):
             if not is_correct:
                 is_correct = user_normalized.lower() == correct_normalized.lower()
 
-            print(f"Normalized - User: '{user_normalized}', Correct: '{correct_normalized}'")
-            print(f"Is correct: {is_correct}")
-
             if is_correct:
                 correct_count += 1
                 feedback[str_i] = {
@@ -293,24 +267,19 @@ def process_grammar_submission(exercises, answers):
 
         # Обработка упражнения типа 'match'
         elif exercise.get('type') == 'match':
-            print(f"Processing match exercise {i}")
             pairs = exercise.get('pairs', [])
             user_matches_raw = answers.get(i, answers.get(str_i, '{}'))
 
-            print(f"Match pairs: {pairs}")
-            print(f"Match user_matches_raw: {user_matches_raw}")
 
             # Преобразуем JSON строку в словарь если нужно
             if isinstance(user_matches_raw, str):
                 try:
                     user_matches = json.loads(user_matches_raw)
                 except json.JSONDecodeError:
-                    print(f"Error decoding JSON for match exercise: {user_matches_raw}")
                     user_matches = {}
             else:
                 user_matches = user_matches_raw
 
-            print(f"Parsed user_matches: {user_matches}")
 
             # Проверяем ответы пользователя
             is_correct = True
@@ -324,7 +293,6 @@ def process_grammar_submission(exercises, answers):
             # Проверяем, что все пары заполнены
             if len(user_matches) != len(pairs):
                 is_correct = False
-                print(f"Match count mismatch: user has {len(user_matches)}, should be {len(pairs)}")
             else:
                 # Проверяем каждое сопоставление
                 for left_idx_str, right_idx_str in user_matches.items():
@@ -333,8 +301,6 @@ def process_grammar_submission(exercises, answers):
                         right_idx = int(right_idx_str)
 
                         if left_idx >= len(pairs) or right_idx >= len(pairs):
-                            print(
-                                f"Index out of range: left_idx={left_idx}, right_idx={right_idx}, pairs_len={len(pairs)}")
                             is_correct = False
                             continue
 
@@ -346,11 +312,8 @@ def process_grammar_submission(exercises, answers):
 
                         # Проверяем соответствие
                         if user_right_value != correct_right_value:
-                            print(
-                                f"Incorrect match: {left_value} -> {user_right_value}, should be {correct_right_value}")
                             is_correct = False
                     except (ValueError, IndexError, KeyError) as e:
-                        print(f"Error processing match indices: {e}")
                         is_correct = False
                         break
 
@@ -389,8 +352,6 @@ def process_grammar_submission(exercises, answers):
         elif 'answers' in exercise and isinstance(exercise['answers'], list) and len(exercise['answers']) > 0:
             correct_answer = exercise['answers'][0]
         else:
-            print(f"WARNING: Could not find answer field in exercise {i}")
-            print(f"Available keys in exercise: {list(exercise.keys())}")
             correct_answer = None
 
         # Специальная обработка для разных типов упражнений
@@ -400,7 +361,6 @@ def process_grammar_submission(exercises, answers):
         if exercise_type == 'true_false':
             # Проверяем, что у нас есть правильный ответ
             if correct_answer is None:
-                print(f"WARNING: No correct answer for true_false exercise {i}")
                 feedback[str_i] = {
                     'status': 'incorrect',
                     'message': 'Ошибка в упражнении - не найден правильный ответ',
@@ -416,7 +376,6 @@ def process_grammar_submission(exercises, answers):
                     str(correct_answer).lower() == 'true')
 
             is_correct = user_bool == correct_bool
-            print(f"True/False: user={user_bool}, correct={correct_bool}, is_correct={is_correct}")
 
             if is_correct:
                 correct_count += 1
@@ -476,8 +435,6 @@ def process_grammar_submission(exercises, answers):
                 #     # Нормализуем для сравнения
                 user_norm = user_answer.lower().strip()
                 is_correct = any(user_norm == ans.lower().strip() for ans in correct_answer)
-                print(
-                    f"Checking against array (normalized): '{user_norm}' in {[ans.lower().strip() for ans in correct_answer]} = {is_correct}")
 
                 if is_correct:
                     correct_count += 1
@@ -503,7 +460,6 @@ def process_grammar_submission(exercises, answers):
         if not isinstance(correct_answer, str):
             correct_answer = str(correct_answer)
 
-        print(f"User answer: '{user_answer}', Correct answer: '{correct_answer}'")
 
         # Используем улучшенную нормализацию для всех типов упражнений
         def normalize_answer(answer):
@@ -543,10 +499,7 @@ def process_grammar_submission(exercises, answers):
             if prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_'):
                 # Для начала предложения проверяем точное совпадение нормализованных версий
                 is_correct = user_normalized == correct_normalized
-                print(f"Case-sensitive check for sentence start: '{user_normalized}' == '{correct_normalized}' -> {is_correct}")
         
-        print(f"User: '{user_answer}' -> '{user_normalized}', Correct: '{correct_answer}' -> '{correct_normalized}'")
-        print(f"Is correct: {is_correct} (normalized comparison)")
 
         if is_correct:
             correct_count += 1
@@ -567,14 +520,7 @@ def process_grammar_submission(exercises, answers):
     # Вычисляем оценку
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
-    print("\n" + "=" * 50)
-    print("PROCESS_GRAMMAR_SUBMISSION RESULTS")
-    print("=" * 50)
-    print(f"Final score: {score}%, Correct: {correct_count}/{total_count}")
-    print(f"Feedback summary:")
     for idx, fb in feedback.items():
-        print(f"  Exercise {idx}: {fb['status']}")
-    print("=" * 50 + "\n")
 
     return {
         'correct_count': correct_count,
@@ -596,25 +542,17 @@ def process_quiz_submission(questions, answers):
     Returns:
         dict: Результаты проверки ответов
     """
-    print("\n" + "-" * 40)
-    print("PROCESS_QUIZ_SUBMISSION START")
-    print("-" * 40)
 
     correct_count = 0
     total_count = len(questions)
     feedback = {}
 
-    print(f"Total questions: {total_count}")
-    print(f"Answers received: {answers}")
 
     for i, question in enumerate(questions):
-        print(f"\n--- Processing Question {i} ---")
 
         user_answer = answers.get(i, '')
         question_type = question.get('type', 'multiple_choice')
 
-        print(f"Question type: {question_type}")
-        print(f"User answer: '{user_answer}' (type: {type(user_answer)})")
 
         # Получаем правильный ответ используя hasOwnProperty equivalent
         correct_answer = None
@@ -627,13 +565,11 @@ def process_quiz_submission(questions, answers):
         elif 'correct_index' in question:
             correct_answer = question['correct_index']
 
-        print(f"Correct answer: {correct_answer} (type: {type(correct_answer)})")
 
         # Проверяем правильность ответа в зависимости от типа вопроса
         is_correct = False
 
         if question_type == 'multiple_choice':
-            print("Processing as multiple_choice...")
             # Для множественного выбора сравниваем индексы
             try:
                 if isinstance(user_answer, str) and user_answer.isdigit():
@@ -641,7 +577,6 @@ def process_quiz_submission(questions, answers):
                 elif isinstance(user_answer, int):
                     user_idx = user_answer
                 else:
-                    print(f"ERROR: Cannot convert user_answer to int: {user_answer}")
                     user_idx = -1
 
                 # Check if correct_answer is an index or the actual text
@@ -655,58 +590,42 @@ def process_quiz_submission(questions, answers):
                         # Try exact match first
                         if correct_answer in question['options']:
                             correct_idx = question['options'].index(correct_answer)
-                            print(f"Found text answer '{correct_answer}' at index {correct_idx}")
                         else:
                             # Try case-insensitive match
                             correct_answer_lower = correct_answer.lower()
                             for idx, option in enumerate(question['options']):
                                 if option.lower() == correct_answer_lower:
                                     correct_idx = idx
-                                    print(
-                                        f"Found text answer '{correct_answer}' at index {correct_idx} (case-insensitive)")
                                     break
                             else:
-                                print(
-                                    f"ERROR: Cannot find correct_answer '{correct_answer}' in options: {question['options']}")
                                 correct_idx = -1
                     else:
-                        print(f"ERROR: No options in question")
                         correct_idx = -1
 
-                print(f"Comparing: user_idx={user_idx} vs correct_idx={correct_idx}")
                 is_correct = user_idx == correct_idx
 
             except (ValueError, TypeError) as e:
-                print(f"ERROR in multiple_choice processing: {e}")
                 is_correct = False
 
         elif question_type == 'true_false':
-            print("Processing as true_false...")
             try:
                 if isinstance(user_answer, str):
                     user_bool = user_answer.lower() == 'true'
-                    print(f"Converted '{user_answer}' to boolean: {user_bool}")
                 else:
                     user_bool = bool(user_answer)
-                    print(f"Converted {user_answer} to boolean: {user_bool}")
 
-                print(f"Comparing: user_bool={user_bool} vs correct_answer={correct_answer}")
                 is_correct = user_bool == correct_answer
 
             except (ValueError, TypeError) as e:
-                print(f"ERROR in true_false processing: {e}")
                 is_correct = False
 
         elif question_type in ['fill_in_blank', 'fill-in-blank', 'translation']:
-            print("Processing as text question...")
             # Для текстовых вопросов проверяем с возможными правильными ответами
 
             if correct_answer is None:
-                print("No correct answer provided - marking as correct for manual review")
                 is_correct = True
             elif isinstance(correct_answer, list):
                 # Если правильный ответ - массив вариантов
-                print(f"Checking against multiple correct answers: {correct_answer}")
 
                 def normalize_text(text):
                     """Нормализация текста для сравнения"""
@@ -719,23 +638,19 @@ def process_quiz_submission(questions, answers):
                     return normalized
 
                 user_normalized = normalize_text(user_answer)
-                print(f"User normalized answer: '{user_normalized}'")
 
                 # Проверяем совпадение с любым из правильных ответов
                 is_correct = False
                 for correct_variant in correct_answer:
                     correct_normalized = normalize_text(correct_variant)
-                    print(f"Comparing with: '{correct_normalized}'")
 
                     # Проверяем точное совпадение или содержание ключевых слов
                     if user_normalized == correct_normalized:
-                        print("Exact match found!")
                         is_correct = True
                         break
                     elif len(correct_normalized.split()) <= 3:
                         # Для коротких ответов (1-3 слова) проверяем содержание
                         if correct_normalized in user_normalized:
-                            print("Short answer contained in user response!")
                             is_correct = True
                             break
                     else:
@@ -746,21 +661,17 @@ def process_quiz_submission(questions, answers):
 
                         # Если совпадает больше 60% ключевых слов
                         if len(common_words) >= len(correct_words) * 0.6:
-                            print(f"Partial match found! Common words: {common_words}")
                             is_correct = True
                             break
 
                 if not is_correct:
-                    print("No acceptable matches found")
             else:
                 # Если правильный ответ - строка
-                print(f"Checking against single correct answer: {correct_answer}")
 
                 # Специальная обработка для вопросов с альтернативными ответами
                 alternative_answers = question.get('alternative_answers', [])
                 all_possible_answers = [correct_answer] + alternative_answers
 
-                print(f"All possible answers: {all_possible_answers}")
 
                 def normalize_text(text):
                     """Нормализация текста для сравнения"""
@@ -772,24 +683,20 @@ def process_quiz_submission(questions, answers):
                     return normalized
 
                 user_normalized = normalize_text(user_answer)
-                print(f"User normalized: '{user_normalized}'")
 
                 # Проверяем против всех возможных ответов
                 is_correct = False
                 for possible_answer in all_possible_answers:
                     correct_normalized = normalize_text(possible_answer)
-                    print(f"Checking against: '{correct_normalized}'")
 
                     # Проверяем точное совпадение или разумное содержание
                     if user_normalized == correct_normalized:
                         is_correct = True
-                        print("Exact match found!")
                         break
                     elif len(correct_normalized.split()) <= 3:
                         # Для коротких ответов
                         if correct_normalized in user_normalized:
                             is_correct = True
-                            print("Short answer match found!")
                             break
                     else:
                         # Для длинных ответов проверяем пересечение слов
@@ -798,16 +705,12 @@ def process_quiz_submission(questions, answers):
                         common_words = correct_words.intersection(user_words)
                         if len(common_words) >= len(correct_words) * 0.6:
                             is_correct = True
-                            print(f"Partial match found! Common words: {common_words}")
                             break
 
-            print(f"Text question result: {is_correct}")
 
         elif question_type == 'reorder':
-            print("Processing as reorder...")
             # For reorder questions, normalize and compare
             if correct_answer is None:
-                print("No correct answer provided for reorder question")
                 is_correct = False
             else:
                 def normalize_sentence(sentence):
@@ -836,19 +739,14 @@ def process_quiz_submission(questions, answers):
                 if not is_correct:
                     is_correct = user_normalized.lower() == correct_normalized.lower()
 
-                print(f"Reorder - User: '{user_normalized}', Correct: '{correct_normalized}'")
-                print(f"Reorder result: {is_correct}")
 
         else:
-            print(f"WARNING: Unknown question type: {question_type}")
             # Если нет правильного ответа и неизвестный тип - засчитываем как правильный
             if correct_answer is None:
-                print("No correct answer provided - marking as correct")
                 is_correct = True
             else:
                 is_correct = False
 
-        print(f"RESULT: is_correct = {is_correct}")
 
         # Формируем обратную связь
         if is_correct:
@@ -859,7 +757,6 @@ def process_quiz_submission(questions, answers):
                 'user_answer': user_answer,
                 'correct_answer': correct_answer
             }
-            print("Added to CORRECT answers")
         else:
             # Определяем текст правильного ответа для отображения
             if question_type == 'multiple_choice' and 'options' in question:
@@ -926,18 +823,10 @@ def process_quiz_submission(questions, answers):
                 'user_answer': user_text,
                 'correct_answer': correct_text
             }
-            print("Added to INCORRECT answers")
 
     # Вычисляем оценку
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
-    print(f"\n--- FINAL RESULTS ---")
-    print(f"Correct answers: {correct_count}/{total_count}")
-    print(f"Final score: {score}%")
-    print(f"Feedback: {feedback}")
-    print("-" * 40)
-    print("PROCESS_QUIZ_SUBMISSION END")
-    print("-" * 40 + "\n")
 
     return {
         'correct_count': correct_count,
@@ -1035,11 +924,6 @@ def process_final_test_submission(questions, user_answers):
     total_count = len(questions)
     feedback = {}
 
-    print("\n" + "=" * 50)
-    print("PROCESS_FINAL_TEST_SUBMISSION")
-    print("=" * 50)
-    print(f"Total questions: {total_count}")
-    print(f"User answers: {user_answers}")
 
     for i, question in enumerate(questions):
         # Получаем ответ пользователя - проверяем как строковый индекс
@@ -1052,9 +936,6 @@ def process_final_test_submission(questions, user_answers):
         if correct_answer is None:
             correct_answer = question.get('correct_index')
 
-        print(f"\nQuestion {i} ({question.get('type', '')}):")
-        print(f"  User answer: {user_answer}")
-        print(f"  Correct answer: {correct_answer}")
 
         is_correct = False
 
@@ -1065,7 +946,6 @@ def process_final_test_submission(questions, user_answers):
                 try:
                     user_idx = int(user_answer)
                     is_correct = user_idx == correct_answer
-                    print(f"  Multiple choice: user_idx={user_idx}, correct={correct_answer}, match={is_correct}")
                 except (ValueError, TypeError):
                     is_correct = False
 
@@ -1074,25 +954,21 @@ def process_final_test_submission(questions, user_answers):
             if user_answer in ['true', 'false']:
                 user_bool = user_answer == 'true'
                 is_correct = user_bool == correct_answer
-                print(f"  True/False: user={user_bool}, correct={correct_answer}, match={is_correct}")
 
         elif qtype in ['fill_in_blank', 'translation']:
             # Для текстовых ответов нормализуем и сравниваем
             if user_answer:
                 user_normalized = normalize_text(user_answer)
-                print(f"  User normalized: '{user_normalized}'")
 
                 # Проверяем множественные варианты ответов
                 if isinstance(correct_answer, list):
                     for ans in correct_answer:
                         ans_normalized = normalize_text(ans)
-                        print(f"  Checking against: '{ans_normalized}'")
                         if user_normalized == ans_normalized:
                             is_correct = True
                             break
                 else:
                     correct_normalized = normalize_text(correct_answer)
-                    print(f"  Correct normalized: '{correct_normalized}'")
                     is_correct = user_normalized == correct_normalized
 
         elif qtype == 'matching':
@@ -1106,7 +982,6 @@ def process_final_test_submission(questions, user_answers):
                 # Проверяем что все пары были сопоставлены
                 all_answered = len(user_answer) == len(correct_pairs)
                 is_correct = matches_correct and all_answered
-                print(f"  Matching: correct={matches_correct}, all_answered={all_answered}")
 
         elif qtype == 'reorder':
             # Для reorder сравниваем составленное предложение
@@ -1114,7 +989,6 @@ def process_final_test_submission(questions, user_answers):
                 user_normalized = normalize_text(user_answer)
                 correct_normalized = normalize_text(correct_answer)
                 is_correct = user_normalized == correct_normalized
-                print(f"  Reorder: user='{user_normalized}', correct='{correct_normalized}', match={is_correct}")
 
         if is_correct:
             correct_count += 1
@@ -1129,8 +1003,6 @@ def process_final_test_submission(questions, user_answers):
     # Вычисляем процент
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
-    print(f"\nFinal score: {score}%, Correct: {correct_count}/{total_count}")
-    print("=" * 50)
 
     return {
         'score': round(score, 1),
@@ -1308,9 +1180,6 @@ def get_cards_for_lesson(lesson_id, user_id):
             else:
                 review_cards_shown += 1
 
-    print(f"get_cards_for_lesson: lesson_id={lesson_id}, user_id={user_id}")
-    print(f"  Studied cards: {len(studied_cards)} (new: {new_cards_shown}, review: {review_cards_shown})")
-    print(f"  Studied card IDs: {shown_card_ids}")
 
     # Определяем лимиты для урока
     lesson_number = lesson.number
@@ -1380,7 +1249,6 @@ def get_cards_for_lesson(lesson_id, user_id):
         for direction in new_directions:
             user_word = UserWord.query.get(direction.user_word_id)
             word = CollectionWords.query.get(user_word.word_id)
-            print('word.', type(word.listening))
             if word and word.russian_word:
                 card_data = {
                     'word_id': word.id,
@@ -1407,9 +1275,6 @@ def get_cards_for_lesson(lesson_id, user_id):
     # Подсчитываем общее количество доступных карточек
     total_due = new_cards_count + review_cards_count
 
-    print(f"  Result: {len(cards)} cards found (new: {new_cards_count}, review: {review_cards_count})")
-    print(f"  Limits: max_new={max_new_cards}, max_review={max_review_cards}")
-    print(f"  Remaining: new={max_new_cards - new_cards_shown}, review={max_review_cards - review_cards_shown}")
 
     return {
         'cards': cards,
@@ -1574,13 +1439,10 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
                 'was_new': was_new_card,
                 'attempts': 1
             }
-            print(f"  Added card {card_id_str} to studied_cards as failed (was_new: {was_new_card})")
         else:
             # Увеличиваем количество попыток
             progress.data['studied_cards'][card_id_str]['attempts'] += 1
             progress.data['studied_cards'][card_id_str]['last_attempt'] = datetime.utcnow().isoformat()
-            print(
-                f"  Updated attempts for card {card_id_str}: {progress.data['studied_cards'][card_id_str]['attempts']}")
 
         # Увеличиваем счетчик попыток в текущей сессии
         card_direction.session_attempts += 1
@@ -1612,7 +1474,6 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
 
         db.session.commit()
 
-        print(f"Failed attempt for card {word_id}-{direction}, session attempts: {card_direction.session_attempts}")
 
         # Рассчитываем интервалы с учетом неудачных попыток
         next_intervals = calculate_card_intervals(card_direction)
@@ -1641,9 +1502,6 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
         else:
             effective_rating = min(2, rating)
 
-        print(
-            f"Adjusting rating from {rating} to {effective_rating} due to {card_direction.session_attempts} session attempts")
-
     # Проверяем была ли это новая карточка до обработки рейтинга
     was_new_card = card_direction.repetitions == 0
 
@@ -1658,7 +1516,6 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
             'was_new': was_new_card,
             'attempts': card_direction.session_attempts + 1  # +1 for current successful attempt
         }
-        print(f"  Added card {card_id_str} to studied_cards as passed (was_new: {was_new_card}, rating: {rating})")
     else:
         # Обновляем существующую запись
         progress.data['studied_cards'][card_id_str].update({
@@ -1668,19 +1525,12 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
             'last_success': datetime.utcnow().isoformat(),
             'attempts': progress.data['studied_cards'][card_id_str].get('attempts', 0) + 1
         })
-        print(f"  Updated card {card_id_str} to passed status (rating: {rating})")
 
     # ВАЖНО: старую логику shown_card_ids больше не используем, так как теперь используем studied_cards
 
     # Обновляем SRS параметры с учетом эффективной оценки
-    print(
-        f"Before update: word_id={word_id}, direction={direction}, rating={rating}, effective_rating={effective_rating}")
-    print(f"  Old interval: {card_direction.interval}, next_review: {card_direction.next_review}")
-    print(f"  Was new card: {card_direction.repetitions == 0}")
-
     interval = card_direction.update_after_review(effective_rating)
 
-    print(f"After update: interval={interval}, next_review: {card_direction.next_review}")
 
     # Сбрасываем счетчик попыток текущей сессии после успешного ответа
     card_direction.session_attempts = 0
@@ -1706,7 +1556,6 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
                 direction=opposite_direction
             )
             db.session.add(opposite_card)
-            print(f"Created opposite direction {opposite_direction} for word {word_id}")
 
     # Обновляем статистику урока
     progress.data['total_answers'] = progress.data.get('total_answers', 0) + 1
@@ -1739,7 +1588,6 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
         if not cards_data['cards']:  # Нет больше карточек для показа
             progress.status = 'completed'
             progress.completed_at = datetime.utcnow()
-            print(f"Lesson {lesson_id} completed - no more cards available")
 
     # Помечаем объект как измененный для SQLAlchemy
     from sqlalchemy.orm.attributes import flag_modified
@@ -1755,10 +1603,6 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
         [c for c in studied_cards.values() if c.get('status') == 'passed' and c.get('was_new', True)])
     review_cards_studied = len(
         [c for c in studied_cards.values() if c.get('status') == 'passed' and not c.get('was_new', True)])
-
-    print(
-        f"  Final progress data saved: total_studied={total_studied}, new_studied={new_cards_studied}, review_studied={review_cards_studied}")
-    print(f"  Total studied_cards: {len(studied_cards)}")
 
     # Проверяем достижения (если нужно)
     achievements = []

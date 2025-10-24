@@ -213,7 +213,6 @@ def register():
                     ModuleService.grant_default_modules_to_user(user.id)
                 except Exception as module_error:
                     # Log the error but don't fail registration
-                    print(f"Warning: Failed to grant default modules to user {user.id}: {module_error}")
 
                 flash('Регистрация успешна! Теперь вы можете войти в систему.', 'success')
                 return redirect(url_for('auth.login'))

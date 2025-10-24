@@ -313,7 +313,6 @@ def get_word_translation(word):
     API для получения перевода слова с определением его формы
     """
     logger.info(f"API word-translation called for word: {word}")
-    print(f"DEBUG: API Translation called for word: {word}")
 
     word = word.lower().strip()
     original_word = word
@@ -473,10 +472,8 @@ def get_word_translation(word):
             'base_form': word_form_info['base_form'] if word_form_info else None
         }
 
-        print(f"DEBUG: Translation found: {response}")
         return jsonify(response)
     else:
-        print(f"DEBUG: Translation not found for word: {original_word}")
         return jsonify({
             'word': original_word,
             'translation': None,
@@ -510,7 +507,6 @@ def add_to_learning():
     # Если слово ещё не в изучении (статус 0), добавляем его (статус 1)
     if current_status == 0:
         current_user.set_word_status(word_id, 1)  # 1 = queued for learning
-        print(f"DEBUG: Added word {word_entry.english_word} to learning queue")
         return jsonify({
             'success': True,
             'message': 'Word added to learning queue',

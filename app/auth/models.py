@@ -21,6 +21,7 @@ class User(db.Model, UserMixin):
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    telegram_api_token = Column(String(64), unique=True, nullable=True)
 
     # # Связь со словами теперь через UserWord
     # words = relationship("CollectionWords",
@@ -33,6 +34,7 @@ class User(db.Model, UserMixin):
     __table_args__ = (
         Index('idx_user_username', 'username'),
         Index('idx_user_email', 'email'),
+        Index('idx_user_telegram_token', 'telegram_api_token'),
     )
 
     def set_password(self, password):
@@ -41,6 +43,11 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password + self.salt)
+
+    def generate_telegram_token(self):
+        """Generate a new Telegram API token for this user"""
+        self.telegram_api_token = secrets.token_urlsafe(32)
+        return self.telegram_api_token
 
     def get_word_status(self, word_id):
         """
