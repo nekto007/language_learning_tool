@@ -943,22 +943,29 @@ def leaderboard():
         # Get user's XP rank
         user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
         if user_xp:
-            current_user_xp_rank = db.session.query(
+            higher_xp_count = db.session.query(
                 func.count(UserXP.id)
             ).filter(
                 UserXP.total_xp > user_xp.total_xp
-            ).scalar() + 1
+            ).scalar()
+            current_user_xp_rank = (higher_xp_count or 0) + 1
 
         # Get user's achievement rank
         user_achievement_count = UserAchievement.query.filter_by(user_id=current_user.id).count()
         if user_achievement_count > 0:
-            current_user_achievement_rank = db.session.query(
+            # Count users with more achievements
+            higher_achievement_count = db.session.query(
                 func.count(func.distinct(UserAchievement.user_id))
-            ).group_by(
-                UserAchievement.user_id
-            ).having(
-                func.count(UserAchievement.id) > user_achievement_count
-            ).scalar() + 1 or 1
+            ).filter(
+                UserAchievement.user_id.in_(
+                    db.session.query(UserAchievement.user_id)
+                    .group_by(UserAchievement.user_id)
+                    .having(func.count(UserAchievement.id) > user_achievement_count)
+                    .subquery()
+                    .select()
+                )
+            ).scalar()
+            current_user_achievement_rank = (higher_achievement_count or 0) + 1
 
     return render_template(
         'study/leaderboard.html',
