@@ -579,6 +579,47 @@ def add_word_to_learning():
             )
             db.session.add(user_word)
 
+        # Add word to "Reading Vocabulary" deck
+        from app.study.models import QuizDeck, QuizDeckWord
+
+        # Find or create "Reading Vocabulary" deck
+        deck_title = "Слова из чтения"
+        reading_deck = QuizDeck.query.filter_by(
+            user_id=current_user.id,
+            title=deck_title
+        ).first()
+
+        if not reading_deck:
+            reading_deck = QuizDeck(
+                title=deck_title,
+                description="Слова, добавленные во время чтения книг и уроков",
+                user_id=current_user.id,
+                is_public=False
+            )
+            db.session.add(reading_deck)
+            db.session.flush()  # Get deck ID
+
+        # Check if word already in deck
+        existing_deck_word = QuizDeckWord.query.filter_by(
+            deck_id=reading_deck.id,
+            word_id=word_entry.id
+        ).first()
+
+        if not existing_deck_word:
+            # Get max order index
+            from sqlalchemy import func
+            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+                QuizDeckWord.deck_id == reading_deck.id
+            ).scalar() or 0
+
+            # Add word to deck
+            deck_word = QuizDeckWord(
+                deck_id=reading_deck.id,
+                word_id=word_entry.id,
+                order_index=max_order + 1
+            )
+            db.session.add(deck_word)
+
         db.session.commit()
         return jsonify({'success': True, 'message': f'Word "{word}" added to learning list'})
 
