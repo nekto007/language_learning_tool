@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Quiz Mode') }}{% endblock %}
+{% block title %}Режим квиза{% endblock %}
 
 {% block content %}
 <div class="container mt-4" id="quiz-app">
@@ -9,19 +9,19 @@
         <div class="progress-header">
             <div>
                 <h2 class="progress-title">
-                    {{ _('Quiz Progress') }}
+                    Прогресс квиза
                     {% if deck_title %}
                     <span class="badge bg-primary ms-2">{{ deck_title }}</span>
                     {% endif %}
                 </h2>
-                <p class="question-counter" id="question-counter">{{ _('Question 1 of 20') }}</p>
+                <p class="question-counter" id="question-counter">Вопрос 1 из 20</p>
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div class="progress-stats">
                     <span class="stat-counter stat-correct" id="correct-counter">0</span>
                     <span class="stat-counter stat-incorrect" id="incorrect-counter">0</span>
                 </div>
-                <button id="end-session-btn" class="end-session-btn">{{ _('End Quiz') }}</button>
+                <button id="end-session-btn" class="end-session-btn">Завершить квиз</button>
             </div>
         </div>
         <div class="progress-bar">
@@ -32,106 +32,108 @@
     <!-- Loading spinner -->
     <div id="loading-spinner" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">{{ _('Loading...') }}</span>
+            <span class="visually-hidden">Загрузка...</span>
         </div>
-        <p class="mt-2 text-muted">{{ _('Loading questions...') }}</p>
+        <p class="mt-2 text-muted">Загрузка вопросов...</p>
     </div>
 
     <!-- Quiz container -->
     <div id="quiz-view" style="display: none;">
-        <div id="quiz-container" class="quiz-container">
+        <div id="quiz-container" class="quiz-container" style="padding: 20px; max-width: 800px; margin: 0 auto;">
             <!-- Timer (optional) -->
-            <div class="timer-container" id="timer-container">
+            <div class="timer-container" id="timer-container" style="margin-bottom: 10px;">
                 <i class="fas fa-clock timer-icon"></i>
                 <span class="timer-value" id="timer-value">30</span>
             </div>
 
             <!-- Question header with label -->
-            <div class="quiz-header">
-                <span class="question-type" id="question-type">{{ _('Multiple Choice') }}</span>
-                <span class="question-label" id="question-label"></span>
+            <div class="quiz-header" style="margin-bottom: 10px;">
+                <span class="question-label" id="question-label" style="font-size: 14px;"></span>
             </div>
 
             <!-- Question text (the word to translate) -->
-            <div class="question-word-container">
-                <h2 class="question-text" id="question-text"></h2>
+            <div class="question-word-container" style="margin: 15px 0;">
+                <h2 class="question-text" id="question-text" style="font-size: 24px; margin: 0;"></h2>
                 <!-- Audio button (if available) -->
-                <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="{{ _('Listen') }}">
+                <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать">
                     <i class="fas fa-volume-up"></i>
                 </button>
             </div>
 
-            <!-- Multiple choice options -->
-            <div class="options-container" id="multiple-choice-container" style="display: none;">
-                <button class="option-btn" data-option="0">Option 1</button>
-                <button class="option-btn" data-option="1">Option 2</button>
-                <button class="option-btn" data-option="2">Option 3</button>
-                <button class="option-btn" data-option="3">Option 4</button>
+            <!-- Feedback container (compact, above answer options) -->
+            <div id="feedback-container" class="feedback-container" style="margin: 8px 0; padding: 6px 10px; font-size: 12px; border-radius: 4px;">
+                <p id="feedback-text" style="margin: 0; font-weight: 600;"></p>
+                <p id="correct-answer" class="correct-answer" style="margin: 3px 0 0 0; font-size: 11px;"></p>
             </div>
 
-            <!-- True/False options -->
-            <div class="true-false-container" id="true-false-container" style="display: none;">
-                <button class="tf-btn true-btn" data-option="true">{{ _('True') }}</button>
-                <button class="tf-btn false-btn" data-option="false">{{ _('False') }}</button>
+            <!-- Multiple choice options (2x2 grid) -->
+            <div class="options-container options-grid" id="multiple-choice-container" style="display: none; gap: 10px;">
+                <button class="option-btn" data-option="0" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 1</button>
+                <button class="option-btn" data-option="1" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 2</button>
+                <button class="option-btn" data-option="2" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 3</button>
+                <button class="option-btn" data-option="3" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 4</button>
             </div>
 
             <!-- Fill in the blank -->
-            <div class="fill-blank-container" id="fill-blank-container" style="display: none;">
-                <input type="text" class="fill-blank-input" id="fill-blank-input" placeholder="{{ _('Type your answer here...') }}">
+            <div class="fill-blank-container" id="fill-blank-container" style="display: none; margin: 10px 0;">
+                <input type="text" class="fill-blank-input" id="fill-blank-input" placeholder="Введите ваш ответ здесь..." style="padding: 12px; font-size: 16px;">
             </div>
 
-            <!-- Feedback container -->
-            <div id="feedback-container" class="feedback-container">
-                <p id="feedback-text"></p>
-                <p id="correct-answer" class="correct-answer"></p>
+            <!-- Buttons row -->
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; margin: 15px 0; flex-wrap: nowrap;">
+                <button id="hint-btn" class="hint-btn" style="padding: 8px 15px; font-size: 13px; white-space: nowrap; flex-shrink: 0;">💡 Подсказка</button>
+                <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                    <button id="submit-answer-btn" class="submit-answer-btn" style="padding: 8px 15px; font-size: 13px; white-space: nowrap;">Отправить</button>
+                    <button id="next-btn" class="next-btn" style="padding: 8px 15px; font-size: 13px; white-space: nowrap;">Далее →</button>
+                </div>
             </div>
 
-            <!-- Submit button -->
-            <button id="submit-answer-btn" class="submit-answer-btn">{{ _('Submit Answer') }}</button>
-
-            <!-- Next button (appears after answering) -->
-            <button id="next-btn" class="next-btn">{{ _('Next Question') }}</button>
-
-            <!-- Hint section -->
+            <!-- Hint text -->
             <div class="hint-container">
-                <button id="hint-btn" class="hint-btn">{{ _('Show Hint') }}</button>
                 <p id="hint-text" class="hint-text"></p>
             </div>
         </div>
 
-        <!-- Session complete message -->
-        <div id="session-complete" class="quiz-container session-complete">
-            <h2 class="mb-4">
-                <i class="fas fa-check-circle text-success me-2"></i>
-                {{ _('Quiz Complete!') }}
-            </h2>
+        <!-- Session complete message - COMPACT VERSION with XP -->
+        <div id="session-complete" class="quiz-container session-complete" style="display: none; text-align: center; padding: 25px; max-width: 480px; margin: 0 auto; border-radius: 12px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <!-- Title -->
+            <h3 style="font-size: 20px; font-weight: 600; margin: 0 0 20px 0; color: #333;">🎯 Квиз завершен</h3>
 
-            <div>
-                <div class="session-score" id="final-score">85%</div>
-                <div class="score-label">{{ _('Your Score') }}</div>
+            <!-- Score display -->
+            <div style="margin-bottom: 15px;">
+                <div class="session-score" id="final-score" style="font-size: 48px; font-weight: bold; margin-bottom: 5px; color: #007bff;">85%</div>
+                <div class="score-label" style="font-size: 13px; color: #888;">правильно</div>
             </div>
 
-            <div class="session-stats">
-                <div class="stat-item">
-                    <p class="stat-value" id="stats-questions">20</p>
-                    <p class="stat-label">{{ _('Questions') }}</p>
-                </div>
-                <div class="stat-item">
-                    <p class="stat-value" id="stats-correct">17</p>
-                    <p class="stat-label">{{ _('Correct') }}</p>
-                </div>
-                <div class="stat-item">
-                    <p class="stat-value" id="stats-time">5:23</p>
-                    <p class="stat-label">{{ _('Time') }}</p>
+            <!-- Compact stats - one line -->
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; font-size: 14px; color: #666;">
+                <span id="stats-summary" style="display: flex; align-items: center; gap: 5px;">
+                    <span id="stats-correct" style="color: #28a745; font-weight: 600;">17</span>/<span id="stats-questions" style="font-weight: 600;">20</span>
+                    <span style="color: #ddd;">•</span>
+                    <span id="stats-time" style="font-weight: 500;">5:23</span>
+                </span>
+            </div>
+
+            <!-- XP Earned -->
+            <div id="xp-earned" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: inline-block; font-weight: 600; font-size: 15px;">
+                +<span id="xp-amount">0</span> XP
+            </div>
+
+            <!-- Achievements (hidden by default, shown if earned) -->
+            <div id="achievements-earned" style="display: none; margin-bottom: 20px;">
+                <div style="font-size: 13px; color: #888; margin-bottom: 8px;">Новые достижения:</div>
+                <div id="achievement-badges" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                    <!-- Achievement badges will be inserted here by JavaScript -->
                 </div>
             </div>
 
-            <div class="mt-5">
-                <a href="{{ url_for('study.index') }}" class="btn btn-primary">
-                    {{ _('Back to Study') }}
+            <!-- Action buttons - compact row -->
+            <div id="action-buttons" style="display: flex; justify-content: center; gap: 10px;">
+                <a id="retry-quiz-btn" href="#" class="btn btn-primary" style="flex: 1; max-width: 180px;">
+                    <i class="fas fa-redo me-1"></i> Еще раз
                 </a>
-                <a href="{{ url_for('study.quiz') }}" class="btn btn-outline-secondary ms-2">
-                    {{ _('Take Another Quiz') }}
+                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary" style="flex: 1; max-width: 180px;">
+                    <i class="fas fa-home me-1"></i> Назад
                 </a>
             </div>
         </div>
@@ -148,10 +150,16 @@
         // Config from server
         const sessionId = {{ session_id }};
         const wordSource = '{{ word_source }}';
-        const deckId = {{ deck_id|default('null') }};
-        const showTranslations = {{ settings.include_translations|lower }};
-        const showExamples = {{ settings.include_examples|lower }};
-        const playAudio = {{ settings.include_audio|lower }};
+        const deckId = {{ deck_id|tojson }};
+        // Get word limit from URL parameter if not set by server
+        const urlParams = new URLSearchParams(window.location.search);
+        const wordLimit = {{ word_limit|tojson }} || parseInt(urlParams.get('limit')) || null;
+        const showTranslations = {{ settings.include_translations|tojson }};
+        const showExamples = {{ settings.include_examples|tojson }};
+        const playAudio = {{ settings.include_audio|tojson }};
+
+        // Get CSRF token once
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         // App state
         let questions = [];
@@ -177,9 +185,7 @@
         const correctCounter = document.getElementById('correct-counter');
         const incorrectCounter = document.getElementById('incorrect-counter');
         const questionText = document.getElementById('question-text');
-        const questionTypeEl = document.getElementById('question-type');
         const multipleChoiceContainer = document.getElementById('multiple-choice-container');
-        const trueFalseContainer = document.getElementById('true-false-container');
         const fillBlankContainer = document.getElementById('fill-blank-container');
         const fillBlankInput = document.getElementById('fill-blank-input');
         const submitAnswerBtn = document.getElementById('submit-answer-btn');
@@ -204,9 +210,16 @@
         // Fetch questions from API
         async function fetchQuestions() {
             try {
-                let url = `/study/api/get-quiz-questions?source=${wordSource}`;
+                // Get current language from URL or session
+                const urlParams = new URLSearchParams(window.location.search);
+                const lang = urlParams.get('lang') || '{{ g.locale }}';
+
+                let url = `/study/api/get-quiz-questions?source=${wordSource}&lang=${lang}`;
                 if (deckId) {
                     url += `&deck_id=${deckId}`;
+                }
+                if (wordLimit && wordLimit !== null) {
+                    url += `&count=${wordLimit}`;
                 }
 
                 const response = await fetch(url);
@@ -229,26 +242,43 @@
             }
         }
 
+        // Get unique quiz key for localStorage
+        function getQuizStateKey() {
+            // Use deckId for deck quizzes or 'auto' for automatic quizzes
+            const quizKey = deckId ? `deck_${deckId}` : 'auto';
+            return `quizState_${quizKey}`;
+        }
+
         // Save quiz state to localStorage
         function saveQuizState() {
             const state = {
-                sessionId: sessionId,
+                deckId: deckId,
+                wordSource: wordSource,
                 questions: questions,
                 currentQuestionIndex: currentQuestionIndex,
                 sessionStats: sessionStats,
-                sessionStartTime: sessionStartTime
+                sessionStartTime: sessionStartTime,
+                timestamp: Date.now()
             };
-            localStorage.setItem('quizState', JSON.stringify(state));
+            localStorage.setItem(getQuizStateKey(), JSON.stringify(state));
         }
 
         // Load quiz state from localStorage
         function loadQuizState() {
-            const savedState = localStorage.getItem('quizState');
+            const savedState = localStorage.getItem(getQuizStateKey());
             if (savedState) {
                 try {
                     const state = JSON.parse(savedState);
-                    // Check if session ID matches
-                    if (state.sessionId === sessionId) {
+
+                    // Check if state is not too old (max 24 hours)
+                    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+                    if (state.timestamp && (Date.now() - state.timestamp) > maxAge) {
+                        clearQuizState();
+                        return null;
+                    }
+
+                    // Verify that deck ID matches (or both are auto)
+                    if (state.deckId === deckId && state.wordSource === wordSource) {
                         return state;
                     }
                 } catch (error) {
@@ -260,7 +290,7 @@
 
         // Clear quiz state from localStorage
         function clearQuizState() {
-            localStorage.removeItem('quizState');
+            localStorage.removeItem(getQuizStateKey());
         }
 
         // Initialize quiz
@@ -321,23 +351,30 @@
             const question = questions[index];
             currentQuestionIndex = index;
 
+            // Debug log
+
+            // Validate question data
+            if (!question) {
+                console.error('Invalid question at index:', index);
+                return;
+            }
+
             // Reset state
             resetQuestionState();
 
             // Update progress
             const progress = ((index + 1) / questions.length) * 100;
             progressFill.style.width = `${progress}%`;
-            questionCounter.textContent = `{{ _('Question') }} ${index + 1} {{ _('of') }} ${questions.length}`;
+            questionCounter.textContent = `Вопрос ${index + 1} из ${questions.length}`;
 
             // Set question details
-            questionText.textContent = question.text;
-            questionTypeEl.textContent = getQuestionTypeLabel(question.type);
+            questionText.textContent = question.text || '';
 
             // Set question label if available
             const questionLabel = document.getElementById('question-label');
             if (question.question_label) {
                 questionLabel.textContent = question.question_label;
-                questionLabel.style.display = 'inline-block';
+                questionLabel.style.display = 'block';
             } else {
                 questionLabel.style.display = 'none';
             }
@@ -362,77 +399,74 @@
 
         // Setup the appropriate answer interface based on question type
         function setupAnswerInterface(question) {
+
             switch (question.type) {
                 case 'multiple_choice':
                     setupMultipleChoice(question);
                     break;
-                case 'true_false':
-                    setupTrueFalse(question);
-                    break;
                 case 'fill_blank':
                     setupFillBlank(question);
                     break;
+                default:
+                    console.error('Unknown question type:', question.type);
             }
         }
 
         // Setup multiple choice interface
         function setupMultipleChoice(question) {
-            multipleChoiceContainer.style.display = 'flex';
-            trueFalseContainer.style.display = 'none';
-            fillBlankContainer.style.display = 'none';
+            multipleChoiceContainer.style.setProperty('display', 'grid', 'important');
+            fillBlankContainer.style.setProperty('display', 'none', 'important');
+
+            // Hide submit button for multiple choice (auto-submit on click)
+            submitAnswerBtn.style.display = 'none';
 
             // Get option buttons
             const optionButtons = multipleChoiceContainer.querySelectorAll('.option-btn');
 
-            // Set options
-            question.options.forEach((option, index) => {
-                if (index < optionButtons.length) {
-                    optionButtons[index].textContent = option;
-                    optionButtons[index].classList.remove('selected', 'correct', 'incorrect');
+            // Debug log
+
+            // Validate options
+            if (!question.options || !Array.isArray(question.options)) {
+                console.error('Invalid options:', question.options);
+                return;
+            }
+
+            // Set options text
+            optionButtons.forEach((button, index) => {
+                if (index < question.options.length) {
+                    button.textContent = question.options[index];
+                    button.style.display = 'block';
+                } else {
+                    button.style.display = 'none';
                 }
+                button.classList.remove('selected', 'correct', 'incorrect');
             });
 
             // Add click event for options
             optionButtons.forEach(button => {
                 button.onclick = function() {
-                    optionButtons.forEach(btn => btn.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedOption = this.getAttribute('data-option');
-                    submitAnswerBtn.disabled = false;
-                };
-            });
-        }
-
-        // Setup true/false interface
-        function setupTrueFalse(question) {
-            multipleChoiceContainer.style.display = 'none';
-            trueFalseContainer.style.display = 'flex';
-            fillBlankContainer.style.display = 'none';
-
-            // Get true/false buttons
-            const tfButtons = trueFalseContainer.querySelectorAll('.tf-btn');
-
-            // Reset buttons
-            tfButtons.forEach(button => {
-                button.classList.remove('selected');
-            });
-
-            // Add click event for buttons
-            tfButtons.forEach(button => {
-                button.onclick = function() {
-                    tfButtons.forEach(btn => btn.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedOption = this.getAttribute('data-option');
-                    submitAnswerBtn.disabled = false;
+                    // Only allow click if button is visible and answer hasn't been submitted yet
+                    if (this.style.display !== 'none' && nextBtn.style.display === 'none') {
+                        optionButtons.forEach(btn => btn.classList.remove('selected'));
+                        this.classList.add('selected');
+                        selectedOption = this.getAttribute('data-option');
+                        // Auto-submit for multiple choice
+                        submitAnswer();
+                    }
                 };
             });
         }
 
         // Setup fill in the blank interface
         function setupFillBlank(question) {
-            multipleChoiceContainer.style.display = 'none';
-            trueFalseContainer.style.display = 'none';
-            fillBlankContainer.style.display = 'block';
+
+            // Explicitly hide multiple choice and show fill blank with !important
+            multipleChoiceContainer.style.setProperty('display', 'none', 'important');
+            fillBlankContainer.style.setProperty('display', 'block', 'important');
+
+            // Show submit button for fill blank (required for manual submit)
+            submitAnswerBtn.style.display = 'block';
+            submitAnswerBtn.disabled = true;
 
             // Reset input
             fillBlankInput.value = '';
@@ -472,6 +506,10 @@
 
             // Reset hint
             hintText.style.display = 'none';
+
+            // Hide all answer interfaces initially
+            multipleChoiceContainer.style.setProperty('display', 'none', 'important');
+            fillBlankContainer.style.setProperty('display', 'none', 'important');
 
             // Stop any timers
             if (timer) {
@@ -532,10 +570,6 @@
                     userAnswer = selectedOption !== null ? question.options[parseInt(selectedOption)] : '';
                     isCorrect = userAnswer === question.answer;
                     break;
-                case 'true_false':
-                    userAnswer = selectedOption;
-                    isCorrect = userAnswer === question.answer.toString();
-                    break;
                 case 'fill_blank':
                     userAnswer = fillBlankInput.value.trim().toLowerCase();
 
@@ -553,11 +587,11 @@
             feedbackContainer.style.display = 'block';
             feedbackContainer.classList.add(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
             feedbackText.textContent = isCorrect ?
-                "{{ _('Correct!') }}" :
-                "{{ _('Incorrect.') }}";
+                "Правильно!" :
+                "Неправильно.";
 
             if (!isCorrect) {
-                correctAnswer.textContent = `{{ _('Correct answer') }}: ${question.answer}`;
+                correctAnswer.textContent = `Правильный ответ: ${question.answer}`;
                 correctAnswer.style.display = 'block';
             } else {
                 correctAnswer.style.display = 'none';
@@ -595,6 +629,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
@@ -608,7 +643,6 @@
                 });
 
                 const data = await response.json();
-                console.log('Answer submission response:', data);
             } catch (error) {
                 console.error('Error submitting answer:', error);
             }
@@ -645,6 +679,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
@@ -657,7 +692,6 @@
                 });
 
                 const data = await response.json();
-                console.log('Quiz completion response:', data);
 
                 // Hide quiz container
                 quizContainer.style.display = 'none';
@@ -670,43 +704,56 @@
                 const seconds = timeSpent % 60;
                 const timeFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-                // Update stats display
+                // Update stats display - COMPACT VERSION
                 finalScore.textContent = `${scorePercentage}%`;
                 statsQuestions.textContent = sessionStats.total;
                 statsCorrect.textContent = sessionStats.correct;
                 statsTime.textContent = timeFormatted;
 
-                // Add rank information if available
-                if (data.rank) {
-                    // Create rank display
-                    const rankDisplay = document.createElement('div');
-                    rankDisplay.className = 'mt-4 text-center';
+                // Set score color based on percentage
+                if (scorePercentage >= 90) {
+                    finalScore.style.color = '#28a745';
+                } else if (scorePercentage >= 75) {
+                    finalScore.style.color = '#007bff';
+                } else if (scorePercentage >= 60) {
+                    finalScore.style.color = '#ffc107';
+                } else {
+                    finalScore.style.color = '#dc3545';
+                }
 
-                    let rankHTML = `
-                        <h3>{{ _('Your Rank') }}: <span class="text-primary">#${data.rank}</span></h3>
-                    `;
+                // Update XP amount (will be calculated by server)
+                const xpAmount = data.xp_earned || 0;
+                document.getElementById('xp-amount').textContent = xpAmount;
 
-                    if (data.is_personal_best) {
-                        rankHTML += `
-                            <div class="alert alert-success mt-2">
-                                <i class="fas fa-trophy me-2"></i>
-                                {{ _('New personal best!') }}
-                            </div>
+                // Show achievements if earned
+                if (data.achievements && data.achievements.length > 0) {
+                    const achievementsContainer = document.getElementById('achievements-earned');
+                    const badgesContainer = document.getElementById('achievement-badges');
+                    badgesContainer.innerHTML = '';
+
+                    data.achievements.forEach(achievement => {
+                        const badge = document.createElement('div');
+                        badge.style.cssText = 'background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500;';
+                        badge.innerHTML = `
+                            <span style="font-size: 18px;">${achievement.icon}</span>
+                            <span>${achievement.name}</span>
                         `;
+                        badgesContainer.appendChild(badge);
+                    });
+
+                    achievementsContainer.style.display = 'block';
+                }
+
+                // Set retry button URL with limit parameter if present
+                const retryBtn = document.getElementById('retry-quiz-btn');
+                if (retryBtn && deckId) {
+                    let retryUrl = `/study/quiz/deck/${deckId}`;
+                    if (wordLimit && wordLimit > 0) {
+                        retryUrl += `?limit=${wordLimit}`;
                     }
-
-                    rankHTML += `
-                        <a href="{{ url_for('study.leaderboard') }}" class="btn btn-outline-primary mt-3">
-                            <i class="fas fa-list me-2"></i>
-                            {{ _('View Leaderboard') }}
-                        </a>
-                    `;
-
-                    rankDisplay.innerHTML = rankHTML;
-
-                    // Insert before the existing buttons
-                    const buttonsContainer = document.querySelector('#session-complete .mt-5');
-                    buttonsContainer.parentNode.insertBefore(rankDisplay, buttonsContainer);
+                    retryBtn.href = retryUrl;
+                } else if (retryBtn) {
+                    retryBtn.href = '{{ url_for("study.quiz") }}';
                 }
 
             } catch (error) {
@@ -723,29 +770,16 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = 'alert alert-info text-center';
             messageDiv.innerHTML = `
-                <h4>${_('No Questions Available')}</h4>
-                <p>${_('There are no words matching your study criteria.')}</p>
+                <h4>Нет доступных вопросов</h4>
+                <p>Нет слов, соответствующих вашим критериям изучения.</p>
                 <a href="{{ url_for('study.index') }}" class="btn btn-primary mt-2">
-                    ${_('Return to Study Dashboard')}
+                    Вернуться к панели изучения
                 </a>
             `;
 
             document.querySelector('#quiz-app').appendChild(messageDiv);
         }
 
-        // Get question type label
-        function getQuestionTypeLabel(type) {
-            switch (type) {
-                case 'multiple_choice':
-                    return "{{ _('Multiple Choice') }}";
-                case 'true_false':
-                    return "{{ _('True or False') }}";
-                case 'fill_blank':
-                    return "{{ _('Fill in the Blank') }}";
-                default:
-                    return "{{ _('Quiz Question') }}";
-            }
-        }
 
         // Event listeners
         submitAnswerBtn.addEventListener('click', submitAnswer);
@@ -760,7 +794,7 @@
         });
 
         endSessionBtn.addEventListener('click', function() {
-            if (confirm("{{ _('Are you sure you want to end the quiz?') }}")) {
+            if (confirm("Вы уверены, что хотите завершить квиз?")) {
                 completeQuiz();
             }
         });

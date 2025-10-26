@@ -181,6 +181,12 @@ def complete_lesson(user_id, lesson_id, score=100.0):
 
     try:
         db.session.commit()
+
+        # Award XP for completing lesson
+        from app.study.xp_service import XPService
+        xp_breakdown = XPService.calculate_lesson_xp()
+        XPService.award_xp(user_id, xp_breakdown['total_xp'])
+
         return True
     except Exception as e:
         db.session.rollback()
@@ -520,8 +526,6 @@ def process_grammar_submission(exercises, answers):
     # Вычисляем оценку
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
-    for idx, fb in feedback.items():
-
     return {
         'correct_count': correct_count,
         'total_count': total_count,
@@ -664,7 +668,6 @@ def process_quiz_submission(questions, answers):
                             is_correct = True
                             break
 
-                if not is_correct:
             else:
                 # Если правильный ответ - строка
 

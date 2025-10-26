@@ -69,46 +69,57 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h3 class="mb-3">{{ _('Быстрые действия') }}</h3>
-            <div class="grid grid-cols-3 gap-3">
-                <a href="{{ url_for('words.word_list') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
-                    <i class="fas fa-list d-block mb-2" style="font-size: 1.5rem;"></i>
-                    <div class="fw-semibold">{{ _('Все слова') }}</div>
-                    <small class="text-muted">{{ _('Просмотреть полный список') }}</small>
-                </a>
+    <!-- Achievements & XP Progress -->
+    <div class="card shadow-sm mb-4" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white p-4">
+            <div class="row">
+                <!-- XP Progress Section -->
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <h3 class="mb-3 fw-bold">⚡ Ваш прогресс</h3>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="me-3">
+                            <div style="font-size: 48px; font-weight: 700;">{{ user_level or 1 }}</div>
+                            <div style="font-size: 12px; opacity: 0.9;">Уровень</div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span style="font-size: 14px;">{{ user_xp or 0 }} XP</span>
+                                <span style="font-size: 14px; opacity: 0.8;">{{ xp_to_next_level or 100 }} до Ур.{{ (user_level or 1) + 1 }}</span>
+                            </div>
+                            <div class="progress" style="height: 10px; background: rgba(255,255,255,0.2); border-radius: 10px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ xp_progress_percent or 0 }}%; background: rgba(255,255,255,0.9); border-radius: 10px;" aria-valuenow="{{ xp_progress_percent or 0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('study.quiz') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-bolt me-1"></i>Заработать XP
+                    </a>
+                </div>
 
-                <a href="{{ url_for('words.word_list', status='new') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
-                    <i class="fas fa-plus-circle d-block mb-2" style="font-size: 1.5rem;"></i>
-                    <div class="fw-semibold">{{ _('Новые слова') }}</div>
-                    <small class="text-muted">{{ _('Начать изучение') }}</small>
-                </a>
-
-                <a href="{{ url_for('words.word_list', status='learning') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
-                    <i class="fas fa-graduation-cap d-block mb-2" style="font-size: 1.5rem;"></i>
-                    <div class="fw-semibold">{{ _('Изучаемые') }}</div>
-                    <small class="text-muted">{{ _('Продолжить изучение') }}</small>
-                </a>
-
-                <a href="{{ url_for('words.word_list', status='review') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
-                    <i class="fas fa-redo d-block mb-2" style="font-size: 1.5rem;"></i>
-                    <div class="fw-semibold">{{ _('Повторение') }}</div>
-                    <small class="text-muted">{{ _('Закрепить знания') }}</small>
-                </a>
-
-                <a href="#" class="btn btn-outline text-center p-3 text-decoration-none" data-bs-toggle="modal" data-bs-target="#exportModal" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
-                    <i class="fas fa-download d-block mb-2" style="font-size: 1.5rem;"></i>
-                    <div class="fw-semibold">{{ _('Экспорт') }}</div>
-                    <small class="text-muted">{{ _('Экспорт в Anki') }}</small>
-                </a>
-
-                <a href="{{ url_for('study.index') }}" class="btn btn-outline text-center p-3 text-decoration-none" style="border: 2px solid var(--gray-200); border-radius: var(--radius-md); transition: var(--transition-base);">
-                    <i class="fas fa-play d-block mb-2" style="font-size: 1.5rem;"></i>
-                    <div class="fw-semibold">{{ _('Начать изучение') }}</div>
-                    <small class="text-muted">{{ _('Карточки и тесты') }}</small>
-                </a>
+                <!-- Achievements Section -->
+                <div class="col-md-6">
+                    <h3 class="mb-3 fw-bold">🏆 Достижения</h3>
+                    {% if user_achievements %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% for ach in user_achievements %}
+                        <div class="badge" style="background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 8px; font-size: 14px; display: flex; align-items: center; gap: 6px;" title="{{ ach.description }}">
+                            <span style="font-size: 18px;">{{ ach.icon }}</span>
+                            <span>{{ ach.name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center; font-size: 14px; opacity: 0.8;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🎯</div>
+                        <div>Пройдите квиз, чтобы получить первое достижение!</div>
+                    </div>
+                    {% endif %}
+                    {% if earned_count > 0 %}
+                    <div class="mt-2" style="font-size: 13px; opacity: 0.9;">
+                        Получено: {{ earned_count }}/{{ total_achievements }}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

@@ -160,6 +160,9 @@
         const showExamples = {{ settings.include_examples|lower }};
         const playAudio = {{ settings.include_audio|lower }};
 
+        // Get CSRF token for POST requests
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
         // Game elements
         const loadingSpinner = document.getElementById('loading-spinner');
         const gameSetup = document.getElementById('game-setup');
@@ -388,7 +391,6 @@
             // Play flip sound
             if (playAudio) {
                 flipSound.currentTime = 0;
-                flipSound.play().catch(e => console.log('Audio play prevented:', e));
             }
 
             // Flip the card
@@ -440,7 +442,6 @@
             // Play match sound
             if (playAudio) {
                 matchSound.currentTime = 0;
-                matchSound.play().catch(e => console.log('Audio play prevented:', e));
             }
 
             // Mark cards as matched
@@ -574,7 +575,6 @@
             // Play success sound
             if (playAudio) {
                 successSound.currentTime = 0;
-                successSound.play().catch(e => console.log('Audio play prevented:', e));
             }
 
             // Calculate score
@@ -610,7 +610,6 @@
             const difficultyMultiplier = difficultyMultiplierMap[difficulty] ?? 1;
 
             // 4. Предварительный лог
-            console.log('[SCORE] Расчёт:',
                 {
                     difficulty,
                     timeLimit,
@@ -637,7 +636,6 @@
             }
 
             // 6. Финальный лог результата
-            console.log('[SCORE] Итоговый счёт:', score);
             //const timeBonus = Math.max(0, difficultySettings[difficulty].timeLimit - gameSeconds);
 
 
@@ -650,6 +648,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({
                         session_id: sessionId,
@@ -664,13 +663,11 @@
                 });
 
                 const data = await response.json();
-                console.log('Game completion response:', data);
 
                 if (!data.success) {
                     console.error('Error saving game result:', data.error);
                     alert('There was a problem saving your score. Please try again.');
                 } else {
-                    console.log('Game score saved successfully with id:', data.game_score_id);
                 }
 
                 // Update completion screen

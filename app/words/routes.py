@@ -17,7 +17,7 @@ words = Blueprint('words', __name__)
 @module_required('words')
 def dashboard():
     # Получение статистики по словам пользователя на основе новых моделей
-    from app.study.models import UserWord
+    from app.study.models import UserWord, Achievement, UserAchievement
     from app.words.forms import AnkiExportForm
 
     # Получаем количество слов в каждом статусе
@@ -44,7 +44,7 @@ def dashboard():
         CollectionWords,
         UserWord.status.label('user_status')
     ).outerjoin(
-        UserWord, 
+        UserWord,
         (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
     ).order_by(
         UserWord.updated_at.desc().nullslast(),
@@ -60,11 +60,27 @@ def dashboard():
     # Форма для экспорта
     export_form = AnkiExportForm()
 
+    # Get user achievements (top 3 most recent)
+    user_achievements = db.session.query(Achievement).join(
+        UserAchievement, Achievement.id == UserAchievement.achievement_id
+    ).filter(
+        UserAchievement.user_id == current_user.id
+    ).order_by(
+        UserAchievement.earned_at.desc()
+    ).limit(3).all()
+
+    # Get total achievements count
+    total_achievements = Achievement.query.count()
+    earned_count = UserAchievement.query.filter_by(user_id=current_user.id).count()
+
     return render_template('words/dashboard.html',
                          status_stats=status_stats,
                          total_words=total_words,
                          recent_words=recent_words,
-                         export_form=export_form)
+                         export_form=export_form,
+                         user_achievements=user_achievements,
+                         total_achievements=total_achievements,
+                         earned_count=earned_count)
 
 
 @words.route('/words')
@@ -145,8 +161,8 @@ def word_list():
             ),
             # Priority 2: Starts with search term
             case(
-                (func.lower(CollectionWords.english_word).startswith(search_lower), 2),
-                (func.lower(CollectionWords.russian_word).startswith(search_lower), 2),
+                (func.lower(CollectionWords.english_word).like(f'{search_lower}%'), 2),
+                (func.lower(CollectionWords.russian_word).like(f'{search_lower}%'), 2),
                 else_=10
             ),
             # Priority 3: Alphabetically by English word
