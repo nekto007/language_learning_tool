@@ -76,7 +76,7 @@
                             </thead>
                             <tbody>
                                 {% for user in top_xp_users %}
-                                <tr {% if user.username == current_user.username %}style="background: #e7f3ff;"{% endif %}>
+                                <tr {% if user['username'] == current_user.username %}style="background: #e7f3ff;"{% endif %}>
                                     <td class="text-center fw-bold">
                                         {% if loop.index == 1 %}
                                             <span style="font-size: 24px;">🥇</span>
@@ -91,21 +91,21 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-weight: 600;">
-                                                {{ user.username[0].upper() }}
+                                                {{ user['username'][0].upper() }}
                                             </div>
-                                            <span class="fw-semibold">{{ user.username }}</span>
-                                            {% if user.username == current_user.username %}
+                                            <span class="fw-semibold">{{ user['username'] }}</span>
+                                            {% if user['username'] == current_user.username %}
                                                 <span class="badge bg-primary ms-2">Вы</span>
                                             {% endif %}
                                         </div>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 14px;">
-                                            Ур. {{ user.level }}
+                                            Ур. {{ user['level'] }}
                                         </span>
                                     </td>
                                     <td class="text-end">
-                                        <span class="fw-bold text-primary">{{ "{:,}".format(user.total_xp).replace(',', ' ') }} XP</span>
+                                        <span class="fw-bold text-primary">{{ "{:,}".format(user['total_xp']).replace(',', ' ') }} XP</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -131,7 +131,7 @@
                             </thead>
                             <tbody>
                                 {% for user in top_achievement_users %}
-                                <tr {% if user.username == current_user.username %}style="background: #fff8e1;"{% endif %}>
+                                <tr {% if user['username'] == current_user.username %}style="background: #fff8e1;"{% endif %}>
                                     <td class="text-center fw-bold">
                                         {% if loop.index == 1 %}
                                             <span style="font-size: 24px;">🥇</span>
@@ -146,17 +146,17 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-weight: 600;">
-                                                {{ user.username[0].upper() }}
+                                                {{ user['username'][0].upper() }}
                                             </div>
-                                            <span class="fw-semibold">{{ user.username }}</span>
-                                            {% if user.username == current_user.username %}
+                                            <span class="fw-semibold">{{ user['username'] }}</span>
+                                            {% if user['username'] == current_user.username %}
                                                 <span class="badge bg-warning ms-2">Вы</span>
                                             {% endif %}
                                         </div>
                                     </td>
                                     <td class="text-end">
                                         <span class="fw-bold text-warning">
-                                            <i class="fas fa-trophy me-1"></i>{{ user.achievement_count }}
+                                            <i class="fas fa-trophy me-1"></i>{{ user['achievement_count'] }}
                                         </span>
                                     </td>
                                 </tr>

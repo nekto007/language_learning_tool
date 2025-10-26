@@ -887,22 +887,32 @@ def leaderboard():
     top_xp_users = cache.get(cache_key_xp)
     if not top_xp_users:
         # Get top users by XP
-        top_xp_users = db.session.query(
+        results = db.session.query(
             User.id,
             User.username,
-            UserXP.total_xp,
-            UserXP.level
+            UserXP.total_xp
         ).join(
             UserXP, User.id == UserXP.user_id
         ).order_by(
             UserXP.total_xp.desc()
         ).limit(100).all()
+
+        # Convert to list of dicts with calculated level
+        top_xp_users = [
+            {
+                'id': row.id,
+                'username': row.username,
+                'total_xp': row.total_xp,
+                'level': max(1, row.total_xp // 100)  # Calculate level
+            }
+            for row in results
+        ]
         cache.set(cache_key_xp, top_xp_users, timeout=300)  # 5 minutes
 
     top_achievement_users = cache.get(cache_key_ach)
     if not top_achievement_users:
         # Get top users by achievement count
-        top_achievement_users = db.session.query(
+        results = db.session.query(
             User.id,
             User.username,
             func.count(UserAchievement.id).label('achievement_count')
@@ -913,6 +923,16 @@ def leaderboard():
         ).order_by(
             func.count(UserAchievement.id).desc()
         ).limit(100).all()
+
+        # Convert to list of dicts for caching
+        top_achievement_users = [
+            {
+                'id': row.id,
+                'username': row.username,
+                'achievement_count': row.achievement_count
+            }
+            for row in results
+        ]
         cache.set(cache_key_ach, top_achievement_users, timeout=300)  # 5 minutes
 
     # Find current user's rank
