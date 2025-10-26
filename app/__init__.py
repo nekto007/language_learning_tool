@@ -9,6 +9,7 @@ from flask_wtf.csrf import CSRFProtect
 from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
 from app.utils.i18n import init_babel
+from app.utils.cache import init_cache
 from config.settings import Config
 
 login_manager = LoginManager()
@@ -35,6 +36,7 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     limiter.init_app(app)
     init_babel(app)
+    init_cache(app)
 
     # Initialize template utilities
     from app.utils.template_utils import init_template_utils
