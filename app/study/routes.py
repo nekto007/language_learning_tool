@@ -872,6 +872,115 @@ def stats():
     )
 
 
+@study.route('/leaderboard')
+@login_required
+def leaderboard():
+    """Leaderboard showing top users by XP and achievements"""
+    from app.study.models import UserXP, UserAchievement
+    from app.models import User
+
+    # Get top users by XP
+    top_xp_users = db.session.query(
+        User.id,
+        User.username,
+        UserXP.total_xp,
+        UserXP.level
+    ).join(
+        UserXP, User.id == UserXP.user_id
+    ).order_by(
+        UserXP.total_xp.desc()
+    ).limit(100).all()
+
+    # Get top users by achievement count
+    top_achievement_users = db.session.query(
+        User.id,
+        User.username,
+        func.count(UserAchievement.id).label('achievement_count')
+    ).join(
+        UserAchievement, User.id == UserAchievement.user_id
+    ).group_by(
+        User.id, User.username
+    ).order_by(
+        func.count(UserAchievement.id).desc()
+    ).limit(100).all()
+
+    # Find current user's rank
+    current_user_xp_rank = None
+    current_user_achievement_rank = None
+
+    if current_user.is_authenticated:
+        # Get user's XP rank
+        user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
+        if user_xp:
+            current_user_xp_rank = db.session.query(
+                func.count(UserXP.id)
+            ).filter(
+                UserXP.total_xp > user_xp.total_xp
+            ).scalar() + 1
+
+        # Get user's achievement rank
+        user_achievement_count = UserAchievement.query.filter_by(user_id=current_user.id).count()
+        if user_achievement_count > 0:
+            current_user_achievement_rank = db.session.query(
+                func.count(func.distinct(UserAchievement.user_id))
+            ).group_by(
+                UserAchievement.user_id
+            ).having(
+                func.count(UserAchievement.id) > user_achievement_count
+            ).scalar() + 1 or 1
+
+    return render_template(
+        'study/leaderboard.html',
+        top_xp_users=top_xp_users,
+        top_achievement_users=top_achievement_users,
+        current_user_xp_rank=current_user_xp_rank,
+        current_user_achievement_rank=current_user_achievement_rank
+    )
+
+
+@study.route('/achievements')
+@login_required
+def achievements():
+    """Achievements page showing all available and earned achievements"""
+    from app.study.models import Achievement, UserAchievement
+
+    # Get all achievements grouped by category
+    all_achievements = Achievement.query.order_by(Achievement.category, Achievement.xp_reward).all()
+
+    # Get user's earned achievements
+    user_achievements = UserAchievement.query.filter_by(
+        user_id=current_user.id
+    ).all()
+    earned_ids = {ua.achievement_id for ua in user_achievements}
+
+    # Group achievements by category
+    achievements_by_category = {}
+    for ach in all_achievements:
+        if ach.category not in achievements_by_category:
+            achievements_by_category[ach.category] = []
+
+        achievements_by_category[ach.category].append({
+            'achievement': ach,
+            'earned': ach.id in earned_ids,
+            'earned_at': next((ua.earned_at for ua in user_achievements if ua.achievement_id == ach.id), None)
+        })
+
+    # Calculate stats
+    total_achievements = len(all_achievements)
+    earned_count = len(earned_ids)
+    total_xp_available = sum(ach.xp_reward for ach in all_achievements)
+    earned_xp = sum(ach.xp_reward for ach in all_achievements if ach.id in earned_ids)
+
+    return render_template(
+        'study/achievements.html',
+        achievements_by_category=achievements_by_category,
+        total_achievements=total_achievements,
+        earned_count=earned_count,
+        total_xp_available=total_xp_available,
+        earned_xp=earned_xp
+    )
+
+
 @study.route('/matching')
 @login_required
 @module_required('study')

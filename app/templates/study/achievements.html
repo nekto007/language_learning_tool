@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Достижения{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="card shadow-lg mb-4" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white p-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2"><i class="fas fa-trophy me-2"></i>Достижения</h1>
+                    <p class="mb-0 opacity-90">Открывайте награды за успехи в обучении</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="mb-2">
+                        <div class="fs-2 fw-bold">{{ earned_count }}/{{ total_achievements }}</div>
+                        <div class="opacity-75">Получено</div>
+                    </div>
+                    <div class="progress" style="height: 8px; background: rgba(255,255,255,0.2);">
+                        <div class="progress-bar" style="width: {{ (earned_count / total_achievements * 100) if total_achievements > 0 else 0 }}%; background: rgba(255,255,255,0.9);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- XP Stats -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3" style="font-size: 48px;">⚡</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-primary">{{ earned_xp }} XP</div>
+                            <div class="text-muted">Заработано из {{ total_xp_available }} XP</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3" style="font-size: 48px;">📊</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-success">{{ ((earned_count / total_achievements * 100)|int) if total_achievements > 0 else 0 }}%</div>
+                            <div class="text-muted">Процент завершения</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievements by Category -->
+    {% set category_names = {
+        'quiz': '🎯 Квизы',
+        'study': '📚 Обучение',
+        'streak': '🔥 Серии',
+        'special': '✨ Особые',
+        'books': '📖 Книги',
+        'flashcards': '🎴 Карточки',
+        'matching': '🎊 Совпадения',
+        'lessons': '🎓 Уроки',
+        'levels': '🌟 Уровни'
+    } %}
+
+    {% for category, achievements in achievements_by_category.items() %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h3 class="mb-0">{{ category_names.get(category, category.title()) }}</h3>
+            <small class="text-muted">
+                {{ achievements|selectattr('earned', 'equalto', True)|list|length }}/{{ achievements|length }} получено
+            </small>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for item in achievements %}
+                {% set ach = item.achievement %}
+                {% set earned = item.earned %}
+                {% set earned_at = item.earned_at %}
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="achievement-card {% if earned %}earned{% else %}locked{% endif %}"
+                         style="border: 2px solid {% if earned %}#28a745{% else %}#e0e0e0{% endif %};
+                                border-radius: 12px;
+                                padding: 16px;
+                                transition: all 0.3s;
+                                position: relative;
+                                background: {% if earned %}linear-gradient(135deg, #f0fff4 0%, #ffffff 100%){% else %}#f8f9fa{% endif %};
+                                {% if not earned %}opacity: 0.6; filter: grayscale(50%);{% endif %}">
+
+                        <!-- Earned badge -->
+                        {% if earned %}
+                        <div style="position: absolute; top: 8px; right: 8px; background: #28a745; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                            <i class="fas fa-check me-1"></i>Получено
+                        </div>
+                        {% endif %}
+
+                        <!-- Icon -->
+                        <div style="font-size: 48px; margin-bottom: 12px;">{{ ach.icon }}</div>
+
+                        <!-- Title and description -->
+                        <h5 class="mb-2 fw-bold" style="{% if not earned %}color: #6c757d;{% endif %}">{{ ach.name }}</h5>
+                        <p class="mb-2 small" style="{% if not earned %}color: #6c757d;{% endif %}">{{ ach.description }}</p>
+
+                        <!-- XP reward -->
+                        <div class="d-flex align-items-center justify-content-between mt-3">
+                            <span class="badge" style="background: {% if earned %}#667eea{% else %}#6c757d{% endif %}; font-size: 13px;">
+                                +{{ ach.xp_reward }} XP
+                            </span>
+
+                            {% if earned and earned_at %}
+                            <small class="text-muted">
+                                {{ earned_at.strftime('%d.%m.%Y') }}
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Progress hint for locked achievements -->
+                        {% if not earned %}
+                        <div class="mt-2 small text-muted">
+                            <i class="fas fa-lock me-1"></i>Ещё не получено
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.achievement-card {
+    cursor: pointer;
+}
+
+.achievement-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1) !important;
+}
+
+.achievement-card.earned:hover {
+    border-color: #20c997 !important;
+}
+
+.achievement-card.locked:hover {
+    border-color: #6c757d !important;
+}
+</style>
+{% endblock %}
