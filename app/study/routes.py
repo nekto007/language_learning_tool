@@ -1759,13 +1759,6 @@ def complete_quiz():
     })
 
 
-@study.route('/leaderboard')
-@login_required
-def leaderboard():
-    """Show leaderboard for games"""
-    return render_template('study/leaderboard.html')
-
-
 @study.route('/api/leaderboard/<game_type>')
 @login_required
 def get_leaderboard(game_type):
