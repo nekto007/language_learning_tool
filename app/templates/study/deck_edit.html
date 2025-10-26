@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+
+{% block title %}Редактировать: {{ deck.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="mb-3">
+        <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Назад
+        </a>
+    </div>
+
+    <h2 class="mb-4">
+        <i class="fas fa-edit me-2"></i>Редактировать: {{ deck.title }}
+    </h2>
+
+    <!-- Deck Settings -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Настройки колоды</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="title" class="form-label">Название *</label>
+                        <input type="text" class="form-control" id="title" name="title"
+                               value="{{ deck.title }}" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label d-block">Публичность</label>
+                        <div class="form-check form-switch mt-2">
+                            <input type="checkbox" class="form-check-input" id="is_public" name="is_public"
+                                   {% if deck.is_public %}checked{% endif %}>
+                            <label class="form-check-label" for="is_public">
+                                Публичная колода
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Описание</label>
+                    <textarea class="form-control" id="description" name="description" rows="2">{{ deck.description or '' }}</textarea>
+                </div>
+
+                {% if deck.is_public and deck.share_code %}
+                <div class="alert alert-success">
+                    <i class="fas fa-share-alt me-2"></i>
+                    <strong>Ссылка для шаринга:</strong><br>
+                    <code id="share-link">{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}</code>
+                    <button type="button" class="btn btn-sm btn-outline-success ms-2"
+                            onclick="navigator.clipboard.writeText(document.getElementById('share-link').textContent); alert('Ссылка скопирована!')">
+                        <i class="fas fa-copy"></i> Копировать
+                    </button>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Сохранить
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast notification container -->
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
+    <!-- Add Word -->
+    <div class="card shadow-sm mb-4" style="position: relative; z-index: 50;">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Добавить слово</h5>
+        </div>
+        <div class="card-body" style="overflow: visible;">
+            <form method="POST" action="{{ url_for('study.add_word_to_deck', deck_id=deck.id) }}" id="add-word-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="word_id" id="word-id-input" value="">
+
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <label for="custom_english" class="form-label">English *</label>
+                        <div style="position: relative; z-index: 100;">
+                            <input type="text" class="form-control" id="custom_english" name="custom_english"
+                                   placeholder="Начните вводить..." required autocomplete="off">
+                            <div id="autocomplete-results" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 300px; overflow-y: auto; display: none; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; margin-top: 2px;"></div>
+                        </div>
+                        <small class="text-muted">Начните вводить для поиска в базе или добавьте своё</small>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label for="custom_russian" class="form-label">Русский *</label>
+                        <input type="text" class="form-control" id="custom_russian" name="custom_russian"
+                               placeholder="привет" required>
+                        <small class="text-muted">Перевод на русский</small>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label d-block">&nbsp;</label>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-plus"></i> Добавить
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Add Words -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Добавить несколько слов</h5>
+        </div>
+        <div class="card-body">
+            <form id="bulk-add-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <div class="mb-3">
+                    <label for="bulk_words" class="form-label">Вставьте слова построчно</label>
+                    <textarea class="form-control" id="bulk_words" name="bulk_words" rows="8"
+                              placeholder="Вставьте слова в формате:&#10;hello - привет&#10;world - мир&#10;goodbye - до свидания"></textarea>
+                    <small class="text-muted">
+                        Формат: <code>english - русский</code> (одна пара на строку, разделитель: дефис, запятая или табуляция)
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-warning" id="bulk-add-button">
+                    <i class="fas fa-upload me-1"></i>Добавить все слова
+                </button>
+                <span id="bulk-progress" class="ms-2 text-muted" style="display: none;"></span>
+            </form>
+        </div>
+    </div>
+
+    <!-- Word List -->
+    <div class="card shadow-sm mb-4" style="position: relative; z-index: 10;">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Слова в колоде
+                <span class="badge bg-white text-info ms-2" id="words-count">{{ words|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive" {% if not words %}style="display: none;"{% endif %} id="words-table-container">
+                <table class="table table-hover" id="words-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 20%;">English</th>
+                            <th style="width: 20%;">Русский</th>
+                            <th style="width: 40%;">Примеры</th>
+                            <th style="width: 15%;" class="text-center">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for word in words %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <strong>{{ word.english_word }}</strong>
+                                {% if word.custom_english %}
+                                <span class="badge bg-warning text-dark" title="Кастомный перевод">Custom</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ word.russian_word }}</td>
+                            <td>
+                                {% if word.word and word.word.sentences %}
+                                <small class="text-muted" style="font-size: 0.85rem;">
+                                    {{ word.word.sentences[:150] }}{% if word.word.sentences|length > 150 %}...{% endif %}
+                                </small>
+                                {% else %}
+                                <small class="text-muted fst-italic">Нет примеров</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <form method="POST" action="{{ url_for('study.remove_word_from_deck', deck_id=deck.id, word_id=word.id) }}"
+                                      onsubmit="return confirm('Удалить это слово из колоды?')" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Удалить">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not words %}
+            <div class="alert alert-info mb-0" id="no-words-alert">
+                <i class="fas fa-info-circle me-2"></i>
+                В колоде пока нет слов. Добавьте первое слово используя форму выше!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Вернуться к списку
+        </a>
+        <div>
+            <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary">
+                <i class="fas fa-brain me-1"></i>Пройти Quiz
+            </a>
+            <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success">
+                <i class="fas fa-layer-group me-1"></i>SRS Повторение
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const englishInput = document.getElementById('custom_english');
+    const russianInput = document.getElementById('custom_russian');
+    const wordIdInput = document.getElementById('word-id-input');
+    const autocompleteResults = document.getElementById('autocomplete-results');
+
+    let searchTimeout = null;
+
+    // Autocomplete search
+    englishInput.addEventListener('input', function() {
+        const query = this.value.trim();
+
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        // Hide results if query is too short
+        if (query.length < 2) {
+            autocompleteResults.style.display = 'none';
+            wordIdInput.value = '';
+            return;
+        }
+
+        // Debounce search
+        searchTimeout = setTimeout(() => {
+            fetch(`/study/api/search-words?q=${encodeURIComponent(query)}&limit=10`)
+                .then(response => response.json())
+                .then(words => {
+                    if (words.length === 0) {
+                        autocompleteResults.style.display = 'none';
+                        wordIdInput.value = '';
+                        return;
+                    }
+
+                    // Build results list
+                    autocompleteResults.innerHTML = words.map(word => `
+                        <button type="button" class="list-group-item list-group-item-action"
+                                data-id="${word.id}"
+                                data-english="${word.english}"
+                                data-russian="${word.russian}">
+                            <strong>${word.english}</strong> — ${word.russian}
+                        </button>
+                    `).join('');
+
+                    autocompleteResults.style.display = 'block';
+
+                    // Add click handlers
+                    autocompleteResults.querySelectorAll('.list-group-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const wordId = this.dataset.id;
+                            const english = this.dataset.english;
+                            const russian = this.dataset.russian;
+
+                            // Fill form
+                            englishInput.value = english;
+                            russianInput.value = russian;
+                            wordIdInput.value = wordId;
+
+                            // Hide results
+                            autocompleteResults.style.display = 'none';
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    autocompleteResults.style.display = 'none';
+                });
+        }, 300); // 300ms debounce
+    });
+
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!englishInput.contains(e.target) && !autocompleteResults.contains(e.target)) {
+            autocompleteResults.style.display = 'none';
+        }
+    });
+
+    // Clear word_id if user manually changes the input
+    englishInput.addEventListener('change', function() {
+        if (wordIdInput.value) {
+            // Check if the value matches the selected word
+            const selectedWord = autocompleteResults.querySelector('.list-group-item.active');
+            if (!selectedWord || selectedWord.dataset.english !== this.value) {
+                wordIdInput.value = ''; // Clear word_id if manually edited
+            }
+        }
+    });
+
+    russianInput.addEventListener('input', function() {
+        // Clear word_id if russian is manually changed
+        if (wordIdInput.value) {
+            wordIdInput.value = '';
+        }
+    });
+
+    // Handle form submission via AJAX
+    const addWordForm = document.getElementById('add-word-form');
+    const wordsTableBody = document.querySelector('#words-table tbody');
+    const noWordsAlert = document.getElementById('no-words-alert');
+
+    addWordForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+
+        // Disable button and show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showMessage(data.message, 'success');
+
+                // Add word to table
+                addWordToTable(data.word);
+
+                // Reset form
+                englishInput.value = '';
+                russianInput.value = '';
+                wordIdInput.value = '';
+                autocompleteResults.style.display = 'none';
+
+                // Focus back on English input
+                englishInput.focus();
+
+                // Hide "no words" alert if present
+                if (noWordsAlert) {
+                    noWordsAlert.style.display = 'none';
+                }
+            } else {
+                showMessage(data.message || 'Ошибка при добавлении слова', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Ошибка при добавлении слова', 'danger');
+        })
+        .finally(() => {
+            // Re-enable button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        });
+    });
+
+    // Bulk add words handler
+    const bulkAddForm = document.getElementById('bulk-add-form');
+    const bulkAddButton = document.getElementById('bulk-add-button');
+    const bulkProgress = document.getElementById('bulk-progress');
+
+    bulkAddForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const textarea = document.getElementById('bulk_words');
+        const text = textarea.value.trim();
+
+        if (!text) {
+            showMessage('Пожалуйста, введите слова', 'warning');
+            return;
+        }
+
+        // Parse lines
+        const lines = text.split('\n').filter(line => line.trim());
+        const wordPairs = [];
+
+        // Parse each line (support different separators: -, tab, comma)
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+
+            // Try different separators
+            let parts = null;
+            if (trimmed.includes(' - ')) {
+                parts = trimmed.split(' - ');
+            } else if (trimmed.includes('\t')) {
+                parts = trimmed.split('\t');
+            } else if (trimmed.includes(',')) {
+                parts = trimmed.split(',');
+            } else if (trimmed.includes('-')) {
+                parts = trimmed.split('-');
+            }
+
+            if (parts && parts.length >= 2) {
+                const english = parts[0].trim();
+                const russian = parts[1].trim();
+                if (english && russian) {
+                    wordPairs.push({ english, russian });
+                }
+            }
+        }
+
+        if (wordPairs.length === 0) {
+            showMessage('Не найдено корректных пар слов. Используйте формат: english - русский', 'warning');
+            return;
+        }
+
+        // Disable button and show progress
+        bulkAddButton.disabled = true;
+        bulkProgress.style.display = 'inline';
+        bulkProgress.textContent = `Добавляю 0/${wordPairs.length}...`;
+
+        let addedCount = 0;
+        let errorCount = 0;
+
+        // Add words one by one
+        const addNextWord = (index) => {
+            if (index >= wordPairs.length) {
+                // All done
+                bulkAddButton.disabled = false;
+                bulkProgress.style.display = 'none';
+                textarea.value = '';
+
+                if (errorCount === 0) {
+                    showMessage(`Успешно добавлено ${addedCount} слов!`, 'success');
+                } else {
+                    showMessage(`Добавлено ${addedCount} слов, ${errorCount} ошибок`, 'warning');
+                }
+                return;
+            }
+
+            const pair = wordPairs[index];
+            bulkProgress.textContent = `Добавляю ${index + 1}/${wordPairs.length}...`;
+
+            const formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            formData.append('custom_english', pair.english);
+            formData.append('custom_russian', pair.russian);
+
+            fetch('{{ url_for("study.add_word_to_deck", deck_id=deck.id) }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addedCount++;
+                    addWordToTable(data.word);
+                } else {
+                    errorCount++;
+                }
+                // Add next word with small delay
+                setTimeout(() => addNextWord(index + 1), 100);
+            })
+            .catch(error => {
+                errorCount++;
+                setTimeout(() => addNextWord(index + 1), 100);
+            });
+        };
+
+        // Start adding
+        addNextWord(0);
+    });
+
+    // Add word to table dynamically
+    function addWordToTable(word) {
+        // Show table if it was hidden
+        const tableContainer = document.getElementById('words-table-container');
+        if (tableContainer) {
+            tableContainer.style.display = 'block';
+        }
+
+        if (!wordsTableBody) return;
+
+        const rowCount = wordsTableBody.querySelectorAll('tr').length;
+        const newRow = document.createElement('tr');
+
+        // Format sentences
+        let sentencesHtml = '';
+        if (word.sentences) {
+            sentencesHtml = `<small class="text-muted" style="font-size: 0.85rem;">${escapeHtml(word.sentences)}</small>`;
+        } else {
+            sentencesHtml = '<small class="text-muted fst-italic">Нет примеров</small>';
+        }
+
+        newRow.innerHTML = `
+            <td>${rowCount + 1}</td>
+            <td>
+                <strong>${escapeHtml(word.english)}</strong>
+                ${word.has_custom ? '<span class="badge bg-warning text-dark" title="Кастомный перевод">Custom</span>' : ''}
+            </td>
+            <td>${escapeHtml(word.russian)}</td>
+            <td>${sentencesHtml}</td>
+            <td class="text-center">
+                <form method="POST" action="/study/my-decks/{{ deck.id }}/words/${word.id}/delete"
+                      onsubmit="return confirm('Удалить это слово из колоды?')" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-danger btn-sm" title="Удалить">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </td>
+        `;
+        wordsTableBody.appendChild(newRow);
+
+        // Add animation
+        newRow.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+            newRow.style.transition = 'background-color 1s';
+            newRow.style.backgroundColor = '';
+        }, 100);
+
+        // Update counter in header
+        const counterBadge = document.getElementById('words-count');
+        if (counterBadge) {
+            counterBadge.textContent = rowCount + 1;
+        }
+    }
+
+    // Show toast notification
+    function showMessage(message, type) {
+        const toastContainer = document.getElementById('toast-container');
+
+        // Map alert types to toast styles
+        const typeConfig = {
+            'success': { icon: '✓', color: '#28a745', bg: '#d4edda' },
+            'danger': { icon: '✗', color: '#dc3545', bg: '#f8d7da' },
+            'info': { icon: 'ℹ', color: '#17a2b8', bg: '#d1ecf1' },
+            'warning': { icon: '⚠', color: '#ffc107', bg: '#fff3cd' }
+        };
+
+        const config = typeConfig[type] || typeConfig['info'];
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: ${config.bg};
+            color: #000;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid ${config.color};
+            font-size: 14px;
+            font-weight: 500;
+        `;
+
+        toast.innerHTML = `
+            <span style="font-size: 24px; color: ${config.color};">${config.icon}</span>
+            <span style="flex: 1;">${message}</span>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        // Auto-dismiss after 3 seconds with fade out
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+
+#autocomplete-results .list-group-item {
+    cursor: pointer;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 12px 16px;
+    transition: background-color 0.2s;
+}
+
+#autocomplete-results .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+#autocomplete-results .list-group-item:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %}

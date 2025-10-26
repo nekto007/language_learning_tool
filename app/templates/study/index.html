@@ -1,144 +1,430 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Изучение слов') }}{% endblock %}
-
-{% block styles %}
-{{ super() }}
-{% endblock %}
+{% block title %}Изучение слов{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 800px;">
+<div class="container" style="max-width: 1400px;">
     <!-- Заголовок -->
-    <div class="text-center mb-5 py-4">
-        <h1 class="display-5 fw-bold mb-2">{{ _('Изучение слов') }}</h1>
-        <p class="lead text-secondary">{{ _('Выберите режим обучения') }}</p>
+    <div class="mb-4">
+        <h1 class="h2 fw-bold mb-2">📚 Изучение слов</h1>
+        <p class="text-muted">Выберите колоду или коллекцию для изучения</p>
     </div>
 
-    <!-- Информационная панель -->
-    {% if due_items_count > 0 %}
-    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
-        <i class="fas fa-info-circle me-3 fs-4"></i>
-        <div>
-            {{ _('У вас есть %(count)d слов для повторения. Система автоматически выберет их для изучения.', count=due_items_count) }}
-        </div>
-    </div>
-    {% elif total_items == 0 %}
-    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
-        <i class="fas fa-exclamation-circle me-3 fs-4"></i>
-        <div>
-            {{ _('У вас пока нет слов для изучения. Система автоматически добавит новые слова из коллекций.') }}
-        </div>
-    </div>
-    {% else %}
-    <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
-        <i class="fas fa-check-circle me-3 fs-4"></i>
-        <div>
-            {{ _('Отлично! Все слова на сегодня повторены. Можете добавить новые слова для изучения.') }}
+    <!-- Быстрый старт - SRS карточки -->
+    {% if due_items_count > 0 or total_items > 0 %}
+    <div class="card mb-4 border-primary shadow-sm">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="card-title mb-2">
+                        <i class="fas fa-bolt text-warning"></i> Быстрый старт - Повторение
+                    </h5>
+                    <p class="text-muted mb-2">
+                        {% if due_items_count > 0 %}
+                        <strong class="text-primary">{{ due_items_count }}</strong> слов ожидают повторения
+                        {% else %}
+                        Все слова повторены! Добавьте новые или продолжайте изучение.
+                        {% endif %}
+                    </p>
+                    <small class="text-muted">
+                        В изучении: <strong>{{ total_items }}</strong> |
+                        Выучено: <strong>{{ mastered_count }}</strong>
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('study.cards') }}" class="btn btn-primary btn-lg px-4">
+                        <i class="fas fa-play me-2"></i>Начать повторение
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Режимы обучения -->
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-5">
-        <!-- Карточки -->
-        <div class="col">
-            <a href="{{ url_for('study.cards') }}" class="card h-100 shadow-sm hover-lift text-decoration-none" style="transition: var(--transition-base);">
-                <div class="card-body text-center p-4">
-                    <div class="rounded-4 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
-                        <i class="fas fa-layer-group text-primary fs-2"></i>
-                    </div>
-                    <h3 class="h5 fw-bold mb-2 text-dark">{{ _('Карточки') }}</h3>
-                    <p class="text-secondary mb-0 small">{{ _('Классические карточки с интервальным повторением.') }}</p>
+    <!-- Мои колоды -->
+    {% if my_decks or True %}
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">
+                <i class="fas fa-user-circle text-primary"></i> Мои колоды
+                <span class="badge bg-primary" id="deck-count">{{ my_decks|length }}</span>
+            </h4>
+            <div class="d-flex gap-2">
+                <div class="input-group" style="width: 300px;">
+                    <span class="input-group-text bg-white">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control" id="deck-search" placeholder="Поиск по колодам...">
+                    <button class="btn btn-outline-secondary" type="button" id="clear-search" style="display: none;">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-            </a>
-        </div>
-
-        <!-- Quiz колоды -->
-        <div class="col">
-            <a href="{{ url_for('study.quiz') }}" class="card h-100 shadow-sm hover-lift text-decoration-none" style="transition: var(--transition-base);">
-                <div class="card-body text-center p-4">
-                    <div class="rounded-4 bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
-                        <i class="fas fa-layer-group text-success fs-2"></i>
-                    </div>
-                    <h3 class="h5 fw-bold mb-2 text-dark">{{ _('Quiz колоды') }}</h3>
-                    <p class="text-secondary mb-0 small">{{ _('Тематические наборы слов для проверки знаний.') }}</p>
-                </div>
-            </a>
-        </div>
-
-        <!-- Игра на совпадение -->
-        <div class="col">
-            <a href="{{ url_for('study.matching') }}" class="card h-100 shadow-sm hover-lift text-decoration-none" style="transition: var(--transition-base);">
-                <div class="card-body text-center p-4">
-                    <div class="rounded-4 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
-                        <i class="fas fa-puzzle-piece text-primary fs-2"></i>
-                    </div>
-                    <h3 class="h5 fw-bold mb-2 text-dark">{{ _('Совпадения') }}</h3>
-                    <p class="text-secondary mb-0 small">{{ _('Сопоставьте слова с переводами.') }}</p>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    <!-- Простая статистика -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body p-4">
-            <h5 class="card-title mb-3"><i class="fas fa-layer-group me-2"></i>{{ _('Анки карточки (SRS)') }}</h5>
-            <div class="row text-center g-4">
-                <div class="col">
-                    <div class="display-4 fw-bold text-primary mb-1">{{ total_items }}</div>
-                    <div class="text-secondary small fw-semibold">{{ _('Слов в изучении') }}</div>
-                </div>
-                <div class="col">
-                    <div class="display-4 fw-bold text-success mb-1">{{ mastered_count }}</div>
-                    <div class="text-secondary small fw-semibold">{{ _('Выучено') }}</div>
-                </div>
-                <div class="col">
-                    <div class="display-4 fw-bold text-info mb-1">{{ learned_percentage }}%</div>
-                    <div class="text-secondary small fw-semibold">{{ _('Прогресс') }}</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quiz Decks Statistics -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="card-title mb-0"><i class="fas fa-layer-group me-2 text-success"></i>{{ _('Quiz колоды') }}</h5>
-                <a href="{{ url_for('study.quiz') }}" class="btn btn-sm btn-outline-success">
-                    <i class="fas fa-eye me-1"></i>Смотреть все
+                <a href="{{ url_for('study.create_deck') }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>Создать колоду
                 </a>
             </div>
-            <div class="row text-center g-4">
-                <div class="col-md-4">
-                    <div class="fs-2 fw-bold text-success mb-1">{{ public_decks_count }}</div>
-                    <div class="text-secondary small fw-semibold">{{ _('Публичных колод') }}</div>
-                </div>
-                <div class="col-md-4">
-                    <div class="fs-2 fw-bold text-primary mb-1">{{ my_decks_count }}</div>
-                    <div class="text-secondary small fw-semibold">{{ _('Моих колод') }}</div>
-                </div>
-                <div class="col-md-4">
-                    <div class="fs-2 fw-bold text-info mb-1">{{ my_quiz_attempts }}</div>
-                    <div class="text-secondary small fw-semibold">{{ _('Пройдено квизов') }}</div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 30%;">Название</th>
+                            <th class="text-center" style="width: 10%;">Всего</th>
+                            <th class="text-center" style="width: 10%;">
+                                <span class="text-info" title="Новые слова">
+                                    <i class="fas fa-star"></i> Новые
+                                </span>
+                            </th>
+                            <th class="text-center" style="width: 10%;">
+                                <span class="text-warning" title="Изучаемые слова">
+                                    <i class="fas fa-graduation-cap"></i> Изучаю
+                                </span>
+                            </th>
+                            <th class="text-center" style="width: 10%;">
+                                <span class="text-danger" title="К повторению">
+                                    <i class="fas fa-redo"></i> Повтор
+                                </span>
+                            </th>
+                            <th class="text-center" style="width: 10%;">
+                                <span class="text-success" title="Выученные слова">
+                                    <i class="fas fa-check-circle"></i> Выучено
+                                </span>
+                            </th>
+                            <th class="text-center" style="width: 10%;">Сыграно</th>
+                            <th class="text-center" style="width: 10%;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for deck in my_decks %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ deck.title }}</div>
+                                {% if deck.description %}
+                                <small class="text-muted">{{ deck.description[:60] }}{% if deck.description|length > 60 %}...{% endif %}</small>
+                                {% endif %}
+                                {% if deck.word_count > 0 %}
+                                <div class="progress mt-2" style="height: 6px;">
+                                    {% set total = deck.word_count %}
+                                    {% set mastered_pct = (deck.mastered_count / total * 100)|round(1) %}
+                                    {% set learning_pct = (deck.learning_count / total * 100)|round(1) %}
+                                    {% set review_pct = (deck.review_count / total * 100)|round(1) %}
+                                    {% set new_pct = (deck.new_count / total * 100)|round(1) %}
+
+                                    {% if mastered_pct > 0 %}
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ mastered_pct }}%"
+                                         title="Выучено: {{ deck.mastered_count }} ({{ mastered_pct }}%)"></div>
+                                    {% endif %}
+                                    {% if learning_pct > 0 %}
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ learning_pct }}%"
+                                         title="Изучаю: {{ deck.learning_count }} ({{ learning_pct }}%)"></div>
+                                    {% endif %}
+                                    {% if review_pct > 0 %}
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ review_pct }}%"
+                                         title="К повторению: {{ deck.review_count }} ({{ review_pct }}%)"></div>
+                                    {% endif %}
+                                    {% if new_pct > 0 %}
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ new_pct }}%"
+                                         title="Новые: {{ deck.new_count }} ({{ new_pct }}%)"></div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark">{{ deck.word_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ deck.new_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-warning text-dark">{{ deck.learning_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-danger">{{ deck.review_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-success">{{ deck.mastered_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <small class="text-muted">{{ deck.times_played }}</small>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary" title="Пройти квиз">
+                                        <i class="fas fa-brain"></i> Quiz
+                                    </a>
+                                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="SRS повторение">
+                                        <i class="fas fa-layer-group"></i> SRS
+                                    </a>
+                                    <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete({{ deck.id }}, '{{ deck.title }}')" title="Удалить">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Публичные колоды -->
+    {% if public_decks %}
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0">
+                <i class="fas fa-globe text-success"></i> Публичные колоды
+                <span class="badge bg-success">{{ public_decks|length }}</span>
+            </h4>
+            <a href="{{ url_for('study.quiz') }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-eye me-1"></i>Все колоды
+            </a>
+        </div>
+        <div class="row g-3">
+            {% for deck in public_decks[:8] %}
+            <div class="col-md-6 col-lg-4 col-xl-3">
+                <div class="card h-100 shadow-sm hover-card" style="border-left: 3px solid var(--bs-success);">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title fw-bold mb-0 text-truncate flex-grow-1" title="{{ deck.title }}">
+                                {{ deck.title }}
+                            </h6>
+                            <span class="badge bg-success ms-1" style="font-size: 0.6rem;">Публ.</span>
+                        </div>
+                        {% if deck.description %}
+                        <p class="card-text text-muted small mb-2" style="font-size: 0.8rem; height: 2.4em; overflow: hidden;">
+                            {{ deck.description[:80] }}{% if deck.description|length > 80 %}...{% endif %}
+                        </p>
+                        {% else %}
+                        <p class="card-text text-muted small mb-2" style="height: 2.4em;">&nbsp;</p>
+                        {% endif %}
+                        <div class="d-flex gap-1 mb-3 flex-wrap align-items-center">
+                            <span class="badge bg-light text-dark" style="font-size: 0.7rem;">
+                                <i class="fas fa-book"></i> {{ deck.word_count }} слов
+                            </span>
+                            {% if deck.times_played > 0 %}
+                            <span class="badge bg-light text-dark" style="font-size: 0.7rem;">
+                                <i class="fas fa-users"></i> {{ deck.times_played }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if deck.word_count > 0 %}
+                        <div class="mb-2">
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"
+                                     title="{{ deck.word_count }} слов в колоде"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="d-grid gap-1">
+                            <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-success btn-sm">
+                                <i class="fas fa-play me-1"></i>Квиз
+                            </a>
+                            <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" style="margin: 0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="fas fa-copy me-1"></i>Копировать
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
-            {% if my_decks_count == 0 and current_user.is_admin %}
-            <div class="alert alert-info mt-3 mb-0">
-                <i class="fas fa-lightbulb me-2"></i>
-                Вы можете создать свои колоды в <a href="{{ url_for('admin.quiz_deck_create') }}" class="alert-link">админ-панели</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- Другие режимы обучения -->
+    <div class="mb-4">
+        <h4 class="fw-bold mb-3">
+            <i class="fas fa-gamepad text-secondary"></i> Другие режимы обучения
+        </h4>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <a href="{{ url_for('study.cards') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
+                    <div class="card-body text-center p-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                            <i class="fas fa-layer-group text-primary fs-3"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Карточки (SRS)</h6>
+                        <p class="text-muted small mb-0">Интервальное повторение</p>
+                    </div>
+                </a>
             </div>
-            {% endif %}
+            <div class="col-md-4">
+                <a href="{{ url_for('study.quiz_auto') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
+                    <div class="card-body text-center p-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                            <i class="fas fa-question-circle text-success fs-3"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Автоквиз</h6>
+                        <p class="text-muted small mb-0">Случайные вопросы</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('study.matching') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
+                    <div class="card-body text-center p-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
+                            <i class="fas fa-puzzle-piece text-warning fs-3"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Совпадения</h6>
+                        <p class="text-muted small mb-0">Игра на сопоставление</p>
+                    </div>
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- Дополнительные действия -->
-    <div class="text-center">
-        <a href="{{ url_for('study.collections') }}" class="btn btn-primary btn-lg shadow">
-            <i class="fas fa-plus-circle me-2"></i>
-            {{ _('Добавить слова из коллекций') }}
-        </a>
+    <!-- Сообщение если нет контента -->
+    {% if not my_decks and not public_decks %}
+    <div class="alert alert-info">
+        <h5 class="alert-heading">
+            <i class="fas fa-info-circle me-2"></i>Добро пожаловать!
+        </h5>
+        <p class="mb-2">Пока нет доступных колод для изучения.</p>
+        <hr>
+        <p class="mb-0">
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('admin.quiz_deck_create') }}" class="alert-link">Создайте свою первую колоду</a> в админ-панели.
+            {% else %}
+            Обратитесь к администратору для создания колод.
+            {% endif %}
+        </p>
+        <p class="mt-2 mb-0">
+            Для добавления слов к изучению перейдите в <a href="{{ url_for('study.collections') }}" class="alert-link">коллекции</a>.
+        </p>
     </div>
+    {% endif %}
 </div>
+
+<style>
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(deckId, deckTitle) {
+    if (confirm(`Вы уверены, что хотите удалить колоду "${deckTitle}"?`)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/study/my-decks/${deckId}/delete`;
+
+        // Add CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.content;
+            form.appendChild(csrfInput);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Deck search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('deck-search');
+    const clearButton = document.getElementById('clear-search');
+    const deckTable = document.querySelector('.table tbody');
+    const deckCountBadge = document.getElementById('deck-count');
+
+    if (searchInput && deckTable) {
+        const rows = Array.from(deckTable.querySelectorAll('tr'));
+        const totalDecks = rows.length;
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+
+            // Show/hide clear button
+            if (query) {
+                clearButton.style.display = 'block';
+            } else {
+                clearButton.style.display = 'none';
+            }
+
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                // Get deck title and description
+                const titleElement = row.querySelector('td:first-child .fw-bold');
+                const descElement = row.querySelector('td:first-child .text-muted');
+
+                const title = titleElement ? titleElement.textContent.toLowerCase() : '';
+                const description = descElement ? descElement.textContent.toLowerCase() : '';
+
+                // Check if query matches title or description
+                if (title.includes(query) || description.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Update counter
+            if (query) {
+                deckCountBadge.textContent = `${visibleCount} из ${totalDecks}`;
+            } else {
+                deckCountBadge.textContent = totalDecks;
+            }
+
+            // Show "no results" message if needed
+            if (visibleCount === 0 && query) {
+                if (!document.getElementById('no-results-message')) {
+                    const noResultsRow = document.createElement('tr');
+                    noResultsRow.id = 'no-results-message';
+                    noResultsRow.innerHTML = `
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-search fa-2x mb-2"></i>
+                            <p class="mb-0">Колоды не найдены по запросу: "<strong>${query}</strong>"</p>
+                        </td>
+                    `;
+                    deckTable.appendChild(noResultsRow);
+                }
+            } else {
+                const noResultsMsg = document.getElementById('no-results-message');
+                if (noResultsMsg) {
+                    noResultsMsg.remove();
+                }
+            }
+        });
+
+        // Clear search
+        clearButton.addEventListener('click', function() {
+            searchInput.value = '';
+            searchInput.dispatchEvent(new Event('input'));
+            searchInput.focus();
+        });
+
+        // Allow ESC key to clear search
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                this.dispatchEvent(new Event('input'));
+                this.blur();
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
