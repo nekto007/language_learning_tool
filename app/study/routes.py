@@ -875,34 +875,45 @@ def stats():
 @study.route('/leaderboard')
 @login_required
 def leaderboard():
-    """Leaderboard showing top users by XP and achievements"""
+    """Leaderboard showing top users by XP and achievements (cached for 5 minutes)"""
     from app.study.models import UserXP, UserAchievement
-    from app.models import User
+    from app.auth.models import User
+    from app.utils.cache import cache
 
-    # Get top users by XP
-    top_xp_users = db.session.query(
-        User.id,
-        User.username,
-        UserXP.total_xp,
-        UserXP.level
-    ).join(
-        UserXP, User.id == UserXP.user_id
-    ).order_by(
-        UserXP.total_xp.desc()
-    ).limit(100).all()
+    # Try to get leaderboard data from cache
+    cache_key_xp = 'leaderboard_xp_top100'
+    cache_key_ach = 'leaderboard_achievements_top100'
 
-    # Get top users by achievement count
-    top_achievement_users = db.session.query(
-        User.id,
-        User.username,
-        func.count(UserAchievement.id).label('achievement_count')
-    ).join(
-        UserAchievement, User.id == UserAchievement.user_id
-    ).group_by(
-        User.id, User.username
-    ).order_by(
-        func.count(UserAchievement.id).desc()
-    ).limit(100).all()
+    top_xp_users = cache.get(cache_key_xp)
+    if not top_xp_users:
+        # Get top users by XP
+        top_xp_users = db.session.query(
+            User.id,
+            User.username,
+            UserXP.total_xp,
+            UserXP.level
+        ).join(
+            UserXP, User.id == UserXP.user_id
+        ).order_by(
+            UserXP.total_xp.desc()
+        ).limit(100).all()
+        cache.set(cache_key_xp, top_xp_users, timeout=300)  # 5 minutes
+
+    top_achievement_users = cache.get(cache_key_ach)
+    if not top_achievement_users:
+        # Get top users by achievement count
+        top_achievement_users = db.session.query(
+            User.id,
+            User.username,
+            func.count(UserAchievement.id).label('achievement_count')
+        ).join(
+            UserAchievement, User.id == UserAchievement.user_id
+        ).group_by(
+            User.id, User.username
+        ).order_by(
+            func.count(UserAchievement.id).desc()
+        ).limit(100).all()
+        cache.set(cache_key_ach, top_achievement_users, timeout=300)  # 5 minutes
 
     # Find current user's rank
     current_user_xp_rank = None
@@ -941,11 +952,16 @@ def leaderboard():
 @study.route('/achievements')
 @login_required
 def achievements():
-    """Achievements page showing all available and earned achievements"""
+    """Achievements page showing all available and earned achievements (list cached for 1 hour)"""
     from app.study.models import Achievement, UserAchievement
+    from app.utils.cache import cache
 
-    # Get all achievements grouped by category
-    all_achievements = Achievement.query.order_by(Achievement.category, Achievement.xp_reward).all()
+    # Get all achievements from cache or database
+    cache_key_all = 'all_achievements_list'
+    all_achievements = cache.get(cache_key_all)
+    if not all_achievements:
+        all_achievements = Achievement.query.order_by(Achievement.category, Achievement.xp_reward).all()
+        cache.set(cache_key_all, all_achievements, timeout=3600)  # 1 hour
 
     # Get user's earned achievements
     user_achievements = UserAchievement.query.filter_by(
