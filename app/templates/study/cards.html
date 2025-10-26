@@ -35,6 +35,59 @@
         <p class="mt-2 text-muted">{{ _('Loading cards...') }}</p>
     </div>
 
+    <!-- Nothing to study message -->
+    {% if nothing_to_study %}
+    <div id="nothing-to-study" class="card shadow-sm text-center" style="display: none; padding: 60px 40px;">
+        <div class="card-body">
+            {% if limit_reached %}
+            <div style="font-size: 80px; margin-bottom: 20px;">📚</div>
+            <h2 class="mb-3">Дневной лимит достигнут!</h2>
+            <p class="text-muted fs-5 mb-4">
+                Вы уже изучили <strong>{{ new_cards_today }}</strong> новых слов сегодня.<br>
+                Дневной лимит: <strong>{{ daily_limit }}</strong> слов.
+            </p>
+            <p class="text-secondary mb-4">
+                Можете изменить лимит в <a href="{{ url_for('study.settings') }}">настройках</a> или попробовать другие режимы обучения.
+            </p>
+            {% else %}
+            <div style="font-size: 80px; margin-bottom: 20px;">🎉</div>
+            <h2 class="mb-3">Отлично! Все изучено на сегодня!</h2>
+            <p class="text-muted fs-5 mb-4">
+                {% if deck_title %}
+                В колоде <strong>"{{ deck_title }}"</strong> сегодня нечего повторять.
+                {% else %}
+                У вас нет слов для повторения на сегодня.
+                {% endif %}
+            </p>
+            <p class="text-secondary mb-4">
+                Вернитесь завтра, чтобы повторить изученные слова, или попробуйте другие режимы обучения.
+            </p>
+            {% endif %}
+
+            <div class="d-flex gap-3 justify-content-center flex-wrap mt-4">
+                {% if deck_id %}
+                <a href="{{ url_for('study.quiz_deck', deck_id=deck_id) }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-brain me-2"></i>Пройти Quiz
+                </a>
+                <a href="{{ url_for('study.edit_deck', deck_id=deck_id) }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-edit me-2"></i>Редактировать колоду
+                </a>
+                {% else %}
+                <a href="{{ url_for('study.quiz') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-brain me-2"></i>Пройти Quiz
+                </a>
+                <a href="{{ url_for('study.matching') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-puzzle-piece me-2"></i>Игра "Подбери пару"
+                </a>
+                {% endif %}
+                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i>На главную
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Cards container -->
     <div id="flashcard-view" style="display: none;">
         <!-- Front side (question) -->
@@ -43,13 +96,13 @@
                 <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
                 <button id="front-audio-btn" class="btn btn-outline-secondary mb-4">
-                    <i class="fas fa-volume-up me-2"></i> {{ _('Pronunciation') }}
+                    <i class="fas fa-volume-up me-2"></i>Произношение
                 </button>
 
-                <p id="hint-text" class="text-secondary fs-5 my-4 hint-text"></p>
+                <p id="hint-text" class="text-secondary my-4 hint-text" style="font-size: 1rem; word-wrap: break-word; max-width: 100%; overflow-wrap: break-word;"></p>
 
                 <button id="show-answer-btn" class="btn btn-primary btn-lg mt-auto">
-                    {{ _('Show Answer') }}
+                    Показать ответ
                 </button>
             </div>
         </div>
@@ -60,7 +113,7 @@
                 <h1 id="back-word" class="display-3 mb-4 fw-medium"></h1>
 
                 <button id="back-audio-btn" class="btn btn-outline-secondary mb-4">
-                    <i class="fas fa-volume-up me-2"></i> {{ _('Pronunciation') }}
+                    <i class="fas fa-volume-up me-2"></i>Произношение
                 </button>
 
                 <hr class="my-4" style="max-width: 500px; margin-left: auto; margin-right: auto;">
@@ -180,10 +233,20 @@
         // Config from server
         const sessionId = {{ session_id }};
         const wordSource = '{{ word_source }}';
+        const deckId = {{ deck_id|default('null') }};
+        const nothingToStudy = {{ 'true' if nothing_to_study else 'false' }};
         const showTranslations = {{ settings.include_translations|lower }};
         const showExamples = {{ settings.include_examples|lower }};
         const playAudio = {{ settings.include_audio|lower }};
         const hintTime = 7; // Фиксированное время показа подсказки - 5 секунд
+
+        // If nothing to study, hide UI and show message
+        if (nothingToStudy) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.querySelector('.card.shadow-sm.mb-4').style.display = 'none'; // Hide progress bar
+            document.getElementById('nothing-to-study').style.display = 'block';
+            return; // Don't initialize the rest of the app
+        }
 
         // App state
         let originalCards = []; // Original cards from API
@@ -241,7 +304,12 @@
                 const extraStudy = new URLSearchParams(window.location.search).get('extra_study') === 'true';
 
                 // Добавляем параметр в запрос, если это дополнительное занятие
-                const url = `/study/api/get-study-items?source=${wordSource}${extraStudy ? '&extra_study=true' : ''}`;
+                let url = `/study/api/get-study-items?source=${wordSource}${extraStudy ? '&extra_study=true' : ''}`;
+
+                // Добавляем deck_id если есть
+                if (deckId) {
+                    url += `&deck_id=${deckId}`;
+                }
 
                 console.log('Fetching cards from:', url);
                 const response = await fetch(url);
@@ -457,29 +525,21 @@
                 [wordIds[i], wordIds[j]] = [wordIds[j], wordIds[i]];
             }
 
-            // Rebuild cards array with alternating directions
+            // Rebuild cards array with randomized directions
             const shuffledCards = [];
-            const directions = ['eng-rus', 'rus-eng'];
-            let directionIndex = 0;
 
             for (const wordId of wordIds) {
                 const cardsForWord = cardsByWordId[wordId];
-                // Find card with current direction
-                const engToRusCard = cardsForWord.find(c => c.direction === 'eng-rus');
-                const rusToEngCard = cardsForWord.find(c => c.direction === 'rus-eng');
 
-                // Add current direction first
-                const currentDirection = directions[directionIndex % 2];
-                if (currentDirection === 'eng-rus') {
-                    shuffledCards.push(engToRusCard);
-                    shuffledCards.push(rusToEngCard);
-                } else {
-                    shuffledCards.push(rusToEngCard);
-                    shuffledCards.push(engToRusCard);
+                // Перемешиваем карточки этого слова (рандомный порядок направлений)
+                const shuffledDirections = [...cardsForWord];
+                for (let i = shuffledDirections.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledDirections[i], shuffledDirections[j]] = [shuffledDirections[j], shuffledDirections[i]];
                 }
 
-                // Alternate starting direction for next word
-                directionIndex++;
+                // Добавляем все карточки этого слова
+                shuffledCards.push(...shuffledDirections);
             }
 
             console.log('Shuffled cards:', shuffledCards.length);
@@ -490,29 +550,29 @@
         function formatHint(word) {
             if (!word || word.length === 0) return '';
 
-            // If there are multiple translations separated by commas, take the first one
+            // Если несколько переводов через запятую, берем первый
             let targetWord = word;
             if (word.includes(',')) {
                 targetWord = word.split(',')[0].trim();
             }
 
             const firstChar = targetWord.charAt(0).toLowerCase();
-            const underscores = '_'.repeat(8); // Just show fixed number of underscores like in the screenshot
+            const underscores = '_'.repeat(Math.min(targetWord.length - 1, 8));
             const letterCount = targetWord.length;
 
-            // Format for Russian word endings
-            let letterForm = '{{ _("letters") }}';
+            // Правильное склонение для русского языка
+            let letterForm = 'букв';
             const lastDigit = letterCount % 10;
 
             if (letterCount % 100 >= 11 && letterCount % 100 <= 19) {
-                letterForm = '{{ _("letters") }}';
+                letterForm = 'букв';
             } else if (lastDigit === 1) {
-                letterForm = '{{ _("letter") }}';
+                letterForm = 'буква';
             } else if (lastDigit >= 2 && lastDigit <= 4) {
-                letterForm = '{{ _("letters_2-4") }}';
+                letterForm = 'буквы';
             }
 
-            return `{{ _("Hint:") }} ${firstChar}${underscores} (${letterCount} ${letterForm})`;
+            return `Подсказка: ${firstChar}${underscores} (${letterCount} ${letterForm})`;
         }
 
         // Show daily limit reached message
