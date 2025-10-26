@@ -227,6 +227,47 @@ def add_topic_to_study(topic_id):
         db.session.add(user_word)
         added_count += 1
 
+    # Create or find deck for this topic
+    if added_count > 0:
+        from app.study.models import QuizDeck, QuizDeckWord
+        from sqlalchemy import func
+
+        deck_title = f"Топик: {topic.name}"
+        topic_deck = QuizDeck.query.filter_by(
+            user_id=current_user.id,
+            title=deck_title
+        ).first()
+
+        if not topic_deck:
+            topic_deck = QuizDeck(
+                title=deck_title,
+                description=f"Слова из топика '{topic.name}'",
+                user_id=current_user.id,
+                is_public=False
+            )
+            db.session.add(topic_deck)
+            db.session.flush()
+
+        # Add all new words to deck
+        for word_id in words_to_add:
+            # Check if word already in deck
+            existing = QuizDeckWord.query.filter_by(
+                deck_id=topic_deck.id,
+                word_id=word_id
+            ).first()
+
+            if not existing:
+                max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+                    QuizDeckWord.deck_id == topic_deck.id
+                ).scalar() or 0
+
+                deck_word = QuizDeckWord(
+                    deck_id=topic_deck.id,
+                    word_id=word_id,
+                    order_index=max_order + 1
+                )
+                db.session.add(deck_word)
+
     try:
         db.session.commit()
         return jsonify({
@@ -503,6 +544,47 @@ def add_collection_to_study(collection_id):
         user_word = UserWord(user_id=current_user.id, word_id=word_id)
         db.session.add(user_word)
         added_count += 1
+
+    # Create or find deck for this collection
+    if added_count > 0:
+        from app.study.models import QuizDeck, QuizDeckWord
+        from sqlalchemy import func
+
+        deck_title = f"Коллекция: {collection.name}"
+        collection_deck = QuizDeck.query.filter_by(
+            user_id=current_user.id,
+            title=deck_title
+        ).first()
+
+        if not collection_deck:
+            collection_deck = QuizDeck(
+                title=deck_title,
+                description=f"Слова из коллекции '{collection.name}'",
+                user_id=current_user.id,
+                is_public=False
+            )
+            db.session.add(collection_deck)
+            db.session.flush()
+
+        # Add all new words to deck
+        for word_id in words_to_add:
+            # Check if word already in deck
+            existing = QuizDeckWord.query.filter_by(
+                deck_id=collection_deck.id,
+                word_id=word_id
+            ).first()
+
+            if not existing:
+                max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+                    QuizDeckWord.deck_id == collection_deck.id
+                ).scalar() or 0
+
+                deck_word = QuizDeckWord(
+                    deck_id=collection_deck.id,
+                    word_id=word_id,
+                    order_index=max_order + 1
+                )
+                db.session.add(deck_word)
 
     try:
         db.session.commit()
