@@ -621,6 +621,12 @@ def add_word_to_learning():
             db.session.add(deck_word)
 
         db.session.commit()
+
+        # Синхронизация мастер-колод
+        from app.study.routes import sync_master_decks
+        sync_master_decks(current_user.id)
+        db.session.commit()
+
         return jsonify({'success': True, 'message': f'Word "{word}" added to learning list'})
 
     except Exception as e:
@@ -1860,6 +1866,67 @@ def book_read(book_id):
     # For books without chapters
     flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
     return render_template('books/book_details', book=book)
+
+
+@books.route('/api/save-reading-position', methods=['POST'])
+@login_required
+def save_reading_position():
+    """
+    Save user's reading position and award XP for chapter completion
+    """
+    from app.books.models import UserChapterProgress, Chapter
+    from app.study.xp_service import XPService
+
+    data = request.json
+    book_id = data.get('book_id')
+    position = data.get('position', 0)  # 0.0 to 1.0
+    chapter_num = data.get('chapter', 1)
+
+    if not book_id:
+        return jsonify({'success': False, 'message': 'Missing book_id'}), 400
+
+    # Get chapter
+    chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first()
+    if not chapter:
+        return jsonify({'success': False, 'message': 'Chapter not found'}), 404
+
+    # Check if chapter was previously incomplete
+    progress = UserChapterProgress.query.filter_by(
+        user_id=current_user.id,
+        chapter_id=chapter.id
+    ).first()
+
+    was_incomplete = not progress or progress.offset_pct < 1.0
+
+    # Update or create progress
+    if not progress:
+        progress = UserChapterProgress(
+            user_id=current_user.id,
+            chapter_id=chapter.id,
+            offset_pct=position
+        )
+        db.session.add(progress)
+    else:
+        progress.offset_pct = position
+        progress.updated_at = datetime.now(timezone.utc)
+
+    db.session.commit()
+
+    response_data = {'success': True}
+
+    # Award XP if chapter just completed (was incomplete, now complete)
+    if was_incomplete and position >= 1.0:
+        xp_breakdown = XPService.calculate_book_chapter_xp()
+        user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+
+        response_data.update({
+            'chapter_completed': True,
+            'xp_earned': xp_breakdown['total_xp'],
+            'total_xp': user_xp.total_xp,
+            'level': user_xp.level
+        })
+
+    return jsonify(response_data)
 
 
 @books.route('/books/<int:book_id>/edit')

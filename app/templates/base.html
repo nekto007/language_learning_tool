@@ -6,8 +6,8 @@
     <title>{% block title %}{{ _('Изучение английского языка') }}{% endblock %}</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome для иконок -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Font Awesome (local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/fontawesome.min.css') }}">
     <!-- Design System -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <!-- Custom CSS -->
@@ -17,240 +17,143 @@
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% if progress and progress.status == 'completed' %}lesson-completed{% endif %}{% endblock %}">
+<body class="{% block body_class %}{% if progress and progress.status == 'completed' %}lesson-completed{% endif %}{% endblock %}" style="display: flex; flex-direction: column; min-height: 100vh;">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <!-- Modern Clean Header -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('words.dashboard') }}">
-                <img src="{{ url_for('static', filename='media/logo_mini.png') }}">{{ _('Изучение английского языка') }}
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <!-- Logo & Brand (clickable unless on homepage) -->
+            {% if current_user.is_authenticated %}
+                {% if request.endpoint == 'words.dashboard' %}
+                <span class="navbar-brand fw-bold" style="font-size: 20px; color: #667eea; cursor: default;">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
+                    LLT English
+                </span>
+                {% else %}
+                <a class="navbar-brand fw-bold" href="{{ url_for('words.dashboard') }}" style="font-size: 20px; color: #667eea;">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
+                    LLT English
+                </a>
+                {% endif %}
+            {% else %}
+                <a class="navbar-brand fw-bold" href="{{ url_for('auth.login') }}" style="font-size: 20px; color: #667eea;">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
+                    LLT English
+                </a>
+            {% endif %}
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav mx-auto">
                     {% if current_user.is_authenticated %}
-                    {% if has_module('words') %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'words.dashboard' %}active{% endif %}" href="{{ url_for('words.dashboard') }}">
-                            <i class="fas fa-home me-1"></i>{{ _('Dashboard') }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'words.word_list' %}active{% endif %}" href="{{ url_for('words.word_list') }}">
-                            <i class="fas fa-list me-1"></i>{{ _('Слова') }}
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if has_module('study') %}
+
+                    <!-- Слова -->
+                    {% if has_module('words') or has_module('study') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('study.') %}active{% endif %}" href="#" id="studyDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-graduation-cap me-1"></i>{{ _('Изучение') }}
+                        <a class="nav-link dropdown-toggle {% if request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics') %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-spell-check me-1"></i>Слова
                         </a>
-                        <ul class="dropdown-menu" aria-labelledby="studyDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.index') }}">
-                                    <i class="fas fa-home me-1"></i>{{ _('Dashboard') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.cards') }}">
-                                    <i class="fas fa-layer-group me-1"></i>{{ _('Карточки') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.quiz') }}">
-                                    <i class="fas fa-question-circle me-1"></i>{{ _('Квиз') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.matching') }}">
-                                    <i class="fas fa-puzzle-piece me-1"></i>{{ _('Совпадения') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.collections') }}">
-                                    <i class="fas fa-plus-circle me-1"></i>{{ _('Коллекции') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.topics') }}">
-                                    <i class="fas fa-tags me-1"></i>{{ _('Темы') }}
-                                </a>
-                            </li>
+                        <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
+                            {% if has_module('words') %}
+                            <li><a class="dropdown-item" href="{{ url_for('words.word_list') }}"><i class="fas fa-list me-2"></i>Все слова</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.stats') }}">
-                                    <i class="fas fa-chart-bar me-1"></i>{{ _('Статистика') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.leaderboard') }}">
-                                    <i class="fas fa-trophy me-1"></i>{{ _('Лидеры') }}
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('study.settings') }}">
-                                    <i class="fas fa-cog me-1"></i>{{ _('Настройки') }}
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                    {% if has_module('books') %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-book me-1"></i>{{ _('Книги') }}
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="booksDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('books.book_list') }}">{{ _('Все книги') }}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <!-- Читаемые книги (до 3-х последних) -->
-                            {% set recent_chapter_progress = current_user.chapter_progress | sort(attribute='updated_at', reverse=true) | list %}
-                            {% set unique_books = [] %}
-                            {% for progress in recent_chapter_progress %}
-                                {% if progress.chapter.book not in unique_books and unique_books|length < 3 %}
-                                    {% set _ = unique_books.append(progress.chapter.book) %}
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if unique_books|length > 0 %}
-                                <li><h6 class="dropdown-header">{{ _('Продолжить чтение') }}</h6></li>
-                                {% for book in unique_books %}
-                                    {% set book_progress = recent_chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | first %}
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ book_progress.chapter.chap_num }}">
-                                        <i class="fas fa-bookmark me-1"></i>{{ book.title|truncate(25) }}
-                                    </a>
-                                </li>
-                                {% endfor %}
-                                {% if recent_chapter_progress | map(attribute='chapter.book_id') | unique | list | length > 3 %}
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('books.book_list') }}">
-                                        <i class="fas fa-ellipsis-h me-1"></i>{{ _('Больше книг') }}
-                                    </a>
-                                </li>
-                                {% endif %}
+                            {% endif %}
+                            {% if has_module('study') %}
+                            <li><a class="dropdown-item" href="{{ url_for('study.collections') }}"><i class="fas fa-layer-group me-2"></i>Коллекции</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('study.topics') }}"><i class="fas fa-tags me-2"></i>Темы</a></li>
                             {% endif %}
                         </ul>
                     </li>
                     {% endif %}
+
+                    <!-- Изучение (Dashboard) -->
+                    {% if has_module('study') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'study.index' %}active{% endif %}" href="{{ url_for('study.index') }}">
+                            <i class="fas fa-graduation-cap me-1"></i>Изучение
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Курсы -->
                     {% if has_module('curriculum') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') %}active{% endif %}"
-                           href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-graduation-cap me-1"></i>{{ _('Курсы') }}
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') %}active{% endif %}" href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-book-open me-1"></i>Курсы
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="coursesDropdown">
-                            <li>
-                                <a class="dropdown-item" href="/learn/">
-                                    <i class="fas fa-list me-1"></i>{{ _('Все курсы') }}
-                                </a>
-                            </li>
-                            
-                            <li><hr class="dropdown-divider"></li>
-                            
-                            <!-- Book Courses -->
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('book_courses.list_book_courses') }}">
-                                    <i class="fas fa-book me-1"></i>{{ _('Book Courses') }}
-                                </a>
-                            </li>
-
+                            <li><a class="dropdown-item" href="/learn/"><i class="fas fa-list me-2"></i>Все курсы</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('book_courses.list_book_courses') }}"><i class="fas fa-book me-2"></i>Book Courses</a></li>
                             {% if get_cefr_levels() %}
                             <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{{ _('CEFR Levels') }}</h6></li>
-
                             {% for level in get_cefr_levels() %}
-                            <li>
-                                <a class="dropdown-item" href="/learn/{{ level.code|lower }}/">
-                                    <i class="fas fa-layer-group me-1"></i>{{ level.code }} - {{ level.name }}
-                                </a>
-                            </li>
-                            {% endfor %}
-                            {% endif %}
-
-                            {% if current_user.is_authenticated and get_user_lessons() %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{{ _('Your Active Lessons') }}</h6></li>
-
-                            {% for lesson in get_user_lessons() %}
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id) }}">
-                                    {{ lesson.module.level.code }} - {{ _('Lesson') }} {{ lesson.number }}: {{ lesson.title|truncate(20) }}
-                                </a>
-                            </li>
+                            <li><a class="dropdown-item" href="/learn/{{ level.code|lower }}/">{{ level.code }} - {{ level.name }}</a></li>
                             {% endfor %}
                             {% endif %}
                         </ul>
                     </li>
                     {% endif %}
-                    <!-- Добавляем новый раздел Reading -->
+
+                    <!-- Книги -->
                     {% if has_module('books') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint == 'books.read_book' %}active{% endif %}" href="#" id="readingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-book-reader me-1"></i>{{ _('Чтение') }}
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-book me-1"></i>Книги
                         </a>
-                        <ul class="dropdown-menu" aria-labelledby="readingDropdown">
-                            {% set last_chapter_progress = current_user.chapter_progress | sort(attribute='updated_at', reverse=true) | first %}
-                            {% if last_chapter_progress %}
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('books.read_book_chapters', book_id=last_chapter_progress.chapter.book_id) }}?chapter={{ last_chapter_progress.chapter.chap_num }}">
-                                        <i class="fas fa-book-open me-1"></i>{{ _('Продолжить чтение') }}
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
+                        <ul class="dropdown-menu" aria-labelledby="booksDropdown">
+                            {% set last_chapter = current_user.chapter_progress | sort(attribute='updated_at', reverse=true) | first %}
+                            {% if last_chapter %}
+                            <li><a class="dropdown-item" href="{{ url_for('books.read_book_chapters', book_id=last_chapter.chapter.book_id) }}?chapter={{ last_chapter.chapter.chap_num }}"><i class="fas fa-bookmark me-2"></i>Продолжить чтение</a></li>
+                            <li><hr class="dropdown-divider"></li>
                             {% endif %}
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('books.book_list') }}">
-                                    <i class="fas fa-search me-1"></i>{{ _('Найти новую книгу') }}
-                                </a>
-                            </li>
-                            {% set recent_books_reading = [] %}
-                            {% for progress in current_user.chapter_progress | sort(attribute='updated_at', reverse=true) %}
-                                {% if progress.chapter.book not in recent_books_reading and recent_books_reading|length < 5 %}
-                                    {% set _ = recent_books_reading.append(progress.chapter.book) %}
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if recent_books_reading|length > 0 %}
-                                <li><h6 class="dropdown-header">{{ _('Мои книги') }}</h6></li>
-                                {% for book in recent_books_reading %}
-                                    {% set book_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ book_progress.chapter.chap_num }}">
-                                        {{ book.title|truncate(25) }}
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('books.book_list') }}"><i class="fas fa-search me-2"></i>Все книги</a></li>
                         </ul>
                     </li>
                     {% endif %}
+
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                    <!-- XP Badge -->
+                    {% if user_level %}
+                    <li class="nav-item d-flex align-items-center me-3">
+                        <div class="xp-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 6px 12px; border-radius: 20px; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ xp_to_next_level }} XP до уровня {{ user_level + 1 }}">
+                            <span style="font-size: 16px;">⚡</span>
+                            <span>Ур. {{ user_level }}</span>
+                            <span style="opacity: 0.8;">•</span>
+                            <span>{{ user_xp }} XP</span>
+                        </div>
+                    </li>
+                    {% endif %}
+                    <!-- User Menu -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user me-1"></i>{{ current_user.username }}
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="#">{{ _('Профиль') }}</a></li>
-                            <li><a class="dropdown-item" href="#">{{ _('Настройки') }}</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('modules.settings') }}">
-                                <i class="fas fa-puzzle-piece me-1"></i>{{ _('Модули') }}
-                            </a></li>
+                            {% if current_user.is_admin %}
+                            <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-shield-alt me-2"></i>Админ-панель</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('Выход') }}</a></li>
+                            {% endif %}
+                            {% if has_module('study') %}
+                            <li><a class="dropdown-item" href="{{ url_for('study.stats') }}"><i class="fas fa-chart-bar me-2"></i>Статистика</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('study.settings') }}"><i class="fas fa-cog me-2"></i>Настройки</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('modules.settings') }}"><i class="fas fa-puzzle-piece me-2"></i>Модули</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Выход</a></li>
                         </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">{{ _('Вход') }}</a>
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Вход</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.register') }}">{{ _('Регистрация') }}</a>
+                        <a class="btn btn-primary btn-sm ms-2" href="{{ url_for('auth.register') }}">Регистрация</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -274,7 +177,7 @@
         </div>
     </nav>
 
-    <main class="container py-4">
+    <main class="container py-4" style="flex: 1;">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
@@ -288,22 +191,15 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-light">
+    <!-- Modern Clean Footer -->
+    <footer class="mt-auto py-4" style="background: #f8f9fa; border-top: 1px solid #e9ecef;">
         <div class="container">
-            <div class="row">
-                {% if current_user.is_authenticated %}
-                  <div class="col-md-4">
-                      <h5>{{ _('Ваша статистика') }}</h5>
-                      <ul class="list-unstyled">
-                          <li>{{ _('Читаю книг') }}: {{ current_user.get_reading_progress_count() }}</li>
-                          <li>{{ _('Изучаю слов') }}: {{ current_user.words|length }}</li>
-                          <li>{{ _('Последний вход') }}: {{ current_user.last_login.strftime('%d.%m.%Y') if current_user.last_login else 'N/A' }}</li>
-                      </ul>
-                  </div>
-                {% endif %}
-                <div class="col-md-4 text-md-end">
-                    <p class="mb-0">&copy; 2025 {{ _('Изучение английского языка') }}</p>
-                    <small class="text-muted">{{ _('Улучшайте ваш английский словарный запас') }}</small>
+            <div class="text-center">
+                <span class="fw-bold" style="color: #667eea; font-size: 18px;">LLT English</span>
+                <span class="text-muted mx-2">•</span>
+                <span class="text-muted">Платформа для изучения английского</span>
+                <div class="mt-2">
+                    <span class="text-muted" style="font-size: 14px;">&copy; 2025</span>
                 </div>
             </div>
         </div>
@@ -324,7 +220,6 @@
     // Register service worker for book reader
     if ('serviceWorker' in navigator && window.location.pathname.includes('/reader/')) {
         navigator.serviceWorker.register('/static/js/reader-sw.js')
-            .then(registration => console.log('Reader SW registered'))
             .catch(error => console.error('Reader SW registration failed:', error));
     }
 </script>

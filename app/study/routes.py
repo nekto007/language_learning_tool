@@ -17,6 +17,99 @@ from app.modules.decorators import module_required
 study = Blueprint('study', __name__, template_folder='templates')
 
 
+def is_auto_deck(deck_title):
+    """
+    Проверяет, является ли колода автоматической (нельзя редактировать/удалять)
+    """
+    auto_deck_patterns = [
+        'Все мои слова',
+        'Выученные слова',
+        'Слова из чтения',
+        'Топик:',
+        'Коллекция:'
+    ]
+
+    return any(deck_title.startswith(pattern) if ':' in pattern else deck_title == pattern
+               for pattern in auto_deck_patterns)
+
+
+def sync_master_decks(user_id):
+    """
+    Синхронизация мастер-колод с UserWord:
+    - "Все мои слова" (не выученные)
+    - "Выученные слова" (mastered)
+    """
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    # Названия мастер-колод
+    LEARNING_DECK_TITLE = "Все мои слова"
+    MASTERED_DECK_TITLE = "Выученные слова"
+
+    # Получаем все слова пользователя
+    learning_words = UserWord.query.filter(
+        UserWord.user_id == user_id,
+        UserWord.status != 'mastered'
+    ).all()
+
+    mastered_words = UserWord.query.filter(
+        UserWord.user_id == user_id,
+        UserWord.status == 'mastered'
+    ).all()
+
+    # Функция для синхронизации одной колоды
+    def sync_deck(title, description, word_list):
+        # Найти или создать колоду
+        deck = QuizDeck.query.filter_by(user_id=user_id, title=title).first()
+        if not deck:
+            deck = QuizDeck(
+                title=title,
+                description=description,
+                user_id=user_id,
+                is_public=False
+            )
+            db.session.add(deck)
+            db.session.flush()
+
+        # Получить текущие слова в колоде
+        existing_word_ids = {dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck.id).all()}
+        target_word_ids = {uw.word_id for uw in word_list}
+
+        # Удалить слова, которых больше нет в UserWord
+        to_remove = existing_word_ids - target_word_ids
+        if to_remove:
+            QuizDeckWord.query.filter(
+                QuizDeckWord.deck_id == deck.id,
+                QuizDeckWord.word_id.in_(to_remove)
+            ).delete(synchronize_session=False)
+
+        # Добавить новые слова
+        to_add = target_word_ids - existing_word_ids
+        if to_add:
+            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+                QuizDeckWord.deck_id == deck.id
+            ).scalar() or 0
+
+            for idx, word_id in enumerate(to_add, start=1):
+                deck_word = QuizDeckWord(
+                    deck_id=deck.id,
+                    word_id=word_id,
+                    order_index=max_order + idx
+                )
+                db.session.add(deck_word)
+
+    # Синхронизируем обе колоды
+    sync_deck(
+        LEARNING_DECK_TITLE,
+        "Автоматическая колода со всеми изучаемыми словами",
+        learning_words
+    )
+    sync_deck(
+        MASTERED_DECK_TITLE,
+        "Автоматическая колода со всеми выученными словами",
+        mastered_words
+    )
+
+
 @study.route('/')
 @login_required
 @module_required('study')
@@ -208,6 +301,11 @@ def cards_deck(deck_id):
         flash('В колоде нет слов', 'warning')
         return redirect(url_for('study.index'))
 
+    # Mastered words don't need SRS review
+    if deck.title == 'Выученные слова':
+        flash('Выученные слова не требуют повторения. Используйте режим квиза для практики.', 'info')
+        return redirect(url_for('study.index'))
+
     # Get words from deck that need review today
     deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
 
@@ -340,6 +438,9 @@ def quiz_deck(deck_id):
     # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
+    # Get limit parameter (if user wants to limit number of words)
+    word_limit = request.args.get('limit', type=int)
+
     # Create new study session
     session = StudySession(
         user_id=current_user.id,
@@ -358,7 +459,8 @@ def quiz_deck(deck_id):
         settings=settings,
         word_source='deck',
         deck_id=deck_id,
-        deck_title=deck.title
+        deck_title=deck.title,
+        word_limit=word_limit
     )
 
 
@@ -665,6 +767,10 @@ def update_study_item():
 
     db.session.commit()
 
+    # Синхронизация мастер-колод при изменении статуса слова
+    sync_master_decks(current_user.id)
+    db.session.commit()
+
     return jsonify({
         'success': True,
         'interval': interval,
@@ -675,7 +781,9 @@ def update_study_item():
 @study.route('/api/complete-session', methods=['POST'])
 @login_required
 def complete_session():
-    """Mark a study session as complete"""
+    """Mark a study session as complete and award XP"""
+    from app.study.xp_service import XPService
+
     data = request.json
     session_id = data.get('session_id')
 
@@ -683,6 +791,13 @@ def complete_session():
     if session and session.user_id == current_user.id:
         session.complete_session()
         db.session.commit()
+
+        # Calculate and award XP
+        xp_breakdown = XPService.calculate_flashcard_xp(
+            cards_reviewed=session.words_studied or 0,
+            correct_answers=session.correct_answers or 0
+        )
+        user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
 
         return jsonify({
             'success': True,
@@ -692,7 +807,10 @@ def complete_session():
                 'correct': session.correct_answers,
                 'incorrect': session.incorrect_answers,
                 'percentage': session.performance_percentage
-            }
+            },
+            'xp_earned': xp_breakdown['total_xp'],
+            'total_xp': user_xp.total_xp,
+            'level': user_xp.level
         })
 
     return jsonify({'success': False, 'message': 'Invalid session'})
@@ -784,7 +902,7 @@ def get_quiz_questions():
     """Get questions for quiz mode - supports both auto and deck mode"""
     from app.study.models import QuizDeck, QuizDeckWord
 
-    question_count = min(int(request.args.get('count', 20)), 50)  # Limit max questions
+    question_count = min(int(request.args.get('count', 20)), 200)  # Limit max questions to 200
     deck_id = request.args.get('deck_id', type=int)
 
     words = []
@@ -891,11 +1009,11 @@ def generate_quiz_questions(words, count):
     # Ensure we don't try to create more questions than words
     count = min(count, len(words) * 2)
 
-    # Create a list of all the words for creating distractors
+    # Create a list of all the words for creating distractors (limit to avoid loading thousands)
     all_words = CollectionWords.query.filter(
         CollectionWords.russian_word != None,
         CollectionWords.russian_word != ''
-    ).all()
+    ).limit(500).all()
 
     # Create two questions per word (eng->rus and rus->eng)
     for word in words:
@@ -1318,6 +1436,15 @@ def complete_matching_game():
     # Calculate score on server side (ignore client-submitted score)
     score = _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken, moves)
 
+    # Calculate and award XP
+    from app.study.xp_service import XPService
+    score_percentage = (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0
+    xp_breakdown = XPService.calculate_matching_xp(
+        score=score_percentage,
+        total_pairs=total_pairs
+    )
+    user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+
     # Update SRS data for words used in matching game
     # Quality is determined by performance: perfect match = 4 (Easy), good = 3, poor = 2
     if word_ids and pairs_matched > 0:
@@ -1406,7 +1533,10 @@ def complete_matching_game():
             'score': score,
             'rank': rank,
             'is_personal_best': is_personal_best,
-            'game_score_id': game_score.id  # Возвращаем ID созданной записи для проверки
+            'game_score_id': game_score.id,  # Возвращаем ID созданной записи для проверки
+            'xp_earned': xp_breakdown['total_xp'],
+            'total_xp': user_xp.total_xp,
+            'level': user_xp.level
         })
     except Exception as e:
         # В случае ошибки откатываем транзакцию
@@ -1421,8 +1551,9 @@ def complete_matching_game():
 @study.route('/api/complete-quiz', methods=['POST'])
 @login_required
 def complete_quiz():
-    """Process a completed quiz"""
+    """Process a completed quiz with XP and achievements"""
     from app.study.models import QuizDeck, QuizResult
+    from app.study.xp_service import XPService
 
     data = request.json
     session_id = data.get('session_id')
@@ -1431,6 +1562,7 @@ def complete_quiz():
     total_questions = data.get('total_questions', 0)
     correct_answers = data.get('correct_answers', 0)
     time_taken = data.get('time_taken', 0)
+    has_streak = data.get('has_streak', False)  # Frontend can track this
 
     # Update session
     if session_id:
@@ -1460,7 +1592,7 @@ def complete_quiz():
 
             db.session.commit()
 
-    # Save score to leaderboard
+    # Save score to leaderboard (keeping old system for compatibility)
     game_score = GameScore(
         user_id=current_user.id,
         game_type='quiz',
@@ -1473,22 +1605,48 @@ def complete_quiz():
     db.session.add(game_score)
     db.session.commit()
 
-    # Get user's rank
-    rank = game_score.get_rank()
+    # === NEW XP SYSTEM ===
+    # Calculate XP earned
+    xp_breakdown = XPService.calculate_quiz_xp(
+        correct_answers=correct_answers,
+        total_questions=total_questions,
+        time_taken=time_taken,
+        has_streak=has_streak
+    )
 
-    # Get personal best
-    personal_best = db.session.query(func.max(GameScore.score)).filter(
-        GameScore.user_id == current_user.id,
-        GameScore.game_type == 'quiz'
-    ).scalar() or 0
+    # Award XP to user
+    user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
 
-    is_personal_best = score >= personal_best
+    # Check and award achievements
+    quiz_data = {
+        'score': score,
+        'total_questions': total_questions,
+        'correct_answers': correct_answers,
+        'time_taken': time_taken,
+        'has_streak': has_streak
+    }
+    newly_earned = XPService.check_quiz_achievements(current_user.id, quiz_data)
+
+    # Format achievements for response
+    achievements = [
+        {
+            'code': ach.code,
+            'name': ach.name,
+            'description': ach.description,
+            'icon': ach.icon,
+            'xp_reward': ach.xp_reward
+        }
+        for ach in newly_earned
+    ] if newly_earned else []
 
     return jsonify({
         'success': True,
         'score': score,
-        'rank': rank,
-        'is_personal_best': is_personal_best
+        'xp_earned': xp_breakdown['total_xp'],
+        'xp_breakdown': xp_breakdown,
+        'total_xp': user_xp.total_xp,
+        'level': user_xp.level,
+        'achievements': achievements
     })
 
 
@@ -1622,6 +1780,11 @@ def edit_deck(deck_id):
         flash('У вас нет прав для редактирования этой колоды', 'danger')
         return redirect(url_for('study.index'))
 
+    # Protect auto decks from editing
+    if is_auto_deck(deck.title):
+        flash('Нельзя редактировать автоматические колоды', 'warning')
+        return redirect(url_for('study.index'))
+
     if request.method == 'POST':
         deck.title = request.form.get('title', '').strip()
         deck.description = request.form.get('description', '').strip()
@@ -1656,6 +1819,11 @@ def delete_deck(deck_id):
     # Check if user owns this deck
     if deck.user_id != current_user.id:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    # Protect auto decks from deletion
+    if is_auto_deck(deck.title):
+        flash('Нельзя удалять автоматические колоды', 'warning')
+        return redirect(url_for('study.index'))
 
     title = deck.title
     db.session.delete(deck)

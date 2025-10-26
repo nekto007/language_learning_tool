@@ -563,3 +563,87 @@ class QuizResult(db.Model):
 
     def __repr__(self):
         return f'<QuizResult user={self.user_id} deck={self.deck_id} score={self.score_percentage}%>'
+
+
+class UserXP(db.Model):
+    """
+    Tracks user's XP (Experience Points) for gamification
+    """
+    __tablename__ = 'user_xp'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    total_xp = db.Column(db.Integer, default=0, nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationship
+    user = db.relationship('User', backref=db.backref('xp', uselist=False, cascade='all, delete-orphan'))
+
+    @hybrid_property
+    def level(self):
+        """Calculate level based on total XP (every 100 XP = 1 level)"""
+        return max(1, self.total_xp // 100)
+
+    @classmethod
+    def get_or_create(cls, user_id):
+        """Get or create UserXP record for a user"""
+        user_xp = cls.query.filter_by(user_id=user_id).first()
+        if not user_xp:
+            user_xp = cls(user_id=user_id, total_xp=0)
+            db.session.add(user_xp)
+            db.session.flush()
+        return user_xp
+
+    def add_xp(self, amount):
+        """Add XP and update timestamp"""
+        self.total_xp += amount
+        self.updated_at = datetime.now(timezone.utc)
+
+    def __repr__(self):
+        return f'<UserXP user={self.user_id} xp={self.total_xp} level={self.level}>'
+
+
+class Achievement(db.Model):
+    """
+    Defines available achievements/badges that users can earn
+    """
+    __tablename__ = 'achievements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)  # e.g., 'first_quiz', 'perfect_score'
+    name = db.Column(db.String(100), nullable=False)  # e.g., 'Первый квиз'
+    description = db.Column(db.String(255), nullable=True)
+    icon = db.Column(db.String(10), default='🏆')  # Emoji icon
+    xp_reward = db.Column(db.Integer, default=0)  # Bonus XP for earning this
+    category = db.Column(db.String(50), default='general')  # 'quiz', 'study', 'streak', etc.
+
+    # Relationships
+    user_achievements = db.relationship('UserAchievement', back_populates='achievement', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Achievement {self.code}: {self.name}>'
+
+
+class UserAchievement(db.Model):
+    """
+    Tracks which achievements a user has earned
+    """
+    __tablename__ = 'user_achievements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    achievement_id = db.Column(db.Integer, db.ForeignKey('achievements.id', ondelete='CASCADE'), nullable=False)
+    earned_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('achievements', lazy='dynamic', cascade='all, delete-orphan'))
+    achievement = db.relationship('Achievement', back_populates='user_achievements')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'achievement_id', name='uix_user_achievement'),
+        Index('idx_user_achievement_user', 'user_id'),
+        Index('idx_user_achievement_earned', 'earned_at'),
+    )
+
+    def __repr__(self):
+        return f'<UserAchievement user={self.user_id} achievement={self.achievement_id}>'
