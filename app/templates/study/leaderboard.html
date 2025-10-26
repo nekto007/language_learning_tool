@@ -1,340 +1,199 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Leaderboard') }}{% endblock %}
+{% block title %}Таблица лидеров{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="leaderboard-container">
-        <div class="leaderboard-header">
-            <h1 class="leaderboard-title">{{ _('Leaderboard') }}</h1>
-            <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> {{ _('Back to Study') }}
-            </a>
+<div class="container py-4">
+    <!-- Header -->
+    <div class="card shadow-lg mb-4" style="border: none; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-white p-4">
+            <h1 class="mb-2"><i class="fas fa-crown me-2"></i>Таблица лидеров</h1>
+            <p class="mb-0 opacity-90">Лучшие участники платформы</p>
         </div>
+    </div>
 
-        <ul class="nav nav-tabs" id="leaderboardTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="matching-tab" data-bs-toggle="tab" data-bs-target="#matching" type="button">
-                    <i class="fas fa-th me-2"></i>{{ _('Matching Game') }}
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="quiz-tab" data-bs-toggle="tab" data-bs-target="#quiz" type="button">
-                    <i class="fas fa-question-circle me-2"></i>{{ _('Quiz') }}
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="leaderboardTabContent">
-            <!-- Matching Game Leaderboard -->
-            <div class="tab-pane fade show active" id="matching" role="tabpanel">
-                <div class="difficulty-selector">
-                    <button type="button" class="difficulty-btn active" data-difficulty="easy">{{ _('Easy') }}</button>
-                    <button type="button" class="difficulty-btn" data-difficulty="medium">{{ _('Medium') }}</button>
-                    <button type="button" class="difficulty-btn" data-difficulty="hard">{{ _('Hard') }}</button>
-                </div>
-
-                <!-- User's personal best -->
-                <div id="matching-user-best" class="user-best-section" style="display: none;">
-                    <h3 class="user-best-title">{{ _('Your Personal Best') }}</h3>
-                    <div class="user-best-details">
-                        <div class="user-best-rank">
-                            <div class="user-rank-number" id="matching-user-rank">-</div>
-                            <div class="user-rank-label">{{ _('Rank') }}</div>
-                        </div>
-                        <div class="user-best-stats">
-                            <div class="user-best-stat">
-                                <div class="user-best-stat-value" id="matching-user-score">-</div>
-                                <div class="user-best-stat-label">{{ _('Score') }}</div>
-                            </div>
-                            <div class="user-best-stat">
-                                <div class="user-best-stat-value" id="matching-user-pairs">-</div>
-                                <div class="user-best-stat-label">{{ _('Pairs') }}</div>
-                            </div>
-                            <div class="user-best-stat">
-                                <div class="user-best-stat-value" id="matching-user-time">-</div>
-                                <div class="user-best-stat-label">{{ _('Time') }}</div>
-                            </div>
+    <!-- Current User Stats -->
+    {% if current_user_xp_rank or current_user_achievement_rank %}
+    <div class="card shadow-sm mb-4" style="border-left: 4px solid #667eea;">
+        <div class="card-body">
+            <h5 class="mb-3"><i class="fas fa-user me-2 text-primary"></i>Ваше место</h5>
+            <div class="row">
+                {% if current_user_xp_rank %}
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3" style="font-size: 36px;">⚡</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-primary">#{{ current_user_xp_rank }}</div>
+                            <div class="text-muted">По опыту (XP)</div>
                         </div>
                     </div>
                 </div>
+                {% endif %}
+                {% if current_user_achievement_rank %}
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3" style="font-size: 36px;">🏆</div>
+                        <div>
+                            <div class="fs-4 fw-bold text-warning">#{{ current_user_achievement_rank }}</div>
+                            <div class="text-muted">По достижениям</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
-                <!-- Matching game leaderboard table -->
-                <div class="table-responsive">
-                    <table class="leaderboard-table">
-                        <thead>
-                            <tr>
-                                <th class="rank-cell">{{ _('Rank') }}</th>
-                                <th>{{ _('Player') }}</th>
-                                <th class="score-cell">{{ _('Score') }}</th>
-                                <th class="details-cell">{{ _('Pairs') }}</th>
-                                <th class="details-cell">{{ _('Moves') }}</th>
-                                <th class="details-cell">{{ _('Time') }}</th>
-                                <th class="date-cell">{{ _('Date') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody id="matching-leaderboard">
-                            <tr>
-                                <td colspan="7" class="loading">
-                                    <div class="loading-spinner"></div>
-                                    <div>{{ _('Loading leaderboard...') }}</div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+    <!-- Leaderboard Tabs -->
+    <ul class="nav nav-tabs mb-4" id="leaderboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="xp-tab" data-bs-toggle="tab" data-bs-target="#xp-leaderboard" type="button">
+                <i class="fas fa-bolt me-2"></i>По опыту (XP)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="achievements-tab" data-bs-toggle="tab" data-bs-target="#achievements-leaderboard" type="button">
+                <i class="fas fa-trophy me-2"></i>По достижениям
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="leaderboardTabContent">
+        <!-- XP Leaderboard -->
+        <div class="tab-pane fade show active" id="xp-leaderboard">
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead style="background: #f8f9fa;">
+                                <tr>
+                                    <th style="width: 60px;" class="text-center">Место</th>
+                                    <th>Пользователь</th>
+                                    <th class="text-center">Уровень</th>
+                                    <th class="text-end">Опыт (XP)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in top_xp_users %}
+                                <tr {% if user.username == current_user.username %}style="background: #e7f3ff;"{% endif %}>
+                                    <td class="text-center fw-bold">
+                                        {% if loop.index == 1 %}
+                                            <span style="font-size: 24px;">🥇</span>
+                                        {% elif loop.index == 2 %}
+                                            <span style="font-size: 24px;">🥈</span>
+                                        {% elif loop.index == 3 %}
+                                            <span style="font-size: 24px;">🥉</span>
+                                        {% else %}
+                                            {{ loop.index }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-weight: 600;">
+                                                {{ user.username[0].upper() }}
+                                            </div>
+                                            <span class="fw-semibold">{{ user.username }}</span>
+                                            {% if user.username == current_user.username %}
+                                                <span class="badge bg-primary ms-2">Вы</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 14px;">
+                                            Ур. {{ user.level }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold text-primary">{{ "{:,}".format(user.total_xp).replace(',', ' ') }} XP</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Quiz Leaderboard -->
-            <div class="tab-pane fade" id="quiz" role="tabpanel">
-                <!-- User's personal best -->
-                <div id="quiz-user-best" class="user-best-section" style="display: none;">
-                    <h3 class="user-best-title">{{ _('Your Personal Best') }}</h3>
-                    <div class="user-best-details">
-                        <div class="user-best-rank">
-                            <div class="user-rank-number" id="quiz-user-rank">-</div>
-                            <div class="user-rank-label">{{ _('Rank') }}</div>
-                        </div>
-                        <div class="user-best-stats">
-                            <div class="user-best-stat">
-                                <div class="user-best-stat-value" id="quiz-user-score">-</div>
-                                <div class="user-best-stat-label">{{ _('Score') }}</div>
-                            </div>
-                            <div class="user-best-stat">
-                                <div class="user-best-stat-value" id="quiz-user-correct">-</div>
-                                <div class="user-best-stat-label">{{ _('Correct') }}</div>
-                            </div>
-                            <div class="user-best-stat">
-                                <div class="user-best-stat-value" id="quiz-user-time">-</div>
-                                <div class="user-best-stat-label">{{ _('Time') }}</div>
-                            </div>
-                        </div>
+        <!-- Achievements Leaderboard -->
+        <div class="tab-pane fade" id="achievements-leaderboard">
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead style="background: #f8f9fa;">
+                                <tr>
+                                    <th style="width: 60px;" class="text-center">Место</th>
+                                    <th>Пользователь</th>
+                                    <th class="text-end">Достижения</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in top_achievement_users %}
+                                <tr {% if user.username == current_user.username %}style="background: #fff8e1;"{% endif %}>
+                                    <td class="text-center fw-bold">
+                                        {% if loop.index == 1 %}
+                                            <span style="font-size: 24px;">🥇</span>
+                                        {% elif loop.index == 2 %}
+                                            <span style="font-size: 24px;">🥈</span>
+                                        {% elif loop.index == 3 %}
+                                            <span style="font-size: 24px;">🥉</span>
+                                        {% else %}
+                                            {{ loop.index }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-weight: 600;">
+                                                {{ user.username[0].upper() }}
+                                            </div>
+                                            <span class="fw-semibold">{{ user.username }}</span>
+                                            {% if user.username == current_user.username %}
+                                                <span class="badge bg-warning ms-2">Вы</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold text-warning">
+                                            <i class="fas fa-trophy me-1"></i>{{ user.achievement_count }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-
-                <!-- Quiz leaderboard table -->
-                <div class="table-responsive">
-                    <table class="leaderboard-table">
-                        <thead>
-                            <tr>
-                                <th class="rank-cell">{{ _('Rank') }}</th>
-                                <th>{{ _('Player') }}</th>
-                                <th class="score-cell">{{ _('Score') }}</th>
-                                <th class="details-cell">{{ _('Correct') }}</th>
-                                <th class="details-cell">{{ _('Time') }}</th>
-                                <th class="date-cell">{{ _('Date') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody id="quiz-leaderboard">
-                            <tr>
-                                <td colspan="6" class="loading">
-                                    <div class="loading-spinner"></div>
-                                    <div>{{ _('Loading leaderboard...') }}</div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Info Card -->
+    <div class="alert alert-info mt-4" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Как попасть в таблицу лидеров?</strong><br>
+        Зарабатывайте XP, выполняя квизы, изучая слова, читая книги и получая достижения!
+    </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Current game type and difficulty
-        let currentGameType = 'matching';
-        let currentDifficulty = 'easy';
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05) !important;
+}
 
-        // Load initial leaderboards
-        loadLeaderboard(currentGameType, currentDifficulty);
+.nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 600;
+}
 
-        // Tab change handler
-        document.querySelectorAll('#leaderboardTabs .nav-link').forEach(tab => {
-            tab.addEventListener('click', function() {
-                currentGameType = this.id.split('-')[0];
+.nav-tabs .nav-link.active {
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+}
 
-                if (currentGameType === 'matching') {
-                    // For matching, we need to use the current difficulty
-                    loadLeaderboard(currentGameType, currentDifficulty);
-                } else {
-                    // For quiz, no difficulty needed
-                    loadLeaderboard(currentGameType);
-                }
-            });
-        });
-
-        // Difficulty buttons for matching game
-        document.querySelectorAll('.difficulty-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                // Update active button
-                document.querySelectorAll('.difficulty-btn').forEach(b => {
-                    b.classList.remove('active');
-                });
-                this.classList.add('active');
-
-                // Update current difficulty and load leaderboard
-                currentDifficulty = this.getAttribute('data-difficulty');
-                loadLeaderboard('matching', currentDifficulty);
-            });
-        });
-
-        // Function to load leaderboard data
-        function loadLeaderboard(gameType, difficulty = null) {
-            // Show loading state
-            document.getElementById(`${gameType}-leaderboard`).innerHTML = `
-                <tr>
-                    <td colspan="${gameType === 'matching' ? 7 : 6}" class="loading">
-                        <div class="loading-spinner"></div>
-                        <div>{{ _('Loading leaderboard...') }}</div>
-                    </td>
-                </tr>
-            `;
-
-            // Hide user best section initially
-            document.getElementById(`${gameType}-user-best`).style.display = 'none';
-
-            // Build API URL
-            const url = `/study/api/leaderboard/${gameType}${difficulty ? `?difficulty=${difficulty}` : ''}`;
-
-            // Fetch leaderboard data
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Update leaderboard table
-                        updateLeaderboardTable(gameType, data.leaderboard);
-
-                        // Update user's personal best if available
-                        if (data.user_best) {
-                            updateUserBest(gameType, data.user_best);
-                        }
-                    } else {
-                        throw new Error('API returned error status');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading leaderboard:', error);
-                    document.getElementById(`${gameType}-leaderboard`).innerHTML = `
-                        <tr>
-                            <td colspan="${gameType === 'matching' ? 7 : 6}" class="text-center text-danger p-4">
-                                <i class="fas fa-exclamation-circle me-2"></i>
-                                {{ _('Failed to load leaderboard. Please try again.') }}
-                            </td>
-                        </tr>
-                    `;
-                });
-        }
-
-        // Function to update leaderboard table
-        function updateLeaderboardTable(gameType, leaderboard) {
-            const tableBody = document.getElementById(`${gameType}-leaderboard`);
-
-            if (!leaderboard || leaderboard.length === 0) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="${gameType === 'matching' ? 7 : 6}" class="empty-state">
-                            <div class="empty-state-icon">
-                                <i class="fas fa-trophy"></i>
-                            </div>
-                            <div>{{ _('No scores recorded yet. Be the first to play!') }}</div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            let html = '';
-
-            leaderboard.forEach((entry, index) => {
-                const rank = entry.rank;
-                const rankClass = rank <= 3 ? `rank-${rank}` : '';
-                const formattedTime = formatTime(entry.time_taken);
-
-                if (gameType === 'matching') {
-                    html += `
-                        <tr ${entry.is_current_user ? 'class="user-row"' : ''}>
-                            <td class="rank-cell">
-                                <span class="rank-number ${rankClass}">${rank}</span>
-                            </td>
-                            <td>
-                                <div class="player-cell">
-                                    <div class="player-avatar">${entry.username.charAt(0).toUpperCase()}</div>
-                                    <div class="player-name">${entry.username}</div>
-                                </div>
-                            </td>
-                            <td class="score-cell">${entry.score}</td>
-                            <td class="details-cell">${entry.pairs_matched}/${entry.total_pairs}</td>
-                            <td class="details-cell">${entry.moves}</td>
-                            <td class="details-cell">${formattedTime}</td>
-                            <td class="date-cell">${entry.date}</td>
-                        </tr>
-                    `;
-                } else {
-                    html += `
-                        <tr ${entry.is_current_user ? 'class="user-row"' : ''}>
-                            <td class="rank-cell">
-                                <span class="rank-number ${rankClass}">${rank}</span>
-                            </td>
-                            <td>
-                                <div class="player-cell">
-                                    <div class="player-avatar">${entry.username.charAt(0).toUpperCase()}</div>
-                                    <div class="player-name">${entry.username}</div>
-                                </div>
-                            </td>
-                            <td class="score-cell">${entry.score}%</td>
-                            <td class="details-cell">${entry.correct_answers}/${entry.total_questions}</td>
-                            <td class="details-cell">${formattedTime}</td>
-                            <td class="date-cell">${entry.date}</td>
-                        </tr>
-                    `;
-                }
-            });
-
-            tableBody.innerHTML = html;
-        }
-
-        // Function to update user's personal best section
-        function updateUserBest(gameType, userBest) {
-            // Show user best section
-            document.getElementById(`${gameType}-user-best`).style.display = 'block';
-
-            // Set user rank
-            document.getElementById(`${gameType}-user-rank`).textContent = userBest.rank;
-
-            // Set user score (add % for quiz)
-            document.getElementById(`${gameType}-user-score`).textContent =
-                gameType === 'quiz' ? `${userBest.score}%` : userBest.score;
-
-            // Format time
-            const formattedTime = formatTime(userBest.time_taken);
-
-            if (gameType === 'matching') {
-                // Update matching-specific stats
-                document.getElementById('matching-user-pairs').textContent =
-                    `${userBest.pairs_matched}/${userBest.total_pairs}`;
-                document.getElementById('matching-user-time').textContent = formattedTime;
-            } else {
-                // Update quiz-specific stats
-                document.getElementById('quiz-user-correct').textContent =
-                    `${userBest.correct_answers}/${userBest.total_questions}`;
-                document.getElementById('quiz-user-time').textContent = formattedTime;
-            }
-        }
-
-        // Helper function to format time
-        function formatTime(seconds) {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = seconds % 60;
-            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-        }
-    });
-</script>
+.nav-tabs .nav-link:hover {
+    color: #667eea;
+}
+</style>
 {% endblock %}

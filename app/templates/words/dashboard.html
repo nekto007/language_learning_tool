@@ -70,55 +70,109 @@
     </div>
 
     <!-- Achievements & XP Progress -->
-    <div class="card shadow-sm mb-4" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-white p-4">
-            <div class="row">
+    <div class="card shadow-lg mb-4" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
+        <div class="card-body text-white p-4 position-relative">
+            <!-- Decorative background pattern -->
+            <div style="position: absolute; top: 0; right: 0; opacity: 0.1; font-size: 200px; line-height: 1; pointer-events: none;">⚡</div>
+
+            <div class="row position-relative">
                 <!-- XP Progress Section -->
                 <div class="col-md-6 mb-4 mb-md-0">
-                    <h3 class="mb-3 fw-bold">⚡ Ваш прогресс</h3>
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="me-3">
-                            <div style="font-size: 48px; font-weight: 700;">{{ user_level or 1 }}</div>
-                            <div style="font-size: 12px; opacity: 0.9;">Уровень</div>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="me-2" style="font-size: 28px;">⚡</div>
+                        <h3 class="mb-0 fw-bold">Ваш прогресс</h3>
+                    </div>
+
+                    <div class="d-flex align-items-center mb-3 mt-3">
+                        <!-- Level badge -->
+                        <div class="me-3 text-center" style="background: rgba(255,255,255,0.2); padding: 12px 16px; border-radius: 12px; backdrop-filter: blur(10px);">
+                            <div style="font-size: 42px; font-weight: 700; line-height: 1;">{{ user_level or 1 }}</div>
+                            <div style="font-size: 11px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">уровень</div>
                         </div>
+
+                        <!-- XP Progress -->
                         <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span style="font-size: 14px;">{{ user_xp or 0 }} XP</span>
-                                <span style="font-size: 14px; opacity: 0.8;">{{ xp_to_next_level or 100 }} до Ур.{{ (user_level or 1) + 1 }}</span>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span style="font-size: 15px; font-weight: 600;">{{ user_xp or 0 }} XP</span>
+                                <span style="font-size: 13px; opacity: 0.85;">{{ xp_to_next_level or 100 }} до Ур.{{ (user_level or 1) + 1 }}</span>
                             </div>
-                            <div class="progress" style="height: 10px; background: rgba(255,255,255,0.2); border-radius: 10px;">
-                                <div class="progress-bar" role="progressbar" style="width: {{ xp_progress_percent or 0 }}%; background: rgba(255,255,255,0.9); border-radius: 10px;" aria-valuenow="{{ xp_progress_percent or 0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <!-- Colorful progress bar -->
+                            <div class="progress" style="height: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ xp_progress_percent or 0 }}%;
+                                            background: linear-gradient(90deg, #ffd89b 0%, #19547b 50%, #ffd89b 100%);
+                                            border-radius: 12px;
+                                            box-shadow: 0 2px 8px rgba(255,216,155,0.5);
+                                            transition: width 0.6s ease;"
+                                     aria-valuenow="{{ xp_progress_percent or 0 }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <a href="{{ url_for('study.quiz') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-bolt me-1"></i>Заработать XP
+
+                    <a href="{{ url_for('study.quiz') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <i class="fas fa-bolt me-1" style="color: #667eea;"></i>Заработать XP
                     </a>
                 </div>
 
                 <!-- Achievements Section -->
                 <div class="col-md-6">
-                    <h3 class="mb-3 fw-bold">🏆 Достижения</h3>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="me-2" style="font-size: 28px;">🏆</div>
+                        <h3 class="mb-0 fw-bold">Достижения</h3>
+                    </div>
+
                     {% if user_achievements %}
-                    <div class="d-flex flex-wrap gap-2 mb-3">
+                    <div class="d-flex flex-wrap gap-2 mb-3 mt-3">
                         {% for ach in user_achievements %}
-                        <div class="badge" style="background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 8px; font-size: 14px; display: flex; align-items: center; gap: 6px;" title="{{ ach.description }}">
-                            <span style="font-size: 18px;">{{ ach.icon }}</span>
-                            <span>{{ ach.name }}</span>
+                        <div class="badge"
+                             style="background: rgba(255,255,255,0.25);
+                                    padding: 10px 14px;
+                                    border-radius: 10px;
+                                    font-size: 14px;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 8px;
+                                    backdrop-filter: blur(10px);
+                                    border: 1px solid rgba(255,255,255,0.3);
+                                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                                    transition: transform 0.2s, box-shadow 0.2s;
+                                    cursor: pointer;"
+                             onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.15)';"
+                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';"
+                             title="{{ ach.description }}">
+                            <span style="font-size: 20px;">{{ ach.icon }}</span>
+                            <span style="font-weight: 600;">{{ ach.name }}</span>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center; font-size: 14px; opacity: 0.8;">
-                        <div style="font-size: 32px; margin-bottom: 8px;">🎯</div>
-                        <div>Пройдите квиз, чтобы получить первое достижение!</div>
+                    <div style="background: rgba(255,255,255,0.15);
+                                padding: 20px;
+                                border-radius: 12px;
+                                text-align: center;
+                                font-size: 14px;
+                                backdrop-filter: blur(10px);
+                                border: 1px solid rgba(255,255,255,0.2);
+                                margin-top: 16px;">
+                        <div style="font-size: 48px; margin-bottom: 12px; filter: grayscale(0.3);">🎯</div>
+                        <div style="font-weight: 500;">Пройдите квиз, чтобы получить первое достижение!</div>
                     </div>
                     {% endif %}
-                    {% if earned_count > 0 %}
-                    <div class="mt-2" style="font-size: 13px; opacity: 0.9;">
-                        Получено: {{ earned_count }}/{{ total_achievements }}
+
+                    <div class="mt-3 d-flex align-items-center justify-content-between gap-2">
+                        {% if earned_count > 0 %}
+                        <div style="background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 8px; backdrop-filter: blur(10px); display: inline-flex; align-items: center;">
+                            <i class="fas fa-trophy me-2" style="font-size: 14px;"></i>
+                            <span style="font-size: 13px; font-weight: 600;">Получено: {{ earned_count }}/{{ total_achievements }}</span>
+                        </div>
+                        {% endif %}
+                        <a href="{{ url_for('study.achievements') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                            <i class="fas fa-trophy me-1" style="color: #667eea;"></i>Все достижения
+                        </a>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>

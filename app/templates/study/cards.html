@@ -196,6 +196,18 @@
                 <i class="fas fa-check-circle text-success me-2"></i>
                 {{ _('Session Complete!') }}
             </h2>
+
+            <!-- XP Earned Banner -->
+            <div id="xp-earned-banner" class="mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 48px; margin-bottom: 8px;">⚡</div>
+                <div style="font-size: 32px; font-weight: 700; color: #ffd89b;">
+                    +<span id="xp-earned-amount">0</span> XP
+                </div>
+                <div style="font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                    Уровень <span id="current-level">1</span> • <span id="total-xp">0</span> XP
+                </div>
+            </div>
+
             <div class="row mt-4">
                 <div class="col-md-4">
                     <h2 id="stats-words" class="text-primary">0</h2>
@@ -311,21 +323,17 @@
                     url += `&deck_id=${deckId}`;
                 }
 
-                console.log('Fetching cards from:', url);
                 const response = await fetch(url);
 
-                console.log('API Response status:', response.status);
 
                 if (!response.ok) {
                     throw new Error('Failed to fetch cards');
                 }
 
                 const data = await response.json();
-                console.log('API response data:', data);
 
                 // Проверяем статус ответа
                 if (data.status === 'daily_limit_reached') {
-                    console.log('Daily limit reached. Showing message.');
                     showDailyLimitMessage(data.stats);
                     // Устанавливаем флаг, что сообщение показано
                     window.noCardsMessageShown = true;
@@ -333,7 +341,6 @@
                 }
 
                 if (data.status === 'success' && (!data.items || data.items.length === 0)) {
-                    console.log('No items in selected source. Checking stats.');
 
                     // Проверяем, есть ли еще доступный лимит для изучения
                     const remainingNewCards = data.stats.new_cards_limit - data.stats.new_cards_today;
@@ -356,7 +363,6 @@
 
                 // Применяем фильтрацию к полученным карточкам
                 const filteredData = data.items.filter(card => card.translation && card.translation.trim() !== '');
-                console.log('After filtering for translations:', filteredData.length);
 
                 return filteredData;
             } catch (error) {
@@ -369,7 +375,6 @@
         }
 
         function showNoCardsInSourceMessage(stats) {
-            console.log('Showing no cards in source message with stats:', stats);
 
             // Сначала скрываем все контейнеры
             loadingSpinner.style.display = 'none';
@@ -386,7 +391,6 @@
             const noCardsInSourceMessage = document.getElementById('no-cards-in-source-message');
 
             if (noCardsInSourceMessage) {
-                console.log('Found no-cards-in-source-message element, displaying it');
 
                 // Обновляем статистику
                 const availableNewCards = document.getElementById('available-new-cards');
@@ -405,18 +409,15 @@
                 // чтобы убедиться, что DOM полностью обновлен
                 setTimeout(() => {
                     noCardsInSourceMessage.style.display = 'block';
-                    console.log('Message display style set to block');
 
                     // Дополнительная защита: повторно проверим через 100мс
                     setTimeout(() => {
                         if (noCardsInSourceMessage.style.display !== 'block') {
-                            console.log('Message was hidden, showing again');
                             noCardsInSourceMessage.style.display = 'block';
                         }
                     }, 100);
                 }, 50);
             } else {
-                console.log('Could not find no-cards-in-source-message element');
                 // Если элемент не найден, показываем сообщение в noCardsMessage
                 if (noCardsMessage) {
                     noCardsMessage.innerHTML = `
@@ -441,7 +442,6 @@
                     // Используем setTimeout для показа, чтобы избежать конфликтов с другим кодом
                     setTimeout(() => {
                         noCardsMessage.style.display = 'block';
-                        console.log('Fallback message displayed');
                     }, 5);
                 }
             }
@@ -455,11 +455,9 @@
         // Create alternating cards (eng-rus, rus-eng) from original cards
         function createAlternatingCards(originalCards) {
             if (!originalCards || originalCards.length === 0) {
-                console.log('No original cards to process');
                 return [];
             }
 
-            console.log('Creating alternating cards from:', originalCards.length, 'original cards');
             const alternatingCards = [];
 
             // Process each original card
@@ -497,7 +495,6 @@
                 }
             }
 
-            console.log('Created', alternatingCards.length, 'alternating cards');
             // Shuffle the cards while keeping pairs of the same word separated
             return shuffleCards(alternatingCards);
         }
@@ -505,7 +502,6 @@
         // Shuffle cards while keeping same words apart from each other
         function shuffleCards(cards) {
             if (!cards || cards.length === 0) {
-                console.log('No cards to shuffle');
                 return [];
             }
 
@@ -542,7 +538,6 @@
                 shuffledCards.push(...shuffledDirections);
             }
 
-            console.log('Shuffled cards:', shuffledCards.length);
             return shuffledCards;
         }
 
@@ -599,30 +594,24 @@
 
         // Initialize the flashcard app
         async function initApp() {
-            console.log('Initializing flashcard app');
 
             try {
                 // Fetch original cards
                 originalCards = await fetchCards();
-                console.log('Fetched original cards:', originalCards ? originalCards.length : 0);
 
                 // Проверяем флаг - если сообщение уже показано, прекращаем инициализацию
                 if (window.noCardsMessageShown) {
-                    console.log('Message already shown, stopping initialization');
                     return;
                 }
 
                 if (!originalCards || originalCards.length === 0) {
-                    console.log('No cards available');
                     return;
                 }
 
                 // Create alternating cards
                 cards = createAlternatingCards(originalCards);
-                console.log('Created cards array with length:', cards ? cards.length : 0);
 
                 if (!cards || cards.length === 0) {
-                    console.log('No cards after processing');
                     return;
                 }
 
@@ -667,23 +656,19 @@
 
         // Display a card
         function showCard(index) {
-            console.log('Showing card at index:', index, 'out of', cards.length);
 
             if (!cards || cards.length === 0) {
-                console.log('No cards to show');
                 showNoCardsMessage();
                 return;
             }
 
             if (index >= cards.length) {
-                console.log('End of cards reached, completing session');
                 completeSession();
                 return;
             }
 
             const card = cards[index];
             currentCardIndex = index;
-            console.log(card.direction, card.word, card.translation);
             // Update progress
             const progress = ((index + 1) / cards.length) * 100;
             progressFill.style.width = `${progress}%`;
@@ -730,7 +715,6 @@
                     // Автовоспроизведение для eng-rus карточек на фронтальной стороне
                     setTimeout(() => {
                         wordAudio.play().catch(error => {
-                            console.log('Auto-play prevented:', error);
                         });
                     }, 300);
                 } else {
@@ -818,7 +802,6 @@
 
         // Flip card to show answer
         function flipCard() {
-            console.log('Flipping card');
             cardFront.style.display = 'none';
             cardBack.style.display = 'flex';
 
@@ -832,14 +815,12 @@
             const card = cards[currentCardIndex];
             if (card.direction === 'rus-eng' && card.audio_url && playAudio) {
                 setTimeout(() => {
-                    wordAudio.play().catch(e => console.log('Auto-play on answer prevented:', e));
                 }, 300);
             }
         }
 
         // Rate a card and move to the next
         async function rateCard(quality) {
-            console.log('Rating card with quality:', quality);
             if (!cards || currentCardIndex >= cards.length) {
                 console.error('Cannot rate card - invalid card index');
                 return;
@@ -860,7 +841,6 @@
                     }
                     // Replace remaining cards in the original array
                     cards.splice(currentCardIndex + 1, remainingCards.length, ...remainingCards);
-                    console.log('Cards shuffled after "Again" rating to avoid immediate repetition');
                 }
             }
 
@@ -883,7 +863,6 @@
                 });
 
                 const data = await response.json();
-                console.log('Rating response:', data);
 
                 // Check if daily limit was exceeded (race condition protection)
                 if (!data.success && data.error === 'daily_limit_exceeded') {
@@ -926,12 +905,12 @@
 
         // Complete the study session
         async function completeSession() {
-            console.log('Completing session, session ID:', sessionId);
             try {
                 const response = await fetch('/study/api/complete-session', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({
                         session_id: sessionId
@@ -939,7 +918,6 @@
                 });
 
                 const data = await response.json();
-                console.log('Session completion response:', data);
 
                 if (data.success) {
                     // Hide flashcard and show completion screen
@@ -951,6 +929,13 @@
                     statsWords.textContent = data.stats.words_studied;
                     statsCorrect.textContent = data.stats.correct;
                     statsScore.textContent = data.stats.percentage + '%';
+
+                    // Update XP display
+                    if (data.xp_earned) {
+                        document.getElementById('xp-earned-amount').textContent = data.xp_earned;
+                        document.getElementById('current-level').textContent = data.level || 1;
+                        document.getElementById('total-xp').textContent = data.total_xp || 0;
+                    }
                 }
 
             } catch (error) {
@@ -962,7 +947,6 @@
 
         // Show "no cards" message
         function showNoCardsMessage() {
-            console.log('Showing no cards message');
             loadingSpinner.style.display = 'none';
             noCardsMessage.style.display = 'block';
         }
@@ -991,7 +975,6 @@
 
         // End session early
         endSessionBtn.addEventListener('click', function() {
-            console.log('End session button clicked');
             if (confirm('{{ _("Are you sure you want to end the session?") }}')) {
                 try {
                     completeSession();
@@ -1028,13 +1011,11 @@
             }
             // Ctrl+Shift+X для экстренного выхода
             else if (e.ctrlKey && e.shiftKey && e.key === 'X') {
-                console.log('Emergency exit triggered');
                 window.location.href = '{{ url_for("study.index") }}';
             }
         });
 
         // Initialize the app
-        console.log('Starting application initialization');
         initApp();
     });
 </script>

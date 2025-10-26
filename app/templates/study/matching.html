@@ -89,6 +89,17 @@
             <i class="fas fa-trophy me-2"></i>{{ _('Game Complete!') }}
         </h2>
 
+        <!-- XP Earned Banner -->
+        <div id="matching-xp-banner" class="mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);">
+            <div style="font-size: 48px; margin-bottom: 8px;">⚡</div>
+            <div style="font-size: 32px; font-weight: 700; color: #ffd89b;">
+                +<span id="matching-xp-amount">0</span> XP
+            </div>
+            <div style="font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                Уровень <span id="matching-level">1</span> • <span id="matching-total-xp">0</span> XP
+            </div>
+        </div>
+
         <div class="score-display">
             <p class="score-title">{{ _('Your Score') }}</p>
             <p class="score-value" id="final-score">850</p>
@@ -681,6 +692,13 @@
                 const minutes = Math.floor(gameSeconds / 60);
                 const seconds = gameSeconds % 60;
                 statTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                // Update XP display
+                if (data.xp_earned) {
+                    document.getElementById('matching-xp-amount').textContent = data.xp_earned;
+                    document.getElementById('matching-level').textContent = data.level || 1;
+                    document.getElementById('matching-total-xp').textContent = data.total_xp || 0;
+                }
 
                 // Add rank information if available
                 if (data.rank) {
