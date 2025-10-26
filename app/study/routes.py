@@ -21,8 +21,10 @@ study = Blueprint('study', __name__, template_folder='templates')
 @login_required
 @module_required('study')
 def index():
-    """Simplified study dashboard - no forms, just 3 buttons"""
-    # Считаем слова, ожидающие повторения
+    """Упрощенная панель изучения - коллекции и колоды с минимальными кликами"""
+    from app.study.models import QuizDeck, QuizResult
+
+    # Статистика по SRS словам
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
@@ -30,49 +32,75 @@ def index():
         UserCardDirection.next_review <= datetime.now(timezone.utc)
     ).count()
 
-    # Считаем активные слова (исключая mastered)
     total_items = UserWord.query.filter_by(
         user_id=current_user.id
     ).filter(
         UserWord.status != 'mastered'
     ).count()
-    
-    # Считаем выученные слова
+
     mastered_count = UserWord.query.filter_by(
         user_id=current_user.id,
         status='mastered'
     ).count()
 
-    # Получаем процент изученных слов
-    all_words_count = total_items + mastered_count
-    if all_words_count > 0:
-        learned_percentage = int((mastered_count / all_words_count) * 100)
-    else:
-        learned_percentage = 0
+    # Мои колоды - все с сортировкой по последним
+    my_decks = QuizDeck.query.filter_by(
+        user_id=current_user.id
+    ).order_by(QuizDeck.updated_at.desc()).all()
 
-    # БЕЗ ФОРМЫ! Просто передаем данные для отображения
-    # Get reading progress
-    from app.books.helpers import get_user_reading_progress, get_recent_books
-    reading_progress = get_user_reading_progress(current_user.id)
-    recent_books = get_recent_books(current_user.id, limit=3)
+    # Добавляем статистику для каждой колоды
+    for deck in my_decks:
+        # Получаем все слова из колоды
+        deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
 
-    # Get quiz decks statistics
-    from app.study.models import QuizDeck, QuizResult
-    my_decks_count = QuizDeck.query.filter_by(user_id=current_user.id).count()
-    public_decks_count = QuizDeck.query.filter_by(is_public=True).count()
-    my_quiz_attempts = QuizResult.query.filter_by(user_id=current_user.id).count()
+        if deck_word_ids:
+            # Новые слова - те, которых нет в UserWord
+            deck.new_count = len([wid for wid in deck_word_ids
+                                  if not UserWord.query.filter_by(user_id=current_user.id, word_id=wid).first()])
+
+            # Изучаемые слова - со статусом 'learning'
+            deck.learning_count = UserWord.query.filter(
+                UserWord.user_id == current_user.id,
+                UserWord.word_id.in_(deck_word_ids),
+                UserWord.status == 'learning'
+            ).count()
+
+            # К повторению - слова с next_review <= now
+            deck.review_count = db.session.query(func.count(UserCardDirection.id)).filter(
+                UserCardDirection.user_word_id.in_(
+                    db.session.query(UserWord.id).filter(
+                        UserWord.user_id == current_user.id,
+                        UserWord.word_id.in_(deck_word_ids)
+                    )
+                ),
+                UserCardDirection.next_review <= datetime.now(timezone.utc)
+            ).scalar() or 0
+
+            # Выученные слова - со статусом 'mastered'
+            deck.mastered_count = UserWord.query.filter(
+                UserWord.user_id == current_user.id,
+                UserWord.word_id.in_(deck_word_ids),
+                UserWord.status == 'mastered'
+            ).count()
+        else:
+            deck.new_count = 0
+            deck.learning_count = 0
+            deck.review_count = 0
+            deck.mastered_count = 0
+
+    # Публичные колоды - топ 12 по популярности
+    public_decks = QuizDeck.query.filter(
+        QuizDeck.is_public == True,
+        QuizDeck.user_id != current_user.id
+    ).order_by(QuizDeck.times_played.desc(), QuizDeck.created_at.desc()).limit(12).all()
 
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
         total_items=total_items,
         mastered_count=mastered_count,
-        learned_percentage=learned_percentage,
-        reading_progress=reading_progress,
-        recent_books=recent_books,
-        my_decks_count=my_decks_count,
-        public_decks_count=public_decks_count,
-        my_quiz_attempts=my_quiz_attempts
+        my_decks=my_decks,
+        public_decks=public_decks
     )
 
 
@@ -106,6 +134,41 @@ def cards():
     # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
+    # Check if there are any cards to study
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Count due cards
+    due_count = UserCardDirection.query.join(
+        UserWord, UserCardDirection.user_word_id == UserWord.id
+    ).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status.in_(['learning', 'review']),
+        UserCardDirection.next_review <= datetime.now(timezone.utc)
+    ).count()
+
+    # Count new cards studied today
+    new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(
+            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
+        ),
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.repetitions == 1
+    ).scalar() or 0
+
+    # Count available new words
+    new_count = CollectionWords.query.outerjoin(
+        UserWord,
+        (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
+    ).filter(
+        UserWord.id == None,
+        CollectionWords.russian_word.isnot(None),
+        CollectionWords.russian_word != ''
+    ).count()
+
+    can_study_new = new_cards_today < settings.new_words_per_day
+    nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)
+    limit_reached = new_count > 0 and not can_study_new
+
     # Create new study session
     session = StudySession(
         user_id=current_user.id,
@@ -118,7 +181,92 @@ def cards():
         'study/cards.html',
         session_id=session.id,
         settings=settings,
-        word_source='auto'  # Always use automatic selection
+        word_source='auto',
+        nothing_to_study=nothing_to_study,
+        limit_reached=limit_reached,
+        daily_limit=settings.new_words_per_day,
+        new_cards_today=new_cards_today
+    )
+
+
+@study.route('/cards/deck/<int:deck_id>')
+@login_required
+@module_required('study')
+def cards_deck(deck_id):
+    """SRS cards from specific deck"""
+    from app.study.models import QuizDeck
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user has access (own deck or public)
+    if not deck.is_public and deck.user_id != current_user.id:
+        flash('У вас нет доступа к этой колоде', 'danger')
+        return redirect(url_for('study.index'))
+
+    # Check if deck has words
+    if deck.word_count == 0:
+        flash('В колоде нет слов', 'warning')
+        return redirect(url_for('study.index'))
+
+    # Get words from deck that need review today
+    deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
+
+    if not deck_word_ids:
+        flash('В колоде нет слов для SRS повторения', 'info')
+        return redirect(url_for('study.index'))
+
+    # Count due cards (cards that need review)
+    due_count = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(
+            db.session.query(UserWord.id).filter(
+                UserWord.user_id == current_user.id,
+                UserWord.word_id.in_(deck_word_ids)
+            )
+        ),
+        UserCardDirection.next_review <= datetime.now(timezone.utc)
+    ).scalar() or 0
+
+    # Count new cards (words not yet in UserWord)
+    new_count = len([wid for wid in deck_word_ids
+                     if not UserWord.query.filter_by(user_id=current_user.id, word_id=wid).first()])
+
+    # Check daily limits
+    settings = StudySettings.get_settings(current_user.id)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(
+            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
+        ),
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.repetitions == 1
+    ).scalar() or 0
+
+    can_study_new = new_cards_today < settings.new_words_per_day
+
+    # Determine if there's anything to study
+    nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)
+    limit_reached = new_count > 0 and not can_study_new
+
+    # Create new study session
+    session = StudySession(
+        user_id=current_user.id,
+        session_type='cards'
+    )
+    db.session.add(session)
+    db.session.commit()
+
+    return render_template(
+        'study/cards.html',
+        session_id=session.id,
+        settings=settings,
+        word_source='deck',
+        deck_id=deck_id,
+        deck_title=deck.title,
+        nothing_to_study=nothing_to_study,
+        limit_reached=limit_reached,
+        daily_limit=settings.new_words_per_day,
+        new_cards_today=new_cards_today
     )
 
 
@@ -255,9 +403,11 @@ def start_session():
 @study.route('/api/get-study-items', methods=['GET'])
 @login_required
 def get_study_items():
-    """Get words for study - automatic selection with priorities"""
-    # Always use automatic selection
-    word_source = 'auto'
+    """Get words for study - automatic selection with priorities or from specific deck"""
+    from app.study.models import QuizDeck
+
+    word_source = request.args.get('source', 'auto')
+    deck_id = request.args.get('deck_id', type=int)
     extra_study = request.args.get('extra_study', 'false').lower() == 'true'
 
     # Get user settings
@@ -304,6 +454,19 @@ def get_study_items():
 
     result_items = []
 
+    # Get word IDs from deck if deck_id is provided
+    deck_word_ids = None
+    if deck_id:
+        deck = QuizDeck.query.get(deck_id)
+        if deck and (deck.user_id == current_user.id or deck.is_public):
+            deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Deck not found or access denied',
+                'items': []
+            })
+
     # Determine limits based on what's already studied today
     if extra_study:
         new_limit = 5  # Fixed amount for extra study
@@ -314,13 +477,19 @@ def get_study_items():
 
     # PRIORITY 1: Get due review cards (excluding mastered)
     if review_limit > 0:
-        review_directions = UserCardDirection.query \
+        review_query = UserCardDirection.query \
             .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
             .filter(
                 UserWord.user_id == current_user.id,
                 UserWord.status.in_(['learning', 'review']),  # EXCLUDE 'mastered'
                 UserCardDirection.next_review <= datetime.now(timezone.utc)
-            ).order_by(
+            )
+
+        # Filter by deck if deck_id provided
+        if deck_word_ids is not None:
+            review_query = review_query.filter(UserWord.word_id.in_(deck_word_ids))
+
+        review_directions = review_query.order_by(
                 UserCardDirection.next_review  # Most overdue first
             ).limit(review_limit).all()
         
@@ -362,14 +531,20 @@ def get_study_items():
     if new_limit > 0:
         # Use efficient LEFT JOIN instead of NOT IN subquery
         # This avoids N+1 problem and performs better on large datasets
-        new_words = db.session.query(CollectionWords).outerjoin(
+        new_words_query = db.session.query(CollectionWords).outerjoin(
             UserWord,
             (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
         ).filter(
             UserWord.id == None,  # Words not in user's collection
             CollectionWords.russian_word.isnot(None),
             CollectionWords.russian_word != ''
-        ).order_by(
+        )
+
+        # Filter by deck if deck_id provided
+        if deck_word_ids is not None:
+            new_words_query = new_words_query.filter(CollectionWords.id.in_(deck_word_ids))
+
+        new_words = new_words_query.order_by(
             CollectionWords.id.desc()  # Deterministic ordering (most recent first), indexed
         ).limit(new_limit).all()
 
@@ -733,16 +908,11 @@ def generate_quiz_questions(words, count):
 
         # Generate English to Russian question
         if len(questions) < count:
-            question_type = random.choice(['multiple_choice', 'true_false', 'fill_blank'])
+            question_type = random.choice(['multiple_choice', 'fill_blank'])
 
             if question_type == 'multiple_choice':
                 # Create multiple choice question (eng->rus)
                 question = create_multiple_choice_question(word, all_words, 'eng_to_rus')
-                questions.append(question)
-
-            elif question_type == 'true_false':
-                # Create true/false question (eng->rus)
-                question = create_true_false_question(word, all_words, 'eng_to_rus')
                 questions.append(question)
 
             elif question_type == 'fill_blank':
@@ -752,16 +922,11 @@ def generate_quiz_questions(words, count):
 
         # Generate Russian to English question
         if len(questions) < count:
-            question_type = random.choice(['multiple_choice', 'true_false', 'fill_blank'])
+            question_type = random.choice(['multiple_choice', 'fill_blank'])
 
             if question_type == 'multiple_choice':
                 # Create multiple choice question (rus->eng)
                 question = create_multiple_choice_question(word, all_words, 'rus_to_eng')
-                questions.append(question)
-
-            elif question_type == 'true_false':
-                # Create true/false question (rus->eng)
-                question = create_true_false_question(word, all_words, 'rus_to_eng')
                 questions.append(question)
 
             elif question_type == 'fill_blank':
@@ -779,7 +944,7 @@ def generate_quiz_questions(words, count):
 def create_multiple_choice_question(word, all_words, direction):
     """Create a multiple choice question"""
     if direction == 'eng_to_rus':
-        question_template = _('Translate to Russian:')
+        question_template = 'Переведите на русский:'
         question_text = word.english_word
         correct_answer = word.russian_word
 
@@ -793,7 +958,7 @@ def create_multiple_choice_question(word, all_words, direction):
                 if len(distractors) >= 3:
                     break
     else:
-        question_template = _('Translate to English:')
+        question_template = 'Переведите на английский:'
         question_text = word.russian_word
         correct_answer = word.english_word
 
@@ -807,8 +972,15 @@ def create_multiple_choice_question(word, all_words, direction):
                 if len(distractors) >= 3:
                     break
 
+    # Ensure we have at least 3 distractors
+    while len(distractors) < 3:
+        if direction == 'eng_to_rus':
+            distractors.append(f"[вариант {len(distractors) + 1}]")
+        else:
+            distractors.append(f"[option {len(distractors) + 1}]")
+
     # Create options and shuffle
-    options = [correct_answer] + distractors
+    options = [correct_answer] + distractors[:3]  # Ensure exactly 4 options
     random.shuffle(options)
 
     # Audio for English word
@@ -817,9 +989,9 @@ def create_multiple_choice_question(word, all_words, direction):
         audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = correct_answer.split(',')[0].strip()
-    letter_form = _("letters")
+    letter_form = "букв"
 
-    hint = f"{_('Starts with')}: {first_word[0]}... ({len(first_word)} {letter_form})"
+    hint = f"Начинается с: {first_word[0]}... ({len(first_word)} {letter_form})"
 
     return {
         'id': f'mc_{word.id}_{direction}',
@@ -857,7 +1029,7 @@ def create_true_false_question(word, all_words, direction):
                 russian_word = word.russian_word + 'ский'
             answer = 'false'
 
-        question_template = _('Is this the correct translation?')
+        question_template = 'Это правильный перевод?'
         question_text = f"{english_word} = {russian_word}"
         hint_word = word.russian_word
 
@@ -878,7 +1050,7 @@ def create_true_false_question(word, all_words, direction):
                 english_word = 'un' + word.english_word
             answer = 'false'
 
-        question_template = _('Is this the correct translation?')
+        question_template = 'Это правильный перевод?'
         question_text = f"{russian_word} = {english_word}"
         hint_word = word.english_word
 
@@ -889,8 +1061,8 @@ def create_true_false_question(word, all_words, direction):
 
     # Create hint based on the actual correct translation, not "true"/"false"
     first_word = hint_word.split(',')[0].strip()
-    letter_form = _("letters")
-    hint = f"{_('Correct answer')}: {first_word[0]}{"_" * (len(first_word) - 1)} ({len(first_word)} {letter_form})"
+    letter_form = "букв"
+    hint = f"Правильный ответ: {first_word[0]}{"_" * (len(first_word) - 1)} ({len(first_word)} {letter_form})"
 
     return {
         'id': f'tf_{word.id}_{direction}',
@@ -907,11 +1079,11 @@ def create_true_false_question(word, all_words, direction):
 def create_fill_blank_question(word, direction):
     """Create a fill-in-the-blank question"""
     if direction == 'eng_to_rus':
-        question_template = _('Type the Russian translation:')
+        question_template = 'Введите перевод на русский:'
         question_text = word.english_word
         answer = word.russian_word
     else:
-        question_template = _('Type the English translation:')
+        question_template = 'Введите перевод на английский:'
         question_text = word.russian_word
         answer = word.english_word
 
@@ -929,9 +1101,9 @@ def create_fill_blank_question(word, direction):
         audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
 
     first_word = answer.split(',')[0].strip()
-    letter_form = _("letters")
+    letter_form = "букв"
 
-    hint = f"{_('Starts with')}: {first_word[0]}... ({len(first_word)} {letter_form})"
+    hint = f"Начинается с: {first_word[0]}... ({len(first_word)} {letter_form})"
 
     return {
         'id': f'fb_{word.id}_{direction}',
@@ -1399,6 +1571,304 @@ def get_leaderboard(game_type):
         'leaderboard': leaderboard_data,
         'user_best': user_best_data
     })
+
+
+@study.route('/my-decks/create', methods=['GET', 'POST'])
+@login_required
+@module_required('study')
+def create_deck():
+    """Create new quiz deck for current user"""
+    from app.study.models import QuizDeck
+
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        is_public = request.form.get('is_public') == 'on'
+
+        if not title:
+            flash('Название колоды обязательно', 'danger')
+            return redirect(url_for('study.create_deck'))
+
+        deck = QuizDeck(
+            title=title,
+            description=description,
+            user_id=current_user.id,
+            is_public=is_public
+        )
+
+        if is_public:
+            deck.generate_share_code()
+
+        db.session.add(deck)
+        db.session.commit()
+
+        flash(f'Колода "{title}" успешно создана!', 'success')
+        return redirect(url_for('study.edit_deck', deck_id=deck.id))
+
+    return render_template('study/deck_create.html')
+
+
+@study.route('/my-decks/<int:deck_id>/edit', methods=['GET', 'POST'])
+@login_required
+@module_required('study')
+def edit_deck(deck_id):
+    """Edit user's quiz deck"""
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user owns this deck
+    if deck.user_id != current_user.id:
+        flash('У вас нет прав для редактирования этой колоды', 'danger')
+        return redirect(url_for('study.index'))
+
+    if request.method == 'POST':
+        deck.title = request.form.get('title', '').strip()
+        deck.description = request.form.get('description', '').strip()
+        was_public = deck.is_public
+        deck.is_public = request.form.get('is_public') == 'on'
+
+        if not deck.title:
+            flash('Название колоды обязательно', 'danger')
+            return render_template('study/deck_edit.html', deck=deck, words=deck.words.order_by(QuizDeckWord.order_index).all())
+
+        # Generate share code if making public for the first time
+        if deck.is_public and not was_public and not deck.share_code:
+            deck.generate_share_code()
+
+        db.session.commit()
+        flash('Колода успешно обновлена!', 'success')
+        return redirect(url_for('study.edit_deck', deck_id=deck.id))
+
+    words = deck.words.order_by(QuizDeckWord.order_index).all()
+    return render_template('study/deck_edit.html', deck=deck, words=words)
+
+
+@study.route('/my-decks/<int:deck_id>/delete', methods=['POST'])
+@login_required
+@module_required('study')
+def delete_deck(deck_id):
+    """Delete user's quiz deck"""
+    from app.study.models import QuizDeck
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user owns this deck
+    if deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    title = deck.title
+    db.session.delete(deck)
+    db.session.commit()
+
+    flash(f'Колода "{title}" успешно удалена', 'success')
+    return redirect(url_for('study.index'))
+
+
+@study.route('/decks/<int:deck_id>/copy', methods=['POST'])
+@login_required
+@module_required('study')
+def copy_deck(deck_id):
+    """Copy a public deck to user's collection"""
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    original_deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if deck is public or belongs to the user
+    if not original_deck.is_public and original_deck.user_id != current_user.id:
+        flash('У вас нет доступа к этой колоде', 'danger')
+        return redirect(url_for('study.index'))
+
+    # Check if user already copied this deck
+    existing_copy = QuizDeck.query.filter_by(
+        user_id=current_user.id,
+        title=f"{original_deck.title} (копия)"
+    ).first()
+
+    if existing_copy:
+        flash('Вы уже скопировали эту колоду', 'info')
+        return redirect(url_for('study.edit_deck', deck_id=existing_copy.id))
+
+    # Create new deck
+    new_deck = QuizDeck(
+        title=f"{original_deck.title} (копия)",
+        description=original_deck.description,
+        user_id=current_user.id,
+        is_public=False  # Copied decks are private by default
+    )
+
+    db.session.add(new_deck)
+    db.session.flush()  # Get new_deck.id
+
+    # Copy all words
+    original_words = QuizDeckWord.query.filter_by(deck_id=original_deck.id).order_by(QuizDeckWord.order_index).all()
+    for word in original_words:
+        new_word = QuizDeckWord(
+            deck_id=new_deck.id,
+            word_id=word.word_id,
+            custom_english=word.custom_english,
+            custom_russian=word.custom_russian,
+            order_index=word.order_index
+        )
+        db.session.add(new_word)
+
+    db.session.commit()
+
+    flash(f'Колода "{original_deck.title}" успешно скопирована!', 'success')
+    return redirect(url_for('study.edit_deck', deck_id=new_deck.id))
+
+
+@study.route('/my-decks/<int:deck_id>/words/add', methods=['POST'])
+@login_required
+@module_required('study')
+def add_word_to_deck(deck_id):
+    """Add word to user's quiz deck"""
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user owns this deck
+    if deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    word_id = request.form.get('word_id', type=int)
+    custom_english = request.form.get('custom_english', '').strip()
+    custom_russian = request.form.get('custom_russian', '').strip()
+
+    if not custom_english or not custom_russian:
+        flash('Необходимо заполнить оба поля', 'danger')
+        return redirect(url_for('study.edit_deck', deck_id=deck_id))
+
+    # Get max order index
+    max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+        QuizDeckWord.deck_id == deck_id
+    ).scalar() or 0
+
+    if word_id:
+        # Check if already in deck
+        existing = QuizDeckWord.query.filter_by(deck_id=deck_id, word_id=word_id).first()
+        if existing:
+            flash('Это слово уже в колоде', 'info')
+            return redirect(url_for('study.edit_deck', deck_id=deck_id))
+
+        # Add word from collection
+        word = CollectionWords.query.get(word_id)
+        if not word:
+            flash('Слово не найдено', 'danger')
+            return redirect(url_for('study.edit_deck', deck_id=deck_id))
+
+        deck_word = QuizDeckWord(
+            deck_id=deck_id,
+            word_id=word_id,
+            order_index=max_order + 1
+        )
+
+        # Save custom override if different
+        if custom_english != word.english_word or custom_russian != word.russian_word:
+            deck_word.custom_english = custom_english
+            deck_word.custom_russian = custom_russian
+    else:
+        # Add custom word
+        deck_word = QuizDeckWord(
+            deck_id=deck_id,
+            custom_english=custom_english,
+            custom_russian=custom_russian,
+            order_index=max_order + 1
+        )
+
+    db.session.add(deck_word)
+    db.session.commit()
+
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get sentences from original word if exists
+        sentences = None
+        if deck_word.word:
+            sentences = deck_word.word.sentences
+
+        return jsonify({
+            'success': True,
+            'message': 'Слово добавлено в колоду!',
+            'word': {
+                'id': deck_word.id,
+                'english': deck_word.english_word,
+                'russian': deck_word.russian_word,
+                'has_custom': deck_word.custom_english is not None or deck_word.custom_russian is not None,
+                'sentences': sentences[:150] if sentences and len(sentences) > 150 else sentences
+            }
+        })
+
+    flash('Слово добавлено в колоду!', 'success')
+    return redirect(url_for('study.edit_deck', deck_id=deck_id))
+
+
+@study.route('/my-decks/<int:deck_id>/words/<int:word_id>/delete', methods=['POST'])
+@login_required
+@module_required('study')
+def remove_word_from_deck(deck_id, word_id):
+    """Remove word from user's quiz deck"""
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user owns this deck
+    if deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
+    db.session.delete(deck_word)
+    db.session.commit()
+
+    flash('Слово удалено из колоды', 'success')
+    return redirect(url_for('study.edit_deck', deck_id=deck_id))
+
+
+@study.route('/api/search-words')
+@login_required
+def api_search_words():
+    """API endpoint to search words for autocomplete"""
+    query = request.args.get('q', '').strip()
+    limit = min(int(request.args.get('limit', 10)), 50)
+
+    if not query or len(query) < 2:
+        return jsonify([])
+
+    # Search in CollectionWords
+    from sqlalchemy import case
+    words_query = CollectionWords.query.filter(
+        CollectionWords.russian_word != None,
+        CollectionWords.russian_word != '',
+        db.or_(
+            CollectionWords.english_word.ilike(f'%{query}%'),
+            CollectionWords.russian_word.ilike(f'%{query}%')
+        )
+    )
+
+    # Smart sorting
+    query_lower = query.lower()
+    words_query = words_query.order_by(
+        case(
+            (func.lower(CollectionWords.english_word) == query_lower, 1),
+            (func.lower(CollectionWords.russian_word) == query_lower, 1),
+            else_=10
+        ),
+        case(
+            (func.lower(CollectionWords.english_word).like(f'{query_lower}%'), 2),
+            (func.lower(CollectionWords.russian_word).like(f'{query_lower}%'), 2),
+            else_=10
+        ),
+        CollectionWords.english_word
+    )
+
+    words = words_query.limit(limit).all()
+
+    results = [{
+        'id': w.id,
+        'english': w.english_word,
+        'russian': w.russian_word
+    } for w in words]
+
+    return jsonify(results)
 
 
 @study.route('/collections')
