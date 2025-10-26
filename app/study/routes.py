@@ -1734,6 +1734,7 @@ def add_word_to_deck(deck_id):
     word_id = request.form.get('word_id', type=int)
     custom_english = request.form.get('custom_english', '').strip()
     custom_russian = request.form.get('custom_russian', '').strip()
+    custom_sentences = request.form.get('custom_sentences', '').strip()
 
     if not custom_english or not custom_russian:
         flash('Необходимо заполнить оба поля', 'danger')
@@ -1767,12 +1768,17 @@ def add_word_to_deck(deck_id):
         if custom_english != word.english_word or custom_russian != word.russian_word:
             deck_word.custom_english = custom_english
             deck_word.custom_russian = custom_russian
+
+        # Save custom sentences if provided and different from original
+        if custom_sentences and (not word.sentences or custom_sentences != word.sentences):
+            deck_word.custom_sentences = custom_sentences
     else:
         # Add custom word
         deck_word = QuizDeckWord(
             deck_id=deck_id,
             custom_english=custom_english,
             custom_russian=custom_russian,
+            custom_sentences=custom_sentences if custom_sentences else None,
             order_index=max_order + 1
         )
 
@@ -1781,10 +1787,8 @@ def add_word_to_deck(deck_id):
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Get sentences from original word if exists
-        sentences = None
-        if deck_word.word:
-            sentences = deck_word.word.sentences
+        # Get sentences using property (handles custom override)
+        sentences = deck_word.sentences
 
         return jsonify({
             'success': True,
@@ -1793,12 +1797,59 @@ def add_word_to_deck(deck_id):
                 'id': deck_word.id,
                 'english': deck_word.english_word,
                 'russian': deck_word.russian_word,
-                'has_custom': deck_word.custom_english is not None or deck_word.custom_russian is not None,
+                'has_custom': deck_word.custom_english is not None or deck_word.custom_russian is not None or deck_word.custom_sentences is not None,
                 'sentences': sentences[:150] if sentences and len(sentences) > 150 else sentences
             }
         })
 
     flash('Слово добавлено в колоду!', 'success')
+    return redirect(url_for('study.edit_deck', deck_id=deck_id))
+
+
+@study.route('/my-decks/<int:deck_id>/words/<int:word_id>/edit', methods=['POST'])
+@login_required
+@module_required('study')
+def edit_deck_word(deck_id, word_id):
+    """Edit word in user's quiz deck"""
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    deck = QuizDeck.query.get_or_404(deck_id)
+
+    # Check if user owns this deck
+    if deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
+
+    custom_english = request.form.get('custom_english', '').strip()
+    custom_russian = request.form.get('custom_russian', '').strip()
+    custom_sentences = request.form.get('custom_sentences', '').strip()
+
+    if not custom_english or not custom_russian:
+        return jsonify({'success': False, 'message': 'Необходимо заполнить оба поля'}), 400
+
+    # Update custom fields
+    deck_word.custom_english = custom_english
+    deck_word.custom_russian = custom_russian
+    deck_word.custom_sentences = custom_sentences if custom_sentences else None
+
+    db.session.commit()
+
+    # Return JSON response
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'message': 'Слово успешно обновлено!',
+            'word': {
+                'id': deck_word.id,
+                'english': deck_word.english_word,
+                'russian': deck_word.russian_word,
+                'has_custom': deck_word.custom_english is not None or deck_word.custom_russian is not None or deck_word.custom_sentences is not None,
+                'sentences': deck_word.sentences
+            }
+        })
+
+    flash('Слово успешно обновлено!', 'success')
     return redirect(url_for('study.edit_deck', deck_id=deck_id))
 
 
@@ -1865,7 +1916,8 @@ def api_search_words():
     results = [{
         'id': w.id,
         'english': w.english_word,
-        'russian': w.russian_word
+        'russian': w.russian_word,
+        'sentences': w.sentences if w.sentences else ''
     } for w in words]
 
     return jsonify(results)
