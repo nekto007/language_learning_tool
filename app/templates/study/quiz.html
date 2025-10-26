@@ -2,6 +2,51 @@
 
 {% block title %}Режим квиза{% endblock %}
 
+{% block styles %}
+{{ super() }}
+<style>
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#xp-earned {
+    transition: all 0.3s ease;
+}
+
+#session-complete {
+    animation: fadeInScale 0.5s ease-out;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4" id="quiz-app">
     <!-- Progress bar and stats -->
@@ -145,7 +190,62 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Canvas Confetti Library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
 <script>
+    // Confetti animation function
+    function celebrateWithConfetti() {
+        const duration = 3 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        function randomInRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        const interval = setInterval(function() {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+            });
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+            });
+        }, 250);
+    }
+
+    // Animate number counting
+    function animateValue(element, start, end, duration) {
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            const value = Math.floor(progress * (end - start) + start);
+            element.textContent = value;
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            }
+        };
+        window.requestAnimationFrame(step);
+    }
+
+    // Pulse animation for XP badge
+    function pulseElement(element) {
+        element.style.animation = 'pulse 0.6s ease-in-out 3';
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Config from server
         const sessionId = {{ session_id }};
@@ -721,9 +821,19 @@
                     finalScore.style.color = '#dc3545';
                 }
 
-                // Update XP amount (will be calculated by server)
+                // Update XP amount with animation
                 const xpAmount = data.xp_earned || 0;
-                document.getElementById('xp-amount').textContent = xpAmount;
+                const xpAmountEl = document.getElementById('xp-amount');
+                if (xpAmountEl && xpAmount > 0) {
+                    // Animate XP counting from 0 to earned amount
+                    animateValue(xpAmountEl, 0, xpAmount, 1500);
+
+                    // Pulse the XP container
+                    const xpContainer = document.getElementById('xp-earned');
+                    if (xpContainer) {
+                        pulseElement(xpContainer);
+                    }
+                }
 
                 // Show achievements if earned
                 if (data.achievements && data.achievements.length > 0) {
@@ -731,9 +841,12 @@
                     const badgesContainer = document.getElementById('achievement-badges');
                     badgesContainer.innerHTML = '';
 
-                    data.achievements.forEach(achievement => {
+                    // Trigger confetti celebration!
+                    setTimeout(() => celebrateWithConfetti(), 500);
+
+                    data.achievements.forEach((achievement, index) => {
                         const badge = document.createElement('div');
-                        badge.style.cssText = 'background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500;';
+                        badge.style.cssText = `background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; animation: slideInUp 0.5s ease-out ${index * 0.1}s both;`;
                         badge.innerHTML = `
                             <span style="font-size: 18px;">${achievement.icon}</span>
                             <span>${achievement.name}</span>
