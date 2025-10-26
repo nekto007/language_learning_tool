@@ -10,7 +10,7 @@
         <p class="text-muted">Выберите колоду или коллекцию для изучения</p>
     </div>
 
-    <!-- Быстрый старт - SRS карточки -->
+    <!-- Быстрый старт - Карточки для повторения -->
     {% if due_items_count > 0 or total_items > 0 %}
     <div class="card mb-4 border-primary shadow-sm">
         <div class="card-body">
@@ -154,8 +154,8 @@
                                     <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary" title="Пройти квиз">
                                         <i class="fas fa-brain"></i> Quiz
                                     </a>
-                                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="SRS повторение">
-                                        <i class="fas fa-layer-group"></i> SRS
+                                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="Интервальное повторение">
+                                        <i class="fas fa-layer-group"></i> Карточки
                                     </a>
                                     <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
                                         <i class="fas fa-edit"></i>
@@ -254,7 +254,7 @@
                         <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2" style="width: 60px; height: 60px;">
                             <i class="fas fa-layer-group text-primary fs-3"></i>
                         </div>
-                        <h6 class="fw-bold text-dark mb-1">Карточки (SRS)</h6>
+                        <h6 class="fw-bold text-dark mb-1">Карточки</h6>
                         <p class="text-muted small mb-0">Интервальное повторение</p>
                     </div>
                 </a>
