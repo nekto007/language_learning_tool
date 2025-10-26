@@ -79,25 +79,32 @@
                 <input type="hidden" name="word_id" id="word-id-input" value="">
 
                 <div class="row">
-                    <div class="col-md-5 mb-3">
+                    <div class="col-md-4 mb-3">
                         <label for="custom_english" class="form-label">English *</label>
                         <div style="position: relative; z-index: 100;">
                             <input type="text" class="form-control" id="custom_english" name="custom_english"
                                    placeholder="Начните вводить..." required autocomplete="off">
                             <div id="autocomplete-results" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 300px; overflow-y: auto; display: none; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; margin-top: 2px;"></div>
                         </div>
-                        <small class="text-muted">Начните вводить для поиска в базе или добавьте своё</small>
+                        <small class="text-muted">Начните вводить для поиска в базе</small>
                     </div>
-                    <div class="col-md-5 mb-3">
+                    <div class="col-md-4 mb-3">
                         <label for="custom_russian" class="form-label">Русский *</label>
                         <input type="text" class="form-control" id="custom_russian" name="custom_russian"
                                placeholder="привет" required>
                         <small class="text-muted">Перевод на русский</small>
                     </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="form-label d-block">&nbsp;</label>
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="fas fa-plus"></i> Добавить
+                    <div class="col-md-4 mb-3">
+                        <label for="custom_sentences" class="form-label">Примеры</label>
+                        <input type="text" class="form-control" id="custom_sentences" name="custom_sentences"
+                               placeholder="Hello, world!">
+                        <small class="text-muted">Примеры использования</small>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Добавить слово
                         </button>
                     </div>
                 </div>
@@ -163,15 +170,20 @@
                             </td>
                             <td>{{ word.russian_word }}</td>
                             <td>
-                                {% if word.word and word.word.sentences %}
+                                {% if word.sentences %}
                                 <small class="text-muted" style="font-size: 0.85rem;">
-                                    {{ word.word.sentences[:150] }}{% if word.word.sentences|length > 150 %}...{% endif %}
+                                    {{ word.sentences[:150] }}{% if word.sentences|length > 150 %}...{% endif %}
                                 </small>
                                 {% else %}
                                 <small class="text-muted fst-italic">Нет примеров</small>
                                 {% endif %}
                             </td>
                             <td class="text-center">
+                                <button type="button" class="btn btn-primary btn-sm me-1"
+                                        onclick="editWord({{ word.id }}, '{{ word.english_word|replace("'", "\\'") }}', '{{ word.russian_word|replace("'", "\\'") }}', '{{ (word.sentences or '')|replace("'", "\\'")|replace("\n", " ") }}')"
+                                        title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 <form method="POST" action="{{ url_for('study.remove_word_from_deck', deck_id=deck.id, word_id=word.id) }}"
                                       onsubmit="return confirm('Удалить это слово из колоды?')" style="display: inline;">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -206,6 +218,41 @@
             <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success">
                 <i class="fas fa-layer-group me-1"></i>SRS Повторение
             </a>
+        </div>
+    </div>
+
+    <!-- Edit Word Modal -->
+    <div class="modal fade" id="editWordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать слово</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-word-form">
+                        <input type="hidden" id="edit-word-id">
+                        <div class="mb-3">
+                            <label for="edit-english" class="form-label">English *</label>
+                            <input type="text" class="form-control" id="edit-english" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-russian" class="form-label">Русский *</label>
+                            <input type="text" class="form-control" id="edit-russian" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-sentences" class="form-label">Примеры</label>
+                            <textarea class="form-control" id="edit-sentences" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveWordEdit()">
+                        <i class="fas fa-save me-1"></i>Сохранить
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -253,8 +300,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button type="button" class="list-group-item list-group-item-action"
                                 data-id="${word.id}"
                                 data-english="${word.english}"
-                                data-russian="${word.russian}">
+                                data-russian="${word.russian}"
+                                data-sentences="${word.sentences || ''}">
                             <strong>${word.english}</strong> — ${word.russian}
+                            ${word.sentences ? '<br><small class="text-muted">' + word.sentences.substring(0, 50) + (word.sentences.length > 50 ? '...' : '') + '</small>' : ''}
                         </button>
                     `).join('');
 
@@ -266,10 +315,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             const wordId = this.dataset.id;
                             const english = this.dataset.english;
                             const russian = this.dataset.russian;
+                            const sentences = this.dataset.sentences || '';
 
                             // Fill form
                             englishInput.value = english;
                             russianInput.value = russian;
+                            document.getElementById('custom_sentences').value = sentences;
                             wordIdInput.value = wordId;
 
                             // Hide results
@@ -344,6 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset form
                 englishInput.value = '';
                 russianInput.value = '';
+                document.getElementById('custom_sentences').value = '';
                 wordIdInput.value = '';
                 autocompleteResults.style.display = 'none';
 
@@ -589,6 +641,82 @@ document.addEventListener('DOMContentLoaded', function() {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    // Edit word function (global scope for onclick)
+    window.editWord = function(wordId, english, russian, sentences) {
+        document.getElementById('edit-word-id').value = wordId;
+        document.getElementById('edit-english').value = english;
+        document.getElementById('edit-russian').value = russian;
+        document.getElementById('edit-sentences').value = sentences || '';
+
+        const modal = new bootstrap.Modal(document.getElementById('editWordModal'));
+        modal.show();
+    };
+
+    // Save word edit
+    window.saveWordEdit = function() {
+        const wordId = document.getElementById('edit-word-id').value;
+        const english = document.getElementById('edit-english').value.trim();
+        const russian = document.getElementById('edit-russian').value.trim();
+        const sentences = document.getElementById('edit-sentences').value.trim();
+
+        if (!english || !russian) {
+            showMessage('Необходимо заполнить English и Русский', 'warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('csrf_token', '{{ csrf_token() }}');
+        formData.append('custom_english', english);
+        formData.append('custom_russian', russian);
+        formData.append('custom_sentences', sentences);
+
+        fetch(`/study/my-decks/{{ deck.id }}/words/${wordId}/edit`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage(data.message, 'success');
+
+                // Update table row
+                const rows = document.querySelectorAll('#words-table tbody tr');
+                rows.forEach(row => {
+                    const editBtn = row.querySelector('button[onclick*="' + wordId + '"]');
+                    if (editBtn) {
+                        // Update row content
+                        const cells = row.querySelectorAll('td');
+                        cells[1].innerHTML = `<strong>${escapeHtml(data.word.english)}</strong>` +
+                            (data.word.has_custom ? ' <span class="badge bg-warning text-dark" title="Кастомный перевод">Custom</span>' : '');
+                        cells[2].textContent = data.word.russian;
+
+                        // Update sentences cell
+                        if (data.word.sentences) {
+                            cells[3].innerHTML = `<small class="text-muted" style="font-size: 0.85rem;">${escapeHtml(data.word.sentences)}</small>`;
+                        } else {
+                            cells[3].innerHTML = '<small class="text-muted fst-italic">Нет примеров</small>';
+                        }
+
+                        // Update onclick attribute
+                        editBtn.setAttribute('onclick', `editWord(${wordId}, '${data.word.english.replace(/'/g, "\\'")}', '${data.word.russian.replace(/'/g, "\\'")}', '${(data.word.sentences || '').replace(/'/g, "\\'").replace(/\n/g, " ")}')`);
+                    }
+                });
+
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('editWordModal')).hide();
+            } else {
+                showMessage(data.message || 'Ошибка при обновлении', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Ошибка при обновлении слова', 'danger');
+        });
+    };
 });
 </script>
 

@@ -477,6 +477,7 @@ class QuizDeckWord(db.Model):
     # Custom word fields (used if word_id is NULL)
     custom_english = db.Column(db.String(200), nullable=True)
     custom_russian = db.Column(db.String(200), nullable=True)
+    custom_sentences = db.Column(db.Text, nullable=True)
     custom_audio_url = db.Column(db.String(500), nullable=True)
 
     # Order in deck
@@ -496,17 +497,30 @@ class QuizDeckWord(db.Model):
 
     @property
     def english_word(self):
-        """Get English word from collection_words or custom"""
+        """Get English word - custom override takes priority"""
+        if self.custom_english:
+            return self.custom_english
         if self.word:
             return self.word.english_word
-        return self.custom_english
+        return None
 
     @property
     def russian_word(self):
-        """Get Russian word from collection_words or custom"""
+        """Get Russian word - custom override takes priority"""
+        if self.custom_russian:
+            return self.custom_russian
         if self.word:
             return self.word.russian_word
-        return self.custom_russian
+        return None
+
+    @property
+    def sentences(self):
+        """Get sentences - custom override takes priority"""
+        if self.custom_sentences:
+            return self.custom_sentences
+        if self.word and self.word.sentences:
+            return self.word.sentences
+        return None
 
     @property
     def audio_url(self):
