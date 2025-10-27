@@ -20,10 +20,9 @@ def get_safe_redirect_url(next_url, fallback='words.dashboard'):
     """
     if not next_url:
         return url_for(fallback)
-    
+
     from urllib.parse import urlparse
-    from flask import request, url_for
-    
+
     parsed = urlparse(next_url)
     
     # Only allow relative URLs or same-origin URLs
@@ -213,7 +212,7 @@ def register():
                     ModuleService.grant_default_modules_to_user(user.id)
                 except Exception as module_error:
                     # Log the error but don't fail registration
-
+                    print(module_error)
                 flash('Регистрация успешна! Теперь вы можете войти в систему.', 'success')
                 return redirect(url_for('auth.login'))
             except Exception as e:
