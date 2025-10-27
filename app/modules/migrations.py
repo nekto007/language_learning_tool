@@ -32,7 +32,7 @@ def seed_initial_modules():
             'description': 'Структурированная программа обучения с уровнями и уроками',
             'icon': 'graduation-cap',
             'is_active': True,
-            'is_default': True,  # Подключается автоматически при регистрации
+            'is_default': False,  # Опциональный модуль
             'order': 1,
             'blueprint_name': 'curriculum',
             'url_prefix': '/curriculum'
@@ -43,7 +43,7 @@ def seed_initial_modules():
             'description': 'Коллекция слов для изучения и повторения',
             'icon': 'book',
             'is_active': True,
-            'is_default': True,
+            'is_default': True,  # Подключается автоматически при регистрации
             'order': 2,
             'blueprint_name': 'words',
             'url_prefix': '/words'
@@ -54,7 +54,7 @@ def seed_initial_modules():
             'description': 'Чтение книг с возможностью изучения новых слов',
             'icon': 'book-open',
             'is_active': True,
-            'is_default': True,
+            'is_default': False,  # Опциональный модуль
             'order': 3,
             'blueprint_name': 'books',
             'url_prefix': '/books'
@@ -65,7 +65,7 @@ def seed_initial_modules():
             'description': 'Система интервального повторения слов',
             'icon': 'brain',
             'is_active': True,
-            'is_default': True,
+            'is_default': True,  # Подключается автоматически при регистрации
             'order': 4,
             'blueprint_name': 'study',
             'url_prefix': '/study'

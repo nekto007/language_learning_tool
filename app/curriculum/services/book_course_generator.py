@@ -591,6 +591,7 @@ def create_course_from_book_cli(
             importer = BlockSchemaImporter(book_id)
             schema_data = importer.import_from_file(schema_file)
         except Exception as e:
+            schema_data = None
 
     # Create the course
     generator = BookCourseGenerator(book_id)
