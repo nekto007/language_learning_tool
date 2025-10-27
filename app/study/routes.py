@@ -1944,8 +1944,19 @@ def edit_deck(deck_id):
         if deck.is_public and not was_public and not deck.share_code:
             deck.generate_share_code()
 
+        deck.updated_at = datetime.now(timezone.utc)
         db.session.commit()
-        flash('Колода успешно обновлена!', 'success')
+
+        # Synchronize forks if this is a public deck with no parent (original deck)
+        if deck.is_public and deck.parent_deck_id is None:
+            fork_count, words_added = deck.sync_to_forks()
+            if fork_count > 0:
+                flash(f'Колода успешно обновлена! Синхронизировано {fork_count} копий ({words_added} слов добавлено).', 'success')
+            else:
+                flash('Колода успешно обновлена!', 'success')
+        else:
+            flash('Колода успешно обновлена!', 'success')
+
         return redirect(url_for('study.edit_deck', deck_id=deck.id))
 
     words = deck.words.order_by(QuizDeckWord.order_index).all()
@@ -2007,7 +2018,9 @@ def copy_deck(deck_id):
         title=f"{original_deck.title} (копия)",
         description=original_deck.description,
         user_id=current_user.id,
-        is_public=False  # Copied decks are private by default
+        is_public=False,  # Copied decks are private by default
+        parent_deck_id=original_deck.id,  # Link to parent for sync
+        last_synced_at=datetime.now(timezone.utc)  # Mark initial sync time
     )
 
     db.session.add(new_deck)

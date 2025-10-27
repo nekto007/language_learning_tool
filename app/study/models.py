@@ -429,6 +429,10 @@ class QuizDeck(db.Model):
     is_public = db.Column(db.Boolean, default=False)
     share_code = db.Column(db.String(20), unique=True, nullable=True, index=True)
 
+    # Synchronization (for copied decks)
+    parent_deck_id = db.Column(db.Integer, db.ForeignKey('quiz_decks.id'), nullable=True, index=True)
+    last_synced_at = db.Column(db.DateTime, nullable=True)
+
     # Stats
     times_played = db.Column(db.Integer, default=0)
     average_score = db.Column(db.Float, default=0.0)
@@ -441,6 +445,7 @@ class QuizDeck(db.Model):
     user = db.relationship('User', backref=db.backref('quiz_decks', lazy='dynamic', cascade='all, delete-orphan'))
     words = db.relationship('QuizDeckWord', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
     results = db.relationship('QuizResult', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
+    parent_deck = db.relationship('QuizDeck', remote_side=[id], backref='forks')
 
     def generate_share_code(self):
         """Generate unique share code for this deck"""
@@ -456,6 +461,61 @@ class QuizDeck(db.Model):
     def word_count(self):
         """Get total number of words in deck"""
         return self.words.count()
+
+    def sync_from_parent(self):
+        """Synchronize this deck with its parent: add new words only"""
+        if not self.parent_deck:
+            return 0
+
+        # Get current word_ids in this deck
+        current_word_ids = {w.word_id for w in self.words.all() if w.word_id}
+
+        # Get words from parent deck
+        parent_words = self.parent_deck.words.order_by(QuizDeckWord.order_index).all()
+
+        added_count = 0
+        for parent_word in parent_words:
+            # Skip custom words without word_id
+            if not parent_word.word_id:
+                continue
+
+            # Add only new words (not already in this deck)
+            if parent_word.word_id not in current_word_ids:
+                new_word = QuizDeckWord(
+                    deck_id=self.id,
+                    word_id=parent_word.word_id,
+                    custom_english=parent_word.custom_english,
+                    custom_russian=parent_word.custom_russian,
+                    custom_sentences=parent_word.custom_sentences,
+                    order_index=parent_word.order_index
+                )
+                db.session.add(new_word)
+                added_count += 1
+
+        # Update last sync timestamp
+        self.last_synced_at = datetime.now(timezone.utc)
+
+        return added_count
+
+    def sync_to_forks(self):
+        """Synchronize all forks of this deck (called when author saves changes)"""
+        if not self.is_public:
+            return 0, 0
+
+        # Get all forks (copied decks)
+        forks = QuizDeck.query.filter_by(parent_deck_id=self.id).all()
+
+        if not forks:
+            return 0, 0
+
+        total_added = 0
+        for fork in forks:
+            added = fork.sync_from_parent()
+            total_added += added
+
+        db.session.commit()
+
+        return len(forks), total_added
 
     def __repr__(self):
         return f'<QuizDeck {self.title}>'
