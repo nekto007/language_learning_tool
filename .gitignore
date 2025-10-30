@@ -198,12 +198,42 @@ opendkim.sh
 migrate_sqlite_to_postgres.py
 transfer_db_data.py
 
-# Local documentation files (AI-generated progress tracking)
+# Local documentation files (progress tracking and notes)
 claude.md
 REFACTORING_REPORT.md
 DESIGN_UNIFICATION_COMPLETED.md
 DESIGN_UNIFICATION_PLAN.md
 MODULE_SYSTEM_PROGRESS.md
+CHECK_LINKS_README.md
+CURRICULUM_COMPLETE_IMPROVEMENTS.md
+CURRICULUM_IMPROVEMENTS.md
+DOCKER_OPTIMIZATION.md
+PRIORITY_1_IMPLEMENTATION_SUMMARY.md
+PRIORITY_2_IMPLEMENTATION_SUMMARY.md
+QUIZ_DECK_IMPROVEMENTS.md
+QUIZ_INTEGRATION.md
+SEQUENTIAL_READING_LOGIC.md
+SMART_WORD_SEARCH.md
+STUDY_PAGE_REDESIGN.md
+TELEGRAM_API.md
+TELEGRAM_BOT_INTEGRATION_PLAN.md
+
+# Backup files
+*.bak
+
+# API tokens and secrets
+.telegram_api_token
+*_api_token
+
+# Temporary scripts and checks
+check_links.sh
+check_routes.py
+check_site_links.py
+test_telegram_api.sh
+optimize_performance.py
+
+# Migration SQL files (local development)
+migrations/*.sql
 
 # Docker optimization
 .env.docker
