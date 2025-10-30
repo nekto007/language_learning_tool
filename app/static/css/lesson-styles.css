@@ -1,0 +1,322 @@
+/* Lesson Card Styles - Dedicated CSS for lesson components */
+
+.srs-lesson {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.session-stats-bar {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: space-around;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.stat-divider {
+  width: 1px;
+  background: #dee2e6;
+}
+
+.lesson-progress-detailed {
+  margin-bottom: 2rem;
+}
+
+.progress-bar-wrapper {
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.srs-card-container {
+  position: relative;
+  min-height: 400px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 3rem;
+}
+
+.srs-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-size: 0.875rem;
+}
+
+.card-direction {
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.card-body {
+  text-align: center;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.card-word {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.card-footer {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.audio-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+
+.audio-btn:hover {
+  background: #5568d3;
+  transform: scale(1.05);
+}
+
+.audio-btn i {
+  font-size: 1rem;
+}
+
+/* Hint container - must override design-system.css */
+.hint-container {
+  background: #f9fafb !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  padding: 0.75rem 1rem !important;
+  margin-top: 1rem !important;
+}
+
+.card-hint-text {
+  color: #111827 !important;
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  margin: 0 !important;
+  opacity: 1 !important;
+}
+
+.example-section {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.example-text {
+  color: #1f2937;
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.example-translation {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.rating-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.rating-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 110px;
+  padding: 1rem 1.25rem;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rating-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.rating-btn i {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.rating-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.interval-hint {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.rating-again {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.rating-again:hover {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+}
+
+.rating-hard {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #d97706;
+  border-color: #fcd34d;
+}
+
+.rating-hard:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+}
+
+.rating-easy {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #059669;
+  border-color: #6ee7b7;
+}
+
+.rating-easy:hover {
+  background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
+}
+
+.rating-prompt {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.show-answer-btn {
+  padding: 1rem 2rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.show-answer-btn:hover {
+  background: #5568d3;
+}
+
+.session-results-review,
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.results-header h3 {
+  font-size: 1.75rem;
+  margin-bottom: 2rem;
+}
+
+.session-stats {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  min-width: 150px;
+}
+
+.stat-card i {
+  font-size: 2rem;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
