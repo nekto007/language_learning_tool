@@ -243,7 +243,6 @@ let vocabularyState = {
 };
 
 // Логируем начальное состояние
-console.log('Initial vocabularyState:', vocabularyState);
 
 
 // Аудио плеер
@@ -575,7 +574,6 @@ function updateCounters() {
   document.getElementById('new-count').textContent = newCount;
   document.getElementById('processed-count').textContent = vocabularyState.processedWords;
   
-  console.log(`Updated counters: processed=${vocabularyState.processedWords}, total=${vocabularyState.totalWords}, allCards=${allCards.length}`);
 }
 
 // Обновление прогресса
@@ -629,11 +627,9 @@ async function checkCompletion() {
           if (nextBtn) {
             nextBtn.style.display = 'inline-flex';
             nextBtn.disabled = false;
-            console.log('Next lesson button shown in checkCompletion');
           } else if (completeModuleBtn) {
             completeModuleBtn.style.display = 'inline-flex';
             completeModuleBtn.disabled = false;
-            console.log('Complete module button shown in checkCompletion');
           } else {
             console.error('Navigation buttons not found in checkCompletion');
           }
@@ -719,7 +715,6 @@ function showCompletionResults() {
     // Показываем кнопку повтора
     if (retryBtn) {
       retryBtn.style.display = 'inline-flex';
-      console.log('Retry button shown');
     } else {
       console.error('Retry button not found in DOM');
     }
@@ -728,11 +723,9 @@ function showCompletionResults() {
     if (nextBtn) {
       nextBtn.style.display = 'inline-flex';
       nextBtn.disabled = false;
-      console.log('Next lesson button shown');
     } else if (completeModuleBtn) {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
-      console.log('Complete module button shown');
     } else {
       console.error('Navigation buttons not found in DOM');
     }
@@ -773,7 +766,6 @@ function syncDOMWithInitialData() {
   // Важно: не меняем totalWords!
   vocabularyState.totalWords = originalTotalWords;
   
-  console.log(`DOM sync: processed=${processedCount}, learning=${learningCount}, mastered=${masteredCount}, total=${vocabularyState.totalWords}`);
 }
 
 // Функция инициализации
@@ -800,19 +792,16 @@ function initializeVocabularyLesson() {
           if (nextBtn) {
             nextBtn.style.display = 'inline-flex';
             nextBtn.disabled = false;
-            console.log('Next lesson button shown in initialization');
           }
           
           if (completeModuleBtn) {
             completeModuleBtn.style.display = 'inline-flex';
             completeModuleBtn.disabled = false;
-            console.log('Complete module button shown in initialization');
           }
           
           // Показываем кнопку "Пройти заново" для завершенных уроков
           if (retryBtn) {
             retryBtn.style.display = 'inline-flex';
-            console.log('Retry button shown in initialization');
           }
           
           // Принудительная перерисовка для обеспечения видимости кнопок

@@ -272,7 +272,6 @@ function playAudio(audioFile, buttonElement) {
   
   // Воспроизводим новое аудио
   audio.src = `/static/audio/${audioFile}`;
-  audio.play().catch(e => console.log('Audio playback failed:', e));
   
   // Обновляем иконку на текущей кнопке
   if (buttonElement) {
@@ -312,7 +311,6 @@ function playDialogueAudio(audioFile) {
 
   playBtn.innerHTML = '<i class="fas fa-pause-circle"></i> {{ _("Пауза") }}';
 
-  audio.play().catch(e => console.log('Audio playback failed:', e));
 
   // Обработчик окончания воспроизведения
   audio.onended = function() {

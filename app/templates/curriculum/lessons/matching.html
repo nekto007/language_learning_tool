@@ -870,9 +870,7 @@ function playSound(audioElement) {
   if (gameConfig.playAudio && audioElement) {
     try {
       audioElement.currentTime = 0;
-      audioElement.play().catch(e => console.log('Audio play prevented:', e));
     } catch (e) {
-      console.log('Audio error:', e);
     }
   }
 }

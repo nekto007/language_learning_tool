@@ -4,7 +4,13 @@
 {% set instruction_text = _('Изучайте слова методом интервальных повторений. Оценивайте, насколько хорошо вы помните каждое слово.') %}
 {% set block_description = _('Умная система запоминания с оптимальными интервалами повторения') %}
 
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lesson-styles.css') }}?v=20251028-3">
+{% endblock %}
+
 {% block lesson_content %}
+
   <!-- Получаем данные о предыдущей сессии -->
   {% set previous_data = None %}
   {% set is_completed = False %}
@@ -142,14 +148,13 @@
           <div class="card-body">
             <h2 class="card-word" id="front-word"></h2>
 
-            <button class="audio-btn" id="front-audio-btn" style="display: none;">
+            <button class="audio-btn" id="front-audio-btn" style="display: none;" title="{{ _('Произношение') }}">
               <i class="fas fa-volume-up"></i>
-              <span>{{ _('Произношение') }}</span>
             </button>
 
             <div class="hint-container" id="hint-container" style="display: none;">
               <div class="hint-label">{{ _('Подсказка:') }}</div>
-              <p class="hint-text" id="hint-text"></p>
+              <p class="card-hint-text" id="hint-text"></p>
             </div>
           </div>
 
@@ -174,9 +179,8 @@
           <div class="card-body">
             <h2 class="card-word" id="back-word"></h2>
 
-            <button class="audio-btn" id="back-audio-btn" style="display: none;">
+            <button class="audio-btn" id="back-audio-btn" style="display: none;" title="{{ _('Произношение') }}">
               <i class="fas fa-volume-up"></i>
-              <span>{{ _('Произношение') }}</span>
             </button>
 
             <div class="card-divider"></div>
@@ -291,6 +295,60 @@
           repeatQueue: [],
       };
 
+      // Автосохранение прогресса в localStorage
+      const STORAGE_KEY = `lesson_${lessonConfig.lessonId}_session`;
+
+      function saveSessionState() {
+          try {
+              const stateToSave = {
+                  startTime: sessionState.startTime,
+                  cardsStudied: sessionState.cardsStudied,
+                  correctAnswers: sessionState.correctAnswers,
+                  totalAnswers: sessionState.totalAnswers,
+                  currentIndex: sessionState.currentIndex,
+                  studiedCards: Array.from(sessionState.studiedCards),
+                  cardProgress: sessionState.cardProgress,
+                  newCardsStudied: sessionState.newCardsStudied,
+                  reviewsStudied: sessionState.reviewsStudied,
+                  repeatQueue: sessionState.repeatQueue,
+              };
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+          } catch (e) {
+              console.warn('Failed to save session state:', e);
+          }
+      }
+
+      function loadSessionState() {
+          try {
+              const saved = localStorage.getItem(STORAGE_KEY);
+              if (saved) {
+                  const state = JSON.parse(saved);
+                  sessionState.startTime = state.startTime || Date.now();
+                  sessionState.cardsStudied = state.cardsStudied || 0;
+                  sessionState.correctAnswers = state.correctAnswers || 0;
+                  sessionState.totalAnswers = state.totalAnswers || 0;
+                  sessionState.currentIndex = state.currentIndex || 0;
+                  sessionState.studiedCards = new Set(state.studiedCards || []);
+                  sessionState.cardProgress = state.cardProgress || {};
+                  sessionState.newCardsStudied = state.newCardsStudied || 0;
+                  sessionState.reviewsStudied = state.reviewsStudied || 0;
+                  sessionState.repeatQueue = state.repeatQueue || [];
+                  return true;
+              }
+          } catch (e) {
+              console.warn('Failed to load session state:', e);
+          }
+          return false;
+      }
+
+      function clearSessionState() {
+          try {
+              localStorage.removeItem(STORAGE_KEY);
+          } catch (e) {
+              console.warn('Failed to clear session state:', e);
+          }
+      }
+
       // Элементы DOM
       const elements = {
           loading: document.getElementById('loading-state'),
@@ -336,6 +394,7 @@
       // Функция для повторной сессии
       function retrySession() {
           if (confirm('{{ _("Вы уверены, что хотите начать новую сессию?") }}')) {
+              clearSessionState(); // Очищаем сохранённый прогресс
               window.location.href = '{{ url_for("curriculum_lessons.card_lesson", lesson_id=lesson.id, reset="true") }}';
           }
       }
@@ -349,7 +408,6 @@
 
       // Инициализация
       async function initializeSRS() {
-          console.log('Initializing SRS lesson');
 
           if (!lessonConfig.cards || lessonConfig.cards.length === 0) {
               elements.loading.style.display = 'none';
@@ -361,11 +419,12 @@
               sessionState.cardsStudied = (lessonConfig.stats.new_cards_shown || 0) + (lessonConfig.stats.review_cards_shown || 0);
               sessionState.newCardsStudied = lessonConfig.stats.new_cards_shown || 0;
               sessionState.reviewsStudied = lessonConfig.stats.review_cards_shown || 0;
-              console.log('Initialized session state from server:', {
-                  cardsStudied: sessionState.cardsStudied,
-                  newCardsStudied: sessionState.newCardsStudied,
-                  reviewsStudied: sessionState.reviewsStudied
-              });
+          }
+
+          // Пытаемся восстановить сессию из localStorage
+          const sessionRestored = loadSessionState();
+          if (sessionRestored) {
+              console.log('Session restored from localStorage');
           }
 
           // Обрабатываем карточки
@@ -382,11 +441,27 @@
           sessionState.availableCards = [];
 
           lessonConfig.cards.forEach((card, index) => {
+              const direction = card.direction || 'eng-rus';
+
+              // Подготовка front/back в зависимости от направления
+              let front, back;
+              if (direction === 'eng-rus') {
+                  front = card.english || card.front || card.word || '';
+                  back = card.russian || card.back || card.translation || '';
+              } else {
+                  front = card.russian || card.front || card.word || '';
+                  back = card.english || card.back || card.translation || '';
+              }
+
               const cardData = {
                   ...card,
                   index: index,
+                  front: front,
+                  back: back,
+                  word: front,
+                  translation: back,
                   isNew: card.is_new !== undefined ? card.is_new : true,
-                  direction: card.direction || 'eng-rus',
+                  direction: direction,
                   interval: card.interval || 0,
                   easeFactor: card.ease_factor || card.easeFactor || 2.5,
                   repetitions: card.repetitions || 0,
@@ -394,7 +469,11 @@
                   calculated_intervals: card.calculated_intervals || null
               };
 
-              sessionState.availableCards.push(cardData);
+              // Не добавляем карточку если она уже была изучена в этой сессии
+              const cardKey = `${card.word_id}-${direction}`;
+              if (!sessionState.studiedCards.has(cardKey)) {
+                  sessionState.availableCards.push(cardData);
+              }
           });
 
           // Перемешиваем карточки
@@ -418,20 +497,13 @@
               if (elements.dueCards) elements.dueCards.textContent = serverReviewCount;
               if (elements.totalCards) elements.totalCards.textContent = totalCards;
               if (elements.studiedCards) elements.studiedCards.textContent = totalStudied;
-
-              console.log('Initial counters (server-based):', {
-                  newCards: serverNewCount,
-                  reviewCards: serverReviewCount,
-                  studiedCards: totalStudied,
-                  totalCards: totalCards,
-                  serverData: lessonConfig.stats
-              });
           } else {
               // Fallback если нет серверных данных
               const newCount = sessionState.availableCards.filter(c => c.isNew).length;
               const reviewCount = sessionState.availableCards.filter(c => !c.isNew).length;
               const totalStudied = sessionState.cardsStudied;
-              const totalCards = newCount + reviewCount + totalStudied;
+              // Используем общее количество карточек из конфига
+              const totalCards = lessonConfig.cards ? lessonConfig.cards.length : (newCount + reviewCount + totalStudied);
 
               if (elements.newCards) elements.newCards.textContent = newCount;
               if (elements.dueCards) elements.dueCards.textContent = reviewCount;
@@ -514,12 +586,10 @@
           if (card.audio && card.direction === 'eng-rus') {
               elements.frontAudioBtn.style.display = 'inline-flex';
               elements.wordAudio.src = `/static/audio/${card.audio}`;
-              console.log(`Audio set for eng-rus card: ${card.front || card.word} -> ${card.audio}`);
               
               // Автовоспроизведение для eng-rus карточек
               setTimeout(() => {
                   elements.wordAudio.play().catch(e => {
-                      console.log('Auto-play prevented:', e);
                   });
               }, 300);
           } else {
@@ -527,7 +597,6 @@
               // Для rus-eng карточек аудио будет доступно только на обратной стороне
               if (card.audio) {
                   elements.wordAudio.src = `/static/audio/${card.audio}`;
-                  console.log(`Audio prepared for rus-eng card (will be available on back): ${card.front || card.word}`);
               }
           }
 
@@ -550,11 +619,27 @@
 
       // Настройка подсказки
       function setupHint() {
-          const translation = elements.translationText.textContent;
-          const firstLetter = translation.charAt(0);
-          const wordLength = translation.split(',')[0].trim().length;
+          const card = sessionState.currentCard;
+          const translation = card.back || card.translation || '';
 
-          elements.hintText.textContent = `${firstLetter}${'_'.repeat(wordLength - 1)} (${wordLength} букв)`;
+          // Защита от пустого перевода
+          if (!translation || translation.trim().length === 0) {
+              elements.hintContainer.style.display = 'none';
+              return;
+          }
+
+          const firstWord = translation.split(',')[0].trim();
+          const firstLetter = firstWord.charAt(0);
+          const wordLength = firstWord.length;
+
+          // Защита от слишком короткого слова
+          if (wordLength < 1) {
+              elements.hintContainer.style.display = 'none';
+              return;
+          }
+
+          const underscores = wordLength > 1 ? '_'.repeat(wordLength - 1) : '';
+          elements.hintText.textContent = `${firstLetter}${underscores} (${wordLength} букв)`;
           elements.hintContainer.style.display = 'none';
 
           if (hintTimeout) clearTimeout(hintTimeout);
@@ -586,19 +671,42 @@
               elements.backAudioBtn.style.display = 'inline-flex';
               // Убеждаемся, что аудио src правильно установлен
               elements.wordAudio.src = `/static/audio/${sessionState.currentCard.audio}`;
-              console.log(`Back audio available: ${sessionState.currentCard.audio}`);
-              
+
               // Для rus-eng карточек автоматически воспроизводим при показе ответа
               if (sessionState.currentCard.direction === 'rus-eng') {
                   setTimeout(() => {
                       elements.wordAudio.play().catch(e => {
-                          console.log('Auto-play on back prevented:', e);
                       });
                   }, 300);
               }
           } else {
               elements.backAudioBtn.style.display = 'none';
-              console.log(`No audio available for this card`);
+          }
+
+          // Примеры использования
+          const card = sessionState.currentCard;
+          if (card.example_en || card.examples) {
+              let exampleEn = card.example_en || '';
+              let exampleRu = card.example_ru || '';
+
+              // Поддержка старого формата с разделителем |
+              if (!exampleEn && card.examples) {
+                  const parts = card.examples.split('|');
+                  if (parts.length >= 2) {
+                      exampleEn = parts[0];
+                      exampleRu = parts[1];
+                  }
+              }
+
+              if (exampleEn || exampleRu) {
+                  elements.exampleText.textContent = exampleEn;
+                  elements.exampleTranslation.textContent = exampleRu;
+                  elements.exampleSection.style.display = 'block';
+              } else {
+                  elements.exampleSection.style.display = 'none';
+              }
+          } else {
+              elements.exampleSection.style.display = 'none';
           }
 
           // Обновляем интервалы на кнопках
@@ -687,7 +795,6 @@
               // Перетасовываем доступные карточки, чтобы не показывать ту же карточку сразу
               if (sessionState.availableCards.length > 1) {
                   sessionState.availableCards = shuffleArray(sessionState.availableCards);
-                  console.log('Cards shuffled after "Again" rating to avoid immediate repetition');
               }
           } else {
               // Обычная обработка
@@ -711,18 +818,10 @@
               );
               if (cardIndex !== -1) {
                   sessionState.availableCards.splice(cardIndex, 1);
-                  console.log(`Removed studied card from available cards, remaining: ${sessionState.availableCards.length}`);
               }
 
               // Для успешных ответов карточка удаляется из массива, индекс не увеличиваем
               // (currentIndex будет указывать на следующую карточку)
-
-              console.log('Rating card:', {
-                  lesson_id: lessonConfig.lessonId,
-                  word_id: card.word_id,
-                  direction: card.direction,
-                  rating: rating
-              });
 
               try {
                   const response = await fetch('/study/api/update-study-item', {
@@ -740,7 +839,6 @@
                   });
 
                   const result = await response.json();
-                  console.log('Rate card result:', result);
 
                   if (!response.ok) {
                       console.error('Rate card failed:', result);
@@ -751,6 +849,7 @@
           }
 
           updateStatistics();
+          saveSessionState(); // Сохраняем прогресс после каждого рейтинга
           showNextCard();
       }
 
@@ -766,7 +865,7 @@
 
           // Используем изначальные данные от сервера для постоянного общего количества
           let totalCards, initialTotal;
-          if (lessonConfig.stats) {
+          if (lessonConfig.stats && lessonConfig.stats.new_cards_count !== undefined) {
               // Изначальное общее количество = изначально доступные + уже изученные
               const initialNew = lessonConfig.stats.new_cards_count || 0;
               const initialReview = lessonConfig.stats.review_cards_count || 0;
@@ -775,8 +874,8 @@
               initialTotal = initialNew + initialReview + initialStudied;
               totalCards = initialTotal; // Общее остается константой
           } else {
-              // Fallback
-              totalCards = currentNewCards + currentReviewCards + sessionState.cardsStudied;
+              // Fallback - используем общее количество карточек из конфига
+              totalCards = lessonConfig.cards ? lessonConfig.cards.length : 0;
               initialTotal = totalCards;
           }
 
@@ -791,3 +890,116 @@
           const progress = initialTotal > 0 ? Math.min(100, (sessionState.cardsStudied / initialTotal) * 100) : 0;
           elements.progressBar.style.width = progress + '%';
           elements.progressText.textContent = `Изучено ${sessionState.cardsStudied} из ${initialTotal}`;
+      }
+
+      // Завершить сессию
+      function completeSession() {
+          sessionState.sessionActive = false;
+          const timeSpent = Math.round((Date.now() - sessionState.startTime) / 1000);
+
+          elements.cardFront.style.display = 'none';
+          elements.cardBack.style.display = 'none';
+          elements.sessionComplete.style.display = 'block';
+
+          const accuracy = sessionState.totalAnswers > 0
+              ? Math.round((sessionState.correctAnswers / sessionState.totalAnswers) * 100)
+              : 100;
+
+          document.getElementById('summary-studied').textContent = sessionState.cardsStudied;
+          document.getElementById('summary-accuracy').textContent = accuracy + '%';
+          document.getElementById('summary-time').textContent = Math.round(timeSpent / 60) + 'м';
+
+          elements.sessionComplete.style.animation = 'fadeInScale 0.5s ease-out';
+      }
+
+      // Утилиты
+      function shuffleArray(array) {
+          const shuffled = [...array];
+          for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          return shuffled;
+      }
+
+      function parseExamples(examples) {
+          if (typeof examples === 'object' && examples.en && examples.ru) {
+              return examples;
+          }
+
+          if (typeof examples === 'string') {
+              const parts = examples.split(' / ');
+              return {
+                  en: parts[0] || '',
+                  ru: parts[1] || ''
+              };
+          }
+
+          return { en: '', ru: '' };
+      }
+
+      // Обработчики событий
+      elements.showAnswerBtn?.addEventListener('click', showCardBack);
+      elements.frontAudioBtn?.addEventListener('click', () => elements.wordAudio.play());
+      elements.backAudioBtn?.addEventListener('click', () => elements.wordAudio.play());
+
+      document.querySelectorAll('.rating-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+              const rating = parseInt(e.currentTarget.dataset.rating);
+              rateCard(rating);
+          });
+      });
+
+      elements.completeSessionBtn?.addEventListener('click', async () => {
+          const timeSpent = Math.round((Date.now() - sessionState.startTime) / 1000);
+          const accuracy = sessionState.totalAnswers > 0
+              ? Math.round((sessionState.correctAnswers / sessionState.totalAnswers) * 100)
+              : 100;
+
+          try {
+              const response = await fetch(`/learn/lessons/${lessonConfig.lessonId}/complete-srs`, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                  },
+                  body: JSON.stringify({
+                      cards_studied: sessionState.cardsStudied,
+                      accuracy: accuracy,
+                      time_spent: timeSpent,
+                      new_cards_studied: sessionState.newCardsStudied,
+                      reviews_studied: sessionState.reviewsStudied
+                  })
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                  clearSessionState(); // Очищаем сохранённый прогресс
+                  if (nextLessonUrl) {
+                      window.location.href = nextLessonUrl;
+                  } else {
+                      window.location.href = '{{ url_for("curriculum.module_lessons", module_id=lesson.module_id) }}';
+                  }
+              } else {
+                  alert('Ошибка при сохранении прогресса');
+              }
+          } catch (error) {
+              console.error('Error completing session:', error);
+              alert('Ошибка при сохранении прогресса');
+          }
+      });
+
+      // Инициализация при загрузке
+      document.addEventListener('DOMContentLoaded', initializeSRS);
+
+      {% if is_completed %}
+          document.addEventListener('DOMContentLoaded', () => {
+              const retryBtn = document.getElementById('retry-button');
+              if (retryBtn) {
+                  retryBtn.style.display = 'inline-flex';
+              }
+          });
+      {% endif %}
+  </script>
+{% endblock %}

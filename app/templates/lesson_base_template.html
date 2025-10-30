@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
-  <!-- Минималистичная навигация -->
-  <nav aria-label="breadcrumb" class="mb-4">
+<div class="container lesson-page">
+  <!-- Compact Breadcrumb -->
+  <nav aria-label="breadcrumb" class="lesson-breadcrumb">
     <ol class="breadcrumb-minimal">
       <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
       <li>/</li>
@@ -15,99 +15,89 @@
     </ol>
   </nav>
 
-  <!-- Заголовок урока -->
-  <div class="lesson-intro mb-5">
-    <div class="lesson-type-badge mb-3">
-      <span class="badge-icon">
+  <!-- Compact Header -->
+  <div class="lesson-header">
+    <div class="lesson-header-left">
+      <span class="lesson-type-badge">
         {% if lesson.type == 'vocabulary' %}
-          <i class="fas fa-book"></i>
+          📚
         {% elif lesson.type == 'grammar' %}
-          <i class="fas fa-pen"></i>
+          ✍️
         {% elif lesson.type == 'quiz' %}
-          <i class="fas fa-question-circle"></i>
+          ❓
         {% elif lesson.type == 'text' %}
-          <i class="fas fa-file-alt"></i>
+          📄
         {% elif lesson.type in ['card', 'anki_cards'] %}
-          <i class="fas fa-clone"></i>
+          🗂️
         {% elif lesson.type == 'final_test' %}
-          <i class="fas fa-trophy"></i>
+          🏆
         {% else %}
-          <i class="fas fa-graduation-cap"></i>
+          🎓
         {% endif %}
+        {{ component_name|default(translate_lesson_type(lesson.type)) }}
       </span>
-      <span class="badge-text">{{ component_name|default(translate_lesson_type(lesson.type)) }}</span>
+      <h1 class="lesson-title">{{ lesson.title }}</h1>
     </div>
-
-    <h1 class="lesson-title">{{ lesson.title }}</h1>
-    <p class="lesson-description">{{ lesson.description or block_description|default('') }}</p>
-  </div>
-
-  <!-- Прогресс модуля -->
-  <div class="lesson-progress-bar mb-5">
-    <div class="progress-header">
-      <span class="progress-label">{{ _('Прогресс модуля') }}</span>
-      <span class="progress-value">{{ lesson.number }} / {{ total_lessons|default(7) }}</span>
-    </div>
-    <div class="progress-track">
-      <div class="progress-fill" style="width: {{ ((lesson.number / total_lessons|default(7)) * 100)|round }}%"></div>
-    </div>
-  </div>
-
-  <!-- Основной контент -->
-  <div class="lesson-content-wrapper">
-    <!-- Инструкции (если есть) -->
-    {% if instruction_text %}
-    <div class="instruction-card mb-4">
-      <i class="fas fa-info-circle"></i>
-      <span>{{ instruction_text }}</span>
-    </div>
-    {% endif %}
-
-    <!-- Основная карточка контента -->
-    <div class="content-card">
-      {% block lesson_content %}{% endblock %}
-    </div>
-
-    <!-- Навигация -->
-    <div class="lesson-navigation mt-5" id="lesson-footer">
-      <div class="nav-center">
-        {% block action_buttons %}
-          <!-- Кнопка возврата к модулю -->
-          <a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}" 
-             class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> {{ _('Вернуться к модулю') }}
-          </a>
-          
-          <!-- Кнопка повторного прохождения (скрыта по умолчанию) -->
-          <button type="button" 
-                  class="btn btn-outline-primary" 
-                  id="retry-button"
-                  style="display: none;"
-                  onclick="retryLesson()">
-            <i class="fas fa-redo"></i> {{ _('Пройти заново') }}
-          </button>
-          
-          {% if next_lesson %}
-            <button type="button" 
-                    class="btn btn-primary btn-next" 
-                    id="complete-exercise" 
-                    style="display: none;"
-                    data-next-url="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
-                    onclick="window.location.href=this.getAttribute('data-next-url')">
-              {{ _('Следующий урок') }} <i class="fas fa-arrow-right"></i>
-            </button>
-          {% else %}
-            <button type="button" 
-                    class="btn btn-primary" 
-                    id="complete-module"
-                    style="display: none;"
-                    onclick="window.location.href='{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}'">
-              <i class="fas fa-check"></i> {{ _('Завершить модуль') }}
-            </button>
-          {% endif %}
-        {% endblock %}
+    <div class="lesson-progress-compact">
+      <span class="progress-text">{{ lesson.number }}/{{ total_lessons|default(7) }}</span>
+      <div class="progress-bar-mini">
+        <div class="progress-fill-mini" style="width: {{ ((lesson.number / total_lessons|default(7)) * 100)|round }}%"></div>
       </div>
     </div>
+  </div>
+
+  {% if lesson.description or block_description %}
+  <p class="lesson-description">{{ lesson.description or block_description|default('') }}</p>
+  {% endif %}
+
+  <!-- Instructions -->
+  {% if instruction_text %}
+  <div class="instruction-box">
+    <i class="fas fa-info-circle"></i>
+    <span>{{ instruction_text }}</span>
+  </div>
+  {% endif %}
+
+  <!-- Main Content -->
+  <div class="lesson-content">
+    {% block lesson_content %}{% endblock %}
+  </div>
+
+  <!-- Navigation Footer -->
+  <div class="lesson-footer" id="lesson-footer">
+    {% block action_buttons %}
+      <a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}"
+         class="btn-lesson btn-outline">
+        ← {{ _('К модулю') }}
+      </a>
+
+      <button type="button"
+              class="btn-lesson btn-outline"
+              id="retry-button"
+              style="display: none;"
+              onclick="retryLesson()">
+        <i class="fas fa-redo"></i> {{ _('Заново') }}
+      </button>
+
+      {% if next_lesson %}
+        <button type="button"
+                class="btn-lesson btn-primary"
+                id="complete-exercise"
+                style="display: none;"
+                data-next-url="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
+                onclick="window.location.href=this.getAttribute('data-next-url')">
+          {{ _('Следующий урок') }} →
+        </button>
+      {% else %}
+        <button type="button"
+                class="btn-lesson btn-primary"
+                id="complete-module"
+                style="display: none;"
+                onclick="window.location.href='{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}'">
+          <i class="fas fa-check"></i> {{ _('Завершить') }}
+        </button>
+      {% endif %}
+    {% endblock %}
   </div>
 
 </div>
@@ -115,4 +105,3 @@
 <!-- CSRF Token Meta -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 {% endblock %}
-

@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -43,6 +43,9 @@ class Module(db.Model):
     title = Column(String(200), nullable=False)
     description = Column(Text)
     raw_content = Column(JSON)
+    prerequisites = Column(JSON)  # JSON array of prerequisite module IDs or conditions
+    min_score_required = Column(Integer, default=70)  # Minimum score to unlock next module
+    allow_skip_test = Column(Boolean, default=False)  # Allow skip test for this module
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
@@ -56,6 +59,64 @@ class Module(db.Model):
         Index('idx_modules_level_id', 'level_id'),
         Index('idx_modules_number', 'number'),
     )
+
+    def check_prerequisites(self, user_id: int) -> tuple[bool, list[str]]:
+        """
+        Check if user meets prerequisites for this module.
+
+        Returns:
+            tuple: (is_accessible, reasons_blocked)
+        """
+        reasons = []
+
+        # No prerequisites means always accessible
+        if not self.prerequisites:
+            return True, []
+
+        # Check each prerequisite
+        for prereq in self.prerequisites:
+            if isinstance(prereq, dict):
+                # Format: {"type": "module", "id": 5, "min_score": 80}
+                if prereq.get('type') == 'module':
+                    prereq_module = Module.query.get(prereq['id'])
+                    if prereq_module:
+                        # Check if user completed this module
+                        progress = self._get_module_completion(user_id, prereq['id'])
+                        min_score = prereq.get('min_score', 70)
+
+                        if progress['progress_percent'] < 100:
+                            reasons.append(f"Complete module '{prereq_module.title}'")
+                        elif progress['avg_score'] < min_score:
+                            reasons.append(f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
+
+        return len(reasons) == 0, reasons
+
+    def _get_module_completion(self, user_id: int, module_id: int) -> dict:
+        """Get module completion stats for user."""
+        from sqlalchemy import func
+
+        lessons = Lessons.query.filter_by(module_id=module_id).all()
+        if not lessons:
+            return {'progress_percent': 0, 'avg_score': 0}
+
+        lesson_ids = [l.id for l in lessons]
+        stats = db.session.query(
+            func.count(LessonProgress.id).label('completed'),
+            func.avg(LessonProgress.score).label('avg_score')
+        ).filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.lesson_id.in_(lesson_ids),
+            LessonProgress.status == 'completed'
+        ).first()
+
+        completed = stats.completed or 0
+        avg_score = stats.avg_score or 0
+        progress_percent = round((completed / len(lessons) * 100) if lessons else 0)
+
+        return {
+            'progress_percent': progress_percent,
+            'avg_score': avg_score
+        }
 
     def __repr__(self):
         return f"<Module {self.number}: {self.title} ({self.level.code if self.level else 'No Level'})>"
@@ -73,6 +134,7 @@ class Lessons(db.Model):
     description = Column(Text)
     order = Column(Integer, default=0)  # Order within the lesson
     content = Column(JSON)  # Flexible JSON content based on component type
+    content_version = Column(Integer, default=1, nullable=False)  # Content schema version
     collection_id = Column(Integer, ForeignKey('collections.id', ondelete='SET NULL'))  # For vocabulary components
     book_id = Column(Integer, ForeignKey('book.id', ondelete='SET NULL'))  # For text components
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -105,6 +167,55 @@ class Lessons(db.Model):
             settings.update(self.content.get('srs_settings', {}))
 
         return settings
+
+    def migrate_content_to_latest(self):
+        """
+        Migrate content to the latest schema version.
+
+        Returns:
+            bool: True if migration was performed, False if already at latest version
+        """
+        from app.curriculum.services.content_migration_service import ContentMigrationService
+
+        current_version = self.content_version or 1
+        latest_version = ContentMigrationService.LATEST_VERSION
+
+        if current_version >= latest_version:
+            return False
+
+        try:
+            # Migrate content
+            migrated_content = ContentMigrationService.migrate_content(
+                self.type,
+                self.content,
+                from_version=current_version,
+                to_version=latest_version
+            )
+
+            if migrated_content:
+                self.content = migrated_content
+                self.content_version = latest_version
+                self.updated_at = datetime.now(timezone.utc)
+                return True
+
+            return False
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to migrate content for lesson {self.id}: {str(e)}")
+            return False
+
+    def validate_content_schema(self) -> tuple[bool, str]:
+        """
+        Validate content against schema for current version.
+
+        Returns:
+            tuple: (is_valid, error_message)
+        """
+        from app.curriculum.validators import LessonContentValidator
+
+        return LessonContentValidator.validate(self.type, self.content)
 
     # Relationships
     module = relationship('Module', back_populates='lessons')
@@ -202,6 +313,7 @@ class LessonProgress(db.Model):
     # Relationships
     user = relationship('User', backref='progress')
     lesson = relationship('Lessons', back_populates='lesson_progress')
+    attempts = relationship('LessonAttempt', back_populates='lesson_progress', cascade='all, delete-orphan')
 
     __table_args__ = (
         Index('idx_lesson_progress_user_module', 'user_id', 'lesson_id', unique=True),
@@ -226,6 +338,158 @@ class LessonProgress(db.Model):
             self.score = max(0, min(100, round(float(value))))
         else:
             self.score = 0.0
+
+
+class LessonAttempt(db.Model):
+    """Model tracking individual attempts at lessons for analytics"""
+    __tablename__ = 'lesson_attempts'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    lesson_progress_id = Column(Integer, ForeignKey('lesson_progress.id', ondelete='CASCADE'))
+
+    attempt_number = Column(Integer, nullable=False)  # 1, 2, 3, etc.
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    completed_at = Column(DateTime)
+    time_spent_seconds = Column(Integer)  # Time spent in seconds
+
+    score = Column(Float)  # Score achieved (0-100)
+    passed = Column(Boolean)  # Whether passed (score >= passing_score)
+
+    # Detailed analytics
+    mistakes = Column(JSON)  # Array of mistakes with question IDs and answers
+    correct_answers = Column(Integer, default=0)
+    total_questions = Column(Integer, default=0)
+
+    # Additional metadata
+    device_info = Column(String(200))  # Browser/device info
+    ip_address = Column(String(45))  # IPv4 or IPv6
+    user_agent = Column(Text)
+
+    # Relationships
+    user = relationship('User', backref='lesson_attempts')
+    lesson = relationship('Lessons', backref='attempts')
+    lesson_progress = relationship('LessonProgress', back_populates='attempts')
+
+    __table_args__ = (
+        Index('idx_attempts_user_lesson', 'user_id', 'lesson_id'),
+        Index('idx_attempts_user_id', 'user_id'),
+        Index('idx_attempts_lesson_id', 'lesson_id'),
+        Index('idx_attempts_started_at', 'started_at'),
+        Index('idx_attempts_score', 'score'),
+        Index('idx_attempts_passed', 'passed'),
+    )
+
+    def __repr__(self):
+        return f"<LessonAttempt: User {self.user_id} - Lesson {self.lesson_id} - Attempt #{self.attempt_number}>"
+
+    @classmethod
+    def create_attempt(cls, user_id: int, lesson_id: int, lesson_progress_id: int = None):
+        """Create a new attempt and determine attempt number."""
+        # Get last attempt number
+        last_attempt = db.session.query(func.max(cls.attempt_number)).filter(
+            cls.user_id == user_id,
+            cls.lesson_id == lesson_id
+        ).scalar() or 0
+
+        attempt = cls(
+            user_id=user_id,
+            lesson_id=lesson_id,
+            lesson_progress_id=lesson_progress_id,
+            attempt_number=last_attempt + 1
+        )
+        db.session.add(attempt)
+        return attempt
+
+    def complete(self, score: float, mistakes: list = None, correct: int = 0, total: int = 0):
+        """Mark attempt as completed with results."""
+        self.completed_at = datetime.now(timezone.utc)
+        self.score = score
+        self.passed = score >= 70  # Default passing score
+        self.mistakes = mistakes or []
+        self.correct_answers = correct
+        self.total_questions = total
+
+        if self.started_at and self.completed_at:
+            delta = self.completed_at - self.started_at
+            self.time_spent_seconds = int(delta.total_seconds())
+
+
+class ModuleSkipTest(db.Model):
+    """Model for skip tests that allow users to bypass modules"""
+    __tablename__ = 'module_skip_tests'
+
+    id = Column(Integer, primary_key=True)
+    module_id = Column(Integer, ForeignKey('modules.id', ondelete='CASCADE'), nullable=False, unique=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+
+    # Test content
+    content = Column(JSON, nullable=False)  # Quiz-like format with questions
+    passing_score = Column(Integer, default=80, nullable=False)
+    time_limit_minutes = Column(Integer, default=30)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    module = relationship('Module', backref='skip_test')
+    attempts = relationship('SkipTestAttempt', back_populates='skip_test', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        Index('idx_skip_tests_module', 'module_id'),
+    )
+
+    def __repr__(self):
+        return f"<ModuleSkipTest: Module {self.module_id} - {self.title}>"
+
+
+class SkipTestAttempt(db.Model):
+    """Model tracking skip test attempts"""
+    __tablename__ = 'skip_test_attempts'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    module_id = Column(Integer, ForeignKey('modules.id', ondelete='CASCADE'), nullable=False)
+    skip_test_id = Column(Integer, ForeignKey('module_skip_tests.id', ondelete='CASCADE'), nullable=False)
+
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    completed_at = Column(DateTime)
+    score = Column(Float)
+    passed = Column(Boolean)
+
+    # Detailed results
+    answers = Column(JSON)  # User's answers
+    time_spent_seconds = Column(Integer)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship('User', backref='skip_test_attempts')
+    module = relationship('Module', backref='skip_test_attempts_rel')
+    skip_test = relationship('ModuleSkipTest', back_populates='attempts')
+
+    __table_args__ = (
+        Index('idx_skip_attempts_user_module', 'user_id', 'module_id'),
+        Index('idx_skip_attempts_passed', 'passed'),
+    )
+
+    def __repr__(self):
+        return f"<SkipTestAttempt: User {self.user_id} - Module {self.module_id}>"
+
+    def complete(self, score: float, answers: dict):
+        """Mark attempt as completed."""
+        self.completed_at = datetime.now(timezone.utc)
+        self.score = score
+        self.passed = score >= (self.skip_test.passing_score if self.skip_test else 80)
+        self.answers = answers
+
+        if self.started_at and self.completed_at:
+            delta = self.completed_at - self.started_at
+            self.time_spent_seconds = int(delta.total_seconds())
+
 
 # class SRSNotification(db.Model):
 #     """Уведомления о необходимости повторения"""
