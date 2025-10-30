@@ -69,6 +69,9 @@ def sync_master_decks(user_id):
             )
             db.session.add(deck)
             db.session.flush()
+        else:
+            # Обновить описание для существующей колоды
+            deck.description = description
 
         # Получить текущие слова в колоде
         existing_word_ids = {dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck.id).all()}
@@ -100,12 +103,12 @@ def sync_master_decks(user_id):
     # Синхронизируем обе колоды
     sync_deck(
         LEARNING_DECK_TITLE,
-        "Автоматическая колода со всеми изучаемыми словами",
+        "",
         learning_words
     )
     sync_deck(
         MASTERED_DECK_TITLE,
-        "Автоматическая колода со всеми выученными словами",
+        "",
         mastered_words
     )
 
@@ -136,45 +139,85 @@ def index():
         status='mastered'
     ).count()
 
-    # Мои колоды - все с сортировкой по последним
+    # Мои колоды
     my_decks = QuizDeck.query.filter_by(
         user_id=current_user.id
     ).order_by(QuizDeck.updated_at.desc()).all()
 
+    # Предзагружаем все слова всех колод одним запросом
+    deck_words_dict = {}
+    user_words_dict = {}
+    if my_decks:
+        from app.study.models import QuizDeckWord
+
+        deck_ids = [deck.id for deck in my_decks]
+        deck_words = QuizDeckWord.query.filter(
+            QuizDeckWord.deck_id.in_(deck_ids)
+        ).all()
+
+        # Группируем слова по deck_id
+        for dw in deck_words:
+            if dw.deck_id not in deck_words_dict:
+                deck_words_dict[dw.deck_id] = []
+            deck_words_dict[dw.deck_id].append(dw)
+
+        # Собираем все уникальные word_id
+        all_deck_word_ids = set([dw.word_id for dw in deck_words if dw.word_id])
+
+        if all_deck_word_ids:
+            user_words = UserWord.query.filter(
+                UserWord.user_id == current_user.id,
+                UserWord.word_id.in_(all_deck_word_ids)
+            ).all()
+            user_words_dict = {uw.word_id: uw for uw in user_words}
+
+    # Предзагружаем review count одним запросом
+    now = datetime.now(timezone.utc)
+    review_counts = {}
+    if user_words_dict:
+        user_word_ids = [uw.id for uw in user_words_dict.values()]
+        review_data = db.session.query(
+            UserWord.word_id,
+            func.count(UserCardDirection.id).label('review_count')
+        ).join(
+            UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.id.in_(user_word_ids),
+            UserCardDirection.next_review <= now
+        ).group_by(UserWord.word_id).all()
+
+        review_counts = {word_id: count for word_id, count in review_data}
+
     # Добавляем статистику для каждой колоды
     for deck in my_decks:
-        # Получаем все слова из колоды
-        deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
+        # Получаем слова из предзагруженного словаря
+        deck_words_list = deck_words_dict.get(deck.id, [])
+        deck_word_ids = [dw.word_id for dw in deck_words_list if dw.word_id]
 
         if deck_word_ids:
-            # Новые слова - те, которых нет в UserWord
-            deck.new_count = len([wid for wid in deck_word_ids
-                                  if not UserWord.query.filter_by(user_id=current_user.id, word_id=wid).first()])
+            new_count = 0
+            learning_count = 0
+            mastered_count_deck = 0
+            review_count = 0
 
-            # Изучаемые слова - со статусом 'learning'
-            deck.learning_count = UserWord.query.filter(
-                UserWord.user_id == current_user.id,
-                UserWord.word_id.in_(deck_word_ids),
-                UserWord.status == 'learning'
-            ).count()
+            for word_id in deck_word_ids:
+                if word_id in user_words_dict:
+                    uw = user_words_dict[word_id]
+                    if uw.status == 'learning':
+                        learning_count += 1
+                    elif uw.status == 'mastered':
+                        mastered_count_deck += 1
 
-            # К повторению - слова с next_review <= now
-            deck.review_count = db.session.query(func.count(UserCardDirection.id)).filter(
-                UserCardDirection.user_word_id.in_(
-                    db.session.query(UserWord.id).filter(
-                        UserWord.user_id == current_user.id,
-                        UserWord.word_id.in_(deck_word_ids)
-                    )
-                ),
-                UserCardDirection.next_review <= datetime.now(timezone.utc)
-            ).scalar() or 0
+                    # Подсчет слов к повторению
+                    if word_id in review_counts:
+                        review_count += review_counts[word_id]
+                else:
+                    new_count += 1
 
-            # Выученные слова - со статусом 'mastered'
-            deck.mastered_count = UserWord.query.filter(
-                UserWord.user_id == current_user.id,
-                UserWord.word_id.in_(deck_word_ids),
-                UserWord.status == 'mastered'
-            ).count()
+            deck.new_count = new_count
+            deck.learning_count = learning_count
+            deck.mastered_count = mastered_count_deck
+            deck.review_count = review_count
         else:
             deck.new_count = 0
             deck.learning_count = 0

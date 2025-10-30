@@ -10,6 +10,37 @@
         <p class="text-muted">Выберите колоду или коллекцию для изучения</p>
     </div>
 
+    <!-- XP Progress Card -->
+    {% if user_level %}
+    <div class="card mb-4 shadow-sm" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div style="font-size: 48px;">⚡</div>
+                        <div>
+                            <h4 class="mb-1" style="font-weight: 700;">Уровень {{ user_level }}</h4>
+                            <p class="mb-0" style="opacity: 0.9; font-size: 14px;">{{ user_xp }} XP • {{ xp_to_next_level }} XP до следующего уровня</p>
+                        </div>
+                    </div>
+                    <!-- Progress bar -->
+                    <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 12px; overflow: hidden;">
+                        <div style="background: rgba(255,255,255,0.9); height: 100%; width: {{ xp_progress_percent }}%; border-radius: 10px; transition: width 0.5s ease;"></div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex flex-column gap-2">
+                        <a href="{{ url_for('study.quiz') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-bolt me-1"></i>Заработать XP
+                        </a>
+                        <small style="opacity: 0.8; font-size: 12px;">+10 XP за правильный ответ</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Быстрый старт - Карточки для повторения -->
     {% if due_items_count > 0 or total_items > 0 %}
     <div class="card mb-4 border-primary shadow-sm">
@@ -150,19 +181,40 @@
                                 <small class="text-muted">{{ deck.times_played }}</small>
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary" title="Пройти квиз">
-                                        <i class="fas fa-brain"></i> Quiz
-                                    </a>
-                                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="Интервальное повторение">
-                                        <i class="fas fa-layer-group"></i> Карточки
-                                    </a>
-                                    <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-outline-danger" onclick="confirmDelete({{ deck.id }}, '{{ deck.title }}')" title="Удалить">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                <div class="d-flex flex-column gap-1 align-items-center">
+                                    <!-- Квиз и Карточки - горизонтально -->
+                                    {% if deck.word_count > 0 %}
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-primary" title="Пройти квиз"
+                                                onclick="openQuizModal({{ deck.id }}, {{ deck.word_count }}, '{{ deck.title|replace("'", "\\'") }}')">
+                                            <i class="fas fa-brain"></i> Квиз
+                                        </button>
+                                        {% if deck.title != 'Выученные слова' %}
+                                        <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="Интервальное повторение">
+                                            <i class="fas fa-layer-group"></i> Карточки
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Редактировать и Удалить - горизонтально под первым рядом -->
+                                    {% set is_auto_deck = (
+                                        deck.title == 'Все мои слова' or
+                                        deck.title == 'Выученные слова' or
+                                        deck.title == 'Слова из чтения' or
+                                        deck.title.startswith('Топик:') or
+                                        deck.title.startswith('Коллекция:')
+                                    ) %}
+                                    {% if not is_auto_deck %}
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" onclick="confirmDelete({{ deck.id }}, '{{ deck.title }}')" title="Удалить">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -304,6 +356,40 @@
         </p>
     </div>
     {% endif %}
+
+    <!-- Modal выбора количества слов для квиза -->
+    <div class="modal fade" id="quizLimitModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Настройки квиза</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Колода: <strong id="modal-deck-title"></strong></p>
+                    <p>Всего слов в колоде: <strong id="modal-deck-count"></strong></p>
+                    <hr>
+                    <div class="mb-3">
+                        <label for="quiz-limit" class="form-label">Сколько слов хотите пройти?</label>
+                        <input type="number" class="form-control" id="quiz-limit" min="5" max="1000" value="20">
+                        <small class="text-muted">Рекомендуется: 10-30 слов за один квиз</small>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="quiz-all-words">
+                        <label class="form-check-label" for="quiz-all-words">
+                            Пройти все слова из колоды
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="startQuiz()">
+                        <i class="fas fa-play me-1"></i>Начать квиз
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -319,6 +405,48 @@
 
 {% block scripts %}
 <script>
+// Quiz modal
+let selectedDeckId = null;
+
+function openQuizModal(deckId, wordCount, deckTitle) {
+    selectedDeckId = deckId;
+    document.getElementById('modal-deck-title').textContent = deckTitle;
+    document.getElementById('modal-deck-count').textContent = wordCount;
+
+    // Set default limit
+    const quizLimit = document.getElementById('quiz-limit');
+    quizLimit.max = wordCount;
+    quizLimit.value = Math.min(20, wordCount);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('quizLimitModal'));
+    modal.show();
+}
+
+function startQuiz() {
+    const allWords = document.getElementById('quiz-all-words').checked;
+    const limit = document.getElementById('quiz-limit').value;
+
+    let url = `/study/quiz/deck/${selectedDeckId}`;
+    if (!allWords && limit) {
+        url += `?limit=${limit}`;
+    }
+
+    window.location.href = url;
+}
+
+// Toggle limit input based on checkbox
+document.addEventListener('DOMContentLoaded', function() {
+    const allWordsCheckbox = document.getElementById('quiz-all-words');
+    const limitInput = document.getElementById('quiz-limit');
+
+    if (allWordsCheckbox && limitInput) {
+        allWordsCheckbox.addEventListener('change', function() {
+            limitInput.disabled = this.checked;
+        });
+    }
+});
+
 function confirmDelete(deckId, deckTitle) {
     if (confirm(`Вы уверены, что хотите удалить колоду "${deckTitle}"?`)) {
         // Create form and submit
