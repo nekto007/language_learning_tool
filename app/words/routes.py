@@ -74,8 +74,8 @@ def dashboard():
     earned_count = UserAchievement.query.filter_by(user_id=current_user.id).count()
 
     # Calculate user level and XP progress
-    user_xp = current_user.xp if hasattr(current_user, 'xp') and current_user.xp is not None else 0
-    user_level = current_user.level if hasattr(current_user, 'level') and current_user.level is not None else 1
+    user_xp = current_user.xp.total_xp if hasattr(current_user, 'xp') and current_user.xp is not None else 0
+    user_level = current_user.xp.level if hasattr(current_user, 'xp') and current_user.xp is not None else 1
 
     # XP required for next level (simple formula: level * 100)
     xp_for_current_level = (user_level - 1) * 100
