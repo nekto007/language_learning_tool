@@ -504,7 +504,6 @@ function showResultsAndNavigation(data) {
     // Показываем кнопку "Пройти заново"
     if (retryBtn) {
       retryBtn.style.display = 'inline-flex';
-      console.log('Retry button shown');
     } else {
       console.error('Retry button not found in DOM');
     }
@@ -513,11 +512,9 @@ function showResultsAndNavigation(data) {
     if (nextBtn) {
       nextBtn.style.display = 'inline-flex';
       nextBtn.disabled = false;
-      console.log('Next lesson button shown');
     } else if (completeModuleBtn) {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
-      console.log('Complete module button shown');
     } else {
       console.error('Navigation buttons not found in DOM');
     }

@@ -5,6 +5,28 @@
 {% set block_description = _('Проверьте свои знания с помощью интерактивной викторины') %}
 {% set show_score = true %}
 
+{% macro format_answer(answer, question) %}
+  {% if question.type == 'multiple_choice' %}
+    {# Если ответ - индекс, преобразуем в текст опции #}
+    {% if answer is number or (answer|string).isdigit() %}
+      {{ question.options[answer|int] }}
+    {% else %}
+      {{ answer }}
+    {% endif %}
+  {% elif question.type == 'true_false' %}
+    {# Преобразуем true/false в русский #}
+    {% if answer == 'true' or answer == true %}
+      Правда
+    {% elif answer == 'false' or answer == false %}
+      Ложь
+    {% else %}
+      {{ answer }}
+    {% endif %}
+  {% else %}
+    {{ answer }}
+  {% endif %}
+{% endmacro %}
+
 {% block lesson_content %}
 {% set previous_data = None %}
 {% set previous_feedback = {} %}
@@ -17,108 +39,77 @@
 
 <div class="quiz-lesson">
   {% if is_completed and previous_data %}
-    <!-- Режим просмотра результатов -->
-    <div class="quiz-results-review">
-      <div class="results-summary">
-        <div class="score-circle {% if previous_data.score >= 70 %}success{% else %}warning{% endif %}">
-          <div class="score-value">{{ previous_data.score|round(0)|int }}%</div>
-          <div class="score-label">{{ _('Результат') }}</div>
+    <!-- Компактные результаты -->
+    <div class="quiz-results-compact">
+      <!-- Статистика в виде карточек -->
+      <div class="quiz-stats-cards">
+        <div class="stat-card points">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-value">{{ previous_data.get('points_earned', (previous_data.correct_count * 10))|int }}</div>
+          <div class="stat-label">очков</div>
         </div>
-        <div class="results-stats">
-          <div class="stat-item">
-            <i class="fas fa-check-circle text-success"></i>
-            <span>{{ _('Правильно:') }} {{ previous_data.correct_count }} {{ _('из') }} {{ previous_data.total_count }}</span>
-          </div>
-          <div class="stat-item">
-            <i class="fas fa-redo text-primary"></i>
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="retryQuiz()">
-              {{ _('Пройти заново') }}
-            </button>
-          </div>
+
+        <div class="stat-card percentage">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-value">{{ previous_data.score|round(0)|int }}%</div>
+          <div class="stat-label">правильно</div>
         </div>
+
+        {% if previous_data.get('time_spent') %}
+        <div class="stat-card time">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-value">{{ previous_data.time_spent }}с</div>
+          <div class="stat-label">время</div>
+        </div>
+        {% endif %}
       </div>
 
-      <!-- Детальный просмотр ответов -->
-      <div class="review-questions">
-        <h3 class="mb-4">{{ _('Ваши ответы') }}</h3>
-        {% for question in questions %}
-          {% set q_idx = loop.index0|string %}
-          {% set feedback = previous_feedback.get(q_idx, {}) %}
-          <div class="review-question {% if feedback.status == 'correct' %}correct{% else %}incorrect{% endif %}">
-            <div class="review-question-header">
-              <span class="question-number">{{ loop.index }}</span>
-              <span class="question-status">
-                {% if feedback.status == 'correct' %}
-                  <i class="fas fa-check-circle text-success"></i>
-                {% else %}
-                  <i class="fas fa-times-circle text-danger"></i>
-                {% endif %}
-              </span>
+      <!-- Только ошибки по умолчанию -->
+      {% set errors = [] %}
+      {% for question in questions %}
+        {% set q_idx = loop.index0|string %}
+        {% set feedback = previous_feedback.get(q_idx, {}) %}
+        {% if feedback.status != 'correct' %}
+          {% set _ = errors.append((loop.index, question, feedback)) %}
+        {% endif %}
+      {% endfor %}
+
+      {% if errors|length > 0 %}
+      <div class="errors-section">
+        <h3 class="section-title">❌ Ошибки ({{ errors|length }})</h3>
+        {% for idx, question, feedback in errors %}
+          <div class="error-item">
+            <div class="error-header">
+              <span class="q-num">№{{ idx }}</span>
+              <span class="q-text">{{ (question.text or question.question or question.prompt)[:80] }}{% if (question.text or question.question or question.prompt)|length > 80 %}...{% endif %}</span>
             </div>
-
-            <div class="review-question-content">
-              <p class="question-text">{{ question.text or question.question or question.prompt }}</p>
-
-              {% if question.type == 'multiple_choice' %}
-                <div class="review-options">
-                  {% for option in question.options %}
-                    {% set is_user_answer = (feedback.user_answer == option) or (feedback.user_answer == loop.index0|string) %}
-                    {% set is_correct_answer = (question.answer == loop.index0) or (question.correct_index == loop.index0) or (question.correct == loop.index0) %}
-                    <div class="review-option {% if is_user_answer %}user-selected{% endif %} {% if is_correct_answer %}correct-answer{% endif %}">
-                      <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                      <span class="option-text">{{ option }}</span>
-                      {% if is_user_answer and not is_correct_answer %}
-                        <i class="fas fa-times text-danger ms-2"></i>
-                      {% elif is_correct_answer %}
-                        <i class="fas fa-check text-success ms-2"></i>
-                      {% endif %}
-                    </div>
-                  {% endfor %}
-                </div>
-              {% elif question.type == 'true_false' %}
-                <div class="review-options">
-                  <div class="review-option {% if feedback.user_answer == 'true' %}user-selected{% endif %} {% if question.answer == true or question.correct_answer == true or question.correct == true %}correct-answer{% endif %}">
-                    <span class="option-letter">T</span>
-                    <span class="option-text">{{ _('Правда') }}</span>
-                    {% if feedback.user_answer == 'true' and question.answer != true and question.correct_answer != true and question.correct != true %}
-                      <i class="fas fa-times text-danger ms-2"></i>
-                    {% elif question.answer == true or question.correct_answer == true or question.correct == true %}
-                      <i class="fas fa-check text-success ms-2"></i>
-                    {% endif %}
-                  </div>
-                  <div class="review-option {% if feedback.user_answer == 'false' %}user-selected{% endif %} {% if question.answer == false or question.correct_answer == false or question.correct == false %}correct-answer{% endif %}">
-                    <span class="option-letter">F</span>
-                    <span class="option-text">{{ _('Ложь') }}</span>
-                    {% if feedback.user_answer == 'false' and question.answer != false and question.correct_answer != false and question.correct != false %}
-                      <i class="fas fa-times text-danger ms-2"></i>
-                    {% elif question.answer == false or question.correct_answer == false or question.correct == false %}
-                      <i class="fas fa-check text-success ms-2"></i>
-                    {% endif %}
-                  </div>
-                </div>
-              {% elif question.type in ['fill_in_blank', 'translation'] %}
-                <div class="review-text-answer">
-                  <div class="user-answer">
-                    <strong>{{ _('Ваш ответ:') }}</strong> {{ feedback.user_answer }}
-                  </div>
-                  {% if feedback.status != 'correct' %}
-                    <div class="correct-answer">
-                      <strong>{{ _('Правильный ответ:') }}</strong> {{ feedback.correct_answer }}
-                    </div>
-                  {% endif %}
-                </div>
-              {% endif %}
-
-              <!-- Показать объяснение если доступно -->
-              {% if question.explanation and feedback.status != 'correct' %}
-                <div class="question-explanation">
-                  <strong>{{ _('Объяснение:') }}</strong> {{ question.explanation }}
-                </div>
-              {% endif %}
+            <div class="error-answers">
+              <div class="wrong">❌ {{ format_answer(feedback.user_answer, question) }}</div>
+              <div class="correct">✓ {{ format_answer(feedback.correct_answer, question) }}</div>
             </div>
           </div>
         {% endfor %}
       </div>
+      {% else %}
+        <div class="perfect-score">🎉 Отлично! Все ответы правильные!</div>
+      {% endif %}
+
+      <!-- Опция показать все ответы -->
+      <details class="all-answers-toggle">
+        <summary>Показать все ответы ({{ questions|length }})</summary>
+        <div class="all-answers">
+          {% for question in questions %}
+            {% set q_idx = loop.index0|string %}
+            {% set feedback = previous_feedback.get(q_idx, {}) %}
+            <div class="answer-item {% if feedback.status == 'correct' %}correct{% else %}incorrect{% endif %}">
+              <span class="num">{{ loop.index }}.</span>
+              <span class="status">{% if feedback.status == 'correct' %}✓{% else %}❌{% endif %}</span>
+              <span class="question">{{ question.text or question.question or question.prompt }}</span>
+              <span class="your-answer">{{ format_answer(feedback.user_answer, question) }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </details>
     </div>
 
   {% else %}
@@ -453,7 +444,6 @@ window.QuizApp = {
     }
     
     // Debug logging (can be removed in production)
-    console.log(`Question ${questionIndex}: type=${question.type}, user=${value}, correct=${correctAnswer}`);
     
     let isCorrect = false;
     
@@ -487,7 +477,6 @@ window.QuizApp = {
       isCorrect = parseInt(value) === correctAnswer;
     }
 
-    console.log('Final isCorrect result:', isCorrect);
 
     // Add visual classes based on correctness
     button.classList.add('selected');
@@ -502,7 +491,6 @@ window.QuizApp = {
       correct: isCorrect
     };
     
-    console.log(`Saved answer for question ${questionIndex}:`, this.state.answers[questionIndex]);
 
     this.showFeedback(questionIndex, isCorrect, correctAnswer);
   },
@@ -550,7 +538,6 @@ window.QuizApp = {
       correct: isCorrect
     };
     
-    console.log(`Saved text answer for question ${questionIndex}:`, this.state.answers[questionIndex]);
 
     if (isCorrect) this.state.correctCount++;
 
@@ -647,8 +634,6 @@ window.QuizApp = {
     const formData = new FormData();
     const csrfToken = document.querySelector('meta[name="csrf-token"]');
 
-    console.log('Current state before submission:', this.state);
-    console.log('Answers array:', this.state.answers);
 
     if (csrfToken) formData.append('csrf_token', csrfToken.content);
 
@@ -656,9 +641,7 @@ window.QuizApp = {
       const answer = this.state.answers[i];
       if (answer) {
         formData.append(`answer_${i}`, answer.value);
-        console.log(`Submitting answer_${i}: ${answer.value}`);
       } else {
-        console.log(`No answer for question ${i}`);
       }
     }
 
@@ -755,7 +738,6 @@ window.QuizApp = {
       // Show retry button
       if (retryBtn) {
         retryBtn.style.display = 'inline-flex';
-        console.log('Retry button shown');
       } else {
         console.error('Retry button not found in DOM');
       }
@@ -765,11 +747,9 @@ window.QuizApp = {
         if (nextBtn) {
           nextBtn.style.display = 'inline-flex';
           nextBtn.disabled = false;
-          console.log('Next lesson button shown');
         } else if (completeModuleBtn) {
           completeModuleBtn.style.display = 'inline-flex';
           completeModuleBtn.disabled = false;
-          console.log('Complete module button shown');
         } else {
           console.error('Navigation buttons not found in DOM');
         }

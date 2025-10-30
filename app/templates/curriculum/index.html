@@ -6,25 +6,11 @@
 <div class="container py-4">
   <!-- Hero Section: Приветствие и главная CTA -->
   {% if current_user.is_authenticated %}
-    <div class="hero-section mb-4">
+    <div class="hero-section mb-3">
       <div class="hero-content">
         <div class="hero-greeting">
           <h1>👋 Привет, {{ current_user.name or current_user.username }}!</h1>
-          <p class="hero-subtitle">Продолжай учить английский каждый день</p>
         </div>
-
-        {% if recent_activity %}
-          <div class="hero-cta">
-            <a href="{{ get_lesson_url(recent_activity[0]['lesson']) }}"
-               class="btn-hero">
-              <span class="btn-hero-text">
-                <strong>Продолжить урок</strong>
-                <small>{{ recent_activity[0]['lesson'].title }}</small>
-              </span>
-              <span class="btn-hero-icon">→</span>
-            </a>
-          </div>
-        {% endif %}
       </div>
 
       <!-- Gamification Stats -->
@@ -71,95 +57,78 @@
             {% set is_current = level_data.progress_percent and 0 < level_data.progress_percent < 100 %}
             {% set is_completed = level_data.progress_percent and level_data.progress_percent == 100 %}
             {% set is_new = level_data.progress_percent == 0 %}
+            {% set is_next = loop.index0 > 0 and levels_data[loop.index0 - 1].progress_percent == 100 and is_new %}
+            {% set should_show = is_current or is_next or (is_completed and loop.index == levels_data|length) %}
 
-            <div class="level-card {{ 'current' if is_current else 'completed' if is_completed else 'new' }}">
+            <div class="level-card {{ 'current' if is_current else 'completed' if is_completed else 'new' }}"
+                 style="{{ 'display: none;' if not should_show else '' }}"
+                 data-level-card>
               <div class="level-header">
                 <div class="level-badge level-{{ level_data.level.code[0]|lower }}">
                   {{ level_data.level.code }}
                 </div>
                 <div class="level-title">
                   <h3>{{ level_data.level.name }}</h3>
-                  <p class="level-desc">{{ level_data.level.description }}</p>
+                  <span class="level-desc">{{ level_data.level.description }}</span>
                 </div>
+
+                <!-- Stats inline -->
+                <div class="level-stat">
+                  <span class="level-stat-icon">📊</span>
+                  <span class="level-stat-value">{{ level_data.completed_lessons }}/{{ level_data.total_lessons }}</span>
+                  <span class="level-stat-label">уроков</span>
+                </div>
+
+                {% if level_data.estimated_hours > 0 %}
+                  <div class="level-stat">
+                    <span class="level-stat-icon">⏱️</span>
+                    <span class="level-stat-value">~{{ level_data.estimated_hours }} ч</span>
+                    <span class="level-stat-label">до завершения</span>
+                  </div>
+                {% endif %}
+
+                {% if level_data.progress_percent > 0 %}
+                  <div class="level-stat">
+                    <span class="level-stat-icon">🎯</span>
+                    <span class="level-stat-value">{{ level_data.progress_percent }}%</span>
+                    <span class="level-stat-label">прогресс</span>
+                  </div>
+                {% endif %}
+
                 {% if is_completed %}
                   <div class="level-status-badge completed">✓ Завершен</div>
                 {% elif is_current %}
                   <div class="level-status-badge current">В процессе</div>
                 {% endif %}
-              </div>
 
-              <div class="level-body">
-                <div class="level-stats">
-                  <div class="level-stat">
-                    <div class="level-stat-icon">📊</div>
-                    <div class="level-stat-info">
-                      <div class="level-stat-value">{{ level_data.completed_lessons }}/{{ level_data.total_lessons }}</div>
-                      <div class="level-stat-label">уроков</div>
-                    </div>
-                  </div>
-
-                  {% if level_data.estimated_hours > 0 %}
-                    <div class="level-stat">
-                      <div class="level-stat-icon">⏱️</div>
-                      <div class="level-stat-info">
-                        <div class="level-stat-value">~{{ level_data.estimated_hours }} ч</div>
-                        <div class="level-stat-label">до завершения</div>
-                      </div>
-                    </div>
-                  {% endif %}
-
-                  {% if level_data.progress_percent > 0 %}
-                    <div class="level-stat">
-                      <div class="level-stat-icon">🎯</div>
-                      <div class="level-stat-info">
-                        <div class="level-stat-value">{{ level_data.progress_percent }}%</div>
-                        <div class="level-stat-label">прогресс</div>
-                      </div>
-                    </div>
-                  {% endif %}
-                </div>
-
-                {% if level_data.progress_percent > 0 %}
-                  <div class="level-progress-bar">
-                    <div class="progress-track">
-                      <div class="progress-fill" style="width: {{ level_data.progress_percent }}%"></div>
-                    </div>
-                  </div>
+                <!-- Action buttons -->
+                {% if is_current and recent_activity %}
+                  <!-- Special button for current level with recent activity -->
+                  <a href="{{ get_lesson_url(recent_activity[0]['lesson']) }}"
+                     class="btn-level btn-primary">
+                    Продолжить урок: {{ recent_activity[0]['lesson'].title }} →
+                  </a>
+                {% elif level_data.next_lesson and (is_current or is_new) %}
+                  <a href="{{ get_lesson_url(level_data.next_lesson) }}"
+                     class="btn-level btn-primary">
+                    {% if is_current %}Продолжить →{% else %}Начать →{% endif %}
+                  </a>
+                {% else %}
+                  <a href="/learn/{{ level_data.level.code|lower }}/"
+                     class="btn-level {{ 'btn-primary' if is_current or is_new else 'btn-secondary' }}">
+                    {% if is_current %}Продолжить →{% elif is_completed %}Повторить{% else %}Начать →{% endif %}
+                  </a>
                 {% endif %}
-
-                <div class="level-actions">
-                  {% if level_data.next_lesson and (is_current or is_new) %}
-                    {# Прямая кнопка к следующему уроку #}
-                    <a href="{{ get_lesson_url(level_data.next_lesson) }}"
-                       class="btn-level btn-primary">
-                      {% if is_current %}
-                        Продолжить урок →
-                      {% else %}
-                        Начать обучение →
-                      {% endif %}
-                    </a>
-                    {# Дополнительная кнопка для просмотра всех модулей #}
-                    <a href="/learn/{{ level_data.level.code|lower }}/"
-                       class="btn-level btn-outline">
-                      Все модули
-                    </a>
-                  {% else %}
-                    {# Fallback к списку модулей если нет следующего урока #}
-                    <a href="/learn/{{ level_data.level.code|lower }}/"
-                       class="btn-level {{ 'btn-primary' if is_current or is_new else 'btn-secondary' }}">
-                      {% if is_current %}
-                        Продолжить →
-                      {% elif is_completed %}
-                        Повторить
-                      {% else %}
-                        Начать обучение →
-                      {% endif %}
-                    </a>
-                  {% endif %}
-                </div>
               </div>
             </div>
           {% endfor %}
+        </div>
+
+        <!-- Show All Levels Toggle -->
+        <div style="text-align: center; margin-top: var(--space-4);">
+          <button id="toggleLevelsBtn" class="btn-level btn-outline" onclick="toggleAllLevels()" style="display: inline-block;">
+            <span id="toggleText">Показать все уровни</span>
+          </button>
         </div>
       {% else %}
         <div class="empty-state">
@@ -199,5 +168,41 @@
     </div>
   {% endif %}
 </div>
+
+<script>
+let allLevelsVisible = false;
+
+function toggleAllLevels() {
+  const levelCards = document.querySelectorAll('[data-level-card]');
+  const toggleBtn = document.getElementById('toggleText');
+
+  allLevelsVisible = !allLevelsVisible;
+
+  levelCards.forEach(card => {
+    if (allLevelsVisible) {
+      card.style.display = '';
+    } else {
+      // Hide cards that were originally hidden
+      const isHidden = card.style.display === 'none' || card.getAttribute('data-originally-hidden') === 'true';
+      if (!card.classList.contains('current') &&
+          !(card.nextElementSibling && card.classList.contains('new'))) {
+        card.style.display = 'none';
+      }
+    }
+  });
+
+  toggleBtn.textContent = allLevelsVisible ? 'Скрыть уровни' : 'Показать все уровни';
+}
+
+// Mark originally hidden cards on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const levelCards = document.querySelectorAll('[data-level-card]');
+  levelCards.forEach(card => {
+    if (card.style.display === 'none') {
+      card.setAttribute('data-originally-hidden', 'true');
+    }
+  });
+});
+</script>
 {% endblock %}
 

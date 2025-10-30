@@ -793,57 +793,154 @@ def text_lesson(lesson_id):
 @require_lesson_access
 def card_lesson(lesson_id):
     """Display SRS card lesson"""
+    from app.words.models import CollectionWordLink, CollectionWords
+    import json
+
     lesson = Lessons.query.get_or_404(lesson_id)
 
     if lesson.type != 'card':
         abort(400, "This is not a card lesson")
 
-    # Check for reset parameter
-    reset_progress = request.args.get('reset') == 'true'
-
-    # Get user progress
+    # Get or create progress
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
 
-    # Reset progress if requested
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = {
-            'studied_cards': {},  # {card_direction_id: {status, rating, timestamp, was_new}}
-            'cards_studied': 0,
-            'correct_answers': 0,
-            'total_answers': 0,
-            'card_progress': {}
-        }
-        progress.completed_at = None
-        progress.last_activity = datetime.utcnow()
-        db.session.commit()
+    # Get navigation info
+    next_lesson = Lessons.query.filter(
+        Lessons.module_id == lesson.module_id,
+        Lessons.number > lesson.number
+    ).order_by(Lessons.number).first()
 
-    # Get SRS settings
-    srs_settings = lesson.get_srs_settings()
+    # Collect words for this card lesson
+    word_ids = []
 
-    # Get cards for review
-    cards_data = get_cards_for_lesson(lesson.id, current_user.id)
+    # Try collection-based
+    if lesson.collection_id:
+        word_links = CollectionWordLink.query.filter_by(
+            collection_id=lesson.collection_id
+        ).all()
+        word_ids = [link.word_id for link in word_links]
 
-    # Check if lesson should be marked as completed
-    if cards_data['total_due'] == 0 and progress and progress.status != 'completed':
-        progress.status = 'completed'
-        progress.completed_at = datetime.utcnow()
-        db.session.commit()
+    # Try JSON content with cards
+    elif lesson.content:
+        try:
+            content = json.loads(lesson.content) if isinstance(lesson.content, str) else lesson.content
+            if isinstance(content, dict) and 'cards' in content:
+                for card in content['cards']:
+                    if isinstance(card, dict) and 'word_id' in card:
+                        word_ids.append(card['word_id'])
+        except:
+            pass
 
-    # Get next lesson
-    next_lesson = get_next_lesson(lesson.id)
+    # If no words (review lesson), collect from previous lessons
+    if not word_ids and lesson.module_id:
+        previous_lessons = Lessons.query.filter(
+            Lessons.module_id == lesson.module_id,
+            Lessons.number < lesson.number,
+            Lessons.type.in_(['vocabulary', 'card'])
+        ).all()
+
+        for prev_lesson in previous_lessons:
+            if prev_lesson.collection_id:
+                word_links = CollectionWordLink.query.filter_by(
+                    collection_id=prev_lesson.collection_id
+                ).all()
+                word_ids.extend([link.word_id for link in word_links])
+            elif prev_lesson.content:
+                try:
+                    prev_content = json.loads(prev_lesson.content) if isinstance(prev_lesson.content, str) else prev_lesson.content
+                    if isinstance(prev_content, dict) and 'cards' in prev_content:
+                        for card in prev_content['cards']:
+                            if isinstance(card, dict) and 'word_id' in card:
+                                word_ids.append(card['word_id'])
+                except:
+                    pass
+
+        word_ids = list(set(word_ids))
+
+    # Load word objects and prepare cards data
+    cards_list = []
+    if word_ids:
+        from app.study.models import UserWord
+        word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
+
+        # Prepare cards in the format expected by template
+        for word in word_objects:
+            # Check if user has this word in their study list
+            user_word = UserWord.query.filter_by(
+                user_id=current_user.id,
+                word_id=word.id
+            ).first()
+
+            # Parse audio filename from listening field
+            audio_file = None
+            if word.listening:
+                # Format: [sound:pronunciation_en_aunt.mp3]
+                import re
+                match = re.search(r'\[sound:([^\]]+)\]', word.listening)
+                if match:
+                    audio_file = match.group(1)
+            elif word.get_download == 1:
+                # Fallback to generated filename
+                audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
+
+            # Parse sentences for examples
+            example_en = ''
+            example_ru = ''
+            if word.sentences:
+                try:
+                    import json
+                    sentences_data = json.loads(word.sentences) if isinstance(word.sentences, str) else word.sentences
+                    if isinstance(sentences_data, list) and len(sentences_data) > 0:
+                        first_sentence = sentences_data[0]
+                        if isinstance(first_sentence, dict):
+                            example_en = first_sentence.get('en', '')
+                            example_ru = first_sentence.get('ru', '')
+                except:
+                    pass
+
+            card_data = {
+                'id': word.id,
+                'word_id': word.id,
+                'english': word.english_word,
+                'russian': word.russian_word,
+                'listening': word.listening if word.listening else '',
+                'sentences': word.sentences if word.sentences else '',
+                'example': example_en,
+                'example_en': example_en,
+                'example_ru': example_ru,
+                'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
+                'usage': '',
+                'hint': '',
+                'is_new': user_word is None,
+                'status': user_word.status if user_word else 'new',
+                'audio': audio_file,
+                'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
+                'get_download': 1 if word.get_download == 1 else 0
+            }
+            cards_list.append(card_data)
+
+    # Prepare cards_data structure
+    cards_data = {
+        'cards': cards_list,
+        'srs_settings': {
+            'new_cards_limit': 20,
+            'review_cards_limit': 50,
+            'show_hint_time': 5
+        },
+        'lesson_settings': {},
+        'stats': {}
+    }
 
     return render_template(
         'curriculum/lessons/card.html',
         lesson=lesson,
         progress=progress,
         cards_data=cards_data,
-        srs_settings=srs_settings,
-        next_lesson=next_lesson
+        next_lesson=next_lesson,
+        lesson_id=lesson.id
     )
 
 

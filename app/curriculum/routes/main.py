@@ -134,130 +134,51 @@ learn_bp = Blueprint('learn', __name__)
 @learn_bp.route('/')
 @login_required
 def learn_index():
-    """Главная страница обучения - красивый URL"""
+    """Главная страница обучения - оптимизированная версия с eager loading"""
     try:
-        # Получаем все уровни CEFR
-        levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
+        from app.curriculum.services.curriculum_cache_service import CurriculumCacheService
 
-        if not levels:
+        # Используем оптимизированный сервис - 3 запроса вместо 1000+
+        levels_data = CurriculumCacheService.get_levels_with_progress(current_user.id)
+
+        if not levels_data:
             flash('Учебные материалы еще не загружены. Обратитесь к администратору.', 'info')
-            return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={}, gamification={})
+            return render_template('curriculum/index.html',
+                                 levels_data=[],
+                                 recent_activity=[],
+                                 total_stats={},
+                                 gamification={})
 
-        # Подготавливаем данные для каждого уровня
-        levels_data = []
-        total_stats = {'total_lessons': 0, 'completed_lessons': 0}
+        # Рассчитываем общую статистику
+        total_stats = {
+            'total_lessons': sum(ld['total_lessons'] for ld in levels_data),
+            'completed_lessons': sum(ld['completed_lessons'] for ld in levels_data)
+        }
+        total_stats['progress_percent'] = round(
+            (total_stats['completed_lessons'] / total_stats['total_lessons'] * 100)
+            if total_stats['total_lessons'] > 0 else 0
+        )
 
-        for level in levels:
-            # Получаем модули для уровня
-            modules = Module.query.filter_by(level_id=level.id).order_by(Module.number).all()
+        # Получаем последние активности (1 оптимизированный запрос)
+        recent_activity = CurriculumCacheService.get_recent_activity(current_user.id, limit=5)
 
-            # Считаем уроки в уровне
-            level_lessons = 0
-            level_completed = 0
-
-            modules_data = []
-            for module in modules:
-                lessons = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).all()
-                module_total = len(lessons)
-
-                # Считаем завершенные уроки в модуле для текущего пользователя
-                module_completed = 0
-                if current_user.is_authenticated and lessons:
-                    lesson_ids = [lesson.id for lesson in lessons]
-                    completed_count = db.session.query(func.count(LessonProgress.id)).filter(
-                        LessonProgress.user_id == current_user.id,
-                        LessonProgress.lesson_id.in_(lesson_ids),
-                        LessonProgress.status == 'completed'
-                    ).scalar() or 0
-                    module_completed = completed_count
-
-                modules_data.append({
-                    'module': module,
-                    'total_lessons': module_total,
-                    'completed_lessons': module_completed,
-                    'progress_percent': round((module_completed / module_total * 100) if module_total > 0 else 0),
-                    'is_available': True  # Все модули доступны для простоты
-                })
-
-                level_lessons += module_total
-                level_completed += module_completed
-
-            # Прогресс по уровню
-            level_progress = round((level_completed / level_lessons * 100) if level_lessons > 0 else 0)
-
-            # Рассчитываем примерное время до завершения (в минутах, ~15 мин на урок)
-            remaining_lessons = level_lessons - level_completed
-            estimated_time = remaining_lessons * 15
-
-            # Найти следующий урок для этого уровня
-            next_lesson = None
-            if current_user.is_authenticated and modules:
-                # Ищем первый незавершенный урок в порядке модулей
-                for module in modules:
-                    lessons = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).all()
-                    for lesson in lessons:
-                        lesson_progress = LessonProgress.query.filter_by(
-                            user_id=current_user.id,
-                            lesson_id=lesson.id
-                        ).first()
-
-                        if not lesson_progress or lesson_progress.status != 'completed':
-                            next_lesson = lesson
-                            break
-                    if next_lesson:
-                        break
-
-            level_data = {
-                'level': level,
-                'modules': modules_data,
-                'total_lessons': level_lessons,
-                'completed_lessons': level_completed,
-                'progress_percent': level_progress,
-                'estimated_hours': round(estimated_time / 60, 1),
-                'is_available': True,  # Все уровни доступны
-                'next_lesson': next_lesson  # Следующий урок для быстрого доступа
-            }
-
-            levels_data.append(level_data)
-            total_stats['total_lessons'] += level_lessons
-            total_stats['completed_lessons'] += level_completed
-
-        # Последние активности пользователя
-        recent_activity = []
-        if current_user.is_authenticated:
-            recent_progress = db.session.query(LessonProgress)\
-                .join(Lessons).join(Module).join(CEFRLevel)\
-                .filter(LessonProgress.user_id == current_user.id)\
-                .order_by(LessonProgress.last_activity.desc())\
-                .limit(5).all()
-
-            for progress in recent_progress:
-                recent_activity.append({
-                    'lesson': progress.lesson,
-                    'module': progress.lesson.module,
-                    'level': progress.lesson.module.level,
-                    'status': progress.status,
-                    'score': progress.score,
-                    'last_activity': progress.last_activity
-                })
-
-        # Общая статистика
-        total_stats['progress_percent'] = round((total_stats['completed_lessons'] / total_stats['total_lessons'] * 100)
-                                              if total_stats['total_lessons'] > 0 else 0)
-
-        # Геймификация - рассчитываем стрики и очки
-        gamification = calculate_gamification_stats(current_user.id)
+        # Получаем геймификацию (2 оптимизированных запроса)
+        gamification = CurriculumCacheService.get_gamification_stats(current_user.id)
 
         return render_template('curriculum/index.html',
                              levels_data=levels_data,
                              recent_activity=recent_activity,
                              total_stats=total_stats,
                              gamification=gamification)
-                             
+
     except Exception as e:
         logger.error(f"Ошибка загрузки curriculum: {str(e)}")
         flash('Произошла ошибка при загрузке учебной программы.', 'error')
-        return render_template('curriculum/index.html', levels_data=[], recent_activity=[], total_stats={})
+        return render_template('curriculum/index.html',
+                             levels_data=[],
+                             recent_activity=[],
+                             total_stats={},
+                             gamification={})
 
 
 @learn_bp.route('/<string:level_slug>/')
