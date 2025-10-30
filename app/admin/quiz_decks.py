@@ -128,22 +128,25 @@ def quiz_deck_edit(deck_id):
             deck.generate_share_code()
 
         db.session.commit()
+
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+            return jsonify({
+                'success': True,
+                'message': 'Колода успешно обновлена',
+                'share_code': deck.share_code if deck.is_public else None,
+                'share_link': url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) if deck.share_code and deck.is_public else None
+            })
+
         flash('Колода успешно обновлена', 'success')
         return redirect(url_for('admin.quiz_deck_view', deck_id=deck.id))
 
     words = deck.words.order_by(QuizDeckWord.order_index).all()
 
-    # Get available words from collection
-    available_words = CollectionWords.query.filter(
-        CollectionWords.russian_word != None,
-        CollectionWords.russian_word != ''
-    ).order_by(CollectionWords.english_word).limit(100).all()
-
     return render_template(
         'admin/quiz_decks/edit.html',
         deck=deck,
-        words=words,
-        available_words=available_words
+        words=words
     )
 
 
@@ -160,6 +163,13 @@ def quiz_deck_delete(deck_id):
     db.session.delete(deck)
     db.session.commit()
 
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+        return jsonify({
+            'success': True,
+            'message': f'Колода "{title}" успешно удалена'
+        })
+
     flash(f'Колода "{title}" успешно удалена', 'success')
     return redirect(url_for('admin.quiz_decks_list'))
 
@@ -167,76 +177,45 @@ def quiz_deck_delete(deck_id):
 @admin.route('/quiz-decks/<int:deck_id>/words/add', methods=['POST'])
 @login_required
 def quiz_deck_add_word(deck_id):
-    """Add word(s) to quiz deck - supports single or multiple words"""
+    """Add word to quiz deck - supports both existing words and custom translations"""
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
 
     deck = QuizDeck.query.get_or_404(deck_id)
 
-    # Check for multiple word IDs (new bulk add feature)
-    word_ids_str = request.form.get('word_ids', '').strip()
     word_id = request.form.get('word_id', type=int)
     custom_english = request.form.get('custom_english', '').strip()
     custom_russian = request.form.get('custom_russian', '').strip()
+
+    # Validation
+    if not custom_english or not custom_russian:
+        flash('Необходимо заполнить оба поля', 'danger')
+        return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
 
     # Get max order index
     max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
         QuizDeckWord.deck_id == deck_id
     ).scalar() or 0
 
-    added_count = 0
-
-    # Handle bulk add (multiple word IDs)
-    if word_ids_str:
-        try:
-            word_ids = [int(wid.strip()) for wid in word_ids_str.split(',') if wid.strip()]
-
-            for idx, wid in enumerate(word_ids):
-                word = CollectionWords.query.get(wid)
-                if word:
-                    # Check if word already in deck
-                    existing = QuizDeckWord.query.filter_by(
-                        deck_id=deck_id,
-                        word_id=wid
-                    ).first()
-
-                    if not existing:
-                        deck_word = QuizDeckWord(
-                            deck_id=deck_id,
-                            word_id=wid,
-                            order_index=max_order + idx + 1
-                        )
-                        db.session.add(deck_word)
-                        added_count += 1
-
-            db.session.commit()
-
-            if added_count > 0:
-                flash(f'Добавлено слов: {added_count}', 'success')
-            else:
-                flash('Все выбранные слова уже в колоде', 'info')
-
-        except (ValueError, TypeError) as e:
-            flash('Ошибка при добавлении слов', 'danger')
-
-        return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
-
-    # Handle single word add (legacy support)
-    elif word_id:
-        # Adding existing word
-        word = CollectionWords.query.get(word_id)
-        if not word:
-            flash('Слово не найдено', 'danger')
-            return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
-
-        # Check if word already in deck
+    # If word_id provided, check if it's already in deck
+    if word_id:
         existing = QuizDeckWord.query.filter_by(
             deck_id=deck_id,
             word_id=word_id
         ).first()
 
         if existing:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': 'Это слово уже в колоде'}), 400
             flash('Это слово уже в колоде', 'info')
+            return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
+
+        # Add word from collection with optional custom override
+        word = CollectionWords.query.get(word_id)
+        if not word:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+                return jsonify({'success': False, 'message': 'Слово не найдено в базе'}), 400
+            flash('Слово не найдено в базе', 'danger')
             return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
 
         deck_word = QuizDeckWord(
@@ -244,12 +223,33 @@ def quiz_deck_add_word(deck_id):
             word_id=word_id,
             order_index=max_order + 1
         )
+
+        # If translation differs from original, save as custom override
+        if custom_english != word.english_word or custom_russian != word.russian_word:
+            deck_word.custom_english = custom_english
+            deck_word.custom_russian = custom_russian
+
         db.session.add(deck_word)
         db.session.commit()
+
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+            return jsonify({
+                'success': True,
+                'message': 'Слово добавлено в колоду',
+                'word': {
+                    'id': deck_word.id,
+                    'deck_id': deck_id,
+                    'english': deck_word.english_word,
+                    'russian': deck_word.russian_word,
+                    'has_custom': deck_word.custom_english is not None or deck_word.custom_russian is not None
+                }
+            })
+
         flash('Слово добавлено в колоду', 'success')
 
-    elif custom_english and custom_russian:
-        # Adding custom word
+    else:
+        # Add completely custom word (not in collection)
         deck_word = QuizDeckWord(
             deck_id=deck_id,
             custom_english=custom_english,
@@ -258,11 +258,89 @@ def quiz_deck_add_word(deck_id):
         )
         db.session.add(deck_word)
         db.session.commit()
-        flash('Слово добавлено в колоду', 'success')
 
-    else:
-        flash('Необходимо выбрать слово или ввести свое', 'danger')
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+            return jsonify({
+                'success': True,
+                'message': 'Своё слово добавлено в колоду',
+                'word': {
+                    'id': deck_word.id,
+                    'deck_id': deck_id,
+                    'english': deck_word.english_word,
+                    'russian': deck_word.russian_word,
+                    'has_custom': True
+                }
+            })
 
+        flash('Своё слово добавлено в колоду', 'success')
+
+    return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
+
+
+@admin.route('/quiz-decks/<int:deck_id>/words/<int:word_id>/update', methods=['POST'])
+@login_required
+def quiz_deck_update_word(deck_id, word_id):
+    """Update word in quiz deck - saves custom override for this deck"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
+
+    custom_english = request.form.get('custom_english', '').strip()
+    custom_russian = request.form.get('custom_russian', '').strip()
+
+    if not custom_english or not custom_russian:
+        # Check if AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+            return jsonify({'success': False, 'message': 'Оба поля должны быть заполнены'}), 400
+        flash('Оба поля должны быть заполнены', 'danger')
+        return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
+
+    # Save custom override - works for both collection words and custom words
+    deck_word.custom_english = custom_english
+    deck_word.custom_russian = custom_russian
+
+    db.session.commit()
+
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+        return jsonify({
+            'success': True,
+            'message': 'Перевод обновлен',
+            'word': {
+                'id': deck_word.id,
+                'english': deck_word.english_word,
+                'russian': deck_word.russian_word,
+                'has_custom': deck_word.custom_english is not None or deck_word.custom_russian is not None
+            }
+        })
+
+    flash('Перевод обновлен для этой колоды', 'success')
+    return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
+
+
+@admin.route('/quiz-decks/<int:deck_id>/words/<int:word_id>/reset', methods=['POST'])
+@login_required
+def quiz_deck_reset_word(deck_id, word_id):
+    """Reset custom override to original translation"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
+
+    # Only reset if this is a word from collection (has word_id)
+    if deck_word.word_id is None:
+        flash('Нельзя сбросить полностью custom слово', 'warning')
+        return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
+
+    # Clear custom overrides
+    deck_word.custom_english = None
+    deck_word.custom_russian = None
+
+    db.session.commit()
+
+    flash('Перевод сброшен к оригинальному', 'success')
     return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
 
 
@@ -277,6 +355,13 @@ def quiz_deck_remove_word(deck_id, word_id):
 
     db.session.delete(deck_word)
     db.session.commit()
+
+    # Check if AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+        return jsonify({
+            'success': True,
+            'message': 'Слово удалено из колоды'
+        })
 
     flash('Слово удалено из колоды', 'success')
     return redirect(url_for('admin.quiz_deck_edit', deck_id=deck_id))
@@ -305,20 +390,20 @@ def quiz_deck_reorder_words(deck_id):
 @admin.route('/api/words/search')
 @login_required
 def api_words_search():
-    """API endpoint to search words for adding to deck"""
+    """API endpoint to search words for autocomplete in quiz deck editor"""
     if not current_user.is_admin:
         return jsonify({'error': 'Access denied'}), 403
 
-    query = request.args.get('q', '')
-    limit = min(int(request.args.get('limit', 100)), 1000)  # Max 1000 words
+    query = request.args.get('q', '').strip()
+    limit = min(int(request.args.get('limit', 10)), 50)  # Max 50 for autocomplete
 
-    # Base query
+    # Base query - only words with translations
     words_query = CollectionWords.query.filter(
         CollectionWords.russian_word != None,
         CollectionWords.russian_word != ''
     )
 
-    # Apply search filter if query provided
+    # Apply search filter
     if query and len(query) >= 2:
         from sqlalchemy import case
 
@@ -340,16 +425,16 @@ def api_words_search():
             ),
             # Priority 2: Starts with query
             case(
-                (func.lower(CollectionWords.english_word).startswith(query_lower), 2),
-                (func.lower(CollectionWords.russian_word).startswith(query_lower), 2),
+                (func.lower(CollectionWords.english_word).like(f'{query_lower}%'), 2),
+                (func.lower(CollectionWords.russian_word).like(f'{query_lower}%'), 2),
                 else_=10
             ),
             # Priority 3: Alphabetically by English word
             CollectionWords.english_word
         )
     else:
-        # No search query - just show recent words
-        words_query = words_query.order_by(CollectionWords.id.desc())
+        # No search query - return empty for autocomplete
+        return jsonify([])
 
     words = words_query.limit(limit).all()
 
