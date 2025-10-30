@@ -97,7 +97,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <h5 class="card-title fw-bold text-dark mb-0">{{ deck.title }}</h5>
-                            <span class="badge bg-success rounded-pill">PUBLIC</span>
+                            <span class="badge bg-success rounded-pill">Публичная</span>
                         </div>
                         {% if deck.description %}
                         <p class="card-text text-muted small">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
@@ -147,14 +147,4 @@
     </div>
     {% endif %}
 </div>
-
-<style>
-.hover-lift {
-    transition: all 0.3s ease;
-}
-.hover-lift:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.15) !important;
-}
-</style>
 {% endblock %}
