@@ -238,3 +238,35 @@ migrations/*.sql
 # Docker optimization
 .env.docker
 rebuild.sh
+
+# macOS
+.DS_Store
+
+# Excel temp files
+~$*.xlsx
+*.xlsx
+
+# Module JSON files (development)
+module_*.json
+
+# Scripts (development)
+add_grade_achievements.py
+check_achievements_structure.py
+cleanup_duplicate_achievement_tables.py
+generate_audio.py
+generate_reading_audio.py
+import_module.py
+import_module_simple.py
+migrate_words_cli.py
+run_achievement_migration.py
+
+# Binaries
+ffmpeg
+
+# Additional MD documentation
+AUDIO_GENERATION_README.md
+GENDER_FIX_SUMMARY.md
+IMPORT_INSTRUCTIONS.md
+LISTENING_IMMERSION_SUMMARY.md
+QUICK_AUDIO_GUIDE.md
+SETUP_AUDIO.md
