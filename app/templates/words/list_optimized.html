@@ -286,7 +286,16 @@
 <script>
 function playAudio(audioUrl) {
     const audio = document.getElementById('audioPlayer');
+    if (!audio) return;
+
     audio.src = audioUrl;
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            console.error('Audio playback failed:', error);
+        });
+    }
 }
 
 function changeWordStatus(wordId, status) {
