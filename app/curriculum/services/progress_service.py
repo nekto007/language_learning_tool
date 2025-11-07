@@ -193,7 +193,7 @@ class ProgressService:
                 progress.last_activity = datetime.utcnow()
 
             if score is not None:
-                progress.score = score
+                progress.score = round(score, 2)
 
             if data is not None:
                 progress.data = data
@@ -371,20 +371,24 @@ class ProgressService:
                 return None
 
             # Try to get next lesson in the same module
-            next_lesson = Lessons.query.filter(
-                Lessons.module_id == current_lesson.module_id,
-                Lessons.order > current_lesson.order
-            ).order_by(Lessons.order).first()
+            next_lesson = None
+            if current_lesson.order is not None:
+                next_lesson = Lessons.query.filter(
+                    Lessons.module_id == current_lesson.module_id,
+                    Lessons.order > current_lesson.order
+                ).order_by(Lessons.order).first()
 
             if next_lesson:
                 return next_lesson
 
             # If no next lesson in module, try next module
             current_module = current_lesson.module
-            next_module = Module.query.filter(
-                Module.level_id == current_module.level_id,
-                Module.number > current_module.number
-            ).order_by(Module.number).first()
+            next_module = None
+            if current_module.number is not None:
+                next_module = Module.query.filter(
+                    Module.level_id == current_module.level_id,
+                    Module.number > current_module.number
+                ).order_by(Module.number).first()
 
             if next_module:
                 # Get first lesson of next module
@@ -394,9 +398,11 @@ class ProgressService:
 
             # If no next module, try next level
             current_level = current_module.level
-            next_level = CEFRLevel.query.filter(
-                CEFRLevel.order > current_level.order
-            ).order_by(CEFRLevel.order).first()
+            next_level = None
+            if current_level.order is not None:
+                next_level = CEFRLevel.query.filter(
+                    CEFRLevel.order > current_level.order
+                ).order_by(CEFRLevel.order).first()
 
             if next_level:
                 # Get first module of next level

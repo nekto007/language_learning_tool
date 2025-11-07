@@ -128,15 +128,17 @@ def get_next_lesson(current_lesson_id):
         return None
 
     # Находим следующий урок в порядке 'order' в рамках модуля
-    next_lesson = Lessons.query.filter(
-        Lessons.module_id == current_lesson.module_id,
-        Lessons.order > current_lesson.order
-    ).order_by(
-        Lessons.order
-    ).first()
+    next_lesson = None
+    if current_lesson.order is not None:
+        next_lesson = Lessons.query.filter(
+            Lessons.module_id == current_lesson.module_id,
+            Lessons.order > current_lesson.order
+        ).order_by(
+            Lessons.order
+        ).first()
 
     # Если урок с большим order не найден, пробуем найти по номеру урока
-    if not next_lesson:
+    if not next_lesson and current_lesson.number is not None:
         next_lesson = Lessons.query.filter(
             Lessons.module_id == current_lesson.module_id,
             Lessons.number > current_lesson.number
@@ -176,7 +178,7 @@ def complete_lesson(user_id, lesson_id, score=100.0):
 
     progress.status = 'completed'
     progress.completed_at = datetime.utcnow()
-    progress.score = score
+    progress.score = round(score, 2)
     progress.last_activity = datetime.utcnow()
 
     try:
@@ -573,15 +575,35 @@ def process_quiz_submission(questions, answers):
         # Проверяем правильность ответа в зависимости от типа вопроса
         is_correct = False
 
-        if question_type == 'multiple_choice':
-            # Для множественного выбора сравниваем индексы
+        # Special handling: fill_blank with options should be treated as multiple_choice
+        if question_type == 'fill_blank' and 'options' in question:
+            question_type = 'multiple_choice'
+
+        if question_type in ['multiple_choice', 'dialogue_completion', 'listening_choice']:
+            # Для множественного выбора сравниваем индексы или текст
             try:
                 if isinstance(user_answer, str) and user_answer.isdigit():
                     user_idx = int(user_answer)
                 elif isinstance(user_answer, int):
                     user_idx = user_answer
                 else:
+                    # user_answer is text, find its index in options
                     user_idx = -1
+                    if 'options' in question and isinstance(user_answer, str):
+                        options_stripped = [opt.strip() if isinstance(opt, str) else opt for opt in question['options']]
+                        user_answer_stripped = user_answer.strip()
+
+                        # Try exact match first
+                        if user_answer_stripped in options_stripped:
+                            user_idx = options_stripped.index(user_answer_stripped)
+                        else:
+                            # Try case-insensitive match
+                            user_answer_lower = user_answer_stripped.lower()
+                            for idx, option in enumerate(options_stripped):
+                                option_lower = option.lower() if isinstance(option, str) else str(option).lower()
+                                if option_lower == user_answer_lower:
+                                    user_idx = idx
+                                    break
 
                 # Check if correct_answer is an index or the actual text
                 if isinstance(correct_answer, str) and str(correct_answer).isdigit():
@@ -591,14 +613,18 @@ def process_quiz_submission(questions, answers):
                 else:
                     # correct_answer is the actual text, find its index in options
                     if 'options' in question:
-                        # Try exact match first
-                        if correct_answer in question['options']:
-                            correct_idx = question['options'].index(correct_answer)
+                        # Try exact match first (with strip to remove spaces)
+                        correct_answer_stripped = correct_answer.strip() if isinstance(correct_answer, str) else correct_answer
+                        options_stripped = [opt.strip() if isinstance(opt, str) else opt for opt in question['options']]
+
+                        if correct_answer_stripped in options_stripped:
+                            correct_idx = options_stripped.index(correct_answer_stripped)
                         else:
                             # Try case-insensitive match
-                            correct_answer_lower = correct_answer.lower()
-                            for idx, option in enumerate(question['options']):
-                                if option.lower() == correct_answer_lower:
+                            correct_answer_lower = correct_answer_stripped.lower() if isinstance(correct_answer_stripped, str) else str(correct_answer_stripped).lower()
+                            for idx, option in enumerate(options_stripped):
+                                option_lower = option.lower() if isinstance(option, str) else str(option).lower()
+                                if option_lower == correct_answer_lower:
                                     correct_idx = idx
                                     break
                             else:
@@ -623,7 +649,7 @@ def process_quiz_submission(questions, answers):
             except (ValueError, TypeError) as e:
                 is_correct = False
 
-        elif question_type in ['fill_in_blank', 'fill-in-blank', 'translation']:
+        elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'translation', 'transformation']:
             # Для текстовых вопросов проверяем с возможными правильными ответами
 
             if correct_answer is None:
@@ -673,7 +699,8 @@ def process_quiz_submission(questions, answers):
 
                 # Специальная обработка для вопросов с альтернативными ответами
                 alternative_answers = question.get('alternative_answers', [])
-                all_possible_answers = [correct_answer] + alternative_answers
+                acceptable_answers = question.get('acceptable_answers', [])
+                all_possible_answers = [correct_answer] + alternative_answers + acceptable_answers
 
 
                 def normalize_text(text):
@@ -711,8 +738,8 @@ def process_quiz_submission(questions, answers):
                             break
 
 
-        elif question_type == 'reorder':
-            # For reorder questions, normalize and compare
+        elif question_type in ['reorder', 'ordering']:
+            # For reorder/ordering questions, normalize and compare
             if correct_answer is None:
                 is_correct = False
             else:
@@ -742,6 +769,15 @@ def process_quiz_submission(questions, answers):
                 if not is_correct:
                     is_correct = user_normalized.lower() == correct_normalized.lower()
 
+        elif question_type == 'matching':
+            # For matching questions, user_answer should be 'completed' if all pairs matched
+            # We always consider matching as correct if user submitted it
+            # (the frontend validates all pairs are matched before allowing submit)
+            is_correct = user_answer == 'completed'
+
+            # For display purposes, show the pairs if available
+            if 'pairs' in question:
+                correct_answer = question.get('pairs', [])
 
         else:
             # Если нет правильного ответа и неизвестный тип - засчитываем как правильный
@@ -1787,3 +1823,127 @@ def calculate_card_intervals(card_direction):
         adjusted_intervals[rating_name] = interval
 
     return adjusted_intervals
+
+
+def sync_lesson_cards_to_words(lesson):
+    """
+    Синхронизирует карточки из JSON урока с таблицей collection_words.
+    Если слово уже существует - обновляет, если нет - создает.
+    Обновляет JSON урока, добавляя word_id к каждой карточке.
+
+    Args:
+        lesson: Объект урока (Lessons)
+
+    Returns:
+        tuple: (success: bool, message: str, updated_count: int, created_count: int)
+    """
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    if not lesson.content:
+        logger.warning(f"Lesson {lesson.id} has no content")
+        return False, "Урок не имеет контента", 0, 0
+
+    try:
+        # Parse content
+        content = json.loads(lesson.content) if isinstance(lesson.content, str) else lesson.content
+
+        if not isinstance(content, dict) or 'cards' not in content:
+            return False, "Контент не содержит поле 'cards'", 0, 0
+
+        cards = content['cards']
+        if not isinstance(cards, list):
+            return False, "Поле 'cards' должно быть списком", 0, 0
+
+        created_count = 0
+        updated_count = 0
+        skipped_count = 0
+
+        # Process each card
+        for idx, card in enumerate(cards):
+            if not isinstance(card, dict):
+                continue
+
+            # Skip if already has word_id
+            if 'word_id' in card and card['word_id']:
+                skipped_count += 1
+                continue
+
+            english = card.get('back', '').strip()
+            russian = card.get('front', '').strip()
+
+            if not english:
+                logger.warning(f"Card {idx} (id={card.get('id')}) missing 'back' field (English)")
+                continue
+
+            # Check if word exists
+            word = CollectionWords.query.filter_by(english_word=english).first()
+
+            if word:
+                # Update existing word
+                if russian and not word.russian_word:
+                    word.russian_word = russian
+                if card.get('audio') and not word.listening:
+                    word.listening = card.get('audio')
+
+                # Update sentences if we have examples
+                if card.get('example') and card.get('example_translation'):
+                    try:
+                        sentences_data = json.loads(word.sentences) if word.sentences else []
+                    except:
+                        sentences_data = []
+
+                    # Add example if not already present
+                    new_example = {
+                        'en': card.get('example'),
+                        'ru': card.get('example_translation')
+                    }
+                    if new_example not in sentences_data:
+                        sentences_data.append(new_example)
+                        word.sentences = json.dumps(sentences_data, ensure_ascii=False)
+
+                updated_count += 1
+                logger.info(f"Updated word: {english} (ID: {word.id})")
+            else:
+                # Create new word
+                sentences_data = []
+                if card.get('example') and card.get('example_translation'):
+                    sentences_data.append({
+                        'en': card.get('example'),
+                        'ru': card.get('example_translation')
+                    })
+
+                word = CollectionWords(
+                    english_word=english,
+                    russian_word=russian,
+                    listening=card.get('audio', ''),
+                    sentences=json.dumps(sentences_data, ensure_ascii=False) if sentences_data else None,
+                    level='A0',  # Default level
+                    get_download=1 if card.get('audio') else 0
+                )
+                db.session.add(word)
+                db.session.flush()  # Get ID without committing
+                created_count += 1
+                logger.info(f"Created word: {english} (ID: {word.id})")
+
+            # Add word_id to card
+            card['word_id'] = word.id
+
+        # Update lesson content with word_ids
+        # IMPORTANT: Mark column as modified for SQLAlchemy to detect changes in JSONB
+        from sqlalchemy.orm.attributes import flag_modified
+        lesson.content = content
+        flag_modified(lesson, 'content')
+        db.session.commit()
+
+        message = f"Создано: {created_count}, Обновлено: {updated_count}, Пропущено: {skipped_count}"
+        logger.info(f"Sync completed for lesson {lesson.id}: {message}")
+
+        return True, message, updated_count, created_count
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error syncing lesson cards: {str(e)}")
+        return False, f"Ошибка: {str(e)}", 0, 0
