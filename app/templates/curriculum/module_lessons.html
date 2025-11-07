@@ -9,7 +9,7 @@
     <ol class="breadcrumb-minimal">
       <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
       <li>/</li>
-      <li><a href="{{ url_for('curriculum.level_modules', level_code=module.level.code) }}">{{ module.level.code }}</a></li>
+      <li><a href="{{ '/learn/' }}">{{ module.level.code }}</a></li>
       <li>/</li>
       <li class="active">{{ _('Модуль') }} {{ module.number }}</li>
     </ol>
@@ -140,7 +140,7 @@
 
   <!-- Навигация -->
   <div class="module-navigation mt-5">
-    <a href="{{ url_for('curriculum.level_modules', level_code=module.level.code) }}"
+    <a href="{{ '/learn/' }}"
        class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left me-2"></i>{{ _('К модулям') }}
     </a>

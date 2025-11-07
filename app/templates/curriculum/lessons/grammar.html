@@ -1,5 +1,198 @@
 {% extends "lesson_base_template.html" %}
 
+{% block extra_css %}
+<style>
+/* Grammar lesson specific styles */
+.grammar-lesson .theory-section {
+  margin-bottom: 2rem;
+}
+
+.grammar-lesson .grammar-intro {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-left: 4px solid #4f46e5;
+  border-radius: 0.5rem;
+}
+
+.grammar-lesson .grammar-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+.grammar-lesson .grammar-section h4 {
+  color: #4f46e5;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.grammar-lesson .grammar-section > p {
+  margin-bottom: 1rem;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.grammar-lesson .grammar-table {
+  width: 100%;
+  margin: 1.5rem 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.grammar-lesson .grammar-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  line-height: 1.5;
+}
+
+.grammar-lesson .grammar-table tr:last-child td {
+  border-bottom: none;
+}
+
+.grammar-lesson .grammar-table td:first-child {
+  background: #f9fafb;
+  font-weight: 600;
+  width: 20%;
+}
+
+.grammar-lesson .grammar-table td:nth-child(2) {
+  background: #fef3c7;
+  color: #92400e;
+  width: 15%;
+}
+
+.grammar-lesson .rules-list,
+.grammar-lesson .usage-list {
+  margin: 1.5rem 0;
+}
+
+.grammar-lesson .rule-item,
+.grammar-lesson .use-case {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.grammar-lesson .rule-item p:first-child,
+.grammar-lesson .use-case p:first-child {
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+}
+
+.grammar-lesson .examples-list {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.grammar-lesson .examples-list li {
+  margin: 0.5rem 0;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.grammar-lesson .note {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0.25rem;
+  color: #92400e;
+  font-size: 0.95rem;
+}
+
+.grammar-lesson .important-notes {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #fef2f2;
+  border: 2px solid #fca5a5;
+  border-radius: 0.75rem;
+}
+
+.grammar-lesson .important-notes h4 {
+  color: #dc2626;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.grammar-lesson .important-notes ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.grammar-lesson .important-notes li {
+  margin: 0.75rem 0;
+  color: #991b1b;
+  line-height: 1.6;
+}
+
+.grammar-lesson .summary-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #eff6ff;
+  border: 2px solid #93c5fd;
+  border-radius: 0.75rem;
+}
+
+.grammar-lesson .summary-section h4 {
+  color: #1e40af;
+  margin-bottom: 1rem;
+}
+
+.grammar-lesson .grammar-table.summary {
+  background: white;
+}
+
+.grammar-lesson .grammar-table.summary thead th {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #93c5fd;
+  text-align: left;
+}
+
+.grammar-lesson .grammar-table.summary tbody td {
+  background: white;
+}
+
+.grammar-lesson .theory-completion-message {
+  margin: 3rem 0;
+  padding: 2rem;
+  text-align: center;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border: 2px solid #c7d2fe;
+  border-radius: 1rem;
+}
+
+.grammar-lesson .theory-completion-message .completion-icon {
+  font-size: 4rem;
+  color: #10b981;
+  margin-bottom: 1rem;
+}
+
+.grammar-lesson .theory-completion-message h3 {
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.grammar-lesson .theory-completion-message p {
+  color: #6b7280;
+  margin: 0;
+}
+</style>
+{% endblock %}
+
 {% set component_name = _('Грамматика') %}
 {% set instruction_text = _('Изучите грамматическое правило и выполните упражнения для его закрепления.') %}
 {% set block_description = _('Изучение грамматических правил с примерами и упражнениями') %}
@@ -16,49 +209,151 @@
 {% endif %}
 
 <div class="grammar-lesson">
-  {% if is_completed and previous_data %}
-    <!-- Режим просмотра результатов -->
-    <div class="results-review-mode">
-      <div class="results-header">
-        <h3>{{ _('Результаты упражнений') }}</h3>
-        <div class="score-badge {% if previous_data.score >= 70 %}success{% else %}warning{% endif %}">
-          <i class="fas fa-{% if previous_data.score >= 70 %}check{% else %}exclamation{% endif %}-circle"></i>
-          <span>{{ previous_data.score|round(0)|int }}%</span>
-        </div>
-      </div>
-
-      <!-- Кнопка для повторного прохождения -->
-      <div class="retry-section">
-        <p class="text-muted">{{ _('Хотите улучшить результат?') }}</p>
-        <button type="button" class="btn btn-outline-primary" onclick="retryLesson()">
-          <i class="fas fa-redo"></i> {{ _('Пройти заново') }}
-        </button>
-      </div>
-    </div>
-  {% endif %}
-
   <!-- Теория (всегда показываем) -->
   <div class="theory-section">
-    <h3 class="section-title">{{ grammar_rule }}</h3>
-    <div class="grammar-content">{{ grammar_description|safe }}</div>
+    {% if grammar_explanation %}
+      <!-- Отображаем сложную структуру grammar_explanation -->
+      <h3 class="section-title">{{ grammar_explanation.title }}</h3>
 
-    {% if examples %}
-      <div class="examples-block">
-        <h4 class="examples-title">
-          <i class="fas fa-lightbulb"></i>
-          {{ _('Примеры') }}
-        </h4>
-        <div class="examples-list">
-          {% for example in examples %}
-            <div class="example-item">
-              <i class="fas fa-chevron-right"></i>
-              <span>{{ example }}</span>
-            </div>
-          {% endfor %}
+      {% if grammar_explanation.introduction %}
+        <div class="grammar-intro">
+          <p>{{ grammar_explanation.introduction }}</p>
         </div>
-      </div>
+      {% endif %}
+
+      {% if grammar_explanation.sections %}
+        {% for section in grammar_explanation.sections %}
+          <div class="grammar-section">
+            <h4>{{ section.subtitle }}</h4>
+
+            {% if section.description %}
+              <p>{{ section.description }}</p>
+            {% endif %}
+
+            {% if section.table %}
+              <table class="grammar-table">
+                {% for row in section.table %}
+                  <tr>
+                    <td><strong>{{ row.pronoun|safe }}</strong></td>
+                    <td><strong>{{ row.form|safe }}</strong></td>
+                    <td>{{ row.example|safe }}</td>
+                    <td class="text-muted">{{ row.translation|safe }}</td>
+                  </tr>
+                {% endfor %}
+              </table>
+            {% endif %}
+
+            {% if section.rules %}
+              <div class="rules-list">
+                {% for rule_item in section.rules %}
+                  <div class="rule-item">
+                    <p><strong>{{ rule_item.rule }}</strong></p>
+                    {% if rule_item.examples %}
+                      <ul class="examples-list">
+                        {% for ex in rule_item.examples %}
+                          <li>{{ ex }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                    {% if rule_item.note %}
+                      <p class="note"><em>{{ rule_item.note }}</em></p>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if section.usage %}
+              <div class="usage-list">
+                {% for use_case in section.usage %}
+                  <div class="use-case">
+                    <p><strong>{{ use_case.case }}</strong></p>
+                    {% if use_case.examples %}
+                      <ul class="examples-list">
+                        {% for ex in use_case.examples %}
+                          <li>{{ ex }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% if grammar_explanation.important_notes %}
+        <div class="important-notes">
+          <h4><i class="fas fa-exclamation-triangle"></i> {{ _('Важно') }}</h4>
+          <ul>
+            {% for note in grammar_explanation.important_notes %}
+              <li>{{ note }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if grammar_explanation.summary and grammar_explanation.summary.table %}
+        <div class="summary-section">
+          <h4>{{ grammar_explanation.summary.title }}</h4>
+          <table class="grammar-table summary">
+            <thead>
+              <tr>
+                <th>{{ _('Подлежащее') }}</th>
+                <th>{{ _('Утверждение') }}</th>
+                <th>{{ _('Отрицание') }}</th>
+                <th>{{ _('Вопрос') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in grammar_explanation.summary.table %}
+                <tr>
+                  <td><strong>{{ row.subject }}</strong></td>
+                  <td>{{ row.affirmative }}</td>
+                  <td>{{ row.negative }}</td>
+                  <td>{{ row.question }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+    {% else %}
+      <!-- Fallback to simple format -->
+      <h3 class="section-title">{{ grammar_rule }}</h3>
+      <div class="grammar-content">{{ grammar_description|safe }}</div>
+
+      {% if examples %}
+        <div class="examples-block">
+          <h4 class="examples-title">
+            <i class="fas fa-lightbulb"></i>
+            {{ _('Примеры') }}
+          </h4>
+          <div class="examples-list">
+            {% for example in examples %}
+              <div class="example-item">
+                <i class="fas fa-chevron-right"></i>
+                <span>{{ example }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
     {% endif %}
   </div>
+
+  <!-- Автоматически завершаем урок без упражнений -->
+  {% if not exercises and not is_completed %}
+    <div class="theory-completion-message">
+      <div class="completion-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h3>{{ _('Теория изучена!') }}</h3>
+      <p>{{ _('Отличная работа! Переходите к следующему уроку') }}</p>
+    </div>
+  {% endif %}
 
   <!-- Упражнения -->
   {% if exercises %}
@@ -535,7 +830,7 @@ function completeAndReturn() {
   if (completeBtn) {
     completeBtn.click();
   } else {
-    window.location.href = '{{ url_for("curriculum.module_lessons", module_id=lesson.module_id) }}';
+    window.location.href = '/learn/';
   }
 }
 
@@ -652,22 +947,66 @@ function clearReorderExercise(exerciseIndex) {
   answerInput.value = '';
 }
 
+// Auto-complete theory-only lesson (without exercises)
+async function autoCompleteTheoryLesson() {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]');
+
+  try {
+    const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken ? csrfToken.content : ''
+      },
+      body: JSON.stringify({
+        score: 100,
+        status: 'completed',
+        data: {
+          theory_studied: true
+        }
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Show navigation buttons
+      const nextBtn = document.getElementById('complete-exercise');
+      const completeModuleBtn = document.getElementById('complete-module');
+
+      if (nextBtn) {
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.disabled = false;
+      } else if (completeModuleBtn) {
+        completeModuleBtn.style.display = 'inline-flex';
+        completeModuleBtn.disabled = false;
+      }
+    }
+  } catch (error) {
+    console.error('Error completing lesson:', error);
+  }
+}
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
   // Инициализируем reorder упражнения
   initializeReorderExercises();
-  
-  
+
+  // Для уроков без упражнений автоматически завершаем урок и показываем кнопки
+  {% if not exercises and not is_completed %}
+    autoCompleteTheoryLesson();
+  {% endif %}
+
   // Для завершенных уроков показываем кнопки навигации сразу
   {% if is_completed %}
     const retryBtn = document.getElementById('retry-button');
     const nextBtn = document.getElementById('complete-exercise');
     const completeModuleBtn = document.getElementById('complete-module');
-    
+
     if (retryBtn) {
       retryBtn.style.display = 'inline-flex';
     }
-    
+
     if (nextBtn) {
       nextBtn.style.display = 'inline-flex';
       nextBtn.disabled = false;

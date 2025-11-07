@@ -1,8 +1,12 @@
 {% extends "lesson_base_template.html" %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vocabulary-cards.css') }}?v=8">
+{% endblock %}
+
 {% set component_name = _('Словарь') %}
-{% set instruction_text = _('Изучите новые слова. Добавьте их в свой список для изучения или отметьте как уже известные.') %}
-{% set block_description = _('Изучение новых слов и выражений') %}
+{% set instruction_text = _('Пролистай все карточки и запомни слова') %}
+{% set block_description = _('Изучение новых слов') %}
 
 {% block lesson_content %}
 <!-- Получаем данные о предыдущей сессии -->
@@ -15,7 +19,6 @@
   {% if progress.status is defined and progress.status is not none %}
     {% set is_completed_raw = (progress.status == 'completed') %}
   {% endif %}
-{% else %}
 {% endif %}
 
 {# Ensure is_completed is always a boolean #}
@@ -25,785 +28,355 @@
   {% set is_completed = false %}
 {% endif %}
 
-
-<div class="vocabulary-lesson">
-  {% if is_completed %}
-    <!-- Режим просмотра результатов -->
-    <div class="vocabulary-results-review">
-      <div class="results-header">
-        <h3>{{ _('Урок завершен') }}</h3>
-        <div class="results-stats">
-          <div class="stat-card">
-            <i class="fas fa-book-open"></i>
-            <div class="stat-content">
-              <span class="stat-value">{{ words|length }}</span>
-              <span class="stat-label">{{ _('Слов в уроке') }}</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <i class="fas fa-graduation-cap"></i>
-            <div class="stat-content">
-              <span class="stat-value">{{ words|selectattr('status', 'equalto', 'learning')|list|length }}</span>
-              <span class="stat-label">{{ _('Добавлено в изучение') }}</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <i class="fas fa-check-circle"></i>
-            <div class="stat-content">
-              <span class="stat-value">{{ words|selectattr('status', 'equalto', 'mastered')|list|length }}</span>
-              <span class="stat-label">{{ _('Отмечено как изученные') }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="review-actions">
-        <p class="text-muted">{{ _('Вы обработали все слова в этом уроке.') }}</p>
-      </div>
+<div class="vocabulary-cards-lesson">
+  <!-- Progress Header -->
+  <div class="cards-progress-header">
+    <div class="progress-info" role="status" aria-live="polite" aria-atomic="true">
+      <span class="progress-current">{{ _('Карточка') }} <span id="current-card-num">1</span></span>
+      <span class="progress-divider">/</span>
+      <span class="progress-total">{{ words|length }}</span>
     </div>
-  {% endif %}
-
-
-  <!-- Статистика -->
-  <div class="vocab-controls mb-4">
-    <div class="vocab-stats">
-      <span class="stat-item">
-        <i class="fas fa-book-open"></i>
-        <span>{{ words|length }}</span> {{ _('слов') }}
-      </span>
-      <span class="stat-item text-primary">
-        <i class="fas fa-plus-circle"></i>
-        <span id="new-count">{{ words|length }}</span> {{ _('новых') }}
-      </span>
-      <span class="stat-item text-success">
-        <i class="fas fa-check-circle"></i>
-        <span id="processed-count">0</span> {{ _('обработано') }}
-      </span>
+    <div class="progress-bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Прогресс изучения слов">
+      <div class="progress-bar-fill" id="cards-progress-bar" style="width: 0%"></div>
     </div>
   </div>
 
-  <!-- Кнопки массовых действий -->
-  {% set new_words_count = words|selectattr('status', 'equalto', 'new')|list|length %}
-  {% if not is_completed and new_words_count > 0 %}
-  <div class="bulk-actions mb-4">
-    <div class="bulk-actions-container">
-      <div class="bulk-info">
-        <i class="fas fa-magic"></i>
-        <span>{{ _('Быстрые действия со всеми словами') }}</span>
-      </div>
-      <div class="bulk-buttons">
-        <button class="bulk-btn add-all-btn" id="add-all-words" title="{{ _('Добавить все слова в изучение') }}">
-          <i class="fas fa-plus-circle"></i>
-          <span>{{ _('Изучать все') }}</span>
-          <div class="btn-ripple"></div>
-        </button>
-        <button class="bulk-btn master-all-btn" id="master-all-words" title="{{ _('Отметить все слова как изученные') }}">
-          <i class="fas fa-check-circle"></i>
-          <span>{{ _('Знаю все') }}</span>
-          <div class="btn-ripple"></div>
-        </button>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Красивые карточки слов -->
-  <div class="modern-words-grid">
+  <!-- Cards Container -->
+  <div class="cards-stack-container" id="cards-container">
     {% for word in words %}
-    <div class="modern-word-card" data-word-id="{{ word.id }}" data-status="{{ word.status|default('new') }}">
-      <!-- Статус индикатор -->
-      <div class="status-indicator">
-        <div class="status-dot {% if word.status == 'learning' %}learning{% elif word.status == 'mastered' %}mastered{% endif %}"></div>
-      </div>
-      
-      <!-- Главный контент -->
-      <div class="word-content">
-        <div class="word-header">
-          <h3 class="word-english">{{ word.english }}</h3>
-          {% if word.get('audio_url') or (word.get('english') and word.get('get_download') == 1) %}
-          <button class="audio-btn word-pronunciation" 
-                  data-audio="{% if word.get('audio_url') %}{{ word.audio_url }}{% elif word.get('listening') %}{{ url_for('static', filename='audio/' + word.get('listening')[7:-1]) }}{% else %}{{ url_for('static', filename='audio/pronunciation_en_' + word.get('english', '').replace(' ', '_').lower() + '.mp3') }}{% endif %}"
-                  title="{{ _('Прослушать произношение') }}">
-            <i class="fas fa-volume-up"></i>
-            <span class="audio-wave">
-              <span></span><span></span><span></span>
-            </span>
-          </button>
-          {% endif %}
+    <div class="vocabulary-card" data-word-id="{{ word.id }}" data-index="{{ loop.index0 }}" data-viewed="false">
+      <div class="card-inner">
+        <!-- Front Side (English) -->
+        <div class="card-face card-front">
+          <div class="card-content-wrapper">
+            <div class="word-english">{{ word.english }}</div>
+            {% if word.pronunciation %}
+            <div class="word-pronunciation">{{ word.pronunciation }}</div>
+            {% endif %}
+            {% if word.get('audio_url') %}
+            {% set audio_file = word.audio_url.replace('[sound:', '').replace(']', '') if word.audio_url and '[sound:' in word.audio_url else (word.audio_url if word.get('audio_url') else 'pronunciation_en_' + word.english.replace(' ', '_').lower() + '.mp3') %}
+            <button class="audio-btn-card" data-audio="{{ url_for('static', filename='audio/' + audio_file) }}" aria-label="Play pronunciation for {{ word.english }}">
+              <i class="fas fa-volume-up"></i>
+            </button>
+            {% endif %}
+          </div>
+          <div class="card-flip-hint">
+            <i class="fas fa-sync-alt"></i>
+            {{ _('Нажми, чтобы перевернуть') }}
+          </div>
         </div>
-        
-        <div class="word-translation">
-          <i class="fas fa-arrow-right translation-arrow"></i>
-          <span class="word-russian">{{ word.russian }}</span>
-        </div>
-        
-        {% if word.usage %}
-        <div class="word-usage">
-          <i class="fas fa-info-circle usage-icon"></i>
-          <span class="usage-text">{{ word.usage }}</span>
-        </div>
-        {% endif %}
-        
-        <!-- Статус бейдж -->
-        <div class="status-section">
-          {% if word.status == 'learning' %}
-          <span class="status-badge learning-status">
-            <i class="fas fa-graduation-cap"></i>
-            <span class="status-text">{{ _('Изучается') }}</span>
-          </span>
-          {% elif word.status == 'mastered' %}
-          <span class="status-badge mastered-status">
-            <i class="fas fa-crown"></i>
-            <span class="status-text">{{ _('Изучено') }}</span>
-          </span>
-          {% else %}
-          <span class="status-badge new-status">
-            <i class="fas fa-star"></i>
-            <span class="status-text">{{ _('Новое слово') }}</span>
-          </span>
-          {% endif %}
+
+        <!-- Back Side (Russian + Example) -->
+        <div class="card-face card-back">
+          <div class="card-content-wrapper">
+            <div class="word-russian">{{ word.russian }}</div>
+            {% if word.example %}
+            <div class="word-example">
+              <div class="example-text">{{ word.example }}</div>
+              {% if word.usage or word.example_translation %}
+              <div class="example-translation">{{ word.usage or word.example_translation }}</div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+          <div class="card-flip-hint">
+            <i class="fas fa-sync-alt"></i>
+            {{ _('Нажми, чтобы перевернуть') }}
+          </div>
         </div>
       </div>
-      
-      <!-- Действия -->
-      {% if not is_completed and word.status == 'new' %}
-      <div class="word-actions">
-        <button class="action-btn learn-btn add-word" data-word-id="{{ word.id }}" title="{{ _('Добавить в изучение') }}">
-          <i class="fas fa-plus"></i>
-          <span>{{ _('Изучать') }}</span>
-          <div class="btn-ripple"></div>
-        </button>
-        <button class="action-btn master-btn mark-mastered" data-word-id="{{ word.id }}" title="{{ _('Отметить как изученное') }}">
-          <i class="fas fa-check"></i>
-          <span>{{ _('Знаю') }}</span>
-          <div class="btn-ripple"></div>
-        </button>
+
+      <!-- Swipe Indicators -->
+      <div class="swipe-indicator swipe-left">
+        <i class="fas fa-arrow-left"></i>
       </div>
-      {% endif %}
-      
-      <!-- Прогресс анимация -->
-      <div class="card-progress">
-        <div class="progress-bar"></div>
+      <div class="swipe-indicator swipe-right">
+        <i class="fas fa-arrow-right"></i>
       </div>
     </div>
     {% endfor %}
+
+    <!-- Placeholder when no cards -->
+    <div class="no-cards-message" id="no-cards-message" style="display: none;">
+      <div class="completion-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h3>{{ _('Все карточки просмотрены!') }}</h3>
+      <p>{{ _('Отличная работа! Вы изучили все слова урока') }}</p>
+    </div>
   </div>
 
-  <!-- Прогресс изучения -->
-  <div class="study-progress mt-4">
-    <h5>{{ _('Прогресс обработки') }}</h5>
-    <div class="progress">
-      {% set initial_percentage = ((words|rejectattr('status', 'equalto', 'new')|list|length / words|length * 100)|round) if words|length > 0 else 0 %}
-      <div class="progress-bar bg-success" id="progress-bar" role="progressbar" style="width: {{ initial_percentage }}%">
-        <span id="progress-text">{{ initial_percentage }}%</span>
-      </div>
-    </div>
-    <small class="text-muted">
-      {{ _('Обработано') }}: <span id="progress-detail">{{ words|rejectattr('status', 'equalto', 'new')|list|length }} / {{ words|length }}</span>
-    </small>
+  <!-- Navigation Buttons -->
+  <div class="cards-navigation" id="cards-navigation" role="navigation" aria-label="Навигация по карточкам">
+    <button class="nav-btn btn-prev" id="btn-prev" disabled aria-label="Предыдущая карточка">
+      <i class="fas fa-chevron-left" aria-hidden="true"></i>
+      <span>{{ _('Назад') }}</span>
+    </button>
+
+    <button class="nav-btn btn-flip" id="btn-flip" aria-label="Перевернуть карточку для просмотра перевода">
+      <i class="fas fa-sync-alt" aria-hidden="true"></i>
+      <span>{{ _('Перевернуть') }}</span>
+    </button>
+
+    <button class="nav-btn btn-next" id="btn-next" aria-label="Следующая карточка">
+      <span>{{ _('Вперед') }}</span>
+      <i class="fas fa-chevron-right" aria-hidden="true"></i>
+    </button>
   </div>
 </div>
+
 {% endblock %}
 
-{% block lesson_script %}
-
-// Конфигурация урока (безопасное присвоение без tojson)
+{% block scripts %}
+<script>
+// Lesson configuration
 const lessonConfig = {
   isCompleted: {% if is_completed %}true{% else %}false{% endif %},
-  totalWords: {{ words|length }}
-};
-
-// Инициализация урока
-
-// Состояние урока
-{% set processed_words = [] %}
-{% set learning_words = [] %}
-{% set mastered_words = [] %}
-{% for word in words %}
-  {% if word.status != 'new' %}
-    {% set _ = processed_words.append(word) %}
-  {% endif %}
-  {% if word.status == 'learning' %}
-    {% set _ = learning_words.append(word) %}
-  {% endif %}
-  {% if word.status == 'mastered' %}
-    {% set _ = mastered_words.append(word) %}
-  {% endif %}
-{% endfor %}
-{% set processed_count = processed_words|length %}
-{% set learning_count = learning_words|length %}
-{% set mastered_count = mastered_words|length %}
-
-
-let vocabularyState = {
   totalWords: {{ words|length }},
-  processedWords: {{ processed_count }},
-  wordsAdded: {{ learning_count }},
-  wordsMastered: {{ mastered_count }}
+  lessonId: {{ lesson.id }},
+  csrfToken: '{{ csrf_token() }}'
 };
 
-// Логируем начальное состояние
+// State management
+const cardsState = {
+  currentIndex: 0,
+  totalCards: {{ words|length }},
+  viewedCards: new Set(),
+  allViewed: false
+};
 
+// DOM elements
+const cardsContainer = document.getElementById('cards-container');
+const cards = document.querySelectorAll('.vocabulary-card');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const btnFlip = document.getElementById('btn-flip');
+const progressBar = document.getElementById('cards-progress-bar');
+const currentCardNum = document.getElementById('current-card-num');
+const noCardsMessage = document.getElementById('no-cards-message');
 
-// Аудио плеер
+// Audio player
 const audioPlayer = new Audio();
 
-// Загрузка статусов слов (оставлено для совместимости, но не используется)
-async function loadWordStatuses() {
+// Initialize
+function init() {
+  if (cards.length === 0) return;
+
+  // Show first card
+  showCard(0);
+
+  // Add event listeners
+  btnPrev.addEventListener('click', prevCard);
+  btnNext.addEventListener('click', nextCard);
+  btnFlip.addEventListener('click', flipCurrentCard);
+
+  // Card click to flip
+  cards.forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (!e.target.closest('.audio-btn-card')) {
+        flipCard(card);
+      }
+    });
+  });
+
+  // Audio buttons
+  document.querySelectorAll('.audio-btn-card').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const audioSrc = btn.getAttribute('data-audio');
+      if (audioSrc) {
+        audioPlayer.src = audioSrc;
+        audioPlayer.play();
+      }
+    });
+  });
+
+  // Touch/Swipe support
+  addSwipeSupport();
+}
+
+// Show specific card
+function showCard(index) {
+  cards.forEach((card, i) => {
+    if (i === index) {
+      card.classList.add('active');
+      card.classList.remove('prev', 'next');
+    } else if (i < index) {
+      card.classList.add('prev');
+      card.classList.remove('active', 'next');
+    } else {
+      card.classList.add('next');
+      card.classList.remove('active', 'prev');
+    }
+  });
+
+  cardsState.currentIndex = index;
+
+  // Mark as viewed
+  cardsState.viewedCards.add(index);
+  cards[index].setAttribute('data-viewed', 'true');
+
+  // Update UI
+  updateUI();
+  updateProgress();
+}
+
+// Update UI elements
+function updateUI() {
+  currentCardNum.textContent = cardsState.currentIndex + 1;
+
+  // Enable/disable buttons
+  btnPrev.disabled = cardsState.currentIndex === 0;
+  btnNext.disabled = cardsState.currentIndex === cardsState.totalCards - 1;
+
+  // Check if all viewed
+  if (cardsState.viewedCards.size === cardsState.totalCards && !cardsState.allViewed) {
+    cardsState.allViewed = true;
+    setTimeout(completeLesson, 500);
+  }
+}
+
+// Update progress bar
+function updateProgress() {
+  const progress = (cardsState.viewedCards.size / cardsState.totalCards) * 100;
+  progressBar.style.width = progress + '%';
+
+  // Update aria-valuenow for accessibility
+  const progressBarContainer = progressBar.parentElement;
+  progressBarContainer.setAttribute('aria-valuenow', Math.round(progress));
+}
+
+// Navigation
+function prevCard() {
+  if (cardsState.currentIndex > 0) {
+    showCard(cardsState.currentIndex - 1);
+  }
+}
+
+function nextCard() {
+  if (cardsState.currentIndex < cardsState.totalCards - 1) {
+    showCard(cardsState.currentIndex + 1);
+  }
+}
+
+// Flip cards
+function flipCard(card) {
+  card.classList.toggle('flipped');
+}
+
+function flipCurrentCard() {
+  const currentCard = cards[cardsState.currentIndex];
+  flipCard(currentCard);
+}
+
+// Swipe support
+function addSwipeSupport() {
+  let touchStartX = 0;
+  let touchEndX = 0;
+  let isDragging = false;
+
+  cards.forEach(card => {
+    card.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      isDragging = true;
+    });
+
+    card.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      touchEndX = e.changedTouches[0].screenX;
+      const diff = touchEndX - touchStartX;
+
+      // Show swipe indicators
+      if (Math.abs(diff) > 20) {
+        if (diff > 0) {
+          card.classList.add('swipe-hint-right');
+          card.classList.remove('swipe-hint-left');
+        } else {
+          card.classList.add('swipe-hint-left');
+          card.classList.remove('swipe-hint-right');
+        }
+      }
+    });
+
+    card.addEventListener('touchend', () => {
+      const diff = touchEndX - touchStartX;
+
+      card.classList.remove('swipe-hint-left', 'swipe-hint-right');
+
+      if (Math.abs(diff) > 100) {
+        if (diff > 0 && cardsState.currentIndex > 0) {
+          prevCard();
+        } else if (diff < 0 && cardsState.currentIndex < cardsState.totalCards - 1) {
+          nextCard();
+        }
+      }
+
+      isDragging = false;
+      touchStartX = 0;
+      touchEndX = 0;
+    });
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (cardsState.allViewed) return;
+
+    if (e.key === 'ArrowLeft') {
+      prevCard();
+    } else if (e.key === 'ArrowRight') {
+      nextCard();
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      flipCurrentCard();
+    }
+  });
+}
+
+// Complete lesson
+async function completeLesson() {
+  // Hide cards and navigation
+  document.getElementById('cards-navigation').style.display = 'none';
+  cards.forEach(card => card.style.display = 'none');
+
+  // Show completion message
+  noCardsMessage.style.display = 'flex';
+  noCardsMessage.scrollIntoView({ behavior: 'smooth' });
+
+  // Save progress
   try {
-    const wordCards = document.querySelectorAll('.modern-word-card');
-    const wordIds = Array.from(wordCards)
-      .map(card => parseInt(card.getAttribute('data-word-id')))
-      .filter(id => id > 0);
-
-    if (wordIds.length === 0) return;
-
-    const response = await fetch('{{ url_for("api_words.get_user_words_status") }}', {
+    await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': '{{ csrf_token() }}'
+        'X-CSRFToken': lessonConfig.csrfToken
       },
-      body: JSON.stringify({ word_ids: wordIds })
+      body: JSON.stringify({
+        score: 100,
+        status: 'completed',
+        data: {
+          cards_viewed: cardsState.totalCards,
+          total_cards: cardsState.totalCards
+        }
+      })
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      
-      data.words.forEach(wordData => {
-        updateWordCard(wordData.word_id, wordData.status);
-      });
-      
-      updateCounters();
-      updateProgress();
-    } else {
-      console.error('Failed to load word statuses:', response.status);
-    }
-  } catch (error) {
-    console.error('Error loading word statuses:', error);
-  }
-}
-
-// Обновление карточки слова
-function updateWordCard(wordId, status) {
-  const card = document.querySelector(`.modern-word-card[data-word-id="${wordId}"]`);
-  if (!card) return;
-
-  // Маппинг строковых статусов из базы данных в статусы для UI
-  const statusMapping = {
-    'new': 'new',
-    'learning': 'learning', 
-    'review': 'learning',  // review также показываем как learning
-    'mastered': 'mastered'
-  };
-  
-  const mappedStatus = statusMapping[status] || 'new';
-
-  // Добавляем анимацию изменения
-  card.classList.add('updating');
-  
-  setTimeout(() => {
-    card.setAttribute('data-status', mappedStatus);
-    
-    const statusDot = card.querySelector('.status-dot');
-    const statusBadge = card.querySelector('.status-badge');
-    const statusText = card.querySelector('.status-text');
-    const statusIcon = card.querySelector('.status-badge i');
-    const actionButtons = card.querySelector('.word-actions');
-
-    if (mappedStatus === 'new') {
-      statusDot.className = 'status-dot';
-      statusBadge.className = 'status-badge new-status';
-      statusIcon.className = 'fas fa-star';
-      statusText.textContent = '{{ _("Новое слово") }}';
-      if (!lessonConfig.isCompleted && actionButtons) {
-        actionButtons.style.display = 'flex';
-      }
-    } else {
-      const statusInfo = {
-        'learning': { 
-          text: '{{ _("Изучается") }}', 
-          icon: 'fas fa-graduation-cap',
-          class: 'learning-status'
-        },
-        'mastered': { 
-          text: '{{ _("Изучено") }}', 
-          icon: 'fas fa-crown',
-          class: 'mastered-status'
-        }
-      };
-
-      const info = statusInfo[mappedStatus] || statusInfo['learning'];
-      statusDot.className = `status-dot ${mappedStatus}`;
-      statusBadge.className = `status-badge ${info.class}`;
-      statusIcon.className = info.icon;
-      statusText.textContent = info.text;
-      
-      if (actionButtons) {
-        actionButtons.style.display = 'none';
-      }
-      
-      // Анимация успеха
-      card.classList.add('success-animation');
-      setTimeout(() => card.classList.remove('success-animation'), 600);
-    }
-    
-    card.classList.remove('updating');
-  }, 150);
-}
-
-// Воспроизведение аудио
-document.querySelectorAll('.word-pronunciation').forEach(btn => {
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const audioSrc = this.getAttribute('data-audio');
-    if (audioSrc) {
-      this.classList.add('playing');
-      audioPlayer.src = audioSrc;
-      audioPlayer.play();
-
-      audioPlayer.onended = () => {
-        this.classList.remove('playing');
-      };
-    }
-  });
-});
-
-
-// Добавление слова в изучение
-document.addEventListener('click', async function(e) {
-  if (e.target.closest('.add-word')) {
-    const button = e.target.closest('.add-word');
-    const wordId = parseInt(button.getAttribute('data-word-id'));
-
-    // Анимация нажатия
-    createRippleEffect(button, e);
-    button.classList.add('loading');
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>{{ _("Добавление...") }}</span>';
-    button.disabled = true;
-
-    try {
-      const response = await fetch('{{ url_for("api_words.update_word_status") }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-          word_id: wordId,
-          status: 1  // learning
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        updateWordCard(wordId, data.status || 'learning');
-        vocabularyState.wordsAdded++;
-        
-        // Задержка для обновления DOM в updateWordCard
-        setTimeout(() => {
-          updateCounters();
-          updateProgress();
-          checkCompletion();
-        }, 350); // Чуть больше чем задержка в updateWordCard (300ms)
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      button.classList.remove('loading');
-      button.innerHTML = '<i class="fas fa-plus"></i> <span>{{ _("Изучать") }}</span>';
-      button.disabled = false;
-    }
-  }
-});
-
-// Отметить слово как изученное
-document.addEventListener('click', async function(e) {
-  if (e.target.closest('.mark-mastered')) {
-    const button = e.target.closest('.mark-mastered');
-    const wordId = parseInt(button.getAttribute('data-word-id'));
-
-    // Анимация нажатия
-    createRippleEffect(button, e);
-    button.classList.add('loading');
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>{{ _("Сохранение...") }}</span>';
-    button.disabled = true;
-
-    try {
-      const response = await fetch('{{ url_for("api_words.update_word_status") }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-          word_id: wordId,
-          status: 3  // mastered
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        updateWordCard(wordId, data.status || 'mastered');
-        vocabularyState.wordsMastered++;
-        
-        // Задержка для обновления DOM в updateWordCard
-        setTimeout(() => {
-          updateCounters();
-          updateProgress();
-          checkCompletion();
-        }, 350); // Чуть больше чем задержка в updateWordCard (300ms)
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      button.classList.remove('loading');
-      button.innerHTML = '<i class="fas fa-check"></i> <span>{{ _("Знаю") }}</span>';
-      button.disabled = false;
-    }
-  }
-});
-
-// Массовые действия
-document.getElementById('add-all-words')?.addEventListener('click', async function(e) {
-  if (confirm('{{ _("Добавить все слова в изучение?") }}')) {
-    await processBulkAction(1, '{{ _("Добавление всех слов...") }}');
-  }
-});
-
-document.getElementById('master-all-words')?.addEventListener('click', async function(e) {
-  if (confirm('{{ _("Отметить все слова как изученные?") }}')) {
-    await processBulkAction(3, '{{ _("Отмечаем все слова...") }}');
-  }
-});
-
-// Функция массовой обработки
-async function processBulkAction(status, loadingText) {
-  const newCards = document.querySelectorAll('.modern-word-card[data-status="new"]');
-  
-  if (newCards.length === 0) {
-    alert('{{ _("Нет новых слов для обработки. Все слова уже добавлены в изучение или отмечены как изученные.") }}');
-    return;
-  }
-  
-  // Показываем состояние загрузки
-  const bulkButtons = document.querySelectorAll('.bulk-btn');
-  bulkButtons.forEach(btn => {
-    btn.disabled = true;
-    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>${loadingText}</span>`;
-  });
-  
-  try {
-    // Обрабатываем слова пачками
-    const promises = Array.from(newCards).map(async (card) => {
-      const wordId = parseInt(card.getAttribute('data-word-id'));
-      
-      const response = await fetch('{{ url_for("api_words.update_word_status") }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-          word_id: wordId,
-          status: status
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          updateWordCard(wordId, data.status || (status === 1 ? 'learning' : 'mastered'));
-          if (status === 1) {
-            vocabularyState.wordsAdded++;
-          } else {
-            vocabularyState.wordsMastered++;
-          }
-        }
-      }
-    });
-    
-    await Promise.all(promises);
-    
-    // Задержка для обновления всех карточек в DOM
-    setTimeout(() => {
-      updateCounters();
-      updateProgress();
-      checkCompletion();
-    }, 350);
-    
-    // Восстанавливаем кнопки
-    restoreBulkButtons();
-    
-  } catch (error) {
-    console.error('Error in bulk action:', error);
-    restoreBulkButtons();
-    alert('{{ _("Произошла ошибка при массовой обработке") }}');
-  }
-}
-
-function restoreBulkButtons() {
-  document.getElementById('add-all-words').innerHTML = '<i class="fas fa-plus-circle"></i> <span>{{ _("Изучать все") }}</span>';
-  document.getElementById('master-all-words').innerHTML = '<i class="fas fa-check-circle"></i> <span>{{ _("Знаю все") }}</span>';
-  
-  const bulkButtons = document.querySelectorAll('.bulk-btn');
-  bulkButtons.forEach(btn => btn.disabled = false);
-}
-
-// Обновление счетчиков
-function updateCounters() {
-  // Пересчитываем текущее состояние из DOM
-  const allCards = document.querySelectorAll('.modern-word-card');
-  const processedCards = document.querySelectorAll('.modern-word-card:not([data-status="new"])');
-  const learningCards = document.querySelectorAll('.modern-word-card[data-status="learning"]');
-  const masteredCards = document.querySelectorAll('.modern-word-card[data-status="mastered"]');
-  
-  // Защита от обнуления totalWords
-  if (allCards.length > 0 && vocabularyState.totalWords === 0) {
-    vocabularyState.totalWords = allCards.length;
-    console.warn(`totalWords was 0, restored to ${vocabularyState.totalWords}`);
-  }
-  
-  vocabularyState.processedWords = processedCards.length;
-  vocabularyState.wordsAdded = learningCards.length;
-  vocabularyState.wordsMastered = masteredCards.length;
-
-  const newCount = vocabularyState.totalWords - vocabularyState.processedWords;
-  document.getElementById('new-count').textContent = newCount;
-  document.getElementById('processed-count').textContent = vocabularyState.processedWords;
-  
-}
-
-// Обновление прогресса
-function updateProgress() {
-  const percentage = vocabularyState.totalWords > 0
-    ? Math.round((vocabularyState.processedWords / vocabularyState.totalWords) * 100)
-    : 0;
-
-  const progressBar = document.getElementById('progress-bar');
-  const progressText = document.getElementById('progress-text');
-  const progressDetail = document.getElementById('progress-detail');
-
-  progressBar.style.width = percentage + '%';
-  progressText.textContent = percentage + '%';
-  progressDetail.textContent = `${vocabularyState.processedWords} / ${vocabularyState.totalWords}`;
-}
-
-// Проверка завершения урока
-async function checkCompletion() {
-  if (vocabularyState.processedWords === vocabularyState.totalWords && vocabularyState.totalWords > 0) {
-    // Сохраняем результаты
-    try {
-      const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-          score: 100,
-          status: 'completed',
-          data: {
-            words_added: vocabularyState.wordsAdded,
-            words_mastered: vocabularyState.wordsMastered,
-            completed_items: vocabularyState.processedWords,
-            total_items: vocabularyState.totalWords
-          }
-        })
-      });
-
-      if (response.ok) {
-        // Показываем результаты
-        showCompletionResults();
-        
-        // Показываем кнопки навигации с задержкой
-        setTimeout(() => {
-          const nextBtn = document.getElementById('complete-exercise');
-          const completeModuleBtn = document.getElementById('complete-module');
-          const retryBtn = document.getElementById('retry-button');
-          
-          if (nextBtn) {
-            nextBtn.style.display = 'inline-flex';
-            nextBtn.disabled = false;
-          } else if (completeModuleBtn) {
-            completeModuleBtn.style.display = 'inline-flex';
-            completeModuleBtn.disabled = false;
-          } else {
-            console.error('Navigation buttons not found in checkCompletion');
-          }
-          
-          // Принудительная перерисовка для обеспечения видимости кнопок
-          const footer = document.getElementById('lesson-footer');
-          if (footer) {
-            footer.style.display = 'none';
-            footer.offsetHeight; // Force reflow
-            footer.style.display = '';
-          }
-        }, 100);
-        
-        // Для уроков словаря не показываем кнопку "Пройти заново"
-      }
-    } catch (error) {
-      console.error('Error completing lesson:', error);
-    }
-  }
-}
-
-// Показ результатов завершения
-function showCompletionResults() {
-  const resultsDiv = document.createElement('div');
-  resultsDiv.className = 'vocabulary-completion-results mt-4 mb-4';
-  resultsDiv.innerHTML = `
-    <div class="completion-card">
-      <div class="completion-header">
-        <div class="completion-icon">
-          <i class="fas fa-trophy"></i>
-        </div>
-        <h3>{{ _('Урок завершен!') }}</h3>
-        <p class="text-muted">{{ _('Вы обработали все слова в этом уроке') }}</p>
-      </div>
-      
-      <div class="completion-stats">
-        <div class="stat-item">
-          <div class="stat-icon success">
-            <i class="fas fa-book-open"></i>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">${vocabularyState.totalWords}</span>
-            <span class="stat-label">{{ _('Слов в уроке') }}</span>
-          </div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-icon primary">
-            <i class="fas fa-graduation-cap"></i>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">${vocabularyState.wordsAdded}</span>
-            <span class="stat-label">{{ _('Добавлено в изучение') }}</span>
-          </div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-icon warning">
-            <i class="fas fa-check-circle"></i>
-          </div>
-          <div class="stat-content">
-            <span class="stat-value">${vocabularyState.wordsMastered}</span>
-            <span class="stat-label">{{ _('Отмечено как изученные') }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Добавляем результаты в конец урока
-  const vocabularyLesson = document.querySelector('.vocabulary-lesson');
-  if (vocabularyLesson) {
-    vocabularyLesson.appendChild(resultsDiv);
-  }
-  
-  // Прокручиваем к результатам
-  resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  
-  // Показываем кнопки навигации с задержкой для обеспечения готовности DOM
-  setTimeout(() => {
-    const retryBtn = document.getElementById('retry-button');
+    // Show navigation buttons
     const nextBtn = document.getElementById('complete-exercise');
     const completeModuleBtn = document.getElementById('complete-module');
-    
-    // Показываем кнопку повтора
-    if (retryBtn) {
-      retryBtn.style.display = 'inline-flex';
-    } else {
-      console.error('Retry button not found in DOM');
-    }
-    
-    // Показываем кнопку следующего урока или завершения модуля
+
     if (nextBtn) {
       nextBtn.style.display = 'inline-flex';
       nextBtn.disabled = false;
     } else if (completeModuleBtn) {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
-    } else {
-      console.error('Navigation buttons not found in DOM');
     }
-    
-    // Принудительная перерисовка для обеспечения видимости кнопок
-    const footer = document.getElementById('lesson-footer');
-    if (footer) {
-      footer.style.display = 'none';
-      footer.offsetHeight; // Force reflow
-      footer.style.display = '';
-    }
-  }, 100); // Небольшая задержка для обеспечения готовности DOM
+  } catch (error) {
+    console.error('Error completing lesson:', error);
+  }
 }
 
-// Функция синхронизации DOM с начальными данными
-function syncDOMWithInitialData() {
-  const cards = document.querySelectorAll('.modern-word-card');
-  let processedCount = 0;
-  let learningCount = 0;
-  let masteredCount = 0;
-  
-  // Сохраняем исходное количество слов
-  const originalTotalWords = vocabularyState.totalWords;
-  
-  cards.forEach(card => {
-    const status = card.getAttribute('data-status');
-    if (status && status !== 'new') {
-      processedCount++;
-      if (status === 'learning') learningCount++;
-      if (status === 'mastered') masteredCount++;
-    }
-  });
-  
-  // Синхронизируем состояние с тем, что реально есть в DOM
-  vocabularyState.processedWords = processedCount;
-  vocabularyState.wordsAdded = learningCount;
-  vocabularyState.wordsMastered = masteredCount;
-  // Важно: не меняем totalWords!
-  vocabularyState.totalWords = originalTotalWords;
-  
-}
-
-// Функция инициализации
-function initializeVocabularyLesson() {
-  try {
-    
-    // Сначала синхронизируем DOM с начальными данными
-    syncDOMWithInitialData();
-    
-    // Затем обновляем счетчики и прогресс
-    updateCounters();
-    updateProgress();
-    
-    // Если все слова обработаны (15 из 15), показываем кнопки
-    if (vocabularyState.processedWords === vocabularyState.totalWords && vocabularyState.totalWords > 0) {
-      {% if is_completed %}
-        // Урок уже завершен, показываем кнопки с задержкой
-        setTimeout(() => {
-          const nextBtn = document.getElementById('complete-exercise');
-          const completeModuleBtn = document.getElementById('complete-module');
-          const retryBtn = document.getElementById('retry-button');
-          
-          // Показываем соответствующие кнопки
-          if (nextBtn) {
-            nextBtn.style.display = 'inline-flex';
-            nextBtn.disabled = false;
-          }
-          
-          if (completeModuleBtn) {
-            completeModuleBtn.style.display = 'inline-flex';
-            completeModuleBtn.disabled = false;
-          }
-          
-          // Показываем кнопку "Пройти заново" для завершенных уроков
-          if (retryBtn) {
-            retryBtn.style.display = 'inline-flex';
-          }
-          
-          // Принудительная перерисовка для обеспечения видимости кнопок
-          const footer = document.getElementById('lesson-footer');
-          if (footer) {
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', init);
+</script>
+{% endblock %}
