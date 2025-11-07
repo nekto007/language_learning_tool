@@ -1,69 +1,566 @@
 {% extends "lesson_base_template.html" %}
 
-{% set component_name = _('Итоговый тест модуля') %}
+{% set component_name = _('Финальный тест') %}
 {% set block_description = _('Результаты финальной проверки знаний по модулю') %}
+
+{% block extra_css %}
+<style>
+/* Hide default header elements */
+.lesson-breadcrumb,
+.lesson-header,
+.lesson-description,
+.instruction-box {
+  display: none !important;
+}
+
+.lesson-page {
+  padding-top: 0.5rem !important;
+}
+
+.lesson-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Results container */
+.checkpoint-results {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Result header with icon */
+.result-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.result-icon {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  animation: iconBounce 0.6s ease;
+}
+
+.result-icon.success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+}
+
+.result-icon.retry {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+}
+
+@keyframes iconBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.result-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.result-subtitle {
+  font-size: 1.1rem;
+  color: #6b7280;
+}
+
+/* Score cards grid */
+.score-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.score-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s;
+}
+
+.score-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.score-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.score-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.score-card.primary .score-card-icon {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  color: white;
+}
+
+.score-card.success .score-card-icon {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.score-card.info .score-card-icon {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.score-card-title {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.score-card-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+}
+
+.score-card-label {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+}
+
+/* Progress bar */
+.score-progress {
+  margin-top: 1rem;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.score-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+
+.score-progress-fill.success {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.score-progress-fill.warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.status-badge.success {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  border: 2px solid #10b981;
+}
+
+.status-badge.failed {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border: 2px solid #ef4444;
+}
+
+/* Action buttons */
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 3rem 0 2rem;
+}
+
+.action-btn {
+  padding: 1rem 2rem;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.action-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+.action-btn.secondary {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.action-btn.secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+}
+
+.action-btn.tertiary {
+  background: white;
+  color: #dc2626;
+  border: 2px solid #dc2626;
+}
+
+.action-btn.tertiary:hover {
+  background: #fef2f2;
+  transform: translateY(-2px);
+}
+
+/* Review toggle */
+.review-toggle {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.toggle-btn {
+  padding: 0.75rem 1.5rem;
+  background: white;
+  border: 2px solid #dc2626;
+  border-radius: 0.5rem;
+  color: #dc2626;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.toggle-btn:hover {
+  background: #fef2f2;
+  transform: translateY(-2px);
+}
+
+/* Answers review */
+.answers-review {
+  margin-top: 3rem;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.review-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.answers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.answer-review-item {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-left: 4px solid #e5e7eb;
+}
+
+.answer-review-item.correct {
+  border-left-color: #10b981;
+  background: linear-gradient(to right, #f0fdf4 0%, white 100%);
+}
+
+.answer-review-item.incorrect {
+  border-left-color: #ef4444;
+  background: linear-gradient(to right, #fef2f2 0%, white 100%);
+}
+
+.review-header {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.review-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.answer-review-item.correct .review-number {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.answer-review-item.incorrect .review-number {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.review-number i {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 0.75rem;
+  background: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-question {
+  flex: 1;
+}
+
+.question-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.review-content {
+  padding-left: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.user-answer-section,
+.correct-answer-section {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.answer-label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.answer-value {
+  color: #1f2937;
+  font-size: 1rem;
+  padding: 0.25rem 0.75rem;
+  background: #f3f4f6;
+  border-radius: 0.375rem;
+}
+
+.answer-value.correct {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  font-weight: 600;
+}
+
+.explanation-section {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 0.5rem;
+  border-left: 4px solid #f59e0b;
+}
+
+.explanation-label {
+  font-weight: 700;
+  color: #92400e;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.explanation-text {
+  color: #78350f;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .result-title {
+    font-size: 1.5rem;
+  }
+
+  .score-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .review-content {
+    padding-left: 0;
+    margin-top: 1rem;
+  }
+}
+</style>
+{% endblock %}
 
 {% block lesson_content %}
 <div class="checkpoint-results">
-  <!-- Общий результат -->
-  <div class="result-summary">
+  <!-- Result Header -->
+  <div class="result-header">
     <div class="result-icon {% if results.score >= passing_score %}success{% else %}retry{% endif %}">
       {% if results.score >= passing_score %}
         <i class="fas fa-trophy"></i>
       {% else %}
-        <i class="fas fa-redo"></i>
+        <i class="fas fa-redo-alt"></i>
       {% endif %}
     </div>
 
-    <h2 class="result-title">
+    <h1 class="result-title">
       {% if results.score >= passing_score %}
-        {{ _('Поздравляем! Вы успешно прошли итоговый тест!') }}
+        {{ _('Поздравляем!') }} 🎉
+      {% else %}
+        {{ _('Попробуйте еще раз') }}
+      {% endif %}
+    </h1>
+
+    <p class="result-subtitle">
+      {% if results.score >= passing_score %}
+        {{ _('Вы успешно прошли финальный тест модуля!') }}
       {% else %}
         {{ _('К сожалению, вы не набрали проходной балл') }}
       {% endif %}
-    </h2>
+    </p>
+  </div>
 
-    <div class="score-display">
-      <div class="score-circle {% if results.score >= passing_score %}success{% else %}danger{% endif %}">
-        <span class="score-value">{{ results.score|round(0)|int }}%</span>
-        <span class="score-label">{{ _('Ваш результат') }}</span>
+  <!-- Score Cards -->
+  <div class="score-cards">
+    <!-- Main Score Card -->
+    <div class="score-card primary">
+      <div class="score-card-header">
+        <div class="score-card-icon">
+          <i class="fas fa-percentage"></i>
+        </div>
+        <div class="score-card-title">{{ _('Результат') }}</div>
       </div>
+      <div class="score-card-value" id="animated-score">0%</div>
+      <div class="score-progress">
+        <div class="score-progress-fill {% if results.score >= passing_score %}success{% else %}warning{% endif %}"
+             style="width: 0%"
+             id="progress-bar"></div>
+      </div>
+    </div>
 
-      <div class="score-details">
-        <div class="detail-item">
-          <span class="detail-label">{{ _('Правильных ответов:') }}</span>
-          <span class="detail-value">{{ results.correct_count }} / {{ results.total_count }}</span>
+    <!-- Correct Answers Card -->
+    <div class="score-card success">
+      <div class="score-card-header">
+        <div class="score-card-icon">
+          <i class="fas fa-check-circle"></i>
         </div>
-        <div class="detail-item">
-          <span class="detail-label">{{ _('Проходной балл:') }}</span>
-          <span class="detail-value">{{ passing_score }}%</span>
+        <div class="score-card-title">{{ _('Правильных ответов') }}</div>
+      </div>
+      <div class="score-card-value">{{ results.correct_count }}<span style="font-size: 1.5rem; color: #6b7280;">/{{ results.total_count }}</span></div>
+      <div class="score-card-label">{{ _('из') }} {{ results.total_count }} {{ _('вопросов') }}</div>
+    </div>
+
+    <!-- Passing Score Card -->
+    <div class="score-card info">
+      <div class="score-card-header">
+        <div class="score-card-icon">
+          <i class="fas fa-flag-checkered"></i>
         </div>
-        <div class="detail-item">
-          <span class="detail-label">{{ _('Статус:') }}</span>
-          <span class="detail-value">
-            {% if results.score >= passing_score %}
-              <span style="color: #198754; font-weight: 600;">
-                <i class="fas fa-check-circle"></i> {{ _('Пройдено') }}
-              </span>
-            {% else %}
-              <span style="color: #dc3545; font-weight: 600;">
-                <i class="fas fa-times-circle"></i> {{ _('Не пройдено') }}
-              </span>
-            {% endif %}
-          </span>
-        </div>
+        <div class="score-card-title">{{ _('Проходной балл') }}</div>
+      </div>
+      <div class="score-card-value">{{ passing_score }}%</div>
+      <div class="score-card-label">
+        <span class="status-badge {% if results.score >= passing_score %}success{% else %}failed{% endif %}">
+          {% if results.score >= passing_score %}
+            <i class="fas fa-check-circle"></i> {{ _('Пройдено') }}
+          {% else %}
+            <i class="fas fa-times-circle"></i> {{ _('Не пройдено') }}
+          {% endif %}
+        </span>
       </div>
     </div>
   </div>
 
-  <!-- Кнопка для переключения режима просмотра -->
-  <div class="view-toggle">
-    <button type="button" class="btn btn-outline-primary" onclick="toggleAnswersView()">
-      <i class="fas fa-eye"></i> <span id="toggle-text">{{ _('Показать ответы') }}</span>
+  <!-- Action Buttons -->
+  <div class="result-actions">
+    {% if results.score >= passing_score %}
+      {% if next_lesson %}
+        <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
+           class="action-btn primary">
+          <i class="fas fa-arrow-right"></i>
+          {{ _('Перейти к следующему уроку') }}
+        </a>
+      {% else %}
+        <a href="{{ '/learn/' }}"
+           class="action-btn primary">
+          <i class="fas fa-check-circle"></i>
+          {{ _('Завершить модуль') }}
+        </a>
+      {% endif %}
+    {% else %}
+      <button type="button" class="action-btn secondary" onclick="retryCheckpoint()">
+        <i class="fas fa-redo"></i>
+        {{ _('Попробовать еще раз') }}
+      </button>
+    {% endif %}
+
+    <button type="button" class="action-btn tertiary" onclick="toggleAnswersView()">
+      <i class="fas fa-list-check"></i>
+      <span id="toggle-text">{{ _('Показать разбор ответов') }}</span>
     </button>
   </div>
 
-  <!-- Детальный разбор ответов -->
+  <!-- Detailed Review -->
   <div class="answers-review" id="answers-review" style="display: none;">
     <h3 class="review-title">{{ _('Разбор ответов') }}</h3>
 
@@ -74,48 +571,41 @@
         {% set feedback_item = results.feedback[i_str] if results.feedback and i_str in results.feedback else {} %}
         {% set user_answer = feedback_item.user_answer if feedback_item else None %}
         {% set is_correct = feedback_item.status == 'correct' if feedback_item else false %}
-        {% set correct_answer = question.correct_answer if question.correct_answer is defined else
-                               (question.correct_index if question.correct_index is defined else
-                               (question.answer if question.answer is defined else None)) %}
 
         <div class="answer-review-item {% if is_correct %}correct{% else %}incorrect{% endif %}">
           <div class="review-header">
             <div class="review-number">
               {{ loop.index }}
-              {% if is_correct %}
-                <i class="fas fa-check"></i>
-              {% else %}
-                <i class="fas fa-times"></i>
-              {% endif %}
+              <i class="fas fa-{% if is_correct %}check{% else %}times{% endif %}"></i>
             </div>
             <div class="review-question">
-              <p class="question-text">{{ question.question or question.prompt or question.text }}</p>
+              <p class="question-text">{{ question.question or question.prompt or question.sentence or question.russian or question.instruction }}</p>
             </div>
           </div>
 
           <div class="review-content">
-            <!-- Показываем ответ пользователя -->
+            <!-- User Answer -->
             <div class="user-answer-section">
               <span class="answer-label">{{ _('Ваш ответ:') }}</span>
               {% if user_answer is not none and user_answer != '' %}
-                <span class="answer-value">"{{ user_answer }}"</span>
+                <span class="answer-value">{{ user_answer }}</span>
               {% else %}
                 <span class="answer-value text-muted">{{ _('Не отвечено') }}</span>
               {% endif %}
             </div>
 
-            <!-- Показываем правильный ответ если неверно -->
+            <!-- Correct Answer (if wrong) -->
             {% if not is_correct and feedback_item.correct_answer %}
               <div class="correct-answer-section">
                 <span class="answer-label">{{ _('Правильный ответ:') }}</span>
-                <span class="answer-value correct">"{{ feedback_item.correct_answer }}"</span>
+                <span class="answer-value correct">{{ feedback_item.correct_answer }}</span>
               </div>
             {% endif %}
 
-            <!-- Объяснение (если есть) -->
+            <!-- Explanation -->
             {% if question.explanation %}
               <div class="explanation-section">
-                <span class="explanation-label">{{ _('Пояснение:') }}</span>
+                <span class="explanation-label">💡 {{ _('Объяснение') }}</span>
                 <div class="explanation-text">{{ question.explanation }}</div>
               </div>
             {% endif %}
@@ -124,33 +614,12 @@
       {% endfor %}
     </div>
   </div>
-
-  <!-- Действия -->
-  <div class="result-actions">
-    {% if results.score >= passing_score %}
-      {% if next_lesson %}
-        <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
-           class="btn btn-success btn-lg">
-          <i class="fas fa-arrow-right"></i> {{ _('Перейти к следующему уроку') }}
-        </a>
-      {% else %}
-        <a href="{{ url_for('curriculum.level_modules', level_code=lesson.module.level.code) }}"
-           class="btn btn-success btn-lg">
-          <i class="fas fa-check-circle"></i> {{ _('Завершить модуль') }}
-        </a>
-      {% endif %}
-    {% else %}
-      <button type="button" class="btn btn-warning btn-lg" onclick="retryCheckpoint()">
-        <i class="fas fa-redo"></i> {{ _('Попробовать еще раз') }}
-      </button>
-    {% endif %}
-  </div>
 </div>
 
 <script>
 function retryCheckpoint() {
-  if (confirm('{{ _("Вы хотите пройти итоговый тест заново? Предыдущие результаты будут сброшены.") }}')) {
-    window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+  if (confirm('{{ _("Вы хотите пройти финальный тест заново? Предыдущие результаты будут сброшены.") }}')) {
+    window.location.href = '{{ url_for("curriculum_lessons.final_test_lesson", lesson_id=lesson.id, reset="true") }}';
   }
 }
 
@@ -160,38 +629,32 @@ function toggleAnswersView() {
 
   if (answersReview.style.display === 'none') {
     answersReview.style.display = 'block';
-    toggleText.textContent = '{{ _("Скрыть ответы") }}';
+    toggleText.textContent = '{{ _("Скрыть разбор ответов") }}';
   } else {
     answersReview.style.display = 'none';
-    toggleText.textContent = '{{ _("Показать ответы") }}';
+    toggleText.textContent = '{{ _("Показать разбор ответов") }}';
   }
 }
 
-// Анимация появления результатов
+// Animate score on page load
 document.addEventListener('DOMContentLoaded', function() {
-  const resultIcon = document.querySelector('.result-icon');
-  const scoreCircle = document.querySelector('.score-circle');
-
-  // Анимация иконки
-  setTimeout(() => {
-    resultIcon.classList.add('animated');
-  }, 100);
-
-  // Анимация счета
   const targetScore = {{ results.score|round(0)|int }};
+  const scoreElement = document.getElementById('animated-score');
+  const progressBar = document.getElementById('progress-bar');
+
   let currentScore = 0;
-  const scoreElement = document.querySelector('.score-value');
+  const duration = 1500; // 1.5 seconds
+  const increment = targetScore / (duration / 16); // 60 FPS
 
   const scoreInterval = setInterval(() => {
-    if (currentScore < targetScore) {
-      currentScore += 2;
-      if (currentScore > targetScore) currentScore = targetScore;
-      scoreElement.textContent = currentScore + '%';
-    } else {
+    currentScore += increment;
+    if (currentScore >= targetScore) {
+      currentScore = targetScore;
       clearInterval(scoreInterval);
     }
-  }, 20);
+    scoreElement.textContent = Math.round(currentScore) + '%';
+    progressBar.style.width = Math.round(currentScore) + '%';
+  }, 16);
 });
 </script>
 {% endblock %}
-

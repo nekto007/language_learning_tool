@@ -44,91 +44,104 @@
     </div>
   {% endif %}
 
-  <!-- Learning Levels -->
+  <!-- Learning Modules -->
   <div class="section-card mb-4">
     <div class="section-header">
-      <h2>📚 {{ _('Уровни обучения') }}</h2>
-      <p class="section-subtitle">{{ _('Выбери свой уровень и начни обучение') }}</p>
+      <h2>📚 {{ _('Модули обучения') }}</h2>
+      <p class="section-subtitle">{{ _('Выбери модуль и начни обучение') }}</p>
     </div>
     <div class="section-content">
       {% if levels_data %}
-        <div class="levels-list">
+        <div class="modules-list">
           {% for level_data in levels_data %}
-            {% set is_current = level_data.progress_percent and 0 < level_data.progress_percent < 100 %}
-            {% set is_completed = level_data.progress_percent and level_data.progress_percent == 100 %}
-            {% set is_new = level_data.progress_percent == 0 %}
-            {% set is_next = loop.index0 > 0 and levels_data[loop.index0 - 1].progress_percent == 100 and is_new %}
-            {% set should_show = is_current or is_next or (is_completed and loop.index == levels_data|length) %}
+            {% for module_data in level_data.modules %}
+              {# Check if module has any in_progress or available lessons #}
+              {% set has_in_progress = module_data.lessons | selectattr('status', 'equalto', 'in_progress') | list | length > 0 %}
+              {% set has_available = module_data.lessons | selectattr('status', 'equalto', 'available') | list | length > 0 %}
+              {% set is_current = has_in_progress or has_available or (module_data.progress_percent > 0 and module_data.progress_percent < 100) %}
+              {% set is_completed = module_data.progress_percent == 100 %}
+              {% set is_new = module_data.progress_percent == 0 and not has_in_progress and not has_available %}
 
-            <div class="level-card {{ 'current' if is_current else 'completed' if is_completed else 'new' }}"
-                 style="{{ 'display: none;' if not should_show else '' }}"
-                 data-level-card>
-              <div class="level-header">
-                <div class="level-badge level-{{ level_data.level.code[0]|lower }}">
-                  {{ level_data.level.code }}
-                </div>
-                <div class="level-title">
-                  <h3>{{ level_data.level.name }}</h3>
-                  <span class="level-desc">{{ level_data.level.description }}</span>
-                </div>
-
-                <!-- Stats inline -->
-                <div class="level-stat">
-                  <span class="level-stat-icon">📊</span>
-                  <span class="level-stat-value">{{ level_data.completed_lessons }}/{{ level_data.total_lessons }}</span>
-                  <span class="level-stat-label">уроков</span>
-                </div>
-
-                {% if level_data.estimated_hours > 0 %}
-                  <div class="level-stat">
-                    <span class="level-stat-icon">⏱️</span>
-                    <span class="level-stat-value">~{{ level_data.estimated_hours }} ч</span>
-                    <span class="level-stat-label">до завершения</span>
+              <div class="module-card-main {{ 'current' if is_current else 'completed' if is_completed else 'new' }}">
+                <div class="module-header-main" onclick="toggleModule('module-{{ module_data.module.id }}')">
+                  <div class="module-number">{{ module_data.module.number }}</div>
+                  <div class="module-info">
+                    <h3>{{ module_data.module.title }}</h3>
+                    <p>{{ module_data.module.description }}</p>
                   </div>
-                {% endif %}
 
-                {% if level_data.progress_percent > 0 %}
-                  <div class="level-stat">
-                    <span class="level-stat-icon">🎯</span>
-                    <span class="level-stat-value">{{ level_data.progress_percent }}%</span>
-                    <span class="level-stat-label">прогресс</span>
+                  <!-- Stats inline -->
+                  <div class="module-stat">
+                    <span class="module-stat-icon">📊</span>
+                    <span class="module-stat-value">{{ module_data.completed_lessons }}/{{ module_data.total_lessons }}</span>
+                    <span class="module-stat-label">уроков</span>
                   </div>
-                {% endif %}
 
-                {% if is_completed %}
-                  <div class="level-status-badge completed">✓ Завершен</div>
-                {% elif is_current %}
-                  <div class="level-status-badge current">В процессе</div>
-                {% endif %}
+                  {% if module_data.progress_percent > 0 %}
+                    <div class="module-stat">
+                      <span class="module-stat-icon">🎯</span>
+                      <span class="module-stat-value">{{ module_data.progress_percent }}%</span>
+                      <span class="module-stat-label">прогресс</span>
+                    </div>
+                  {% endif %}
 
-                <!-- Action buttons -->
-                {% if is_current and recent_activity %}
-                  <!-- Special button for current level with recent activity -->
-                  <a href="{{ get_lesson_url(recent_activity[0]['lesson']) }}"
-                     class="btn-level btn-primary">
-                    Продолжить урок: {{ recent_activity[0]['lesson'].title }} →
-                  </a>
-                {% elif level_data.next_lesson and (is_current or is_new) %}
-                  <a href="{{ get_lesson_url(level_data.next_lesson) }}"
-                     class="btn-level btn-primary">
-                    {% if is_current %}Продолжить →{% else %}Начать →{% endif %}
-                  </a>
-                {% else %}
-                  <a href="/learn/{{ level_data.level.code|lower }}/"
-                     class="btn-level {{ 'btn-primary' if is_current or is_new else 'btn-secondary' }}">
-                    {% if is_current %}Продолжить →{% elif is_completed %}Повторить{% else %}Начать →{% endif %}
-                  </a>
-                {% endif %}
+                  {% if is_completed %}
+                    <div class="module-status-badge completed">✓ Завершен</div>
+                  {% elif is_current %}
+                    <div class="module-status-badge current">В процессе</div>
+                  {% endif %}
+
+                  <!-- Expand/Collapse icon -->
+                  <div class="expand-icon">
+                    <span class="icon-collapsed" style="display:{{ 'none' if is_current else 'inline' }};">▼</span>
+                    <span class="icon-expanded" style="display:{{ 'inline' if is_current else 'none' }};">▲</span>
+                  </div>
+                </div>
+
+                <!-- Lessons List -->
+                <div class="module-lessons-main" id="module-{{ module_data.module.id }}" style="display:{{ 'block' if is_current else 'none' }};">
+                  {% for lesson_data in module_data.lessons %}
+                    {% set is_locked = lesson_data.status == 'locked' %}
+                    {% set is_completed = lesson_data.status == 'completed' %}
+                    {% set is_current = lesson_data.status == 'in_progress' %}
+                    {% set is_available = lesson_data.status == 'available' %}
+
+                    <div class="lesson-item {{ lesson_data.status }}">
+                      <div class="lesson-number">{{ lesson_data.lesson.number }}</div>
+                      <div class="lesson-info">
+                        <div class="lesson-title">{{ lesson_data.lesson.title }}</div>
+                        <div class="lesson-type">{{ lesson_data.lesson.type }}</div>
+                      </div>
+                      <div class="lesson-status">
+                        {% if is_completed %}
+                          <span class="status-icon completed">✓</span>
+                        {% elif is_current %}
+                          <span class="status-icon current">▶</span>
+                        {% elif is_locked %}
+                          <span class="status-icon locked">🔒</span>
+                        {% else %}
+                          <span class="status-icon available">○</span>
+                        {% endif %}
+                      </div>
+                      {% if not is_locked %}
+                        <a href="{{ get_lesson_url(lesson_data.lesson) }}" class="lesson-link">
+                          {% if is_completed %}
+                            Повторить
+                          {% elif is_current %}
+                            Продолжить
+                          {% else %}
+                            Начать
+                          {% endif %}
+                        </a>
+                      {% else %}
+                        <span class="lesson-locked">Недоступно</span>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
               </div>
-            </div>
+            {% endfor %}
           {% endfor %}
-        </div>
-
-        <!-- Show All Levels Toggle -->
-        <div style="text-align: center; margin-top: var(--space-4);">
-          <button id="toggleLevelsBtn" class="btn-level btn-outline" onclick="toggleAllLevels()" style="display: inline-block;">
-            <span id="toggleText">Показать все уровни</span>
-          </button>
         </div>
       {% else %}
         <div class="empty-state">
@@ -159,7 +172,7 @@
                 </div>
               </div>
               {% if activity.score %}
-                <div class="activity-score">{{ activity.score }}%</div>
+                <div class="activity-score">{{ activity.score|round(1) }}%</div>
               {% endif %}
             </a>
           {% endfor %}
@@ -171,6 +184,51 @@
 
 <script>
 let allLevelsVisible = false;
+
+function toggleLevel(levelId) {
+  const content = document.getElementById(levelId);
+  const header = content.previousElementSibling;
+  const iconCollapsed = header.querySelector('.expand-icon .icon-collapsed');
+  const iconExpanded = header.querySelector('.expand-icon .icon-expanded');
+
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    iconCollapsed.style.display = 'none';
+    iconExpanded.style.display = 'inline';
+  } else {
+    content.style.display = 'none';
+    iconCollapsed.style.display = 'inline';
+    iconExpanded.style.display = 'none';
+  }
+}
+
+function toggleModule(moduleId) {
+  const content = document.getElementById(moduleId);
+  const header = content.previousElementSibling;
+  const iconCollapsed = header.querySelector('.expand-icon .icon-collapsed');
+  const iconExpanded = header.querySelector('.expand-icon .icon-expanded');
+
+  if (content.style.display === 'none' || content.style.display === '') {
+    content.style.display = 'block';
+    iconCollapsed.style.display = 'none';
+    iconExpanded.style.display = 'inline';
+
+    // Auto-scroll to first non-completed lesson
+    setTimeout(() => {
+      const firstActiveLesson = content.querySelector('.lesson-item.in_progress, .lesson-item.available');
+      if (firstActiveLesson) {
+        firstActiveLesson.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }, 100);
+  } else {
+    content.style.display = 'none';
+    iconCollapsed.style.display = 'inline';
+    iconExpanded.style.display = 'none';
+  }
+}
 
 function toggleAllLevels() {
   const levelCards = document.querySelectorAll('[data-level-card]');
