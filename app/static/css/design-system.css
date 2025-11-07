@@ -5223,3 +5223,304 @@ body.dark-theme #translationPopup {
 .comprehension-results.all-correct .results-summary i {
     color: var(--success-500);
 }
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+@media (max-width: 768px) {
+    /* CURRICULUM INDEX - Mobile adaptation */
+
+    /* Hero section */
+    .hero-greeting h1 {
+        font-size: 1.5rem;
+    }
+
+    /* Gamification stats - stack vertically */
+    .gamification-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .stat-card {
+        padding: 0.75rem;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+    }
+
+    /* Module cards - mobile layout */
+    .module-card-main {
+        margin-bottom: 1rem;
+    }
+
+    .module-header-main {
+        flex-wrap: wrap;
+        padding: 1rem;
+    }
+
+    .module-number {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .module-info h3 {
+        font-size: 1.125rem;
+    }
+
+    .module-info p {
+        font-size: 0.875rem;
+        display: none; /* Hide description on mobile */
+    }
+
+    .module-stat {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.5rem;
+        min-width: auto;
+    }
+
+    .module-stat-value {
+        font-size: 1rem;
+    }
+
+    .module-stat-label {
+        font-size: 0.7rem;
+    }
+
+    .module-status-badge {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        width: 100%;
+        text-align: center;
+        margin-top: 0.5rem;
+    }
+
+    /* Module lessons list */
+    .module-lessons-main {
+        max-height: 400px;
+    }
+
+    .lesson-item {
+        padding: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .lesson-info {
+        flex: 1 1 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .lesson-info h4 {
+        font-size: 1rem;
+    }
+
+    .lesson-stats {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .lesson-action {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+
+    .lesson-action .btn {
+        width: 100%;
+    }
+
+    /* BOOKS - Mobile adaptation */
+
+    .book-card {
+        flex-direction: column;
+    }
+
+    .book-cover {
+        width: 100%;
+        max-width: 200px;
+        margin: 0 auto 1rem;
+    }
+
+    .book-info {
+        padding: 0;
+    }
+
+    .book-title {
+        font-size: 1.25rem;
+    }
+
+    .book-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .book-actions .btn {
+        width: 100%;
+    }
+
+    /* STUDY - Mobile adaptation */
+
+    .collection-card,
+    .topic-card {
+        padding: 1rem;
+    }
+
+    .collection-title,
+    .topic-title {
+        font-size: 1.125rem;
+    }
+
+    .collection-stats,
+    .topic-stats {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .stat-item {
+        font-size: 0.875rem;
+    }
+
+    /* WORD DETAIL - Mobile adaptation */
+
+    .word-detail-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .word-english {
+        font-size: 2rem;
+    }
+
+    .word-phonetic {
+        font-size: 1rem;
+    }
+
+    .word-actions {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .word-actions .btn {
+        flex: 1 1 45%;
+    }
+
+    .word-translations {
+        padding: 1rem;
+    }
+
+    .word-examples {
+        padding: 1rem;
+    }
+
+    .example-item {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* COMMON COMPONENTS - Mobile adaptation */
+
+    /* Section headers */
+    .section-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .section-subtitle {
+        font-size: 0.875rem;
+    }
+
+    /* Cards */
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Buttons */
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .btn-group .btn {
+        width: 100%;
+    }
+
+    /* Stats grids */
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    /* Navigation tabs */
+    .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-tabs .nav-link {
+        white-space: nowrap;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Modal dialogs */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .modal-content {
+        border-radius: var(--radius-md);
+    }
+
+    /* Form controls */
+    .form-control,
+    .form-select {
+        font-size: 1rem; /* Prevent zoom on iOS */
+    }
+
+    /* Tables - make scrollable */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Tablet-specific adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .gamification-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .module-info p {
+        font-size: 0.875rem;
+    }
+
+    .book-card {
+        flex-direction: row;
+    }
+
+    .book-cover {
+        width: 150px;
+    }
+}
+
+/* Large mobile/small tablet (landscape) */
+@media (min-width: 576px) and (max-width: 768px) {
+    .gamification-stats {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .module-info p {
+        display: block;
+        font-size: 0.8125rem;
+    }
+}
