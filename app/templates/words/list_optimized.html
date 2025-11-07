@@ -4,7 +4,181 @@
 
 {% block styles %}
 {{ super() }}
-{# All inline styles removed - using design-system.css #}
+<style>
+/* Mobile-Friendly Styles for Words List */
+
+/* Mobile: Hide table, show cards */
+@media (max-width: 768px) {
+    /* Header adjustments */
+    .card-body .row .col-lg-8,
+    .card-body .row .col-lg-4 {
+        text-align: center !important;
+    }
+
+    .card-body .row .col-lg-4 {
+        margin-top: 1rem;
+    }
+
+    /* Stats bar - make vertical on small screens */
+    .d-flex.justify-content-between.flex-wrap {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+
+    .d-flex.justify-content-between.flex-wrap > div {
+        width: 100%;
+        padding: 0.75rem !important;
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Filter form - stack vertically */
+    .row.g-3 .col-md-4,
+    .row.g-3 .col-md-3,
+    .row.g-3 .col-md-2 {
+        width: 100% !important;
+    }
+
+    /* Letter filter - horizontal scroll */
+    .d-flex.flex-wrap.gap-2 {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Bulk actions - stack buttons */
+    #bulkActionsPanel .d-flex.gap-2 {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    #bulkActionsPanel .btn {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.5rem;
+    }
+
+    /* Hide table on mobile */
+    .table {
+        display: none !important;
+    }
+
+    /* Show mobile cards */
+    .mobile-word-cards {
+        display: block !important;
+    }
+
+    /* Pagination - smaller buttons */
+    .pagination .page-link {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Desktop: Hide mobile cards */
+@media (min-width: 769px) {
+    .mobile-word-cards {
+        display: none !important;
+    }
+}
+
+/* Mobile word card styles */
+.mobile-word-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--primary-500);
+    transition: var(--transition-base);
+}
+
+.mobile-word-card:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-md);
+}
+
+.mobile-word-card.status-mastered {
+    border-left-color: var(--primary-500);
+}
+
+.mobile-word-card.status-learning {
+    border-left-color: var(--success-500);
+}
+
+.mobile-word-card.status-review {
+    border-left-color: var(--info-500);
+}
+
+.mobile-word-card.status-new {
+    border-left-color: var(--gray-400);
+}
+
+.mobile-word-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.75rem;
+}
+
+.mobile-word-main {
+    flex: 1;
+}
+
+.mobile-word-english {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.mobile-word-russian {
+    font-size: 1rem;
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+.mobile-word-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.mobile-word-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.mobile-word-actions .btn {
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.mobile-word-checkbox {
+    width: 20px;
+    height: 20px;
+    margin-top: 0.25rem;
+}
+
+/* Responsive table for tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .table th,
+    .table td {
+        font-size: 0.875rem;
+        padding: 0.5rem;
+    }
+
+    .table th:nth-child(6),
+    .table td:nth-child(6) {
+        display: none; /* Hide book column on tablets */
+    }
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -222,6 +396,65 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <!-- Mobile Word Cards (shown on mobile only) -->
+    <div class="mobile-word-cards" style="display: none;">
+        {% for word in words.items %}
+        <div class="mobile-word-card status-{{ word.user_status or 'new' }}">
+            <!-- Header with word and checkbox -->
+            <div class="mobile-word-header">
+                <div class="mobile-word-main">
+                    <div class="mobile-word-english">{{ word.english_word }}</div>
+                    <div class="mobile-word-russian">{{ word.russian_word }}</div>
+                </div>
+                <input type="checkbox" class="form-check-input mobile-word-checkbox word-checkbox" value="{{ word.id }}" data-word-id="{{ word.id }}">
+            </div>
+
+            <!-- Meta info: Level, Book, Audio -->
+            <div class="mobile-word-meta">
+                {% if word.level %}
+                <span class="badge rounded-pill px-3 py-1 text-white fw-bold shadow-sm" style="font-size: 0.7rem; {% if word.level in ['A1', 'A2'] %}background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);{% elif word.level in ['B1', 'B2'] %}background: linear-gradient(135deg, var(--info-500) 0%, var(--info-600) 100%);{% elif word.level in ['C1', 'C2'] %}background: linear-gradient(135deg, var(--warning-500) 0%, var(--warning-600) 100%);{% endif %}">{{ word.level }}</span>
+                {% endif %}
+
+                {% if word.books %}
+                <span class="text-muted small">
+                    <i class="fas fa-book"></i> {{ word.books[0].title|truncate(20) }}
+                </span>
+                {% endif %}
+
+                {% if word.get_download and word.listening %}
+                <button class="btn btn-primary btn-sm rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Actions -->
+            <div class="mobile-word-actions">
+                <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-eye me-1"></i>{{ _('Подробно') }}
+                </a>
+                {% if word.user_status == 'new' %}
+                <button class="btn btn-sm btn-primary" onclick="changeWordStatus({{ word.id }}, 'learning')">
+                    <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
+                </button>
+                {% elif word.user_status == 'learning' %}
+                <button class="btn btn-sm btn-info" onclick="changeWordStatus({{ word.id }}, 'review')">
+                    <i class="fas fa-redo me-1"></i>{{ _('Повторение') }}
+                </button>
+                {% elif word.user_status == 'review' %}
+                <button class="btn btn-sm btn-success" onclick="changeWordStatus({{ word.id }}, 'mastered')">
+                    <i class="fas fa-check me-1"></i>{{ _('Знаю') }}
+                </button>
+                {% else %}
+                <button class="btn btn-sm btn-success disabled">
+                    <i class="fas fa-check me-1"></i>{{ _('Изучено') }}
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
     </div>
 
     <!-- Pagination -->
