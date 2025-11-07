@@ -16,7 +16,14 @@
 
 <div class="row">
     <div class="col-lg-8">
-        <form method="POST" enctype="multipart/form-data">
+        <!-- DEBUG: Form action URL -->
+        <div class="alert alert-info">
+            <strong>DEBUG:</strong> Current URL: {{ request.url }}<br>
+            <strong>Form will submit to:</strong> {{ url_for('curriculum_admin.import_curriculum') }}
+        </div>
+
+        <form method="POST" action="{{ url_for('curriculum_admin.import_curriculum') }}" enctype="multipart/form-data" id="importForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <!-- Import Method Selection -->
             <div class="card">
                 <div class="card-header">
@@ -47,8 +54,8 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="json_file" class="form-label">Select JSON File</label>
-                        <input type="file" class="form-control" id="json_file" name="json_file" accept=".json">
+                        <label for="file" class="form-label">Select JSON File</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".json">
                         <small class="form-text text-muted">Maximum file size: 10MB</small>
                     </div>
 
@@ -56,6 +63,8 @@
                         <strong>Selected file:</strong> <span id="fileName"></span><br>
                         <strong>Size:</strong> <span id="fileSize"></span>
                     </div>
+
+                    <div id="fileValidationResult" class="mt-3"></div>
                 </div>
             </div>
 
@@ -207,25 +216,31 @@ function toggleImportMethod() {
     document.getElementById('textPasteSection').style.display = isFile ? 'none' : 'block';
 }
 
-// File upload handling
-document.getElementById('json_file').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        document.getElementById('fileName').textContent = file.name;
-        document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
-        document.getElementById('fileInfo').classList.remove('d-none');
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    const fileInput = document.getElementById('file');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+                document.getElementById('fileInfo').classList.remove('d-none');
 
-        // Read and validate file
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                JSON.parse(e.target.result);
-                showValidation(true, 'Valid JSON file');
-            } catch (error) {
-                showValidation(false, 'Invalid JSON: ' + error.message);
+                // Read and validate file
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        JSON.parse(e.target.result);
+                        showValidation(true, 'Valid JSON file');
+                    } catch (error) {
+                        showValidation(false, 'Invalid JSON: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
             }
-        };
-        reader.readAsText(file);
+        });
     }
 });
 
@@ -265,9 +280,15 @@ function formatJSON() {
 }
 
 function showValidation(isValid, message) {
-    const result = document.getElementById('validationResult');
-    result.className = 'alert ' + (isValid ? 'alert-success' : 'alert-danger');
-    result.innerHTML = '<i class="fas fa-' + (isValid ? 'check-circle' : 'exclamation-triangle') + ' me-2"></i>' + message;
+    // Определяем, какой контейнер использовать
+    const isFileMode = document.getElementById('fileUpload').checked;
+    const resultId = isFileMode ? 'fileValidationResult' : 'validationResult';
+    const result = document.getElementById(resultId);
+
+    if (result) {
+        result.className = 'alert ' + (isValid ? 'alert-success' : 'alert-danger');
+        result.innerHTML = '<i class="fas fa-' + (isValid ? 'check-circle' : 'exclamation-triangle') + ' me-2"></i>' + message;
+    }
 }
 
 function downloadSample(type) {
@@ -367,29 +388,51 @@ function downloadSample(type) {
     URL.revokeObjectURL(url);
 }
 
-// Prevent form submission if validation fails
-document.querySelector('form').addEventListener('submit', function(e) {
-    const isFile = document.getElementById('fileUpload').checked;
-
-    if (isFile) {
-        const file = document.getElementById('json_file').files[0];
-        if (!file) {
-            e.preventDefault();
-            alert('Please select a JSON file to import');
-        }
-    } else {
-        const jsonText = document.getElementById('json_text').value.trim();
-        if (!jsonText) {
-            e.preventDefault();
-            alert('Please enter JSON content to import');
-        } else {
-            try {
-                JSON.parse(jsonText);
-            } catch (error) {
-                e.preventDefault();
-                alert('Invalid JSON format: ' + error.message);
+// Prevent form submission if validation fails - wrap in DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (form) {
+        console.log('DEBUG: Form found, action:', form.action);
+        form.addEventListener('submit', function(e) {
+            console.log('DEBUG: Form submit event fired');
+            const fileUploadRadio = document.getElementById('fileUpload');
+            if (!fileUploadRadio) {
+                console.log('DEBUG: fileUpload radio not found');
+                return;
             }
-        }
+
+            const isFile = fileUploadRadio.checked;
+            console.log('DEBUG: isFile mode:', isFile);
+
+            if (isFile) {
+                const fileInput = document.getElementById('file');
+                console.log('DEBUG: File input:', fileInput);
+                console.log('DEBUG: Files:', fileInput ? fileInput.files : 'no input');
+                if (fileInput && !fileInput.files[0]) {
+                    console.log('DEBUG: No file selected, preventing submission');
+                    e.preventDefault();
+                    alert('Please select a JSON file to import');
+                } else {
+                    console.log('DEBUG: File selected, allowing form submission');
+                }
+            } else {
+                const jsonTextArea = document.getElementById('json_text');
+                if (jsonTextArea) {
+                    const jsonText = jsonTextArea.value.trim();
+                    if (!jsonText) {
+                        e.preventDefault();
+                        alert('Please enter JSON content to import');
+                    } else {
+                        try {
+                            JSON.parse(jsonText);
+                        } catch (error) {
+                            e.preventDefault();
+                            alert('Invalid JSON format: ' + error.message);
+                        }
+                    }
+                }
+            }
+        });
     }
 });
 </script>

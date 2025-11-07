@@ -6,7 +6,7 @@
 
 {% block styles %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lesson-styles.css') }}?v=20251028-3">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lesson-styles.css') }}?v=20251102-1">
 {% endblock %}
 
 {% block lesson_content %}
@@ -66,10 +66,12 @@
         </div>
         <h3>{{ _('Все карточки изучены!') }}</h3>
         <p>{{ _('У вас нет карточек для повторения сейчас. Отличная работа!') }}</p>
+        {% if cards_data.next_review_time %}
         <div class="next-review-info">
           <i class="fas fa-clock"></i>
-          <span>{{ _('Следующее повторение через') }} <strong id="next-review-time">--</strong></span>
+          <span>{{ _('Следующее повторение через') }} <strong id="next-review-time">{{ cards_data.next_review_time }}</strong></span>
         </div>
+        {% endif %}
       </div>
 
     {% else %}
@@ -410,7 +412,9 @@
       async function initializeSRS() {
 
           if (!lessonConfig.cards || lessonConfig.cards.length === 0) {
-              elements.loading.style.display = 'none';
+              if (elements.loading) {
+                  elements.loading.style.display = 'none';
+              }
               return;
           }
 
@@ -432,7 +436,9 @@
           updateStatistics();
 
           // Показываем первую карточку
-          elements.loading.style.display = 'none';
+          if (elements.loading) {
+              elements.loading.style.display = 'none';
+          }
           showNextCard();
       }
 
@@ -628,7 +634,14 @@
               return;
           }
 
-          const firstWord = translation.split(',')[0].trim();
+          // Разделяем по запятой или слэшу и берём первое слово
+          let firstWord = translation;
+          if (translation.includes('/')) {
+              firstWord = translation.split('/')[0].trim();
+          } else if (translation.includes(',')) {
+              firstWord = translation.split(',')[0].trim();
+          }
+
           const firstLetter = firstWord.charAt(0);
           const wordLength = firstWord.length;
 
@@ -957,7 +970,7 @@
               : 100;
 
           try {
-              const response = await fetch(`/learn/lessons/${lessonConfig.lessonId}/complete-srs`, {
+              const response = await fetch(`/curriculum/lessons/${lessonConfig.lessonId}/complete-srs`, {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/json',
@@ -979,7 +992,7 @@
                   if (nextLessonUrl) {
                       window.location.href = nextLessonUrl;
                   } else {
-                      window.location.href = '{{ url_for("curriculum.module_lessons", module_id=lesson.module_id) }}';
+                      window.location.href = '/learn/';
                   }
               } else {
                   alert('Ошибка при сохранении прогресса');

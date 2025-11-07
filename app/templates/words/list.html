@@ -288,7 +288,60 @@
 </div>
 
 <!-- Audio Element (Hidden) -->
-<audio id="wordAudio" style="display: none;"></audio>
+<audio id="wordAudio" style="display: none;" preload="auto"></audio>
+
+<!-- Inline Script for Audio Playback -->
+<script>
+    // Setup audio element event listeners for debugging
+    (function() {
+        const audio = document.getElementById('wordAudio');
+
+        audio.addEventListener('loadstart', () => console.log('🎵 Audio: loadstart'));
+        audio.addEventListener('loadeddata', () => console.log('🎵 Audio: loadeddata'));
+        audio.addEventListener('canplay', () => console.log('🎵 Audio: canplay'));
+        audio.addEventListener('playing', () => console.log('🎵 Audio: playing'));
+        audio.addEventListener('pause', () => console.log('🎵 Audio: pause'));
+        audio.addEventListener('ended', () => console.log('🎵 Audio: ended'));
+        audio.addEventListener('error', (e) => console.error('🎵 Audio error:', e, audio.error));
+    })();
+
+    // Global function to play audio - must be defined before buttons are rendered
+    window.playAudio = function(audioUrl) {
+        console.log('🔊 playAudio called with URL:', audioUrl);
+
+        const wordAudio = document.getElementById('wordAudio');
+
+        if (!wordAudio) {
+            console.error('❌ Audio element not found');
+            alert('Audio element not found');
+            return;
+        }
+
+        if (!audioUrl) {
+            console.error('❌ No audio URL provided');
+            alert('No audio URL provided');
+            return;
+        }
+
+        console.log('🔊 Setting audio source to:', audioUrl);
+        wordAudio.src = audioUrl;
+        wordAudio.load(); // Explicitly load the audio
+
+        console.log('🔊 Calling play()...');
+        const playPromise = wordAudio.play();
+
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                console.log('✅ Audio playback started successfully');
+            }).catch(error => {
+                console.error('❌ Error playing audio:', error.name, error.message);
+                alert('Ошибка воспроизведения: ' + error.message + '\nТип ошибки: ' + error.name);
+            });
+        }
+    };
+
+    console.log('✓ playAudio function registered as:', typeof window.playAudio);
+</script>
 
 <!-- Bulk Action Form (hidden) -->
 <form id="bulkActionForm" method="POST" action="/api/batch-update-status" style="display: none;">
@@ -309,6 +362,46 @@
         error: "{{ _('Error:') }}"
     };
 
+    // Global function to play audio (called from onclick)
+    function playAudio(audioUrl) {
+        console.log('playAudio called with URL:', audioUrl);
+
+        try {
+            const wordAudio = document.getElementById('wordAudio');
+            console.log('Audio element:', wordAudio);
+
+            if (!wordAudio) {
+                console.error('Audio element not found');
+                alert('Audio element not found');
+                return;
+            }
+
+            if (!audioUrl) {
+                console.error('No audio URL provided');
+                alert('No audio URL provided');
+                return;
+            }
+
+            console.log('Setting audio source to:', audioUrl);
+            wordAudio.src = audioUrl;
+
+            console.log('Calling play()...');
+            const playPromise = wordAudio.play();
+
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('✓ Audio playback started successfully');
+                }).catch(error => {
+                    console.error('✗ Error playing audio:', error);
+                    alert('Ошибка воспроизведения: ' + error.message);
+                });
+            }
+        } catch (error) {
+            console.error('Exception in playAudio:', error);
+            alert('Exception: ' + error.message);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Word pronunciation functionality
         const wordAudio = document.getElementById('wordAudio');
@@ -322,12 +415,29 @@
                 // Get the audio source from the data attribute
                 const audioSrc = this.getAttribute('data-audio');
 
+                if (!audioSrc) {
+                    console.error('No audio source found for this word');
+                    return;
+                }
+
+                console.log('Playing audio:', audioSrc);
+
                 // Set the audio source and play
                 wordAudio.src = audioSrc;
-                wordAudio.play();
 
-                // Visual feedback - add a class to show it's playing
-                this.classList.add('playing');
+                // Play with error handling
+                const playPromise = wordAudio.play();
+
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('Audio playback started successfully');
+                        // Visual feedback - add a class to show it's playing
+                        this.classList.add('playing');
+                    }).catch(error => {
+                        console.error('Error playing audio:', error);
+                        alert('Не удалось воспроизвести аудио. Файл: ' + audioSrc);
+                    });
+                }
 
                 // Remove the class when audio ends
                 wordAudio.onended = () => {

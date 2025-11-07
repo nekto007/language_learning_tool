@@ -77,12 +77,39 @@ class CurriculumCacheService:
                         if lesson.id in progress_map and progress_map[lesson.id].status == 'completed'
                     )
 
+                    # Prepare lessons data with status
+                    lessons_data = []
+                    for lesson in sorted(module.lessons, key=lambda x: x.number):
+                        progress = progress_map.get(lesson.id)
+                        lesson_status = 'locked'  # default
+
+                        if progress:
+                            if progress.status == 'completed':
+                                lesson_status = 'completed'
+                            elif progress.status == 'in_progress':
+                                lesson_status = 'in_progress'
+                            else:
+                                lesson_status = 'available'
+                        else:
+                            # First lesson or next after completed
+                            if not lessons_data:  # First lesson
+                                lesson_status = 'available'
+                            elif lessons_data and lessons_data[-1]['status'] == 'completed':
+                                lesson_status = 'available'
+
+                        lessons_data.append({
+                            'lesson': lesson,
+                            'status': lesson_status,
+                            'progress': progress
+                        })
+
                     modules_data.append({
                         'module': module,
                         'total_lessons': module_total,
                         'completed_lessons': module_completed,
                         'progress_percent': round((module_completed / module_total * 100) if module_total > 0 else 0),
-                        'is_available': True
+                        'is_available': True,
+                        'lessons': lessons_data
                     })
 
                     level_lessons += module_total

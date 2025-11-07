@@ -5,11 +5,895 @@
 {% set block_description = _('Проверьте свои знания с помощью интерактивной викторины') %}
 {% set show_score = true %}
 
+{% block extra_css %}
+<style>
+/* Hide breadcrumb and header for quiz to save space */
+.lesson-breadcrumb,
+.lesson-header,
+.lesson-description,
+.instruction-box {
+  display: none !important;
+}
+
+/* Reduce padding since header is hidden */
+.lesson-page {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.lesson-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Quiz screens */
+.quiz-screen {
+  min-height: 300px;
+}
+
+.quiz-lesson {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.quiz-start-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.quiz-icon {
+  font-size: 4rem;
+  color: #4f46e5;
+  margin-bottom: 1.5rem;
+}
+
+.quiz-start-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.quiz-start-content p {
+  font-size: 1.1rem;
+  color: #6b7280;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+#start-quiz-btn {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 0.75rem;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#start-quiz-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* Question cards */
+.questions-container {
+  margin-top: 1rem;
+}
+
+.question-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  max-width: 900px;
+  {#margin: 0 auto;#}
+}
+
+.question-text {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  line-height: 1.3;
+}
+
+.answer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.answer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.answer-option:hover:not(:disabled) {
+  border-color: #4f46e5;
+  background: #f5f3ff;
+  transform: translateX(5px);
+}
+
+.answer-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.answer-option.correct {
+  border-color: #10b981 !important;
+  background: #d1fae5 !important;
+}
+
+.answer-option.incorrect {
+  border-color: #ef4444 !important;
+  background: #fee2e2 !important;
+}
+
+.answer-option.selected {
+  transform: translateX(0) !important;
+}
+
+.option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #4f46e5;
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.option-text {
+  flex: 1;
+  color: #1f2937;
+}
+
+/* Question feedback */
+.question-feedback {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  animation: slideIn 0.3s ease;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.question-feedback.correct {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #10b981;
+}
+
+.question-feedback.incorrect {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #ef4444;
+}
+
+.feedback-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.feedback-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.feedback-icon i {
+  color: inherit;
+}
+
+.question-feedback.correct .feedback-icon {
+  color: #10b981;
+}
+
+.question-feedback.incorrect .feedback-icon {
+  color: #ef4444;
+}
+
+.feedback-text {
+  font-size: 1rem;
+  color: #1f2937;
+  line-height: 1.5;
+  margin: 0;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Quiz progress */
+.quiz-progress-section {
+  margin-bottom: 2rem;
+}
+
+.progress-info {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+}
+
+.quiz-progress-bar {
+  width: 100%;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.quiz-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #6366f1);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+/* Matching questions */
+.matching-answer {
+  margin: 2rem 0;
+}
+
+.instruction-text {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-left: 4px solid #4f46e5;
+  border-radius: 0.5rem;
+}
+
+.matching-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.match-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.match-left {
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70px;
+  text-align: center;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.match-right-select {
+  padding: 1.25rem 1.5rem;
+  font-size: 1.1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-height: 70px;
+  font-weight: 500;
+}
+
+.match-right-select:hover:not(:disabled) {
+  border-color: #4f46e5;
+}
+
+.match-right-select:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.match-right-select.is-invalid {
+  border-color: #ef4444;
+  animation: shake 0.3s;
+}
+
+/* Transformation questions */
+.transformation-answer {
+  margin: 2rem 0;
+}
+
+.source-sentence {
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border-radius: 0.75rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+#transformation-answer-0,
+#transformation-answer-1,
+#transformation-answer-2,
+#transformation-answer-3,
+#transformation-answer-4,
+#transformation-answer-5 {
+  font-size: 1.1rem;
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  transition: all 0.3s;
+}
+
+[id^="transformation-answer-"]:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+[id^="transformation-answer-"].is-invalid {
+  border-color: #ef4444;
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+/* Text input for translation/fill_blank */
+.text-answer {
+  margin-top: 0.5rem;
+}
+
+.text-answer .form-control {
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  transition: all 0.3s;
+}
+
+.text-answer .form-control:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.text-submit-btn {
+  margin-top: 1rem !important;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem !important;
+}
+
+/* Reorder questions */
+.reorder-answer {
+  margin: 2rem 0;
+}
+
+.words-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  min-height: 100px;
+  border: 2px dashed #d1d5db;
+}
+
+.word-button {
+  padding: 0.75rem 1.25rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #1f2937;
+}
+
+.word-button:hover:not(:disabled) {
+  border-color: #4f46e5;
+  background: #f5f3ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+}
+
+.word-button:disabled,
+.word-button.used {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f3f4f6;
+}
+
+.sentence-container {
+  margin-bottom: 1.5rem;
+}
+
+.sentence-display {
+  min-height: 80px;
+  padding: 1.5rem;
+  background: white;
+  border: 2px solid #4f46e5;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.sentence-display:hover {
+  background: #fafafa;
+}
+
+.placeholder-text {
+  color: #9ca3af;
+  font-style: italic;
+  width: 100%;
+  text-align: center;
+}
+
+.sentence-word {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sentence-word:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+}
+
+/* Matching question styles - paired rows layout */
+.matching-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.matching-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  min-height: 56px;
+}
+
+.matching-item {
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1f2937;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.matching-item.left {
+  cursor: default;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-color: #d1d5db;
+  font-weight: 600;
+}
+
+.matching-item.right {
+  cursor: pointer;
+}
+
+.matching-item.right:hover:not(.matched) {
+  border-color: #c7d2fe;
+  background: #f9fafb;
+  transform: scale(1.02);
+}
+
+.matching-item.selected {
+  border-color: #4f46e5;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+}
+
+.matching-item.matched {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  pointer-events: none;
+}
+
+.matching-item.incorrect {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  animation: shake 0.5s;
+}
+
+.matching-item.correct {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.match-connector {
+  width: 24px;
+  height: 2px;
+  background: #d1d5db;
+  position: relative;
+}
+
+.match-connector::before,
+.match-connector::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #d1d5db;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.match-connector::before {
+  left: 0;
+}
+
+.match-connector::after {
+  right: 0;
+}
+
+.matching-row.matched .match-connector {
+  background: #10b981;
+}
+
+.matching-row.matched .match-connector::before,
+.matching-row.matched .match-connector::after {
+  background: #10b981;
+}
+
+.right-options-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  border: 2px dashed #d1d5db;
+}
+
+.right-options-pool .matching-item {
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Responsive styles for matching questions */
+@media (max-width: 768px) {
+  .matching-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .match-connector {
+    display: none;
+  }
+
+  .matching-item {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+
+  .right-options-pool {
+    padding: 0.75rem;
+    gap: 0.4rem;
+  }
+
+  .right-options-pool .matching-item {
+    min-width: 100px;
+    font-size: 0.85rem;
+  }
+
+  .words-container {
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+
+  .word-button {
+    font-size: 0.95rem;
+    padding: 0.6rem 1rem;
+  }
+}
+
+/* Quiz Results Styles */
+.quiz-results-compact {
+  margin: 2rem auto;
+  max-width: 1000px;
+}
+
+.quiz-stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  text-align: center;
+  transition: transform 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+}
+
+.stat-card.points {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+}
+
+.stat-card.percentage {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 2px solid #3b82f6;
+}
+
+.stat-card.time {
+  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  border: 2px solid #a855f7;
+}
+
+.stat-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.quiz-results-summary {
+  margin: 2rem auto;
+  max-width: 500px;
+}
+
+.results-summary {
+  background: white;
+  border-radius: 1.5rem;
+  padding: 3rem 2.5rem;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  text-align: center;
+}
+
+.results-summary.success {
+  border: 4px solid #10b981;
+}
+
+.results-summary.warning {
+  border: 4px solid #f59e0b;
+}
+
+.results-summary h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 2rem;
+}
+
+.score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 2rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
+  border-radius: 1.25rem;
+}
+
+.score-display i {
+  font-size: 5rem;
+}
+
+.results-summary.success .score-display i {
+  color: #10b981;
+}
+
+.results-summary.warning .score-display i {
+  color: #f59e0b;
+}
+
+.score-value {
+  font-size: 5rem;
+  font-weight: 800;
+  color: #4f46e5;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+.score-details {
+  font-size: 1.125rem;
+  color: #4b5563;
+  margin: 1.5rem 0;
+  font-weight: 600;
+}
+
+.feedback-message {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: #f3f4f6;
+  border-radius: 1rem;
+  border-left: 4px solid #3b82f6;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.feedback-message.success {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-left-color: #10b981;
+}
+
+.feedback-message i {
+  font-size: 2rem;
+  color: #3b82f6;
+}
+
+.feedback-message.success i {
+  color: #10b981;
+}
+
+.feedback-message p {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.attempts-breakdown {
+  font-size: 0.9375rem;
+  color: #4b5563;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 0.75rem;
+  border-left: 4px solid #f59e0b;
+  text-align: left;
+  line-height: 1.8;
+}
+
+@media (max-width: 768px) {
+  .quiz-stats-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .quiz-results-summary {
+    max-width: 100%;
+    margin: 1.5rem 1rem;
+  }
+
+  .results-summary {
+    padding: 2rem 1.5rem;
+  }
+
+  .score-value {
+    font-size: 3.5rem;
+  }
+
+  .score-display i {
+    font-size: 4rem;
+  }
+
+  .results-summary h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .score-details {
+    font-size: 1rem;
+  }
+
+  .feedback-message {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .feedback-message i {
+    font-size: 1.75rem;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% macro unescape_html(text) %}
+  {# This will be handled by the backend, but as a fallback we replace common entities #}
+  {{ text|replace('&#39;', "'")|replace('&quot;', '"')|replace('&amp;', '&')|replace('&lt;', '<')|replace('&gt;', '>') }}
+{% endmacro %}
+
 {% macro format_answer(answer, question) %}
-  {% if question.type == 'multiple_choice' %}
+  {% if question.type == 'multiple_choice' or question.type == 'listening_choice' %}
     {# Если ответ - индекс, преобразуем в текст опции #}
     {% if answer is number or (answer|string).isdigit() %}
-      {{ question.options[answer|int] }}
+      {% set idx = answer|int %}
+      {% if idx < question.options|length %}
+        {{ question.options[idx] }}
+      {% else %}
+        {{ answer }}
+      {% endif %}
     {% else %}
       {{ answer }}
     {% endif %}
@@ -31,14 +915,18 @@
 {% set previous_data = None %}
 {% set previous_feedback = {} %}
 {% set is_completed = False %}
-{% if progress and progress.data %}
-  {% set previous_data = progress.data %}
-  {% set previous_feedback = previous_data.get('feedback', {}) %}
+{% set has_results = False %}
+{% if progress %}
+  {% if progress.data %}
+    {% set previous_data = progress.data %}
+    {% set previous_feedback = previous_data.get('feedback', {}) %}
+  {% endif %}
   {% set is_completed = progress.status == 'completed' %}
+  {% set has_results = is_completed and previous_data %}
 {% endif %}
 
 <div class="quiz-lesson">
-  {% if is_completed and previous_data %}
+  {% if has_results and previous_data %}
     <!-- Компактные результаты -->
     <div class="quiz-results-compact">
       <!-- Статистика в виде карточек -->
@@ -51,7 +939,7 @@
 
         <div class="stat-card percentage">
           <div class="stat-icon">🎯</div>
-          <div class="stat-value">{{ previous_data.score|round(0)|int }}%</div>
+          <div class="stat-value">{{ (previous_data.score|default(0))|round(0)|int }}%</div>
           <div class="stat-label">правильно</div>
         </div>
 
@@ -81,7 +969,7 @@
           <div class="error-item">
             <div class="error-header">
               <span class="q-num">№{{ idx }}</span>
-              <span class="q-text">{{ (question.text or question.question or question.prompt)[:80] }}{% if (question.text or question.question or question.prompt)|length > 80 %}...{% endif %}</span>
+              <span class="q-text">{{ (question.get('text') or question.get('question') or question.get('prompt', ''))[:80] }}{% if (question.get('text') or question.get('question') or question.get('prompt', ''))|length > 80 %}...{% endif %}</span>
             </div>
             <div class="error-answers">
               <div class="wrong">❌ {{ format_answer(feedback.user_answer, question) }}</div>
@@ -104,12 +992,19 @@
             <div class="answer-item {% if feedback.status == 'correct' %}correct{% else %}incorrect{% endif %}">
               <span class="num">{{ loop.index }}.</span>
               <span class="status">{% if feedback.status == 'correct' %}✓{% else %}❌{% endif %}</span>
-              <span class="question">{{ question.text or question.question or question.prompt }}</span>
+              <span class="question">{{ question.get('text') or question.get('question') or question.get('prompt', '') }}</span>
               <span class="your-answer">{{ format_answer(feedback.user_answer, question) }}</span>
             </div>
           {% endfor %}
         </div>
       </details>
+
+      <!-- Retry button -->
+      <div style="text-align: center; margin-top: 2rem;">
+        <button type="button" class="btn btn-outline-primary" onclick="retryQuiz()">
+          <i class="fas fa-redo"></i> {{ _('Пройти викторину заново') }}
+        </button>
+      </div>
     </div>
 
   {% else %}
@@ -148,9 +1043,11 @@
         {% for question in questions %}
           {% set question_index = loop.index0 %}
           <div class="question-card" id="question-{{ question_index }}" style="display: none;" data-index="{{ question_index }}">
-            <h3 class="question-text">{{ question.text or question.question or question.prompt }}</h3>
-
+            {% if question.type in ['ordering', 'matching'] %}
+              <h3 class="question-text">{{ question.get('instruction') }}</h3>
+            {% endif %}
             {% if question.type == 'multiple_choice' %}
+              <h3 class="question-text">{{ question.get('question') }}</h3>
               <div class="answer-options">
                 {% for option in question.options %}
                   <button type="button"
@@ -163,7 +1060,6 @@
                   </button>
                 {% endfor %}
               </div>
-
             {% elif question.type == 'true_false' %}
               <div class="answer-options">
                 <button type="button"
@@ -182,25 +1078,61 @@
                 </button>
               </div>
 
-            {% elif question.type in ['fill_in_blank', 'translation'] %}
-              <div class="text-answer">
-                <input type="text"
-                       class="form-control"
-                       id="text-answer-{{ question_index }}"
-                       placeholder="{{ _('Введите ваш ответ...') }}">
-                <button type="button"
-                        class="btn btn-primary mt-3 text-submit-btn"
-                        data-question="{{ question_index }}">
-                  {{ _('Отправить ответ') }}
-                </button>
-              </div>
+            {% elif question.type in ['fill_blank', 'translation'] %}
+              <p class="sentence-prompt" style="font-size: 1.2rem; margin-bottom: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
+                {% if question.type == 'translation' %}
+                  {{ unescape_html(question.get('russian', question.get('question', ''))) }}
+                {% else %}
+                  {{ unescape_html(question.get('question', question.get('sentence', ''))) }}
+                {% endif %}
+              </p>
+              {% if question.options %}
+                <!-- Fill blank with options (multiple choice style) -->
+                <div class="answer-options">
+                  {% for option in question.options %}
+                    <button type="button"
+                            class="answer-option"
+                            data-question="{{ question_index }}"
+                            data-value="{{ loop.index0 }}"
+                            data-text="{{ option }}">
+                      <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
+                      <span class="option-text">{{ option }}</span>
+                    </button>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <!-- Fill blank with text input -->
+                <div class="text-answer">
+                  <input type="text"
+                         class="form-control"
+                         id="text-answer-{{ question_index }}"
+                         placeholder="{{ _('Введите ваш ответ...') }}">
+                  <button type="button"
+                          class="btn btn-primary mt-3 text-submit-btn"
+                          data-question="{{ question_index }}">
+                    {{ _('Отправить ответ') }}
+                  </button>
+                </div>
+              {% endif %}
 
-            {% elif question.type == 'reorder' %}
+            {% elif question.type in ['reorder', 'ordering'] %}
               <div class="reorder-answer">
+                {% set main_text = question.get('text') or question.get('question') or question.get('prompt') or '' %}
+                {% set instruction_text = question.get('instruction') or 'Составьте правильное предложение из слов' %}
+                {% if main_text and main_text != instruction_text %}
+                  {# Show main question text if it's different from instruction #}
+                  <p class="question-text" style="font-size: 1.15rem; margin-bottom: 1rem; font-weight: 600;">
+                    {{ unescape_html(main_text) }}
+                  </p>
+                {% endif %}
+                <p class="instruction-text">
+                  🔤 {{ instruction_text }}
+                </p>
                 <div class="words-container" id="words-container-{{ question_index }}">
-                  {% for word in question.words %}
-                    <button type="button" 
-                            class="word-button" 
+                  {% set words_to_display = question.get('shuffled_words', question.words) %}
+                  {% for word in words_to_display %}
+                    <button type="button"
+                            class="word-button"
                             data-word="{{ word }}"
                             onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)">
                       {{ word }}
@@ -208,7 +1140,7 @@
                   {% endfor %}
                 </div>
                 <div class="sentence-container">
-                  <div class="sentence-display" id="sentence-{{ question_index }}" 
+                  <div class="sentence-display" id="sentence-{{ question_index }}"
                        onclick="clearSentence({{ question_index }})">
                     <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
                   </div>
@@ -220,6 +1152,119 @@
                   {{ _('Отправить ответ') }}
                 </button>
               </div>
+
+            {% elif question.type == 'matching' %}
+              <div class="matching-answer">
+                <div class="matching-container" id="matching-{{ question_index }}" data-question-index="{{ question_index }}">
+                  {% for pair in question.pairs %}
+                    <div class="matching-row" data-row-index="{{ loop.index0 }}" data-left="{{ pair.left }}">
+                      <div class="matching-item left">{{ pair.left }}</div>
+                      <div class="match-connector"></div>
+                      <div class="matching-item right empty" data-slot="{{ loop.index0 }}">
+                        <span style="color: #9ca3af; font-style: italic;">{{ _('Выберите →') }}</span>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <div class="right-options-pool" id="right-pool-{{ question_index }}">
+                  {% set right_items = question.get('shuffled_right_items', question.pairs | map(attribute='right') | list) %}
+                  {% for item in right_items %}
+                    <div class="matching-item right"
+                         data-value="{{ item }}"
+                         onclick="selectRightOption({{ question_index }}, '{{ item }}', this)">
+                      {{ item }}
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <button type="button"
+                        class="btn btn-primary mt-3 matching-submit-btn"
+                        data-question="{{ question_index }}"
+                        onclick="submitMatchingAnswer({{ question_index }})">
+                  {{ _('Проверить') }}
+                </button>
+              </div>
+            {% elif question.type == 'transformation' %}
+              <div class="transformation-answer">
+                {% if question.get('question') %}
+                  <p class="source-question">{{ question.get('question') }}</p>
+                {% endif %}
+                {% if question.get('instruction') %}
+                  <p class="instruction-text">{{ question.get('instruction') }}</p>
+                {% endif %}
+                <input type="text"
+                       class="form-control"
+                       id="transformation-answer-{{ question_index }}"
+                       placeholder="{{ _('Введите преобразованное предложение...') }}">
+                <button type="button"
+                        class="btn btn-primary mt-3 transformation-submit-btn"
+                        data-question="{{ question_index }}"
+                        onclick="submitTransformationAnswer({{ question_index }})">
+                  {{ _('Отправить ответ') }}
+                </button>
+              </div>
+
+            {% elif question.type == 'listening_choice' %}
+              {# Audio listening question with multiple choice #}
+              {% if question.get('instruction') %}
+                <p class="instruction-text" style="margin-bottom: 1rem; font-size: 0.9rem; color: #6b7280;">
+                  {{ question.get('instruction') }}
+                </p>
+              {% endif %}
+              {% if question.get('audio') %}
+                <div class="audio-player" style="margin-bottom: 1.5rem; text-align: center;">
+                  <button class="audio-play-btn" onclick="playQuestionAudio('{{ question.get('audio') }}', this)" style="padding: 1rem 2rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; font-size: 1rem; cursor: pointer;">
+                    <i class="fas fa-play"></i> {{ _('Прослушать') }}
+                  </button>
+                </div>
+              {% endif %}
+              <div class="answer-options">
+                {% for option in question.options %}
+                  <button type="button"
+                          class="answer-option"
+                          data-question="{{ question_index }}"
+                          data-value="{{ loop.index0 }}"
+                          data-text="{{ option }}">
+                    <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
+                    <span class="option-text">{{ option }}</span>
+                  </button>
+                {% endfor %}
+              </div>
+
+            {% elif question.type == 'dialogue_completion' %}
+              {# Dialogue completion question #}
+              {% if question.get('instruction') %}
+                <p class="instruction-text" style="margin-bottom: 1rem; font-size: 0.9rem; color: #6b7280;">
+                  {{ question.get('instruction') }}
+                </p>
+              {% endif %}
+              {% if question.get('dialogue') %}
+                <div class="dialogue-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
+                  {% for line in question.get('dialogue', []) %}
+                    <div class="dialogue-line" style="margin-bottom: 0.75rem;">
+                      <strong>{{ line.speaker }}:</strong>
+                      {% if line.get('blank') %}
+                        <span style="color: #3b82f6; font-weight: 600;">___</span>
+                      {% else %}
+                        {{ line.text }}
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <div class="answer-options">
+                {% for option in question.options %}
+                  <button type="button"
+                          class="answer-option"
+                          data-question="{{ question_index }}"
+                          data-value="{{ loop.index0 }}"
+                          data-text="{{ option }}">
+                    <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
+                    <span class="option-text">{{ option }}</span>
+                  </button>
+                {% endfor %}
+              </div>
             {% endif %}
 
             <!-- Обратная связь -->
@@ -227,11 +1272,11 @@
               <div class="feedback-content">
                 <div class="feedback-icon"></div>
                 <div class="feedback-text"></div>
-                <button type="button" class="btn btn-primary mt-3" onclick="QuizApp.nextQuestion()">
-                  <span class="btn-text">{{ _('Следующий вопрос') }}</span>
-                  <i class="fas fa-arrow-right ms-2"></i>
-                </button>
               </div>
+              <button type="button" class="btn btn-primary mt-2" onclick="QuizApp.nextQuestion()" style="width: 100%; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                <span class="btn-text">{{ _('Следующий вопрос') }}</span>
+                <i class="fas fa-arrow-right ms-1"></i>
+              </button>
             </div>
           </div>
         {% endfor %}
@@ -242,10 +1287,66 @@
 </div>
 
 <script>
+// Fisher-Yates shuffle algorithm
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Shuffle options for questions that have them
+function shuffleQuestionOptions(questions) {
+  return questions.map(question => {
+    // Only shuffle if question has options and a correct answer
+    if (question.options && question.options.length > 0 &&
+        (question.type === 'multiple_choice' || question.type === 'listening_choice' ||
+         question.type === 'dialogue_completion' ||
+         (question.type === 'fill_blank' && question.options) ||
+         (question.type === 'fill_in_blank' && question.options))) {
+
+      // Store original correct answer
+      const correctAnswer = question.correct || question.correct_answer || question.answer;
+
+      // Create array of options with their original indices
+      const optionsWithIndices = question.options.map((opt, idx) => ({ option: opt, originalIndex: idx }));
+
+      // Shuffle the options
+      const shuffledOptions = shuffleArray(optionsWithIndices);
+
+      // Update the question with shuffled options
+      question.options = shuffledOptions.map(item => item.option);
+
+      // Update correct answer to match new position
+      if (typeof correctAnswer === 'number') {
+        // If correct answer was an index, find new position
+        const newIndex = shuffledOptions.findIndex(item => item.originalIndex === correctAnswer);
+        question.correct = newIndex;
+        question.correct_index = newIndex;
+      } else if (typeof correctAnswer === 'string') {
+        // If correct answer is text, find its new index
+        const newIndex = question.options.findIndex(opt =>
+          opt.toLowerCase().trim() === correctAnswer.toLowerCase().trim()
+        );
+        if (newIndex !== -1) {
+          question.correct_index = newIndex;
+        }
+        // Keep the text version as well
+        question.correct = correctAnswer;
+      }
+    }
+
+    return question;
+  });
+}
+
 window.quizData = {
-  questions: {{ questions|tojson|safe }},
+  questions: shuffleQuestionOptions({{ questions|tojson|safe }}),
   totalQuestions: {{ questions|length }},
-  isCompleted: {{ is_completed|tojson|safe }}
+  isCompleted: {{ is_completed|tojson|safe }},
+  hasResults: {{ has_results|tojson|safe }}
 };
 
 // Quiz data is loaded
@@ -348,15 +1449,14 @@ function submitReorderAnswer(questionIndex) {
   
   // Get correct answer and check
   const question = window.quizData.questions[questionIndex];
-  const correctAnswer = question.correct_answer;
-  
+  const correctAnswer = question.correct_answer || question.correct || question.answer || '';
+
   // Normalize for comparison
-  const normalize = (text) => text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+  const normalize = (text) => text ? text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim() : '';
   const isCorrect = normalize(sentence) === normalize(correctAnswer);
-  
+
   QuizApp.state.answers[questionIndex].correct = isCorrect;
-  if (isCorrect) QuizApp.state.correctCount++;
-  
+
   // Disable all word buttons
   const wordsContainer = document.getElementById(`words-container-${questionIndex}`);
   const wordButtons = wordsContainer.querySelectorAll('.word-button');
@@ -369,17 +1469,185 @@ function submitReorderAnswer(questionIndex) {
   QuizApp.showFeedback(questionIndex, isCorrect, correctAnswer);
 }
 
+// Matching question functions - new row-based layout
+window.matchingState = {};
+
+function selectRightOption(questionIndex, value, element) {
+  if (!matchingState[questionIndex]) {
+    matchingState[questionIndex] = {
+      currentRow: 0,
+      matches: {}
+    };
+  }
+
+  const state = matchingState[questionIndex];
+  const container = document.getElementById(`matching-${questionIndex}`);
+  const rows = container.querySelectorAll('.matching-row');
+
+  // Find first empty slot
+  let targetRow = null;
+  let targetSlot = null;
+
+  for (let i = 0; i < rows.length; i++) {
+    const slot = rows[i].querySelector('.right.empty');
+    if (slot) {
+      targetRow = rows[i];
+      targetSlot = slot;
+      break;
+    }
+  }
+
+  if (!targetRow) {
+    alert('Все слоты уже заполнены!');
+    return;
+  }
+
+  // Move the word to the slot
+  const leftValue = targetRow.dataset.left;
+  targetSlot.textContent = value;
+  targetSlot.classList.remove('empty');
+  targetSlot.classList.add('matched');
+  targetSlot.dataset.value = value;
+  targetRow.classList.add('matched');
+
+  // Remove from pool
+  element.style.display = 'none';
+
+  // Store match
+  state.matches[leftValue] = value;
+}
+
+function submitMatchingAnswer(questionIndex) {
+  const container = document.getElementById(`matching-${questionIndex}`);
+  const question = window.quizData.questions[questionIndex];
+  const state = matchingState[questionIndex];
+
+  if (!state) {
+    alert('Сопоставьте слова перед отправкой!');
+    return;
+  }
+
+  const rows = container.querySelectorAll('.matching-row');
+  const matchedCount = Object.keys(state.matches).length;
+
+  if (matchedCount < question.pairs.length) {
+    alert('Сопоставьте все слова перед отправкой!');
+    return;
+  }
+
+  // Check correctness
+  let correctCount = 0;
+
+  rows.forEach((row, index) => {
+    const leftValue = row.dataset.left;
+    const rightSlot = row.querySelector('.right');
+    const rightValue = rightSlot.dataset.value;
+    const correctPair = question.pairs.find(p => p.left === leftValue);
+
+    if (correctPair && rightValue === correctPair.right) {
+      correctCount++;
+      rightSlot.classList.add('correct');
+      row.querySelector('.left').classList.add('correct');
+    } else {
+      rightSlot.classList.add('incorrect');
+      row.querySelector('.left').classList.add('incorrect');
+    }
+  });
+
+  const isCorrect = correctCount === question.pairs.length;
+
+  // Store answer - format for display
+  const userMatchesFormatted = question.pairs.map(pair => {
+    const userRight = state.matches[pair.left] || '?';
+    return `${pair.left} → ${userRight}`;
+  }).join(', ');
+
+  // Store answer
+  QuizApp.state.answers[questionIndex] = {
+    value: JSON.stringify(state.matches),
+    text: userMatchesFormatted,
+    correct: isCorrect
+  };
+
+  // Disable pool and submit button
+  const pool = document.getElementById(`right-pool-${questionIndex}`);
+  pool.style.pointerEvents = 'none';
+  pool.style.opacity = '0.5';
+
+  const submitBtn = document.querySelector(`.matching-submit-btn[data-question="${questionIndex}"]`);
+  submitBtn.disabled = true;
+
+  // Show correct answer info
+  const correctAnswer = question.pairs.map(p => `${p.left} → ${p.right}`).join(', ');
+  QuizApp.showFeedback(questionIndex, isCorrect, correctAnswer);
+}
+
+// Transformation question functions
+function submitTransformationAnswer(questionIndex) {
+  const input = document.getElementById(`transformation-answer-${questionIndex}`);
+  const answer = input.value.trim();
+
+  if (!answer) {
+    input.classList.add('is-invalid');
+    return;
+  }
+
+  input.disabled = true;
+  const submitBtn = document.querySelector(`.transformation-submit-btn[data-question="${questionIndex}"]`);
+  submitBtn.disabled = true;
+
+  const question = window.quizData.questions[questionIndex];
+
+  // Get correct answer
+  let correctAnswer = question.correct_answer || question.answer || question.correct;
+
+  // Normalize for comparison
+  const normalize = (text) => {
+    if (!text) return '';
+    return text.toLowerCase()
+      .replace(/[^\w\sа-яёА-ЯЁ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  let isCorrect = false;
+  if (Array.isArray(correctAnswer)) {
+    isCorrect = correctAnswer.some(ans => normalize(ans) === normalize(answer));
+  } else {
+    isCorrect = normalize(answer) === normalize(correctAnswer);
+  }
+
+  // Check acceptable_answers if not correct
+  if (!isCorrect && question.acceptable_answers) {
+    isCorrect = question.acceptable_answers.some(ans => normalize(ans) === normalize(answer));
+  }
+
+  QuizApp.state.answers[questionIndex] = {
+    value: answer,
+    text: answer,
+    correct: isCorrect
+  };
+
+  QuizApp.showFeedback(questionIndex, isCorrect, correctAnswer);
+}
+
 // Приложение викторины
 window.QuizApp = {
   state: {
     currentQuestion: 0,
     answers: [],
     correctCount: 0,
-    started: false
+    started: false,
+    incorrectQuestions: [], // Track questions answered incorrectly
+    isRetryPhase: false, // Are we in retry phase?
+    totalAttempts: 0, // Total number of attempts (for scoring)
+    questionsCorrectStatus: {}, // Track if question was ever answered correctly: {questionIndex: true/false}
+    questionAttempts: {} // Track number of attempts per question: {questionIndex: 1 or 2}
   },
 
   init() {
-    if (window.quizData.isCompleted) return;
+    // Don't initialize quiz if results are already shown
+    if (window.quizData.hasResults) return;
 
     document.getElementById('start-quiz-btn')?.addEventListener('click', () => this.startQuiz());
 
@@ -393,12 +1661,25 @@ window.QuizApp = {
   },
 
   startQuiz() {
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('quiz-screen').style.display = 'block';
+    const startScreen = document.getElementById('start-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+
+    if (startScreen) startScreen.style.display = 'none';
+    if (quizScreen) quizScreen.style.display = 'block';
     this.state.started = true;
-    this.state.currentQuestion = 0;
+
+    // Restore progress if exists
+    {% if progress and progress.data and not is_completed %}
+      const savedData = {{ progress.data|tojson|safe }};
+      if (savedData.current_question !== undefined) {
+        this.state.currentQuestion = savedData.current_question;
+        this.state.answers = savedData.answers || [];
+        this.state.correctCount = savedData.correct_count || 0;
+      }
+    {% endif %}
+
     this.updateProgress();
-    this.showQuestion(0);
+    this.showQuestion(this.state.currentQuestion);
   },
 
   showQuestion(index) {
@@ -415,7 +1696,10 @@ window.QuizApp = {
         textarea.value = '';
         textarea.disabled = false;
       }
-      document.getElementById(`feedback-${index}`).style.display = 'none';
+      const feedbackElement = document.getElementById(`feedback-${index}`);
+      if (feedbackElement) {
+        feedbackElement.style.display = 'none';
+      }
       this.updateProgress();
     }
   },
@@ -456,21 +1740,22 @@ window.QuizApp = {
       } else {
         isCorrect = (value === 'true') === (correctAnswer == true);
       }
-    } else if (question.type === 'multiple_choice') {
-      // For multiple choice questions
+    } else if (question.type === 'multiple_choice' || question.type === 'listening_choice' || question.type === 'dialogue_completion' || (question.type === 'fill_blank' && question.options) || (question.type === 'fill_in_blank' && question.options)) {
+      // For multiple choice, listening_choice, dialogue_completion, and fill_blank with options
       const userIndex = parseInt(value);
-      
+
+      // Normalize function for flexible string comparison
+      const normalize = (str) => str ? str.toLowerCase().trim() : '';
+
       // If correctAnswer is the actual text of the correct option
       if (typeof correctAnswer === 'string' && !correctAnswer.match(/^\d+$/)) {
-        // Find the index of the correct answer in options
-        const correctIndex = question.options.findIndex(opt => opt === correctAnswer);
+        // Find the index of the correct answer in options with normalized comparison
+        const correctIndex = question.options.findIndex(opt => normalize(opt) === normalize(correctAnswer));
         isCorrect = userIndex === correctIndex;
-        // Correct answer is text, found at index
       } else {
         // correctAnswer is an index (number or string number)
         const correctIndex = typeof correctAnswer === 'string' ? parseInt(correctAnswer) : correctAnswer;
         isCorrect = userIndex === correctIndex;
-        // Correct answer is index
       }
     } else {
       // For other question types
@@ -482,7 +1767,19 @@ window.QuizApp = {
     button.classList.add('selected');
     if (isCorrect) {
       button.classList.add('correct');
-      this.state.correctCount++;
+    } else {
+      button.classList.add('incorrect');
+
+      // Also highlight the correct answer
+      const normalize = (str) => str ? str.toLowerCase().trim() : '';
+      const correctIndex = typeof correctAnswer === 'string' && !correctAnswer.match(/^\d+$/)
+        ? question.options.findIndex(opt => normalize(opt) === normalize(correctAnswer))
+        : (typeof correctAnswer === 'string' ? parseInt(correctAnswer) : correctAnswer);
+
+      const correctButton = button.closest('.answer-options').querySelector(`.answer-option[data-value="${correctIndex}"]`);
+      if (correctButton) {
+        correctButton.classList.add('correct');
+      }
     }
 
     this.state.answers[questionIndex] = {
@@ -490,7 +1787,6 @@ window.QuizApp = {
       text: text,
       correct: isCorrect
     };
-    
 
     this.showFeedback(questionIndex, isCorrect, correctAnswer);
   },
@@ -508,15 +1804,15 @@ window.QuizApp = {
     document.querySelector(`.text-submit-btn[data-question="${questionIndex}"]`).disabled = true;
 
     const question = window.quizData.questions[questionIndex];
-    
+
     // Get correct answer from various possible fields
-    let correctAnswer = question.correct_answer || question.answer;
+    let correctAnswer = question.correct_answer || question.answer || question.correct;
     
     // Normalize text while preserving Cyrillic characters
     const normalize = (text) => {
       if (!text) return '';
       return text.toLowerCase()
-        .replace(/[^\w\sа-яёА-ЯЁ]/g, '') // Include Cyrillic characters
+        .replace(/[^\w\sа-яёА-ЯЁ]/gi, '') // Include Cyrillic characters, case insensitive
         .replace(/\s+/g, ' ')
         .trim();
     };
@@ -528,8 +1824,14 @@ window.QuizApp = {
       isCorrect = normalize(answer) === normalize(correctAnswer);
     }
 
+    // Check alternative_answers
     if (!isCorrect && question.alternative_answers) {
       isCorrect = question.alternative_answers.some(ans => normalize(ans) === normalize(answer));
+    }
+
+    // Check acceptable_answers
+    if (!isCorrect && question.acceptable_answers) {
+      isCorrect = question.acceptable_answers.some(ans => normalize(ans) === normalize(answer));
     }
 
     this.state.answers[questionIndex] = {
@@ -537,9 +1839,6 @@ window.QuizApp = {
       text: answer,
       correct: isCorrect
     };
-    
-
-    if (isCorrect) this.state.correctCount++;
 
     this.showFeedback(questionIndex, isCorrect, correctAnswer);
   },
@@ -548,6 +1847,44 @@ window.QuizApp = {
     const feedbackEl = document.getElementById(`feedback-${questionIndex}`);
     const iconEl = feedbackEl.querySelector('.feedback-icon');
     const textEl = feedbackEl.querySelector('.feedback-text');
+    const question = window.quizData.questions[questionIndex];
+    const userAnswer = this.state.answers[questionIndex];
+
+    // Save progress after each answer
+    this.saveProgress();
+
+    // Track number of attempts for this question
+    if (!this.state.questionAttempts[questionIndex]) {
+      // First attempt
+      this.state.questionAttempts[questionIndex] = 1;
+    } else if (this.state.isRetryPhase && this.state.questionAttempts[questionIndex] === 1) {
+      // Second attempt (retry)
+      this.state.questionAttempts[questionIndex] = 2;
+    }
+
+    // Track if this question was ever answered correctly
+    if (isCorrect) {
+      // Mark question as correct if not already marked
+      if (!this.state.questionsCorrectStatus[questionIndex]) {
+        this.state.questionsCorrectStatus[questionIndex] = true;
+      }
+    }
+
+    // Track incorrect answers (only on first attempt, not retry)
+    if (!isCorrect && !this.state.isRetryPhase) {
+      if (!this.state.incorrectQuestions.includes(questionIndex)) {
+        this.state.incorrectQuestions.push(questionIndex);
+      }
+    } else if (isCorrect && this.state.isRetryPhase) {
+      // If correct on retry, remove from incorrect list
+      const index = this.state.incorrectQuestions.indexOf(questionIndex);
+      if (index > -1) {
+        this.state.incorrectQuestions.splice(index, 1);
+      }
+    }
+
+    // Count total attempts for scoring
+    this.state.totalAttempts++;
 
     if (isCorrect) {
       feedbackEl.className = 'question-feedback correct';
@@ -558,9 +1895,10 @@ window.QuizApp = {
       iconEl.innerHTML = '<i class="fas fa-times-circle"></i>';
 
       let correctText = '';
-      const question = window.quizData.questions[questionIndex];
+      let userText = userAnswer ? userAnswer.text : '';
 
-      if (question.type === 'multiple_choice' && question.options) {
+      // For questions with options (multiple_choice, fill_blank with options)
+      if ((question.type === 'multiple_choice' || question.type === 'fill_blank' || question.type === 'fill_in_blank') && question.options) {
         // Get the correct option text
         if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < question.options.length) {
           correctText = question.options[correctAnswer];
@@ -594,8 +1932,16 @@ window.QuizApp = {
         }
       }
 
-      textEl.innerHTML = `<strong>{{ _("Неправильно") }}</strong><br>{{ _("Правильный ответ:") }} <strong>${correctText}</strong>`;
-      
+      textEl.innerHTML = `<strong>{{ _("Неправильно") }}</strong><br>`;
+
+      // Don't show user answer for matching, reorder, transformation - it's already visually shown
+      const hideUserAnswer = ['matching', 'reorder', 'ordering', 'transformation'].includes(question.type);
+
+      if (userText && !hideUserAnswer) {
+        textEl.innerHTML += `{{ _("Ваш ответ:") }} <strong>${userText}</strong><br>`;
+      }
+      textEl.innerHTML += `{{ _("Правильный ответ:") }} <strong>${correctText}</strong>`;
+
       // Add explanation if available
       if (question.explanation) {
         textEl.innerHTML += `<br><br><strong>{{ _("Объяснение:") }}</strong> ${question.explanation}`;
@@ -608,13 +1954,156 @@ window.QuizApp = {
     feedbackEl.style.display = 'block';
   },
 
-  nextQuestion() {
-    this.state.currentQuestion++;
-    if (this.state.currentQuestion >= window.quizData.totalQuestions) {
-      this.showResults();
-    } else {
-      this.showQuestion(this.state.currentQuestion);
+  async saveProgress() {
+    // Save current progress to server
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+
+    try {
+      const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken ? csrfToken.content : ''
+        },
+        body: JSON.stringify({
+          status: 'in_progress',
+          data: {
+            current_question: this.state.currentQuestion,
+            answers: this.state.answers,
+            correct_count: this.state.correctCount,
+            total_questions: window.quizData.totalQuestions
+          }
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save progress');
+      }
+    } catch (error) {
+      console.error('Error saving progress:', error);
     }
+  },
+
+  nextQuestion() {
+    // Save progress before moving to next question
+    this.saveProgress();
+
+    if (this.state.isRetryPhase) {
+      // In retry phase, move to next incorrect question
+      const currentRetryIndex = this.state.incorrectQuestions.indexOf(this.state.currentQuestion);
+      const nextRetryIndex = currentRetryIndex + 1;
+
+      if (nextRetryIndex < this.state.incorrectQuestions.length) {
+        this.state.currentQuestion = this.state.incorrectQuestions[nextRetryIndex];
+        this.showQuestion(this.state.currentQuestion);
+      } else {
+        // Finished retry phase
+        this.showResults();
+      }
+    } else {
+      // Normal phase
+      this.state.currentQuestion++;
+
+      if (this.state.currentQuestion >= window.quizData.totalQuestions) {
+        // If there are incorrect questions and we haven't done retry yet
+        if (this.state.incorrectQuestions.length > 0) {
+          this.startRetryPhase();
+        } else {
+          this.showResults();
+        }
+      } else {
+        this.showQuestion(this.state.currentQuestion);
+      }
+    }
+  },
+
+  startRetryPhase() {
+    this.state.isRetryPhase = true;
+    this.state.currentQuestion = this.state.incorrectQuestions[0];
+
+    // Reset answers for incorrect questions to allow re-answering
+    this.state.incorrectQuestions.forEach(qIndex => {
+      this.state.answers[qIndex] = null;
+
+      // Reset matching state for this question
+      if (window.matchingState && window.matchingState[qIndex]) {
+        delete window.matchingState[qIndex];
+      }
+
+      // Re-enable the question
+      const questionCard = document.getElementById(`question-${qIndex}`);
+      if (questionCard) {
+        const question = window.quizData.questions[qIndex];
+
+        // Reset all interactive elements
+        questionCard.querySelectorAll('.answer-option').forEach(btn => {
+          btn.classList.remove('selected', 'correct', 'incorrect');
+          btn.disabled = false;
+        });
+
+        questionCard.querySelectorAll('input, textarea, select').forEach(input => {
+          input.value = '';
+          input.disabled = false;
+        });
+
+        questionCard.querySelectorAll('button[type="button"]').forEach(btn => {
+          btn.disabled = false;
+        });
+
+        // Special handling for matching questions
+        if (question && question.type === 'matching') {
+          // Reset matching rows
+          const matchingContainer = questionCard.querySelector(`#matching-${qIndex}`);
+          if (matchingContainer) {
+            const rows = matchingContainer.querySelectorAll('.matching-row');
+            rows.forEach((row, index) => {
+              const rightSlot = row.querySelector('.right');
+              if (rightSlot) {
+                rightSlot.classList.remove('matched', 'correct', 'incorrect');
+                rightSlot.classList.add('empty');
+                rightSlot.innerHTML = '<span style="color: #9ca3af; font-style: italic;">{{ _("Выберите →") }}</span>';
+                delete rightSlot.dataset.value;
+              }
+              row.classList.remove('matched');
+              row.querySelector('.left')?.classList.remove('correct', 'incorrect');
+            });
+          }
+
+          // Reset right options pool
+          const pool = questionCard.querySelector(`#right-pool-${qIndex}`);
+          if (pool) {
+            pool.style.pointerEvents = '';
+            pool.style.opacity = '';
+            pool.querySelectorAll('.matching-item.right').forEach(item => {
+              item.style.display = '';
+              item.classList.remove('matched', 'selected');
+            });
+          }
+        }
+
+        // Special handling for reorder questions
+        if (question && (question.type === 'reorder' || question.type === 'ordering')) {
+          const wordsContainer = questionCard.querySelector(`#words-container-${qIndex}`);
+          if (wordsContainer) {
+            wordsContainer.querySelectorAll('.word-button').forEach(btn => {
+              btn.disabled = false;
+              btn.classList.remove('used');
+            });
+          }
+
+          const sentenceDisplay = questionCard.querySelector(`#sentence-${qIndex}`);
+          if (sentenceDisplay) {
+            sentenceDisplay.innerHTML = '<span class="placeholder-text">{{ _("Нажмите на слова выше, чтобы составить предложение") }}</span>';
+          }
+        }
+
+        // Hide previous feedback
+        const feedback = document.getElementById(`feedback-${qIndex}`);
+        if (feedback) feedback.style.display = 'none';
+      }
+    });
+
+    this.showQuestion(this.state.currentQuestion);
   },
 
   updateProgress() {
@@ -630,20 +2119,86 @@ window.QuizApp = {
   },
 
   submitResults() {
-    const score = (this.state.correctCount / window.quizData.totalQuestions) * 100;
+    // Calculate weighted score: S = A_1 + A_2 * 0.5
+    // A_1 = correct on first attempt (full point)
+    // A_2 = correct on second attempt (half point)
+    let totalPoints = 0;
+    let correctFirstAttempt = 0;
+    let correctSecondAttempt = 0;
+
+    for (let qIndex = 0; qIndex < window.quizData.totalQuestions; qIndex++) {
+      const isCorrect = this.state.questionsCorrectStatus[qIndex] === true;
+      const attempts = this.state.questionAttempts[qIndex] || 0;
+
+      if (isCorrect) {
+        if (attempts === 1) {
+          // Correct on first attempt - full point
+          totalPoints += 1;
+          correctFirstAttempt++;
+        } else if (attempts === 2) {
+          // Correct on second attempt - half point
+          totalPoints += 0.5;
+          correctSecondAttempt++;
+        }
+      }
+    }
+
+    const score = window.quizData.totalQuestions > 0
+      ? (totalPoints / window.quizData.totalQuestions) * 100
+      : 0;
+
+    const questionsAnsweredCorrectly = correctFirstAttempt + correctSecondAttempt;
+
+    console.log('Client-side calculation:', {
+      totalQuestions: window.quizData.totalQuestions,
+      correctFirstAttempt,
+      correctSecondAttempt,
+      totalPoints,
+      score: score.toFixed(1),
+      questionsCorrectStatus: this.state.questionsCorrectStatus,
+      questionAttempts: this.state.questionAttempts
+    });
+
     const formData = new FormData();
     const csrfToken = document.querySelector('meta[name="csrf-token"]');
 
-
     if (csrfToken) formData.append('csrf_token', csrfToken.content);
 
+    // Send client-calculated score and correct count
+    formData.append('client_score', score);
+    formData.append('client_correct_count', questionsAnsweredCorrectly);
+
+    // Send detailed results for each question (final status after retry)
+    const detailedResults = [];
     for (let i = 0; i < window.quizData.totalQuestions; i++) {
       const answer = this.state.answers[i];
+      const isCorrect = this.state.questionsCorrectStatus[i] === true;
+      const attempts = this.state.questionAttempts[i] || 0;
+
+      // Use answer.text for display (actual answer text) or fallback to answer.value
+      const answerText = answer ? (answer.text || answer.value) : null;
+
+      detailedResults.push({
+        question_index: i,
+        answer: answerText,
+        is_correct: isCorrect,
+        attempts: attempts
+      });
+
+      // Keep backward compatibility - still send answer_N fields
       if (answer) {
         formData.append(`answer_${i}`, answer.value);
-      } else {
       }
     }
+
+    // Send detailed results as JSON
+    formData.append('client_results', JSON.stringify(detailedResults));
+
+    console.log('Sending to server:', {
+      client_score: score,
+      client_correct_count: questionsAnsweredCorrectly,
+      detailed_results: detailedResults
+    });
 
     fetch(window.location.href, {
       method: 'POST',
@@ -655,6 +2210,22 @@ window.QuizApp = {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
+        // Override server data with client-side calculation
+        data.correct_count = questionsAnsweredCorrectly;
+        data.score = score;
+
+        console.log('Using client-side data:', {
+          correct_count: questionsAnsweredCorrectly,
+          score: score
+        });
+
+        // Remove reset=true from URL to prevent resetting progress on page refresh
+        const url = new URL(window.location);
+        if (url.searchParams.has('reset')) {
+          url.searchParams.delete('reset');
+          window.history.replaceState({}, '', url);
+        }
+
         // Show results at the bottom of the page
         this.showResultsAndNavigation(data);
       }
@@ -666,24 +2237,101 @@ window.QuizApp = {
   },
 
   showResultsAndNavigation(data) {
-    // Hide the quiz screen
-    document.getElementById('quiz-screen').style.display = 'none';
-    
-    // Remove existing results if any
-    const existingResults = document.querySelector('.quiz-results-summary');
-    if (existingResults) {
-      existingResults.remove();
+    // Simply reload the page to show the completed lesson view
+    // This will display the server-rendered results page with proper formatting
+    window.location.reload();
+    return; // Stop execution after reload
+
+    // Recalculate breakdown for display
+    let correctFirstAttempt = 0;
+    let correctSecondAttempt = 0;
+    let totalPoints = 0;
+
+    for (let qIndex = 0; qIndex < window.quizData.totalQuestions; qIndex++) {
+      const isCorrect = this.state.questionsCorrectStatus[qIndex] === true;
+      const attempts = this.state.questionAttempts[qIndex] || 0;
+
+      if (isCorrect) {
+        if (attempts === 1) {
+          correctFirstAttempt++;
+          totalPoints += 1;
+        } else if (attempts === 2) {
+          correctSecondAttempt++;
+          totalPoints += 0.5;
+        }
+      }
     }
+
+    // Use data passed from submitResults (which has been overridden with client-side calculation)
+    const score = data.score;
+    const correctCount = data.correct_count;
+    const totalQuestions = window.quizData.totalQuestions;
+    const isPassed = score >= 80;
+
+    console.log('showResultsAndNavigation:', {
+      score,
+      correctCount,
+      correctFirstAttempt,
+      correctSecondAttempt,
+      totalPoints,
+      totalQuestions,
+      isPassed,
+      totalAttempts: this.state.totalAttempts,
+      questionsCorrectStatus: this.state.questionsCorrectStatus,
+      questionAttempts: this.state.questionAttempts
+    });
     
-    // Create results summary
-    const resultsDiv = document.createElement('div');
-    resultsDiv.className = 'quiz-results-summary mt-4';
-    
-    const score = data.score || (this.state.correctCount / window.quizData.totalQuestions) * 100;
-    const correctCount = data.correct_count || this.state.correctCount;
-    const totalCount = data.total_count || window.quizData.totalQuestions;
-    const isPassed = score >= 70;
-    
+    // Build grade display if available
+    let gradeHtml = '';
+    if (data.grade) {
+      const gradeColors = {
+        'A': '#10b981',  // green
+        'B': '#3b82f6',  // blue
+        'C': '#f59e0b',  // amber
+        'D': '#f97316',  // orange
+        'F': '#ef4444'   // red
+      };
+      const gradeColor = gradeColors[data.grade] || '#6b7280';
+      gradeHtml = `
+        <div class="grade-display" style="margin: 1rem 0; padding: 1rem; background: ${gradeColor}15; border-left: 4px solid ${gradeColor}; border-radius: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 2rem; font-weight: bold; color: ${gradeColor};">${data.grade}</span>
+            <div>
+              <div style="font-weight: 600; color: ${gradeColor};">${data.grade_name}</div>
+              <div style="font-size: 0.85rem; color: #6b7280;">{{ _('Ваша оценка') }}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Build achievements display if available
+    let achievementsHtml = '';
+    if (data.new_achievements && data.new_achievements.length > 0) {
+      const achievementsList = data.new_achievements.map(achievement => `
+        <div style="padding: 0.75rem; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 0.5rem; margin-bottom: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.5rem;">${achievement.icon || '🏆'}</span>
+            <div>
+              <div style="font-weight: 600; color: #92400e;">${achievement.name}</div>
+              <div style="font-size: 0.85rem; color: #78350f;">${achievement.description}</div>
+              <div style="font-size: 0.75rem; color: #a16207; margin-top: 0.25rem;">+${achievement.xp} XP</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      achievementsHtml = `
+        <div class="achievements-display" style="margin: 1rem 0; padding: 1rem; background: #fffbeb; border: 2px solid #fbbf24; border-radius: 0.5rem;">
+          <h4 style="margin: 0 0 0.75rem 0; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-medal"></i>
+            {{ _('Новые достижения!') }}
+          </h4>
+          ${achievementsList}
+        </div>
+      `;
+    }
+
     resultsDiv.innerHTML = `
       <div class="results-summary ${isPassed ? 'success' : 'warning'}">
         <h3>{{ _('Результаты викторины') }}</h3>
@@ -692,8 +2340,23 @@ window.QuizApp = {
           <span class="score-value">${Math.round(score)}%</span>
         </div>
         <p class="score-details">
-          {{ _('Правильно') }}: ${correctCount} {{ _('из') }} ${totalCount}
+          {{ _('Правильно') }}: ${correctCount} {{ _('из') }} ${totalQuestions} {{ _('вопросов') }}
         </p>
+        ${correctSecondAttempt > 0 ? `
+          <div class="attempts-breakdown" style="font-size: 0.9rem; color: #6b7280; margin-top: 0.5rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; border-left: 3px solid #4f46e5;">
+            <div style="margin-bottom: 0.25rem;">
+              ✓ С первой попытки: ${correctFirstAttempt} (${correctFirstAttempt} ${correctFirstAttempt === 1 ? 'балл' : 'балла'})
+            </div>
+            <div>
+              ½ Со второй попытки: ${correctSecondAttempt} (${correctSecondAttempt * 0.5} ${correctSecondAttempt === 1 ? 'балл' : 'балла'})
+            </div>
+            <div style="margin-top: 0.5rem; font-weight: 600; color: #4f46e5;">
+              Итого: ${totalPoints} из ${totalQuestions} баллов
+            </div>
+          </div>
+        ` : ''}
+        ${gradeHtml}
+        ${achievementsHtml}
         ${isPassed ? `
           <div class="feedback-message success">
             <i class="fas fa-check-circle"></i>
@@ -769,14 +2432,69 @@ window.QuizApp = {
 document.addEventListener('DOMContentLoaded', () => {
   QuizApp.init();
 
+  // Auto-start quiz if there's saved progress (not completed and not showing results)
+  {% if not has_results and progress and progress.data and not is_completed %}
+    const savedData = {{ progress.data|tojson|safe }};
+    // Auto-start if there's any saved data (current_question or answers exist)
+    if (savedData && (savedData.current_question !== undefined || (savedData.answers && savedData.answers.length > 0))) {
+      console.log('Auto-starting quiz with saved progress:', savedData);
+      QuizApp.startQuiz();
+    }
+  {% endif %}
+
   {% if is_completed %}
     const nextBtn = document.getElementById('complete-exercise');
+    const completeModuleBtn = document.getElementById('complete-module');
     if (nextBtn) {
       nextBtn.style.display = 'inline-flex';
       nextBtn.disabled = false;
+    } else if (completeModuleBtn) {
+      completeModuleBtn.style.display = 'inline-flex';
+      completeModuleBtn.disabled = false;
     }
   {% endif %}
 });
+
+// Audio playback for listening questions
+function playQuestionAudio(audioFile, button) {
+  if (!audioFile) {
+    console.error('No audio file provided');
+    return;
+  }
+
+  const originalHTML = button.innerHTML;
+  button.innerHTML = '<i class="fas fa-volume-up"></i> Воспроизведение...';
+  button.disabled = true;
+
+  // Extract filename from [sound:...] format if needed
+  let audioPath = audioFile;
+  const soundMatch = audioFile.match(/\[sound:([^\]]+)\]/);
+  if (soundMatch) {
+    audioPath = soundMatch[1];
+  }
+
+  // Play audio
+  const audio = new Audio(`/static/audio/${audioPath}`);
+
+  audio.onended = () => {
+    button.innerHTML = '<i class="fas fa-redo"></i> Прослушать еще раз';
+    button.disabled = false;
+  };
+
+  audio.onerror = () => {
+    console.error('Error playing audio:', audioPath);
+    button.innerHTML = '<i class="fas fa-redo"></i> Прослушать еще раз';
+    button.disabled = false;
+    // Fallback to simulation if audio file not found
+    alert('Аудиофайл не найден. Убедитесь, что файл существует в /static/audio/');
+  };
+
+  audio.play().catch(err => {
+    console.error('Error starting audio playback:', err);
+    button.innerHTML = '<i class="fas fa-redo"></i> Прослушать еще раз';
+    button.disabled = false;
+  });
+}
 </script>
 {% endblock %}
 

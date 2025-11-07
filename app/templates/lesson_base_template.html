@@ -5,11 +5,11 @@
   <!-- Compact Breadcrumb -->
   <nav aria-label="breadcrumb" class="lesson-breadcrumb">
     <ol class="breadcrumb-minimal">
-      <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
+      <li><a href="/learn/">{{ _('Курсы') }}</a></li>
       <li>/</li>
-      <li><a href="{{ url_for('curriculum.level_modules', level_code=lesson.module.level.code) }}">{{ lesson.module.level.code }}</a></li>
+      <li><a href="/learn/">{{ lesson.module.level.code }}</a></li>
       <li>/</li>
-      <li><a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}">{{ _('Модуль') }} {{ lesson.module.number }}</a></li>
+      <li><a href="/learn/">{{ lesson.module.number }}</a></li>
       <li>/</li>
       <li class="active">{{ _('Урок') }} {{ lesson.number }}</li>
     </ol>
@@ -39,7 +39,7 @@
       <h1 class="lesson-title">{{ lesson.title }}</h1>
     </div>
     <div class="lesson-progress-compact">
-      <span class="progress-text">{{ lesson.number }}/{{ total_lessons|default(7) }}</span>
+      <span class="progress-text">{{ lesson.number }}/{{ total_lessons|default(12) }}</span>
       <div class="progress-bar-mini">
         <div class="progress-fill-mini" style="width: {{ ((lesson.number / total_lessons|default(7)) * 100)|round }}%"></div>
       </div>
@@ -66,7 +66,7 @@
   <!-- Navigation Footer -->
   <div class="lesson-footer" id="lesson-footer">
     {% block action_buttons %}
-      <a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}"
+      <a href="{{ '/learn/' }}"
          class="btn-lesson btn-outline">
         ← {{ _('К модулю') }}
       </a>
@@ -93,7 +93,7 @@
                 class="btn-lesson btn-primary"
                 id="complete-module"
                 style="display: none;"
-                onclick="window.location.href='{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}'">
+                onclick="window.location.href='{{ '/learn/' }}'">
           <i class="fas fa-check"></i> {{ _('Завершить') }}
         </button>
       {% endif %}

@@ -10,8 +10,8 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Панель управления</a></li>
                 <li class="breadcrumb-item"><a href="{{ url_for('curriculum_admin.admin_lessons') }}">Все уроки</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('curriculum.level_modules', level_code=lesson.module.level.code) }}">{{ lesson.module.level.code }}</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('curriculum.module_lessons', module_id=lesson.module_id) }}">Модуль {{ lesson.module.number }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/learn/' }}">{{ lesson.module.level.code }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/learn/' }}">Модуль {{ lesson.module.number }}</a></li>
                 <li class="breadcrumb-item active">Урок {{ lesson.number }}</li>
             </ol>
         </nav>

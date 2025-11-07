@@ -1,8 +1,14 @@
 {% extends "lesson_base_template.html" %}
 
-{% set component_name = _('Чтение') %}
-{% set instruction_text = _('Внимательно прочитайте текст. Вы можете использовать встроенный словарь для незнакомых слов.') %}
-{% set block_description = _('Развитие навыков чтения и понимания текста') %}
+{% if text_content and text_content.is_listening_immersion %}
+  {% set component_name = _('Аудирование') %}
+  {% set instruction_text = _('Прослушайте диалог несколько раз. Постарайтесь понять содержание на слух. Можете читать текст и перевод во время прослушивания.') %}
+  {% set block_description = _('Развитие навыков восприятия речи на слух') %}
+{% else %}
+  {% set component_name = _('Чтение') %}
+  {% set instruction_text = _('Внимательно прочитайте текст. Вы можете использовать встроенный словарь для незнакомых слов.') %}
+  {% set block_description = _('Развитие навыков чтения и понимания текста') %}
+{% endif %}
 
 {% block lesson_content %}
 <div class="text-lesson">
@@ -42,6 +48,25 @@
     </div>
   {% endif %}
 
+  <!-- Аудио плеер для listening_immersion -->
+  {% if text_content and text_content.is_listening_immersion and text_content.audio %}
+    <div class="listening-audio-player" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+      <div style="text-align: center;">
+        <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem;">
+          <i class="fas fa-headphones"></i> {{ text_content.title or _('Прослушайте диалог') }}
+        </h3>
+        {% set audio_file = text_content.audio.replace('[sound:', '').replace(']', '') if '[sound:' in text_content.audio else text_content.audio %}
+        <audio id="listening-audio" controls style="width: 100%; max-width: 500px; border-radius: 50px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
+          <source src="{{ url_for('static', filename='audio/' + audio_file) }}" type="audio/mpeg">
+          Ваш браузер не поддерживает аудио элемент.
+        </audio>
+        <p style="color: rgba(255,255,255,0.9); margin-top: 1rem; font-size: 0.9rem;">
+          <i class="fas fa-info-circle"></i> Прослушайте несколько раз для лучшего запоминания
+        </p>
+      </div>
+    </div>
+  {% endif %}
+
   <!-- Прогресс чтения -->
   <div class="reading-progress">
     <div class="progress-bar">
@@ -53,12 +78,83 @@
   <div class="text-container">
     {% if text_content and text_content.text %}
       {% set is_dialogue = (text_content.type == 'dialogue') or (text_content.metadata and text_content.metadata.type == 'dialogue') %}
-      {% if is_dialogue %}
+      {% set is_reading_lines = text_content.is_reading_with_lines or (text_content.text is mapping and text_content.text.lines) %}
+
+      {% if is_reading_lines %}
+        <!-- Reading with lines structure -->
+        <div class="reading-lines-container">
+          {% if text_content.text.title %}
+            <h3 class="reading-title">{{ text_content.text.title }}</h3>
+          {% endif %}
+          {% for line in text_content.text.lines %}
+            <div class="reading-line" style="margin-bottom: 1.5rem;">
+              <div class="reading-line-text" style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 0.5rem;">
+                {{ line.text }}
+                {% if line.audio %}
+                  {% set audio_file = line.audio.replace('[sound:', '').replace(']', '') if '[sound:' in line.audio else line.audio %}
+                  <button class="reading-audio-btn" onclick="playAudio('{{ audio_file }}', this)">
+                    <i class="fas fa-volume-up"></i>
+                  </button>
+                {% endif %}
+              </div>
+              {% if line.translation %}
+                <div class="reading-line-translation" style="color: #6b7280; font-size: 0.95rem; font-style: italic;">
+                  {{ line.translation }}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% elif is_dialogue %}
         <!-- Диалог -->
         <div class="dialogue-container" id="dialogue-container"></div>
         <script type="application/json" id="dialogue-data">
           {{ text_content.text|tojson }}
         </script>
+      {% elif text_content.is_listening_immersion %}
+        <!-- Listening Immersion: прогрессивное отображение текста -->
+        <div class="listening-immersion-content" style="max-width: 800px; margin: 0 auto;">
+          {% if text_content.translation %}
+            <!-- Есть перевод - показываем ТОЛЬКО русский текст -->
+            <div class="listening-translation-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
+              <h4 style="color: #10b981; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-language"></i> Текст диалога
+              </h4>
+              <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.translation }}</div>
+            </div>
+
+            <!-- Инструкция для начального уровня -->
+            <div class="listening-instruction" style="background: #f0f9ff; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
+              <p style="color: #1e40af; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз, читая русский текст. Постарайтесь уловить английские слова и фразы на слух.
+              </p>
+            </div>
+          {% else %}
+            <!-- Нет перевода - показываем английский текст (для продвинутого уровня) -->
+            <div class="listening-text-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #667eea;">
+              <h4 style="color: #667eea; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-language"></i> English Text
+              </h4>
+              <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.text }}</div>
+            </div>
+
+            <!-- Инструкция для продвинутого уровня -->
+            <div class="listening-instruction" style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #f59e0b;">
+              <p style="color: #92400e; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                <i class="fas fa-star"></i> <strong>Продвинутый уровень:</strong> Прослушайте диалог и постарайтесь понять содержание. При необходимости можете обратиться к тексту.
+              </p>
+            </div>
+          {% endif %}
+
+          <!-- Кастомная инструкция из JSON (если есть) -->
+          {% if text_content.instruction %}
+            <div class="listening-custom-instruction" style="background: #fff7ed; border-radius: 12px; padding: 1.5rem; margin-top: 1rem; border-left: 4px solid #f59e0b;">
+              <p style="color: #92400e; margin: 0; font-size: 0.95rem;">
+                <i class="fas fa-lightbulb"></i> <strong>Совет:</strong> {{ text_content.instruction }}
+              </p>
+            </div>
+          {% endif %}
+        </div>
       {% else %}
         <!-- Обычный текст -->
         <div class="prose-container">
@@ -106,42 +202,60 @@
     </div>
   {% endif %}
 
-  <!-- Аудио для диалога -->
-  {% if text_content and text_content.audio %}
-    <div class="audio-section">
-      <button class="audio-play-btn" onclick="playDialogueAudio('{{ text_content.audio }}')">
-        <i class="fas fa-play-circle"></i>
-        {{ _('Прослушать диалог') }}
-      </button>
-    </div>
-  {% endif %}
-
   <!-- Вопросы для проверки понимания -->
-  {% if text_content and text_content.comprehension_questions %}
+  {% if text_content and (text_content.comprehension_questions or text_content.exercises) %}
     <div class="comprehension-section">
       <h4 class="section-title">{{ _('Проверка понимания') }}</h4>
       <div class="questions-container" id="questions-container">
-        {% for question in text_content.comprehension_questions %}
-          <div class="question-block" data-question-index="{{ loop.index0 }}">
+        {% set questions_list = text_content.comprehension_questions or text_content.exercises %}
+        {% for question in questions_list %}
+          {% set question_index = loop.index0 %}
+          <div class="question-block" data-question-index="{{ question_index }}">
             <p class="question-text">{{ loop.index }}. {{ question.question }}</p>
-            <div class="answer-input-wrapper">
-              <input type="text"
-                     class="answer-input"
-                     placeholder="{{ _('Введите ваш ответ...') }}"
-                     data-correct="{{ question.correct_answer }}"
-                     data-alternatives="{{ question.alternative_answers|join(',') if question.alternative_answers else '' }}">
-              <button class="check-answer-btn" onclick="checkAnswer({{ loop.index0 }})">
-                <i class="fas fa-check"></i>
-              </button>
-            </div>
-            <div class="answer-feedback" style="display: none;"></div>
+
+            {% if question.type == 'true_false' %}
+              {# True/False question #}
+              <div class="answer-options" style="display: flex; gap: 1rem;">
+                <button class="answer-option-btn" data-value="true" onclick="checkTrueFalseAnswer({{ question_index }}, true)" style="flex: 1;">
+                  <i class="fas fa-check-circle" style="color: #10b981;"></i> {{ _('Правда') }}
+                </button>
+                <button class="answer-option-btn" data-value="false" onclick="checkTrueFalseAnswer({{ question_index }}, false)" style="flex: 1;">
+                  <i class="fas fa-times-circle" style="color: #ef4444;"></i> {{ _('Ложь') }}
+                </button>
+              </div>
+
+            {% elif question.type == 'fill_blank' and question.options %}
+              {# Fill blank with options #}
+              <div class="answer-options" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                {% for option in question.options %}
+                  <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
+                    {{ option }}
+                  </button>
+                {% endfor %}
+              </div>
+
+            {% else %}
+              {# Text input for other types #}
+              <div class="answer-input-wrapper">
+                <input type="text"
+                       class="answer-input"
+                       placeholder="{{ _('Введите ваш ответ...') }}"
+                       data-correct="{{ question.correct_answer or question.correct }}"
+                       data-alternatives="{{ question.alternative_answers|join(',') if question.alternative_answers else '' }}">
+                <button class="check-answer-btn" onclick="checkAnswer({{ question_index }})">
+                  <i class="fas fa-check"></i>
+                </button>
+              </div>
+            {% endif %}
+
+            <div class="answer-feedback" style="display: none;" data-correct="{{ question.correct|lower if question.correct is not none else '' }}" data-explanation="{{ question.explanation or '' }}"></div>
           </div>
         {% endfor %}
       </div>
       <div class="comprehension-results" id="comprehension-results" style="display: none;">
         <div class="results-summary">
           <i class="fas fa-chart-pie"></i>
-          <span>{{ _('Результат:') }} <strong id="correct-count">0</strong> {{ _('из') }} <strong>{{ text_content.comprehension_questions|length }}</strong></span>
+          <span>{{ _('Результат:') }} <strong id="correct-count">0</strong> {{ _('из') }} <strong>{{ questions_list|length }}</strong></span>
         </div>
       </div>
     </div>
@@ -157,7 +271,8 @@
     <form method="POST" action="{{ url_for('curriculum_lessons.update_lesson_progress', lesson_id=lesson.id) }}" id="text-completion-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="status" value="completed">
-      <input type="hidden" name="score" value="100">
+      <input type="hidden" name="score" value="100" id="completion-score">
+      <input type="hidden" name="comprehension_results" value="" id="comprehension-results">
       <button type="submit" class="btn btn-success btn-lg" id="mark-read-btn" disabled>
         <i class="fas fa-check-circle"></i> {{ _('Отметить как прочитано') }}
       </button>
@@ -258,30 +373,33 @@ function filterVocabulary() {
 // Воспроизведение аудио
 function playAudio(audioFile, buttonElement) {
   const audio = document.getElementById('vocab-audio');
-  
+
   // Если нажали на кнопку того же аудио, которое играет - ставим паузу
   if (!audio.paused && audio.src.includes(audioFile)) {
     audio.pause();
     return;
   }
-  
+
   // Сбрасываем все кнопки в исходное состояние
-  document.querySelectorAll('.vocab-audio-btn').forEach(btn => {
+  document.querySelectorAll('.vocab-audio-btn, .audio-btn, .reading-audio-btn').forEach(btn => {
     btn.innerHTML = '<i class="fas fa-volume-up"></i>';
   });
-  
+
   // Воспроизводим новое аудио
   audio.src = `/static/audio/${audioFile}`;
-  
+  audio.play().catch(err => {
+    console.error('Ошибка воспроизведения:', err);
+  });
+
   // Обновляем иконку на текущей кнопке
   if (buttonElement) {
     buttonElement.innerHTML = '<i class="fas fa-pause"></i>';
-    
+
     // Возвращаем иконку когда аудио закончится
     audio.onended = function() {
       buttonElement.innerHTML = '<i class="fas fa-volume-up"></i>';
     };
-    
+
     // Возвращаем иконку при паузе
     audio.onpause = function() {
       if (!audio.ended) {
@@ -362,24 +480,142 @@ function checkAnswer(questionIndex) {
   updateComprehensionResults();
 }
 
+// Check true/false answer
+function checkTrueFalseAnswer(questionIndex, userAnswer) {
+  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
+  const feedback = questionBlock.querySelector('.answer-feedback');
+  const buttons = questionBlock.querySelectorAll('.answer-option-btn');
+  const correctAnswer = feedback.dataset.correct === 'true';
+  const explanation = feedback.dataset.explanation || '';
+
+  const isCorrect = userAnswer === correctAnswer;
+
+  // Disable all buttons
+  buttons.forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+  });
+
+  // Mark the question block as answered
+  if (isCorrect) {
+    questionBlock.classList.add('answered-correct');
+  }
+
+  feedback.style.display = 'block';
+
+  if (isCorrect) {
+    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!' + (explanation ? `<br><small>${explanation}</small>` : '');
+    feedback.className = 'answer-feedback correct';
+  } else {
+    feedback.innerHTML = '<i class="fas fa-times-circle"></i> Неправильно. ' + (explanation ? `<br><small>${explanation}</small>` : '');
+    feedback.className = 'answer-feedback incorrect';
+  }
+
+  updateComprehensionResults();
+}
+
+// Check fill blank answer
+function checkFillBlankAnswer(questionIndex, userAnswer) {
+  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
+  const feedback = questionBlock.querySelector('.answer-feedback');
+  const buttons = questionBlock.querySelectorAll('.answer-option-btn');
+  const correctAnswer = feedback.dataset.correct;
+  const explanation = feedback.dataset.explanation || '';
+
+  const isCorrect = userAnswer === correctAnswer;
+
+  // Disable all buttons
+  buttons.forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+  });
+
+  // Mark the question block as answered
+  if (isCorrect) {
+    questionBlock.classList.add('answered-correct');
+  }
+
+  feedback.style.display = 'block';
+
+  if (isCorrect) {
+    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!' + (explanation ? `<br><small>${explanation}</small>` : '');
+    feedback.className = 'answer-feedback correct';
+  } else {
+    feedback.innerHTML = '<i class="fas fa-times-circle"></i> Неправильно. Правильный ответ: ' + correctAnswer + (explanation ? `<br><small>${explanation}</small>` : '');
+    feedback.className = 'answer-feedback incorrect';
+  }
+
+  updateComprehensionResults();
+}
+
 // Обновление результатов
 function updateComprehensionResults() {
   const totalQuestions = document.querySelectorAll('.question-block').length;
-  const correctAnswers = document.querySelectorAll('.answer-input.correct').length;
+
+  if (totalQuestions === 0) {
+    return;
+  }
+
+  // Считаем правильные ответы - вопросы с классом answered-correct
+  const correctQuestions = document.querySelectorAll('.question-block.answered-correct').length;
 
   const resultsSection = document.getElementById('comprehension-results');
   const correctCount = document.getElementById('correct-count');
 
-  correctCount.textContent = correctAnswers;
-  resultsSection.style.display = 'block';
+  if (correctCount) {
+    correctCount.textContent = correctQuestions;
+  }
 
-  if (correctAnswers === totalQuestions) {
-    resultsSection.classList.add('all-correct');
+  if (resultsSection) {
+    resultsSection.style.display = 'block';
+
+    if (correctQuestions === totalQuestions) {
+      resultsSection.classList.add('all-correct');
+    }
   }
 
   if (window.checkCompletionStatus) {
     window.checkCompletionStatus();
   }
+}
+
+// Собрать результаты comprehension questions для отправки на сервер
+function collectComprehensionResults() {
+  const totalQuestions = document.querySelectorAll('.question-block').length;
+
+  if (totalQuestions === 0) {
+    // Нет вопросов - 100%
+    return {
+      score: 100,
+      total: 0,
+      correct: 0,
+      questions: []
+    };
+  }
+
+  // Считаем правильные ответы - вопросы с классом answered-correct
+  const correctAnswers = document.querySelectorAll('.question-block.answered-correct').length;
+
+  const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 100;
+
+  const questions = [];
+  document.querySelectorAll('.question-block').forEach((block, idx) => {
+    const questionText = block.querySelector('.question-text')?.textContent || '';
+    const isCorrect = block.classList.contains('answered-correct');
+
+    questions.push({
+      index: idx,
+      question: questionText,
+      correct: isCorrect
+    });
+  });
+
+  return {
+    score: score,
+    total: totalQuestions,
+    correct: correctAnswers,
+    questions: questions
+  };
 }
 
 // Инициализация прогресса чтения
@@ -390,9 +626,10 @@ function initReadingProgress() {
 
   function checkCompletionStatus() {
     const hasQuestions = document.querySelectorAll('.question-block').length > 0;
-    const allQuestionsAnswered = hasQuestions &&
-      document.querySelectorAll('.answer-input.correct').length ===
-      document.querySelectorAll('.question-block').length;
+    const totalQuestions = document.querySelectorAll('.question-block').length;
+    // Считаем правильные ответы - вопросы с классом answered-correct
+    const correctQuestions = document.querySelectorAll('.question-block.answered-correct').length;
+    const allQuestionsAnswered = hasQuestions && (correctQuestions === totalQuestions);
 
     if (hasScrolledToBottom || allQuestionsAnswered) {
       markReadBtn.disabled = false;
@@ -449,11 +686,15 @@ function initReadingProgress() {
       markReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
 
       try {
+        // Собираем результаты comprehension questions
+        const comprehensionResults = collectComprehensionResults();
+
         const formData = new FormData(form);
         const jsonData = {
           status: formData.get('status'),
-          score: parseFloat(formData.get('score')),
+          score: comprehensionResults.score,  // Используем рассчитанный score
           reading_time: readingTime,
+          comprehension_results: comprehensionResults,
           csrf_token: formData.get('csrf_token')
         };
         
@@ -511,9 +752,10 @@ function showCompletionResults() {
   const readingTime = Math.round((Date.now() - startTime) / 1000);
   const minutes = Math.floor(readingTime / 60);
   const seconds = readingTime % 60;
-  
+
   const hasQuestions = document.querySelectorAll('.question-block').length > 0;
-  const correctAnswers = document.querySelectorAll('.answer-input.correct').length;
+  // Считаем правильные ответы - вопросы с классом answered-correct
+  const correctAnswers = document.querySelectorAll('.question-block.answered-correct').length;
   const totalQuestions = document.querySelectorAll('.question-block').length;
   
   let resultsHtml = `
@@ -577,6 +819,73 @@ function showCompletionResults() {
   // Прокручиваем к результатам
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+
+// Восстановление сохранённых ответов при загрузке страницы
+function restoreSavedAnswers() {
+  {% if saved_comprehension %}
+  const savedData = {{ saved_comprehension | tojson }};
+
+  if (savedData && savedData.questions) {
+    savedData.questions.forEach((savedQuestion, index) => {
+      const questionBlock = document.querySelector(`[data-question-index="${index}"]`);
+
+      if (questionBlock && savedQuestion.correct) {
+        // Отмечаем вопрос как правильно отвеченный
+        questionBlock.classList.add('answered-correct');
+
+        // Блокируем элементы ввода
+        const input = questionBlock.querySelector('.answer-input');
+        if (input) {
+          input.classList.add('correct');
+          input.disabled = true;
+
+          // Найти правильный ответ и установить его
+          const checkBtn = questionBlock.querySelector('.check-btn');
+          if (checkBtn) {
+            checkBtn.disabled = true;
+          }
+        }
+
+        const buttons = questionBlock.querySelectorAll('.answer-option-btn');
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.style.opacity = '0.6';
+        });
+
+        // Показываем feedback
+        const feedback = questionBlock.querySelector('.answer-feedback');
+        if (feedback) {
+          feedback.style.display = 'block';
+          feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!';
+          feedback.className = 'answer-feedback correct';
+        }
+      }
+    });
+
+    // Обновляем результаты
+    setTimeout(() => {
+      updateComprehensionResults();
+
+      // Включаем кнопку завершения если все вопросы отвечены правильно
+      const totalQuestions = document.querySelectorAll('.question-block').length;
+      const correctAnswers = savedData.correct || 0;
+
+      if (totalQuestions > 0 && correctAnswers === totalQuestions) {
+        const markReadBtn = document.getElementById('mark-read-btn');
+        if (markReadBtn) {
+          markReadBtn.disabled = false;
+        }
+      }
+    }, 100);
+  }
+  {% endif %}
+}
+
+// Вызываем при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+  // Даём время на загрузку DOM
+  setTimeout(restoreSavedAnswers, 500);
+});
 </script>
 {% endblock %}
 
