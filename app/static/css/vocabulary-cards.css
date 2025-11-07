@@ -1,0 +1,577 @@
+/* Vocabulary Cards Lesson Styles */
+
+.vocabulary-cards-lesson {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Progress Header */
+.cards-progress-header {
+  margin-bottom: 2rem;
+}
+
+.progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  color: #1a1a1a;
+}
+
+.progress-current {
+  font-weight: 600;
+}
+
+#current-card-num {
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+.progress-divider {
+  color: #9ca3af;
+}
+
+.progress-total {
+  color: #6b7280;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #6366f1);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Cards Stack Container */
+.cards-stack-container {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  margin-bottom: 2rem;
+  perspective: 1000px;
+}
+
+/* Vocabulary Card */
+.vocabulary-card {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  width: 90%;
+  max-width: 500px;
+  height: 450px;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  display: none !important; /* Hide by default */
+}
+
+.vocabulary-card.active {
+  display: block !important;
+  transform: translateX(-50%) scale(1) !important;
+  opacity: 1 !important;
+  pointer-events: all !important;
+  z-index: 10 !important;
+}
+
+.vocabulary-card.prev {
+  display: block !important;
+  transform: translateX(-70%) scale(0.85);
+  opacity: 0.3;
+  z-index: 5;
+}
+
+.vocabulary-card.next {
+  display: block !important;
+  transform: translateX(-30%) scale(0.85);
+  opacity: 0.3;
+  z-index: 5;
+}
+
+/* Card Inner (for flip animation) */
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+
+.vocabulary-card.flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+/* Card Faces */
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  border: 2px solid #e5e7eb;
+}
+
+.card-front {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+}
+
+/* Card Content */
+.card-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.word-english {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  color: white;
+}
+
+.word-pronunciation {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  font-style: italic;
+  margin-bottom: 1rem;
+  color: white;
+}
+
+.word-russian {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+  color: white;
+}
+
+.word-example {
+  font-size: 1.1rem;
+  opacity: 0.95;
+  max-width: 90%;
+  color: white;
+}
+
+.example-text {
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.example-translation {
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+/* Audio Button on Card */
+.audio-btn-card {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.5);
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 100;
+}
+
+.audio-btn-card:hover {
+  background: rgba(255,255,255,0.3);
+  transform: scale(1.1);
+}
+
+/* Flip Hint */
+.card-flip-hint {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  color: white;
+}
+
+/* Swipe Indicators */
+.swipe-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 3rem;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.swipe-left {
+  left: 1rem;
+}
+
+.swipe-right {
+  right: 1rem;
+}
+
+.vocabulary-card.swipe-hint-left .swipe-left,
+.vocabulary-card.swipe-hint-right .swipe-right {
+  opacity: 1;
+}
+
+/* Navigation Buttons */
+.cards-navigation {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #4338ca;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-flip {
+  background: #06b6d4;
+}
+
+.btn-flip:hover {
+  background: #0891b2;
+}
+
+/* No Cards Message */
+.no-cards-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.completion-icon {
+  font-size: 4rem;
+  color: #10b981;
+  margin-bottom: 1rem;
+}
+
+.no-cards-message h3 {
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.no-cards-message p {
+  color: #6b7280;
+}
+
+/* Actions Section */
+.cards-actions-section {
+  margin-top: 3rem;
+}
+
+.actions-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  color: #1f2937;
+}
+
+.words-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.word-action-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  transition: all 0.3s;
+}
+
+.word-action-item:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.word-info {
+  flex: 1;
+}
+
+.word-pair {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.word-en {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.word-divider {
+  color: #9ca3af;
+}
+
+.word-ru {
+  color: #6b7280;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 2px solid;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.btn-learn {
+  background: white;
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.btn-learn:hover:not(:disabled) {
+  background: #4f46e5;
+  color: white;
+}
+
+.btn-know {
+  background: white;
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.btn-know:hover:not(:disabled) {
+  background: #10b981;
+  color: white;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.action-status i {
+  color: #10b981;
+}
+
+/* Completion Stats */
+.completion-stats {
+  margin-top: 3rem;
+  padding: 2rem 0;
+}
+
+.stats-card {
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border: 2px solid #c7d2fe;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.stat-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.stats-card h3 {
+  font-size: 1.8rem;
+  margin-bottom: 2rem;
+  color: #1f2937;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.stat-item {
+  padding: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #4f46e5;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .vocabulary-card {
+    width: 95%;
+    height: 400px;
+  }
+
+  .word-english {
+    font-size: 2rem;
+  }
+
+  .word-russian {
+    font-size: 1.6rem;
+  }
+
+  .cards-navigation {
+    flex-direction: column;
+  }
+
+  .nav-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .word-action-item {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .word-pair {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .action-buttons {
+    width: 100%;
+  }
+
+  .action-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .cards-stack-container {
+    height: 450px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vocabulary-cards-lesson {
+    padding: 0.5rem;
+  }
+
+  .vocabulary-card {
+    height: 380px;
+  }
+
+  .word-english {
+    font-size: 1.75rem;
+  }
+
+  .word-russian {
+    font-size: 1.4rem;
+  }
+
+  .word-pronunciation {
+    font-size: 1rem;
+  }
+
+  .word-example {
+    font-size: 1rem;
+  }
+
+  .card-face {
+    padding: 1.5rem;
+  }
+}
