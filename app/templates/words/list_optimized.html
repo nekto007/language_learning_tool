@@ -285,8 +285,27 @@
 
 <script>
 function playAudio(audioUrl) {
+    console.log('🔊 playAudio called with:', audioUrl);
     const audio = document.getElementById('audioPlayer');
+
+    if (!audio) {
+        console.error('❌ Audio element not found');
+        return;
+    }
+
     audio.src = audioUrl;
+
+    console.log('🔊 Calling play()...');
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(() => {
+            console.log('✅ Audio playing successfully');
+        }).catch(error => {
+            console.error('❌ Play failed:', error);
+            alert('Ошибка воспроизведения: ' + error.message);
+        });
+    }
 }
 
 function changeWordStatus(wordId, status) {
