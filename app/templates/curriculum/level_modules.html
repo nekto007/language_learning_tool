@@ -73,7 +73,7 @@
     <div class="section-content">
       {% if modules %}
         <div class="modules-list">
-          {% for module in modules %}
+          {% for module in modules|sort(attribute='number') %}
             {% set progress = user_module_progress.get(module.id, {}) %}
             {% set is_accessible = progress.get('is_accessible', False) %}
             {% set is_completed = progress.get('is_completed', False) %}
