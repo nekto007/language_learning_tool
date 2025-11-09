@@ -1854,12 +1854,20 @@ window.QuizApp = {
     this.showFeedback(questionIndex, isCorrect, correctAnswer);
   },
 
-  showFeedback(questionIndex, isCorrect, correctAnswer) {
+  showFeedback(questionIndex, isCorrect, correctAnswerParam) {
     const feedbackEl = document.getElementById(`feedback-${questionIndex}`);
     const iconEl = feedbackEl.querySelector('.feedback-icon');
     const textEl = feedbackEl.querySelector('.feedback-text');
     const question = window.quizData.questions[questionIndex];
     const userAnswer = this.state.answers[questionIndex];
+
+    // Get the actual correct answer from the question object (after shuffling)
+    let correctAnswer = correctAnswerParam;
+    if (question.correct_index !== undefined) {
+      correctAnswer = question.correct_index;
+    } else if (question.correct !== undefined) {
+      correctAnswer = question.correct;
+    }
 
     // Save progress after each answer
     this.saveProgress();
