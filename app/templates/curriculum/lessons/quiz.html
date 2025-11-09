@@ -1354,7 +1354,7 @@ function shuffleQuestionOptions(questions) {
 }
 
 window.quizData = {
-  questions: shuffleQuestionOptions({{ questions|tojson|safe }}),
+  questions: {{ questions|tojson|safe }},  // Options already shuffled on server
   totalQuestions: {{ questions|length }},
   isCompleted: {{ is_completed|tojson|safe }},
   hasResults: {{ has_results|tojson|safe }}

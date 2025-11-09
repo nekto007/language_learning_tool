@@ -501,6 +501,36 @@ def quiz_lesson(lesson_id):
             random.shuffle(shuffled_words)
             question['shuffled_words'] = shuffled_words
 
+        # Shuffle options for multiple_choice and fill_blank questions
+        if question.get('type') in ['multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'] and 'options' in question and len(question['options']) > 0:
+            # Store the correct answer before shuffling
+            correct_answer = question.get('correct') or question.get('correct_answer') or question.get('answer')
+
+            # Find the index of the correct answer in the original options
+            original_correct_index = None
+            if isinstance(correct_answer, str):
+                # Find by matching text
+                for i, opt in enumerate(question['options']):
+                    if opt.lower().strip() == correct_answer.lower().strip():
+                        original_correct_index = i
+                        break
+            elif isinstance(correct_answer, int):
+                original_correct_index = correct_answer
+
+            # Shuffle the options
+            shuffled_options = question['options'][:]
+            random.shuffle(shuffled_options)
+
+            # Update the correct index to match the new position
+            if original_correct_index is not None and original_correct_index < len(question['options']):
+                original_correct_text = question['options'][original_correct_index]
+                new_correct_index = shuffled_options.index(original_correct_text)
+                question['correct_index'] = new_correct_index
+                question['correct'] = new_correct_index
+
+            # Update the options to the shuffled version
+            question['options'] = shuffled_options
+
     # Check for reset parameter
     reset_progress = request.args.get('reset') == 'true'
 
