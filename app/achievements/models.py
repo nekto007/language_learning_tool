@@ -30,7 +30,7 @@ class LessonGrade(db.Model):
 
     # Relationships
     user = relationship('User', backref='lesson_grades')
-    lesson = relationship('Lessons', backref='grades')
+    lesson = relationship('Lessons', back_populates='grades')
 
     __table_args__ = (
         Index('idx_lesson_grades_user_id', 'user_id'),

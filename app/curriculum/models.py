@@ -232,6 +232,16 @@ class Lessons(db.Model):
         back_populates='lesson',
         cascade='all, delete-orphan'
     )
+    grades = relationship(
+        'LessonGrade',
+        back_populates='lesson',
+        cascade='all, delete-orphan'
+    )
+    attempts = relationship(
+        'LessonAttempt',
+        back_populates='lesson',
+        cascade='all, delete-orphan'
+    )
 
     __table_args__ = (
         Index('idx_lessons_module_number', 'module_id', 'number', unique=True),
@@ -375,7 +385,7 @@ class LessonAttempt(db.Model):
 
     # Relationships
     user = relationship('User', backref='lesson_attempts')
-    lesson = relationship('Lessons', backref='attempts')
+    lesson = relationship('Lessons', back_populates='attempts')
     lesson_progress = relationship('LessonProgress', back_populates='attempts')
 
     __table_args__ = (
