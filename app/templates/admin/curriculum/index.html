@@ -111,6 +111,7 @@
                                         </a>
                                         <form action="{{ url_for('admin.delete_module', module_id=module.id) }}"
                                               method="POST" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm"
                                                     onclick="return confirm('Delete this module?')" title="Delete Module">
                                                 <i class="fas fa-trash"></i>

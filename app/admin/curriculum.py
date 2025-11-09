@@ -272,7 +272,7 @@ def delete_module(module_id):
     module = Module.query.get_or_404(module_id)
 
     # Проверяем наличие связанных уроков
-    if module.lessons.count() > 0:
+    if len(module.lessons) > 0:
         flash(_('Невозможно удалить модуль с уроками. Сначала удалите связанные уроки.'), 'danger')
         return redirect(url_for('admin.module_list'))
 
