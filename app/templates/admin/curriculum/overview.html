@@ -75,10 +75,12 @@
                                                     {% if module.description and module.description|length > 100 %}...{% endif %}
                                                 </p>
                                                 <div class="lessons-preview">
-                                                    {% for lesson in module.lessons|sort(attribute='number')[:5] %}
+                                                    {% for lesson in module.lessons|sort(attribute='number') %}
+                                                    {% if loop.index <= 5 %}
                                                     <span class="badge bg-{{ {'vocabulary': 'primary', 'grammar': 'success', 'quiz': 'warning', 'matching': 'info', 'text': 'secondary', 'checkpoint': 'danger', 'card': 'dark'}.get(lesson.type, 'secondary') }} me-1">
                                                         {{ lesson.number }}. {{ lesson.type }}
                                                     </span>
+                                                    {% endif %}
                                                     {% endfor %}
                                                     {% if module.lessons|length > 5 %}
                                                     <span class="text-muted small">+{{ module.lessons|length - 5 }} more</span>
