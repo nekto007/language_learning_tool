@@ -268,19 +268,21 @@ def edit_module(module_id):
 @admin.route('/curriculum/modules/<int:module_id>/delete', methods=['POST'])
 @admin_required
 def delete_module(module_id):
-    """Удаление модуля"""
+    """Удаление модуля (вместе со всеми уроками благодаря cascade)"""
     module = Module.query.get_or_404(module_id)
 
-    # Проверяем наличие связанных уроков
-    if len(module.lessons) > 0:
-        flash(_('Невозможно удалить модуль с уроками. Сначала удалите связанные уроки.'), 'danger')
-        return redirect(url_for('admin.module_list'))
+    lesson_count = len(module.lessons)
+    module_title = module.title
 
     db.session.delete(module)
     db.session.commit()
 
-    flash(_('Модуль успешно удален!'), 'success')
-    return redirect(url_for('admin.module_list'))
+    if lesson_count > 0:
+        flash(_('Модуль "{}" и {} урок(ов) успешно удалены!').format(module_title, lesson_count), 'success')
+    else:
+        flash(_('Модуль "{}" успешно удален!').format(module_title), 'success')
+
+    return redirect(url_for('admin.curriculum_overview'))
 
 
 # Управление уроками
