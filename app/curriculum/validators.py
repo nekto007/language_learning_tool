@@ -149,9 +149,9 @@ class QuizQuestionSchema(Schema):
                     pass
 
         elif q_type in ['true_false']:
-            # Must have either 'correct_answer' or 'answer'
-            if data.get('correct_answer') is None and data.get('answer') is None:
-                raise ValidationError('True/false questions require "correct_answer" or "answer" field')
+            # Must have either 'correct_answer', 'answer', or 'correct'
+            if data.get('correct_answer') is None and data.get('answer') is None and data.get('correct') is None:
+                raise ValidationError('True/false questions require "correct_answer", "answer", or "correct" field')
 
         elif q_type in ['fill_blank', 'fill_in_blank', 'translation']:
             # Must have either 'correct_answer', 'answer', or 'correct'
