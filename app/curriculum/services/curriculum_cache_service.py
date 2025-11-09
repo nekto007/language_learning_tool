@@ -70,7 +70,8 @@ class CurriculumCacheService:
                 level_lessons = 0
                 level_completed = 0
 
-                for module in level.modules:
+                # Sort modules by number to ensure correct order
+                for module in sorted(level.modules, key=lambda m: m.number):
                     module_total = len(module.lessons)
                     module_completed = sum(
                         1 for lesson in module.lessons
@@ -103,12 +104,23 @@ class CurriculumCacheService:
                             'progress': progress
                         })
 
+                    # Determine module availability
+                    # First module is always available
+                    # Subsequent modules require 80% completion of previous module
+                    module_progress_percent = round((module_completed / module_total * 100) if module_total > 0 else 0)
+                    is_module_available = True
+
+                    if module.number > 1 and modules_data:
+                        # Check if previous module is completed at least 80%
+                        prev_module_progress = modules_data[-1]['progress_percent']
+                        is_module_available = prev_module_progress >= 80
+
                     modules_data.append({
                         'module': module,
                         'total_lessons': module_total,
                         'completed_lessons': module_completed,
-                        'progress_percent': round((module_completed / module_total * 100) if module_total > 0 else 0),
-                        'is_available': True,
+                        'progress_percent': module_progress_percent,
+                        'is_available': is_module_available,
                         'lessons': lessons_data
                     })
 

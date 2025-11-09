@@ -55,22 +55,26 @@
         <div class="modules-list">
           {% for level_data in levels_data %}
             {% for module_data in level_data.modules %}
+              {# Check module availability #}
+              {% set is_module_available = module_data.is_available %}
               {# Check if module has any in_progress or available lessons #}
               {% set has_in_progress = module_data.lessons | selectattr('status', 'equalto', 'in_progress') | list | length > 0 %}
               {% set has_available = module_data.lessons | selectattr('status', 'equalto', 'available') | list | length > 0 %}
-              {% set is_current = has_in_progress or has_available or (module_data.progress_percent > 0 and module_data.progress_percent < 100) %}
+              {% set is_current = is_module_available and (has_in_progress or has_available or (module_data.progress_percent > 0 and module_data.progress_percent < 100)) %}
               {% set is_completed = module_data.progress_percent == 100 %}
               {% set is_new = module_data.progress_percent == 0 and not has_in_progress and not has_available %}
+              {% set is_locked = not is_module_available %}
 
-              <div class="module-card-main {{ 'current' if is_current else 'completed' if is_completed else 'new' }}">
-                <div class="module-header-main" onclick="toggleModule('module-{{ module_data.module.id }}')">
+              <div class="module-card-main {{ 'locked' if is_locked else 'current' if is_current else 'completed' if is_completed else 'new' }}">
+                <div class="module-header-main" onclick="{{ '' if is_locked else 'toggleModule(\'module-' ~ module_data.module.id ~ '\')' }}">
                   <div class="module-number">{{ module_data.module.number }}</div>
                   <div class="module-info">
                     <h3>{{ module_data.module.title }}</h3>
-                    <p>{{ module_data.module.description }}</p>
+                    <p>{{ is_locked and 'Завершите предыдущий модуль чтобы разблокировать' or module_data.module.description }}</p>
                   </div>
 
                   <!-- Stats inline -->
+                  {% if not is_locked %}
                   <div class="module-stat">
                     <span class="module-stat-icon">📊</span>
                     <span class="module-stat-value">{{ module_data.completed_lessons }}/{{ module_data.total_lessons }}</span>
@@ -84,18 +88,23 @@
                       <span class="module-stat-label">прогресс</span>
                     </div>
                   {% endif %}
+                  {% endif %}
 
-                  {% if is_completed %}
+                  {% if is_locked %}
+                    <div class="module-status-badge locked">🔒 Заблокирован</div>
+                  {% elif is_completed %}
                     <div class="module-status-badge completed">✓ Завершен</div>
                   {% elif is_current %}
                     <div class="module-status-badge current">В процессе</div>
                   {% endif %}
 
                   <!-- Expand/Collapse icon -->
+                  {% if not is_locked %}
                   <div class="expand-icon">
                     <span class="icon-collapsed" style="display:{{ 'none' if is_current else 'inline' }};">▼</span>
                     <span class="icon-expanded" style="display:{{ 'inline' if is_current else 'none' }};">▲</span>
                   </div>
+                  {% endif %}
                 </div>
 
                 <!-- Lessons List -->
