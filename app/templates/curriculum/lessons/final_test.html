@@ -638,7 +638,12 @@
             </div>
 
           {% elif question.type in ['fill_in_blank', 'fill_blank', 'translation'] %}
-            {% if question.options %}
+            {# Check input_mode to determine whether to show options or text input #}
+            {% set show_as_options = question.options or (lesson.input_mode in ['selection_only', 'selection_and_ordering']) %}
+            {% set allow_text_input = lesson.input_mode in ['mixed', 'advanced'] and question.type != 'translation' %}
+            {% set allow_translation = lesson.input_mode == 'advanced' and question.type == 'translation' %}
+
+            {% if show_as_options and question.options %}
               <!-- Fill blank with options (multiple choice style) -->
               <div class="answer-options">
                 {% for option in question.options %}
@@ -652,8 +657,8 @@
                   </button>
                 {% endfor %}
               </div>
-            {% else %}
-              <!-- Fill blank with text input -->
+            {% elif allow_text_input or allow_translation %}
+              <!-- Fill blank/translation with text input -->
               <div class="text-answer">
                 <input type="text"
                        class="form-control"
@@ -664,6 +669,12 @@
                         data-question="{{ question_index }}">
                   {{ _('Отправить ответ') }}
                 </button>
+              </div>
+            {% else %}
+              <!-- Fallback: input mode doesn't allow this question type -->
+              <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                {{ _('Этот тип вопроса не поддерживается для текущего режима модуля') }}
               </div>
             {% endif %}
               

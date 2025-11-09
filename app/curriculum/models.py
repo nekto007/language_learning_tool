@@ -46,6 +46,7 @@ class Module(db.Model):
     prerequisites = Column(JSON)  # JSON array of prerequisite module IDs or conditions
     min_score_required = Column(Integer, default=70)  # Minimum score to unlock next module
     allow_skip_test = Column(Boolean, default=False)  # Allow skip test for this module
+    input_mode = Column(String(50), default='selection_only')  # Input difficulty: selection_only, selection_and_ordering, mixed, advanced
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
@@ -143,6 +144,11 @@ class Lessons(db.Model):
 
     min_cards_required = Column(Integer, default=10)  # Минимум карточек для завершения
     min_accuracy_required = Column(Integer, default=80)  # Минимум процент правильных ответов
+
+    @property
+    def input_mode(self):
+        """Get input mode from parent module"""
+        return self.module.input_mode if self.module else 'mixed'
 
     @property
     def is_card_lesson(self):
