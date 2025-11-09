@@ -270,3 +270,11 @@ IMPORT_INSTRUCTIONS.md
 LISTENING_IMMERSION_SUMMARY.md
 QUICK_AUDIO_GUIDE.md
 SETUP_AUDIO.md
+
+# Migration scripts and documentation
+add_input_mode_migration.py
+export_module1_lessons.py
+migrate_input_mode_to_modules.py
+INPUT_MODE_SUMMARY.md
+INPUT_MODE_SYSTEM.md
+module_1_lessons.csv
