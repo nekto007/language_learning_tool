@@ -66,7 +66,7 @@ def reset_request():
     from app import limiter
     
     # Apply rate limiting to password reset requests
-    @limiter.limit("3 per minute")
+    @limiter.limit("10 per minute")
     def _reset_request():
         if current_user.is_authenticated:
             return redirect(url_for('words.dashboard'))
@@ -138,7 +138,7 @@ def login():
     from app import limiter
     
     # Apply rate limiting to login attempts
-    @limiter.limit("5 per minute")
+    @limiter.limit("15 per minute")
     def _login():
         if current_user.is_authenticated:
             return redirect(url_for('words.dashboard'))
@@ -188,7 +188,7 @@ def register():
     from app import limiter
     
     # Apply rate limiting to registration attempts
-    @limiter.limit("3 per minute")
+    @limiter.limit("10 per minute")
     def _register():
         if current_user.is_authenticated:
             return redirect(url_for('words.dashboard'))
