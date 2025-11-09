@@ -64,6 +64,7 @@
                                 </a>
                                 <form method="POST" action="{{ url_for('admin.delete_level', level_id=level.id) }}"
                                       class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-outline-danger btn-sm"
                                             onclick="return confirm('Delete this level? This cannot be undone.')"
                                             title="Delete"
