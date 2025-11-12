@@ -1089,7 +1089,7 @@
               {# Check input_mode to determine whether to show options or text input #}
               {% set show_as_options = question.options or (lesson.input_mode in ['selection_only', 'selection_and_ordering']) %}
               {% set allow_text_input = lesson.input_mode in ['mixed', 'advanced'] and question.type != 'translation' %}
-              {% set allow_translation = lesson.input_mode == 'advanced' and question.type == 'translation' %}
+              {% set allow_translation = question.type == 'translation' %}
 
               {% if show_as_options and question.options %}
                 <!-- Fill blank with options (multiple choice style) -->
