@@ -67,6 +67,35 @@
     </div>
   {% endif %}
 
+  <!-- Auto-play контроллер для reading with lines -->
+  {% if text_content and text_content.is_reading_with_lines and text_content.text and text_content.text.lines %}
+    {% set has_audio = text_content.text.lines | selectattr('audio') | list | length > 0 %}
+    {% if has_audio %}
+    <div class="audio-player-controller" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
+      <div class="audio-controller-content" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
+          <button id="play-all-btn" onclick="toggleAutoPlay()" style="padding: 0.75rem 1.25rem; background: white; color: #667eea; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap; flex-shrink: 0;">
+            <i class="fas fa-play"></i>
+            <span class="play-btn-text">{{ _('Воспроизвести всё') }}</span>
+            <span class="play-btn-text-short" style="display: none;">{{ _('Играть') }}</span>
+          </button>
+          <div id="audio-progress-text" style="color: white; font-size: 0.9rem; display: none; white-space: nowrap;">
+            <i class="fas fa-music"></i> <span id="current-audio-index">0</span> / <span id="total-audio-count">0</span>
+          </div>
+        </div>
+        <div class="audio-info-text" style="color: rgba(255,255,255,0.9); font-size: 0.85rem;">
+          <i class="fas fa-info-circle"></i>
+          <span class="info-text-full">{{ _('Автоматическое воспроизведение всех фраз') }}</span>
+          <span class="info-text-short" style="display: none;">{{ _('Автопроигрывание') }}</span>
+        </div>
+      </div>
+      <div id="audio-progress-bar" style="width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin-top: 1rem; overflow: hidden; display: none;">
+        <div id="audio-progress-fill" style="width: 0%; height: 100%; background: white; transition: width 0.3s;"></div>
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
+
   <!-- Прогресс чтения -->
   <div class="reading-progress">
     <div class="progress-bar">
@@ -211,7 +240,7 @@
         {% for question in questions_list %}
           {% set question_index = loop.index0 %}
           <div class="question-block" data-question-index="{{ question_index }}">
-            <p class="question-text">{{ loop.index }}. {{ question.question }}</p>
+            <p class="question-text">{{ loop.index }}. {{ question.question or question.instruction }}</p>
 
             {% if question.type == 'true_false' %}
               {# True/False question #}
@@ -224,6 +253,16 @@
                 </button>
               </div>
 
+            {% elif question.type == 'multiple_choice' %}
+              {# Multiple choice question #}
+              <div class="answer-options" style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 0.5rem;">
+                {% for option in question.options %}
+                  <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
+                    {{ option }}
+                  </button>
+                {% endfor %}
+              </div>
+
             {% elif question.type == 'fill_blank' and question.options %}
               {# Fill blank with options #}
               <div class="answer-options" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
@@ -232,6 +271,26 @@
                     {{ option }}
                   </button>
                 {% endfor %}
+              </div>
+
+            {% elif question.type == 'ordering' %}
+              {# Ordering question - build sentence from words #}
+              <div class="reorder-answer" style="margin: 1rem 0;">
+                <div class="words-container" id="words-container-{{ question_index }}" style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 1rem; min-height: 80px;">
+                  {% for word in question.words %}
+                    <button type="button" class="word-button" data-word="{{ word }}" onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)" style="padding: 0.5rem 1rem; background: white; border: 2px solid #e5e7eb; border-radius: 0.375rem; font-size: 1rem; cursor: pointer; transition: all 0.3s;">
+                      {{ word }}
+                    </button>
+                  {% endfor %}
+                </div>
+                <div class="sentence-container">
+                  <div class="sentence-display" id="sentence-{{ question_index }}" onclick="clearSentence({{ question_index }})" style="min-height: 60px; padding: 1rem; background: white; border: 2px solid #4f46e5; border-radius: 0.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <span class="placeholder-text" style="color: #9ca3af; font-style: italic;">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-primary" style="margin-top: 0.75rem; padding: 0.5rem 1.5rem;" onclick="submitOrderingAnswer({{ question_index }})">
+                  {{ _('Проверить') }}
+                </button>
               </div>
 
             {% else %}
@@ -546,6 +605,126 @@ function checkFillBlankAnswer(questionIndex, userAnswer) {
   }
 
   updateComprehensionResults();
+}
+
+// Submit ordering answer
+function submitOrderingAnswer(questionIndex) {
+  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
+  const placeholder = sentenceDiv.querySelector('.placeholder-text');
+  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
+  const feedback = questionBlock.querySelector('.answer-feedback');
+  const correctAnswer = feedback.dataset.correct;
+  const explanation = feedback.dataset.explanation || '';
+
+  if (placeholder) {
+    // No sentence formed
+    alert('Пожалуйста, составьте предложение из слов');
+    return;
+  }
+
+  // Get the formed sentence
+  const sentenceWords = sentenceDiv.querySelectorAll('.sentence-word');
+  const sentence = Array.from(sentenceWords).map(w => w.textContent).join(' ').trim();
+
+  // Normalize for comparison
+  const normalize = (text) => text ? text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim() : '';
+  const isCorrect = normalize(sentence) === normalize(correctAnswer);
+
+  // Disable all word buttons and submit button
+  const wordsContainer = document.getElementById(`words-container-${questionIndex}`);
+  const wordButtons = wordsContainer.querySelectorAll('.word-button');
+  wordButtons.forEach(button => button.disabled = true);
+
+  const submitBtn = questionBlock.querySelector('button[onclick*="submitOrderingAnswer"]');
+  if (submitBtn) submitBtn.disabled = true;
+
+  // Disable sentence clearing
+  sentenceDiv.onclick = null;
+  sentenceDiv.style.cursor = 'default';
+
+  // Mark the question block as answered
+  if (isCorrect) {
+    questionBlock.classList.add('answered-correct');
+  }
+
+  feedback.style.display = 'block';
+
+  if (isCorrect) {
+    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!' + (explanation ? `<br><small>${explanation}</small>` : '');
+    feedback.className = 'answer-feedback correct';
+    sentenceDiv.style.borderColor = '#10b981';
+  } else {
+    feedback.innerHTML = '<i class="fas fa-times-circle"></i> Неправильно. Правильный ответ: ' + correctAnswer + (explanation ? `<br><small>${explanation}</small>` : '');
+    feedback.className = 'answer-feedback incorrect';
+    sentenceDiv.style.borderColor = '#ef4444';
+  }
+
+  updateComprehensionResults();
+}
+
+// Add word to sentence (for ordering questions)
+function addWordToSentence(questionIndex, word, button) {
+  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
+  const placeholder = sentenceDiv.querySelector('.placeholder-text');
+
+  // Remove placeholder if it exists
+  if (placeholder) {
+    placeholder.remove();
+  }
+
+  // Create word element
+  const wordElement = document.createElement('span');
+  wordElement.className = 'sentence-word';
+  wordElement.textContent = word;
+  wordElement.style.cssText = 'padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.2s;';
+  wordElement.onclick = () => removeWordFromSentence(wordElement, button);
+
+  // Add word to sentence
+  sentenceDiv.appendChild(wordElement);
+
+  // Disable the word button
+  button.disabled = true;
+  button.style.opacity = '0.4';
+  button.style.cursor = 'not-allowed';
+}
+
+// Remove word from sentence (for ordering questions)
+function removeWordFromSentence(wordElement, originalButton) {
+  const sentenceDiv = wordElement.parentElement;
+
+  // Re-enable the original button
+  originalButton.disabled = false;
+  originalButton.style.opacity = '';
+  originalButton.style.cursor = '';
+
+  // Remove the word
+  wordElement.remove();
+
+  // Add placeholder if sentence is empty
+  if (sentenceDiv.children.length === 0) {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'placeholder-text';
+    placeholder.style.cssText = 'color: #9ca3af; font-style: italic;';
+    placeholder.textContent = '{{ _("Нажмите на слова выше, чтобы составить предложение") }}';
+    sentenceDiv.appendChild(placeholder);
+  }
+}
+
+// Clear sentence (for ordering questions)
+function clearSentence(questionIndex) {
+  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
+  const wordsContainer = document.getElementById(`words-container-${questionIndex}`);
+
+  // Re-enable all word buttons
+  const wordButtons = wordsContainer.querySelectorAll('.word-button');
+  wordButtons.forEach(button => {
+    button.disabled = false;
+    button.style.opacity = '';
+    button.style.cursor = '';
+  });
+
+  // Clear sentence and add placeholder
+  sentenceDiv.innerHTML = '<span class="placeholder-text" style="color: #9ca3af; font-style: italic;">{{ _("Нажмите на слова выше, чтобы составить предложение") }}</span>';
 }
 
 // Обновление результатов
@@ -881,11 +1060,403 @@ function restoreSavedAnswers() {
   {% endif %}
 }
 
+// Auto-play functionality for reading with lines
+let autoPlayState = {
+  isPlaying: false,
+  currentIndex: 0,
+  audioElements: [],
+  audio: null
+};
+
+// Initialize auto-play
+function initAutoPlay() {
+  // Collect all audio buttons with their files
+  const audioButtons = document.querySelectorAll('.reading-audio-btn');
+  autoPlayState.audioElements = Array.from(audioButtons).map(btn => {
+    const onclick = btn.getAttribute('onclick');
+    const match = onclick.match(/playAudio\('([^']+)'/);
+    return {
+      file: match ? match[1] : null,
+      button: btn,
+      lineElement: btn.closest('.reading-line')
+    };
+  }).filter(item => item.file);
+
+  // Update total count
+  const totalCount = document.getElementById('total-audio-count');
+  if (totalCount) {
+    totalCount.textContent = autoPlayState.audioElements.length;
+  }
+}
+
+// Toggle auto-play
+function toggleAutoPlay() {
+  if (autoPlayState.isPlaying) {
+    stopAutoPlay();
+  } else {
+    startAutoPlay();
+  }
+}
+
+// Start auto-play
+function startAutoPlay() {
+  if (autoPlayState.audioElements.length === 0) {
+    initAutoPlay();
+  }
+
+  if (autoPlayState.audioElements.length === 0) {
+    alert('Нет доступных аудио для воспроизведения');
+    return;
+  }
+
+  autoPlayState.isPlaying = true;
+  autoPlayState.currentIndex = 0;
+
+  // Update UI
+  const playBtn = document.getElementById('play-all-btn');
+  if (playBtn) {
+    playBtn.innerHTML = '<i class="fas fa-pause"></i><span>{{ _("Остановить") }}</span>';
+  }
+
+  // Show progress
+  document.getElementById('audio-progress-text')?.style.setProperty('display', 'block');
+  document.getElementById('audio-progress-bar')?.style.setProperty('display', 'block');
+
+  playNextAudio();
+}
+
+// Stop auto-play
+function stopAutoPlay() {
+  autoPlayState.isPlaying = false;
+
+  // Stop current audio
+  const audio = document.getElementById('vocab-audio');
+  if (audio && !audio.paused) {
+    audio.pause();
+  }
+
+  // Reset all buttons
+  document.querySelectorAll('.reading-audio-btn').forEach(btn => {
+    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+  });
+
+  // Remove highlights
+  document.querySelectorAll('.reading-line').forEach(line => {
+    line.style.backgroundColor = '';
+    line.style.transform = '';
+    line.style.transition = '';
+  });
+
+  // Update UI
+  const playBtn = document.getElementById('play-all-btn');
+  if (playBtn) {
+    playBtn.innerHTML = '<i class="fas fa-play"></i><span>{{ _("Воспроизвести всё") }}</span>';
+  }
+
+  // Hide progress if at start
+  if (autoPlayState.currentIndex === 0) {
+    document.getElementById('audio-progress-text')?.style.setProperty('display', 'none');
+    document.getElementById('audio-progress-bar')?.style.setProperty('display', 'none');
+  }
+}
+
+// Play next audio in sequence
+function playNextAudio() {
+  if (!autoPlayState.isPlaying || autoPlayState.currentIndex >= autoPlayState.audioElements.length) {
+    // Finished playing all
+    if (autoPlayState.currentIndex >= autoPlayState.audioElements.length) {
+      // Show completion message
+      setTimeout(() => {
+        alert('✅ Воспроизведение завершено!');
+        stopAutoPlay();
+      }, 500);
+    }
+    return;
+  }
+
+  const currentItem = autoPlayState.audioElements[autoPlayState.currentIndex];
+  const audio = document.getElementById('vocab-audio');
+
+  // Update progress text
+  const currentIndexEl = document.getElementById('current-audio-index');
+  if (currentIndexEl) {
+    currentIndexEl.textContent = autoPlayState.currentIndex + 1;
+  }
+
+  // Update progress bar
+  const progressFill = document.getElementById('audio-progress-fill');
+  if (progressFill) {
+    const progress = ((autoPlayState.currentIndex + 1) / autoPlayState.audioElements.length) * 100;
+    progressFill.style.width = progress + '%';
+  }
+
+  // Remove previous highlight
+  document.querySelectorAll('.reading-line').forEach(line => {
+    line.style.backgroundColor = '';
+    line.style.transform = '';
+    line.style.transition = '';
+  });
+
+  // Highlight current line with smooth animation
+  if (currentItem.lineElement) {
+    currentItem.lineElement.style.transition = 'all 0.3s ease';
+    currentItem.lineElement.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
+    currentItem.lineElement.style.transform = 'translateX(8px)';
+
+    // Scroll to current line smoothly
+    currentItem.lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Reset all audio buttons
+  document.querySelectorAll('.reading-audio-btn').forEach(btn => {
+    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+  });
+
+  // Update current button
+  if (currentItem.button) {
+    currentItem.button.innerHTML = '<i class="fas fa-pause"></i>';
+  }
+
+  // Play audio
+  audio.src = `/static/audio/${currentItem.file}`;
+
+  audio.onended = function() {
+    // Reset button icon
+    if (currentItem.button) {
+      currentItem.button.innerHTML = '<i class="fas fa-volume-up"></i>';
+    }
+
+    // Move to next
+    autoPlayState.currentIndex++;
+
+    // Small delay before next audio for better UX
+    setTimeout(() => {
+      playNextAudio();
+    }, 800);
+  };
+
+  audio.onerror = function() {
+    console.error('Error loading audio:', currentItem.file);
+    // Skip to next
+    autoPlayState.currentIndex++;
+    playNextAudio();
+  };
+
+  audio.play().catch(err => {
+    console.error('Error playing audio:', err);
+    // Skip to next
+    autoPlayState.currentIndex++;
+    playNextAudio();
+  });
+}
+
 // Вызываем при загрузке
 document.addEventListener('DOMContentLoaded', function() {
   // Даём время на загрузку DOM
   setTimeout(restoreSavedAnswers, 500);
+
+  // Initialize auto-play if controller exists
+  if (document.getElementById('play-all-btn')) {
+    initAutoPlay();
+  }
+
+  // Mobile responsive adjustments
+  handleMobileLayout();
+  window.addEventListener('resize', handleMobileLayout);
 });
+
+// Handle mobile layout responsiveness
+function handleMobileLayout() {
+  const isMobile = window.innerWidth <= 640;
+  const isSmallMobile = window.innerWidth <= 380;
+
+  // Toggle button text
+  const playBtnTextFull = document.querySelector('.play-btn-text');
+  const playBtnTextShort = document.querySelector('.play-btn-text-short');
+
+  if (playBtnTextFull && playBtnTextShort) {
+    if (isSmallMobile) {
+      playBtnTextFull.style.display = 'none';
+      playBtnTextShort.style.display = 'inline';
+    } else {
+      playBtnTextFull.style.display = 'inline';
+      playBtnTextShort.style.display = 'none';
+    }
+  }
+
+  // Toggle info text
+  const infoTextFull = document.querySelector('.info-text-full');
+  const infoTextShort = document.querySelector('.info-text-short');
+
+  if (infoTextFull && infoTextShort) {
+    if (isMobile) {
+      infoTextFull.style.display = 'none';
+      infoTextShort.style.display = 'inline';
+    } else {
+      infoTextFull.style.display = 'inline';
+      infoTextShort.style.display = 'none';
+    }
+  }
+
+  // Adjust audio controller layout for mobile
+  const audioController = document.querySelector('.audio-controller-content');
+  if (audioController) {
+    if (isMobile) {
+      audioController.style.flexDirection = 'column';
+      audioController.style.alignItems = 'flex-start';
+    } else {
+      audioController.style.flexDirection = 'row';
+      audioController.style.alignItems = 'center';
+    }
+  }
+
+  // Adjust play button padding for small screens
+  const playBtn = document.getElementById('play-all-btn');
+  if (playBtn) {
+    if (isSmallMobile) {
+      playBtn.style.padding = '0.65rem 1rem';
+      playBtn.style.fontSize = '0.9rem';
+    } else {
+      playBtn.style.padding = '0.75rem 1.25rem';
+      playBtn.style.fontSize = '';
+    }
+  }
+}
 </script>
+
+<style>
+/* Mobile responsive styles */
+@media (max-width: 640px) {
+  .audio-player-controller {
+    padding: 1rem !important;
+  }
+
+  .audio-controller-content {
+    gap: 0.75rem !important;
+  }
+
+  #play-all-btn {
+    font-size: 0.95rem;
+  }
+
+  #audio-progress-text {
+    font-size: 0.85rem !important;
+  }
+
+  .audio-info-text {
+    font-size: 0.8rem !important;
+    width: 100%;
+  }
+
+  .listening-audio-player {
+    padding: 1.5rem !important;
+  }
+
+  .listening-audio-player h3 {
+    font-size: 1.1rem !important;
+  }
+
+  .listening-translation-block,
+  .listening-text-block {
+    padding: 1.5rem !important;
+  }
+
+  .listening-instruction {
+    padding: 1rem !important;
+  }
+
+  .reading-line-text {
+    font-size: 1rem !important;
+  }
+
+  .reading-line-translation {
+    font-size: 0.9rem !important;
+  }
+
+  /* Adjust question blocks for mobile */
+  .question-block {
+    margin-bottom: 1.5rem;
+  }
+
+  .question-text {
+    font-size: 0.95rem;
+  }
+
+  .answer-option-btn {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  /* Word buttons for ordering questions */
+  .word-button {
+    font-size: 0.9rem !important;
+    padding: 0.4rem 0.8rem !important;
+  }
+
+  .sentence-display {
+    min-height: 50px !important;
+    padding: 0.75rem !important;
+  }
+
+  /* Vocabulary section */
+  .vocab-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 380px) {
+  #play-all-btn {
+    padding: 0.65rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .audio-player-controller {
+    padding: 0.85rem !important;
+  }
+
+  #audio-progress-text {
+    font-size: 0.8rem !important;
+  }
+
+  .listening-audio-player {
+    padding: 1.25rem !important;
+  }
+
+  .listening-audio-player h3 {
+    font-size: 1rem !important;
+  }
+}
+
+/* Smooth transitions for resize */
+.audio-controller-content,
+#play-all-btn,
+.play-btn-text,
+.play-btn-text-short,
+.info-text-full,
+.info-text-short {
+  transition: all 0.2s ease;
+}
+
+/* Touch-friendly buttons */
+@media (hover: none) and (pointer: coarse) {
+  #play-all-btn {
+    min-height: 44px; /* iOS recommended touch target */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .reading-audio-btn,
+  .vocab-audio-btn,
+  .answer-option-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .word-button {
+    min-height: 40px;
+  }
+}
+</style>
 {% endblock %}
 
