@@ -1061,6 +1061,7 @@
                 {% endfor %}
               </div>
             {% elif question.type == 'true_false' %}
+              <h3 class="question-text">{{ question.get('question') }}</h3>
               <div class="answer-options">
                 <button type="button"
                         class="answer-option"
