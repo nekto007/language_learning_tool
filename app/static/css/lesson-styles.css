@@ -322,3 +322,299 @@
   color: #667eea;
   margin-bottom: 0.5rem;
 }
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES - Modern Design
+   ============================================ */
+
+/* Base breakpoints:
+   - Mobile: <= 640px
+   - Small Mobile: <= 380px
+   - Touch devices: hover: none and pointer: coarse
+*/
+
+@media (max-width: 640px) {
+  /* Lesson Container */
+  .container.lesson-page {
+    padding: 0.75rem !important;
+  }
+
+  /* Breadcrumb - More compact */
+  .lesson-breadcrumb {
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .breadcrumb-minimal {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .breadcrumb-minimal li {
+    display: inline;
+    font-size: 0.75rem;
+  }
+
+  /* Header - Stack on mobile */
+  .lesson-header {
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .lesson-header-left {
+    width: 100%;
+  }
+
+  .lesson-type-badge {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .lesson-title {
+    font-size: 1.25rem !important;
+    line-height: 1.3;
+    margin-top: 0.5rem;
+  }
+
+  .lesson-progress-compact {
+    width: 100%;
+  }
+
+  .progress-text {
+    font-size: 0.8rem;
+  }
+
+  /* Description */
+  .lesson-description {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+
+  /* Instruction Box */
+  .instruction-box {
+    padding: 0.75rem !important;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  .instruction-box i {
+    font-size: 1rem;
+  }
+
+  /* SRS Lesson Cards */
+  .srs-card {
+    padding: 1.25rem !important;
+    border-radius: 10px;
+  }
+
+  .card-word {
+    font-size: 1.5rem !important;
+    line-height: 1.2;
+  }
+
+  .card-body {
+    min-height: 180px;
+    padding: 1rem 0.5rem;
+  }
+
+  /* Rating Buttons - Full width stack */
+  .rating-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .rating-btn {
+    width: 100%;
+    min-width: auto;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+  }
+
+  .rating-btn i {
+    font-size: 1.25rem;
+  }
+
+  .rating-text {
+    flex: 1;
+    text-align: left;
+    margin-left: 0.75rem;
+  }
+
+  .interval-hint {
+    font-size: 0.7rem;
+    text-align: right;
+  }
+
+  /* Show Answer Button */
+  .show-answer-btn {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+  }
+
+  /* Audio Button */
+  .audio-btn {
+    padding: 0.65rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  /* Hint Container */
+  .hint-container {
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  .card-hint-text {
+    font-size: 0.8rem !important;
+  }
+
+  /* Example Section */
+  .example-section {
+    padding: 0.65rem;
+  }
+
+  .example-text {
+    font-size: 0.8rem;
+  }
+
+  .example-translation {
+    font-size: 0.7rem;
+  }
+
+  /* Session Stats Bar */
+  .session-stats-bar {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+  }
+
+  /* Footer Navigation */
+  .lesson-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 0;
+  }
+
+  .btn-lesson {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    font-size: 0.95rem;
+    justify-content: center;
+  }
+
+  /* Results */
+  .session-stats {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .stat-card {
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .results-header h3 {
+    font-size: 1.4rem;
+  }
+}
+
+/* Small Mobile Devices (iPhone SE, etc.) */
+@media (max-width: 380px) {
+  .container.lesson-page {
+    padding: 0.5rem !important;
+  }
+
+  .lesson-title {
+    font-size: 1.1rem !important;
+  }
+
+  .lesson-type-badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .srs-card {
+    padding: 1rem !important;
+  }
+
+  .card-word {
+    font-size: 1.3rem !important;
+  }
+
+  .rating-btn {
+    padding: 0.875rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .btn-lesson {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Touch-friendly Interactive Elements */
+@media (hover: none) and (pointer: coarse) {
+  /* Minimum touch target size: 44x44px (iOS guidelines) */
+  .rating-btn,
+  .show-answer-btn,
+  .audio-btn,
+  .btn-lesson {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .rating-btn:hover,
+  .audio-btn:hover,
+  .show-answer-btn:hover,
+  .btn-lesson:hover {
+    transform: none;
+  }
+
+  /* Add active state instead */
+  .rating-btn:active,
+  .audio-btn:active,
+  .show-answer-btn:active,
+  .btn-lesson:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+/* Landscape mode on mobile */
+@media (max-width: 900px) and (orientation: landscape) {
+  .srs-card-container {
+    min-height: 300px;
+  }
+
+  .card-body {
+    min-height: 150px;
+  }
+
+  .rating-buttons {
+    flex-direction: row;
+  }
+
+  .rating-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+}
+
+/* Smooth transitions for all responsive changes */
+.lesson-header,
+.lesson-footer,
+.rating-buttons,
+.session-stats-bar {
+  transition: all 0.3s ease;
+}

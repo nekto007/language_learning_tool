@@ -5524,3 +5524,421 @@ body.dark-theme #translationPopup {
         font-size: 0.8125rem;
     }
 }
+
+/* ===========================================================
+   LESSON COMPONENTS - MOBILE OPTIMIZATION (All Lesson Types)
+   =========================================================== */
+
+@media (max-width: 640px) {
+    /* Quiz Lessons */
+    .quiz-question-card {
+        padding: 1.25rem !important;
+        margin-bottom: 1rem;
+    }
+
+    .quiz-question-text {
+        font-size: 1.05rem !important;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+
+    .quiz-options {
+        gap: 0.65rem !important;
+    }
+
+    .quiz-option-btn {
+        padding: 0.875rem 1rem !important;
+        font-size: 0.95rem !important;
+        min-height: 50px;
+        text-align: left;
+    }
+
+    .quiz-feedback {
+        padding: 0.875rem !important;
+        font-size: 0.9rem !important;
+        margin-top: 1rem;
+    }
+
+    /* Grammar Lessons */
+    .grammar-section {
+        padding: 1.25rem !important;
+        margin-bottom: 1.25rem;
+    }
+
+    .grammar-rule {
+        font-size: 0.95rem !important;
+        padding: 1rem !important;
+    }
+
+    .grammar-example {
+        padding: 0.875rem !important;
+        font-size: 0.9rem !important;
+        margin: 0.75rem 0;
+    }
+
+    .grammar-table {
+        font-size: 0.85rem !important;
+        overflow-x: auto;
+    }
+
+    .grammar-table td,
+    .grammar-table th {
+        padding: 0.5rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Matching Game */
+    .matching-container {
+        flex-direction: column !important;
+        gap: 1rem;
+    }
+
+    .matching-column {
+        width: 100% !important;
+        min-height: auto;
+    }
+
+    .matching-item {
+        padding: 0.875rem 1rem !important;
+        font-size: 0.95rem !important;
+        min-height: 48px;
+    }
+
+    .matching-result-message {
+        font-size: 1.1rem !important;
+        padding: 1.25rem !important;
+    }
+
+    /* Text Lesson (Comprehension) */
+    .comprehension-section {
+        padding: 0 !important;
+    }
+
+    .question-block {
+        padding: 1rem !important;
+        margin-bottom: 1.25rem !important;
+        border-radius: 8px;
+    }
+
+    .answer-input-wrapper {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .answer-input {
+        width: 100% !important;
+        font-size: 1rem !important; /* Prevent zoom on iOS */
+        padding: 0.875rem !important;
+    }
+
+    .check-answer-btn {
+        width: 100%;
+        padding: 0.875rem !important;
+        min-height: 44px;
+    }
+
+    /* Reading Lines */
+    .reading-lines-container {
+        padding: 0.5rem !important;
+    }
+
+    .reading-line {
+        padding: 0.875rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .reading-line-text {
+        font-size: 1.05rem !important;
+        line-height: 1.6;
+    }
+
+    .reading-line-translation {
+        font-size: 0.9rem !important;
+        margin-top: 0.5rem;
+    }
+
+    .reading-audio-btn {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 0.9rem;
+    }
+
+    /* Vocabulary Section */
+    .vocabulary-section {
+        margin: 1rem 0 !important;
+    }
+
+    .vocab-toggle {
+        width: 100%;
+        padding: 0.875rem 1rem !important;
+        font-size: 0.95rem !important;
+    }
+
+    .vocab-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem !important;
+    }
+
+    .vocab-word {
+        padding: 1rem !important;
+        font-size: 0.95rem !important;
+    }
+
+    .vocab-audio-btn {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    .vocab-search input {
+        font-size: 1rem !important; /* Prevent zoom */
+        padding: 0.75rem !important;
+    }
+
+    /* Final Test */
+    .final-test-header {
+        padding: 1.25rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .final-test-header h2 {
+        font-size: 1.4rem !important;
+    }
+
+    .test-progress {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+
+    .test-timer {
+        font-size: 1rem !important;
+        padding: 0.5rem 0.875rem !important;
+    }
+
+    .test-question-number {
+        font-size: 0.85rem !important;
+    }
+
+    /* Completion Cards */
+    .completion-card {
+        padding: 1.25rem !important;
+        margin: 1rem 0 !important;
+    }
+
+    .completion-stats {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+
+    .stat-item {
+        width: 100%;
+        justify-content: space-between;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    /* Text Completion */
+    .reading-complete {
+        padding: 1rem !important;
+        margin-top: 1.5rem !important;
+    }
+
+    .completion-hint {
+        font-size: 0.85rem !important;
+        padding: 0.75rem !important;
+    }
+
+    #mark-read-btn {
+        width: 100%;
+        padding: 1rem !important;
+        font-size: 1rem !important;
+        min-height: 48px;
+    }
+
+    /* Progress Bars */
+    .progress-bar-mini {
+        height: 4px !important;
+    }
+
+    .reading-progress {
+        height: 3px !important;
+    }
+
+    /* Modal Dialogs in Lessons */
+    .lesson-modal {
+        padding: 1rem !important;
+        max-width: calc(100% - 1rem);
+    }
+
+    .lesson-modal-content {
+        padding: 1.25rem !important;
+    }
+
+    /* Listening Immersion */
+    .listening-audio-player {
+        padding: 1.25rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .listening-audio-player h3 {
+        font-size: 1.15rem !important;
+    }
+
+    .listening-translation-block,
+    .listening-text-block {
+        padding: 1.25rem !important;
+    }
+
+    .listening-instruction {
+        padding: 0.875rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Dialogue Container */
+    .dialogue-container {
+        padding: 0.5rem !important;
+    }
+
+    .dialogue-line {
+        padding: 0.875rem !important;
+        margin-bottom: 0.75rem !important;
+        font-size: 0.95rem !important;
+    }
+
+    .speaker {
+        font-size: 0.9rem !important;
+    }
+
+    .speech {
+        font-size: 0.95rem !important;
+    }
+}
+
+/* Small Mobile (iPhone SE, small Android) */
+@media (max-width: 380px) {
+    .quiz-question-card {
+        padding: 1rem !important;
+    }
+
+    .quiz-question-text {
+        font-size: 1rem !important;
+    }
+
+    .quiz-option-btn {
+        padding: 0.75rem 0.875rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    .grammar-section {
+        padding: 1rem !important;
+    }
+
+    .matching-item {
+        padding: 0.75rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    .reading-line-text {
+        font-size: 1rem !important;
+    }
+
+    .vocab-word {
+        padding: 0.875rem !important;
+    }
+
+    .final-test-header h2 {
+        font-size: 1.25rem !important;
+    }
+
+    .listening-audio-player h3 {
+        font-size: 1rem !important;
+    }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+    /* All clickable lesson elements */
+    .quiz-option-btn,
+    .matching-item,
+    .vocab-word,
+    .reading-audio-btn,
+    .vocab-audio-btn,
+    .check-answer-btn,
+    .vocab-toggle {
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+
+    /* Remove hover effects */
+    .quiz-option-btn:hover,
+    .matching-item:hover,
+    .vocab-word:hover {
+        transform: none !important;
+    }
+
+    /* Add tap feedback */
+    .quiz-option-btn:active,
+    .matching-item:active,
+    .vocab-word:active,
+    .reading-audio-btn:active,
+    .vocab-audio-btn:active {
+        transform: scale(0.98) !important;
+        opacity: 0.9 !important;
+    }
+
+    /* Prevent double-tap zoom on buttons */
+    .quiz-option-btn,
+    .btn-lesson,
+    .check-answer-btn {
+        touch-action: manipulation;
+    }
+}
+
+/* Landscape Mode Optimizations */
+@media (max-width: 900px) and (orientation: landscape) {
+    .quiz-question-card {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .grammar-section {
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+
+    .reading-lines-container {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .vocabulary-list {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+}
+
+/* Print Styles for Lessons (optional) */
+@media print {
+    .lesson-footer,
+    .audio-btn,
+    .reading-audio-btn,
+    .vocab-audio-btn,
+    .quiz-option-btn,
+    .check-answer-btn,
+    .instruction-box {
+        display: none !important;
+    }
+
+    .lesson-content {
+        padding: 0 !important;
+    }
+
+    .quiz-question-card,
+    .grammar-section,
+    .reading-line {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
