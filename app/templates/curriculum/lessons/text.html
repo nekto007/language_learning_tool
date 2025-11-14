@@ -581,7 +581,8 @@ function checkFillBlankAnswer(questionIndex, userAnswer) {
   const correctAnswer = feedback.dataset.correct;
   const explanation = feedback.dataset.explanation || '';
 
-  const isCorrect = userAnswer === correctAnswer;
+  // Normalize both answers to lowercase for case-insensitive comparison
+  const isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
 
   // Disable all buttons
   buttons.forEach(btn => {
