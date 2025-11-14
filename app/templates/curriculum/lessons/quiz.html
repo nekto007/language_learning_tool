@@ -1080,6 +1080,21 @@
               </div>
 
             {% elif question.type in ['fill_blank', 'translation'] %}
+              {% if question.type == 'translation' %}
+                {# Show translation task instruction #}
+                <h3 class="question-text">
+                  {% if question.get('instruction') %}
+                    {{ question.get('instruction') }}
+                  {% else %}
+                    {{ _('Переведите на английский:') }}
+                  {% endif %}
+                </h3>
+              {% elif question.get('instruction') %}
+                {# Show instruction for fill_blank if available #}
+                <p class="instruction-text" style="margin-bottom: 1rem; font-size: 0.95rem; color: #6b7280;">
+                  {{ question.get('instruction') }}
+                </p>
+              {% endif %}
               <p class="sentence-prompt" style="font-size: 1.2rem; margin-bottom: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
                 {% if question.type == 'translation' %}
                   {{ unescape_html(question.get('russian', question.get('question', ''))) }}
@@ -1755,20 +1770,45 @@ window.QuizApp = {
     } else if (question.type === 'multiple_choice' || question.type === 'listening_choice' || question.type === 'dialogue_completion' || (question.type === 'fill_blank' && question.options) || (question.type === 'fill_in_blank' && question.options)) {
       // For multiple choice, listening_choice, dialogue_completion, and fill_blank with options
       const userIndex = parseInt(value);
+      const userAnswerText = text; // This is the actual text from data-text attribute
 
-      // Normalize function for flexible string comparison
-      const normalize = (str) => str ? str.toLowerCase().trim() : '';
+      // Normalize function for flexible string comparison - handles HTML entities, apostrophes and whitespace
+      const normalize = (str) => {
+        if (!str) return '';
+        // First decode HTML entities (&#39; → ', &quot; → ", etc.)
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        const decoded = txt.value;
 
-      // If correctAnswer is the actual text of the correct option
+        return decoded.toLowerCase()
+          .trim()
+          .replace(/['']/g, "'")  // Normalize curly apostrophes to straight
+          .replace(/\s+/g, ' ');   // Normalize multiple spaces to single space
+      };
+
+      // Get the correct answer text (not index)
+      let correctAnswerText = '';
       if (typeof correctAnswer === 'string' && !correctAnswer.match(/^\d+$/)) {
-        // Find the index of the correct answer in options with normalized comparison
-        const correctIndex = question.options.findIndex(opt => normalize(opt) === normalize(correctAnswer));
-        isCorrect = userIndex === correctIndex;
+        // correctAnswer is already the text
+        correctAnswerText = correctAnswer;
       } else {
-        // correctAnswer is an index (number or string number)
+        // correctAnswer is an index - get the text from options
         const correctIndex = typeof correctAnswer === 'string' ? parseInt(correctAnswer) : correctAnswer;
-        isCorrect = userIndex === correctIndex;
+        if (correctIndex >= 0 && correctIndex < question.options.length) {
+          correctAnswerText = question.options[correctIndex];
+        }
       }
+
+      // Direct text comparison - simple and clear!
+      isCorrect = normalize(userAnswerText) === normalize(correctAnswerText);
+
+      console.log('Direct text comparison:', {
+        userAnswerText: userAnswerText,
+        normalizedUser: normalize(userAnswerText),
+        correctAnswerText: correctAnswerText,
+        normalizedCorrect: normalize(correctAnswerText),
+        isCorrect: isCorrect
+      });
     } else {
       // For other question types
       isCorrect = parseInt(value) === correctAnswer;
