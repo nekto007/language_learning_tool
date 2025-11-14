@@ -240,7 +240,7 @@
         {% for question in questions_list %}
           {% set question_index = loop.index0 %}
           <div class="question-block" data-question-index="{{ question_index }}">
-            <p class="question-text">{{ loop.index }}. {{ question.question or question.instruction }}</p>
+            <p class="question-text">{{ loop.index }}. {{ (question.question or question.instruction)|safe }}</p>
 
             {% if question.type == 'true_false' %}
               {# True/False question #}
@@ -258,7 +258,7 @@
               <div class="answer-options" style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 0.5rem;">
                 {% for option in question.options %}
                   <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
-                    {{ option }}
+                    {{ option|safe }}
                   </button>
                 {% endfor %}
               </div>
@@ -268,7 +268,7 @@
               <div class="answer-options" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
                 {% for option in question.options %}
                   <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
-                    {{ option }}
+                    {{ option|safe }}
                   </button>
                 {% endfor %}
               </div>

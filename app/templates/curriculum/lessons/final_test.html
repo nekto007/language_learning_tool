@@ -720,7 +720,7 @@
             <div class="matching-answer">
               {% if question.instruction %}
                 <p class="instruction-text" style="font-size: 1rem; color: #6b7280; margin-bottom: 1.5rem; padding: 1rem; background: #f9fafb; border-left: 4px solid #dc2626; border-radius: 0.5rem;">
-                  💡 {{ question.instruction }}
+                  💡 {{ question.instruction|safe }}
                 </p>
               {% endif %}
 
