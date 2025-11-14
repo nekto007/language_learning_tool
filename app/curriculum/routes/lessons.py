@@ -1518,7 +1518,10 @@ def rate_card_api():
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
 
         # Validate lesson access
-        lesson = Lessons.query.get_or_404(lesson_id)
+        lesson = Lessons.query.get(lesson_id)
+        if not lesson:
+            logger.error(f"Lesson {lesson_id} not found")
+            return jsonify({'success': False, 'error': 'Lesson not found'}), 404
 
         # Process the review
         result = process_card_review_for_lesson(

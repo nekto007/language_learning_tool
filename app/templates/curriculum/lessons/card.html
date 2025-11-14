@@ -851,11 +851,15 @@
                       })
                   });
 
-                  const result = await response.json();
-
                   if (!response.ok) {
-                      console.error('Rate card failed:', result);
+                      console.error('Rate card failed:', response.status, response.statusText);
+                      const errorText = await response.text();
+                      console.error('Error response:', errorText.substring(0, 500));
+                      return;
                   }
+
+                  const result = await response.json();
+                  console.log('Card rated successfully:', result);
               } catch (error) {
                   console.error('Error rating card:', error);
               }
@@ -984,6 +988,14 @@
                       reviews_studied: sessionState.reviewsStudied
                   })
               });
+
+              if (!response.ok) {
+                  console.error('Complete session failed:', response.status, response.statusText);
+                  const errorText = await response.text();
+                  console.error('Error response:', errorText.substring(0, 500));
+                  alert('Ошибка при сохранении прогресса');
+                  return;
+              }
 
               const result = await response.json();
 

@@ -48,8 +48,8 @@
     </div>
   {% endif %}
 
-  <!-- Аудио плеер для listening_immersion -->
-  {% if text_content and text_content.is_listening_immersion and text_content.audio %}
+  <!-- Аудио плеер для listening_immersion или если есть audio -->
+  {% if text_content and text_content.audio %}
     <div class="listening-audio-player" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
       <div style="text-align: center;">
         <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem;">
@@ -143,36 +143,71 @@
       {% elif text_content.is_listening_immersion %}
         <!-- Listening Immersion: прогрессивное отображение текста -->
         <div class="listening-immersion-content" style="max-width: 800px; margin: 0 auto;">
-          {% if text_content.translation %}
-            <!-- Есть перевод - показываем ТОЛЬКО русский текст -->
-            <div class="listening-translation-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
-              <h4 style="color: #10b981; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-language"></i> Текст диалога
-              </h4>
-              <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.translation }}</div>
-            </div>
+          {% set text_str = text_content.text if text_content.text is string else '' %}
+          {% set has_dialogue_format = ':' in text_str and '\n' in text_str %}
 
-            <!-- Инструкция для начального уровня -->
-            <div class="listening-instruction" style="background: #f0f9ff; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
-              <p style="color: #1e40af; margin: 0; font-size: 0.95rem; line-height: 1.6;">
-                <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз, читая русский текст. Постарайтесь уловить английские слова и фразы на слух.
-              </p>
-            </div>
-          {% else %}
-            <!-- Нет перевода - показываем английский текст (для продвинутого уровня) -->
-            <div class="listening-text-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #667eea;">
+          {% if has_dialogue_format %}
+            <!-- Английский диалог с современным форматированием -->
+            <div class="listening-dialogue-section" style="margin-bottom: 2rem;">
               <h4 style="color: #667eea; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-language"></i> English Text
+                <i class="fas fa-comments"></i> English Dialogue
               </h4>
-              <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.text }}</div>
+              <div class="dialogue-container" id="listening-dialogue-container"></div>
+              <script type="application/json" id="listening-dialogue-data">
+                {{ text_content.text|tojson }}
+              </script>
             </div>
 
-            <!-- Инструкция для продвинутого уровня -->
-            <div class="listening-instruction" style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #f59e0b;">
-              <p style="color: #92400e; margin: 0; font-size: 0.95rem; line-height: 1.6;">
-                <i class="fas fa-star"></i> <strong>Продвинутый уровень:</strong> Прослушайте диалог и постарайтесь понять содержание. При необходимости можете обратиться к тексту.
-              </p>
-            </div>
+            {% if text_content.translation %}
+              <!-- Русский перевод -->
+              <div class="listening-translation-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #10b981; margin-top: 2rem;">
+                <h4 style="color: #10b981; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+                  <i class="fas fa-language"></i> Перевод
+                </h4>
+                <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.translation }}</div>
+              </div>
+
+              <!-- Инструкция для начального уровня -->
+              <div class="listening-instruction" style="background: #f0f9ff; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
+                <p style="color: #1e40af; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                  <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз. Попробуйте понять содержание, глядя на английский текст, затем сверьтесь с переводом.
+                </p>
+              </div>
+            {% endif %}
+
+          {% else %}
+            <!-- Обычный текст без диалога -->
+            {% if text_content.translation %}
+              <!-- Есть перевод - показываем ТОЛЬКО русский текст -->
+              <div class="listening-translation-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
+                <h4 style="color: #10b981; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+                  <i class="fas fa-language"></i> Текст диалога
+                </h4>
+                <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.translation }}</div>
+              </div>
+
+              <!-- Инструкция для начального уровня -->
+              <div class="listening-instruction" style="background: #f0f9ff; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
+                <p style="color: #1e40af; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                  <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз, читая русский текст. Постарайтесь уловить английские слова и фразы на слух.
+                </p>
+              </div>
+            {% else %}
+              <!-- Нет перевода - показываем английский текст (для продвинутого уровня) -->
+              <div class="listening-text-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #667eea;">
+                <h4 style="color: #667eea; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+                  <i class="fas fa-language"></i> English Text
+                </h4>
+                <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.text }}</div>
+              </div>
+
+              <!-- Инструкция для продвинутого уровня -->
+              <div class="listening-instruction" style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #f59e0b;">
+                <p style="color: #92400e; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                  <i class="fas fa-star"></i> <strong>Продвинутый уровень:</strong> Прослушайте диалог и постарайтесь понять содержание. При необходимости можете обратиться к тексту.
+                </p>
+              </div>
+            {% endif %}
           {% endif %}
 
           <!-- Кастомная инструкция из JSON (если есть) -->
@@ -186,9 +221,21 @@
         </div>
       {% else %}
         <!-- Обычный текст -->
-        <div class="prose-container">
-          {{ text_content.text | format_chapter_text }}
-        </div>
+        {% set text_str = text_content.text if text_content.text is string else '' %}
+        {% set has_dialogue_format = ':' in text_str and '\n' in text_str %}
+
+        {% if has_dialogue_format %}
+          <!-- Автоматически определенный диалог -->
+          <div class="dialogue-container" id="auto-dialogue-container"></div>
+          <script type="application/json" id="auto-dialogue-data">
+            {{ text_content.text|tojson }}
+          </script>
+        {% else %}
+          <!-- Обычный текст -->
+          <div class="prose-container">
+            {{ text_content.text | format_chapter_text }}
+          </div>
+        {% endif %}
       {% endif %}
     {% else %}
       <div class="no-content">
@@ -349,19 +396,20 @@ let hasScrolledToBottom = false;
 
 // Обработка диалога
 document.addEventListener('DOMContentLoaded', function() {
-  const dialogueContainer = document.getElementById('dialogue-container');
-  const dialogueDataElem = document.getElementById('dialogue-data');
-  if (dialogueContainer && dialogueDataElem) {
+  // Function to render dialogue
+  function renderDialogue(container, dataElement) {
+    if (!container || !dataElement) return;
+
     try {
-      const dialogueText = JSON.parse(dialogueDataElem.textContent);
+      const dialogueText = JSON.parse(dataElement.textContent);
       const lines = dialogueText.split('\n').filter(line => line.trim());
 
-      dialogueContainer.innerHTML = '';
+      container.innerHTML = '';
 
       lines.forEach((line, index) => {
         if (line.includes(':')) {
           const colonIndex = line.indexOf(':');
-          const speaker = line.substring(0, colonIndex);
+          const speaker = line.substring(0, colonIndex).trim();
           const speech = line.substring(colonIndex + 1).trim();
 
           const lineEl = document.createElement('div');
@@ -371,19 +419,34 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="speaker">${speaker}:</span>
             <span class="speech">${speech}</span>
           `;
-          dialogueContainer.appendChild(lineEl);
+          container.appendChild(lineEl);
         } else {
           const narrativeEl = document.createElement('div');
           narrativeEl.className = 'narrative';
           narrativeEl.style.animationDelay = `${index * 0.1}s`;
           narrativeEl.textContent = line;
-          dialogueContainer.appendChild(narrativeEl);
+          container.appendChild(narrativeEl);
         }
       });
     } catch (error) {
       console.error('Error parsing dialogue:', error);
     }
   }
+
+  // Render dialogue-container (explicit dialogue)
+  const dialogueContainer = document.getElementById('dialogue-container');
+  const dialogueDataElem = document.getElementById('dialogue-data');
+  renderDialogue(dialogueContainer, dialogueDataElem);
+
+  // Render auto-dialogue-container (auto-detected dialogue)
+  const autoDialogueContainer = document.getElementById('auto-dialogue-container');
+  const autoDialogueDataElem = document.getElementById('auto-dialogue-data');
+  renderDialogue(autoDialogueContainer, autoDialogueDataElem);
+
+  // Render listening-dialogue-container (listening immersion dialogue)
+  const listeningDialogueContainer = document.getElementById('listening-dialogue-container');
+  const listeningDialogueDataElem = document.getElementById('listening-dialogue-data');
+  renderDialogue(listeningDialogueContainer, listeningDialogueDataElem);
 
   initReadingProgress();
 
