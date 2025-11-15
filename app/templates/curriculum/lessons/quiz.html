@@ -1301,7 +1301,7 @@
               {% if question.get('dialogue') %}
                 <div class="dialogue-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
                   {% for line in question.get('dialogue', []) %}
-                    <div class="dialogue-line" style="margin-bottom: 0.75rem;">
+                    <div class="dialogue-line" style="display: block !important; margin-bottom: 0.75rem; line-height: 1.6;">
                       <strong>{{ line.speaker }}:</strong>
                       {% if line.get('blank') %}
                         <span style="color: #3b82f6; font-weight: 600;">___</span>
