@@ -187,6 +187,156 @@ INITIAL_ACHIEVEMENTS = [
         'xp_reward': 500,
         'category': 'levels'
     },
+
+    # Quiz achievements
+    {
+        'code': 'first_quiz',
+        'name': 'Первый квиз',
+        'description': 'Завершите свой первый квиз',
+        'icon': '🎯',
+        'xp_reward': 50,
+        'category': 'quiz'
+    },
+    {
+        'code': 'quiz_master_10',
+        'name': 'Мастер квизов',
+        'description': 'Завершите 10 квизов',
+        'icon': '🏆',
+        'xp_reward': 150,
+        'category': 'quiz'
+    },
+    {
+        'code': 'quiz_master_50',
+        'name': 'Гуру квизов',
+        'description': 'Завершите 50 квизов',
+        'icon': '👑',
+        'xp_reward': 500,
+        'category': 'quiz'
+    },
+    {
+        'code': 'quiz_streak_5',
+        'name': 'Серия из 5',
+        'description': 'Ответьте правильно на 5 вопросов подряд',
+        'icon': '🔥',
+        'xp_reward': 50,
+        'category': 'quiz'
+    },
+    {
+        'code': 'high_score_90',
+        'name': 'Отличник',
+        'description': 'Получите 90%+ в квизе из 10+ вопросов',
+        'icon': '⭐',
+        'xp_reward': 50,
+        'category': 'quiz'
+    },
+    {
+        'code': 'speed_demon',
+        'name': 'Спидран',
+        'description': 'Завершите квиз из 10+ вопросов за 2 минуты',
+        'icon': '⚡',
+        'xp_reward': 75,
+        'category': 'quiz'
+    },
+
+    # More flashcards
+    {
+        'code': 'cards_1000',
+        'name': 'Карточный гуру',
+        'description': 'Повторите 1000 карточек',
+        'icon': '👑',
+        'xp_reward': 600,
+        'category': 'flashcards'
+    },
+
+    # More books
+    {
+        'code': 'chapter_marathon',
+        'name': 'Марафон глав',
+        'description': 'Прочитайте 50 глав',
+        'icon': '🏃',
+        'xp_reward': 250,
+        'category': 'books'
+    },
+
+    # More streaks
+    {
+        'code': 'daily_streak_60',
+        'name': 'Два месяца подряд',
+        'description': 'Занимайтесь 60 дней подряд',
+        'icon': '📊',
+        'xp_reward': 1000,
+        'category': 'streak'
+    },
+    {
+        'code': 'daily_streak_100',
+        'name': 'Сто дней подряд',
+        'description': 'Занимайтесь 100 дней подряд',
+        'icon': '💪',
+        'xp_reward': 2000,
+        'category': 'streak'
+    },
+
+    # Words/Study
+    {
+        'code': 'words_learned_100',
+        'name': 'Полиглот',
+        'description': 'Изучите 100 слов',
+        'icon': '📚',
+        'xp_reward': 200,
+        'category': 'study'
+    },
+    {
+        'code': 'words_learned_500',
+        'name': 'Мастер слов',
+        'description': 'Изучите 500 слов',
+        'icon': '🎓',
+        'xp_reward': 1000,
+        'category': 'study'
+    },
+
+    # Matching game
+    {
+        'code': 'matching_first',
+        'name': 'Первое совпадение',
+        'description': 'Завершите первую игру на совпадение',
+        'icon': '🎯',
+        'xp_reward': 25,
+        'category': 'matching'
+    },
+    {
+        'code': 'matching_perfect',
+        'name': 'Идеальное совпадение',
+        'description': 'Завершите игру со 100% точностью',
+        'icon': '🎊',
+        'xp_reward': 50,
+        'category': 'matching'
+    },
+    {
+        'code': 'matching_speed',
+        'name': 'Скоростное совпадение',
+        'description': 'Завершите игру быстрее чем за 1 минуту',
+        'icon': '⚡',
+        'xp_reward': 40,
+        'category': 'matching'
+    },
+
+    # Special time-based
+    {
+        'code': 'early_bird',
+        'name': 'Ранняя пташка',
+        'description': 'Завершите квиз до 8:00 утра',
+        'icon': '🌅',
+        'xp_reward': 25,
+        'category': 'special'
+    },
+    {
+        'code': 'night_owl',
+        'name': 'Сова',
+        'description': 'Завершите квиз после 23:00',
+        'icon': '🦉',
+        'xp_reward': 25,
+        'category': 'special'
+    },
 ]
 
 
