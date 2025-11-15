@@ -5,15 +5,38 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
-# Path to the project directory
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Custom exception for configuration errors
+class EnvironmentConfigurationError(Exception):
+    """
+    Raised when required environment variables are missing
+
+    ARCHITECTURE: Using exceptions instead of sys.exit() allows:
+    1. Proper error handling in Flask
+    2. Unit testing
+    3. Graceful error messages
+    4. Flask error handlers to catch and display user-friendly messages
+    """
+    def __init__(self, missing_required, missing_recommended=None):
+        self.missing_required = missing_required
+        self.missing_recommended = missing_recommended or []
+
+        message_parts = []
+        if missing_required:
+            message_parts.append(f"Missing required environment variables: {', '.join(missing_required)}")
+        if missing_recommended:
+            message_parts.append(f"Missing recommended environment variables: {', '.join(missing_recommended)}")
+
+        super().__init__(" | ".join(message_parts))
+
 
 # Critical environment variables validation
 REQUIRED_ENV_VARS = [
     'POSTGRES_USER',
-    'POSTGRES_PASSWORD', 
+    'POSTGRES_PASSWORD',
     'POSTGRES_DB',
     'SECRET_KEY'
 ]
@@ -24,42 +47,64 @@ RECOMMENDED_ENV_VARS = [
     'FLASK_APP'
 ]
 
+
 def validate_environment():
-    """Validate that all required environment variables are set."""
+    """
+    Validate that all required environment variables are set
+
+    ARCHITECTURE FIX: Raises exception instead of calling sys.exit()
+    This allows Flask to handle the error gracefully and makes the code testable.
+
+    Raises:
+        EnvironmentConfigurationError: When required environment variables are missing
+
+    Returns:
+        tuple: (missing_required, missing_recommended) - both empty lists if all OK
+    """
     missing_required = []
     missing_recommended = []
-    
+
     # Check required variables
     for var in REQUIRED_ENV_VARS:
         if not os.environ.get(var):
             missing_required.append(var)
-    
+
     # Check recommended variables
     for var in RECOMMENDED_ENV_VARS:
         if not os.environ.get(var):
             missing_recommended.append(var)
-    
-    # Critical error for missing required variables
+
+    # ARCHITECTURE FIX: Raise exception instead of sys.exit(1)
     if missing_required:
-        print(f"❌ CRITICAL ERROR: Missing required environment variables:")
+        error_msg = f"❌ CRITICAL ERROR: Missing required environment variables:\n"
         for var in missing_required:
-            print(f"   - {var}")
-        print(f"💡 Please set these variables before starting the application.")
-        sys.exit(1)
-    
+            error_msg += f"   - {var}\n"
+        error_msg += f"💡 Please set these variables before starting the application."
+        print(error_msg, file=sys.stderr)
+        raise EnvironmentConfigurationError(missing_required, missing_recommended)
+
     # Warning for missing recommended variables
     if missing_recommended:
         print(f"⚠️  WARNING: Missing recommended environment variables:")
         for var in missing_recommended:
             print(f"   - {var}")
         print(f"💡 Consider setting these for optimal functionality.")
-    
+
     # Success message
     if not missing_required and not missing_recommended:
         print(f"✅ All environment variables are properly configured.")
 
+    return (missing_required, missing_recommended)
+
+
 # Validate environment on import
-validate_environment()
+# Will raise EnvironmentConfigurationError if required vars are missing
+try:
+    validate_environment()
+except EnvironmentConfigurationError as e:
+    # Re-raise for Flask to handle, but allow imports to work in tests
+    if os.environ.get('TESTING') != 'true':
+        raise
 
 # Database settings - now guaranteed to exist
 DB_USER = os.environ.get("POSTGRES_USER")
