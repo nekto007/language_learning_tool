@@ -171,9 +171,10 @@ def create_app(config_class=Config):
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
-    # ARCHITECTURE FIX: db.create_all() removed from app factory
-    # Database schema should be managed through Alembic migrations only
-    # Use: flask db upgrade
+    # Create database tables if they don't exist
+    # Safe operation - only creates missing tables, never drops or modifies existing ones
+    with app.app_context():
+        db.create_all()
 
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
