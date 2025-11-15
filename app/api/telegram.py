@@ -47,6 +47,9 @@ def telegram_auth_required(f):
 @csrf.exempt
 @telegram_auth_required
 def get_latest_grammar(user):
+    """Rate limiting applied: 20 per minute"""
+    from app import limiter
+    limiter.limit("20 per minute")(lambda: None)()
     """
     Get the latest grammar lesson the user studied
 
@@ -119,6 +122,9 @@ def get_latest_grammar(user):
 @csrf.exempt
 @telegram_auth_required
 def get_book_excerpt(user):
+    """Rate limiting applied: 30 per minute"""
+    from app import limiter
+    limiter.limit("30 per minute")(lambda: None)()
     """
     Get a random excerpt from books
 
@@ -225,53 +231,65 @@ def generate_token():
 
     Requires username and password for authentication
     Returns the new token
+
+    Rate limits:
+    - 3 per hour per IP (token generation is rare)
+    - 2 per day per username (prevent token spam)
     """
-    try:
-        if not request.is_json:
+    from app import limiter
+    from app.utils.rate_limit_helpers import get_username_key
+
+    @limiter.limit("3 per hour")
+    @limiter.limit("2 per day", key_func=lambda: get_username_key())
+    def _generate_token_impl():
+        try:
+            if not request.is_json:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid JSON format',
+                    'status_code': 400
+                }), 400
+
+            data = request.get_json()
+            username = data.get('username')
+            password = data.get('password')
+
+            if not username or not password:
+                return jsonify({
+                    'success': False,
+                    'error': 'Missing username or password',
+                    'status_code': 400
+                }), 400
+
+            # Authenticate user
+            user = User.query.filter_by(username=username).first()
+            if not user or not user.check_password(password):
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid credentials',
+                    'status_code': 401
+                }), 401
+
+            # Generate new token
+            token = user.generate_telegram_token()
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'token': token,
+                'username': user.username,
+                'user_id': user.id
+            })
+
+        except Exception as e:
+            db.session.rollback()
             return jsonify({
                 'success': False,
-                'error': 'Invalid JSON format',
-                'status_code': 400
-            }), 400
+                'error': str(e),
+                'status_code': 500
+            }), 500
 
-        data = request.get_json()
-        username = data.get('username')
-        password = data.get('password')
-
-        if not username or not password:
-            return jsonify({
-                'success': False,
-                'error': 'Missing username or password',
-                'status_code': 400
-            }), 400
-
-        # Authenticate user
-        user = User.query.filter_by(username=username).first()
-        if not user or not user.check_password(password):
-            return jsonify({
-                'success': False,
-                'error': 'Invalid credentials',
-                'status_code': 401
-            }), 401
-
-        # Generate new token
-        token = user.generate_telegram_token()
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'token': token,
-            'username': user.username,
-            'user_id': user.id
-        })
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'status_code': 500
-        }), 500
+    return _generate_token_impl()
 
 
 @api_telegram.route('/telegram/books', methods=['GET'])
@@ -316,6 +334,9 @@ def get_books(user):
 @csrf.exempt
 @telegram_auth_required
 def read_next(user):
+    """Rate limiting applied: 60 per minute"""
+    from app import limiter
+    limiter.limit("60 per minute")(lambda: None)()
     """
     Get next fragment of a book for sequential reading
 

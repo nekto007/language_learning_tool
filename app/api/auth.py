@@ -26,40 +26,119 @@ def api_login_required(f):
 
 
 @api_auth.route('/login', methods=['POST'])
-@csrf.exempt
+@csrf.exempt  # JWT tokens don't require CSRF protection
 def api_login():
-    if not request.is_json:
+    """
+    API login endpoint with JWT token authentication
+
+    SECURITY: Returns JWT access and refresh tokens for stateless authentication
+    No CSRF needed as tokens are sent in Authorization header, not cookies
+
+    Rate limits:
+    - 5 per minute per username (prevent targeted account brute force)
+    - 20 per hour per IP (prevent distributed brute force)
+
+    Request Body:
+        {
+            "username": str,
+            "password": str
+        }
+
+    Response:
+        {
+            "success": true,
+            "access_token": str,
+            "refresh_token": str,
+            "token_type": "Bearer",
+            "expires_in": int,
+            "user": {
+                "id": int,
+                "username": str,
+                "is_admin": bool
+            }
+        }
+    """
+    from app import limiter
+    from app.utils.rate_limit_helpers import get_username_key
+    from app.utils.jwt_auth import create_tokens_for_user
+
+    # Apply rate limiting decorators
+    @limiter.limit("5 per minute", key_func=lambda: get_username_key())
+    @limiter.limit("20 per hour")
+    def _api_login_impl():
+        if not request.is_json:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid JSON format',
+                'status_code': 400
+            }), 400
+
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({
+                'success': False,
+                'error': 'Missing username or password',
+                'status_code': 400
+            }), 400
+
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            # Update last login
+            user.last_login = datetime.now(timezone.utc)
+            db.session.commit()
+
+            # Create JWT tokens
+            tokens = create_tokens_for_user(user)
+
+            return jsonify({
+                'success': True,
+                **tokens,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'is_admin': user.is_admin if hasattr(user, 'is_admin') else False
+                }
+            })
+
         return jsonify({
             'success': False,
-            'error': 'Invalid JSON format',
-            'status_code': 400
-        }), 400
+            'error': 'Invalid credentials',
+            'status_code': 401
+        }), 401
 
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+    return _api_login_impl()
 
-    if not username or not password:
-        return jsonify({
-            'success': False,
-            'error': 'Missing username or password',
-            'status_code': 400
-        }), 400
 
-    user = User.query.filter_by(username=username).first()
-    if user and user.check_password(password):
-        login_user(user)
-        user.last_login = datetime.now(timezone.utc)
-        db.session.commit()
+@api_auth.route('/refresh', methods=['POST'])
+@csrf.exempt
+def refresh():
+    """
+    Refresh access token using refresh token
 
-        return jsonify({
-            'success': True,
-            'user_id': user.id,
-            'username': user.username
-        })
+    Requires valid refresh token in Authorization header
 
-    return jsonify({
-        'success': False,
-        'error': 'Invalid credentials',
-        'status_code': 401
-    }), 401
+    Returns:
+        New access token with 15-minute expiration
+    """
+    from flask_jwt_extended import jwt_required
+    from app.utils.jwt_auth import refresh_access_token
+
+    @jwt_required(refresh=True)
+    def _refresh_impl():
+        try:
+            new_token = refresh_access_token()
+            return jsonify({
+                'success': True,
+                **new_token
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'status_code': 401
+            }), 401
+
+    return _refresh_impl()
