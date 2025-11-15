@@ -97,11 +97,10 @@
   padding: 2.5rem;
   box-shadow: 0 10px 40px rgba(220, 38, 38, 0.12),
               0 2px 8px rgba(0, 0, 0, 0.08);
-  max-width: 900px;
   border: 2px solid transparent;
   position: relative;
   animation: cardSlideIn 0.5s ease-out;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .question-card::before {
@@ -906,6 +905,23 @@
   .feedback-message i {
     font-size: 1.75rem;
   }
+
+  .question-card {
+    padding: 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .question-card::before {
+    border-radius: 1rem;
+  }
+}
+
+/* Desktop: центрируем и ограничиваем ширину для очень больших экранов */
+@media (min-width: 1400px) {
+  .question-card {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
 }
 </style>
 {% endblock %}
@@ -1306,7 +1322,7 @@
                       {% if line.get('blank') %}
                         <span style="color: #3b82f6; font-weight: 600;">___</span>
                       {% else %}
-                        {{ line.text }}
+                        {{ line.text|safe }}
                       {% endif %}
                     </div>
                   {% endfor %}
