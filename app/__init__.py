@@ -5,11 +5,13 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
+from flask_jwt_extended import JWTManager
 
 from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
 from app.utils.i18n import init_babel
 from app.utils.cache import init_cache
+from app.utils.rate_limit_helpers import get_remote_address_key
 from config.settings import Config
 
 login_manager = LoginManager()
@@ -19,22 +21,41 @@ login_manager.login_message_category = 'info'
 
 csrf = CSRFProtect()
 
-# Initialize rate limiter
+# JWT Manager for API authentication
+jwt = JWTManager()
+
+# Initialize rate limiter with enhanced configuration
 limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["1000 per day", "200 per hour"],
-    storage_uri="memory://"
+    key_func=get_remote_address_key,
+    default_limits=["1000 per hour"],  # Global limit per IP
+    storage_uri="memory://",
+    # Customizable error messages
+    headers_enabled=True,  # Enable X-RateLimit headers
+    swallow_errors=False,  # Raise errors in development
+    # Strategy for rate limit windows
+    strategy="fixed-window"
 )
 
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # Configure JWT
+    from datetime import timedelta
+    app.config['JWT_SECRET_KEY'] = app.config['SECRET_KEY']
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+    app.config['JWT_TOKEN_LOCATION'] = ['headers']
+    app.config['JWT_HEADER_NAME'] = 'Authorization'
+    app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
     csrf.init_app(app)
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     limiter.init_app(app)
+    jwt.init_app(app)
     init_babel(app)
     init_cache(app)
 
@@ -97,6 +118,10 @@ def create_app(config_class=Config):
     from app.modules import modules_bp
     app.register_blueprint(modules_bp, url_prefix='/modules')
 
+    # Register uploads blueprint for secure file serving
+    from app.uploads.routes import uploads as uploads_blueprint
+    app.register_blueprint(uploads_blueprint, url_prefix='/uploads')
+
     # Add module utilities to Jinja globals
     from app.modules.service import ModuleService
 
@@ -146,28 +171,12 @@ def create_app(config_class=Config):
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
-    # Create database tables and configure PostgreSQL
-    with app.app_context():
-        try:
-            # Create tables
-            db.create_all()
+    # ARCHITECTURE FIX: db.create_all() removed from app factory
+    # Database schema should be managed through Alembic migrations only
+    # Use: flask db upgrade
 
-            # Set up database specific configurations
-            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-                # PostgreSQL specific optimizations
-                from sqlalchemy import text
-                db.session.execute(text("SET synchronous_commit = OFF"))  # Improves performance, slightly less durable
-                db.session.execute(text("SET statement_timeout = '30s'"))  # Prevents long-running queries
-                db.session.execute(
-                    text("SET idle_in_transaction_session_timeout = '60s'"))  # Prevents idle transactions
-
-                # Enable connection pooling
-                db.engine.pool_size = 10
-                db.engine.max_overflow = 20
-
-                app.logger.info("PostgreSQL optimizations enabled")
-
-        except Exception as e:
-            app.logger.error(f"Error initializing database: {e}")
+    # Set up database-specific optimizations via SQLAlchemy events
+    from app.utils.db_config import configure_database_engine
+    configure_database_engine(app, db)
 
     return app
