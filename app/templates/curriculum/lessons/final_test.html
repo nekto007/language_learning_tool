@@ -610,7 +610,8 @@
               <p class="sentence-prompt" style="font-size: 1.2rem; margin-bottom: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
                 {{ full_question }}
               </p>
-            {% else %}
+            {% elif question.type not in ['transformation', 'matching', 'reorder'] %}
+              {# Don't show full_question for transformation/matching/reorder - they have their own formatting #}
               <h3 class="question-text">{{ full_question }}</h3>
             {% endif %}
           {% endif %}
