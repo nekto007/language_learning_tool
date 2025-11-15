@@ -176,6 +176,10 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
 
+        # Seed initial data for modules system
+        from app.modules.migrations import seed_initial_modules
+        seed_initial_modules()
+
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
     configure_database_engine(app, db)
