@@ -2692,80 +2692,27 @@ def cleanup_books():
 
 
 def save_cover_image(file):
-    """Сохраняет и обрабатывает обложку книги"""
-    import os
-    import uuid
-    from PIL import Image
-    from werkzeug.utils import secure_filename
+    """
+    Сохраняет и обрабатывает обложку книги (устаревшая функция)
 
-    COVER_UPLOAD_FOLDER = 'app/static/uploads/covers'
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-    MAX_COVER_WIDTH = 400
-    MAX_COVER_HEIGHT = 600
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    ВНИМАНИЕ: Эта функция использует безопасную утилиту из app.utils.file_security
+    для защиты от:
+    - Загрузки вредоносных файлов (проверка реального MIME-типа)
+    - XSS атак через метаданные (очистка EXIF)
+    - Path traversal атак
 
-    # Ensure upload directory exists
-    os.makedirs(COVER_UPLOAD_FOLDER, exist_ok=True)
+    Args:
+        file: Объект загруженного файла
 
-    def allowed_file(filename):
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    Returns:
+        str: Относительный путь к сохраненному файлу или None в случае ошибки
+    """
+    from app.utils.file_security import process_and_save_cover_image
 
-    # Проверяем, что file не None и имеет атрибут filename
-    if not file or not hasattr(file, 'filename'):
-        return None
-
-    if file and allowed_file(file.filename):
-        # Проверка размера файла
-        file.seek(0, os.SEEK_END)
-        file_size = file.tell()
-        file.seek(0)
-
-        if file_size > MAX_FILE_SIZE:
-            flash('Размер файла превышает максимальный лимит 5MB', 'danger')
-            return None
-
-        try:
-            # Генерация уникального имени файла
-            original_filename = secure_filename(file.filename)
-            extension = original_filename.rsplit('.', 1)[1].lower()
-            unique_filename = f"{uuid.uuid4().hex}.{extension}"
-            filepath = os.path.join(COVER_UPLOAD_FOLDER, unique_filename)
-
-            # Сохраняем исходный файл временно
-            file.save(filepath)
-
-            # Обрабатываем изображение с Pillow
-            with Image.open(filepath) as img:
-                # Преобразуем в RGB, если необходимо
-                if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
-                    background = Image.new("RGB", img.size, (255, 255, 255))
-                    background.paste(img, mask=img.split()[3] if img.split()[3] else None)
-                    img = background
-
-                # Изменяем размер при необходимости, сохраняя пропорции
-                img_width, img_height = img.size
-                if img_width > MAX_COVER_WIDTH or img_height > MAX_COVER_HEIGHT:
-                    ratio = min(MAX_COVER_WIDTH / img_width, MAX_COVER_HEIGHT / img_height)
-                    new_width = int(img_width * ratio)
-                    new_height = int(img_height * ratio)
-                    img = img.resize((new_width, new_height), Image.LANCZOS)
-
-                # Сохраняем обработанное изображение
-                img.save(filepath, quality=85, optimize=True)
-
-            return f"uploads/covers/{unique_filename}"
-
-        except Exception as e:
-            logger.error(f"Error processing cover image: {str(e)}")
-            # Очищаем временный файл при ошибке
-            if os.path.exists(filepath):
-                try:
-                    os.remove(filepath)
-                except:
-                    pass
-            return None
-
-    return None
+    result = process_and_save_cover_image(file)
+    if result is None:
+        flash('Ошибка при загрузке файла. Проверьте формат и размер изображения.', 'danger')
+    return result
 
 
 @admin.route('/books/statistics')
