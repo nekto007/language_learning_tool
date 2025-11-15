@@ -180,6 +180,10 @@ def create_app(config_class=Config):
         from app.modules.migrations import seed_initial_modules
         seed_initial_modules()
 
+        # Seed initial achievements
+        from app.achievements.seed import seed_achievements
+        seed_achievements()
+
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
     configure_database_engine(app, db)
