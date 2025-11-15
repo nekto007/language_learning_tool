@@ -4,6 +4,43 @@
 {% set instruction_text = _('Переворачивайте карточки и находите пары английских слов с их переводами. Чем быстрее, тем больше очков!') %}
 {% set block_description = _('Запоминание слов через игру на соответствие') %}
 
+{% block extra_css %}
+<style>
+/* Modern Card Styles */
+.matching-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.1),
+              0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  border: 2px solid transparent !important;
+  transition: all 0.3s ease !important;
+}
+
+.matching-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 32px rgba(220, 38, 38, 0.15),
+              0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.matching-card.flipped {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+  color: white !important;
+}
+
+.matching-card.matched {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%) !important;
+  color: white !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .matching-card {
+    border-radius: 0.75rem !important;
+  }
+}
+</style>
+{% endblock %}
+
 {% block lesson_content %}
 <!-- Получаем данные о предыдущей сессии -->
 {% set previous_data = None %}

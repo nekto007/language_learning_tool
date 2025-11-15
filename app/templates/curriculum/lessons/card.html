@@ -9,6 +9,195 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lesson-styles.css') }}?v=20251102-1">
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* Modern Card Styles */
+.srs-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+  border-radius: 1.5rem !important;
+  padding: 2.5rem !important;
+  box-shadow: 0 10px 40px rgba(220, 38, 38, 0.12),
+              0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  border: 2px solid transparent !important;
+  position: relative;
+  animation: cardSlideIn 0.5s ease-out;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.srs-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 1.5rem;
+  padding: 2px;
+  background: linear-gradient(135deg, #dc2626, #ef4444, #f87171);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Session stats with modern design */
+.session-stats-bar {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.1);
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.1);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.12);
+}
+
+/* Progress bar modern styling */
+.lesson-progress-detailed {
+  margin-bottom: 2rem;
+}
+
+.progress-bar-wrapper {
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* Rating buttons modern style */
+.rating-btn {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.rating-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.rating-btn.rating-again:hover {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.rating-btn.rating-hard:hover {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.rating-btn.rating-good:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.rating-btn.rating-easy:hover {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+}
+
+/* Show answer button modern style */
+.show-answer-btn {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+  border: none !important;
+  border-radius: 0.75rem !important;
+  padding: 1rem 2rem !important;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.show-answer-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.4) !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .srs-card {
+    padding: 1.5rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .srs-card::before {
+    border-radius: 1rem;
+  }
+
+  .session-stats-bar {
+    padding: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .rating-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .rating-btn {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .show-answer-btn {
+    padding: 0.875rem 1.5rem !important;
+    font-size: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .srs-card {
+    padding: 1.25rem !important;
+  }
+
+  .rating-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+{% endblock %}
+
 {% block lesson_content %}
 
   <!-- Получаем данные о предыдущей сессии -->

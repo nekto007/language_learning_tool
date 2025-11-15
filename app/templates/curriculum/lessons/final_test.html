@@ -195,11 +195,44 @@
 
 /* Question cards */
 .question-card {
-  background: white;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 1.5rem;
+  padding: 2.5rem;
+  box-shadow: 0 10px 40px rgba(220, 38, 38, 0.12),
+              0 2px 8px rgba(0, 0, 0, 0.08);
   max-width: 900px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  animation: cardSlideIn 0.5s ease-out;
+}
+
+.question-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 1.5rem;
+  padding: 2px;
+  background: linear-gradient(135deg, #dc2626, #ef4444, #f87171);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .question-text {
@@ -587,18 +620,17 @@
 
           {# Check if it's a dialogue question (contains A: and B:) #}
           {% if "A:" in full_question and "B:" in full_question %}
-            {% set dialogue_parts = full_question.split("B:") %}
-            {% set person_a = dialogue_parts[0].replace("A:", "").strip().strip("'\"") %}
-            {% set person_b_incomplete = dialogue_parts[1].strip().strip("'\"") %}
+            {% set clean_question = full_question|replace('&#39;', "'")|replace('&quot;', '"')|replace('&amp;', '&') %}
+            {% set dialogue_parts = clean_question.split("B:") %}
+            {% set person_a = dialogue_parts[0].replace("A:", "").replace("\n", " ").replace("\r", " ").strip().strip("'\"") %}
+            {% set person_b_incomplete = dialogue_parts[1].replace("\n", " ").replace("\r", " ").strip().strip("'\"") %}
 
             <div class="dialogue-question" style="margin-bottom: 1.5rem;">
-              <div class="dialogue-line" style="padding: 1rem; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 0.75rem; margin-bottom: 0.75rem;">
-                <span style="font-weight: 700; color: #dc2626;">A:</span>
-                <span style="margin-left: 0.5rem; color: #1f2937;">{{ person_a }}</span>
+              <div class="dialogue-line" style="display: block !important; padding: 1rem; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 0.75rem; margin-bottom: 0.75rem; line-height: 1.6; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <b style="color: #dc2626;">A: </b><span style="color: #1f2937;">{{ person_a|replace('&#39;', "'")|safe }}</span>
               </div>
-              <div class="dialogue-line" style="padding: 1rem; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 0.75rem; position: relative;">
-                <span style="font-weight: 700; color: #dc2626;">B:</span>
-                <span style="margin-left: 0.5rem; color: #92400e; font-style: italic;">{{ person_b_incomplete }}</span>
+              <div class="dialogue-line" style="display: block !important; padding: 1rem; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 0.75rem; line-height: 1.6; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <b style="color: #dc2626;">B: </b> <span style="color: #92400e; font-style: italic;">{{ person_b_incomplete|replace('&#39;', "'")|safe }}</span>
               </div>
             </div>
           {% else %}
@@ -610,13 +642,30 @@
               <p class="sentence-prompt" style="font-size: 1.2rem; margin-bottom: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
                 {{ full_question }}
               </p>
-            {% elif question.type not in ['transformation', 'matching', 'reorder'] %}
+            {% elif question.type not in ['transformation', 'matching', 'reorder', 'ordering', 'listening_choice'] %}
               {# Don't show full_question for transformation/matching/reorder - they have their own formatting #}
-              <h3 class="question-text">{{ full_question }}</h3>
+              <h3 class="question-text">{{ full_question|safe }}</h3>
             {% endif %}
           {% endif %}
 
-          {% if question.type == 'multiple_choice' and question.options %}
+          {# Listening choice questions - show audio player and instruction #}
+          {% if question.type == 'listening_choice' %}
+            {% if question.audio %}
+              <div class="audio-player-container" style="margin-bottom: 1.5rem; text-align: center;">
+                <audio controls style="width: 100%; max-width: 500px;">
+                  <source src="{{ url_for('static', filename='audio/' + question.audio.replace('[sound:', '').replace(']', '')) }}" type="audio/mpeg">
+                </audio>
+              </div>
+            {% endif %}
+            {% if question.instruction %}
+              <p style="color: #667eea; font-size: 1rem; margin-bottom: 1rem; text-align: center;">
+                <i class="fas fa-headphones"></i> {{ question.instruction }}
+              </p>
+            {% endif %}
+            <h3 class="question-text">{{ question.question or full_question }}</h3>
+          {% endif %}
+
+          {% if question.type in ['multiple_choice', 'listening_choice'] and question.options %}
             <div class="answer-options">
               {% for option in question.options %}
                 <button type="button"
@@ -625,7 +674,7 @@
                         data-value="{{ loop.index0 }}"
                         data-text="{{ option }}">
                   <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                  <span class="option-text">{{ option }}</span>
+                  <span class="option-text">{{ option|safe }}</span>
                 </button>
               {% endfor %}
             </div>
@@ -773,11 +822,17 @@
               </button>
             </div>
 
-          {% elif question.type == 'reorder' %}
+          {% elif question.type in ['reorder', 'ordering'] %}
             <div class="reorder-answer">
-              <p class="instruction-text">
-                🔤 {{ _('Кликайте на слова для составления предложения') }}
-              </p>
+              {% if question.instruction %}
+                <p class="instruction-text" style="font-size: 1rem; color: #6b7280; margin-bottom: 1.5rem; padding: 1rem; background: #f9fafb; border-left: 4px solid #dc2626; border-radius: 0.5rem;">
+                  🔤 {{ question.instruction }}
+                </p>
+              {% else %}
+                <p class="instruction-text">
+                  🔤 {{ _('Кликайте на слова для составления предложения') }}
+                </p>
+              {% endif %}
               <div class="words-container" id="words-container-{{ question_index }}">
                 {% for word in question.words %}
                   <button type="button"
@@ -1063,6 +1118,22 @@ window.FinalTestApp = {
     started: false
   },
 
+  shuffleWordButtons() {
+    // Shuffle word buttons in ordering/reorder questions using Fisher-Yates algorithm
+    document.querySelectorAll('.words-container').forEach(container => {
+      const buttons = Array.from(container.querySelectorAll('.word-button'));
+
+      // Fisher-Yates shuffle
+      for (let i = buttons.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [buttons[i], buttons[j]] = [buttons[j], buttons[i]];
+      }
+
+      // Re-append buttons in shuffled order
+      buttons.forEach(button => container.appendChild(button));
+    });
+  },
+
   init() {
     document.getElementById('start-final-test-btn')?.addEventListener('click', () => this.startTest());
 
@@ -1073,6 +1144,9 @@ window.FinalTestApp = {
     document.querySelectorAll('.text-submit-btn').forEach(btn => {
       btn.addEventListener('click', () => this.submitTextAnswer(parseInt(btn.dataset.question)));
     });
+
+    // Shuffle word buttons for ordering/reorder questions
+    this.shuffleWordButtons();
   },
 
   startTest() {
@@ -1151,7 +1225,7 @@ window.FinalTestApp = {
       } else {
         isCorrect = (value === 'true') === (correctAnswer == true);
       }
-    } else if (question.type === 'multiple_choice' || (question.type === 'fill_in_blank' && question.options) || (question.type === 'fill_blank' && question.options)) {
+    } else if (question.type === 'multiple_choice' || question.type === 'listening_choice' || (question.type === 'fill_in_blank' && question.options) || (question.type === 'fill_blank' && question.options)) {
       const userIndex = parseInt(value);
       const normalize = (str) => str ? str.toLowerCase().trim() : '';
 
