@@ -3,6 +3,7 @@ from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 from flask_babel import lazy_gettext as _l
 from app.auth.models import User
+from app.utils.password_validator import validate_password_strength
 
 
 class LoginForm(FlaskForm):
@@ -28,6 +29,18 @@ class RegistrationForm(FlaskForm):
         user = User.query.filter_by(email=email.data).first()
         if user:
             raise ValidationError(_l('Email already registered.'))
+
+    def validate_password(self, password):
+        """Валидация стойкости пароля"""
+        is_valid, errors = validate_password_strength(
+            password.data,
+            username=self.username.data if hasattr(self, 'username') else None,
+            email=self.email.data if hasattr(self, 'email') else None
+        )
+        if not is_valid:
+            # Объединяем все ошибки в одно сообщение
+            error_message = ' '.join(errors)
+            raise ValidationError(error_message)
 
 
 class RequestResetForm(FlaskForm):
@@ -56,3 +69,10 @@ class ResetPasswordForm(FlaskForm):
         EqualTo('password')
     ])
     submit = SubmitField(_l('Reset Password'))
+
+    def validate_password(self, password):
+        """Валидация стойкости пароля"""
+        is_valid, errors = validate_password_strength(password.data)
+        if not is_valid:
+            error_message = ' '.join(errors)
+            raise ValidationError(error_message)

@@ -5,35 +5,48 @@ from app.utils.db import db
 
 
 def init_db(app):
-    """Initialize database and optimize for SQLite."""
+    """
+    DEPRECATED: Legacy database initialization function
+
+    ARCHITECTURE CHANGES:
+    - db.create_all() removed - use Alembic migrations: flask db upgrade
+    - PRAGMA statements removed - now applied via SQLAlchemy events in db_config.py
+    - Indexes should be created via Alembic migrations
+
+    This function is kept for backward compatibility but does minimal work.
+    Most initialization is now handled properly through migrations and event listeners.
+
+    Use this function only if you need to create indexes on existing databases
+    that don't have migrations.
+    """
     with app.app_context():
-        # Create tables if they don't exist
-        db.create_all()
+        from app.utils.db_config import get_database_type
 
-        # Enable foreign key constraints for SQLite
-        db.session.execute("PRAGMA foreign_keys = ON")
+        database_type = get_database_type(app)
 
-        # Enable WAL (Write-Ahead Logging) mode for better performance
-        db.session.execute("PRAGMA journal_mode = WAL")
+        # ARCHITECTURE FIX: db.create_all() removed
+        # Schema management should be done through Alembic migrations only
+        # If you need to create tables: flask db upgrade
 
-        # Set synchronous mode to normal for better performance
-        db.session.execute("PRAGMA synchronous = NORMAL")
+        # ARCHITECTURE FIX: PRAGMA statements removed
+        # SQLite/PostgreSQL optimizations are now applied via SQLAlchemy event listeners
+        # See app/utils/db_config.py for implementation
 
-        # Create admin user if no users exist
-        if User.query.count() == 0:
-            admin_user = User(username="admin", email="admin@example.com")
-            admin_user.set_password("password")
-            admin_user.created_at = datetime.utcnow()
-            db.session.add(admin_user)
+        # SECURITY: Admin user creation removed
+        # Use the create_admin.py CLI script to create the first admin user
+
+        # Create indexes for legacy databases (if not using migrations)
+        # These should ideally be in an Alembic migration
+        try:
+            db.session.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status_user ON user_word_status (user_id)")
+            db.session.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status_word ON user_word_status (word_id)")
+            db.session.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_book ON word_book_link (book_id)")
+            db.session.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_word ON word_book_link (word_id)")
             db.session.commit()
-
-        # Create indexes that might not be auto-created by SQLAlchemy
-        db.session.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status_user ON user_word_status (user_id)")
-        db.session.execute("CREATE INDEX IF NOT EXISTS idx_user_word_status_word ON user_word_status (word_id)")
-        db.session.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_book ON word_book_link (book_id)")
-        db.session.execute("CREATE INDEX IF NOT EXISTS idx_word_book_link_word ON word_book_link (word_id)")
-
-        db.session.commit()
+        except Exception as e:
+            # Indexes may already exist or tables may not exist yet
+            db.session.rollback()
+            app.logger.warning(f"Could not create indexes (this is normal if using migrations): {e}")
 
 
 def optimize_db():
