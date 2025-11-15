@@ -38,36 +38,38 @@ def configure_postgresql(app, db):
 
     These settings are applied per-connection, not globally in create_app().
     """
-    @event.listens_for(db.engine, "connect")
-    def set_postgresql_pragmas(dbapi_conn, connection_record):
-        """Set PostgreSQL session parameters on each connection"""
-        cursor = dbapi_conn.cursor()
+    # Access engine within app context to ensure it's been created
+    with app.app_context():
+        @event.listens_for(db.engine, "connect")
+        def set_postgresql_pragmas(dbapi_conn, connection_record):
+            """Set PostgreSQL session parameters on each connection"""
+            cursor = dbapi_conn.cursor()
 
-        try:
-            # Improves write performance, slightly less durable
-            # Good for development; reconsider for production
-            cursor.execute("SET synchronous_commit = OFF")
+            try:
+                # Improves write performance, slightly less durable
+                # Good for development; reconsider for production
+                cursor.execute("SET synchronous_commit = OFF")
 
-            # Prevents long-running queries from blocking
-            cursor.execute("SET statement_timeout = '30s'")
+                # Prevents long-running queries from blocking
+                cursor.execute("SET statement_timeout = '30s'")
 
-            # Prevents idle transactions from holding locks
-            cursor.execute("SET idle_in_transaction_session_timeout = '60s'")
+                # Prevents idle transactions from holding locks
+                cursor.execute("SET idle_in_transaction_session_timeout = '60s'")
 
-            cursor.close()
-            logger.debug("PostgreSQL session parameters applied")
+                cursor.close()
+                logger.debug("PostgreSQL session parameters applied")
 
-        except Exception as e:
-            logger.error(f"Error setting PostgreSQL pragmas: {e}")
-            cursor.close()
-            raise
+            except Exception as e:
+                logger.error(f"Error setting PostgreSQL pragmas: {e}")
+                cursor.close()
+                raise
 
-    # Configure connection pool
-    if hasattr(db.engine, 'pool'):
-        db.engine.pool._pool.maxsize = 10
-        db.engine.pool._max_overflow = 20
+        # Configure connection pool
+        if hasattr(db.engine, 'pool'):
+            db.engine.pool._pool.maxsize = 10
+            db.engine.pool._max_overflow = 20
 
-    logger.info("PostgreSQL optimizations configured via event listeners")
+        logger.info("PostgreSQL optimizations configured via event listeners")
 
 
 def configure_sqlite(app, db):
@@ -77,34 +79,36 @@ def configure_sqlite(app, db):
     CRITICAL: These PRAGMA statements are SQLite-specific and will fail on PostgreSQL.
     That's why we check the database type first.
     """
-    @event.listens_for(db.engine, "connect")
-    def set_sqlite_pragmas(dbapi_conn, connection_record):
-        """Set SQLite PRAGMAs on each connection"""
-        cursor = dbapi_conn.cursor()
+    # Access engine within app context to ensure it's been created
+    with app.app_context():
+        @event.listens_for(db.engine, "connect")
+        def set_sqlite_pragmas(dbapi_conn, connection_record):
+            """Set SQLite PRAGMAs on each connection"""
+            cursor = dbapi_conn.cursor()
 
-        try:
-            # CRITICAL: Enable foreign key constraints
-            # SQLite disables them by default!
-            cursor.execute("PRAGMA foreign_keys = ON")
+            try:
+                # CRITICAL: Enable foreign key constraints
+                # SQLite disables them by default!
+                cursor.execute("PRAGMA foreign_keys = ON")
 
-            # Enable WAL (Write-Ahead Logging) for better concurrency
-            cursor.execute("PRAGMA journal_mode = WAL")
+                # Enable WAL (Write-Ahead Logging) for better concurrency
+                cursor.execute("PRAGMA journal_mode = WAL")
 
-            # Balance between safety and performance
-            cursor.execute("PRAGMA synchronous = NORMAL")
+                # Balance between safety and performance
+                cursor.execute("PRAGMA synchronous = NORMAL")
 
-            # Increase cache size for better read performance (10MB)
-            cursor.execute("PRAGMA cache_size = -10000")
+                # Increase cache size for better read performance (10MB)
+                cursor.execute("PRAGMA cache_size = -10000")
 
-            cursor.close()
-            logger.debug("SQLite PRAGMAs applied")
+                cursor.close()
+                logger.debug("SQLite PRAGMAs applied")
 
-        except Exception as e:
-            logger.error(f"Error setting SQLite pragmas: {e}")
-            cursor.close()
-            raise
+            except Exception as e:
+                logger.error(f"Error setting SQLite pragmas: {e}")
+                cursor.close()
+                raise
 
-    logger.info("SQLite optimizations configured via event listeners")
+        logger.info("SQLite optimizations configured via event listeners")
 
 
 def get_database_type(app):
