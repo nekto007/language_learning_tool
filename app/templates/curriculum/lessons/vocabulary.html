@@ -3,15 +3,13 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vocabulary-cards.css') }}?v=8">
 <style>
-/* Modern Card Styles Override */
+/* Modern Card Styles Enhancement */
 .vocabulary-card {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
   border-radius: 1.5rem !important;
   box-shadow: 0 10px 40px rgba(220, 38, 38, 0.12),
               0 2px 8px rgba(0, 0, 0, 0.08) !important;
   border: 2px solid transparent !important;
-  position: relative;
-  animation: cardSlideIn 0.5s ease-out;
 }
 
 .vocabulary-card::before {
@@ -29,17 +27,6 @@
   mask-composite: exclude;
   opacity: 0.3;
   pointer-events: none;
-}
-
-@keyframes cardSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 /* Mobile responsive */
