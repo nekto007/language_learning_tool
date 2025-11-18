@@ -1163,7 +1163,7 @@ window.FinalTestApp = {
       if (savedData.current_question !== undefined) {
         this.state.currentQuestion = savedData.current_question;
         this.state.answers = savedData.answers || [];
-        this.state.correctCount = savedData.correct_count || 0;
+        this.state.correctCount = savedData.correct_answers || 0;
       }
     {% endif %}
 
@@ -1352,7 +1352,7 @@ window.FinalTestApp = {
             data: {
               current_question: this.state.currentQuestion,
               answers: this.state.answers,
-              correct_count: this.state.correctCount,
+              correct_answers: this.state.correctCount,
               total_questions: window.finalTestData.totalQuestions
             }
           })

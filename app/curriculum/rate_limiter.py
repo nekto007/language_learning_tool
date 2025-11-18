@@ -2,7 +2,7 @@
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import wraps
 from typing import Dict, Tuple
 
@@ -249,7 +249,7 @@ def adaptive_rate_limit(base_limit: int = 60, window: int = 60):
 
                 # Long-time users get slightly higher limits
                 if hasattr(current_user, 'created_at'):
-                    account_age = datetime.utcnow() - current_user.created_at
+                    account_age = datetime.now(UTC) - current_user.created_at
                     if account_age > timedelta(days=30):
                         limit = int(limit * 1.2)
 

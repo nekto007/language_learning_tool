@@ -769,7 +769,7 @@ function showResultsAndNavigation(data) {
   resultsDiv.className = 'exercise-results mt-4';
   
   const score = data.score || 0;
-  const correctCount = data.correct_count || 0;
+  const correctCount = data.correct_answers || 0;
   const totalCount = data.total_count || 0;
   const isPassed = score >= 70;
   

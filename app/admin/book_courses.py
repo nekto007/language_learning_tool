@@ -6,7 +6,7 @@
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from functools import wraps
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort
@@ -394,7 +394,7 @@ def register_book_course_routes(admin_bp):
             course.is_featured = request.form.get('is_featured') == 'on'
             course.requires_prerequisites = request.form.get('requires_prerequisites') == 'on'
 
-            course.updated_at = datetime.utcnow()
+            course.updated_at = datetime.now(UTC)
 
             db.session.commit()
 
@@ -575,7 +575,7 @@ def register_book_course_routes(admin_bp):
 
             # Update course status
             course.is_active = True
-            course.updated_at = datetime.utcnow()
+            course.updated_at = datetime.now(UTC)
 
             db.session.commit()
 
@@ -617,7 +617,7 @@ def register_book_course_routes(admin_bp):
         total_enrollments = BookCourseEnrollment.query.count()
 
         # Enrollment trends (last 30 days)
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
         daily_enrollments = db.session.query(
             func.date(BookCourseEnrollment.enrolled_at).label('date'),
             func.count(BookCourseEnrollment.id).label('count')

@@ -2,7 +2,7 @@
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Dict, Any, Optional, List
 
 from flask import current_app
@@ -216,7 +216,7 @@ class CurriculumCacheService:
             Dictionary with gamification stats
         """
         try:
-            current_date = datetime.utcnow().date()
+            current_date = datetime.now(UTC).date()
 
             # Get all activity dates in one query
             activity_dates = db.session.query(

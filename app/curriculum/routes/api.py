@@ -1,13 +1,13 @@
 # app/curriculum/routes/api.py
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, jsonify
 from flask_login import current_user, login_required
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.security import check_lesson_access
+from app.curriculum.security import check_lesson_access, check_module_access
 from app.curriculum.service import get_card_session_for_lesson, get_cards_for_lesson
 from app.utils.db import db
 
@@ -355,7 +355,7 @@ def calculate_user_streak(user_id):
 
         # Check for consecutive days
         streak = 0
-        today = datetime.utcnow().date()
+        today = datetime.now(UTC).date()
 
         # Start from today or yesterday
         if dates[0] == today or dates[0] == today - timedelta(days=1):

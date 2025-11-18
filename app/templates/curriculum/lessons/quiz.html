@@ -1027,7 +1027,7 @@
       <div class="quiz-stats-cards">
         <div class="stat-card points">
           <div class="stat-icon">⭐</div>
-          <div class="stat-value">{{ previous_data.get('points_earned', (previous_data.correct_count * 10))|int }}</div>
+          <div class="stat-value">{{ previous_data.get('points_earned', (previous_data.correct_answers * 10))|int }}</div>
           <div class="stat-label">очков</div>
         </div>
 
@@ -1795,7 +1795,7 @@ window.QuizApp = {
       if (savedData.current_question !== undefined) {
         this.state.currentQuestion = savedData.current_question;
         this.state.answers = savedData.answers || [];
-        this.state.correctCount = savedData.correct_count || 0;
+        this.state.correctCount = savedData.correct_answers || 0;
       }
     {% endif %}
 
@@ -2124,7 +2124,7 @@ window.QuizApp = {
           data: {
             current_question: this.state.currentQuestion,
             answers: this.state.answers,
-            correct_count: this.state.correctCount,
+            correct_answers: this.state.correctCount,
             total_questions: window.quizData.totalQuestions
           }
         })
@@ -2320,7 +2320,7 @@ window.QuizApp = {
 
     // Send client-calculated score and correct count
     formData.append('client_score', score);
-    formData.append('client_correct_count', questionsAnsweredCorrectly);
+    formData.append('client_correct_answers', questionsAnsweredCorrectly);
 
     // Send detailed results for each question (final status after retry)
     const detailedResults = [];
@@ -2350,7 +2350,7 @@ window.QuizApp = {
 
     console.log('Sending to server:', {
       client_score: score,
-      client_correct_count: questionsAnsweredCorrectly,
+      client_correct_answers: questionsAnsweredCorrectly,
       detailed_results: detailedResults
     });
 
@@ -2365,11 +2365,11 @@ window.QuizApp = {
     .then(data => {
       if (data.success) {
         // Override server data with client-side calculation
-        data.correct_count = questionsAnsweredCorrectly;
+        data.correct_answers = questionsAnsweredCorrectly;
         data.score = score;
 
         console.log('Using client-side data:', {
-          correct_count: questionsAnsweredCorrectly,
+          correct_answers: questionsAnsweredCorrectly,
           score: score
         });
 
@@ -2418,7 +2418,7 @@ window.QuizApp = {
 
     // Use data passed from submitResults (which has been overridden with client-side calculation)
     const score = data.score;
-    const correctCount = data.correct_count;
+    const correctCount = data.correct_answers;
     const totalQuestions = window.quizData.totalQuestions;
     const isPassed = score >= 80;
 

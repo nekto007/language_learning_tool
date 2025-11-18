@@ -1,7 +1,7 @@
 # app/curriculum/routes/main.py
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
@@ -18,7 +18,7 @@ def calculate_gamification_stats(user_id):
     """Calculate gamification statistics for user"""
     # Calculate learning streak (consecutive days)
     streak = 0
-    current_date = datetime.utcnow().date()
+    current_date = datetime.now(UTC).date()
 
     # Get all distinct activity dates, ordered by date descending
     activity_dates = db.session.query(
