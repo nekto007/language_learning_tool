@@ -48,15 +48,15 @@ class VocabularyContentSchema(Schema):
 
     @validates_schema
     def validate_content(self, data, **kwargs):
-        # Check if at least one vocabulary field exists
+        # Check if at least one vocabulary field exists AND is non-empty
         has_vocab = any([
-            data.get('words'),
-            data.get('items'),
-            data.get('cards'),
-            data.get('vocabulary')
+            data.get('words') and len(data.get('words')) > 0,
+            data.get('items') and len(data.get('items')) > 0,
+            data.get('cards') and len(data.get('cards')) > 0,
+            data.get('vocabulary') and len(data.get('vocabulary')) > 0
         ])
         if not has_vocab:
-            raise ValidationError('At least one vocabulary field (words/items/cards/vocabulary) is required')
+            raise ValidationError('At least one vocabulary field (words/items/cards/vocabulary) must be present and non-empty')
 
 
 class GrammarContentSchema(Schema):
@@ -113,33 +113,28 @@ class QuizQuestionSchema(Schema):
 
     @validates_schema
     def validate_question_fields(self, data, **kwargs):
-        # Skip validation if question is not required for certain types
+        # Get question type
         q_type = data.get('type', 'multiple_choice')
 
-        # For these types, question/prompt/sentence/instruction/russian is not strictly required
+        # For these types, question/prompt is not strictly required
         # They may have alternative fields like 'instruction', 'russian', 'sentence', 'audio', etc.
-        if q_type in ['fill_blank', 'fill_in_blank', 'translation', 'matching', 'ordering',
-                      'transformation', 'dialogue_completion', 'listening_choice', 'reorder']:
-            return
+        skip_question_prompt = q_type in ['fill_blank', 'fill_in_blank', 'translation', 'matching', 'ordering',
+                                          'transformation', 'dialogue_completion', 'listening_choice', 'reorder']
 
         # Must have either 'question' or 'prompt' for other types
-        if not data.get('question') and not data.get('prompt'):
+        if not skip_question_prompt and not data.get('question') and not data.get('prompt'):
             raise ValidationError('Either "question" or "prompt" field is required')
 
         # Validate based on question type
-        q_type = data.get('type', 'multiple_choice')
-
         if q_type == 'multiple_choice':
             if not data.get('options'):
                 raise ValidationError('Multiple choice questions require "options" field')
 
-            # Must have either 'correct' or 'correct_index'
+            # Optional: validate 'correct' or 'correct_index' if provided
             correct_val = data.get('correct') if data.get('correct') is not None else data.get('correct_index')
-            if correct_val is None:
-                raise ValidationError('Multiple choice questions require "correct" or "correct_index" field')
 
             # If correct is an integer (index), validate it's in range
-            if isinstance(correct_val, int):
+            if correct_val is not None and isinstance(correct_val, int):
                 if correct_val >= len(data.get('options', [])):
                     raise ValidationError('Correct answer index is out of range')
             # If correct is a string (answer text), validate it's in options
@@ -230,7 +225,7 @@ class MatchingContentSchema(Schema):
     pairs = fields.List(
         fields.Nested(MatchingPairSchema),
         required=True,
-        validate=validate.Length(min=2)
+        validate=validate.Length(min=1)
     )
     instructions = fields.Str(required=False)
     time_limit = fields.Int(required=False, validate=validate.Range(min=0))
@@ -311,36 +306,32 @@ class LessonContentValidator:
     def validate(cls, lesson_type: str, content: Any) -> tuple[bool, Optional[str], Optional[Dict]]:
         """
         Validate lesson content based on type.
-        
+
         Args:
             lesson_type: Type of lesson
             content: Content to validate
-            
+
         Returns:
             Tuple of (is_valid, error_message, cleaned_data)
+
+        Raises:
+            ValueError: If lesson_type is unknown
+            ValidationError: If content is invalid
         """
         schema_class = cls.SCHEMAS.get(lesson_type)
         if not schema_class:
-            return False, f"Unknown lesson type: {lesson_type}", None
+            raise ValueError(f"Unknown lesson type: {lesson_type}")
 
         schema = schema_class()
 
-        try:
-            # Handle both list and dict content for vocabulary
-            if lesson_type == 'vocabulary' and isinstance(content, list):
-                # Convert list format to dict format
-                content = {'words': content}
+        # Handle both list and dict content for vocabulary
+        if lesson_type == 'vocabulary' and isinstance(content, list):
+            # Convert list format to dict format
+            content = {'words': content}
 
-            cleaned_data = schema.load(content)
-            return True, None, cleaned_data
-        except ValidationError as e:
-            error_messages = []
-            for field, errors in e.messages.items():
-                if isinstance(errors, list):
-                    error_messages.extend([f"{field}: {err}" for err in errors])
-                else:
-                    error_messages.append(f"{field}: {errors}")
-            return False, "; ".join(error_messages), None
+        # Load and validate - will raise ValidationError if invalid
+        cleaned_data = schema.load(content)
+        return True, None, cleaned_data
 
 
 class ImportDataSchema(Schema):
@@ -372,6 +363,7 @@ class ImportDataSchema(Schema):
 
 class ProgressUpdateSchema(Schema):
     """Schema for updating lesson progress"""
+    lesson_id = fields.Int(required=False, validate=validate.Range(min=1))
     score = fields.Float(
         required=False,
         validate=validate.Range(min=0, max=100)
@@ -384,6 +376,8 @@ class ProgressUpdateSchema(Schema):
     completed_items = fields.Int(required=False, validate=validate.Range(min=0))
     total_items = fields.Int(required=False, validate=validate.Range(min=1))
     reading_time = fields.Int(required=False, validate=validate.Range(min=0))
+    time_spent = fields.Int(required=False, validate=validate.Range(min=0))
+    attempts = fields.Int(required=False, validate=validate.Range(min=1))
     comprehension_results = fields.Dict(required=False)  # Результаты comprehension questions
 
     @validates_schema
@@ -400,13 +394,19 @@ class SRSReviewSchema(Schema):
     word_id = fields.Int(required=True)
     direction = fields.Str(
         required=True,
-        validate=validate.OneOf(['eng-rus', 'rus-eng'])
+        validate=validate.OneOf(['eng-rus', 'rus-eng', 'en_ru', 'ru_en'])
     )
     quality = fields.Int(
-        required=True,
+        required=False,
+        validate=validate.Range(min=0, max=5)
+    )
+    rating = fields.Int(
+        required=False,
         validate=validate.Range(min=0, max=5)
     )
     time_spent = fields.Int(required=False, validate=validate.Range(min=0))
+    response_time = fields.Float(required=False, validate=validate.Range(min=0))
+    session_id = fields.Str(required=False)
     user_answer = fields.Str(required=False)
 
 

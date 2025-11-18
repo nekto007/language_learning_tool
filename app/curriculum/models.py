@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -70,7 +70,7 @@ class Module(db.Model):
         """
         reasons = []
 
-        # No prerequisites means always accessible
+        # No prerequisites mean always accessible
         if not self.prerequisites:
             return True, []
 
@@ -220,8 +220,12 @@ class Lessons(db.Model):
             tuple: (is_valid, error_message)
         """
         from app.curriculum.validators import LessonContentValidator
+        from marshmallow import ValidationError
 
-        return LessonContentValidator.validate(self.type, self.content)
+        try:
+            return LessonContentValidator.validate(self.type, self.content)
+        except ValidationError as e:
+            return (False, str(e.messages), None)
 
     # Relationships
     module = relationship('Module', back_populates='lessons')
@@ -422,13 +426,22 @@ class LessonAttempt(db.Model):
         """Mark attempt as completed with results."""
         self.completed_at = datetime.now(timezone.utc)
         self.score = score
-        self.passed = score >= 70  # Default passing score
+        self.passed = score >= 70 if score is not None else False  # Default passing score
         self.mistakes = mistakes or []
         self.correct_answers = correct
         self.total_questions = total
 
         if self.started_at and self.completed_at:
-            delta = self.completed_at - self.started_at
+            # Ensure both datetimes are timezone-aware
+            started = self.started_at
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+
+            completed = self.completed_at
+            if completed.tzinfo is None:
+                completed = completed.replace(tzinfo=timezone.utc)
+
+            delta = completed - started
             self.time_spent_seconds = int(delta.total_seconds())
 
 
