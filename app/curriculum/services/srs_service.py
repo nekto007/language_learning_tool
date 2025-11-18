@@ -1,7 +1,7 @@
 # app/curriculum/services/srs_service.py
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Dict
 
 from app.curriculum.models import Lessons
@@ -54,7 +54,7 @@ class SRSService:
                 user_words.append(user_word)
 
             # Get due cards
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             due_directions = []
             new_cards = 0
             review_cards = 0
@@ -248,7 +248,7 @@ class SRSService:
                     status='completed',
                     score=100.0,
                     data={
-                        'completed_at': datetime.utcnow().isoformat(),
+                        'completed_at': datetime.now(UTC).isoformat(),
                         'total_reviews': card_dir.session_attempts
                     }
                 )
@@ -293,7 +293,7 @@ class SRSService:
             mastered_words = sum(1 for uw in user_words if uw.status == 'mastered')
 
             # Get due cards count
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             due_cards = UserCardDirection.query.join(
                 UserWord
             ).filter(

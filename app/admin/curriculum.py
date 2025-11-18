@@ -6,7 +6,7 @@
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _, lazy_gettext as _l
@@ -713,7 +713,7 @@ def reset_progress(progress_id):
     progress.status = 'not_started'
     progress.score = 0
     progress.completed_at = None
-    progress.last_activity = datetime.utcnow()
+    progress.last_activity = datetime.now(UTC)
     progress.data = {}
 
     db.session.commit()

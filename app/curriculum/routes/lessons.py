@@ -1,10 +1,11 @@
 # app/curriculum/routes/lessons.py
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from marshmallow import ValidationError
 
 from app.achievements.services import process_lesson_completion
 from app.curriculum.models import LessonProgress, Lessons
@@ -55,9 +56,9 @@ def update_lesson_progress_with_grading(lesson, progress, result, passing_score=
         progress.data = result
         # IMPORTANT: Mark JSONB field as modified for SQLAlchemy to detect changes
         flag_modified(progress, 'data')
-        progress.last_activity = datetime.utcnow()
+        progress.last_activity = datetime.now(UTC)
         if progress.status == 'completed' and not progress.completed_at:
-            progress.completed_at = datetime.utcnow()
+            progress.completed_at = datetime.now(UTC)
     else:
         progress = LessonProgress(
             user_id=current_user.id,
@@ -65,11 +66,11 @@ def update_lesson_progress_with_grading(lesson, progress, result, passing_score=
             score=score,
             status='completed' if is_completed else 'in_progress',
             data=result,
-            started_at=datetime.utcnow(),
-            last_activity=datetime.utcnow()
+            started_at=datetime.now(UTC),
+            last_activity=datetime.now(UTC)
         )
         if progress.status == 'completed':
-            progress.completed_at = datetime.utcnow()
+            progress.completed_at = datetime.now(UTC)
         db.session.add(progress)
 
     db.session.commit()
@@ -109,8 +110,8 @@ def lesson_detail(lesson_id):
                 user_id=current_user.id,
                 lesson_id=lesson.id,
                 status='in_progress',
-                started_at=datetime.utcnow(),
-                last_activity=datetime.utcnow()
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC)
             )
             db.session.add(progress)
             db.session.commit()
@@ -121,7 +122,7 @@ def lesson_detail(lesson_id):
             return redirect('/learn/')
     else:
         # Update last activity
-        progress.last_activity = datetime.utcnow()
+        progress.last_activity = datetime.now(UTC)
         db.session.commit()
 
     # Route to appropriate handler based on lesson type
@@ -174,9 +175,15 @@ def vocabulary_lesson(lesson_id):
     words = []
 
     # Validate and sanitize content
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'vocabulary', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'vocabulary', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid vocabulary content for lesson {lesson_id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
 
     if not is_valid:
         logger.error(f"Invalid vocabulary content for lesson {lesson_id}: {error_msg}")
@@ -270,9 +277,16 @@ def grammar_lesson(lesson_id):
         abort(400, "This is not a grammar lesson")
 
     # Validate and sanitize content
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'grammar', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'grammar', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid grammar content for lesson {lesson_id}: {error_msg}")
+        logger.error(f"Lesson content: {lesson.content}")
+        flash(f'Ошибка в содержимом урока: {error_msg}', 'error')
+        return redirect('/learn/')
 
     if not is_valid:
         logger.error(f"Invalid grammar content for lesson {lesson_id}: {error_msg}")
@@ -316,7 +330,7 @@ def grammar_lesson(lesson_id):
         progress.score = None
         progress.data = None
         progress.completed_at = None
-        progress.last_activity = datetime.utcnow()
+        progress.last_activity = datetime.now(UTC)
         db.session.commit()
 
     # Get next lesson
@@ -391,8 +405,8 @@ def grammar_lesson(lesson_id):
                 'success': True,
                 'score': result.get('score', 0),
                 'feedback': result.get('feedback', {}),
-                'correct_count': result.get('correct_count', 0),
-                'total_count': result.get('total_count', 0)
+                'correct_answers': result.get('correct_answers', 0),
+                'total_questions': result.get('total_questions', 0)
             }
             if completion_result:
                 response_data['grade'] = completion_result['grade']
@@ -428,9 +442,15 @@ def quiz_lesson(lesson_id):
         abort(400, "This is not a quiz lesson")
 
     # Validate and sanitize content
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'quiz', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'quiz', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid quiz content for lesson {lesson_id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
 
     if not is_valid:
         logger.error(f"Invalid quiz content for lesson {lesson_id}: {error_msg}")
@@ -547,7 +567,7 @@ def quiz_lesson(lesson_id):
         progress.score = None
         progress.data = None
         progress.completed_at = None
-        progress.last_activity = datetime.utcnow()
+        progress.last_activity = datetime.now(UTC)
         db.session.commit()
 
     # Create progress if it doesn't exist (on first visit)
@@ -556,8 +576,8 @@ def quiz_lesson(lesson_id):
             user_id=current_user.id,
             lesson_id=lesson.id,
             status='in_progress',
-            started_at=datetime.utcnow(),
-            last_activity=datetime.utcnow()
+            started_at=datetime.now(UTC),
+            last_activity=datetime.now(UTC)
         )
         db.session.add(progress)
         db.session.commit()
@@ -639,7 +659,7 @@ def quiz_lesson(lesson_id):
                     client_correct_count = int(request.form.get('client_correct_count', 0))
                     logger.info(f"Using client-side calculation: score={client_score}, correct={client_correct_count}")
                     result['score'] = client_score
-                    result['correct_count'] = client_correct_count
+                    result['correct_answers'] = client_correct_count
                 except (ValueError, TypeError) as e:
                     logger.error(f"Invalid client score data: {e}")
 
@@ -657,8 +677,8 @@ def quiz_lesson(lesson_id):
                 'success': True,
                 'score': result.get('score', 0),
                 'feedback': result.get('feedback', {}),
-                'correct_count': result.get('correct_count', 0),
-                'total_count': result.get('total_count', 0)
+                'correct_answers': result.get('correct_answers', 0),
+                'total_questions': result.get('total_questions', 0)
             }
             if completion_result:
                 response_data['grade'] = completion_result['grade']
@@ -690,9 +710,15 @@ def final_test_lesson(lesson_id):
         abort(400, "This is not a final test lesson")
 
     # Validate and sanitize content using final_test schema
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'final_test', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'final_test', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid final test content for lesson {lesson_id}: {error_msg}")
+        flash('Ошибка в содержимом финального теста', 'error')
+        return redirect('/learn/')
 
     if not is_valid:
         logger.error(f"Invalid final test content for lesson {lesson_id}: {error_msg}")
@@ -744,7 +770,7 @@ def final_test_lesson(lesson_id):
         progress.score = None
         progress.data = None
         progress.completed_at = None
-        progress.last_activity = datetime.utcnow()
+        progress.last_activity = datetime.now(UTC)
         db.session.commit()
 
     # Handle POST request (final test submission)
@@ -851,9 +877,13 @@ def final_test_results(lesson_id):
         return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 
     # Get lesson content for questions
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'final_test', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'final_test', lesson.content
+        )
+    except ValidationError as e:
+        flash('Ошибка в содержимом теста', 'error')
+        return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 
     if not is_valid:
         flash('Ошибка в содержимом теста', 'error')
@@ -898,9 +928,15 @@ def matching_lesson(lesson_id):
         abort(400, "This is not a matching lesson")
 
     # Validate and sanitize content
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'matching', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'matching', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid matching content for lesson {lesson_id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
 
     if not is_valid:
         logger.error(f"Invalid matching content for lesson {lesson_id}: {error_msg}")
@@ -944,9 +980,15 @@ def text_lesson(lesson_id):
         abort(400, "This is not a text lesson")
 
     # Validate and sanitize content
-    is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-        'text', lesson.content
-    )
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'text', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid text content for lesson {lesson_id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
 
     if not is_valid:
         logger.error(f"Invalid text content for lesson {lesson_id}: {error_msg}")
@@ -1231,7 +1273,7 @@ def card_lesson(lesson_id):
 
             if user_words and user_words.next_review:
                 # Calculate time difference
-                time_diff = user_words.next_review - datetime.utcnow()
+                time_diff = user_words.next_review - datetime.now(UTC)
                 hours = int(time_diff.total_seconds() / 3600)
                 if hours < 1:
                     minutes = int(time_diff.total_seconds() / 60)
@@ -1300,7 +1342,7 @@ def complete_srs_session(lesson_id):
         if cards_studied > 0:
             progress.status = 'completed'
             progress.score = round(accuracy, 2)
-            progress.completed_at = datetime.utcnow()
+            progress.completed_at = datetime.now(UTC)
 
         db.session.commit()
 
@@ -1392,10 +1434,10 @@ def update_lesson_progress(lesson_id):
             from sqlalchemy.orm.attributes import flag_modified
             flag_modified(progress, 'data')
 
-        progress.last_activity = datetime.utcnow()
+        progress.last_activity = datetime.now(UTC)
 
         if progress.status == 'completed' and not progress.completed_at:
-            progress.completed_at = datetime.utcnow()
+            progress.completed_at = datetime.now(UTC)
 
         db.session.commit()
 

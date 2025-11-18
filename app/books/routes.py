@@ -7,7 +7,7 @@ import re
 import sys
 import threading
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from PIL import Image
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -528,7 +528,7 @@ def add_word_to_learning():
                 user_id=current_user.id,
                 word_id=word_entry.id,
                 status='learning',  # Learning status as string
-                date_added=datetime.utcnow()
+                date_added=datetime.now(UTC)
             )
             db.session.add(user_word)
 
@@ -635,7 +635,7 @@ def save_bookmark():
             name=name,
             position=position,
             context=context,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(UTC)
         )
 
         db.session.add(bookmark)

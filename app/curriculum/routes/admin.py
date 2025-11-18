@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -422,7 +422,7 @@ def edit_level(level_id):
             level.name = sanitize_json_content(name)
             level.description = sanitize_json_content(description)
             level.order = order
-            level.updated_at = datetime.utcnow()
+            level.updated_at = datetime.now(UTC)
 
             db.session.commit()
             flash('Уровень успешно обновлен', 'success')
@@ -461,7 +461,7 @@ def edit_module(module_id):
             # Update module
             module.title = sanitize_json_content(title)
             module.description = sanitize_json_content(description)
-            module.updated_at = datetime.utcnow()
+            module.updated_at = datetime.now(UTC)
 
             db.session.commit()
             flash('Модуль успешно обновлен', 'success')
@@ -502,7 +502,7 @@ def edit_lesson(lesson_id):
 
                 # Update lesson content
                 lesson.content = content
-                lesson.updated_at = datetime.utcnow()
+                lesson.updated_at = datetime.now(UTC)
 
                 db.session.commit()
                 flash('Содержимое урока успешно обновлено', 'success')
@@ -537,7 +537,7 @@ def edit_lesson(lesson_id):
                 lesson.description = sanitize_json_content(description)
                 lesson.module_id = module_id
                 lesson.number = number
-                lesson.updated_at = datetime.utcnow()
+                lesson.updated_at = datetime.now(UTC)
 
                 db.session.commit()
                 flash('Урок успешно обновлен', 'success')

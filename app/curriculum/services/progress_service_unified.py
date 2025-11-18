@@ -1,7 +1,7 @@
 # app/curriculum/services/progress_service_unified.py
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Dict, Any, Optional
 
 from sqlalchemy import func
@@ -120,14 +120,14 @@ class ProgressService:
                 progress = LessonProgress(
                     user_id=user_id,
                     lesson_id=lesson_id,
-                    started_at=datetime.utcnow()
+                    started_at=datetime.now(UTC)
                 )
                 db.session.add(progress)
 
             # Update fields
             old_status = progress.status
             progress.status = status
-            progress.last_activity = datetime.utcnow()
+            progress.last_activity = datetime.now(UTC)
 
             if score is not None:
                 progress.set_score(score)
@@ -137,7 +137,7 @@ class ProgressService:
 
             # Award XP if newly completed
             if status == 'completed' and old_status != 'completed':
-                progress.completed_at = datetime.utcnow()
+                progress.completed_at = datetime.now(UTC)
 
                 # Award XP
                 lesson = Lessons.query.get(lesson_id)
@@ -332,7 +332,7 @@ class ProgressService:
     def _calculate_streak(cls, user_id: int) -> int:
         """Calculate current learning streak in days."""
         try:
-            current_date = datetime.utcnow().date()
+            current_date = datetime.now(UTC).date()
 
             # Get distinct activity dates
             activity_dates = db.session.query(

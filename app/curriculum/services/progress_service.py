@@ -1,7 +1,7 @@
 # app/curriculum/services/progress_service.py
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Dict, List, Optional
 
 from sqlalchemy import and_, func
@@ -184,13 +184,13 @@ class ProgressService:
                     user_id=user_id,
                     lesson_id=lesson_id,
                     status=status,
-                    started_at=datetime.utcnow(),
-                    last_activity=datetime.utcnow()
+                    started_at=datetime.now(UTC),
+                    last_activity=datetime.now(UTC)
                 )
                 db.session.add(progress)
             else:
                 progress.status = status
-                progress.last_activity = datetime.utcnow()
+                progress.last_activity = datetime.now(UTC)
 
             if score is not None:
                 progress.score = round(score, 2)
@@ -199,7 +199,7 @@ class ProgressService:
                 progress.data = data
 
             if status == 'completed' and not progress.completed_at:
-                progress.completed_at = datetime.utcnow()
+                progress.completed_at = datetime.now(UTC)
 
             db.session.commit()
             return progress
@@ -334,7 +334,7 @@ class ProgressService:
 
             # Check for consecutive days
             streak = 0
-            today = datetime.utcnow().date()
+            today = datetime.now(UTC).date()
 
             # Start from today or yesterday
             if dates[0] == today or dates[0] == today - timedelta(days=1):

@@ -1,7 +1,7 @@
 # app/curriculum/routes/book_courses.py
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -160,7 +160,7 @@ def enroll_in_course(course_id):
             user_id=current_user.id,
             course_id=course_id,
             status='active',
-            enrolled_at=datetime.utcnow()
+            enrolled_at=datetime.now(UTC)
         )
 
         # Set current module to first module
@@ -239,7 +239,7 @@ def view_module(course_id, module_id):
                 enrollment_id=enrollment.id,
                 module_id=module_id,
                 status='not_started',
-                started_at=datetime.utcnow()
+                started_at=datetime.now(UTC)
             )
             db.session.add(module_progress)
             db.session.commit()
@@ -617,12 +617,12 @@ def complete_lesson_api_v1(lesson_id):
                 daily_lesson_id=lesson_id,
                 enrollment_id=enrollment.id,
                 status='completed',
-                started_at=datetime.utcnow()
+                started_at=datetime.now(UTC)
             )
             db.session.add(progress)
 
         progress.status = 'completed'
-        progress.completed_at = datetime.utcnow()
+        progress.completed_at = datetime.now(UTC)
 
         # Create completion event
         completion_event = LessonCompletionEvent(
@@ -711,7 +711,7 @@ def complete_lesson_api(course_id, module_id):
             logger.error(f"Error auto-creating SRS cards: {str(e)}")
 
         # Update enrollment progress
-        enrollment.last_activity = datetime.utcnow()
+        enrollment.last_activity = datetime.now(UTC)
 
         # Calculate overall course progress
         total_modules = BookCourseModule.query.filter_by(course_id=course_id).count()

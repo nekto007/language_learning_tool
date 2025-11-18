@@ -1,7 +1,7 @@
 # app/curriculum/services/lesson_analytics_service.py
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Dict, Any, List, Optional
 
 from sqlalchemy import func, and_, desc
@@ -284,7 +284,7 @@ class LessonAnalyticsService:
         """Get overall system health metrics."""
         try:
             # Get counts for last 7 days
-            week_ago = datetime.utcnow() - timedelta(days=7)
+            week_ago = datetime.now(UTC) - timedelta(days=7)
 
             recent_attempts = db.session.query(
                 func.count(LessonAttempt.id).label('total'),

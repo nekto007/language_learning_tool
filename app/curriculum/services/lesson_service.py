@@ -1,7 +1,7 @@
 # app/curriculum/services/lesson_service.py
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Dict, List
 
 from app.curriculum.models import Lessons
@@ -72,7 +72,7 @@ class LessonService:
                 data={
                     'answers': answers,
                     'feedback': feedback,
-                    'attempt_at': datetime.utcnow().isoformat()
+                    'attempt_at': datetime.now(UTC).isoformat()
                 }
             )
 
@@ -151,7 +151,7 @@ class LessonService:
                 data={
                     'answers': answers,
                     'feedback': feedback,
-                    'attempt_at': datetime.utcnow().isoformat()
+                    'attempt_at': datetime.now(UTC).isoformat()
                 }
             )
 
@@ -226,7 +226,7 @@ class LessonService:
                     'matches': matches,
                     'correct_count': correct_count,
                     'total_count': total_count,
-                    'attempt_at': datetime.utcnow().isoformat()
+                    'attempt_at': datetime.now(UTC).isoformat()
                 }
             )
 
@@ -357,7 +357,7 @@ class LessonService:
                 score=final_score,
                 data={
                     'section_results': section_results,
-                    'attempt_at': datetime.utcnow().isoformat()
+                    'attempt_at': datetime.now(UTC).isoformat()
                 }
             )
 
