@@ -1,6 +1,5 @@
 """API endpoints for Telegram bot integration"""
 
-import functools
 import random
 from datetime import datetime, timezone
 
@@ -11,42 +10,16 @@ from app import csrf
 from app.auth.models import User
 from app.books.models import Chapter, Book, UserChapterProgress
 from app.curriculum.models import Lessons, LessonProgress
+from app.telegram.decorators import telegram_auth_required
 from app.utils.db import db
 
 api_telegram = Blueprint('api_telegram', __name__)
 
 
-def telegram_auth_required(f):
-    """Decorator to check for valid Telegram API token"""
-    @functools.wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = request.headers.get('X-Telegram-Token')
-
-        if not token:
-            return jsonify({
-                'success': False,
-                'error': 'Missing authentication token',
-                'status_code': 401
-            }), 401
-
-        user = User.query.filter_by(telegram_api_token=token).first()
-        if not user:
-            return jsonify({
-                'success': False,
-                'error': 'Invalid authentication token',
-                'status_code': 401
-            }), 401
-
-        # Pass user to the route function
-        return f(user=user, *args, **kwargs)
-
-    return decorated_function
-
-
 @api_telegram.route('/telegram/latest-grammar', methods=['GET'])
 @csrf.exempt
-@telegram_auth_required
-def get_latest_grammar(user):
+@telegram_auth_required('read')
+def get_latest_grammar(token, user):
     """Rate limiting applied: 20 per minute"""
     from app import limiter
     limiter.limit("20 per minute")(lambda: None)()
@@ -120,8 +93,8 @@ def get_latest_grammar(user):
 
 @api_telegram.route('/telegram/book-excerpt', methods=['GET'])
 @csrf.exempt
-@telegram_auth_required
-def get_book_excerpt(user):
+@telegram_auth_required('read')
+def get_book_excerpt(token, user):
     """Rate limiting applied: 30 per minute"""
     from app import limiter
     limiter.limit("30 per minute")(lambda: None)()
@@ -230,13 +203,19 @@ def generate_token():
     Generate a new Telegram API token for a user
 
     Requires username and password for authentication
-    Returns the new token
+    Returns the new token with expiration and scope
 
     Rate limits:
     - 3 per hour per IP (token generation is rare)
     - 2 per day per username (prevent token spam)
+
+    SECURITY: Uses new TelegramToken model with:
+    - 90-day expiration
+    - Scoped permissions (read, write)
+    - Revocation support
     """
     from app import limiter
+    from app.telegram.models import TelegramToken
     from app.utils.rate_limit_helpers import get_username_key
 
     @limiter.limit("3 per hour")
@@ -253,6 +232,8 @@ def generate_token():
             data = request.get_json()
             username = data.get('username')
             password = data.get('password')
+            scope = data.get('scope', 'read,write')  # Default: read + write
+            device_name = data.get('device_name', 'Telegram Bot')
 
             if not username or not password:
                 return jsonify({
@@ -270,15 +251,35 @@ def generate_token():
                     'status_code': 401
                 }), 401
 
-            # Generate new token
-            token = user.generate_telegram_token()
-            db.session.commit()
+            # Validate scope
+            valid_scopes = {'read', 'write', 'admin'}
+            requested_scopes = set(scope.split(','))
+            if not requested_scopes.issubset(valid_scopes):
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid scope. Valid scopes: {", ".join(valid_scopes)}',
+                    'status_code': 400
+                }), 400
+
+            # Create new token with proper security
+            user_agent = request.headers.get('User-Agent', 'Unknown')
+            token_obj = TelegramToken.create_token(
+                user_id=user.id,
+                scope=scope,
+                expires_in_days=90,
+                device_name=device_name,
+                user_agent=user_agent
+            )
 
             return jsonify({
                 'success': True,
-                'token': token,
+                'token': token_obj.token,
+                'token_id': token_obj.id,
                 'username': user.username,
-                'user_id': user.id
+                'user_id': user.id,
+                'scope': token_obj.scope,
+                'expires_at': token_obj.expires_at.isoformat(),
+                'message': 'Save this token securely! It won\'t be shown again.'
             })
 
         except Exception as e:
@@ -294,8 +295,8 @@ def generate_token():
 
 @api_telegram.route('/telegram/books', methods=['GET'])
 @csrf.exempt
-@telegram_auth_required
-def get_books(user):
+@telegram_auth_required('read')
+def get_books(token, user):
     """
     Get list of available books
 
@@ -332,8 +333,8 @@ def get_books(user):
 
 @api_telegram.route('/telegram/read-next', methods=['GET'])
 @csrf.exempt
-@telegram_auth_required
-def read_next(user):
+@telegram_auth_required('read')
+def read_next(token, user):
     """Rate limiting applied: 60 per minute"""
     from app import limiter
     limiter.limit("60 per minute")(lambda: None)()
@@ -501,8 +502,8 @@ def read_next(user):
 
 @api_telegram.route('/telegram/reading-progress', methods=['GET'])
 @csrf.exempt
-@telegram_auth_required
-def get_reading_progress(user):
+@telegram_auth_required('read')
+def get_reading_progress(token, user):
     """
     Get reading progress for all books or a specific book
 
@@ -649,8 +650,8 @@ def get_reading_progress(user):
 
 @api_telegram.route('/telegram/start-book', methods=['POST'])
 @csrf.exempt
-@telegram_auth_required
-def start_book(user):
+@telegram_auth_required('write')
+def start_book(token, user):
     """
     Start reading a book from the beginning (reset progress)
 
