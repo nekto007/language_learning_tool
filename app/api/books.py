@@ -195,7 +195,7 @@ def get_chapter_content(book_id, chapter_num):
     return jsonify(response_data)
 
 
-@csrf.exempt
+# CSRF protection REQUIRED
 @api_books.route('/progress', methods=['PATCH'])
 @api_login_required
 def update_chapter_progress():
@@ -481,7 +481,7 @@ def get_word_translation(word):
         })
 
 
-@csrf.exempt
+@# CSRF protection REQUIRED
 @api_books.route('/add-to-learning', methods=['POST'])
 @api_login_required
 def add_to_learning():

@@ -13,7 +13,7 @@ api_anki = Blueprint('api_anki', __name__)
 
 
 @api_anki.route('/export-anki', methods=['POST'])
-@csrf.exempt
+@# CSRF protection REQUIRED
 @api_login_required
 def export_anki():
     if not request.is_json:
