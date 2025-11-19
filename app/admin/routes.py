@@ -656,6 +656,18 @@ def import_translations():
                     flash('Файл не выбран', 'danger')
                     return redirect(request.url)
 
+                # SECURITY: Validate uploaded file
+                from app.utils.file_security import validate_text_file_upload
+                is_valid, error_msg = validate_text_file_upload(
+                    file,
+                    allowed_extensions={'txt', 'csv'},
+                    max_size_mb=5
+                )
+
+                if not is_valid:
+                    flash(f'Ошибка валидации файла: {error_msg}', 'danger')
+                    return redirect(request.url)
+
                 # Читаем содержимое файла
                 content = file.read().decode('utf-8')
                 lines = content.strip().split('\n')
@@ -1287,6 +1299,19 @@ def import_curriculum():
         if 'json_file' in request.files and request.files['json_file'].filename:
             # Получаем JSON из файла
             file = request.files['json_file']
+
+            # SECURITY: Validate uploaded file
+            from app.utils.file_security import validate_text_file_upload
+            is_valid, error_msg = validate_text_file_upload(
+                file,
+                allowed_extensions={'json'},
+                max_size_mb=10
+            )
+
+            if not is_valid:
+                flash(f'Ошибка валидации файла: {error_msg}', 'danger')
+                return redirect(url_for('admin.import_curriculum'))
+
             try:
                 json_text = file.read().decode('utf-8')
                 json_data = json.loads(json_text)
@@ -1970,6 +1995,21 @@ def process_phrasal_verbs():
         if 'phrasal_verbs_file' in request.files and request.files['phrasal_verbs_file'].filename:
             # Получаем данные из файла
             file = request.files['phrasal_verbs_file']
+
+            # SECURITY: Validate uploaded file
+            from app.utils.file_security import validate_text_file_upload
+            is_valid, error_msg = validate_text_file_upload(
+                file,
+                allowed_extensions={'txt', 'csv'},
+                max_size_mb=5
+            )
+
+            if not is_valid:
+                return jsonify({
+                    'success': False,
+                    'error': f'Ошибка валидации файла: {error_msg}'
+                }), 400
+
             try:
                 content = file.read().decode('utf-8')
                 phrasal_verbs_data = content.strip().split('\n')

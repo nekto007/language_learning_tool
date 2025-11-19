@@ -209,3 +209,85 @@ def get_upload_folder() -> str:
 def get_cover_upload_folder() -> str:
     """Возвращает путь к папке обложек"""
     return COVER_UPLOAD_FOLDER
+
+
+def validate_text_file_upload(
+    file: FileStorage,
+    allowed_extensions: set,
+    max_size_mb: int = 10
+) -> Tuple[bool, Optional[str]]:
+    """
+    Безопасная валидация текстовых файлов (JSON, CSV, TXT)
+
+    Args:
+        file: Объект загруженного файла
+        allowed_extensions: Набор разрешенных расширений (например, {'json', 'csv', 'txt'})
+        max_size_mb: Максимальный размер файла в МБ
+
+    Returns:
+        Tuple[bool, Optional[str]]: (is_valid, error_message)
+    """
+    if not file or not hasattr(file, 'filename'):
+        return False, "Файл не предоставлен"
+
+    if not file.filename:
+        return False, "Имя файла отсутствует"
+
+    # Безопасное имя файла (защита от path traversal)
+    from werkzeug.utils import secure_filename
+    safe_name = secure_filename(file.filename)
+
+    if not safe_name:
+        return False, "Недопустимое имя файла"
+
+    # Проверка расширения
+    if '.' not in safe_name:
+        return False, "Файл должен иметь расширение"
+
+    extension = safe_name.rsplit('.', 1)[1].lower()
+    if extension not in allowed_extensions:
+        return False, f"Расширение .{extension} не разрешено. Разрешены: {', '.join(allowed_extensions)}"
+
+    # Проверка размера файла
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)  # Вернуть указатель в начало
+
+    max_bytes = max_size_mb * 1024 * 1024
+    if file_size > max_bytes:
+        return False, f"Размер файла ({file_size / 1024 / 1024:.2f} МБ) превышает лимит {max_size_mb} МБ"
+
+    # Проверка на подозрительные паттерны в имени файла
+    suspicious_patterns = [
+        '..',  # Path traversal
+        '/',
+        '\\',
+        '\x00',  # Null byte
+        '<',
+        '>',
+        ':',
+        '"',
+        '|',
+        '?',
+        '*'
+    ]
+
+    for pattern in suspicious_patterns:
+        if pattern in file.filename:
+            return False, f"Недопустимый символ в имени файла: {pattern}"
+
+    # Дополнительная проверка: попытка прочитать начало файла как текст
+    try:
+        file.seek(0)
+        sample = file.read(1024)  # Читаем первый КБ
+        file.seek(0)
+
+        # Проверяем, что это текст (UTF-8)
+        sample.decode('utf-8')
+    except UnicodeDecodeError:
+        return False, "Файл не является текстовым (UTF-8)"
+    except Exception as e:
+        logger.error(f"Error validating text file: {e}")
+        return False, "Ошибка при чтении файла"
+
+    return True, None
