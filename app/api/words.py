@@ -178,7 +178,7 @@ def get_word(word_id):
 
 
 @api_words.route('/update-word-status', methods=['POST'])
-@csrf.exempt
+# CSRF protection REQUIRED - called from web interface with CSRF token
 @api_login_required
 def update_word_status():
     if not request.is_json:
@@ -229,7 +229,7 @@ def update_word_status():
 
 
 @api_words.route('/batch-update-status', methods=['POST'])
-@csrf.exempt
+# CSRF protection REQUIRED - called from web interface with CSRF token
 @api_login_required
 def batch_update_status():
     if not request.is_json:
@@ -340,7 +340,7 @@ def search_words():
 # Добавьте этот endpoint в файл app/api/words.py
 
 @api_words.route('/words/<int:word_id>/status', methods=['POST'])
-@csrf.exempt
+# CSRF protection REQUIRED - called from web interface with CSRF token
 @api_login_required
 def update_single_word_status(word_id):
     """Update status for a single word - endpoint used by templates"""
@@ -398,7 +398,7 @@ def update_single_word_status(word_id):
 
 
 @api_words.route('/user-words-status', methods=['POST'])
-@csrf.exempt
+# CSRF protection REQUIRED - called from web interface with CSRF token
 @api_login_required
 def get_user_words_status():
     """Получить статусы слов пользователя для списка word_ids"""
