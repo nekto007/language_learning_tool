@@ -864,22 +864,14 @@ def achievements():
 @module_required('study')
 def matching():
     """Matching game study interface"""
-    # Get user settings
     settings = StudySettings.get_settings(current_user.id)
-
-    # Create new study session
-    session = StudySession(
-        user_id=current_user.id,
-        session_type='matching'
-    )
-    db.session.add(session)
-    db.session.commit()
+    session = SessionService.start_session(current_user.id, 'matching')
 
     return render_template(
         'study/matching.html',
         session_id=session.id,
         settings=settings,
-        word_source='auto'  # Always use automatic selection
+        word_source='auto'
     )
 
 
