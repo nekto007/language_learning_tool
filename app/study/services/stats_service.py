@@ -12,13 +12,40 @@ from sqlalchemy import func, desc
 
 from app.utils.db import db
 from app.study.models import (
-    UserWord, GameScore, QuizResult, UserXP, Achievement, UserAchievement
+    UserWord, GameScore, QuizResult, UserXP, Achievement, UserAchievement, StudySession
 )
 from app.auth.models import User
 
 
 class StatsService:
     """Service for statistics and leaderboards"""
+
+    @staticmethod
+    def get_user_stats(user_id: int) -> Dict:
+        """Get comprehensive user statistics"""
+        # Word statistics
+        word_stats = StatsService.get_user_word_stats(user_id)
+
+        # Recent sessions
+        recent_sessions = StudySession.query.filter_by(user_id=user_id) \
+            .order_by(StudySession.start_time.desc()).limit(10).all()
+
+        # Today's statistics
+        today = datetime.now(timezone.utc).date()
+        today_sessions = StudySession.query.filter_by(user_id=user_id) \
+            .filter(func.date(StudySession.start_time) == today).all()
+
+        today_words_studied = sum(session.words_studied for session in today_sessions)
+        today_time_spent = sum(session.duration for session in today_sessions)
+
+        return {
+            **word_stats,
+            'mastery_percentage': int((word_stats['mastered'] / word_stats['total'] * 100) if word_stats['total'] > 0 else 0),
+            'recent_sessions': recent_sessions,
+            'study_streak': 0,  # TODO: implement streak calculation
+            'today_words_studied': today_words_studied,
+            'today_time_spent': today_time_spent
+        }
 
     @staticmethod
     def get_user_word_stats(user_id: int) -> Dict:
