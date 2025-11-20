@@ -1964,73 +1964,29 @@ def copy_deck(deck_id):
 @module_required('study')
 def add_word_to_deck(deck_id):
     """Add word to user's quiz deck"""
-    from app.study.models import QuizDeck, QuizDeckWord
-
-    deck = QuizDeck.query.get_or_404(deck_id)
-
-    # Check if user owns this deck
-    if deck.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     word_id = request.form.get('word_id', type=int)
     custom_english = request.form.get('custom_english', '').strip()
     custom_russian = request.form.get('custom_russian', '').strip()
     custom_sentences = request.form.get('custom_sentences', '').strip()
 
-    if not custom_english or not custom_russian:
-        flash('Необходимо заполнить оба поля', 'danger')
+    deck_word, error = DeckService.add_word_to_deck(
+        deck_id=deck_id,
+        user_id=current_user.id,
+        word_id=word_id,
+        custom_english=custom_english,
+        custom_russian=custom_russian,
+        custom_sentences=custom_sentences if custom_sentences else None
+    )
+
+    if error:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error}), 400
+        flash(error, 'danger' if 'не найден' in error else 'info')
         return redirect(url_for('study.edit_deck', deck_id=deck_id))
-
-    # Get max order index
-    max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
-        QuizDeckWord.deck_id == deck_id
-    ).scalar() or 0
-
-    if word_id:
-        # Check if already in deck
-        existing = QuizDeckWord.query.filter_by(deck_id=deck_id, word_id=word_id).first()
-        if existing:
-            flash('Это слово уже в колоде', 'info')
-            return redirect(url_for('study.edit_deck', deck_id=deck_id))
-
-        # Add word from collection
-        word = CollectionWords.query.get(word_id)
-        if not word:
-            flash('Слово не найдено', 'danger')
-            return redirect(url_for('study.edit_deck', deck_id=deck_id))
-
-        deck_word = QuizDeckWord(
-            deck_id=deck_id,
-            word_id=word_id,
-            order_index=max_order + 1
-        )
-
-        # Save custom override if different
-        if custom_english != word.english_word or custom_russian != word.russian_word:
-            deck_word.custom_english = custom_english
-            deck_word.custom_russian = custom_russian
-
-        # Save custom sentences if provided and different from original
-        if custom_sentences and (not word.sentences or custom_sentences != word.sentences):
-            deck_word.custom_sentences = custom_sentences
-    else:
-        # Add custom word
-        deck_word = QuizDeckWord(
-            deck_id=deck_id,
-            custom_english=custom_english,
-            custom_russian=custom_russian,
-            custom_sentences=custom_sentences if custom_sentences else None,
-            order_index=max_order + 1
-        )
-
-    db.session.add(deck_word)
-    db.session.commit()
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Get sentences using property (handles custom override)
         sentences = deck_word.sentences
-
         return jsonify({
             'success': True,
             'message': 'Слово добавлено в колоду!',
@@ -2052,29 +2008,24 @@ def add_word_to_deck(deck_id):
 @module_required('study')
 def edit_deck_word(deck_id, word_id):
     """Edit word in user's quiz deck"""
-    from app.study.models import QuizDeck, QuizDeckWord
-
-    deck = QuizDeck.query.get_or_404(deck_id)
-
-    # Check if user owns this deck
-    if deck.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
-    deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
-
     custom_english = request.form.get('custom_english', '').strip()
     custom_russian = request.form.get('custom_russian', '').strip()
     custom_sentences = request.form.get('custom_sentences', '').strip()
 
-    if not custom_english or not custom_russian:
-        return jsonify({'success': False, 'message': 'Необходимо заполнить оба поля'}), 400
+    deck_word, error = DeckService.edit_deck_word(
+        deck_id=deck_id,
+        deck_word_id=word_id,
+        user_id=current_user.id,
+        custom_english=custom_english,
+        custom_russian=custom_russian,
+        custom_sentences=custom_sentences if custom_sentences else None
+    )
 
-    # Update custom fields
-    deck_word.custom_english = custom_english
-    deck_word.custom_russian = custom_russian
-    deck_word.custom_sentences = custom_sentences if custom_sentences else None
-
-    db.session.commit()
+    if error:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error}), 400
+        flash(error, 'danger')
+        return redirect(url_for('study.edit_deck', deck_id=deck_id))
 
     # Return JSON response
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -2099,17 +2050,17 @@ def edit_deck_word(deck_id, word_id):
 @module_required('study')
 def remove_word_from_deck(deck_id, word_id):
     """Remove word from user's quiz deck"""
-    from app.study.models import QuizDeck, QuizDeckWord
+    success, error = DeckService.remove_word_from_deck(
+        deck_id=deck_id,
+        deck_word_id=word_id,
+        user_id=current_user.id
+    )
 
-    deck = QuizDeck.query.get_or_404(deck_id)
-
-    # Check if user owns this deck
-    if deck.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
-    deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
-    db.session.delete(deck_word)
-    db.session.commit()
+    if error:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error}), 403
+        flash(error, 'danger')
+        return redirect(url_for('study.edit_deck', deck_id=deck_id))
 
     flash('Слово удалено из колоды', 'success')
     return redirect(url_for('study.edit_deck', deck_id=deck_id))
@@ -2122,37 +2073,7 @@ def api_search_words():
     query = request.args.get('q', '').strip()
     limit = min(int(request.args.get('limit', 10)), 50)
 
-    if not query or len(query) < 2:
-        return jsonify([])
-
-    # Search in CollectionWords
-    from sqlalchemy import case
-    words_query = CollectionWords.query.filter(
-        CollectionWords.russian_word != None,
-        CollectionWords.russian_word != '',
-        db.or_(
-            CollectionWords.english_word.ilike(f'%{query}%'),
-            CollectionWords.russian_word.ilike(f'%{query}%')
-        )
-    )
-
-    # Smart sorting
-    query_lower = query.lower()
-    words_query = words_query.order_by(
-        case(
-            (func.lower(CollectionWords.english_word) == query_lower, 1),
-            (func.lower(CollectionWords.russian_word) == query_lower, 1),
-            else_=10
-        ),
-        case(
-            (func.lower(CollectionWords.english_word).like(f'{query_lower}%'), 2),
-            (func.lower(CollectionWords.russian_word).like(f'{query_lower}%'), 2),
-            else_=10
-        ),
-        CollectionWords.english_word
-    )
-
-    words = words_query.limit(limit).all()
+    words = DeckService.search_words(query, limit)
 
     results = [{
         'id': w.id,
