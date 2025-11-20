@@ -173,24 +173,33 @@ class DeckService:
             description=description,
             is_public=is_public
         )
+
+        # Generate share code if public
+        if is_public:
+            deck.generate_share_code()
+
         db.session.add(deck)
         db.session.commit()
         return deck
 
     @classmethod
     def update_deck(cls, deck_id: int, user_id: int, title: str = None, description: str = None,
-                   is_public: bool = None) -> Tuple[bool, Optional[str]]:
+                   is_public: bool = None, generate_share: bool = False) -> Tuple[Optional[QuizDeck], Optional[str]]:
         """Update deck details"""
+        from datetime import datetime, timezone
+
         deck = QuizDeck.query.get(deck_id)
 
         if not deck:
-            return False, "Колода не найдена"
+            return None, "Колода не найдена"
 
         if deck.user_id != user_id:
-            return False, "Нет доступа к этой колоде"
+            return None, "Нет доступа к этой колоде"
 
         if cls.is_auto_deck(deck.title):
-            return False, "Нельзя редактировать автоматическую колоду"
+            return None, "Нельзя редактировать автоматическую колоду"
+
+        was_public = deck.is_public
 
         if title:
             deck.title = title
@@ -199,8 +208,18 @@ class DeckService:
         if is_public is not None:
             deck.is_public = is_public
 
+        # Generate share code if making public
+        if generate_share and deck.is_public and not was_public and not deck.share_code:
+            deck.generate_share_code()
+
+        deck.updated_at = datetime.now(timezone.utc)
         db.session.commit()
-        return True, None
+
+        # Sync to forks if public original deck
+        if deck.is_public and deck.parent_deck_id is None:
+            deck.sync_to_forks()
+
+        return deck, None
 
     @classmethod
     def delete_deck(cls, deck_id: int, user_id: int) -> Tuple[bool, Optional[str]]:
