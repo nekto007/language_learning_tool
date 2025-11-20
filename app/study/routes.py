@@ -260,12 +260,10 @@ def cards_deck(deck_id):
 @module_required('study')
 def quiz():
     """Quiz deck selection page"""
+    my_decks = DeckService.get_user_decks(current_user.id, include_public=False)
+
+    # Get top public decks from other users
     from app.study.models import QuizDeck
-
-    # Get user's decks
-    my_decks = QuizDeck.query.filter_by(user_id=current_user.id).order_by(QuizDeck.created_at.desc()).all()
-
-    # Get public decks (not created by current user)
     public_decks = QuizDeck.query.filter(
         QuizDeck.is_public == True,
         QuizDeck.user_id != current_user.id
@@ -283,16 +281,8 @@ def quiz():
 @module_required('study')
 def quiz_auto():
     """Automatic quiz (old behavior) - random questions from user's words"""
-    # Get user settings
     settings = StudySettings.get_settings(current_user.id)
-
-    # Create new study session
-    session = StudySession(
-        user_id=current_user.id,
-        session_type='quiz'
-    )
-    db.session.add(session)
-    db.session.commit()
+    session = SessionService.start_session(current_user.id, 'quiz')
 
     return render_template(
         'study/quiz.html',
@@ -322,19 +312,11 @@ def quiz_deck(deck_id):
         flash('В колоде нет слов', 'warning')
         return redirect(url_for('study.quiz'))
 
-    # Get user settings
     settings = StudySettings.get_settings(current_user.id)
-
-    # Get limit parameter (if user wants to limit number of words)
     word_limit = request.args.get('limit', type=int)
 
     # Create new study session
-    session = StudySession(
-        user_id=current_user.id,
-        session_type='quiz'
-    )
-    db.session.add(session)
-    db.session.commit()
+    session = SessionService.start_session(current_user.id, 'quiz')
 
     # Increment times played
     deck.times_played += 1
