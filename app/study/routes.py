@@ -1846,8 +1846,6 @@ def get_leaderboard(game_type):
 @module_required('study')
 def create_deck():
     """Create new quiz deck for current user"""
-    from app.study.models import QuizDeck
-
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
@@ -1857,18 +1855,12 @@ def create_deck():
             flash('Название колоды обязательно', 'danger')
             return redirect(url_for('study.create_deck'))
 
-        deck = QuizDeck(
+        deck = DeckService.create_deck(
+            user_id=current_user.id,
             title=title,
             description=description,
-            user_id=current_user.id,
             is_public=is_public
         )
-
-        if is_public:
-            deck.generate_share_code()
-
-        db.session.add(deck)
-        db.session.commit()
 
         flash(f'Колода "{title}" успешно создана!', 'success')
         return redirect(url_for('study.edit_deck', deck_id=deck.id))
@@ -1885,40 +1877,36 @@ def edit_deck(deck_id):
 
     deck = QuizDeck.query.get_or_404(deck_id)
 
-    # Check if user owns this deck
+    # Check permissions using service
     if deck.user_id != current_user.id:
         flash('У вас нет прав для редактирования этой колоды', 'danger')
         return redirect(url_for('study.index'))
 
-    # Protect auto decks from editing
     if is_auto_deck(deck.title):
         flash('Нельзя редактировать автоматические колоды', 'warning')
         return redirect(url_for('study.index'))
 
     if request.method == 'POST':
-        deck.title = request.form.get('title', '').strip()
-        deck.description = request.form.get('description', '').strip()
-        was_public = deck.is_public
-        deck.is_public = request.form.get('is_public') == 'on'
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        is_public = request.form.get('is_public') == 'on'
 
-        if not deck.title:
+        if not title:
             flash('Название колоды обязательно', 'danger')
-            return render_template('study/deck_edit.html', deck=deck, words=deck.words.order_by(QuizDeckWord.order_index).all())
+            words = deck.words.order_by(QuizDeckWord.order_index).all()
+            return render_template('study/deck_edit.html', deck=deck, words=words)
 
-        # Generate share code if making public for the first time
-        if deck.is_public and not was_public and not deck.share_code:
-            deck.generate_share_code()
+        updated_deck, error = DeckService.update_deck(
+            deck_id=deck_id,
+            user_id=current_user.id,
+            title=title,
+            description=description,
+            is_public=is_public,
+            generate_share=True
+        )
 
-        deck.updated_at = datetime.now(timezone.utc)
-        db.session.commit()
-
-        # Synchronize forks if this is a public deck with no parent (original deck)
-        if deck.is_public and deck.parent_deck_id is None:
-            fork_count, words_added = deck.sync_to_forks()
-            if fork_count > 0:
-                flash(f'Колода успешно обновлена! Синхронизировано {fork_count} копий ({words_added} слов добавлено).', 'success')
-            else:
-                flash('Колода успешно обновлена!', 'success')
+        if error:
+            flash(error, 'danger')
         else:
             flash('Колода успешно обновлена!', 'success')
 
