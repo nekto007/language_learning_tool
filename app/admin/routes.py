@@ -239,11 +239,13 @@ def dashboard():
 @admin_required
 def users():
     """Управление пользователями"""
+    from app.admin.services import UserManagementService
+
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     search = request.args.get('search', '')
 
-    # Построение запроса с учетом поиска
+    # Build query with search
     query = User.query
 
     if search:
@@ -252,7 +254,7 @@ def users():
             (User.email.ilike(f'%{search}%'))
         )
 
-    # Пагинация
+    # Paginate
     pagination = query.order_by(desc(User.last_login)).paginate(
         page=page, per_page=per_page, error_out=False
     )
