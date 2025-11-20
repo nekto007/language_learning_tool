@@ -6,6 +6,7 @@ from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
 
 from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
@@ -53,6 +54,7 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     # Initialize extensions
     db.init_app(app)
+    migrate = Migrate(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
     jwt.init_app(app)
@@ -171,11 +173,11 @@ def create_app(config_class=Config):
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
-    # Create database tables if they don't exist
-    # Safe operation - only creates missing tables, never drops or modifies existing ones
+    # Database migrations now handled by Flask-Migrate/Alembic
+    # Run: flask db upgrade
+    #
+    # Seed initial data (only if needed - safe to run multiple times)
     with app.app_context():
-        db.create_all()
-
         # Seed initial data for modules system
         from app.modules.migrations import seed_initial_modules
         seed_initial_modules()
