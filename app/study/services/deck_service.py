@@ -289,41 +289,107 @@ class DeckService:
         return new_deck, None
 
     @classmethod
-    def add_word_to_deck(cls, deck_id: int, user_id: int, word_id: int) -> Tuple[bool, Optional[str]]:
-        """Add a word to deck"""
+    def add_word_to_deck(cls, deck_id: int, user_id: int, word_id: int = None,
+                        custom_english: str = None, custom_russian: str = None,
+                        custom_sentences: str = None) -> Tuple[Optional[QuizDeckWord], Optional[str]]:
+        """Add a word to deck (from collection or custom)"""
         deck = QuizDeck.query.get(deck_id)
 
         if not deck:
-            return False, "Колода не найдена"
+            return None, "Колода не найдена"
 
         if deck.user_id != user_id:
-            return False, "Нет доступа к этой колоде"
+            return None, "Нет доступа к этой колоде"
 
         if cls.is_auto_deck(deck.title):
-            return False, "Нельзя добавлять слова в автоматическую колоду"
+            return None, "Нельзя добавлять слова в автоматическую колоду"
 
-        # Check if word exists
-        word = CollectionWords.query.get(word_id)
-        if not word:
-            return False, "Слово не найдено"
+        # Validate input
+        if not custom_english or not custom_russian:
+            return None, "Необходимо заполнить оба поля"
 
-        # Check if already in deck
-        existing = QuizDeckWord.query.filter_by(
-            deck_id=deck_id,
-            word_id=word_id
-        ).first()
+        # Get max order index
+        max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+            QuizDeckWord.deck_id == deck_id
+        ).scalar() or 0
 
-        if existing:
-            return False, "Слово уже в колоде"
+        if word_id:
+            # Adding from collection
+            word = CollectionWords.query.get(word_id)
+            if not word:
+                return None, "Слово не найдено"
 
-        deck_word = QuizDeckWord(deck_id=deck_id, word_id=word_id)
+            # Check if already in deck
+            existing = QuizDeckWord.query.filter_by(
+                deck_id=deck_id,
+                word_id=word_id
+            ).first()
+
+            if existing:
+                return None, "Это слово уже в колоде"
+
+            deck_word = QuizDeckWord(
+                deck_id=deck_id,
+                word_id=word_id,
+                order_index=max_order + 1
+            )
+
+            # Save custom override if different
+            if custom_english != word.english_word or custom_russian != word.russian_word:
+                deck_word.custom_english = custom_english
+                deck_word.custom_russian = custom_russian
+
+            # Save custom sentences if provided and different
+            if custom_sentences and (not word.sentences or custom_sentences != word.sentences):
+                deck_word.custom_sentences = custom_sentences
+        else:
+            # Adding custom word
+            deck_word = QuizDeckWord(
+                deck_id=deck_id,
+                custom_english=custom_english,
+                custom_russian=custom_russian,
+                custom_sentences=custom_sentences if custom_sentences else None,
+                order_index=max_order + 1
+            )
+
         db.session.add(deck_word)
         db.session.commit()
-        return True, None
+        return deck_word, None
 
     @classmethod
-    def remove_word_from_deck(cls, deck_id: int, user_id: int, word_id: int) -> Tuple[bool, Optional[str]]:
-        """Remove a word from deck"""
+    def edit_deck_word(cls, deck_id: int, deck_word_id: int, user_id: int,
+                       custom_english: str, custom_russian: str,
+                       custom_sentences: str = None) -> Tuple[Optional[QuizDeckWord], Optional[str]]:
+        """Edit word in deck (update custom fields)"""
+        deck = QuizDeck.query.get(deck_id)
+
+        if not deck:
+            return None, "Колода не найдена"
+
+        if deck.user_id != user_id:
+            return None, "Нет доступа к этой колоде"
+
+        if cls.is_auto_deck(deck.title):
+            return None, "Нельзя редактировать слова в автоматической колоде"
+
+        deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=deck_word_id).first()
+        if not deck_word:
+            return None, "Слово не найдено в колоде"
+
+        if not custom_english or not custom_russian:
+            return None, "Необходимо заполнить оба поля"
+
+        # Update custom fields
+        deck_word.custom_english = custom_english
+        deck_word.custom_russian = custom_russian
+        deck_word.custom_sentences = custom_sentences if custom_sentences else None
+
+        db.session.commit()
+        return deck_word, None
+
+    @classmethod
+    def remove_word_from_deck(cls, deck_id: int, deck_word_id: int, user_id: int) -> Tuple[bool, Optional[str]]:
+        """Remove a word from deck (by deck_word id)"""
         deck = QuizDeck.query.get(deck_id)
 
         if not deck:
@@ -335,11 +401,7 @@ class DeckService:
         if cls.is_auto_deck(deck.title):
             return False, "Нельзя удалять слова из автоматической колоды"
 
-        deck_word = QuizDeckWord.query.filter_by(
-            deck_id=deck_id,
-            word_id=word_id
-        ).first()
-
+        deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=deck_word_id).first()
         if not deck_word:
             return False, "Слово не найдено в колоде"
 
@@ -349,10 +411,36 @@ class DeckService:
 
     @classmethod
     def search_words(cls, query: str, limit: int = 20) -> List[CollectionWords]:
-        """Search words in collection"""
+        """Search words in collection with smart sorting"""
+        from sqlalchemy import case
+
         if not query or len(query) < 2:
             return []
 
-        return CollectionWords.query.filter(
-            CollectionWords.english_word.ilike(f'%{query}%')
-        ).limit(limit).all()
+        # Search in both english and russian
+        words_query = CollectionWords.query.filter(
+            CollectionWords.russian_word != None,
+            CollectionWords.russian_word != '',
+            db.or_(
+                CollectionWords.english_word.ilike(f'%{query}%'),
+                CollectionWords.russian_word.ilike(f'%{query}%')
+            )
+        )
+
+        # Smart sorting: exact match > starts with > contains
+        query_lower = query.lower()
+        words_query = words_query.order_by(
+            case(
+                (func.lower(CollectionWords.english_word) == query_lower, 1),
+                (func.lower(CollectionWords.russian_word) == query_lower, 1),
+                else_=10
+            ),
+            case(
+                (func.lower(CollectionWords.english_word).like(f'{query_lower}%'), 2),
+                (func.lower(CollectionWords.russian_word).like(f'{query_lower}%'), 2),
+                else_=10
+            ),
+            CollectionWords.english_word
+        )
+
+        return words_query.limit(limit).all()
