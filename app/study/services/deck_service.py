@@ -1,0 +1,319 @@
+"""
+Deck Service - handles all deck-related business logic
+
+Responsibilities:
+- Deck CRUD operations
+- Master deck synchronization (automatic decks)
+- Deck word management
+- Deck statistics
+"""
+from typing import List, Dict, Tuple, Optional
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+
+from app.utils.db import db
+from app.study.models import QuizDeck, QuizDeckWord, UserWord
+from app.words.models import CollectionWords
+
+
+class DeckService:
+    """Service for managing quiz decks"""
+
+    # Master deck titles
+    LEARNING_DECK_TITLE = "Все мои слова"
+    MASTERED_DECK_TITLE = "Выученные слова"
+
+    @staticmethod
+    def is_auto_deck(deck_title: str) -> bool:
+        """Check if deck is automatically managed (master deck)"""
+        return deck_title in [
+            DeckService.LEARNING_DECK_TITLE,
+            DeckService.MASTERED_DECK_TITLE
+        ]
+
+    @classmethod
+    def sync_master_decks(cls, user_id: int) -> None:
+        """
+        Synchronize master decks with user's word collection
+
+        Creates/updates two automatic decks:
+        - "Все мои слова" (all learning words)
+        - "Выученные слова" (mastered words)
+        """
+        # Get user's words by status
+        learning_words = UserWord.query.filter(
+            UserWord.user_id == user_id,
+            UserWord.status != 'mastered'
+        ).all()
+
+        mastered_words = UserWord.query.filter(
+            UserWord.user_id == user_id,
+            UserWord.status == 'mastered'
+        ).all()
+
+        # Sync both decks
+        cls._sync_deck(
+            user_id,
+            cls.LEARNING_DECK_TITLE,
+            "Автоматическая колода со всеми вашими словами в процессе изучения",
+            learning_words
+        )
+
+        cls._sync_deck(
+            user_id,
+            cls.MASTERED_DECK_TITLE,
+            "Автоматическая колода с выученными словами",
+            mastered_words
+        )
+
+        db.session.commit()
+
+    @classmethod
+    def _sync_deck(cls, user_id: int, title: str, description: str, word_list: List[UserWord]) -> None:
+        """Sync a single deck with given word list"""
+        # Find or create deck
+        deck = QuizDeck.query.filter_by(user_id=user_id, title=title).first()
+        if not deck:
+            deck = QuizDeck(
+                title=title,
+                description=description,
+                user_id=user_id,
+                is_public=False
+            )
+            db.session.add(deck)
+            db.session.flush()
+        else:
+            deck.description = description
+
+        # Get current and target word sets
+        existing_word_ids = {row[0] for row in db.session.query(QuizDeckWord.word_id).filter_by(deck_id=deck.id).all()}
+        target_word_ids = {uw.word_id for uw in word_list}
+
+        # Remove words no longer in UserWord
+        to_remove = existing_word_ids - target_word_ids
+        if to_remove:
+            QuizDeckWord.query.filter(
+                QuizDeckWord.deck_id == deck.id,
+                QuizDeckWord.word_id.in_(to_remove)
+            ).delete(synchronize_session=False)
+
+        # Add new words
+        to_add = target_word_ids - existing_word_ids
+        for word_id in to_add:
+            deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id)
+            db.session.add(deck_word)
+
+    @classmethod
+    def get_user_decks(cls, user_id: int, include_public: bool = True) -> List[QuizDeck]:
+        """Get all decks available to user (owned + public)"""
+        query = QuizDeck.query
+
+        if include_public:
+            query = query.filter(
+                (QuizDeck.user_id == user_id) | (QuizDeck.is_public == True)
+            )
+        else:
+            query = query.filter(QuizDeck.user_id == user_id)
+
+        return query.order_by(QuizDeck.created_at.desc()).all()
+
+    @classmethod
+    def get_deck_with_words(cls, deck_id: int) -> Optional[QuizDeck]:
+        """Get deck with words eager loaded"""
+        return QuizDeck.query.options(
+            joinedload(QuizDeck.words)
+        ).get(deck_id)
+
+    @classmethod
+    def get_deck_statistics(cls, deck_id: int, user_id: int) -> Dict:
+        """Get detailed statistics for a deck"""
+        deck = cls.get_deck_with_words(deck_id)
+        if not deck:
+            return None
+
+        deck_word_ids = [dw.word_id for dw in deck.words if dw.word_id]
+
+        if not deck_word_ids:
+            return {
+                'total': 0,
+                'new': 0,
+                'learning': 0,
+                'review': 0,
+                'mastered': 0
+            }
+
+        # Bulk load existing UserWords
+        existing_user_words = db.session.query(UserWord.word_id, UserWord.status).filter(
+            UserWord.user_id == user_id,
+            UserWord.word_id.in_(deck_word_ids)
+        ).all()
+        existing_word_ids = {uw.word_id for uw in existing_user_words}
+
+        # Count by status
+        status_counts = {}
+        for _, status in existing_user_words:
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+        new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
+
+        return {
+            'total': len(deck_word_ids),
+            'new': new_count,
+            'learning': status_counts.get('learning', 0),
+            'review': status_counts.get('review', 0),
+            'mastered': status_counts.get('mastered', 0)
+        }
+
+    @classmethod
+    def create_deck(cls, user_id: int, title: str, description: str = "", is_public: bool = False) -> QuizDeck:
+        """Create a new deck"""
+        deck = QuizDeck(
+            user_id=user_id,
+            title=title,
+            description=description,
+            is_public=is_public
+        )
+        db.session.add(deck)
+        db.session.commit()
+        return deck
+
+    @classmethod
+    def update_deck(cls, deck_id: int, user_id: int, title: str = None, description: str = None,
+                   is_public: bool = None) -> Tuple[bool, Optional[str]]:
+        """Update deck details"""
+        deck = QuizDeck.query.get(deck_id)
+
+        if not deck:
+            return False, "Колода не найдена"
+
+        if deck.user_id != user_id:
+            return False, "Нет доступа к этой колоде"
+
+        if cls.is_auto_deck(deck.title):
+            return False, "Нельзя редактировать автоматическую колоду"
+
+        if title:
+            deck.title = title
+        if description is not None:
+            deck.description = description
+        if is_public is not None:
+            deck.is_public = is_public
+
+        db.session.commit()
+        return True, None
+
+    @classmethod
+    def delete_deck(cls, deck_id: int, user_id: int) -> Tuple[bool, Optional[str]]:
+        """Delete a deck"""
+        deck = QuizDeck.query.get(deck_id)
+
+        if not deck:
+            return False, "Колода не найдена"
+
+        if deck.user_id != user_id:
+            return False, "Нет доступа к этой колоде"
+
+        if cls.is_auto_deck(deck.title):
+            return False, "Нельзя удалить автоматическую колоду"
+
+        db.session.delete(deck)
+        db.session.commit()
+        return True, None
+
+    @classmethod
+    def copy_deck(cls, deck_id: int, user_id: int) -> Tuple[Optional[QuizDeck], Optional[str]]:
+        """Copy a deck to user's collection"""
+        original_deck = cls.get_deck_with_words(deck_id)
+
+        if not original_deck:
+            return None, "Колода не найдена"
+
+        # Create new deck
+        new_deck = QuizDeck(
+            user_id=user_id,
+            title=f"{original_deck.title} (копия)",
+            description=original_deck.description,
+            is_public=False
+        )
+        db.session.add(new_deck)
+        db.session.flush()
+
+        # Copy words
+        for deck_word in original_deck.words:
+            new_deck_word = QuizDeckWord(
+                deck_id=new_deck.id,
+                word_id=deck_word.word_id
+            )
+            db.session.add(new_deck_word)
+
+        db.session.commit()
+        return new_deck, None
+
+    @classmethod
+    def add_word_to_deck(cls, deck_id: int, user_id: int, word_id: int) -> Tuple[bool, Optional[str]]:
+        """Add a word to deck"""
+        deck = QuizDeck.query.get(deck_id)
+
+        if not deck:
+            return False, "Колода не найдена"
+
+        if deck.user_id != user_id:
+            return False, "Нет доступа к этой колоде"
+
+        if cls.is_auto_deck(deck.title):
+            return False, "Нельзя добавлять слова в автоматическую колоду"
+
+        # Check if word exists
+        word = CollectionWords.query.get(word_id)
+        if not word:
+            return False, "Слово не найдено"
+
+        # Check if already in deck
+        existing = QuizDeckWord.query.filter_by(
+            deck_id=deck_id,
+            word_id=word_id
+        ).first()
+
+        if existing:
+            return False, "Слово уже в колоде"
+
+        deck_word = QuizDeckWord(deck_id=deck_id, word_id=word_id)
+        db.session.add(deck_word)
+        db.session.commit()
+        return True, None
+
+    @classmethod
+    def remove_word_from_deck(cls, deck_id: int, user_id: int, word_id: int) -> Tuple[bool, Optional[str]]:
+        """Remove a word from deck"""
+        deck = QuizDeck.query.get(deck_id)
+
+        if not deck:
+            return False, "Колода не найдена"
+
+        if deck.user_id != user_id:
+            return False, "Нет доступа к этой колоде"
+
+        if cls.is_auto_deck(deck.title):
+            return False, "Нельзя удалять слова из автоматической колоды"
+
+        deck_word = QuizDeckWord.query.filter_by(
+            deck_id=deck_id,
+            word_id=word_id
+        ).first()
+
+        if not deck_word:
+            return False, "Слово не найдено в колоде"
+
+        db.session.delete(deck_word)
+        db.session.commit()
+        return True, None
+
+    @classmethod
+    def search_words(cls, query: str, limit: int = 20) -> List[CollectionWords]:
+        """Search words in collection"""
+        if not query or len(query) < 2:
+            return []
+
+        return CollectionWords.query.filter(
+            CollectionWords.english_word.ilike(f'%{query}%')
+        ).limit(limit).all()
