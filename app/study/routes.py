@@ -1634,8 +1634,9 @@ def complete_quiz():
 def get_leaderboard(game_type):
     """Get leaderboard for a game"""
     difficulty = request.args.get('difficulty')
-    limit = min(int(request.args.get('limit', 10)), 50)  # Limit max entries
+    limit = min(int(request.args.get('limit', 10)), 50)
 
+    # Get leaderboard from model method (already optimized)
     leaderboard = GameScore.get_leaderboard(game_type, difficulty, limit)
 
     # Format leaderboard data
