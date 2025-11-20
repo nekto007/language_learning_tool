@@ -17,7 +17,7 @@ from app.modules.decorators import module_required
 # Import service layer
 from app.study.services import (
     DeckService, SRSService, SessionService,
-    QuizService, GameService, StatsService
+    QuizService, GameService, StatsService, CollectionTopicService
 )
 
 study = Blueprint('study', __name__, template_folder='templates')
@@ -1954,61 +1954,28 @@ def collections():
     """Отображение списка коллекций для изучения"""
     form = CollectionFilterForm(request.args)
 
-    # Базовый запрос для получения коллекций
-    query = Collection.query
-
-    # Применение фильтра по теме
     topic_id = request.args.get('topic')
-    if topic_id and topic_id.isdigit():
-        # Сложный запрос с JOIN для фильтрации по теме
-        query = query.join(
-            db.Table('collection_words_link'),
-            Collection.id == db.Table('collection_words_link').c.collection_id
-        ).join(
-            CollectionWords,
-            db.Table('collection_words_link').c.word_id == CollectionWords.id
-        ).join(
-            db.Table('topic_words'),
-            CollectionWords.id == db.Table('topic_words').c.word_id
-        ).filter(
-            db.Table('topic_words').c.topic_id == int(topic_id)
-        ).group_by(
-            Collection.id
-        )
-
-    # Применение поиска
+    topic_id = int(topic_id) if topic_id and topic_id.isdigit() else None
     search = request.args.get('search')
-    if search:
-        query = query.filter(
-            or_(
-                Collection.name.ilike(f'%{search}%'),
-                Collection.description.ilike(f'%{search}%')
-            )
-        )
 
-    # Получение результатов
-    collections = query.order_by(Collection.name).all()
+    # Get collections with stats using service
+    collections_data = CollectionTopicService.get_collections_with_stats(
+        user_id=current_user.id,
+        topic_id=topic_id,
+        search=search
+    )
 
-    # Подготовка дополнительных данных для отображения
-    for collection in collections:
-        # Количество слов в коллекции
-        # collection.word_count = len(collection.words)
+    # Add stats to collection objects for template
+    for data in collections_data:
+        data['collection'].words_in_study = data['words_in_study']
+        data['collection'].topic_list = data['topics']
 
-        # Количество слов, которые пользователь уже изучает
-        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-        user_word_ids = [id[0] for id in user_word_ids]
-
-        collection.words_in_study = sum(1 for word in collection.words if word.id in user_word_ids)
-
-        # Темы коллекции
-        collection.topic_list = collection.topics
-
-    # Получаем все темы для фильтра
+    # Get all topics for filter
     topics = Topic.query.order_by(Topic.name).all()
 
     return render_template(
         'study/collections.html',
-        collections=collections,
+        collections=[d['collection'] for d in collections_data],
         form=form,
         topics=topics
     )
@@ -2020,18 +1987,17 @@ def collection_details(collection_id):
     """Просмотр деталей коллекции"""
     collection = Collection.query.get_or_404(collection_id)
 
-    # Получаем слова из коллекции
-    words = collection.words
+    # Get words with status using service
+    words_data = CollectionTopicService.get_collection_words_with_status(
+        collection_id=collection_id,
+        user_id=current_user.id
+    )
 
-    # Определяем, какие слова уже изучаются пользователем
-    user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-    user_word_ids = [id[0] for id in user_word_ids]
+    # Add is_studying to word objects for template
+    words = [data['word'] for data in words_data]
+    for i, word in enumerate(words):
+        word.is_studying = words_data[i]['is_studying']
 
-    # Добавляем статус изучения к каждому слову
-    for word in words:
-        word.is_studying = word.id in user_word_ids
-
-    # Получаем темы коллекции
     topics = collection.topics
 
     return render_template(
@@ -2048,60 +2014,44 @@ def add_collection(collection_id):
     """Добавление всех слов из коллекции в список изучения"""
     collection = Collection.query.get_or_404(collection_id)
 
-    # Получаем слова из коллекции
-    words = collection.words
-
-    added_count = 0
-    for word in words:
-        # Проверяем, изучается ли уже слово
-        user_word = UserWord.query.filter_by(user_id=current_user.id, word_id=word.id).first()
-
-        if not user_word:
-            # Создаем новую запись UserWord
-            user_word = UserWord(user_id=current_user.id, word_id=word.id)
-            user_word.status = 'new'
-            db.session.add(user_word)
-            added_count += 1
+    # Add collection words using service
+    added_count, message = CollectionTopicService.add_collection_to_study(
+        collection_id=collection_id,
+        user_id=current_user.id
+    )
 
     if added_count > 0:
-        db.session.commit()
         flash(_('%(count)d words from "%(name)s" collection added to your study list!',
                 count=added_count, name=collection.name), 'success')
     else:
         flash(_('All words from this collection are already in your study list.'), 'info')
 
-    # AJAX запрос или обычный
+    # AJAX request or regular
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'success': True,
             'added_count': added_count,
             'message': _('%(count)d words added to your study list!', count=added_count)
         })
-    else:
-        return redirect(url_for('study.collections'))
+
+    return redirect(url_for('study.collections'))
 
 
 @study.route('/topics')
 @login_required
 def topics():
     """Отображение списка тем для изучения"""
-    # Получаем все темы
-    topics = Topic.query.order_by(Topic.name).all()
+    # Get topics with stats using service
+    topics_data = CollectionTopicService.get_topics_with_stats(current_user.id)
 
-    # Подготовка дополнительных данных для отображения
-    for topic in topics:
-        # Количество слов в теме
-        topic.word_count = len(topic.words)
-
-        # Количество слов, которые пользователь уже изучает
-        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-        user_word_ids = [id[0] for id in user_word_ids]
-
-        topic.words_in_study = sum(1 for word in topic.words if word.id in user_word_ids)
+    # Add stats to topic objects for template
+    for data in topics_data:
+        data['topic'].word_count = data['word_count']
+        data['topic'].words_in_study = data['words_in_study']
 
     return render_template(
         'study/topics.html',
-        topics=topics
+        topics=[d['topic'] for d in topics_data]
     )
 
 
@@ -2109,36 +2059,20 @@ def topics():
 @login_required
 def topic_details(topic_id):
     """Просмотр деталей темы и слов в ней"""
-    topic = Topic.query.get_or_404(topic_id)
+    # Get topic, words with status, and related collections using service
+    topic, words_data, related_collections = CollectionTopicService.get_topic_words_with_status(
+        topic_id=topic_id,
+        user_id=current_user.id
+    )
 
-    # Получаем слова из темы
-    words = topic.words
+    if not topic:
+        from flask import abort
+        abort(404)
 
-    # Определяем, какие слова уже изучаются пользователем
-    user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-    user_word_ids = [id[0] for id in user_word_ids]
-
-    # Добавляем статус изучения к каждому слову
-    for word in words:
-        word.is_studying = word.id in user_word_ids
-
-    # Получаем коллекции, связанные с этой темой
-    related_collections = db.session.query(Collection).join(
-        db.Table('collection_words_link'),
-        Collection.id == db.Table('collection_words_link').c.collection_id
-    ).join(
-        CollectionWords,
-        db.Table('collection_words_link').c.word_id == CollectionWords.id
-    ).join(
-        db.Table('topic_words'),
-        CollectionWords.id == db.Table('topic_words').c.word_id
-    ).filter(
-        db.Table('topic_words').c.topic_id == topic_id
-    ).group_by(
-        Collection.id
-    ).order_by(
-        Collection.name
-    ).all()
+    # Add is_studying to word objects for template
+    words = [data['word'] for data in words_data]
+    for i, word in enumerate(words):
+        word.is_studying = words_data[i]['is_studying']
 
     return render_template(
         'study/topic_details.html',
@@ -2154,34 +2088,24 @@ def add_topic(topic_id):
     """Добавление всех слов из темы в список изучения"""
     topic = Topic.query.get_or_404(topic_id)
 
-    # Получаем слова из темы
-    words = topic.words
-
-    added_count = 0
-    for word in words:
-        # Проверяем, изучается ли уже слово
-        user_word = UserWord.query.filter_by(user_id=current_user.id, word_id=word.id).first()
-
-        if not user_word:
-            # Создаем новую запись UserWord
-            user_word = UserWord(user_id=current_user.id, word_id=word.id)
-            user_word.status = 'new'
-            db.session.add(user_word)
-            added_count += 1
+    # Add topic words using service
+    added_count, message = CollectionTopicService.add_topic_to_study(
+        topic_id=topic_id,
+        user_id=current_user.id
+    )
 
     if added_count > 0:
-        db.session.commit()
         flash(_('%(count)d words from "%(name)s" topic added to your study list!',
                 count=added_count, name=topic.name), 'success')
     else:
         flash(_('All words from this topic are already in your study list.'), 'info')
 
-    # AJAX запрос или обычный
+    # AJAX request or regular
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'success': True,
             'added_count': added_count,
             'message': _('%(count)d words added to your study list!', count=added_count)
         })
-    else:
-        return redirect(url_for('study.topics'))
+
+    return redirect(url_for('study.topics'))
