@@ -242,26 +242,46 @@ class DeckService:
     @classmethod
     def copy_deck(cls, deck_id: int, user_id: int) -> Tuple[Optional[QuizDeck], Optional[str]]:
         """Copy a deck to user's collection"""
+        from datetime import datetime, timezone
+
         original_deck = cls.get_deck_with_words(deck_id)
 
         if not original_deck:
             return None, "Колода не найдена"
+
+        # Check access
+        if not original_deck.is_public and original_deck.user_id != user_id:
+            return None, "У вас нет доступа к этой колоде"
+
+        # Check if already copied
+        existing_copy = QuizDeck.query.filter_by(
+            user_id=user_id,
+            title=f"{original_deck.title} (копия)"
+        ).first()
+
+        if existing_copy:
+            return existing_copy, "Вы уже скопировали эту колоду"
 
         # Create new deck
         new_deck = QuizDeck(
             user_id=user_id,
             title=f"{original_deck.title} (копия)",
             description=original_deck.description,
-            is_public=False
+            is_public=False,
+            parent_deck_id=original_deck.id,  # Link to parent for sync
+            last_synced_at=datetime.now(timezone.utc)
         )
         db.session.add(new_deck)
         db.session.flush()
 
-        # Copy words
+        # Copy words with all fields
         for deck_word in original_deck.words:
             new_deck_word = QuizDeckWord(
                 deck_id=new_deck.id,
-                word_id=deck_word.word_id
+                word_id=deck_word.word_id,
+                custom_english=deck_word.custom_english,
+                custom_russian=deck_word.custom_russian,
+                order_index=deck_word.order_index
             )
             db.session.add(new_deck_word)
 

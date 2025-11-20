@@ -1924,19 +1924,15 @@ def delete_deck(deck_id):
     from app.study.models import QuizDeck
 
     deck = QuizDeck.query.get_or_404(deck_id)
-
-    # Check if user owns this deck
-    if deck.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
-    # Protect auto decks from deletion
-    if is_auto_deck(deck.title):
-        flash('Нельзя удалять автоматические колоды', 'warning')
-        return redirect(url_for('study.index'))
-
     title = deck.title
-    db.session.delete(deck)
-    db.session.commit()
+
+    success, error = DeckService.delete_deck(deck_id, current_user.id)
+
+    if error:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error}), 403
+        flash(error, 'danger')
+        return redirect(url_for('study.index'))
 
     flash(f'Колода "{title}" успешно удалена', 'success')
     return redirect(url_for('study.index'))
@@ -1947,51 +1943,17 @@ def delete_deck(deck_id):
 @module_required('study')
 def copy_deck(deck_id):
     """Copy a public deck to user's collection"""
-    from app.study.models import QuizDeck, QuizDeckWord
+    from app.study.models import QuizDeck
 
     original_deck = QuizDeck.query.get_or_404(deck_id)
 
-    # Check if deck is public or belongs to the user
-    if not original_deck.is_public and original_deck.user_id != current_user.id:
-        flash('У вас нет доступа к этой колоде', 'danger')
+    new_deck, error = DeckService.copy_deck(deck_id, current_user.id)
+
+    if error:
+        flash(error, 'info' if new_deck else 'danger')
+        if new_deck:  # Already copied - redirect to existing
+            return redirect(url_for('study.edit_deck', deck_id=new_deck.id))
         return redirect(url_for('study.index'))
-
-    # Check if user already copied this deck
-    existing_copy = QuizDeck.query.filter_by(
-        user_id=current_user.id,
-        title=f"{original_deck.title} (копия)"
-    ).first()
-
-    if existing_copy:
-        flash('Вы уже скопировали эту колоду', 'info')
-        return redirect(url_for('study.edit_deck', deck_id=existing_copy.id))
-
-    # Create new deck
-    new_deck = QuizDeck(
-        title=f"{original_deck.title} (копия)",
-        description=original_deck.description,
-        user_id=current_user.id,
-        is_public=False,  # Copied decks are private by default
-        parent_deck_id=original_deck.id,  # Link to parent for sync
-        last_synced_at=datetime.now(timezone.utc)  # Mark initial sync time
-    )
-
-    db.session.add(new_deck)
-    db.session.flush()  # Get new_deck.id
-
-    # Copy all words
-    original_words = QuizDeckWord.query.filter_by(deck_id=original_deck.id).order_by(QuizDeckWord.order_index).all()
-    for word in original_words:
-        new_word = QuizDeckWord(
-            deck_id=new_deck.id,
-            word_id=word.word_id,
-            custom_english=word.custom_english,
-            custom_russian=word.custom_russian,
-            order_index=word.order_index
-        )
-        db.session.add(new_word)
-
-    db.session.commit()
 
     flash(f'Колода "{original_deck.title}" успешно скопирована!', 'success')
     return redirect(url_for('study.edit_deck', deck_id=new_deck.id))
