@@ -690,54 +690,20 @@ def complete_session():
 @module_required('study')
 def stats():
     """Study statistics page"""
-    # Статистика на основе новых моделей
-    total_items = UserWord.query.filter_by(user_id=current_user.id).count()
-
-    # Считаем "выученные" слова (те, у которых статус 'mastered')
-    mastered_items = UserWord.query.filter_by(
-        user_id=current_user.id,
-        status='mastered'
-    ).count()
-
-    # Вычисляем процент освоения
-    if total_items > 0:
-        mastery_percentage = int((mastered_items / total_items) * 100)
-    else:
-        mastery_percentage = 0
-
-    # Получаем последние сессии
-    recent_sessions = StudySession.query.filter_by(user_id=current_user.id) \
-        .order_by(StudySession.start_time.desc()).limit(10).all()
-
-    # Статистика за сегодня
-    today = datetime.now(timezone.utc).date()
-    today_sessions = StudySession.query.filter_by(user_id=current_user.id) \
-        .filter(func.date(StudySession.start_time) == today).all()
-
-    # Подсчёт сегодняшней статистики
-    today_words_studied = sum(session.words_studied for session in today_sessions)
-    today_time_spent = sum(session.duration for session in today_sessions)
-
-    # Вычисление прогресса по статусам слов
-    new_words = UserWord.query.filter_by(user_id=current_user.id, status='new').count()
-    learning_words = UserWord.query.filter_by(user_id=current_user.id, status='learning').count()
-    review_words = UserWord.query.filter_by(user_id=current_user.id, status='review').count()
-
-    # Определяем streak (это потребует дополнительной реализации)
-    study_streak = 0  # Требуется более сложная логика для отслеживания последовательных дней
+    stats = StatsService.get_user_stats(current_user.id)
 
     return render_template(
         'study/stats.html',
-        total_items=total_items,
-        mastered_items=mastered_items,
-        mastery_percentage=mastery_percentage,
-        recent_sessions=recent_sessions,
-        study_streak=study_streak,
-        today_words_studied=today_words_studied,
-        today_time_spent=today_time_spent,
-        new_words=new_words,
-        learning_words=learning_words,
-        mastered_words=mastered_items
+        total_items=stats['total'],
+        mastered_items=stats['mastered'],
+        mastery_percentage=stats['mastery_percentage'],
+        recent_sessions=stats['recent_sessions'],
+        study_streak=stats['study_streak'],
+        today_words_studied=stats['today_words_studied'],
+        today_time_spent=stats['today_time_spent'],
+        new_words=stats['new'],
+        learning_words=stats['learning'],
+        mastered_words=stats['mastered']
     )
 
 
