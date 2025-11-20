@@ -14,103 +14,17 @@ from app.words.forms import CollectionFilterForm
 from app.words.models import Collection, CollectionWords, Topic
 from app.modules.decorators import module_required
 
+# Import service layer
+from app.study.services import (
+    DeckService, SRSService, SessionService,
+    QuizService, GameService, StatsService
+)
+
 study = Blueprint('study', __name__, template_folder='templates')
 
-
-def is_auto_deck(deck_title):
-    """
-    Проверяет, является ли колода автоматической (нельзя редактировать/удалять)
-    """
-    auto_deck_patterns = [
-        'Все мои слова',
-        'Выученные слова',
-        'Слова из чтения',
-        'Топик:',
-        'Коллекция:'
-    ]
-
-    return any(deck_title.startswith(pattern) if ':' in pattern else deck_title == pattern
-               for pattern in auto_deck_patterns)
-
-
-def sync_master_decks(user_id):
-    """
-    Синхронизация мастер-колод с UserWord:
-    - "Все мои слова" (не выученные)
-    - "Выученные слова" (mastered)
-    """
-    from app.study.models import QuizDeck, QuizDeckWord
-
-    # Названия мастер-колод
-    LEARNING_DECK_TITLE = "Все мои слова"
-    MASTERED_DECK_TITLE = "Выученные слова"
-
-    # Получаем все слова пользователя
-    learning_words = UserWord.query.filter(
-        UserWord.user_id == user_id,
-        UserWord.status != 'mastered'
-    ).all()
-
-    mastered_words = UserWord.query.filter(
-        UserWord.user_id == user_id,
-        UserWord.status == 'mastered'
-    ).all()
-
-    # Функция для синхронизации одной колоды
-    def sync_deck(title, description, word_list):
-        # Найти или создать колоду
-        deck = QuizDeck.query.filter_by(user_id=user_id, title=title).first()
-        if not deck:
-            deck = QuizDeck(
-                title=title,
-                description=description,
-                user_id=user_id,
-                is_public=False
-            )
-            db.session.add(deck)
-            db.session.flush()
-        else:
-            # Обновить описание для существующей колоды
-            deck.description = description
-
-        # Получить текущие слова в колоде - использовать column selection вместо загрузки всех объектов
-        existing_word_ids = {row[0] for row in db.session.query(QuizDeckWord.word_id).filter_by(deck_id=deck.id).all()}
-        target_word_ids = {uw.word_id for uw in word_list}
-
-        # Удалить слова, которых больше нет в UserWord
-        to_remove = existing_word_ids - target_word_ids
-        if to_remove:
-            QuizDeckWord.query.filter(
-                QuizDeckWord.deck_id == deck.id,
-                QuizDeckWord.word_id.in_(to_remove)
-            ).delete(synchronize_session=False)
-
-        # Добавить новые слова
-        to_add = target_word_ids - existing_word_ids
-        if to_add:
-            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
-                QuizDeckWord.deck_id == deck.id
-            ).scalar() or 0
-
-            for idx, word_id in enumerate(to_add, start=1):
-                deck_word = QuizDeckWord(
-                    deck_id=deck.id,
-                    word_id=word_id,
-                    order_index=max_order + idx
-                )
-                db.session.add(deck_word)
-
-    # Синхронизируем обе колоды
-    sync_deck(
-        LEARNING_DECK_TITLE,
-        "",
-        learning_words
-    )
-    sync_deck(
-        MASTERED_DECK_TITLE,
-        "",
-        mastered_words
-    )
+# Use DeckService methods directly
+is_auto_deck = DeckService.is_auto_deck
+sync_master_decks = DeckService.sync_master_decks
 
 
 @study.route('/')
