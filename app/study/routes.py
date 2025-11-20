@@ -73,8 +73,8 @@ def sync_master_decks(user_id):
             # Обновить описание для существующей колоды
             deck.description = description
 
-        # Получить текущие слова в колоде
-        existing_word_ids = {dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck.id).all()}
+        # Получить текущие слова в колоде - использовать column selection вместо загрузки всех объектов
+        existing_word_ids = {row[0] for row in db.session.query(QuizDeckWord.word_id).filter_by(deck_id=deck.id).all()}
         target_word_ids = {uw.word_id for uw in word_list}
 
         # Удалить слова, которых больше нет в UserWord
@@ -349,12 +349,21 @@ def cards_deck(deck_id):
         flash('Выученные слова не требуют повторения. Используйте режим квиза для практики.', 'info')
         return redirect(url_for('study.index'))
 
-    # Get words from deck that need review today
-    deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
+    # Get words from deck that need review today - using joinedload to avoid N+1
+    from sqlalchemy.orm import joinedload
+    deck = QuizDeck.query.options(joinedload(QuizDeck.words)).get(deck_id)
+    deck_word_ids = [dw.word_id for dw in deck.words if dw.word_id]
 
     if not deck_word_ids:
         flash('В колоде нет слов для SRS повторения', 'info')
         return redirect(url_for('study.index'))
+
+    # Bulk load existing UserWords to avoid N+1 queries
+    existing_user_words = db.session.query(UserWord.word_id).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.word_id.in_(deck_word_ids)
+    ).all()
+    existing_word_ids = {uw.word_id for uw in existing_user_words}
 
     # Count due cards (cards that need review)
     due_count = db.session.query(func.count(UserCardDirection.id)).filter(
@@ -367,9 +376,8 @@ def cards_deck(deck_id):
         UserCardDirection.next_review <= datetime.now(timezone.utc)
     ).scalar() or 0
 
-    # Count new cards (words not yet in UserWord)
-    new_count = len([wid for wid in deck_word_ids
-                     if not UserWord.query.filter_by(user_id=current_user.id, word_id=wid).first()])
+    # Count new cards (words not yet in UserWord) - using pre-loaded set
+    new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
 
     # Check daily limits
     settings = StudySettings.get_settings(current_user.id)

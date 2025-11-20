@@ -912,146 +912,78 @@ def get_word_translation(word):
     word = word.lower().strip()
     original_word = word
 
-    # Сначала пробуем найти точное совпадение в базе
-    word_entry = CollectionWords.query.filter_by(english_word=word).first()
-
     # Отслеживаем, используем ли мы другую форму слова
     word_form_info = None
 
-    # Если слово не найдено, пробуем найти его базовую форму
-    if not word_entry:
-        logger.debug(f"Слово '{word}' не найдено в базе, пробуем определить форму")
+    # Собираем все возможные варианты базовых форм для одного bulk-запроса
+    word_variants = [(word, None, None)]  # (variant, form_type, base_form)
 
-        # Проверяем на неправильные глаголы
-        if word in irregular_verbs:
-            base_form = irregular_verbs[word]
-            logger.debug(f"Найден неправильный глагол: {word} -> {base_form}")
-            word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
-            if word_entry:
-                word_form_info = {'type': 'past_tense', 'base_form': base_form}
+    # Проверяем на неправильные глаголы
+    if word in irregular_verbs:
+        base_form = irregular_verbs[word]
+        word_variants.append((base_form, 'past_tense', base_form))
 
-        # Если всё ещё не нашли, используем морфологические правила
-        if not word_entry:
-            logger.debug(f"Используем морфологические правила для '{word}'")
+    # Формы -ing
+    if word.endswith('ing') and len(word) > 4:
+        base_ing = word[:-3]
+        word_variants.append((base_ing, 'continuous', base_ing))
+        word_variants.append((base_ing + 'e', 'continuous', base_ing + 'e'))
+        if len(base_ing) >= 2 and base_ing[-1] == base_ing[-2]:
+            word_variants.append((base_ing[:-1], 'continuous', base_ing[:-1]))
 
-            # 1. Проверяем на формы -ing
-            if word.endswith('ing') and len(word) > 4:
-                # Пробуем удалить 'ing'
-                base_form = word[:-3]
-                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+    # Формы -ed
+    if word.endswith('ed') and len(word) > 3:
+        base_ed = word[:-2]
+        word_variants.append((base_ed, 'past_tense', base_ed))
+        word_variants.append((word[:-1], 'past_tense', word[:-1]))
+        if len(base_ed) >= 2 and base_ed[-1] == base_ed[-2]:
+            word_variants.append((base_ed[:-1], 'past_tense', base_ed[:-1]))
 
-                # Пробуем с 'e' (writing -> write)
-                if not word_entry:
-                    base_form_e = base_form + 'e'
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_e).first()
-                    if word_entry:
-                        base_form = base_form_e
+    # Множественное число
+    if word.endswith('s') and not word.endswith('ss') and len(word) > 2:
+        word_variants.append((word[:-1], 'plural', word[:-1]))
+        if word.endswith('es'):
+            word_variants.append((word[:-2], 'plural', word[:-2]))
+        if word.endswith('ies'):
+            word_variants.append((word[:-3] + 'y', 'plural', word[:-3] + 'y'))
 
-                # Пробуем с двойными согласными (running -> run)
-                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
-                    base_form_single = base_form[:-1]
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
-                    if word_entry:
-                        base_form = base_form_single
+    # Сравнительная степень -er
+    if word.endswith('er') and len(word) > 3:
+        base_er = word[:-2]
+        word_variants.append((base_er, 'comparative', base_er))
+        if len(base_er) >= 2 and base_er[-1] == base_er[-2]:
+            word_variants.append((base_er[:-1], 'comparative', base_er[:-1]))
+        if word.endswith('ier'):
+            word_variants.append((word[:-3] + 'y', 'comparative', word[:-3] + 'y'))
 
-                if word_entry:
-                    logger.debug(f"Нашли -ing форму: {word} -> {base_form}")
-                    word_form_info = {'type': 'continuous', 'base_form': base_form}
+    # Превосходная степень -est
+    if word.endswith('est') and len(word) > 4:
+        base_est = word[:-3]
+        word_variants.append((base_est, 'superlative', base_est))
+        if len(base_est) >= 2 and base_est[-1] == base_est[-2]:
+            word_variants.append((base_est[:-1], 'superlative', base_est[:-1]))
+        if word.endswith('iest'):
+            word_variants.append((word[:-4] + 'y', 'superlative', word[:-4] + 'y'))
 
-            # 2. Проверяем на формы -ed
-            if not word_entry and word.endswith('ed') and len(word) > 3:
-                # Пробуем удалить 'ed'
-                base_form = word[:-2]
-                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
+    # Один bulk-запрос для всех вариантов
+    from sqlalchemy import or_
+    variant_words = [v[0] for v in word_variants]
+    found_words = CollectionWords.query.filter(
+        CollectionWords.english_word.in_(variant_words)
+    ).all()
 
-                # Пробуем с 'e' (liked -> like)
-                if not word_entry:
-                    base_form_e = word[:-1]  # Убираем только 'd'
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_e).first()
-                    if word_entry:
-                        base_form = base_form_e
+    # Создаём словарь найденных слов
+    found_dict = {w.english_word: w for w in found_words}
 
-                # Пробуем с двойными согласными (stopped -> stop)
-                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
-                    base_form_single = base_form[:-1]
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
-                    if word_entry:
-                        base_form = base_form_single
-
-                if word_entry:
-                    logger.debug(f"Нашли -ed форму: {word} -> {base_form}")
-                    word_form_info = {'type': 'past_tense', 'base_form': base_form}
-
-            # 3. Проверяем на множественное число
-            if not word_entry and word.endswith('s') and not word.endswith('ss') and len(word) > 2:
-                # Регулярное множественное число (cars -> car)
-                base_form = word[:-1]
-                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
-
-                # Проверяем на -es (boxes -> box)
-                if not word_entry and word.endswith('es'):
-                    base_form_es = word[:-2]
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_es).first()
-                    if word_entry:
-                        base_form = base_form_es
-
-                # Проверяем на -ies (flies -> fly)
-                if not word_entry and word.endswith('ies'):
-                    base_form_ies = word[:-3] + 'y'
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_ies).first()
-                    if word_entry:
-                        base_form = base_form_ies
-
-                if word_entry:
-                    logger.debug(f"Нашли множественное число: {word} -> {base_form}")
-                    word_form_info = {'type': 'plural', 'base_form': base_form}
-
-            # 4. Проверяем на сравнительную и превосходную степени прилагательных
-            if not word_entry and word.endswith('er') and len(word) > 3:
-                # Сравнительная степень (bigger -> big)
-                base_form = word[:-2]
-                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
-
-                # Проверяем на двойную согласную
-                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
-                    base_form_single = base_form[:-1]
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
-                    if word_entry:
-                        base_form = base_form_single
-
-                # Проверяем на -ier (easier -> easy)
-                if not word_entry and word.endswith('ier'):
-                    base_form_y = word[:-3] + 'y'
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_y).first()
-                    if word_entry:
-                        base_form = base_form_y
-
-                if word_entry:
-                    logger.debug(f"Нашли сравнительную степень: {word} -> {base_form}")
-                    word_form_info = {'type': 'comparative', 'base_form': base_form}
-
-            if not word_entry and word.endswith('est') and len(word) > 4:
-                # Превосходная степень (biggest -> big)
-                base_form = word[:-3]
-                word_entry = CollectionWords.query.filter_by(english_word=base_form).first()
-
-                # Проверяем на двойную согласную
-                if not word_entry and len(base_form) >= 2 and base_form[-1] == base_form[-2]:
-                    base_form_single = base_form[:-1]
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_single).first()
-                    if word_entry:
-                        base_form = base_form_single
-
-                # Проверяем на -iest (easiest -> easy)
-                if not word_entry and word.endswith('iest'):
-                    base_form_y = word[:-4] + 'y'
-                    word_entry = CollectionWords.query.filter_by(english_word=base_form_y).first()
-                    if word_entry:
-                        base_form = base_form_y
-
-                if word_entry:
-                    logger.debug(f"Нашли превосходную степень: {word} -> {base_form}")
-                    word_form_info = {'type': 'superlative', 'base_form': base_form}
+    # Ищем первое совпадение в приоритетном порядке
+    word_entry = None
+    for variant, form_type, base_form in word_variants:
+        if variant in found_dict:
+            word_entry = found_dict[variant]
+            if form_type:
+                word_form_info = {'type': form_type, 'base_form': base_form}
+                logger.debug(f"Нашли форму {form_type}: {word} -> {base_form}")
+            break
 
     # Возвращаем перевод с дополнительной информацией о форме слова, если она есть
     if word_entry:
@@ -1561,12 +1493,21 @@ def book_words(book_id):
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     book_words = pagination.items
 
-    word_statuses = {}
+    # Bulk load word statuses to avoid N+1 queries
+    word_ids = [item[0].id for item in book_words]
+    user_words = UserWord.query.filter(
+        UserWord.user_id == current_user.id,
+        UserWord.word_id.in_(word_ids)
+    ).all()
 
-    for item in book_words:
-        word = item[0]
+    # Create status mapping (0 = new, 1 = learning, 2 = review, 3 = mastered)
+    from app.utils.db import string_to_status
+    word_statuses = {uw.word_id: string_to_status(uw.status) for uw in user_words}
 
-        word_statuses[word.id] = current_user.get_word_status(word.id)
+    # Fill in missing words with status 0 (new)
+    for word_id in word_ids:
+        if word_id not in word_statuses:
+            word_statuses[word_id] = 0
 
     # Get word statistics for filter counts
     word_stats = {

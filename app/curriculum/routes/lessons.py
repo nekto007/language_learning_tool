@@ -203,23 +203,40 @@ def vocabulary_lesson(lesson_id):
 
     logger.info(f"Lesson {lesson_id} word_list length: {len(word_list) if word_list else 0}")
 
-    for idx, word_data in enumerate(word_list):
-        # Get word from database (приводим к нижнему регистру для поиска)
-        # Support multiple field names: english, word, front
+    # Bulk load all words to avoid N+1 queries
+    english_words = []
+    for word_data in word_list:
         english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
         if english_word:
-            word = CollectionWords.query.filter_by(
-                english_word=english_word.lower()
-            ).first()
+            english_words.append(english_word.lower())
+
+    # Single query for all CollectionWords
+    db_words = {}
+    if english_words:
+        collection_words = CollectionWords.query.filter(
+            CollectionWords.english_word.in_(english_words)
+        ).all()
+        db_words = {w.english_word: w for w in collection_words}
+
+    # Single query for all UserWords
+    user_words_dict = {}
+    if current_user.is_authenticated and db_words:
+        word_ids = [w.id for w in db_words.values()]
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        user_words_dict = {uw.word_id: uw for uw in user_words}
+
+    # Build words list
+    for idx, word_data in enumerate(word_list):
+        english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
+        if english_word:
+            word = db_words.get(english_word.lower())
 
             if word:
-                # Get user's learning status
-                user_word = None
-                if current_user.is_authenticated:
-                    user_word = UserWord.query.filter_by(
-                        user_id=current_user.id,
-                        word_id=word.id
-                    ).first()
+                # Get user's learning status from pre-loaded dict
+                user_word = user_words_dict.get(word.id)
 
                 word_dict = {
                     'id': word.id,
@@ -236,7 +253,6 @@ def vocabulary_lesson(lesson_id):
                 words.append(word_dict)
             else:
                 # If word not in database, use lesson data directly
-                # Support multiple field names for russian translation
                 russian_word = word_data.get('russian', word_data.get('translation', word_data.get('back', '')))
 
                 word_dict = {
