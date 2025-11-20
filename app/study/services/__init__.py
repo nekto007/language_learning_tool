@@ -8,6 +8,7 @@ Architecture:
 - game_service.py: Matching game logic
 - stats_service.py: Statistics and leaderboards
 - session_service.py: Study session tracking
+- collection_topic_service.py: Collection and topic management
 """
 
 from .deck_service import DeckService
@@ -16,6 +17,7 @@ from .quiz_service import QuizService
 from .game_service import GameService
 from .stats_service import StatsService
 from .session_service import SessionService
+from .collection_topic_service import CollectionTopicService
 
 __all__ = [
     'DeckService',
@@ -24,4 +26,5 @@ __all__ = [
     'GameService',
     'StatsService',
     'SessionService',
+    'CollectionTopicService',
 ]
