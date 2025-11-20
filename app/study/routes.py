@@ -181,61 +181,23 @@ def settings():
 @module_required('study')
 def cards():
     """Anki-style flashcard study interface"""
-    # Get user settings
     settings = StudySettings.get_settings(current_user.id)
 
-    # Check if there are any cards to study
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Count due cards
-    due_count = UserCardDirection.query.join(
-        UserWord, UserCardDirection.user_word_id == UserWord.id
-    ).filter(
-        UserWord.user_id == current_user.id,
-        UserWord.status.in_(['learning', 'review']),
-        UserCardDirection.next_review <= datetime.now(timezone.utc)
-    ).count()
-
-    # Count new cards studied today
-    new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-        UserCardDirection.user_word_id.in_(
-            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-        ),
-        UserCardDirection.last_reviewed >= today_start,
-        UserCardDirection.repetitions == 1
-    ).scalar() or 0
-
-    # Count available new words
-    new_count = CollectionWords.query.outerjoin(
-        UserWord,
-        (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
-    ).filter(
-        UserWord.id == None,
-        CollectionWords.russian_word.isnot(None),
-        CollectionWords.russian_word != ''
-    ).count()
-
-    can_study_new = new_cards_today < settings.new_words_per_day
-    nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)
-    limit_reached = new_count > 0 and not can_study_new
+    # Get card counts
+    counts = SRSService.get_card_counts(current_user.id)
 
     # Create new study session
-    session = StudySession(
-        user_id=current_user.id,
-        session_type='cards'
-    )
-    db.session.add(session)
-    db.session.commit()
+    session = SessionService.start_session(current_user.id, 'cards')
 
     return render_template(
         'study/cards.html',
         session_id=session.id,
         settings=settings,
         word_source='auto',
-        nothing_to_study=nothing_to_study,
-        limit_reached=limit_reached,
-        daily_limit=settings.new_words_per_day,
-        new_cards_today=new_cards_today
+        nothing_to_study=counts['nothing_to_study'],
+        limit_reached=counts['limit_reached'],
+        daily_limit=counts['new_limit'],
+        new_cards_today=counts['new_today']
     )
 
 
@@ -246,7 +208,10 @@ def cards_deck(deck_id):
     """SRS cards from specific deck"""
     from app.study.models import QuizDeck
 
-    deck = QuizDeck.query.get_or_404(deck_id)
+    deck = DeckService.get_deck_with_words(deck_id)
+    if not deck:
+        flash('Колода не найдена', 'danger')
+        return redirect(url_for('study.index'))
 
     # Check if user has access (own deck or public)
     if not deck.is_public and deck.user_id != current_user.id:
@@ -259,65 +224,22 @@ def cards_deck(deck_id):
         return redirect(url_for('study.index'))
 
     # Mastered words don't need SRS review
-    if deck.title == 'Выученные слова':
+    if deck.title == DeckService.MASTERED_DECK_TITLE:
         flash('Выученные слова не требуют повторения. Используйте режим квиза для практики.', 'info')
         return redirect(url_for('study.index'))
 
-    # Get words from deck that need review today - using joinedload to avoid N+1
-    from sqlalchemy.orm import joinedload
-    deck = QuizDeck.query.options(joinedload(QuizDeck.words)).get(deck_id)
+    # Get word IDs from deck
     deck_word_ids = [dw.word_id for dw in deck.words if dw.word_id]
-
     if not deck_word_ids:
         flash('В колоде нет слов для SRS повторения', 'info')
         return redirect(url_for('study.index'))
 
-    # Bulk load existing UserWords to avoid N+1 queries
-    existing_user_words = db.session.query(UserWord.word_id).filter(
-        UserWord.user_id == current_user.id,
-        UserWord.word_id.in_(deck_word_ids)
-    ).all()
-    existing_word_ids = {uw.word_id for uw in existing_user_words}
-
-    # Count due cards (cards that need review)
-    due_count = db.session.query(func.count(UserCardDirection.id)).filter(
-        UserCardDirection.user_word_id.in_(
-            db.session.query(UserWord.id).filter(
-                UserWord.user_id == current_user.id,
-                UserWord.word_id.in_(deck_word_ids)
-            )
-        ),
-        UserCardDirection.next_review <= datetime.now(timezone.utc)
-    ).scalar() or 0
-
-    # Count new cards (words not yet in UserWord) - using pre-loaded set
-    new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
-
-    # Check daily limits
+    # Get card counts for this deck
     settings = StudySettings.get_settings(current_user.id)
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-
-    new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-        UserCardDirection.user_word_id.in_(
-            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-        ),
-        UserCardDirection.last_reviewed >= today_start,
-        UserCardDirection.repetitions == 1
-    ).scalar() or 0
-
-    can_study_new = new_cards_today < settings.new_words_per_day
-
-    # Determine if there's anything to study
-    nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)
-    limit_reached = new_count > 0 and not can_study_new
+    counts = SRSService.get_card_counts(current_user.id, deck_word_ids)
 
     # Create new study session
-    session = StudySession(
-        user_id=current_user.id,
-        session_type='cards'
-    )
-    db.session.add(session)
-    db.session.commit()
+    session = SessionService.start_session(current_user.id, 'cards')
 
     return render_template(
         'study/cards.html',
@@ -326,10 +248,10 @@ def cards_deck(deck_id):
         word_source='deck',
         deck_id=deck_id,
         deck_title=deck.title,
-        nothing_to_study=nothing_to_study,
-        limit_reached=limit_reached,
-        daily_limit=settings.new_words_per_day,
-        new_cards_today=new_cards_today
+        nothing_to_study=counts['nothing_to_study'],
+        limit_reached=counts['limit_reached'],
+        daily_limit=counts['new_limit'],
+        new_cards_today=counts['new_today']
     )
 
 

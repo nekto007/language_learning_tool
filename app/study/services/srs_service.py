@@ -108,6 +108,85 @@ class SRSService:
         return reviews_today < review_limit
 
     @staticmethod
+    def get_card_counts(user_id: int, deck_word_ids: List[int] = None) -> Dict:
+        """
+        Get card counts for display (due, new, limits)
+
+        Args:
+            user_id: User ID
+            deck_word_ids: Optional list of word IDs to filter by (for deck-specific counts)
+
+        Returns:
+            Dict with 'due_count', 'new_count', 'new_today', 'new_limit', 'can_study_new',
+            'nothing_to_study', 'limit_reached'
+        """
+        settings = StudySettings.get_settings(user_id)
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if deck_word_ids:
+            # Deck-specific counts
+            due_count = db.session.query(func.count(UserCardDirection.id)).filter(
+                UserCardDirection.user_word_id.in_(
+                    db.session.query(UserWord.id).filter(
+                        UserWord.user_id == user_id,
+                        UserWord.word_id.in_(deck_word_ids)
+                    )
+                ),
+                UserCardDirection.next_review <= datetime.now(timezone.utc)
+            ).scalar() or 0
+
+            # Get existing user words for this deck
+            existing_word_ids = {
+                row[0] for row in db.session.query(UserWord.word_id).filter(
+                    UserWord.user_id == user_id,
+                    UserWord.word_id.in_(deck_word_ids)
+                ).all()
+            }
+            new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
+        else:
+            # Auto mode - all cards
+            due_count = UserCardDirection.query.join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                UserWord.user_id == user_id,
+                UserWord.status.in_(['learning', 'review']),
+                UserCardDirection.next_review <= datetime.now(timezone.utc)
+            ).count()
+
+            # Count all available new words
+            new_count = CollectionWords.query.outerjoin(
+                UserWord,
+                (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == user_id)
+            ).filter(
+                UserWord.id == None,
+                CollectionWords.russian_word.isnot(None),
+                CollectionWords.russian_word != ''
+            ).count()
+
+        # New cards studied today
+        new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+            UserCardDirection.user_word_id.in_(
+                db.session.query(UserWord.id).filter_by(user_id=user_id)
+            ),
+            UserCardDirection.last_reviewed >= today_start,
+            UserCardDirection.repetitions == 1
+        ).scalar() or 0
+
+        can_study_new = new_cards_today < settings.new_words_per_day
+        nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)
+        limit_reached = new_count > 0 and not can_study_new
+
+        return {
+            'due_count': due_count,
+            'new_count': new_count,
+            'new_today': new_cards_today,
+            'new_limit': settings.new_words_per_day,
+            'can_study_new': can_study_new,
+            'nothing_to_study': nothing_to_study,
+            'limit_reached': limit_reached
+        }
+
+    @staticmethod
     def get_or_create_card_directions(user_word_id: int) -> Tuple[UserCardDirection, UserCardDirection]:
         """
         Get or create both card directions (en->ru, ru->en) for a word
