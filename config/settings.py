@@ -181,6 +181,28 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600  # 1 hour
 
+    # Database Connection Pooling
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        # Pool size settings
+        'pool_size': 10,              # Number of connections to maintain
+        'max_overflow': 20,           # Maximum additional connections when pool is full
+        'pool_timeout': 30,           # Seconds to wait before giving up on getting a connection
+        'pool_recycle': 3600,         # Recycle connections after 1 hour (prevent stale connections)
+
+        # Connection health checks
+        'pool_pre_ping': True,        # Test connection before using it
+
+        # Performance
+        'echo': False,                # Set to True for SQL query debugging
+        'echo_pool': False,           # Set to True for connection pool debugging
+
+        # Additional PostgreSQL optimizations
+        'connect_args': {
+            'connect_timeout': 10,    # Connection timeout in seconds
+            'options': '-c statement_timeout=30000'  # Query timeout: 30 seconds
+        }
+    }
+
 
 
 class TestConfig(Config):
