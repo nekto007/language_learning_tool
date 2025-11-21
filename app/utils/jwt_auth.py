@@ -43,13 +43,13 @@ def create_tokens_for_user(user):
 
     # Create tokens
     access_token = create_access_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims=additional_claims,
         fresh=True  # Mark as fresh for sensitive operations
     )
 
     refresh_token = create_refresh_token(
-        identity=user.id,
+        identity=str(user.id),
         additional_claims={'username': user.username}
     )
 
@@ -105,6 +105,10 @@ def refresh_access_token():
     """
     current_user_id = get_jwt_identity()
     current_claims = get_jwt()
+
+    # Ensure user_id is a string for JWT identity
+    if not isinstance(current_user_id, str):
+        current_user_id = str(current_user_id)
 
     # Create new access token (not fresh, from refresh token)
     access_token = create_access_token(
