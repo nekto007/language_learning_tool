@@ -177,14 +177,16 @@ def create_app(config_class=Config):
     # Run: flask db upgrade
     #
     # Seed initial data (only if needed - safe to run multiple times)
-    with app.app_context():
-        # Seed initial data for modules system
-        from app.modules.migrations import seed_initial_modules
-        seed_initial_modules()
+    # Skip seeding in testing mode - tests will handle their own data setup
+    if not app.config.get('TESTING', False):
+        with app.app_context():
+            # Seed initial data for modules system
+            from app.modules.migrations import seed_initial_modules
+            seed_initial_modules()
 
-        # Seed initial achievements
-        from app.achievements.seed import seed_achievements
-        seed_achievements()
+            # Seed initial achievements
+            from app.achievements.seed import seed_achievements
+            seed_achievements()
 
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine

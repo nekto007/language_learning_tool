@@ -46,7 +46,8 @@ class Module(db.Model):
     prerequisites = Column(JSON)  # JSON array of prerequisite module IDs or conditions
     min_score_required = Column(Integer, default=70)  # Minimum score to unlock next module
     allow_skip_test = Column(Boolean, default=False)  # Allow skip test for this module
-    input_mode = Column(String(50), default='selection_only')  # Input difficulty: selection_only, selection_and_ordering, mixed, advanced
+    input_mode = Column(String(50),
+                        default='selection_only')  # Input difficulty: selection_only, selection_and_ordering, mixed, advanced
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
@@ -88,7 +89,8 @@ class Module(db.Model):
                         if progress['progress_percent'] < 100:
                             reasons.append(f"Complete module '{prereq_module.title}'")
                         elif progress['avg_score'] < min_score:
-                            reasons.append(f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
+                            reasons.append(
+                                f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
 
         return len(reasons) == 0, reasons
 
@@ -174,43 +176,43 @@ class Lessons(db.Model):
 
         return settings
 
-    def migrate_content_to_latest(self):
-        """
-        Migrate content to the latest schema version.
-
-        Returns:
-            bool: True if migration was performed, False if already at latest version
-        """
-        from app.curriculum.services.content_migration_service import ContentMigrationService
-
-        current_version = self.content_version or 1
-        latest_version = ContentMigrationService.LATEST_VERSION
-
-        if current_version >= latest_version:
-            return False
-
-        try:
-            # Migrate content
-            migrated_content = ContentMigrationService.migrate_content(
-                self.type,
-                self.content,
-                from_version=current_version,
-                to_version=latest_version
-            )
-
-            if migrated_content:
-                self.content = migrated_content
-                self.content_version = latest_version
-                self.updated_at = datetime.now(timezone.utc)
-                return True
-
-            return False
-
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to migrate content for lesson {self.id}: {str(e)}")
-            return False
+    # def migrate_content_to_latest(self):
+    #     """
+    #     Migrate content to the latest schema version.
+    #
+    #     Returns:
+    #         bool: True if migration was performed, False if already at latest version
+    #     """
+    #     from app.curriculum.services.content_migration_service import ContentMigrationService
+    #
+    #     current_version = self.content_version or 1
+    #     latest_version = ContentMigrationService.LATEST_VERSION
+    #
+    #     if current_version >= latest_version:
+    #         return False
+    #
+    #     try:
+    #         # Migrate content
+    #         migrated_content = ContentMigrationService.migrate_content(
+    #             self.type,
+    #             self.content,
+    #             from_version=current_version,
+    #             to_version=latest_version
+    #         )
+    #
+    #         if migrated_content:
+    #             self.content = migrated_content
+    #             self.content_version = latest_version
+    #             self.updated_at = datetime.now(timezone.utc)
+    #             return True
+    #
+    #         return False
+    #
+    #     except Exception as e:
+    #         import logging
+    #         logger = logging.getLogger(__name__)
+    #         logger.error(f"Failed to migrate content for lesson {self.id}: {str(e)}")
+    #         return False
 
     def validate_content_schema(self) -> tuple[bool, str]:
         """
@@ -259,61 +261,6 @@ class Lessons(db.Model):
 
     def __repr__(self):
         return f"<Lesson {self.number}: {self.title}>"
-
-
-# class LessonComponent(db.Model):
-#     """Model representing a component within a lesson (vocabulary, grammar, quiz, etc.)"""
-#     __tablename__ = 'lesson_components'
-#
-#     id = Column(Integer, primary_key=True)
-#     lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
-#     type = Column(String(50), nullable=False)  # vocabulary, grammar, quiz, matching, text, anki_cards, checkpoint
-#     title = Column(String(200), nullable=False)
-#     order = Column(Integer, default=0)  # Order within the lesson
-#     content = Column(JSON)  # Flexible JSON content based on component type
-#     collection_id = Column(Integer, ForeignKey('collections.id', ondelete='SET NULL'))  # For vocabulary components
-#     book_id = Column(Integer, ForeignKey('book.id', ondelete='SET NULL'))  # For text components
-#     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-#     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
-#                         onupdate=lambda: datetime.now(timezone.utc))
-#
-#     # Relationships
-#     lesson = relationship('Lesson', back_populates='components')
-#     collection = relationship('Collection', backref='lesson_components')
-#
-#
-#     __table_args__ = (
-#         Index('idx_lesson_components_lesson_order', 'lesson_id', 'order'),
-#     )
-#
-#     def __repr__(self):
-#         return f"<LessonComponent {self.id}: {self.type} - {self.title}>"
-
-
-# class ModuleProgress(db.Model):
-#     """Model tracking user progress through modules"""
-#     __tablename__ = 'user_progress'
-#
-#     id = Column(Integer, primary_key=True)
-#     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-#     module_id = Column(Integer, ForeignKey('module.id', ondelete='CASCADE'), nullable=False)
-#     status = Column(String(20), default='not_started')  # not_started, in_progress, completed
-#     score = Column(Float, default=0.0)  # Overall score for the module
-#     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-#     completed_at = Column(DateTime)
-#     last_activity = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-#
-#     # Relationships
-#     user = relationship('User', backref='progress')
-#     lessons = relationship('Lessons', back_populates='progress')
-#     lesson_progress = relationship('LessonProgress', back_populates='user_progress', cascade='all, delete-orphan')
-#
-#     __table_args__ = (
-#         Index('idx_module_progress_user_module', 'user_id', 'module_id', unique=True),
-#     )
-#
-#     def __repr__(self):
-#         return f"<UserProgress: User {self.user_id} - Lesson {self.lesson_id} - {self.status}>"
 
 
 class LessonProgress(db.Model):
@@ -518,72 +465,3 @@ class SkipTestAttempt(db.Model):
         if self.started_at and self.completed_at:
             delta = self.completed_at - self.started_at
             self.time_spent_seconds = int(delta.total_seconds())
-
-
-# class SRSNotification(db.Model):
-#     """Уведомления о необходимости повторения"""
-#     __tablename__ = 'srs_notifications'
-#
-#     id = db.Column(db.Integer, primary_key=True)
-#     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-#     lesson_id = db.Column(db.Integer, db.ForeignKey('lessons.id', ondelete='CASCADE'), nullable=True)
-#
-#     notification_type = db.Column(db.String(50), nullable=False)  # 'lesson_review', 'daily_reminder', etc.
-#     title = db.Column(db.String(200), nullable=False)
-#     message = db.Column(db.Text, nullable=True)
-#     due_cards = db.Column(db.Integer, nullable=True)
-#
-#     is_read = db.Column(db.Boolean, default=False, nullable=False)
-#     is_sent = db.Column(db.Boolean, default=False, nullable=False)
-#
-#     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-#     sent_at = db.Column(db.DateTime, nullable=True)
-#
-#     # Relationships
-#     user = db.relationship('User', backref=db.backref('srs_notifications', lazy='dynamic'))
-#     lesson = db.relationship('Lessons', backref=db.backref('srs_notifications', lazy='dynamic'))
-#
-#     def mark_as_read(self):
-#         """Отметить уведомление как прочитанное"""
-#         self.is_read = True
-#         self.read_at = datetime.now(timezone.utc)
-#         db.session.commit()
-#
-#     def mark_as_sent(self):
-#         """Отметить уведомление как отправленное"""
-#         self.is_sent = True
-#         self.sent_at = datetime.now(timezone.utc)
-#         db.session.commit()
-#
-#     @classmethod
-#     def create_lesson_reminder(cls, user_id, lesson_id, due_cards):
-#         """Создать напоминание о повторении урока"""
-#         from app.curriculum.models import Lessons
-#
-#         lesson = Lessons.query.get(lesson_id)
-#         if not lesson:
-#             return None
-#
-#         notification = cls(
-#             user_id=user_id,
-#             lesson_id=lesson_id,
-#             notification_type='lesson_review',
-#             title=f'Время повторить урок "{lesson.title}"',
-#             message=f'У вас {due_cards} карточек для повторения',
-#             due_cards=due_cards
-#         )
-#
-#         db.session.add(notification)
-#         db.session.commit()
-#
-#         return notification
-#
-#     @classmethod
-#     def get_unread_count(cls, user_id):
-#         """Получить количество непрочитанных уведомлений"""
-#         return cls.query.filter_by(
-#             user_id=user_id,
-#             is_read=False
-#         ).count()
-#
-#

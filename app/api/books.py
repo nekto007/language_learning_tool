@@ -481,7 +481,7 @@ def get_word_translation(word):
         })
 
 
-@# CSRF protection REQUIRED
+# CSRF protection REQUIRED
 @api_books.route('/add-to-learning', methods=['POST'])
 @api_login_required
 def add_to_learning():
@@ -570,20 +570,25 @@ def get_task(task_id):
     Get task by ID with its payload
     Returns task data for frontend consumption
     """
+    from werkzeug.exceptions import NotFound
+
     try:
         task = Task.query.get_or_404(task_id)
-        
+
         return jsonify({
             'success': True,
             'task': {
                 'id': task.id,
                 'block_id': task.block_id,
-                'task_type': task.task_type,
+                'task_type': task.task_type.value if hasattr(task.task_type, 'value') else task.task_type,
                 'payload': task.payload,
                 'created_at': task.created_at.isoformat() if task.created_at else None
             }
         })
-        
+
+    except NotFound:
+        return jsonify({'success': False, 'error': 'Task not found'}), 404
+
     except Exception as e:
         logger.error(f"Error getting task {task_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -596,23 +601,31 @@ def get_block_tasks(block_id):
     Get all tasks for a specific block
     Returns list of tasks with their types and IDs
     """
+    from werkzeug.exceptions import NotFound
+
     try:
+        # First verify block exists
+        block = Block.query.get_or_404(block_id)
+
         tasks = Task.query.filter_by(block_id=block_id).all()
-        
+
         task_list = []
         for task in tasks:
             task_list.append({
                 'id': task.id,
-                'task_type': task.task_type,
+                'task_type': task.task_type.value if hasattr(task.task_type, 'value') else task.task_type,
                 'created_at': task.created_at.isoformat() if task.created_at else None
             })
-        
+
         return jsonify({
             'success': True,
             'block_id': block_id,
             'tasks': task_list
         })
-        
+
+    except NotFound:
+        return jsonify({'success': False, 'error': 'Block not found'}), 404
+
     except Exception as e:
         logger.error(f"Error getting tasks for block {block_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -625,13 +638,15 @@ def get_block(block_id):
     Get block information with task types
     Returns block title and available task types
     """
+    from werkzeug.exceptions import NotFound
+
     try:
         block = Block.query.get_or_404(block_id)
-        
+
         # Get task types for this block
         tasks = Task.query.filter_by(block_id=block_id).all()
-        task_types = [task.task_type for task in tasks]
-        
+        task_types = [task.task_type.value if hasattr(task.task_type, 'value') else task.task_type for task in tasks]
+
         return jsonify({
             'success': True,
             'block': {
@@ -643,7 +658,10 @@ def get_block(block_id):
                 'created_at': block.created_at.isoformat() if block.created_at else None
             }
         })
-        
+
+    except NotFound:
+        return jsonify({'success': False, 'error': 'Block not found'}), 404
+
     except Exception as e:
         logger.error(f"Error getting block {block_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -656,9 +674,11 @@ def get_chapter_by_id(chapter_id):
     Get chapter by ID with text and audio URL
     Returns text_raw and audio_url
     """
+    from werkzeug.exceptions import NotFound
+
     try:
         chapter = Chapter.query.get_or_404(chapter_id)
-        
+
         return jsonify({
             'success': True,
             'chapter': {
@@ -671,7 +691,10 @@ def get_chapter_by_id(chapter_id):
                 'book_id': chapter.book_id
             }
         })
-        
+
+    except NotFound:
+        return jsonify({'success': False, 'error': 'Chapter not found'}), 404
+
     except Exception as e:
         logger.error(f"Error getting chapter {chapter_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500

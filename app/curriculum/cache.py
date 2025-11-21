@@ -384,5 +384,7 @@ def init_cache(app, redis_client=None):
         logger.info("Initialized simple cache")
 
     # Warm cache on startup
-    with app.app_context():
-        warm_cache()
+    # Skip in testing mode - tests will handle their own setup
+    if not app.config.get('TESTING', False):
+        with app.app_context():
+            warm_cache()

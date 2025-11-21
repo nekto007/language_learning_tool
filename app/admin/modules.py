@@ -25,6 +25,10 @@ def admin_required(f):
 def register_module_admin_routes(admin_bp):
     """Register module management routes to admin blueprint"""
 
+    # Check if routes have already been registered to avoid re-registration errors
+    if hasattr(admin_bp, '_module_admin_routes_registered'):
+        return
+
     @admin_bp.route('/modules')
     @login_required
     @admin_required
@@ -252,3 +256,6 @@ def register_module_admin_routes(admin_bp):
             },
             'users': users_data
         })
+
+    # Mark routes as registered
+    admin_bp._module_admin_routes_registered = True

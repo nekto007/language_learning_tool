@@ -124,7 +124,12 @@ def handle_admin_errors(return_json=True):
 # Register blueprint from main admin routes
 def register_book_course_routes(admin_bp):
     """Register book course routes to the main admin blueprint"""
-    
+
+    # Check if routes have already been registered to avoid re-registration errors
+    if hasattr(admin_bp, '_book_course_routes_registered'):
+        logger.debug("[BOOK_COURSE_ROUTES] Routes already registered, skipping")
+        return
+
     logger.info("[BOOK_COURSE_ROUTES] Registering book course routes")
 
     # ====================
@@ -760,6 +765,10 @@ def register_book_course_routes(admin_bp):
                 'success': False,
                 'error': f'Ошибка при выполнении операции: {str(e)}'
             }), 500
+
+    # Mark routes as registered
+    admin_bp._book_course_routes_registered = True
+    logger.info("[BOOK_COURSE_ROUTES] Routes registration completed")
 
 
 # Cache statistics for performance

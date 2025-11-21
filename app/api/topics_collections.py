@@ -202,7 +202,7 @@ def get_topic_words(topic_id):
 
 
 @api_topics_collections.route('/topics/<int:topic_id>/add-to-study', methods=['POST'])
-@# CSRF protection REQUIRED
+# CSRF protection REQUIRED
 @api_login_required
 def add_topic_to_study(topic_id):
     """Добавление всех слов темы в список изучения"""
@@ -527,7 +527,7 @@ def get_collection_words(collection_id):
 
 
 @api_topics_collections.route('/collections/<int:collection_id>/add-to-study', methods=['POST'])
-@# CSRF protection REQUIRED
+# CSRF protection REQUIRED
 @api_login_required
 def add_collection_to_study(collection_id):
     """Добавление всех слов коллекции в список изучения"""

@@ -26,7 +26,7 @@ class TelegramToken(db.Model):
     __tablename__ = 'telegram_tokens'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Token value (hashed or encrypted in production)
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
@@ -107,7 +107,12 @@ class TelegramToken(db.Model):
         if self.revoked:
             return False
 
-        if datetime.now(timezone.utc) > self.expires_at:
+        # Ensure expires_at is timezone-aware for comparison
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if datetime.now(timezone.utc) > expires_at:
             return False
 
         return True
