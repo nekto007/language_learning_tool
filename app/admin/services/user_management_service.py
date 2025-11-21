@@ -7,6 +7,7 @@ Responsibilities:
 - Module access management
 """
 from typing import List, Dict, Optional
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
 
 from app.utils.db import db
@@ -127,3 +128,98 @@ class UserManagementService:
         db.session.delete(user)
         db.session.commit()
         return True
+
+    @classmethod
+    def toggle_user_status(cls, user_id: int) -> Optional[Dict]:
+        """
+        Toggle user active status
+
+        Returns:
+            Dictionary with updated user info or None if user not found
+        """
+        user = User.query.get(user_id)
+        if not user:
+            return None
+
+        user.active = not user.active
+        db.session.commit()
+
+        return {
+            'user_id': user.id,
+            'username': user.username,
+            'active': user.active
+        }
+
+    @classmethod
+    def toggle_admin_status(cls, user_id: int, current_admin_id: int) -> tuple[bool, str]:
+        """
+        Toggle user admin status
+
+        Args:
+            user_id: ID of user to modify
+            current_admin_id: ID of current admin making the change
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        # Prevent self-modification
+        if user_id == current_admin_id:
+            return False, "Cannot modify your own admin status"
+
+        user = User.query.get(user_id)
+        if not user:
+            return False, "User not found"
+
+        user.is_admin = not user.is_admin
+        db.session.commit()
+
+        return True, f"Admin status {'granted' if user.is_admin else 'revoked'} for {user.username}"
+
+    @classmethod
+    def get_user_activity_stats(cls, days: int = 30) -> Dict:
+        """
+        Get user activity statistics for dashboard
+
+        Args:
+            days: Number of days to analyze
+
+        Returns:
+            Dictionary with registration, login, and hourly activity data
+        """
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # User registrations by date
+        user_registrations = db.session.query(
+            func.date(User.created_at).label('date'),
+            func.count(User.id).label('count')
+        ).filter(
+            User.created_at >= cutoff_date
+        ).group_by(
+            func.date(User.created_at)
+        ).all()
+
+        # User logins by date
+        user_logins = db.session.query(
+            func.date(User.last_login).label('date'),
+            func.count(User.id).label('count')
+        ).filter(
+            User.last_login >= cutoff_date
+        ).group_by(
+            func.date(User.last_login)
+        ).all()
+
+        # User activity by hour
+        user_activity_by_hour = db.session.query(
+            func.extract('hour', User.last_login).label('hour'),
+            func.count(User.id).label('count')
+        ).filter(
+            User.last_login >= cutoff_date
+        ).group_by(
+            'hour'
+        ).all()
+
+        return {
+            'user_registrations': user_registrations,
+            'user_logins': user_logins,
+            'user_activity_by_hour': user_activity_by_hour
+        }

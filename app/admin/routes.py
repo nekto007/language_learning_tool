@@ -275,12 +275,15 @@ def users():
 @admin_required
 def toggle_user_status(user_id):
     """Активация/деактивация пользователя"""
-    user = User.query.get_or_404(user_id)
-    user.active = not user.active
-    db.session.commit()
+    from app.admin.services import UserManagementService
 
-    status = "активирован" if user.active else "деактивирован"
-    flash(f'Пользователь {user.username} успешно {status}.', 'success')
+    result = UserManagementService.toggle_user_status(user_id)
+
+    if result:
+        status = "активирован" if result['active'] else "деактивирован"
+        flash(f'Пользователь {result["username"]} успешно {status}.', 'success')
+    else:
+        flash('Пользователь не найден.', 'danger')
 
     return redirect(url_for('admin.users'))
 
@@ -289,16 +292,14 @@ def toggle_user_status(user_id):
 @admin_required
 def toggle_admin_status(user_id):
     """Предоставление/отзыв прав администратора"""
-    if current_user.id == user_id:
-        flash('Вы не можете изменить свои собственные права администратора.', 'danger')
-        return redirect(url_for('admin.users'))
+    from app.admin.services import UserManagementService
 
-    user = User.query.get_or_404(user_id)
-    user.is_admin = not user.is_admin
-    db.session.commit()
+    success, message = UserManagementService.toggle_admin_status(user_id, current_user.id)
 
-    status = "предоставлены" if user.is_admin else "отозваны"
-    flash(f'Права администратора для пользователя {user.username} успешно {status}.', 'success')
+    if success:
+        flash(f'Права администратора успешно изменены: {message}', 'success')
+    else:
+        flash(message, 'danger')
 
     return redirect(url_for('admin.users'))
 
@@ -307,30 +308,15 @@ def toggle_admin_status(user_id):
 @admin_required
 def stats():
     """Статистика приложения"""
-    # Данные по регистрациям пользователей по дням за последний месяц
-    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    user_registrations = db.session.query(
-        func.date(User.created_at).label('date'),
-        func.count(User.id).label('count')
-    ).filter(User.created_at >= month_ago).group_by(func.date(User.created_at)).all()
+    from app.admin.services import UserManagementService
 
-    # Для графика активности пользователей
-    user_logins = db.session.query(
-        func.date(User.last_login).label('date'),
-        func.count(User.id).label('count')
-    ).filter(User.last_login >= month_ago).group_by(func.date(User.last_login)).all()
-
-    # Активность по часам суток
-    user_activity_by_hour = db.session.query(
-        func.extract('hour', User.last_login).label('hour'),
-        func.count(User.id).label('count')
-    ).filter(User.last_login >= month_ago).group_by('hour').all()
+    stats_data = UserManagementService.get_user_activity_stats(days=30)
 
     return render_template(
         'admin/stats.html',
-        user_registrations=user_registrations,
-        user_logins=user_logins,
-        user_activity_by_hour=user_activity_by_hour
+        user_registrations=stats_data['user_registrations'],
+        user_logins=stats_data['user_logins'],
+        user_activity_by_hour=stats_data['user_activity_by_hour']
     )
 
 
