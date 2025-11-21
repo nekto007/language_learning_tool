@@ -1,95 +1,15 @@
 # app/curriculum/routes/main.py
 
 import logging
-from datetime import UTC, datetime, timedelta
 
-from flask import Blueprint, abort, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func, distinct
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import check_module_access, require_module_access
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
-
-
-def calculate_gamification_stats(user_id):
-    """Calculate gamification statistics for user"""
-    # Calculate learning streak (consecutive days)
-    streak = 0
-    current_date = datetime.now(UTC).date()
-
-    # Get all distinct activity dates, ordered by date descending
-    activity_dates = db.session.query(
-        func.date(LessonProgress.last_activity).label('activity_date')
-    ).filter(
-        LessonProgress.user_id == user_id
-    ).distinct().order_by(
-        func.date(LessonProgress.last_activity).desc()
-    ).all()
-
-    # Calculate consecutive days
-    if activity_dates:
-        activity_dates_list = [d[0] for d in activity_dates]
-
-        # Check if user was active today or yesterday
-        if activity_dates_list and (
-            activity_dates_list[0] == current_date or
-            activity_dates_list[0] == current_date - timedelta(days=1)
-        ):
-            streak = 1
-            check_date = activity_dates_list[0] - timedelta(days=1)
-
-            for date in activity_dates_list[1:]:
-                if date == check_date:
-                    streak += 1
-                    check_date -= timedelta(days=1)
-                else:
-                    break
-
-    # Calculate total points (based on completed lessons and scores)
-    points_data = db.session.query(
-        func.count(LessonProgress.id).label('completed_count'),
-        func.coalesce(func.avg(LessonProgress.score), 0).label('avg_score')
-    ).filter(
-        LessonProgress.user_id == user_id,
-        LessonProgress.status == 'completed'
-    ).first()
-
-    completed_lessons = points_data[0] or 0
-    avg_score = points_data[1] or 0
-
-    # Points formula: 10 points per lesson + bonus for high scores
-    total_points = completed_lessons * 10
-    if avg_score >= 90:
-        total_points += completed_lessons * 5  # +5 bonus for excellent scores
-    elif avg_score >= 80:
-        total_points += completed_lessons * 3  # +3 bonus for good scores
-
-    # Calculate user level based on points
-    user_level = 1 + (total_points // 100)  # Level up every 100 points
-
-    # Calculate today's progress
-    today_completed = db.session.query(func.count(LessonProgress.id)).filter(
-        LessonProgress.user_id == user_id,
-        LessonProgress.status == 'completed',
-        func.date(LessonProgress.completed_at) == current_date
-    ).scalar() or 0
-
-    # Daily goal: 3 lessons per day
-    daily_goal = 3
-    daily_progress = min(today_completed, daily_goal)
-
-    return {
-        'streak': streak,
-        'total_points': total_points,
-        'user_level': user_level,
-        'daily_progress': daily_progress,
-        'daily_goal': daily_goal,
-        'completed_lessons': completed_lessons,
-        'avg_score': round(avg_score, 1)
-    }
 
 # Create blueprint for main routes - use curriculum name for compatibility
 main_bp = Blueprint('curriculum', __name__)

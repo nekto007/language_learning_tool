@@ -210,6 +210,78 @@ class ProgressService:
             raise
 
     @staticmethod
+    def update_progress_with_grading(
+            user_id: int,
+            lesson: 'Lessons',
+            result: Dict,
+            passing_score: int = 70
+    ) -> tuple['LessonProgress', Optional[Dict]]:
+        """
+        Update lesson progress with score grading and achievements
+
+        Args:
+            user_id: User ID
+            lesson: Lesson object
+            result: Dictionary with score and result data
+            passing_score: Minimum score to mark as completed (default 70)
+
+        Returns:
+            Tuple of (progress, completion_result)
+        """
+        from sqlalchemy.orm.attributes import flag_modified
+
+        score = result.get('score', 0)
+        score = round(score, 2)
+        is_completed = score >= passing_score
+
+        # Find existing progress
+        progress = LessonProgress.query.filter_by(
+            user_id=user_id,
+            lesson_id=lesson.id
+        ).first()
+
+        if progress:
+            progress.score = score
+            progress.status = 'completed' if is_completed else 'in_progress'
+            progress.data = result
+            # Mark JSONB field as modified for SQLAlchemy
+            flag_modified(progress, 'data')
+            progress.last_activity = datetime.now(UTC)
+            if progress.status == 'completed' and not progress.completed_at:
+                progress.completed_at = datetime.now(UTC)
+        else:
+            progress = LessonProgress(
+                user_id=user_id,
+                lesson_id=lesson.id,
+                score=score,
+                status='completed' if is_completed else 'in_progress',
+                data=result,
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC)
+            )
+            if progress.status == 'completed':
+                progress.completed_at = datetime.now(UTC)
+            db.session.add(progress)
+
+        db.session.commit()
+
+        # Process grading and achievements if lesson completed
+        completion_result = None
+        if is_completed:
+            try:
+                from app.achievements.services import process_lesson_completion
+                completion_result = process_lesson_completion(
+                    user_id=user_id,
+                    lesson_id=lesson.id,
+                    score=score
+                )
+            except Exception as e:
+                logger.error(f"Error processing lesson completion: {e}")
+                # Don't fail the request if grading fails
+
+        return progress, completion_result
+
+    @staticmethod
     def get_module_progress(user_id: int, module_id: int) -> Dict:
         """
         Get user progress for a specific module

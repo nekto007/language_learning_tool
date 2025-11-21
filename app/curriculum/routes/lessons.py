@@ -7,7 +7,6 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, r
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
 
-from app.achievements.services import process_lesson_completion
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import (
     require_lesson_access, sanitize_html, sanitize_json_content,
@@ -16,6 +15,7 @@ from app.curriculum.service import (
     get_card_session_for_lesson, get_cards_for_lesson, get_next_lesson, process_card_review_for_lesson,
     process_final_test_submission, process_grammar_submission, process_matching_submission, process_quiz_submission,
 )
+from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import (
     LessonContentValidator, ProgressUpdateSchema, SRSReviewSchema,
     validate_request_data,
@@ -28,67 +28,6 @@ logger = logging.getLogger(__name__)
 
 # Create blueprint for lesson routes
 lessons_bp = Blueprint('curriculum_lessons', __name__)
-
-
-def update_lesson_progress_with_grading(lesson, progress, result, passing_score=70):
-    """
-    Helper function to update lesson progress and assign grades/achievements
-
-    Args:
-        lesson: Lesson object
-        progress: LessonProgress object or None
-        result: Dict with score and other result data
-        passing_score: Minimum score to mark as completed (default 70)
-
-    Returns:
-        Tuple of (progress, completion_result)
-    """
-    from sqlalchemy.orm.attributes import flag_modified
-
-    score = result.get('score', 0)
-    # Round score to 2 decimal places
-    score = round(score, 2)
-    is_completed = score >= passing_score
-
-    if progress:
-        progress.score = score
-        progress.status = 'completed' if is_completed else 'in_progress'
-        progress.data = result
-        # IMPORTANT: Mark JSONB field as modified for SQLAlchemy to detect changes
-        flag_modified(progress, 'data')
-        progress.last_activity = datetime.now(UTC)
-        if progress.status == 'completed' and not progress.completed_at:
-            progress.completed_at = datetime.now(UTC)
-    else:
-        progress = LessonProgress(
-            user_id=current_user.id,
-            lesson_id=lesson.id,
-            score=score,
-            status='completed' if is_completed else 'in_progress',
-            data=result,
-            started_at=datetime.now(UTC),
-            last_activity=datetime.now(UTC)
-        )
-        if progress.status == 'completed':
-            progress.completed_at = datetime.now(UTC)
-        db.session.add(progress)
-
-    db.session.commit()
-
-    # Process grading and achievements if lesson completed
-    completion_result = None
-    if is_completed:
-        try:
-            completion_result = process_lesson_completion(
-                user_id=current_user.id,
-                lesson_id=lesson.id,
-                score=score
-            )
-        except Exception as e:
-            logger.error(f"Error processing lesson completion: {e}")
-            # Don't fail the request if grading fails
-
-    return progress, completion_result
 
 
 @lessons_bp.route('/lesson/<int:lesson_id>')
@@ -408,9 +347,9 @@ def grammar_lesson(lesson_id):
                 return redirect(url_for('curriculum_lessons.grammar_lesson', lesson_id=lesson_id))
 
         # Update progress with grading and achievements
-        progress, completion_result = update_lesson_progress_with_grading(
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
             lesson=lesson,
-            progress=progress,
             result=result,
             passing_score=70
         )
@@ -680,9 +619,9 @@ def quiz_lesson(lesson_id):
                     logger.error(f"Invalid client score data: {e}")
 
         # Update progress with grading and achievements
-        progress, completion_result = update_lesson_progress_with_grading(
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
             lesson=lesson,
-            progress=progress,
             result=result,
             passing_score=70  # Passing threshold (70% allows for some mistakes with retry)
         )
@@ -821,9 +760,9 @@ def final_test_lesson(lesson_id):
         passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
 
         # Update progress with grading and achievements
-        progress, completion_result = update_lesson_progress_with_grading(
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
             lesson=lesson,
-            progress=progress,
             result=result,
             passing_score=passing_score
         )
@@ -1082,9 +1021,9 @@ def text_lesson(lesson_id):
             result = {'score': 100.0, 'status': 'completed'}
 
         # Update progress with grading and achievements
-        progress, completion_result = update_lesson_progress_with_grading(
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
             lesson=lesson,
-            progress=progress,
             result=result,
             passing_score=70
         )
