@@ -280,3 +280,47 @@ migrate_input_mode_to_modules.py
 INPUT_MODE_SUMMARY.md
 INPUT_MODE_SYSTEM.md
 module_1_lessons.csv
+
+# Test coverage and analysis files
+coverage.json
+analyze_coverage.py
+analyze_big_gaps.py
+COVERAGE_PROGRESS_REPORT.md
+TEST_COVERAGE_PLAN.md
+TEST_COVERAGE_SUMMARY.md
+PLAN_TO_70_PERCENT.md
+
+# Module generation scripts
+create_modules_*.py
+create_full_modules_*.py
+generate_modules_*.py
+generate_grammar_audio.py
+generate_grammar_lecture_audio.py
+generate_complete_modules_*.py
+final_module_generator_*.py
+new_generate_audio.py
+grammar_to_audio.py
+
+# Module summaries and validation
+MODULES_*_SUMMARY.txt
+MODULES_*_SUMMARY.md
+validation_modules_*.txt
+
+# Session summaries
+SESSION_SUMMARY.md
+TESTS_CREATED_SUMMARY.md
+
+# Critical improvements tracking
+critical_impovment.md
+
+# Celery setup
+CELERY_SETUP.md
+
+# Old migrations
+migrations_old/
+
+# Test requirements (use main requirements.txt)
+requirements-test.txt
+
+# Test runner script
+run_tests.sh
