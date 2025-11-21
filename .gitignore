@@ -222,6 +222,7 @@ TELEGRAM_BOT_INTEGRATION_PLAN.md
 
 # Backup files
 *.bak
+*.backup
 
 # API tokens and secrets
 .telegram_api_token
