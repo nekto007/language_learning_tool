@@ -256,3 +256,150 @@ class StatsService:
             db.session.commit()
 
         return newly_earned
+
+    @staticmethod
+    def get_xp_leaderboard(limit: int = 100) -> List[Dict]:
+        """
+        Get XP leaderboard (all time)
+
+        Args:
+            limit: Maximum number of entries
+
+        Returns:
+            List of users with XP and level
+        """
+        results = db.session.query(
+            User.id,
+            User.username,
+            UserXP.total_xp
+        ).join(
+            UserXP, User.id == UserXP.user_id
+        ).order_by(
+            desc(UserXP.total_xp)
+        ).limit(limit).all()
+
+        return [
+            {
+                'id': row.id,
+                'username': row.username,
+                'total_xp': row.total_xp,
+                'level': max(1, row.total_xp // 100)
+            }
+            for row in results
+        ]
+
+    @staticmethod
+    def get_achievement_leaderboard(limit: int = 100) -> List[Dict]:
+        """
+        Get achievement leaderboard (all time)
+
+        Args:
+            limit: Maximum number of entries
+
+        Returns:
+            List of users with achievement counts
+        """
+        results = db.session.query(
+            User.id,
+            User.username,
+            func.count(UserAchievement.id).label('achievement_count')
+        ).join(
+            UserAchievement, User.id == UserAchievement.user_id
+        ).group_by(
+            User.id, User.username
+        ).order_by(
+            desc('achievement_count')
+        ).limit(limit).all()
+
+        return [
+            {
+                'id': row.id,
+                'username': row.username,
+                'achievement_count': row.achievement_count
+            }
+            for row in results
+        ]
+
+    @staticmethod
+    def get_user_xp_rank(user_id: int) -> Optional[int]:
+        """Get user's XP rank"""
+        user_xp = UserXP.query.filter_by(user_id=user_id).first()
+        if not user_xp:
+            return None
+
+        higher_xp_count = db.session.query(
+            func.count(UserXP.id)
+        ).filter(
+            UserXP.total_xp > user_xp.total_xp
+        ).scalar()
+
+        return (higher_xp_count or 0) + 1
+
+    @staticmethod
+    def get_user_achievement_rank(user_id: int) -> Optional[int]:
+        """Get user's achievement rank"""
+        user_achievement_count = UserAchievement.query.filter_by(user_id=user_id).count()
+        if user_achievement_count == 0:
+            return None
+
+        # Count users with more achievements
+        higher_achievement_count = db.session.query(
+            func.count(func.distinct(UserAchievement.user_id))
+        ).filter(
+            UserAchievement.user_id.in_(
+                db.session.query(UserAchievement.user_id)
+                .group_by(UserAchievement.user_id)
+                .having(func.count(UserAchievement.id) > user_achievement_count)
+            )
+        ).scalar()
+
+        return (higher_achievement_count or 0) + 1
+
+    @staticmethod
+    def get_achievements_by_category(user_id: int) -> Dict:
+        """
+        Get all achievements grouped by category with user's progress
+
+        Returns:
+            Dictionary with achievements by category and stats
+        """
+        # Get all achievements
+        all_achievements = Achievement.query.order_by(
+            Achievement.category, Achievement.xp_reward
+        ).all()
+
+        # Get user's earned achievements
+        user_achievements = UserAchievement.query.filter_by(
+            user_id=user_id
+        ).all()
+        earned_ids = {ua.achievement_id for ua in user_achievements}
+
+        # Group by category
+        achievements_by_category = {}
+        for ach in all_achievements:
+            if ach.category not in achievements_by_category:
+                achievements_by_category[ach.category] = []
+
+            achievements_by_category[ach.category].append({
+                'achievement': ach,
+                'earned': ach.id in earned_ids,
+                'earned_at': next(
+                    (ua.earned_at for ua in user_achievements if ua.achievement_id == ach.id),
+                    None
+                )
+            })
+
+        # Calculate stats
+        total_achievements = len(all_achievements)
+        earned_count = len(earned_ids)
+        total_xp_earned = sum(
+            ach.xp_reward for ach in all_achievements if ach.id in earned_ids
+        )
+
+        return {
+            'by_category': achievements_by_category,
+            'total_achievements': total_achievements,
+            'earned_count': earned_count,
+            'progress_percentage': round(earned_count / total_achievements * 100) if total_achievements > 0 else 0,
+            'total_xp_earned': total_xp_earned
+        }
