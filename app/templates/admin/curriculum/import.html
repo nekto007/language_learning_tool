@@ -8,7 +8,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.curriculum') }}">Curriculum</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_curriculum.curriculum') }}">Curriculum</a></li>
             <li class="breadcrumb-item active">Import</li>
         </ol>
     </nav>
@@ -126,7 +126,7 @@
                         <button type="submit" class="btn btn-primary" id="importBtn">
                             <i class="fas fa-upload me-2"></i>Import Curriculum
                         </button>
-                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-secondary">
                             <i class="fas fa-times me-2"></i>Cancel
                         </a>
                     </div>

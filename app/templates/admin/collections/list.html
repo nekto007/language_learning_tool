@@ -6,7 +6,7 @@
   <div class="container-fluid pt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h2">{{ _('Manage Collections') }}</h1>
-      <a href="{{ url_for('admin.create_collection') }}" class="btn btn-primary">
+      <a href="{{ url_for('collection_admin.create_collection') }}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i> {{ _('Create New Collection') }}
       </a>
     </div>
@@ -92,7 +92,7 @@
                 <td>{{ collection.created_at.strftime('%Y-%m-%d') if collection.created_at else '-' }}</td>
                 <td class="text-end">
                   <div class="btn-group">
-                    <a href="{{ url_for('admin.edit_collection', collection_id=collection.id) }}"
+                    <a href="{{ url_for('collection_admin.edit_collection', collection_id=collection.id) }}"
                        class="btn btn-sm btn-primary">
                       <i class="fas fa-edit me-1"></i> {{ _('Edit') }}
                     </a>
@@ -125,7 +125,7 @@
                           <button type="button" class="btn btn-secondary"
                                   data-dismiss="modal">{{ _('Cancel') }}</button>
                           <form method="POST"
-                                action="{{ url_for('admin.delete_collection', collection_id=collection.id) }}">
+                                action="{{ url_for('collection_admin.delete_collection', collection_id=collection.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger">{{ _('Delete') }}</button>
                           </form>
@@ -141,7 +141,7 @@
                   <div class="text-muted">
                     <i class="fas fa-folder-open fa-2x mb-2"></i>
                     <p>{{ _('No collections found.') }}</p>
-                    <a href="{{ url_for('admin.create_collection') }}" class="btn btn-sm btn-primary">
+                    <a href="{{ url_for('collection_admin.create_collection') }}" class="btn btn-sm btn-primary">
                       <i class="fas fa-plus me-1"></i> {{ _('Create First Collection') }}
                     </a>
                   </div>
@@ -160,7 +160,7 @@
             <ul class="pagination justify-content-center mb-0">
               <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
                 <a class="page-link"
-                   href="{{ url_for('admin.collection_list', page=pagination.prev_num, **request.args) if pagination.has_prev else '#' }}">
+                   href="{{ url_for('collection_admin.collection_list', page=pagination.prev_num, **request.args) if pagination.has_prev else '#' }}">
                   <i class="fas fa-chevron-left"></i>
                 </a>
               </li>
@@ -169,7 +169,7 @@
                 {% if p %}
                   <li class="page-item {% if p == pagination.page %}active{% endif %}">
                     <a class="page-link"
-                       href="{{ url_for('admin.collection_list', page=p, **request.args) }}">{{ p }}</a>
+                       href="{{ url_for('collection_admin.collection_list', page=p, **request.args) }}">{{ p }}</a>
                   </li>
                 {% else %}
                   <li class="page-item disabled">
@@ -180,7 +180,7 @@
 
               <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
                 <a class="page-link"
-                   href="{{ url_for('admin.collection_list', page=pagination.next_num, **request.args) if pagination.has_next else '#' }}">
+                   href="{{ url_for('collection_admin.collection_list', page=pagination.next_num, **request.args) if pagination.has_next else '#' }}">
                   <i class="fas fa-chevron-right"></i>
                 </a>
               </li>

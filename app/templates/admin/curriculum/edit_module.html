@@ -9,7 +9,7 @@
         <h1 class="page-title">Edit Module</h1>
         <p class="page-subtitle">{{ module.level.code }} - Module {{ module.number }}: {{ module.title }}</p>
     </div>
-    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
     </a>
 </div>
@@ -57,7 +57,7 @@
 
                     <div class="d-flex gap-2">
                         {{ form.submit(class="btn btn-primary") }}
-                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
 
                         {% if module.lessons|length == 0 %}
                         <form action="{{ url_for('admin.delete_module', module_id=module.id) }}" method="POST" class="ms-auto">
@@ -136,7 +136,7 @@
                 <a href="{{ url_for('admin.create_lesson', module_id=module.id) }}" class="btn btn-outline-primary">
                     <i class="fas fa-plus me-1"></i> Create New Lesson
                 </a>
-                <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
                     <i class="fas fa-file-import me-1"></i> Import Lessons
                 </a>
             </div>

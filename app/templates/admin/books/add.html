@@ -183,7 +183,7 @@
                             {% endif %}
                         </div>
                         <div>
-                            <a href="{{ url_for('admin.books') }}" class="btn btn-outline-secondary">
+                            <a href="{{ url_for('book_admin.books') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left"></i> Назад к списку
                             </a>
                         </div>
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('file', file);
         
-        fetch('{{ url_for("admin.extract_book_metadata") }}', {
+        fetch('{{ url_for("book_admin.extract_book_metadata") }}', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
@@ -526,11 +526,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Успешно добавлено, показываем сообщение и переходим
                 showAlert('success', data.message || 'Книга успешно добавлена!');
                 setTimeout(() => {
-                    window.location.href = '{{ url_for("admin.books") }}';
+                    window.location.href = '{{ url_for("book_admin.books") }}';
                 }, 1500);
             } else {
                 // Успешно добавлено, переходим на страницу книг
-                window.location.href = '{{ url_for("admin.books") }}';
+                window.location.href = '{{ url_for("book_admin.books") }}';
             }
         })
         .catch(error => {
@@ -631,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success === false) {
                     showAlert('danger', data.message || 'Произошла ошибка при перезаписи');
                 } else {
-                    window.location.href = '{{ url_for("admin.books") }}';
+                    window.location.href = '{{ url_for("book_admin.books") }}';
                 }
             }
         })

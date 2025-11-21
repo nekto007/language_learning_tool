@@ -6,7 +6,7 @@
   <div class="container-fluid pt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h2">{{ _('Manage Topics') }}</h1>
-      <a href="{{ url_for('admin.create_topic') }}" class="btn btn-primary">
+      <a href="{{ url_for('topic_admin.create_topic') }}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i> {{ _('Create New Topic') }}
       </a>
     </div>
@@ -36,10 +36,10 @@
                 <td>{{ topic.word_count }}</td>
                 <td class="text-end">
                   <div class="btn-group">
-                    <a href="{{ url_for('admin.topic_words', topic_id=topic.id) }}" class="btn btn-sm btn-info">
+                    <a href="{{ url_for('topic_admin.topic_words', topic_id=topic.id) }}" class="btn btn-sm btn-info">
                       <i class="fas fa-list me-1"></i> {{ _('Words') }}
                     </a>
-                    <a href="{{ url_for('admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary">
+                    <a href="{{ url_for('topic_admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary">
                       <i class="fas fa-edit me-1"></i> {{ _('Edit') }}
                     </a>
                     <button type="button" class="btn btn-sm btn-danger" data-toggle="modal"
@@ -68,7 +68,7 @@
                         <div class="modal-footer">
                           <button type="button" class="btn btn-secondary"
                                   data-dismiss="modal">{{ _('Cancel') }}</button>
-                          <form method="POST" action="{{ url_for('admin.delete_topic', topic_id=topic.id) }}">
+                          <form method="POST" action="{{ url_for('topic_admin.delete_topic', topic_id=topic.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger">{{ _('Delete') }}</button>
                           </form>
@@ -84,7 +84,7 @@
                   <div class="text-muted">
                     <i class="fas fa-folder-open fa-2x mb-2"></i>
                     <p>{{ _('No topics created yet.') }}</p>
-                    <a href="{{ url_for('admin.create_topic') }}" class="btn btn-sm btn-primary">
+                    <a href="{{ url_for('topic_admin.create_topic') }}" class="btn btn-sm btn-primary">
                       <i class="fas fa-plus me-1"></i> {{ _('Create First Topic') }}
                     </a>
                   </div>

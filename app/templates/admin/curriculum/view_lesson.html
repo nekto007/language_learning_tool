@@ -170,7 +170,7 @@
                     </a>
                     
                     {% if lesson.type == 'vocabulary' and lesson.collection_id %}
-                    <a href="{{ url_for('admin.edit_collection', collection_id=lesson.collection_id) }}" class="btn btn-info">
+                    <a href="{{ url_for('collection_admin.edit_collection', collection_id=lesson.collection_id) }}" class="btn btn-info">
                         <i class="fas fa-book me-2"></i>Редактировать коллекцию
                     </a>
                     {% endif %}

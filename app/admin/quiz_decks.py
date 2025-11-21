@@ -5,7 +5,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
-from app.admin.routes import admin
+from app.admin.main_routes import admin
 from app.study.models import QuizDeck, QuizDeckWord, QuizResult
 from app.utils.db import db
 from app.words.models import CollectionWords

@@ -7,7 +7,7 @@ Responsibilities:
 - Module access management
 """
 from typing import List, Dict, Optional
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from sqlalchemy import func
 
 from app.utils.db import db
@@ -186,7 +186,8 @@ class UserManagementService:
         Returns:
             Dictionary with registration, login, and hourly activity data
         """
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        # Use datetime.now(UTC) and convert to naive for DB compatibility
+        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
 
         # User registrations by date
         user_registrations = db.session.query(

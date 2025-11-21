@@ -1,20 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container lesson-page">
-  <!-- Compact Breadcrumb -->
-  <nav aria-label="breadcrumb" class="lesson-breadcrumb">
-    <ol class="breadcrumb-minimal">
-      <li><a href="/learn/">{{ _('Курсы') }}</a></li>
-      <li>/</li>
-      <li><a href="/learn/">{{ lesson.module.level.code }}</a></li>
-      <li>/</li>
-      <li><a href="/learn/">{{ lesson.module.number }}</a></li>
-      <li>/</li>
-      <li class="active">{{ _('Урок') }} {{ lesson.number }}</li>
-    </ol>
-  </nav>
-
   <!-- Compact Header -->
   <div class="lesson-header">
     <div class="lesson-header-left">

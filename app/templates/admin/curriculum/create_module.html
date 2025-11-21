@@ -9,7 +9,7 @@
         <h1 class="page-title">Create Module</h1>
         <p class="page-subtitle">Add a new module to the curriculum</p>
     </div>
-    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
     </a>
 </div>
@@ -57,7 +57,7 @@
 
                     <div class="d-flex gap-2">
                         {{ form.submit(class="btn btn-primary") }}
-                        <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

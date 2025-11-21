@@ -8,7 +8,7 @@
         <div class="col-md-12">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('admin.topic_list') }}">{{ _('Topics') }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('topic_admin.topic_list') }}">{{ _('Topics') }}</a></li>
                     <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
                 </ol>
             </nav>
@@ -60,7 +60,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between">
-                            <a href="{{ url_for('admin.topic_list') }}" class="btn btn-secondary">
+                            <a href="{{ url_for('topic_admin.topic_list') }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-1"></i> {{ _('Back to Topics') }}
                             </a>
 

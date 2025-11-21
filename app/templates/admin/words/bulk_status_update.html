@@ -6,7 +6,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Массовое обновление статусов слов</h1>
-        <a href="{{ url_for('admin.word_management') }}" class="btn btn-secondary">
+        <a href="{{ url_for('word_admin.word_management') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Назад к управлению словами
         </a>
     </div>
@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 requestData.user_id = parseInt(userId);
             }
 
-            const response = await fetch('{{ url_for("admin.bulk_status_update") }}', {
+            const response = await fetch('{{ url_for("word_admin.bulk_status_update") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

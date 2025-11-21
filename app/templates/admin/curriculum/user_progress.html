@@ -47,7 +47,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ url_for('admin.user_progress') }}" class="row align-items-end">
+        <form method="GET" action="{{ url_for('admin_curriculum.user_progress') }}" class="row align-items-end">
             <div class="col-md-3">
                 <label for="user_id" class="form-label">User</label>
                 <select name="user_id" id="user_id" class="form-select">
@@ -97,7 +97,7 @@
             </div>
             {% if user_id or level_id or module_id or status %}
             <div class="col-md-1">
-                <a href="{{ url_for('admin.user_progress') }}" class="btn btn-secondary w-100">
+                <a href="{{ url_for('admin_curriculum.user_progress') }}" class="btn btn-secondary w-100">
                     <i class="fas fa-times"></i>
                 </a>
             </div>
@@ -254,7 +254,7 @@ function exportData(format) {
     // Add current filters to export URL
     const params = new URLSearchParams(window.location.search);
     params.append('export', format);
-    window.location.href = '{{ url_for("admin.user_progress") }}?' + params.toString();
+    window.location.href = '{{ url_for("admin_curriculum.user_progress") }}?' + params.toString();
 }
 
 function generateReport(type) {
