@@ -118,7 +118,7 @@ def create_app(config_class=Config):
 
     # Register modules blueprint
     from app.modules import modules_bp
-    app.register_blueprint(modules_bp, url_prefix='/modules')
+    app.register_blueprint(modules_bp)
 
     # Register uploads blueprint for secure file serving
     from app.uploads.routes import uploads as uploads_blueprint
