@@ -131,22 +131,22 @@ def refresh():
     Returns:
         New access token with 15-minute expiration
     """
-    from flask_jwt_extended import jwt_required
+    from flask_jwt_extended import verify_jwt_in_request
     from app.utils.jwt_auth import refresh_access_token
 
-    @jwt_required(refresh=True)
-    def _refresh_impl():
-        try:
-            new_token = refresh_access_token()
-            return jsonify({
-                'success': True,
-                **new_token
-            })
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'status_code': 401
-            }), 401
+    try:
+        # Verify JWT refresh token is present and valid
+        verify_jwt_in_request(refresh=True)
 
-    return _refresh_impl()
+        # Generate new access token
+        new_token = refresh_access_token()
+        return jsonify({
+            'success': True,
+            **new_token
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'status_code': 401
+        }), 401
