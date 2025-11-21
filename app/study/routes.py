@@ -711,8 +711,6 @@ def stats():
 @login_required
 def leaderboard():
     """Leaderboard showing top users by XP and achievements (cached for 5 minutes)"""
-    from app.study.models import UserXP, UserAchievement
-    from app.auth.models import User
     from app.utils.cache import cache
 
     # Try to get leaderboard data from cache
@@ -721,86 +719,17 @@ def leaderboard():
 
     top_xp_users = cache.get(cache_key_xp)
     if not top_xp_users:
-        # Get top users by XP
-        results = db.session.query(
-            User.id,
-            User.username,
-            UserXP.total_xp
-        ).join(
-            UserXP, User.id == UserXP.user_id
-        ).order_by(
-            UserXP.total_xp.desc()
-        ).limit(100).all()
-
-        # Convert to list of dicts with calculated level
-        top_xp_users = [
-            {
-                'id': row.id,
-                'username': row.username,
-                'total_xp': row.total_xp,
-                'level': max(1, row.total_xp // 100)  # Calculate level
-            }
-            for row in results
-        ]
+        top_xp_users = StatsService.get_xp_leaderboard(limit=100)
         cache.set(cache_key_xp, top_xp_users, timeout=300)  # 5 minutes
 
     top_achievement_users = cache.get(cache_key_ach)
     if not top_achievement_users:
-        # Get top users by achievement count
-        results = db.session.query(
-            User.id,
-            User.username,
-            func.count(UserAchievement.id).label('achievement_count')
-        ).join(
-            UserAchievement, User.id == UserAchievement.user_id
-        ).group_by(
-            User.id, User.username
-        ).order_by(
-            func.count(UserAchievement.id).desc()
-        ).limit(100).all()
-
-        # Convert to list of dicts for caching
-        top_achievement_users = [
-            {
-                'id': row.id,
-                'username': row.username,
-                'achievement_count': row.achievement_count
-            }
-            for row in results
-        ]
+        top_achievement_users = StatsService.get_achievement_leaderboard(limit=100)
         cache.set(cache_key_ach, top_achievement_users, timeout=300)  # 5 minutes
 
-    # Find current user's rank
-    current_user_xp_rank = None
-    current_user_achievement_rank = None
-
-    if current_user.is_authenticated:
-        # Get user's XP rank
-        user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
-        if user_xp:
-            higher_xp_count = db.session.query(
-                func.count(UserXP.id)
-            ).filter(
-                UserXP.total_xp > user_xp.total_xp
-            ).scalar()
-            current_user_xp_rank = (higher_xp_count or 0) + 1
-
-        # Get user's achievement rank
-        user_achievement_count = UserAchievement.query.filter_by(user_id=current_user.id).count()
-        if user_achievement_count > 0:
-            # Count users with more achievements
-            higher_achievement_count = db.session.query(
-                func.count(func.distinct(UserAchievement.user_id))
-            ).filter(
-                UserAchievement.user_id.in_(
-                    db.session.query(UserAchievement.user_id)
-                    .group_by(UserAchievement.user_id)
-                    .having(func.count(UserAchievement.id) > user_achievement_count)
-                    .subquery()
-                    .select()
-                )
-            ).scalar()
-            current_user_achievement_rank = (higher_achievement_count or 0) + 1
+    # Get current user's ranks
+    current_user_xp_rank = StatsService.get_user_xp_rank(current_user.id)
+    current_user_achievement_rank = StatsService.get_user_achievement_rank(current_user.id)
 
     return render_template(
         'study/leaderboard.html',
@@ -814,48 +743,22 @@ def leaderboard():
 @study.route('/achievements')
 @login_required
 def achievements():
-    """Achievements page showing all available and earned achievements (list cached for 1 hour)"""
-    from app.study.models import Achievement, UserAchievement
-    from app.utils.cache import cache
+    """Achievements page showing all available and earned achievements"""
+    data = StatsService.get_achievements_by_category(current_user.id)
 
-    # Get all achievements from cache or database
-    cache_key_all = 'all_achievements_list'
-    all_achievements = cache.get(cache_key_all)
-    if not all_achievements:
-        all_achievements = Achievement.query.order_by(Achievement.category, Achievement.xp_reward).all()
-        cache.set(cache_key_all, all_achievements, timeout=3600)  # 1 hour
-
-    # Get user's earned achievements
-    user_achievements = UserAchievement.query.filter_by(
-        user_id=current_user.id
-    ).all()
-    earned_ids = {ua.achievement_id for ua in user_achievements}
-
-    # Group achievements by category
-    achievements_by_category = {}
-    for ach in all_achievements:
-        if ach.category not in achievements_by_category:
-            achievements_by_category[ach.category] = []
-
-        achievements_by_category[ach.category].append({
-            'achievement': ach,
-            'earned': ach.id in earned_ids,
-            'earned_at': next((ua.earned_at for ua in user_achievements if ua.achievement_id == ach.id), None)
-        })
-
-    # Calculate stats
-    total_achievements = len(all_achievements)
-    earned_count = len(earned_ids)
-    total_xp_available = sum(ach.xp_reward for ach in all_achievements)
-    earned_xp = sum(ach.xp_reward for ach in all_achievements if ach.id in earned_ids)
+    # Calculate total XP available (not just earned)
+    from app.study.models import Achievement
+    total_xp_available = sum(
+        ach.xp_reward for ach in Achievement.query.all()
+    )
 
     return render_template(
         'study/achievements.html',
-        achievements_by_category=achievements_by_category,
-        total_achievements=total_achievements,
-        earned_count=earned_count,
+        achievements_by_category=data['by_category'],
+        total_achievements=data['total_achievements'],
+        earned_count=data['earned_count'],
         total_xp_available=total_xp_available,
-        earned_xp=earned_xp
+        earned_xp=data['total_xp_earned']
     )
 
 
