@@ -234,6 +234,7 @@ check_routes.py
 check_site_links.py
 test_telegram_api.sh
 optimize_performance.py
+debug_*.py
 
 # Migration SQL files (local development)
 migrations/*.sql
