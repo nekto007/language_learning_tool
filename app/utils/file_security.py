@@ -1,7 +1,6 @@
 """
 Утилиты для безопасной обработки загружаемых файлов
 """
-import imghdr
 import logging
 import os
 import uuid
@@ -34,26 +33,28 @@ def validate_image_mime_type(file_path: str) -> bool:
         bool: True если файл - валидное изображение разрешенного типа
     """
     try:
-        # Используем imghdr для определения реального типа изображения
-        image_type = imghdr.what(file_path)
+        # Используем Pillow для определения реального типа изображения
+        with Image.open(file_path) as img:
+            # Получаем формат изображения (PNG, JPEG, GIF и т.д.)
+            image_format = img.format
 
-        if image_type is None:
-            logger.warning(f"File {file_path} is not a valid image")
-            return False
+            if image_format is None:
+                logger.warning(f"File {file_path} is not a valid image")
+                return False
 
-        # Проверяем, что тип разрешен
-        if image_type not in ALLOWED_IMAGE_TYPES:
-            logger.warning(f"Image type {image_type} is not allowed")
-            return False
+            # Нормализуем формат к нижнему регистру и преобразуем JPEG -> jpg
+            image_type = image_format.lower()
+            if image_type == 'jpeg':
+                image_type = 'jpg'
 
-        # Дополнительная проверка через Pillow
-        try:
-            with Image.open(file_path) as img:
-                img.verify()  # Проверяет, что файл - валидное изображение
+            # Проверяем, что тип разрешен
+            if image_type not in ALLOWED_IMAGE_TYPES:
+                logger.warning(f"Image type {image_type} is not allowed")
+                return False
+
+            # Проверяем, что файл - валидное изображение
+            img.verify()
             return True
-        except Exception as e:
-            logger.warning(f"Pillow verification failed for {file_path}: {e}")
-            return False
 
     except Exception as e:
         logger.error(f"Error validating image MIME type: {e}")
@@ -175,7 +176,7 @@ def process_and_save_cover_image(
                 ratio = min(MAX_COVER_WIDTH / img_width, MAX_COVER_HEIGHT / img_height)
                 new_width = int(img_width * ratio)
                 new_height = int(img_height * ratio)
-                img = img.resize((new_width, new_height), Image.LANCZOS)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
             # Сохраняем как JPEG без метаданных
             # exif=b"" гарантирует отсутствие EXIF данных
