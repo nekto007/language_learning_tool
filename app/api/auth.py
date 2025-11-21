@@ -73,7 +73,15 @@ def api_login():
                 'status_code': 400
             }), 400
 
-        data = request.get_json()
+        try:
+            data = request.get_json()
+        except Exception:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid JSON format',
+                'status_code': 400
+            }), 400
+
         username = data.get('username')
         password = data.get('password')
 

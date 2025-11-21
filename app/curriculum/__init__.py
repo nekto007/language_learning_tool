@@ -53,16 +53,18 @@ def init_curriculum_module(app):
     app.register_blueprint(srs_api_bp, url_prefix='/curriculum')
 
     # Warm cache on startup - try to warm cache immediately
-    try:
-        from app.curriculum.cache import warm_cache
-        # Don't warm cache if we don't have tables yet
-        with app.app_context():
-            from app.curriculum.models import CEFRLevel
-            if CEFRLevel.query.count() > 0:
-                warm_cache()
-            else:
-                app.logger.info("Skipping cache warming - no data in database yet")
-    except Exception as e:
-        app.logger.error(f"Error warming curriculum cache: {str(e)}")
+    # Skip in testing mode - tests will handle their own setup
+    if not app.config.get('TESTING', False):
+        try:
+            from app.curriculum.cache import warm_cache
+            # Don't warm cache if we don't have tables yet
+            with app.app_context():
+                from app.curriculum.models import CEFRLevel
+                if CEFRLevel.query.count() > 0:
+                    warm_cache()
+                else:
+                    app.logger.info("Skipping cache warming - no data in database yet")
+        except Exception as e:
+            app.logger.error(f"Error warming curriculum cache: {str(e)}")
 
     app.logger.info("Curriculum module initialized successfully")
