@@ -465,3 +465,8 @@ class SkipTestAttempt(db.Model):
         if self.started_at and self.completed_at:
             delta = self.completed_at - self.started_at
             self.time_spent_seconds = int(delta.total_seconds())
+
+# Import LessonGrade to register it with SQLAlchemy
+# This needs to be at the end of the file to avoid circular imports
+from app.achievements.models import LessonGrade  # noqa: F401, E402
+
