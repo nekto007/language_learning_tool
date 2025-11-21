@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Управление аудио файлами</h1>
         <div>
-            <a href="{{ url_for('admin.audio_statistics') }}" class="btn btn-info btn-sm">
+            <a href="{{ url_for('audio_admin.audio_statistics') }}" class="btn btn-info btn-sm">
                 <i class="fas fa-chart-bar"></i> Статистика
             </a>
         </div>
@@ -154,10 +154,10 @@
                                         Получить список Forvo URL для загрузки аудио произношения слов
                                     </p>
                                     <div class="btn-group" role="group">
-                                        <a href="{{ url_for('admin.get_audio_download_list') }}?format=txt" class="btn btn-success btn-sm">
+                                        <a href="{{ url_for('audio_admin.get_audio_download_list') }}?format=txt" class="btn btn-success btn-sm">
                                             <i class="fas fa-download"></i> TXT
                                         </a>
-                                        <a href="{{ url_for('admin.get_audio_download_list') }}?format=csv" class="btn btn-success btn-sm">
+                                        <a href="{{ url_for('audio_admin.get_audio_download_list') }}?format=csv" class="btn btn-success btn-sm">
                                             CSV
                                         </a>
                                     </div>
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pattern = document.getElementById('pattern').value;
         const format = document.getElementById('format').value;
         
-        let url = '{{ url_for("admin.get_audio_download_list") }}?format=' + format;
+        let url = '{{ url_for("audio_admin.get_audio_download_list") }}?format=' + format;
         if (pattern) {
             url += '&pattern=' + encodeURIComponent(pattern);
         }
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function updateDownloadStatus() {
     showProgressModal('Обновление статуса загрузки аудио файлов...');
     
-    fetch('{{ url_for("admin.update_audio_download_status") }}', {
+    fetch('{{ url_for("audio_admin.update_audio_download_status") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -377,7 +377,7 @@ function updateDownloadStatus() {
 function fixListeningFields() {
     showProgressModal('Исправление полей listening...');
     
-    fetch('{{ url_for("admin.fix_audio_listening_fields") }}', {
+    fetch('{{ url_for("audio_admin.fix_audio_listening_fields") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

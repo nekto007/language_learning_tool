@@ -14,7 +14,7 @@ from flask_wtf import FlaskForm
 from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
-from app.admin.routes import admin, admin_required
+from app.admin.main_routes import admin, admin_required
 from app.auth.models import User
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module

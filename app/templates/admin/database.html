@@ -241,7 +241,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <form method="POST" action="{{ url_for('admin.init_database') }}" style="display: inline;">
+                <form method="POST" action="{{ url_for('system_admin.init_database') }}" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-database"></i> Инициализировать
@@ -262,7 +262,7 @@ document.getElementById('test-connection-btn').addEventListener('click', functio
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Тестирование...';
     btn.disabled = true;
     
-    fetch('{{ url_for("admin.test_db_connection") }}')
+    fetch('{{ url_for("system_admin.test_db_connection") }}')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {

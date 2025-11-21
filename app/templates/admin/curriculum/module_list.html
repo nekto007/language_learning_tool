@@ -19,7 +19,7 @@
 {% if levels %}
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ url_for('admin.module_list') }}" class="row align-items-end">
+        <form method="GET" action="{{ url_for('admin_curriculum.module_list') }}" class="row align-items-end">
             <div class="col-md-4">
                 <label for="level_id" class="form-label">Filter by Level</label>
                 <select name="level_id" id="level_id" class="form-select">
@@ -38,7 +38,7 @@
             </div>
             {% if level_id %}
             <div class="col-md-2">
-                <a href="{{ url_for('admin.module_list') }}" class="btn btn-secondary w-100">
+                <a href="{{ url_for('admin_curriculum.module_list') }}" class="btn btn-secondary w-100">
                     <i class="fas fa-times me-1"></i>Clear
                 </a>
             </div>
@@ -95,7 +95,7 @@
                                    class="btn btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ url_for('admin.lesson_list', module_id=module.id) }}"
+                                <a href="{{ url_for('admin_curriculum.lesson_list', module_id=module.id) }}"
                                    class="btn btn-outline-info" title="View Lessons">
                                     <i class="fas fa-graduation-cap"></i>
                                 </a>
@@ -190,13 +190,13 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
                         <i class="fas fa-file-import me-2"></i>Import Module from JSON
                     </a>
-                    <a href="{{ url_for('admin.level_list') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('admin_curriculum.level_list') }}" class="btn btn-outline-primary">
                         <i class="fas fa-layer-group me-2"></i>Manage CEFR Levels
                     </a>
-                    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Curriculum
                     </a>
                 </div>

@@ -6,7 +6,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Статистика книг</h1>
-        <a href="{{ url_for('admin.books') }}" class="btn btn-secondary">
+        <a href="{{ url_for('book_admin.books') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Назад к управлению книгами
         </a>
     </div>
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function updateBookStatistics(bookId) {
     showProgressModal('Обновление статистики книги...');
     
-    fetch('{{ url_for("admin.update_book_statistics") }}', {
+    fetch('{{ url_for("book_admin.update_book_statistics") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

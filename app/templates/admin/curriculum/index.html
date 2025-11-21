@@ -10,7 +10,7 @@
         <p class="page-subtitle">Manage CEFR levels, modules, and lessons</p>
     </div>
     <div>
-        <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-primary">
+        <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-primary">
             <i class="fas fa-upload me-2"></i> Import
         </a>
         <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
@@ -223,13 +223,13 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
                         <i class="fas fa-file-import me-2"></i> Import from JSON
                     </a>
-                    <a href="{{ url_for('admin.collection_list') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('collection_admin.collection_list') }}" class="btn btn-outline-primary">
                         <i class="fas fa-layer-group me-2"></i> Manage Collections
                     </a>
-                    <a href="{{ url_for('admin.topic_list') }}" class="btn btn-outline-info">
+                    <a href="{{ url_for('topic_admin.topic_list') }}" class="btn btn-outline-info">
                         <i class="fas fa-tags me-2"></i> Manage Topics
                     </a>
                     {% if levels|length > 0 and levels[0].modules|length > 0 %}

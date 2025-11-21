@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ url_for('admin.users') }}" class="row g-3">
+        <form method="GET" action="{{ url_for('user_admin.users') }}" class="row g-3">
             <div class="col-md-6">
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
@@ -22,7 +22,7 @@
             <div class="col-md-4">
                 <button type="submit" class="btn btn-primary">Apply Filters</button>
                 {% if search %}
-                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">Clear</a>
+                <a href="{{ url_for('user_admin.users') }}" class="btn btn-outline-secondary">Clear</a>
                 {% endif %}
                 <button type="button" class="btn btn-outline-primary" onclick="exportUsers()">
                     <i class="fas fa-download"></i> Export
@@ -111,7 +111,7 @@
                                 </button>
                                 <ul class="dropdown-menu">
                                     <li>
-                                        <form action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                        <form action="{{ url_for('user_admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
                                             {{ csrf_token() }}
                                             <button type="submit" class="dropdown-item">
                                                 <i class="fas fa-{{ 'ban' if user.active else 'check' }} me-2"></i>
@@ -121,7 +121,7 @@
                                     </li>
                                     {% if current_user.id != user.id %}
                                     <li>
-                                        <form action="{{ url_for('admin.toggle_admin_status', user_id=user.id) }}" method="POST" class="d-inline">
+                                        <form action="{{ url_for('user_admin.toggle_admin_status', user_id=user.id) }}" method="POST" class="d-inline">
                                             {{ csrf_token() }}
                                             <button type="submit" class="dropdown-item">
                                                 <i class="fas fa-user-{{ 'minus' if user.is_admin else 'shield' }} me-2"></i>
@@ -160,7 +160,7 @@
             <ul class="pagination mb-0 justify-content-center">
                 {% if pagination.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.users', page=pagination.prev_num, per_page=pagination.per_page, search=search) }}">
+                    <a class="page-link" href="{{ url_for('user_admin.users', page=pagination.prev_num, per_page=pagination.per_page, search=search) }}">
                         Previous
                     </a>
                 </li>
@@ -169,7 +169,7 @@
                 {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
                     {% if page_num %}
                         <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('admin.users', page=page_num, per_page=pagination.per_page, search=search) }}">
+                            <a class="page-link" href="{{ url_for('user_admin.users', page=page_num, per_page=pagination.per_page, search=search) }}">
                                 {{ page_num }}
                             </a>
                         </li>
@@ -180,7 +180,7 @@
 
                 {% if pagination.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('admin.users', page=pagination.next_num, per_page=pagination.per_page, search=search) }}">
+                    <a class="page-link" href="{{ url_for('user_admin.users', page=pagination.next_num, per_page=pagination.per_page, search=search) }}">
                         Next
                     </a>
                 </li>

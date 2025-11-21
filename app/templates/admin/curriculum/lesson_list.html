@@ -18,7 +18,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ url_for('admin.lesson_list') }}" class="row align-items-end">
+        <form method="GET" action="{{ url_for('admin_curriculum.lesson_list') }}" class="row align-items-end">
             <div class="col-md-3">
                 <label for="level_id" class="form-label">Level</label>
                 <select name="level_id" id="level_id" class="form-select" onchange="updateModules()">
@@ -53,7 +53,7 @@
             </div>
             {% if level_id or module_id or search %}
             <div class="col-md-1">
-                <a href="{{ url_for('admin.lesson_list') }}" class="btn btn-secondary w-100">
+                <a href="{{ url_for('admin_curriculum.lesson_list') }}" class="btn btn-secondary w-100">
                     <i class="fas fa-times"></i>
                 </a>
             </div>
@@ -125,7 +125,7 @@
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 {% if lesson.type == 'vocabulary' %}
-                                    <a href="{{ url_for('admin.edit_collection', collection_id=lesson.collection_id) if lesson.collection_id else '#' }}"
+                                    <a href="{{ url_for('collection_admin.edit_collection', collection_id=lesson.collection_id) if lesson.collection_id else '#' }}"
                                        class="btn btn-outline-info {% if not lesson.collection_id %}disabled{% endif %}" title="Edit Collection">
                                         <i class="fas fa-book"></i>
                                     </a>
@@ -224,13 +224,13 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
                         <i class="fas fa-file-import me-2"></i>Import Lessons
                     </a>
-                    <a href="{{ url_for('admin.module_list') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('admin_curriculum.module_list') }}" class="btn btn-outline-primary">
                         <i class="fas fa-book me-2"></i>View Modules
                     </a>
-                    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Curriculum
                     </a>
                 </div>

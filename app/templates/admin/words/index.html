@@ -7,10 +7,10 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Управление словами</h1>
         <div>
-            <a href="{{ url_for('admin.import_translations') }}" class="btn btn-success btn-sm">
+            <a href="{{ url_for('word_admin.import_translations') }}" class="btn btn-success btn-sm">
                 <i class="fas fa-upload"></i> Импорт переводов
             </a>
-            <a href="{{ url_for('admin.bulk_status_update') }}" class="btn btn-primary btn-sm">
+            <a href="{{ url_for('word_admin.bulk_status_update') }}" class="btn btn-primary btn-sm">
                 <i class="fas fa-edit"></i> Массовое обновление
             </a>
         </div>
@@ -103,25 +103,25 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3">
-                            <a href="{{ url_for('admin.word_statistics') }}" class="btn btn-outline-primary btn-block">
+                            <a href="{{ url_for('word_admin.word_statistics') }}" class="btn btn-outline-primary btn-block">
                                 <i class="fas fa-chart-bar"></i><br>
                                 Подробная статистика
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="{{ url_for('admin.export_words') }}?format=csv" class="btn btn-outline-success btn-block">
+                            <a href="{{ url_for('word_admin.export_words') }}?format=csv" class="btn btn-outline-success btn-block">
                                 <i class="fas fa-download"></i><br>
                                 Экспорт в CSV
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="{{ url_for('admin.export_words') }}?format=json" class="btn btn-outline-info btn-block">
+                            <a href="{{ url_for('word_admin.export_words') }}?format=json" class="btn btn-outline-info btn-block">
                                 <i class="fas fa-download"></i><br>
                                 Экспорт в JSON
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="{{ url_for('admin.import_translations') }}" class="btn btn-outline-warning btn-block">
+                            <a href="{{ url_for('word_admin.import_translations') }}" class="btn btn-outline-warning btn-block">
                                 <i class="fas fa-upload"></i><br>
                                 Импорт переводов
                             </a>
@@ -160,11 +160,11 @@
                                     </td>
                                     <td>{{ stat.count }}</td>
                                     <td>
-                                        <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=csv" 
+                                        <a href="{{ url_for('word_admin.export_words') }}?status={{ stat.status }}&format=csv" 
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-download"></i> CSV
                                         </a>
-                                        <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=json" 
+                                        <a href="{{ url_for('word_admin.export_words') }}?status={{ stat.status }}&format=json" 
                                            class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-download"></i> JSON
                                         </a>

@@ -58,7 +58,7 @@
                                    class="btn btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ url_for('admin.module_list', level_id=level.id) }}"
+                                <a href="{{ url_for('admin_curriculum.module_list', level_id=level.id) }}"
                                    class="btn btn-outline-info" title="View Modules">
                                     <i class="fas fa-book"></i>
                                 </a>
@@ -123,10 +123,10 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('admin.import_curriculum') }}" class="btn btn-outline-success">
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
                         <i class="fas fa-file-import me-2"></i>Import Curriculum from JSON
                     </a>
-                    <a href="{{ url_for('admin.curriculum') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-primary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Curriculum Overview
                     </a>
                 </div>

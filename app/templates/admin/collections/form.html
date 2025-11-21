@@ -13,7 +13,7 @@
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb">
             <li class="breadcrumb-item"><a
-                    href="{{ url_for('admin.collection_list') }}">{{ _('Collections') }}</a></li>
+                    href="{{ url_for('collection_admin.collection_list') }}">{{ _('Collections') }}</a></li>
             <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
           </ol>
         </nav>
@@ -138,7 +138,7 @@
               </div>
 
               <div class="mt-4 d-flex justify-content-between">
-                <a href="{{ url_for('admin.collection_list') }}" class="btn btn-secondary">
+                <a href="{{ url_for('collection_admin.collection_list') }}" class="btn btn-secondary">
                   <i class="fas fa-arrow-left me-1"></i> {{ _('Back to Collections') }}
                 </a>
                 {{ form.submit(class="btn btn-primary") }}

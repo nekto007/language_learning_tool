@@ -1,259 +1,246 @@
-"""Tests for telegram authentication decorators"""
+"""
+Tests for Telegram Decorators (app/telegram/decorators.py)
+
+Tests telegram authentication decorators:
+- telegram_auth_required - main auth decorator
+- telegram_read_required - convenience decorator for read scope
+- telegram_write_required - convenience decorator for write scope
+- telegram_admin_required - convenience decorator for admin scope
+
+Coverage target: 100% for app/telegram/decorators.py
+"""
 import pytest
-from datetime import datetime, timedelta, UTC
 from unittest.mock import Mock, patch
-from flask import jsonify
-from app.telegram.decorators import (
-    telegram_auth_required,
-    telegram_read_required,
-    telegram_write_required,
-    telegram_admin_required
-)
-
-
-@pytest.fixture
-def telegram_token(db_session, test_user):
-    """Create a valid telegram token"""
-    from app.telegram.models import TelegramToken
-    from datetime import timezone
-
-    token = TelegramToken(
-        user_id=test_user.id,
-        token='test_valid_token_123',
-        scope='admin',  # Has all permissions
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
-    )
-    db_session.add(token)
-    db_session.commit()
-    return token
-
-
-@pytest.fixture
-def expired_token(db_session, test_user):
-    """Create an expired telegram token"""
-    from app.telegram.models import TelegramToken
-    from datetime import timezone
-
-    token = TelegramToken(
-        user_id=test_user.id,
-        token='test_expired_token_456',
-        scope='read',
-        expires_at=datetime.now(timezone.utc) - timedelta(days=1)
-    )
-    db_session.add(token)
-    db_session.commit()
-    return token
-
-
-@pytest.fixture
-def read_only_token(db_session, test_user):
-    """Create a read-only telegram token"""
-    from app.telegram.models import TelegramToken
-    from datetime import timezone
-
-    token = TelegramToken(
-        user_id=test_user.id,
-        token='test_read_token_789',
-        scope='read',
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30)
-    )
-    db_session.add(token)
-    db_session.commit()
-    return token
+from datetime import datetime, timedelta, timezone
 
 
 class TestTelegramAuthRequired:
     """Test telegram_auth_required decorator"""
 
-    def test_missing_token(self, client):
-        """Test request without token header"""
+    def test_returns_401_when_token_missing(self, app):
+        """Test returns 401 when X-Telegram-Token header is missing"""
+        from app.telegram.decorators import telegram_auth_required
+
         @telegram_auth_required('read')
         def test_route(token, user):
-            return jsonify({'success': True})
+            return {'success': True}
 
-        with client.application.app_context():
-            with client.application.test_request_context(headers={}):
+        with app.test_request_context(headers={}):
+            response, status_code = test_route()
+
+            assert status_code == 401
+            assert response.json['success'] is False
+            assert 'Missing authentication token' in response.json['error']
+
+    def test_returns_401_when_token_invalid(self, app):
+        """Test returns 401 when token is invalid"""
+        from app.telegram.decorators import telegram_auth_required
+
+        @telegram_auth_required('read')
+        def test_route(token, user):
+            return {'success': True}
+
+        with app.test_request_context(headers={'X-Telegram-Token': 'invalid'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=None):
                 response, status_code = test_route()
-                data = response.get_json()
 
                 assert status_code == 401
-                assert data['success'] is False
-                assert 'Missing authentication token' in data['error']
+                assert response.json['success'] is False
+                assert 'Invalid or expired' in response.json['error']
 
-    def test_invalid_token(self, client):
-        """Test request with invalid token"""
-        @telegram_auth_required('read')
-        def test_route(token, user):
-            return jsonify({'success': True})
+    def test_returns_403_when_insufficient_scope(self, app):
+        """Test returns 403 when token lacks required scope"""
+        from app.telegram.decorators import telegram_auth_required
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': 'invalid_token_xyz'}
-            with client.application.test_request_context(headers=headers):
-                response, status_code = test_route()
-                data = response.get_json()
-
-                assert status_code == 401
-                assert data['success'] is False
-                assert 'Invalid or expired' in data['error']
-
-    def test_expired_token(self, client, expired_token):
-        """Test request with expired token"""
-        @telegram_auth_required('read')
-        def test_route(token, user):
-            return jsonify({'success': True})
-
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': expired_token.token}
-            with client.application.test_request_context(headers=headers):
-                response, status_code = test_route()
-                data = response.get_json()
-
-                assert status_code == 401
-                assert data['success'] is False
-                assert 'Invalid or expired' in data['error']
-
-    def test_valid_token(self, client, telegram_token):
-        """Test request with valid token"""
-        @telegram_auth_required('read')
-        def test_route(token, user):
-            return jsonify({'success': True, 'user_id': user.id})
-
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': telegram_token.token}
-            with client.application.test_request_context(headers=headers):
-                response = test_route()
-                # When successful, only response is returned (no tuple)
-                data = response.get_json()
-
-                assert data['success'] is True
-                assert data['user_id'] == telegram_token.user_id
-
-    def test_insufficient_scope_read_requires_write(self, client, read_only_token):
-        """Test read token trying to access write endpoint"""
         @telegram_auth_required('write')
         def test_route(token, user):
-            return jsonify({'success': True})
+            return {'success': True}
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': read_only_token.token}
-            with client.application.test_request_context(headers=headers):
+        # Mock token with read scope only
+        mock_token = Mock()
+        mock_token.has_scope.return_value = False
+        mock_token.user = Mock()
+
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid_token'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
                 response, status_code = test_route()
-                data = response.get_json()
 
                 assert status_code == 403
-                assert data['success'] is False
-                assert 'Insufficient permissions' in data['error']
-                assert 'write' in data['error']
+                assert response.json['success'] is False
+                assert 'Insufficient permissions' in response.json['error']
+                assert 'write' in response.json['error']
 
-    def test_insufficient_scope_read_requires_admin(self, client, read_only_token):
-        """Test read token trying to access admin endpoint"""
-        @telegram_auth_required('admin')
-        def test_route(token, user):
-            return jsonify({'success': True})
-
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': read_only_token.token}
-            with client.application.test_request_context(headers=headers):
-                response, status_code = test_route()
-                data = response.get_json()
-
-                assert status_code == 403
-                assert data['success'] is False
-                assert 'Insufficient permissions' in data['error']
-                assert 'admin' in data['error']
-
-    def test_admin_token_can_access_all(self, client, telegram_token):
-        """Test admin token can access read, write, and admin endpoints"""
-        @telegram_auth_required('admin')
-        def admin_route(token, user):
-            return jsonify({'success': True, 'scope': 'admin'})
-
-        @telegram_auth_required('write')
-        def write_route(token, user):
-            return jsonify({'success': True, 'scope': 'write'})
+    def test_allows_access_with_valid_token_and_scope(self, app):
+        """Test allows access when token is valid and has required scope"""
+        from app.telegram.decorators import telegram_auth_required
 
         @telegram_auth_required('read')
-        def read_route(token, user):
-            return jsonify({'success': True, 'scope': 'read'})
+        def test_route(token, user):
+            return {'success': True, 'user_id': user.id}
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': telegram_token.token}
+        # Mock valid token with correct scope
+        mock_token = Mock()
+        mock_token.has_scope.return_value = True
+        mock_user = Mock()
+        mock_user.id = 123
+        mock_token.user = mock_user
 
-            # Test admin endpoint
-            with client.application.test_request_context(headers=headers):
-                response = admin_route()
-                assert response.get_json()['success'] is True
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid_token'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
+                result = test_route()
 
-            # Test write endpoint
-            with client.application.test_request_context(headers=headers):
-                response = write_route()
-                assert response.get_json()['success'] is True
+                assert result['success'] is True
+                assert result['user_id'] == 123
+                # Verify scope was checked
+                mock_token.has_scope.assert_called_once_with('read')
 
-            # Test read endpoint
-            with client.application.test_request_context(headers=headers):
-                response = read_route()
-                assert response.get_json()['success'] is True
+    def test_passes_token_and_user_to_route(self, app):
+        """Test passes token and user objects to decorated function"""
+        from app.telegram.decorators import telegram_auth_required
+
+        @telegram_auth_required('read')
+        def test_route(token, user):
+            return {
+                'token_value': token.token,
+                'user_name': user.username
+            }
+
+        # Mock valid token
+        mock_token = Mock()
+        mock_token.has_scope.return_value = True
+        mock_token.token = 'test_token_123'
+        mock_user = Mock()
+        mock_user.username = 'test_user'
+        mock_token.user = mock_user
+
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid_token'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
+                result = test_route()
+
+                assert result['token_value'] == 'test_token_123'
+                assert result['user_name'] == 'test_user'
 
 
 class TestConvenienceDecorators:
-    """Test convenience decorator functions"""
+    """Test convenience decorators"""
 
-    def test_telegram_read_required(self, client, telegram_token):
-        """Test telegram_read_required decorator"""
+    def test_telegram_read_required_decorator(self, app):
+        """Test telegram_read_required convenience decorator"""
+        from app.telegram.decorators import telegram_read_required
+
         @telegram_read_required
         def test_route(token, user):
-            return jsonify({'success': True})
+            return {'success': True}
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': telegram_token.token}
-            with client.application.test_request_context(headers=headers):
-                response = test_route()
-                assert response.get_json()['success'] is True
+        # Mock valid token with read scope
+        mock_token = Mock()
+        mock_token.has_scope.return_value = True
+        mock_token.user = Mock()
 
-    def test_telegram_write_required(self, client, telegram_token):
-        """Test telegram_write_required decorator"""
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
+                result = test_route()
+
+                assert result['success'] is True
+                # Verify 'read' scope was checked
+                mock_token.has_scope.assert_called_with('read')
+
+    def test_telegram_write_required_decorator(self, app):
+        """Test telegram_write_required convenience decorator"""
+        from app.telegram.decorators import telegram_write_required
+
         @telegram_write_required
         def test_route(token, user):
-            return jsonify({'success': True})
+            return {'success': True}
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': telegram_token.token}
-            with client.application.test_request_context(headers=headers):
-                response = test_route()
-                assert response.get_json()['success'] is True
+        # Mock valid token with write scope
+        mock_token = Mock()
+        mock_token.has_scope.return_value = True
+        mock_token.user = Mock()
 
-    def test_telegram_admin_required(self, client, telegram_token):
-        """Test telegram_admin_required decorator"""
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
+                result = test_route()
+
+                assert result['success'] is True
+                # Verify 'write' scope was checked
+                mock_token.has_scope.assert_called_with('write')
+
+    def test_telegram_admin_required_decorator(self, app):
+        """Test telegram_admin_required convenience decorator"""
+        from app.telegram.decorators import telegram_admin_required
+
         @telegram_admin_required
         def test_route(token, user):
-            return jsonify({'success': True})
+            return {'success': True}
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': telegram_token.token}
-            with client.application.test_request_context(headers=headers):
-                response = test_route()
-                assert response.get_json()['success'] is True
+        # Mock valid token with admin scope
+        mock_token = Mock()
+        mock_token.has_scope.return_value = True
+        mock_token.user = Mock()
 
-    def test_write_required_blocks_read_token(self, client, read_only_token):
-        """Test write_required blocks read-only token"""
-        @telegram_write_required
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
+                result = test_route()
+
+                assert result['success'] is True
+                # Verify 'admin' scope was checked
+                mock_token.has_scope.assert_called_with('admin')
+
+    def test_read_decorator_rejects_insufficient_scope(self, app):
+        """Test read decorator rejects when scope insufficient"""
+        from app.telegram.decorators import telegram_read_required
+
+        @telegram_read_required
         def test_route(token, user):
-            return jsonify({'success': True})
+            return {'success': True}
 
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': read_only_token.token}
-            with client.application.test_request_context(headers=headers):
+        # Mock token without read scope
+        mock_token = Mock()
+        mock_token.has_scope.return_value = False
+        mock_token.user = Mock()
+
+        with app.test_request_context(headers={'X-Telegram-Token': 'valid'}):
+            with patch('app.telegram.decorators.TelegramToken.get_valid_token', return_value=mock_token):
                 response, status_code = test_route()
-                assert status_code == 403
 
-    def test_admin_required_blocks_read_token(self, client, read_only_token):
-        """Test admin_required blocks read-only token"""
-        @telegram_admin_required
-        def test_route(token, user):
-            return jsonify({'success': True})
-
-        with client.application.app_context():
-            headers = {'X-Telegram-Token': read_only_token.token}
-            with client.application.test_request_context(headers=headers):
-                response, status_code = test_route()
                 assert status_code == 403
+                assert 'read' in response.json['error']
+
+
+class TestDecoratorFunctionalityPreservation:
+    """Test decorator preserves function metadata"""
+
+    def test_preserves_function_name(self):
+        """Test decorator preserves original function name"""
+        from app.telegram.decorators import telegram_auth_required
+
+        @telegram_auth_required('read')
+        def my_function(token, user):
+            """My docstring"""
+            pass
+
+        assert my_function.__name__ == 'my_function'
+
+    def test_preserves_function_docstring(self):
+        """Test decorator preserves original function docstring"""
+        from app.telegram.decorators import telegram_auth_required
+
+        @telegram_auth_required('read')
+        def my_function(token, user):
+            """My docstring"""
+            pass
+
+        assert my_function.__doc__ == 'My docstring'
+
+    def test_read_decorator_preserves_metadata(self):
+        """Test convenience decorator preserves metadata"""
+        from app.telegram.decorators import telegram_read_required
+
+        @telegram_read_required
+        def my_read_function(token, user):
+            """Read function"""
+            return True
+
+        assert my_read_function.__name__ == 'my_read_function'
+        assert 'Read function' in my_read_function.__doc__

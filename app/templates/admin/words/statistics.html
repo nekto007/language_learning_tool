@@ -6,7 +6,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Детальная статистика по словам</h1>
-        <a href="{{ url_for('admin.word_management') }}" class="btn btn-secondary">
+        <a href="{{ url_for('word_admin.word_management') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Назад к управлению словами
         </a>
     </div>
@@ -42,15 +42,15 @@
                                     <td class="h6 text-muted">{{ stat.users }} пользователей</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=csv" 
+                                            <a href="{{ url_for('word_admin.export_words') }}?status={{ stat.status }}&format=csv" 
                                                class="btn btn-sm btn-outline-success">
                                                 <i class="fas fa-download"></i> CSV
                                             </a>
-                                            <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=json" 
+                                            <a href="{{ url_for('word_admin.export_words') }}?status={{ stat.status }}&format=json" 
                                                class="btn btn-sm btn-outline-info">
                                                 <i class="fas fa-download"></i> JSON
                                             </a>
-                                            <a href="{{ url_for('admin.export_words') }}?status={{ stat.status }}&format=txt" 
+                                            <a href="{{ url_for('word_admin.export_words') }}?status={{ stat.status }}&format=txt" 
                                                class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-download"></i> TXT
                                             </a>
