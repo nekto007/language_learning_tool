@@ -39,7 +39,7 @@ def get_enabled_module_codes():
     })
 
 
-@modules_bp.route('/settings')
+@modules_bp.route('/modules/settings')
 @login_required
 def settings():
     """Страница настроек модулей пользователя"""
