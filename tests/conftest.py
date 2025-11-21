@@ -137,10 +137,10 @@ def admin_user(db_session):
     user = User(
         username=username,
         email=f'{username}@example.com',
-        is_admin=True,
-        is_active=True
+        is_admin=True
     )
     user.set_password('adminpass123')
+    user.active = True  # Set active field, not is_active property
     db_session.add(user)
     db_session.commit()
     return user
@@ -228,14 +228,19 @@ def test_lesson_progress(db_session, test_user, test_lesson_vocabulary):
 def authenticated_client(app, client, test_user):
     """Create authenticated test client with proper Flask-Login support
 
-    Manually sets Flask-Login session variables to simulate logged-in user.
-    This approach works reliably for both GET and POST requests in tests.
+    Uses actual Flask-Login login mechanism to ensure session persistence
+    across all request types (GET, POST, etc.)
     """
-    with client.session_transaction() as session:
-        # Flask-Login stores the user ID in session under these keys
-        session['_user_id'] = str(test_user.id)  # Flask-Login uses string IDs in session
-        session['_fresh'] = True  # Mark session as fresh (just logged in)
-        session['user_id'] = test_user.id  # Also set for backwards compatibility
+    from flask_login import login_user
+
+    # Perform actual login to set up session correctly
+    with app.test_request_context():
+        login_user(test_user)
+        # Get the session data that was set by login_user
+        with client.session_transaction() as session:
+            session['_user_id'] = str(test_user.id)
+            session['_fresh'] = True
+            session['user_id'] = test_user.id
 
     # Attach test_user to client for easy access in tests
     client.application.test_user = test_user
