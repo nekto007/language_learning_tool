@@ -142,7 +142,7 @@ class CollectionTopicService:
         added_count = 0
         for word in words:
             if word.id not in existing_word_ids:
-                user_word = UserWord(user_id=user_id, word_id=word.id, status='new')
+                user_word = UserWord(user_id=user_id, word_id=word.id)
                 db.session.add(user_word)
                 added_count += 1
 
@@ -260,7 +260,7 @@ class CollectionTopicService:
         added_count = 0
         for word in words:
             if word.id not in existing_word_ids:
-                user_word = UserWord(user_id=user_id, word_id=word.id, status='new')
+                user_word = UserWord(user_id=user_id, word_id=word.id)
                 db.session.add(user_word)
                 added_count += 1
 

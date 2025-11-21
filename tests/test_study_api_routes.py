@@ -609,7 +609,8 @@ class TestCompleteMatchingGame:
         for word in test_words_list[:8]:
             user_word = UserWord.query.filter_by(user_id=user_xp.user_id, word_id=word.id).first()
             if not user_word:
-                user_word = UserWord(user_id=user_xp.user_id, word_id=word.id, status='learning')
+                user_word = UserWord(user_id=user_xp.user_id, word_id=word.id)
+                user_word.status = 'learning'  # Set status after creation
                 db_session.add(user_word)
             word_ids.append(word.id)
         db_session.commit()
