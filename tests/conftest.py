@@ -70,9 +70,10 @@ def app():
         # Создаем все таблицы
         db.create_all()
         yield test_app
-        # Очистка после всех тестов - ONLY safe for in-memory DB!
+        # Очистка после всех тестов
         db.session.remove()
-        db.drop_all()
+        # DON'T drop tables - let PostgreSQL handle cleanup
+        # db.drop_all() is slow and causes timeouts
 
     # Restore original environment
     if original_db_url:
@@ -131,33 +132,83 @@ def test_user(db_session):
 
 
 @pytest.fixture(scope='function')
-def admin_user(db_session):
-    """Create admin user"""
+def admin_user(app, db_session, client):
+    """Create admin user and login using Flask-Login"""
+    from flask_login import login_user
+
     username = f'admin_{uuid.uuid4().hex[:8]}'
+    password = 'adminpass123'
     user = User(
         username=username,
         email=f'{username}@example.com',
         is_admin=True
     )
-    user.set_password('adminpass123')
+    user.set_password(password)
     user.active = True  # Set active field, not is_active property
     db_session.add(user)
     db_session.commit()
-    return user
 
+    # Login the admin user using Flask-Login directly
+    with app.test_request_context():
+        login_user(user)
+        # Set the user ID in the session for the test client
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(user.id)
+            sess['_fresh'] = True
+
+    yield user
+
+    # Cleanup
+    try:
+        db_session.delete(user)
+        db_session.commit()
+    except:
+        db_session.rollback()
+
+
+# Global counter for unique CEFR level codes with thread safety
+import threading
+_level_counter = 0
+_level_counter_lock = threading.Lock()
 
 @pytest.fixture(scope='function')
-def test_level(db_session):
-    """Create test CEFR level"""
+def test_level(db_session, request):
+    """Create test CEFR level with unique code"""
+    global _level_counter
+
+    with _level_counter_lock:
+        _level_counter += 1
+        counter_value = _level_counter
+
+    # Use counter to ensure uniqueness within VARCHAR(2) limit (00-FF = 256 possibilities)
+    # Start from a high number to avoid conflicts with existing levels
+    code = f"{(counter_value + 100) % 256:02X}"
+
+    # Try to find unused code if collision occurs
+    max_attempts = 256
+    for attempt in range(max_attempts):
+        existing = CEFRLevel.query.filter_by(code=code).first()
+        if not existing:
+            break
+        code = f"{(counter_value + 100 + attempt + 1) % 256:02X}"
+
     level = CEFRLevel(
-        code='A1',
+        code=code,
         name='Beginner',
         description='Beginner level',
         order=1
     )
     db_session.add(level)
     db_session.commit()
-    return level
+
+    yield level
+
+    # Cleanup after test
+    try:
+        db_session.delete(level)
+        db_session.commit()
+    except:
+        db_session.rollback()
 
 
 @pytest.fixture(scope='function')
@@ -617,9 +668,10 @@ def quiz_deck_custom_words(db_session, test_user):
 @pytest.fixture(scope='function')
 def second_user(db_session):
     """Create a second test user"""
+    username = f'testuser2_{uuid.uuid4().hex[:8]}'
     second_user = User(
-        username='testuser2',
-        email='test2@example.com',
+        username=username,
+        email=f'{username}@example.com',
         active=True
     )
     second_user.set_password('testpass123')
@@ -735,6 +787,12 @@ def collection_and_topic(db_session):
 
 # ==================== AUTO-FIXTURES FOR TEST ENVIRONMENT ====================
 
+@pytest.fixture
+def _skip_autouse_module_fixtures():
+    """Marker fixture to skip autouse module fixtures in tests that manage modules manually"""
+    pass
+
+
 @pytest.fixture(autouse=True)
 def enable_study_module_for_user(app, request):
     """
@@ -743,8 +801,14 @@ def enable_study_module_for_user(app, request):
 
     Only runs for test functions that use authenticated_client or test_user.
     """
+    # Skip if test marked with _skip_autouse_module_fixtures (e.g., module migration tests)
+    if '_skip_autouse_module_fixtures' in request.fixturenames:
+        yield None
+        return
+
     # Check if this test uses authenticated_client or test_user fixtures
     if 'authenticated_client' not in request.fixturenames and 'test_user' not in request.fixturenames:
+        yield None
         return
 
     with app.app_context():
@@ -777,23 +841,37 @@ def grant_study_module(app, test_user, enable_study_module_for_user, request):
     """
     Grant study module access to test_user after they're created.
     """
+    # Skip if test marked with _skip_autouse_module_fixtures
+    if '_skip_autouse_module_fixtures' in request.fixturenames:
+        return
+
     # Only run if test uses authenticated_client or test_user
     if 'authenticated_client' not in request.fixturenames and 'test_user' not in request.fixturenames:
         return
 
+    # Skip if enable_study_module_for_user didn't create a module (returned None)
+    if enable_study_module_for_user is None:
+        return
+
     with app.app_context():
-        from app.modules.models import UserModule
+        from app.modules.models import UserModule, SystemModule
+
+        # Re-query the study module to avoid detached object errors
+        study_module = SystemModule.query.filter_by(code='study').first()
+        if not study_module:
+            # Module was deleted by a previous test, skip
+            return
 
         # Check if user already has the module
         existing = UserModule.query.filter_by(
             user_id=test_user.id,
-            module_id=enable_study_module_for_user.id
+            module_id=study_module.id
         ).first()
 
         if not existing:
             user_module = UserModule(
                 user_id=test_user.id,
-                module_id=enable_study_module_for_user.id,
+                module_id=study_module.id,
                 is_enabled=True,
                 granted_by_admin=True
             )

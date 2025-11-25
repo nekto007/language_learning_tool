@@ -25,11 +25,20 @@ class DeckService:
 
     @staticmethod
     def is_auto_deck(deck_title: str) -> bool:
-        """Check if deck is automatically managed (master deck)"""
-        return deck_title in [
-            DeckService.LEARNING_DECK_TITLE,
-            DeckService.MASTERED_DECK_TITLE
-        ]
+        """Check if deck is automatically managed (master deck, reading, topic, or collection)"""
+        # Check exact matches for master decks
+        if deck_title in [DeckService.LEARNING_DECK_TITLE, DeckService.MASTERED_DECK_TITLE]:
+            return True
+
+        # Check exact match for reading words deck
+        if deck_title == "Слова из чтения":
+            return True
+
+        # Check prefix matches for topic and collection decks
+        if deck_title.startswith("Топик: ") or deck_title.startswith("Коллекция: "):
+            return True
+
+        return False
 
     @classmethod
     def sync_master_decks(cls, user_id: int) -> None:
@@ -97,11 +106,16 @@ class DeckService:
                 QuizDeckWord.word_id.in_(to_remove)
             ).delete(synchronize_session=False)
 
-        # Add new words
+        # Add new words with proper order indices
         to_add = target_word_ids - existing_word_ids
-        for word_id in to_add:
-            deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id)
-            db.session.add(deck_word)
+        if to_add:
+            # Get max existing order index for this deck
+            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter_by(deck_id=deck.id).scalar() or -1
+
+            # Add new words with incrementing order indices
+            for i, word_id in enumerate(to_add, start=1):
+                deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id, order_index=max_order + i)
+                db.session.add(deck_word)
 
     @classmethod
     def get_user_decks(cls, user_id: int, include_public: bool = True) -> List[QuizDeck]:

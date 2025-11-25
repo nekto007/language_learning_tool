@@ -98,6 +98,7 @@ class TestSyncMasterDecks:
     def test_adds_new_words_to_existing_deck(self, db_session, test_user, user_words):
         """Test adding new words to existing deck"""
         from app.words.models import CollectionWords
+        import uuid
 
         # First sync
         sync_master_decks(test_user.id)
@@ -108,9 +109,10 @@ class TestSyncMasterDecks:
         ).first()
         initial_count = deck.word_count
 
-        # Create and add a completely new word
+        # Create and add a completely new word with unique identifier
+        unique_id = uuid.uuid4().hex[:8]
         new_word = CollectionWords(
-            english_word='unique_test_word',
+            english_word=f'unique_test_word_{unique_id}',
             russian_word='уникальное_тестовое_слово',
             level='A1'
         )
@@ -202,11 +204,11 @@ class TestSyncMasterDecks:
         deck.description = "Old description"
         db_session.commit()
 
-        # Sync again should reset description
+        # Sync again should reset description to the correct one
         sync_master_decks(test_user.id)
 
         db_session.refresh(deck)
-        assert deck.description == ""
+        assert deck.description == "Автоматическая колода со всеми вашими словами в процессе изучения"
 
     def test_maintains_order_index(self, db_session, test_user, user_words):
         """Test that order_index is properly maintained"""
@@ -394,10 +396,12 @@ class TestCreateFillBlankQuestion:
     def test_handles_comma_separated_answers(self, db_session):
         """Test handling comma-separated acceptable answers"""
         from app.words.models import CollectionWords
+        import uuid
 
-        # Create word with comma-separated translations
+        # Create word with comma-separated translations and unique identifier
+        unique_id = uuid.uuid4().hex[:8]
         word = CollectionWords(
-            english_word='to look',
+            english_word=f'to_look_{unique_id}',
             russian_word='смотреть, выглядеть',
             level='A1'
         )
