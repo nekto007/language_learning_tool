@@ -214,9 +214,10 @@ class TestGetUserStats:
         import uuid
 
         # Create user with no words
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'nowords_{uuid.uuid4().hex[:8]}',
-            email='nowords@test.com'
+            username=f'nowords_{unique_id}',
+            email=f'nowords_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)
@@ -288,9 +289,10 @@ class TestGetUserWordStats:
         from app.auth.models import User
         import uuid
 
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'empty_{uuid.uuid4().hex[:8]}',
-            email='empty@test.com'
+            username=f'empty_{unique_id}',
+            email=f'empty_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)
@@ -493,9 +495,10 @@ class TestGetXpLeaderboard:
         # Create 5 users with different XP
         xp_values = [500, 300, 800, 150, 600]
         for i, xp in enumerate(xp_values):
+            unique_id = uuid.uuid4().hex[:4]
             user = User(
-                username=f'xptest_{i}_{uuid.uuid4().hex[:4]}',
-                email=f'xptest{i}@test.com'
+                username=f'xptest_{i}_{unique_id}',
+                email=f'xptest{i}_{unique_id}@test.com'
             )
             user.set_password('password')
             db_session.add(user)
@@ -564,9 +567,10 @@ class TestGetAchievementLeaderboard:
         # Create users with different achievement counts
         achievement_counts = [2, 4, 1, 3]
         for i, count in enumerate(achievement_counts):
+            unique_id = uuid.uuid4().hex[:4]
             user = User(
-                username=f'achtest_{i}_{uuid.uuid4().hex[:4]}',
-                email=f'achtest{i}@test.com'
+                username=f'achtest_{i}_{unique_id}',
+                email=f'achtest{i}_{unique_id}@test.com'
             )
             user.set_password('password')
             db_session.add(user)
@@ -614,9 +618,10 @@ class TestGetUserXpRank:
         xp_values = [100, 300, 200, 500, 150]  # Rank order: 500(1), 300(2), 200(3), 150(4), 100(5)
 
         for i, xp in enumerate(xp_values):
+            unique_id = uuid.uuid4().hex[:4]
             user = User(
-                username=f'ranktest_{i}_{uuid.uuid4().hex[:4]}',
-                email=f'ranktest{i}@test.com'
+                username=f'ranktest_{i}_{unique_id}',
+                email=f'ranktest{i}_{unique_id}@test.com'
             )
             user.set_password('password')
             db_session.add(user)
@@ -645,9 +650,10 @@ class TestGetUserXpRank:
         from app.auth.models import User
         import uuid
 
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'noxp_{uuid.uuid4().hex[:8]}',
-            email='noxp@test.com'
+            username=f'noxp_{unique_id}',
+            email=f'noxp_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)
@@ -682,9 +688,10 @@ class TestGetUserAchievementRank:
         counts = [2, 4, 1, 3]  # Rank order: 4(1), 3(2), 2(3), 1(4)
 
         for i, count in enumerate(counts):
+            unique_id = uuid.uuid4().hex[:4]
             user = User(
-                username=f'achrank_{i}_{uuid.uuid4().hex[:4]}',
-                email=f'achrank{i}@test.com'
+                username=f'achrank_{i}_{unique_id}',
+                email=f'achrank{i}_{unique_id}@test.com'
             )
             user.set_password('password')
             db_session.add(user)
@@ -713,9 +720,10 @@ class TestGetUserAchievementRank:
         from app.auth.models import User
         import uuid
 
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'noach_{uuid.uuid4().hex[:8]}',
-            email='noach@test.com'
+            username=f'noach_{unique_id}',
+            email=f'noach_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)
@@ -937,9 +945,10 @@ class TestCheckAndAwardAchievements:
         import uuid
 
         # User with no words
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'noach_{uuid.uuid4().hex[:8]}',
-            email='noach@test.com'
+            username=f'noach_{unique_id}',
+            email=f'noach_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)

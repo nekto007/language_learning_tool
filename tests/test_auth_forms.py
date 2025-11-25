@@ -12,16 +12,18 @@ class TestRegistrationForm:
 
     def test_validate_username_already_exists(self, app, db_session):
         """Тест валидации существующего username"""
+        import uuid
         with app.app_context():
             # Создаем пользователя
-            user = User(username='testuser', email='test@example.com')
+            unique_id = uuid.uuid4().hex[:8]
+            user = User(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com')
             user.set_password('password123')
             db_session.add(user)
             db_session.commit()
 
             # Пытаемся зарегистрировать с тем же username
             form = RegistrationForm(
-                username='testuser',
+                username=f'testuser_{unique_id}',
                 email='another@example.com',
                 password='ValidPass123!',
                 password2='ValidPass123!'
@@ -33,9 +35,11 @@ class TestRegistrationForm:
 
     def test_validate_email_already_exists(self, app, db_session):
         """Тест валидации существующего email"""
+        import uuid
         with app.app_context():
             # Создаем пользователя
-            user = User(username='testuser', email='test@example.com')
+            unique_id = uuid.uuid4().hex[:8]
+            user = User(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com')
             user.set_password('password123')
             db_session.add(user)
             db_session.commit()
@@ -43,7 +47,7 @@ class TestRegistrationForm:
             # Пытаемся зарегистрировать с тем же email
             form = RegistrationForm(
                 username='anotheruser',
-                email='test@example.com',
+                email=f'test_{unique_id}@example.com',
                 password='ValidPass123!',
                 password2='ValidPass123!'
             )
@@ -101,16 +105,18 @@ class TestRequestResetForm:
 
     def test_validate_email_exists(self, app, db_session):
         """Тест валидации существующего email"""
+        import uuid
         with app.app_context():
             # Создаем пользователя
-            user = User(username='testuser', email='test@example.com')
+            unique_id = uuid.uuid4().hex[:8]
+            user = User(username=f'testuser_{unique_id}', email=f'test_{unique_id}@example.com')
             user.set_password('password123')
             db_session.add(user)
             db_session.commit()
 
             # Запрашиваем сброс для существующего email
             form = RequestResetForm(
-                email='test@example.com'
+                email=f'test_{unique_id}@example.com'
             )
 
             # Валидация должна пройти
