@@ -297,7 +297,7 @@ def book_statistics():
         
         if 'error' in stats:
             flash(f'Ошибка при получении статистики: {stats["error"]}', 'danger')
-            return redirect(url_for('admin.books'))
+            return redirect(url_for('book_admin.books'))
 
         # Дополнительные данные для шаблона
         top_books_by_words = Book.query.filter(
@@ -336,7 +336,7 @@ def book_statistics():
     except Exception as e:
         logger.error(f"Error getting book statistics: {str(e)}")
         flash(f'Ошибка при получении статистики: {str(e)}', 'danger')
-        return redirect(url_for('admin.books'))
+        return redirect(url_for('book_admin.books'))
 
 
 @book_bp.route('/books/extract-metadata', methods=['POST'])
@@ -389,8 +389,9 @@ def cleanup_books():
     if request.method == 'GET':
         cleanup_stats = {}
         try:
+            # Count books without chapters (no content)
             books_no_content = db.session.execute(
-                db.text("SELECT COUNT(*) FROM book WHERE content IS NULL OR content = ''")
+                db.text("SELECT COUNT(*) FROM book WHERE chapters_cnt = 0 OR chapters_cnt IS NULL")
             ).scalar()
             books_no_stats = db.session.execute(
                 db.text("SELECT COUNT(*) FROM book WHERE words_total = 0 OR words_total IS NULL")
@@ -500,6 +501,7 @@ def add_book():
                 title=form.title.data,
                 author=form.author.data,
                 level=form.level.data,
+                chapters_cnt=0,  # Initialize with 0, will be updated after chapter processing
                 # Use datetime.now(UTC) and convert to naive for DB compatibility
                 created_at=datetime.now(UTC).replace(tzinfo=None)
             )
