@@ -282,6 +282,7 @@ def quiz():
 def quiz_auto():
     """Automatic quiz (old behavior) - random questions from user's words"""
     settings = StudySettings.get_settings(current_user.id)
+    word_limit = request.args.get('limit', type=int)
     session = SessionService.start_session(current_user.id, 'quiz')
 
     return render_template(
@@ -289,7 +290,8 @@ def quiz_auto():
         session_id=session.id,
         settings=settings,
         word_source='auto',
-        deck_id=None
+        deck_id=None,
+        word_limit=word_limit
     )
 
 
