@@ -4,12 +4,15 @@
 import logging
 import mimetypes
 import os
-from flask import Blueprint, abort, send_file
+from flask import Blueprint, abort, send_file, current_app
 from werkzeug.utils import secure_filename
 
 logger = logging.getLogger(__name__)
 
 uploads = Blueprint('uploads', __name__)
+
+# Базовая директория проекта (на уровень выше app/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # Разрешенные MIME-типы для отдачи
@@ -40,7 +43,7 @@ def serve_cover(filename):
             abort(404)
 
         # Строим полный путь к файлу
-        file_path = os.path.join('uploads', 'covers', safe_filename)
+        file_path = os.path.join(BASE_DIR, 'uploads', 'covers', safe_filename)
 
         # Проверяем существование файла
         if not os.path.exists(file_path):

@@ -38,7 +38,7 @@
                 <div class="card">
                     <div class="book-cover-wrapper">
                         {% if book.cover_image %}
-                        <img src="{{ url_for('static', filename=book.cover_image) }}" 
+                        <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" 
                              alt="{{ book.title }}" 
                              class="book-cover-img">
                         {% else %}
@@ -103,7 +103,7 @@
                 <div class="card">
                     <div class="book-cover-wrapper">
                         {% if book.cover_image %}
-                        <img src="{{ url_for('static', filename=book.cover_image) }}" 
+                        <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" 
                              alt="{{ book.title }}" 
                              class="book-cover-img">
                         {% else %}

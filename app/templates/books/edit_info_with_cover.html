@@ -64,7 +64,7 @@
                                     <label class="form-label">{{ _('Book Cover') }}</label>
                                     <div class="text-center mb-3">
                                         {% if book.cover_image %}
-                                            <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ _('Current cover') }}" class="img-thumbnail" style="max-height: 200px;">
+                                            <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ _('Current cover') }}" class="img-thumbnail" style="max-height: 200px;">
                                         {% else %}
                                             <div class="p-3 bg-light rounded text-center">
                                                 <i class="fas fa-book fa-3x mb-2 text-muted"></i>

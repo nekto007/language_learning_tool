@@ -9,7 +9,7 @@
     <div class="card-body">
         <div class="d-flex align-items-center">
             {% if reading_progress.book.cover_image %}
-            <img src="{{ url_for('static', filename=reading_progress.book.cover_image) }}" 
+            <img src="{{ url_for('uploads.serve_cover', filename=reading_progress.book.cover_image.split('/')[-1]) }}"
                  alt="{{ reading_progress.book.title }}"
                  class="me-3" 
                  style="width: 60px; height: 90px; object-fit: cover;">

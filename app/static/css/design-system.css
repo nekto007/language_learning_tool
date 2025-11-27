@@ -4411,6 +4411,14 @@ body.dark-theme #translationPopup {
     min-height: calc(100vh - var(--admin-header-height));
     padding: var(--space-8);
     transition: margin-left var(--transition-base);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.admin-main > * {
+    width: 100%;
+    max-width: 1400px;
 }
 
 /* Admin Stats Cards */

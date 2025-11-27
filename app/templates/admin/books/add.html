@@ -99,9 +99,9 @@
                         
                         {% if book and book.cover_image %}
                         <div class="current-cover mb-3">
-                            <img src="{{ url_for('static', filename=book.cover_image) }}" 
-                                 alt="Текущая обложка" 
-                                 class="img-thumbnail" 
+                            <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}"
+                                 alt="Текущая обложка"
+                                 class="img-thumbnail"
                                  style="max-width: 200px; max-height: 300px;">
                             <p class="text-muted mt-2">Текущая обложка</p>
                         </div>

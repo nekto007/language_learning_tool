@@ -53,14 +53,16 @@ class TestGetMatchingWords:
 
     def test_handles_insufficient_words(self, db_session):
         """Test handles case when not enough words available"""
+        import uuid
         from app.study.services.game_service import GameService
         from app.words.models import CollectionWords
 
-        # Create only 3 words
+        # Create only 3 words with unique names
         words = []
+        unique_id = uuid.uuid4().hex[:8]
         for i in range(3):
             word = CollectionWords(
-                english_word=f'test_{i}',
+                english_word=f'test_{unique_id}_{i}',
                 russian_word=f'тест_{i}'
             )
             db_session.add(word)

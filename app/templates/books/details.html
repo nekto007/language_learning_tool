@@ -47,7 +47,7 @@
         <div class="card mb-4">
             <div class="card-body text-center">
                 {% if book.cover_image %}
-                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ _('Cover for') }} {{ book.title }}" class="img-fluid book-cover">
+                <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ _('Cover for') }} {{ book.title }}" class="img-fluid book-cover">
                 {% else %}
                 <div class="no-cover-large">
                     <i class="fas fa-book fa-4x mb-3"></i>

@@ -74,11 +74,13 @@ class TestCreateTokensForUser:
 
     def test_tokens_for_user_without_is_admin_attribute(self, app, db_session):
         """Test token generation for user without is_admin attribute"""
+        import uuid
         from app.utils.jwt_auth import create_tokens_for_user
         from app.auth.models import User
 
-        # Create user without setting is_admin
-        user = User(username='nonadmin', email='nonadmin@test.com')
+        # Create user without setting is_admin (use unique name)
+        unique_id = uuid.uuid4().hex[:8]
+        user = User(username=f'nonadmin_{unique_id}', email=f'nonadmin_{unique_id}@test.com')
         user.set_password('password')
         db_session.add(user)
         db_session.commit()

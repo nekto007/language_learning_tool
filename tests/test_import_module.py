@@ -17,15 +17,21 @@ class TestImportModuleBasic:
 
     def test_import_valid_module(self, app, db_session):
         """Тест успешного импорта валидного модуля"""
+        import uuid
         with app.app_context():
+            # Create unique level code
+            level_code = uuid.uuid4().hex[:2].upper()
+            # Create unique module ID
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             # Создаем тестовый JSON
             test_data = {
                 "module": {
-                    "id": 1,
+                    "id": module_id,
                     "title": "Test Module",
                     "title_en": "Test Module EN",
                     "description": "Test description",
-                    "level": "A1",
+                    "level": level_code,
                     "lessons": [
                         {
                             "id": 1,
@@ -48,8 +54,8 @@ class TestImportModuleBasic:
                 }
             }
 
-            # Создаем уровень A1
-            level = CEFRLevel(code='A1', name='Beginner', description='Beginner level', order=1)
+            # Создаем уровень
+            level = CEFRLevel(code=level_code, name='Beginner', description='Beginner level', order=1)
             db_session.add(level)
             db_session.commit()
 
@@ -65,7 +71,7 @@ class TestImportModuleBasic:
                 assert result is True
 
                 # Проверяем что модуль создан
-                module = Module.query.filter_by(number=1).first()
+                module = Module.query.filter_by(number=module_id).first()
                 assert module is not None
                 assert module.title == "Test Module"
                 assert module.level_id == level.id
@@ -80,6 +86,16 @@ class TestImportModuleBasic:
             finally:
                 # Удаляем временный файл
                 Path(temp_path).unlink()
+                # Cleanup module and level
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
+                # Delete the created level
+                level_to_delete = CEFRLevel.query.filter_by(code=level_code).first()
+                if level_to_delete:
+                    db_session.delete(level_to_delete)
+                    db_session.commit()
 
     def test_import_missing_module_key(self, app, db_session):
         """Тест импорта JSON без ключа 'module'"""
@@ -97,15 +113,20 @@ class TestImportModuleBasic:
                 Path(temp_path).unlink()
 
     def test_import_creates_missing_level(self, app, db_session):
-        """Тест создания уровня A1 если он отсутствует"""
+        """Тест создания уровня если он отсутствует - создается A1"""
+        import uuid
         with app.app_context():
+            # Use a random level code that doesn't exist
+            level_code = uuid.uuid4().hex[:2].upper()
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 1,
+                    "id": module_id,
                     "title": "Test Module",
                     "title_en": "Test Module EN",
                     "description": "Test",
-                    "level": "A1",
+                    "level": level_code,  # Non-existent level
                     "lessons": []
                 }
             }
@@ -119,24 +140,37 @@ class TestImportModuleBasic:
 
                 assert result is True
 
-                # Проверяем что уровень был создан автоматически
+                # Проверяем что создан/использован уровень A1 (fallback level)
                 level = CEFRLevel.query.filter_by(code='A1').first()
                 assert level is not None
                 assert level.name == 'Beginner'
 
+                # Module should be using A1 level
+                module = Module.query.filter_by(number=module_id).first()
+                assert module is not None
+                assert module.level_id == level.id
+
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
 
     def test_import_uses_existing_level(self, app, db_session, test_level):
         """Тест использования существующего уровня"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 1,
+                    "id": module_id,
                     "title": "Test Module",
                     "title_en": "Test Module EN",
                     "description": "Test",
-                    "level": "A1",
+                    "level": test_level.code,  # Use code from fixture
                     "lessons": []
                 }
             }
@@ -151,11 +185,16 @@ class TestImportModuleBasic:
                 assert result is True
 
                 # Проверяем что используется существующий уровень
-                module = Module.query.filter_by(number=1).first()
+                module = Module.query.filter_by(number=module_id).first()
                 assert module.level_id == test_level.id
 
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
 
 
 class TestImportModuleLessonTypes:
@@ -181,7 +220,7 @@ class TestImportModuleLessonTypes:
                     "title": "Type Test Module",
                     "title_en": "Type Test",
                     "description": "Test",
-                    "level": "A1",
+                    "level": test_level.code,  # Use level from fixture
                     "lessons": [
                         {
                             "id": 1,
@@ -228,7 +267,7 @@ class TestImportModuleExistingModule:
                     "title": "New Module",
                     "title_en": "New Module EN",
                     "description": "Test",
-                    "level": "A1",
+                    "level": test_level.code,  # Use level from fixture
                     "lessons": []
                 }
             }
@@ -261,7 +300,7 @@ class TestImportModuleExistingModule:
                     "title": "Replaced Module",
                     "title_en": "Replaced Module EN",
                     "description": "New description",
-                    "level": "A1",
+                    "level": test_level.code,  # Use level from fixture
                     "lessons": []
                 }
             }
@@ -292,10 +331,13 @@ class TestImportModuleContent:
 
     def test_import_saves_raw_content(self, app, db_session, test_level):
         """Тест сохранения raw_content модуля"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 100,
+                    "id": module_id,
                     "title": "Raw Content Test",
                     "title_en": "Raw Content Test EN",
                     "description": "Test description",
@@ -313,23 +355,30 @@ class TestImportModuleContent:
                 result = import_module_from_json(temp_path)
                 assert result is True
 
-                module = Module.query.filter_by(number=100).first()
+                module = Module.query.filter_by(number=module_id).first()
                 assert module.raw_content == test_data['module']
                 assert module.raw_content['custom_field'] == 'custom_value'
 
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
 
     def test_import_saves_lesson_content(self, app, db_session, test_level):
         """Тест сохранения content урока"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
             vocabulary_data = [
                 {"english": "test", "russian": "тест", "pronunciation": "test"}
             ]
 
             test_data = {
                 "module": {
-                    "id": 101,
+                    "id": module_id,
                     "title": "Lesson Content Test",
                     "title_en": "Lesson Content Test EN",
                     "description": "Test",
@@ -363,6 +412,11 @@ class TestImportModuleContent:
 
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
 
 
 class TestImportModuleEdgeCases:
@@ -370,10 +424,13 @@ class TestImportModuleEdgeCases:
 
     def test_import_empty_lessons(self, app, db_session, test_level):
         """Тест импорта модуля без уроков"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 102,
+                    "id": module_id,
                     "title": "Empty Lessons Module",
                     "title_en": "Empty Lessons",
                     "description": "Test",
@@ -390,19 +447,27 @@ class TestImportModuleEdgeCases:
                 result = import_module_from_json(temp_path)
                 assert result is True
 
-                module = Module.query.filter_by(number=102).first()
+                module = Module.query.filter_by(number=module_id).first()
                 assert module is not None
                 assert len(module.lessons) == 0
 
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
 
     def test_import_multiple_lessons(self, app, db_session, test_level):
         """Тест импорта модуля с несколькими уроками"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 103,
+                    "id": module_id,
                     "title": "Multiple Lessons",
                     "title_en": "Multiple Lessons",
                     "description": "Test",
@@ -428,7 +493,7 @@ class TestImportModuleEdgeCases:
                 result = import_module_from_json(temp_path)
                 assert result is True
 
-                module = Module.query.filter_by(number=103).first()
+                module = Module.query.filter_by(number=module_id).first()
                 assert len(module.lessons) == 10
 
                 # Проверяем порядок уроков
@@ -439,13 +504,21 @@ class TestImportModuleEdgeCases:
 
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()
 
     def test_import_with_database_error(self, app, db_session, test_level):
         """Тест обработки ошибки базы данных"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 104,
+                    "id": module_id,
                     "title": "Error Test Module",
                     "title_en": "Error Test",
                     "description": "Test",
@@ -467,7 +540,7 @@ class TestImportModuleEdgeCases:
                     assert result is False
 
                     # Проверяем что модуль не был создан
-                    module = Module.query.filter_by(number=104).first()
+                    module = Module.query.filter_by(number=module_id).first()
                     assert module is None
 
             finally:
@@ -475,10 +548,13 @@ class TestImportModuleEdgeCases:
 
     def test_import_default_level(self, app, db_session):
         """Тест использования уровня по умолчанию (A1) когда level не указан"""
+        import uuid
         with app.app_context():
+            module_id = int(uuid.uuid4().hex[:6], 16) % 100000
+
             test_data = {
                 "module": {
-                    "id": 105,
+                    "id": module_id,
                     "title": "Default Level Module",
                     "title_en": "Default Level",
                     "description": "Test",
@@ -499,8 +575,13 @@ class TestImportModuleEdgeCases:
                 level = CEFRLevel.query.filter_by(code='A1').first()
                 assert level is not None
 
-                module = Module.query.filter_by(number=105).first()
+                module = Module.query.filter_by(number=module_id).first()
                 assert module.level_id == level.id
 
             finally:
                 Path(temp_path).unlink()
+                # Cleanup
+                module = Module.query.filter_by(number=module_id).first()
+                if module:
+                    db_session.delete(module)
+                    db_session.commit()

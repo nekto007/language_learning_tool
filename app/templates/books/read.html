@@ -21,7 +21,7 @@
     <div class="book-header d-flex align-items-center mb-4" style="display: none">
         {% if book.cover_image %}
         <div class="book-cover-container me-3">
-            <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ _('Cover for') }} {{ book.title }}" class="book-cover-reading">
+            <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ _('Cover for') }} {{ book.title }}" class="book-cover-reading">
         </div>
         {% endif %}
         <div class="book-info-reading">

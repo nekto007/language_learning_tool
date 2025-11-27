@@ -26,19 +26,26 @@ class TestModuleRequired:
 
         assert callable(my_view)
 
+    @patch('app.modules.decorators.redirect')
+    @patch('app.modules.decorators.url_for')
     @patch('app.modules.decorators.current_user')
     @patch('app.modules.decorators.ModuleService.is_module_enabled_for_user')
-    def test_module_required_checks_authentication(self, mock_service, mock_user):
+    def test_module_required_checks_authentication(self, mock_service, mock_user, mock_url_for, mock_redirect):
         """Тест проверки аутентификации"""
         mock_user.is_authenticated = False
+        mock_url_for.return_value = '/auth/login'
+        mock_redirect.return_value = 'redirect_response'
 
         @module_required('curriculum')
         def view():
             return 'Success'
 
-        with pytest.raises(Exception):
-            # Should try to redirect when not authenticated
-            view()
+        result = view()
+
+        # Should redirect when not authenticated
+        assert result == 'redirect_response'
+        mock_redirect.assert_called_once()
+        mock_url_for.assert_called_once()
 
     @patch('app.modules.decorators.current_user')
     @patch('app.modules.decorators.ModuleService.is_module_enabled_for_user')
@@ -80,17 +87,25 @@ class TestAdminOrModuleOwner:
 
         assert callable(my_view)
 
+    @patch('app.modules.decorators.redirect')
+    @patch('app.modules.decorators.url_for')
     @patch('app.modules.decorators.current_user')
-    def test_admin_or_module_owner_checks_authentication(self, mock_user):
+    def test_admin_or_module_owner_checks_authentication(self, mock_user, mock_url_for, mock_redirect):
         """Тест проверки аутентификации"""
         mock_user.is_authenticated = False
+        mock_url_for.return_value = '/auth/login'
+        mock_redirect.return_value = 'redirect_response'
 
         @admin_or_module_owner('curriculum')
         def view():
             return 'Success'
 
-        with pytest.raises(Exception):
-            view()
+        result = view()
+
+        # Should redirect when not authenticated
+        assert result == 'redirect_response'
+        mock_redirect.assert_called_once()
+        mock_url_for.assert_called_once()
 
     @patch('app.modules.decorators.current_user')
     def test_admin_or_module_owner_admin_access(self, mock_user):
