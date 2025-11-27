@@ -1320,6 +1320,15 @@ def complete_matching_game():
     # Calculate score on server side (ignore client-submitted score)
     score = _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken, moves)
 
+    # Validate game data - if score is 0, it means invalid data was detected
+    if score == 0 and (pairs_matched > 0 or total_pairs > 0):
+        # Check for obvious cheating attempts
+        if pairs_matched > total_pairs or moves < pairs_matched * 2:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid game data detected'
+            }), 200
+
     # Calculate and award XP
     from app.study.xp_service import XPService
     score_percentage = (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0
