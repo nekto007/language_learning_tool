@@ -234,9 +234,10 @@ class TestUserManagementAccessControl:
 
         # Create 15 users
         for i in range(15):
+            unique_id = uuid.uuid4().hex[:8]
             user = User(
-                username=f'pagintest_{i}_{uuid.uuid4().hex[:4]}',
-                email=f'pagintest{i}@example.com'
+                username=f'pagintest_{i}_{unique_id}',
+                email=f'pagintest{i}_{unique_id}@example.com'
             )
             user.set_password('password')
             db_session.add(user)
@@ -358,9 +359,10 @@ class TestUserActivityTracking:
         import uuid
 
         # Create new user
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'newuser_{uuid.uuid4().hex[:8]}',
-            email='newuser@test.com'
+            username=f'newuser_{unique_id}',
+            email=f'newuser_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)
@@ -424,9 +426,10 @@ class TestSecurityEdgeCases:
         import uuid
 
         # Create fresh user with no activity
+        unique_id = uuid.uuid4().hex[:8]
         user = User(
-            username=f'noactivity_{uuid.uuid4().hex[:8]}',
-            email='noactivity@test.com'
+            username=f'noactivity_{unique_id}',
+            email=f'noactivity_{unique_id}@test.com'
         )
         user.set_password('password')
         db_session.add(user)
