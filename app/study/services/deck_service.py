@@ -133,10 +133,8 @@ class DeckService:
 
     @classmethod
     def get_deck_with_words(cls, deck_id: int) -> Optional[QuizDeck]:
-        """Get deck with words eager loaded"""
-        return QuizDeck.query.options(
-            joinedload(QuizDeck.words)
-        ).get(deck_id)
+        """Get deck with words (words use lazy='dynamic' so no eager loading needed)"""
+        return QuizDeck.query.get(deck_id)
 
     @classmethod
     def get_deck_statistics(cls, deck_id: int, user_id: int) -> Dict:
