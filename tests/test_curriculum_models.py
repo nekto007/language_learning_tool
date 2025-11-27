@@ -12,9 +12,14 @@ class TestCEFRLevelModel:
 
     def test_create_level(self, app, db_session):
         """Тест создания уровня"""
+        import uuid
+        import random
         with app.app_context():
+            # CEFR code field is VARCHAR(2) - use unique 2-char code
+            # Generate unique code by using random alphanumeric combination
+            code = f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{uuid.uuid4().hex[0]}"
             level = CEFRLevel(
-                code='A1',
+                code=code,
                 name='Beginner',
                 description='Beginner level',
                 order=1
@@ -23,7 +28,7 @@ class TestCEFRLevelModel:
             db_session.commit()
 
             assert level.id is not None
-            assert level.code == 'A1'
+            assert level.code == code
             assert level.name == 'Beginner'
 
     def test_level_modules_relationship(self, app, db_session, test_level, test_module):

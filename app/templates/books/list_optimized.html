@@ -109,7 +109,7 @@
             <!-- Book Cover -->
             <div class="book-cover">
                 {% if book.cover_image %}
-                    <img src="{{ url_for('static', filename=book.cover_image) }}" alt="{{ book.title }}">
+                    <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ book.title }}">
                 {% else %}
                     <i class="fas fa-book book-cover-placeholder"></i>
                 {% endif %}

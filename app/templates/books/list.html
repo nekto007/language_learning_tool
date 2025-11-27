@@ -192,7 +192,7 @@
                         <td>
                             <div class="book-cover-thumbnail">
                                 {% if book.cover_image %}
-                                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-thumbnail">
+                                <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="Cover for {{ book.title }}" class="img-thumbnail">
                                 {% else %}
                                 <div class="no-cover">
                                     <i class="fas fa-book"></i>
@@ -321,7 +321,7 @@
                         <div class="col-3">
                             <div class="book-cover-thumbnail">
                                 {% if book.cover_image %}
-                                <img src="{{ url_for('static', filename=book.cover_image) }}" alt="Cover for {{ book.title }}" class="img-thumbnail w-100">
+                                <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="Cover for {{ book.title }}" class="img-thumbnail w-100">
                                 {% else %}
                                 <div class="no-cover text-center p-2 bg-light rounded">
                                     <i class="fas fa-book"></i>

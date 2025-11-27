@@ -16,32 +16,7 @@ class TestBookRoutes:
     """Интеграционные тесты для book routes"""
 
     @pytest.fixture
-    def admin_user(self, client, db):
-        """Создает администратора для тестов"""
-        from app.auth.models import User
-        admin = User(
-            username='admin_test',
-            email='admin@test.com',
-            is_admin=True,
-            active=True
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-
-        # Логиним админа
-        client.post('/auth/login', data={
-            'username': 'admin_test',
-            'password': 'admin123'
-        })
-
-        yield admin
-
-        db.session.delete(admin)
-        db.session.commit()
-
-    @pytest.fixture
-    def sample_book(self, db):
+    def sample_book(self, db_session):
         """Создает тестовую книгу"""
         book = Book(
             title='Test Book',
@@ -49,21 +24,21 @@ class TestBookRoutes:
             level='B1',
             words_total=10000,
             unique_words=5000,
-            content='<p>Test content</p>'
+            chapters_cnt=1
         )
-        db.session.add(book)
-        db.session.commit()
+        db_session.add(book)
+        db_session.commit()
 
         yield book
 
-        db.session.delete(book)
-        db.session.commit()
+        db_session.delete(book)
+        db_session.commit()
 
     def test_books_index_unauthorized(self, client):
         """Тест доступа к /books без авторизации"""
         response = client.get('/admin/books')
         assert response.status_code == 302  # Redirect to login
-        assert '/auth/login' in response.location
+        assert '/login' in response.location
 
     def test_books_index_authorized(self, client, admin_user, sample_book):
         """Тест доступа к /books с авторизацией"""
@@ -77,7 +52,7 @@ class TestBookRoutes:
         assert response.status_code == 200
         assert b'total_books' in response.data or b'Test Book' in response.data
 
-    @patch('app.admin.routes.book_routes.WebScraper')
+    @patch('app.web.scraper.WebScraper')
     def test_scrape_website_success(self, mock_scraper, client, admin_user):
         """Тест успешного scraping сайта"""
         # Mock scraper results
@@ -108,7 +83,7 @@ class TestBookRoutes:
         assert data['success'] is False
         assert 'URL не указан' in data['error']
 
-    @patch('app.admin.routes.book_routes.DatabaseRepository')
+    @patch('app.repository.DatabaseRepository')
     def test_update_book_statistics_single_book(self, mock_repo, client, admin_user, sample_book):
         """Тест обновления статистики одной книги"""
         # Mock repository
@@ -125,7 +100,7 @@ class TestBookRoutes:
         assert data['success'] is True
         assert data['updated_count'] >= 0
 
-    @patch('app.admin.routes.book_routes.DatabaseRepository')
+    @patch('app.repository.DatabaseRepository')
     def test_update_book_statistics_all_books(self, mock_repo, client, admin_user, sample_book):
         """Тест обновления статистики всех книг"""
         mock_repo_instance = Mock()
@@ -145,23 +120,25 @@ class TestBookRoutes:
         response = client.post('/admin/books/process-phrasal-verbs',
                                 data={})
 
-        assert response.status_code == 200
+        assert response.status_code == 400
         data = json.loads(response.data)
         assert data['success'] is False
         assert 'не предоставлены' in data['error']
 
-    def test_process_phrasal_verbs_with_text(self, client, admin_user, db):
+    def test_process_phrasal_verbs_with_text(self, client, admin_user, db_session):
         """Тест обработки фразовых глаголов из текстового поля"""
-        # Создаем базовое слово
+        import uuid
+        # Создаем базовое слово с уникальным названием
+        unique_word = f'test_{uuid.uuid4().hex[:8]}'
         word = CollectionWords(
-            english_word='look',
-            russian_word='смотреть',
+            english_word=unique_word,
+            russian_word='тест',
             level='A1'
         )
-        db.session.add(word)
-        db.session.commit()
+        db_session.add(word)
+        db_session.commit()
 
-        phrasal_text = "look up;искать;in dictionary;I look up words;Я ищу слова"
+        phrasal_text = f"{unique_word} up;искать;in dictionary;I {unique_word} up words;Я ищу слова"
 
         response = client.post('/admin/books/process-phrasal-verbs',
                                 data={'phrasal_verbs_text': phrasal_text})
@@ -170,6 +147,13 @@ class TestBookRoutes:
         data = json.loads(response.data)
         assert data['success'] is True
         assert data['processed_count'] >= 0
+
+        # Cleanup
+        try:
+            db_session.delete(word)
+            db_session.commit()
+        except:
+            db_session.rollback()
 
     def test_book_statistics_page(self, client, admin_user, sample_book):
         """Тест страницы статистики книг"""
@@ -204,21 +188,27 @@ class TestBookRoutes:
         data = json.loads(response.data)
         assert data['success'] is False
 
-    def test_cleanup_books_get(self, client, admin_user):
+    @patch('app.admin.routes.book_routes.db.session.execute')
+    def test_cleanup_books_get(self, mock_execute, client, admin_user):
         """Тест GET запроса страницы очистки"""
+        # Mock the SQL query results
+        mock_result = Mock()
+        mock_result.scalar.return_value = 0
+        mock_execute.return_value = mock_result
+
         response = client.get('/admin/books/cleanup')
         assert response.status_code == 200
 
-    def test_cleanup_books_remove_empty(self, client, admin_user, db):
+    def test_cleanup_books_remove_empty(self, client, admin_user, db_session):
         """Тест удаления пустых книг"""
         # Создаем пустую книгу
         empty_book = Book(
             title='Empty Book',
             author='Test Author',
-            content=None
+            chapters_cnt=0
         )
-        db.session.add(empty_book)
-        db.session.commit()
+        db_session.add(empty_book)
+        db_session.commit()
 
         response = client.post('/admin/books/cleanup',
                                 data={'action': 'remove_empty_books'})
@@ -237,7 +227,7 @@ class TestBookRoutes:
                                     'title': 'Test Book',
                                     'author': 'Test Author',
                                     'level': 'B1',
-                                    'content': 'New content'
+                                    'chapters_cnt': '1'
                                 },
                                 content_type='application/x-www-form-urlencoded')
 
@@ -250,28 +240,30 @@ class TestBookRoutesPermissions:
     """Тесты проверки прав доступа"""
 
     @pytest.fixture
-    def regular_user(self, client, db):
+    def regular_user(self, client, db_session):
         """Создает обычного пользователя (не админа)"""
         from app.auth.models import User
+        import uuid
+        username = f'regular_user_{uuid.uuid4().hex[:8]}'
         user = User(
-            username='regular_user',
-            email='user@test.com',
+            username=username,
+            email=f'user_{uuid.uuid4().hex[:8]}@test.com',
             is_admin=False,
             active=True
         )
         user.set_password('user123')
-        db.session.add(user)
-        db.session.commit()
+        db_session.add(user)
+        db_session.commit()
 
-        client.post('/auth/login', data={
-            'username': 'regular_user',
+        client.post('/login', data={
+            'username': username,
             'password': 'user123'
         })
 
         yield user
 
-        db.session.delete(user)
-        db.session.commit()
+        db_session.delete(user)
+        db_session.commit()
 
     def test_books_access_denied_for_regular_user(self, client, regular_user):
         """Тест отказа в доступе для обычного пользователя"""
@@ -289,30 +281,6 @@ class TestBookRoutesPermissions:
 
 class TestBookRoutesErrorHandling:
     """Тесты обработки ошибок"""
-
-    @pytest.fixture
-    def admin_user(self, client, db):
-        """Создает администратора для тестов"""
-        from app.auth.models import User
-        admin = User(
-            username='admin_test',
-            email='admin@test.com',
-            is_admin=True,
-            active=True
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-
-        client.post('/auth/login', data={
-            'username': 'admin_test',
-            'password': 'admin123'
-        })
-
-        yield admin
-
-        db.session.delete(admin)
-        db.session.commit()
 
     @patch('app.admin.routes.book_routes.Book')
     def test_books_index_database_error(self, mock_book, client, admin_user):

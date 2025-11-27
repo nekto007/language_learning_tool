@@ -11,22 +11,26 @@ class TestTopicModel:
 
     def test_create_topic(self, app, db_session, test_user):
         """Тест создания топика"""
+        import uuid
         with app.app_context():
+            topic_name = f'Animals_{uuid.uuid4().hex[:8]}'
             topic = Topic(
-                name='Animals',
+                name=topic_name,
                 created_by=test_user.id
             )
             db_session.add(topic)
             db_session.commit()
 
             assert topic.id is not None
-            assert topic.name == 'Animals'
+            assert topic.name == topic_name
 
     def test_topic_repr(self, app, db_session, test_user):
         """Тест __repr__ метода"""
+        import uuid
         with app.app_context():
+            topic_name = f'Food_{uuid.uuid4().hex[:8]}'
             topic = Topic(
-                name='Food',
+                name=topic_name,
                 created_by=test_user.id
             )
             db_session.add(topic)
@@ -34,7 +38,7 @@ class TestTopicModel:
 
             repr_str = repr(topic)
             assert 'Topic' in repr_str
-            assert 'Food' in repr_str
+            assert topic_name in repr_str
 
 
 class TestCollectionModel:

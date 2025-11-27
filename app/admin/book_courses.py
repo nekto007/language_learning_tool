@@ -557,6 +557,59 @@ def register_book_course_routes(admin_bp):
             user_progress=user_progress
         )
 
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>')
+    @admin_required
+    @handle_admin_errors(return_json=False)
+    def view_daily_lesson(course_id, module_id, lesson_id):
+        """View daily lesson content in admin"""
+
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(
+            id=module_id, course_id=course_id
+        ).first_or_404()
+
+        lesson = DailyLesson.query.filter_by(
+            id=lesson_id, book_course_module_id=module_id
+        ).first_or_404()
+
+        # Get vocabulary for this lesson with word details
+        vocabulary = SliceVocabulary.query.filter_by(
+            daily_lesson_id=lesson_id
+        ).options(
+            joinedload(SliceVocabulary.word)
+        ).order_by(SliceVocabulary.frequency_in_slice.desc()).all()
+
+        # Get user progress for this lesson
+        user_progress = UserLessonProgress.query.filter_by(
+            daily_lesson_id=lesson_id
+        ).options(
+            joinedload(UserLessonProgress.user)
+        ).order_by(desc(UserLessonProgress.completed_at)).limit(20).all()
+
+        # Get adjacent lessons for navigation
+        prev_lesson = DailyLesson.query.filter_by(
+            book_course_module_id=module_id
+        ).filter(DailyLesson.day_number < lesson.day_number).order_by(
+            desc(DailyLesson.day_number)
+        ).first()
+
+        next_lesson = DailyLesson.query.filter_by(
+            book_course_module_id=module_id
+        ).filter(DailyLesson.day_number > lesson.day_number).order_by(
+            DailyLesson.day_number
+        ).first()
+
+        return render_template(
+            'admin/book_courses/lesson_detail.html',
+            course=course,
+            module=module,
+            lesson=lesson,
+            vocabulary=vocabulary,
+            user_progress=user_progress,
+            prev_lesson=prev_lesson,
+            next_lesson=next_lesson
+        )
+
     @admin_bp.route('/book-courses/<int:course_id>/generate-modules', methods=['POST'])
     @admin_required
     @handle_admin_errors(return_json=True)

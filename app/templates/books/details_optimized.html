@@ -9,8 +9,8 @@
         <div class="row align-items-center">
             <div class="col-md-3">
                 {% if book.cover_image %}
-                <img src="{{ url_for('static', filename=book.cover_image) }}" 
-                     alt="{{ book.title }}" 
+                <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}"
+                     alt="{{ book.title }}"
                      class="book-cover-hero">
                 {% else %}
                 <div class="book-cover-hero bg-secondary d-flex align-items-center justify-content-center">

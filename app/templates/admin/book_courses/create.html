@@ -2,176 +2,587 @@
 {% block title %}Создать курс-книгу{% endblock %}
 
 {% block extra_css %}
+<style>
+/* Create Course - Modern Design */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-header h1 i {
+    color: var(--primary-color);
+}
+
+.back-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.back-link:hover {
+    color: var(--primary-color);
+}
+
+/* Form Sections */
+.form-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.section-title i {
+    color: var(--primary-color);
+}
+
+.section-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Book Selection */
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.book-card {
+    padding: 1.25rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.book-card:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-primary);
+}
+
+.book-card.selected {
+    border-color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.08);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);
+}
+
+.book-card .book-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+}
+
+.book-card .book-author {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.book-card .book-author i {
+    color: var(--text-tertiary);
+}
+
+.book-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.book-stats span {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.book-stats i {
+    color: var(--text-tertiary);
+}
+
+/* Form Controls */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.form-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.4rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Checkbox */
+.custom-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.custom-checkbox:hover {
+    background: rgba(var(--primary-rgb), 0.08);
+}
+
+.custom-checkbox input {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+}
+
+.custom-checkbox label {
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Method Selection */
+.methods-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.method-card {
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.method-card:hover {
+    border-color: var(--primary-color);
+}
+
+.method-card.selected {
+    border-color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.08);
+}
+
+.method-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.method-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.method-card:nth-child(2) .method-icon {
+    background: #6366f1;
+}
+
+.method-title {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.method-description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.method-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.method-features li {
+    padding: 0.35rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.method-features li::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--primary-color);
+    border-radius: 50%;
+}
+
+/* Submit Button */
+.submit-section {
+    text-align: center;
+    padding-top: 1rem;
+}
+
+.btn-submit {
+    padding: 1rem 2.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color), #6366f1);
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.35);
+}
+
+.btn-submit:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-submit .spinner {
+    display: none;
+}
+
+.btn-submit.loading .spinner {
+    display: inline-block;
+}
+
+.btn-submit.loading .btn-icon {
+    display: none;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 2px dashed var(--border-color);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--text-tertiary);
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+/* Progress Modal */
+.progress-modal .modal-content {
+    border-radius: 16px;
+    border: none;
+}
+
+.progress-modal .modal-body {
+    padding: 2.5rem;
+    text-align: center;
+}
+
+.progress-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1.5rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.progress-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.progress-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), #10b981);
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .methods-grid {
+        grid-template-columns: 1fr;
+    }
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>📚 Создать курс-книгу</h1>
-    <a href="{{ url_for('admin.book_courses') }}" class="btn btn-secondary">
+<!-- Page Header -->
+<div class="page-header">
+    <h1><i class="fas fa-plus-circle"></i> Создать курс-книгу</h1>
+    <a href="{{ url_for('admin.book_courses') }}" class="back-link">
         <i class="fas fa-arrow-left"></i> Назад к списку
     </a>
 </div>
 
 {% if not available_books %}
-<div class="alert alert-warning">
-    <h5><i class="fas fa-exclamation-triangle"></i> Нет доступных книг</h5>
-    <p>Все книги уже преобразованы в курсы или в системе нет книг для создания курсов.</p>
-    <a href="{{ url_for('book_admin.books') }}" class="btn btn-primary btn-sm">
-        Управление книгами
+<!-- Empty State -->
+<div class="empty-state">
+    <i class="fas fa-book-open"></i>
+    <h3>Нет доступных книг</h3>
+    <p>Все книги уже преобразованы в курсы или в системе нет книг с главами.</p>
+    <a href="{{ url_for('book_admin.books') }}" class="btn btn-primary">
+        <i class="fas fa-book me-2"></i> Управление книгами
     </a>
 </div>
 {% else %}
 
 <form id="createCourseForm" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    
+    <input type="hidden" name="book_id" id="selectedBookId" required>
+    <input type="hidden" name="auto_generate" id="autoGenerate" value="on">
+
     <!-- Book Selection -->
-    <div class="create-form-card">
-        <h3><i class="fas fa-book"></i> Выберите книгу</h3>
-        <p class="text-muted mb-3">Выберите книгу, из которой будет создан курс английского языка</p>
-        
-        <input type="hidden" name="book_id" id="selectedBookId" required>
-        
-        <div class="row">
+    <div class="form-section">
+        <h3 class="section-title"><i class="fas fa-book"></i> Выберите книгу</h3>
+        <p class="section-description">Выберите книгу, из которой будет создан курс английского языка</p>
+
+        <div class="books-grid">
             {% for book in available_books %}
-            <div class="col-md-6">
-                <div class="book-selection-card" onclick="selectBook({{ book.id }}, this)">
-                    <div class="book-info">
-                        <div class="book-meta">
-                            <div class="book-title">{{ book.title }}</div>
-                            <div class="book-author">
-                                <i class="fas fa-user"></i> {{ book.author or 'Неизвестный автор' }}
-                            </div>
-                            <div class="book-stats">
-                                <span><i class="fas fa-list"></i> {{ book.chapters|length }} глав</span>
-                                {% if book.language %}
-                                <span><i class="fas fa-language"></i> {{ book.language }}</span>
-                                {% endif %}
-                                {% if book.publication_year %}
-                                <span><i class="fas fa-calendar"></i> {{ book.publication_year }}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
+            <div class="book-card" onclick="selectBook({{ book.id }}, this)" data-title="{{ book.title }}">
+                <div class="book-title">{{ book.title }}</div>
+                <div class="book-author">
+                    <i class="fas fa-user"></i>
+                    {{ book.author or 'Автор неизвестен' }}
+                </div>
+                <div class="book-stats">
+                    <span><i class="fas fa-list"></i> {{ book.chapters|length }} глав</span>
+                    {% if book.level %}
+                    <span><i class="fas fa-signal"></i> {{ book.level }}</span>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
-    
+
     <!-- Course Settings -->
-    <div class="create-form-card">
-        <h3><i class="fas fa-cog"></i> Настройки курса</h3>
-        
-        <div class="row">
-            <div class="col-md-6">
-                <div class="option-group">
-                    <label class="form-label" for="courseTitle">Название курса</label>
-                    <input type="text" class="form-control" id="courseTitle" name="course_title" 
-                           placeholder="Оставьте пустым для автоматической генерации">
-                    <small class="text-muted">Если не указано, будет сгенерировано автоматически</small>
-                </div>
+    <div class="form-section">
+        <h3 class="section-title"><i class="fas fa-cog"></i> Настройки курса</h3>
+        <p class="section-description">Укажите основные параметры курса</p>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="courseTitle">Название курса</label>
+                <input type="text" class="form-control" id="courseTitle" name="course_title"
+                       placeholder="English Course: [Book Title]">
+                <div class="form-hint">Оставьте пустым для автоматической генерации</div>
             </div>
-            
-            <div class="col-md-6">
-                <div class="option-group">
-                    <label class="form-label" for="courseLevel">Уровень сложности</label>
-                    <select class="form-control" id="courseLevel" name="level" required>
-                        <option value="A1">A1 - Начальный</option>
-                        <option value="A2">A2 - Элементарный</option>
-                        <option value="B1" selected>B1 - Средний</option>
-                        <option value="B2">B2 - Выше среднего</option>
-                        <option value="C1">C1 - Продвинутый</option>
-                        <option value="C2">C2 - Профессиональный</option>
-                    </select>
-                </div>
+
+            <div class="form-group">
+                <label class="form-label" for="courseLevel">Уровень сложности</label>
+                <select class="form-control" id="courseLevel" name="level" required>
+                    <option value="A1">A1 - Начальный</option>
+                    <option value="A2">A2 - Элементарный</option>
+                    <option value="B1" selected>B1 - Средний</option>
+                    <option value="B2">B2 - Выше среднего</option>
+                    <option value="C1">C1 - Продвинутый</option>
+                    <option value="C2">C2 - Профессиональный</option>
+                </select>
             </div>
         </div>
-        
-        <div class="option-group">
+
+        <div class="form-group">
             <label class="form-label" for="courseDescription">Описание курса</label>
             <textarea class="form-control" id="courseDescription" name="course_description" rows="3"
-                      placeholder="Оставьте пустым для автоматической генерации"></textarea>
-            <small class="text-muted">Краткое описание курса для студентов</small>
+                      placeholder="Краткое описание курса для студентов..."></textarea>
+            <div class="form-hint">Оставьте пустым для автоматической генерации</div>
         </div>
-        
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="isFeatured" name="is_featured">
-            <label class="form-check-label" for="isFeatured">
-                ⭐ Добавить в рекомендуемые курсы
+
+        <div class="custom-checkbox">
+            <input type="checkbox" id="isFeatured" name="is_featured">
+            <label for="isFeatured">
+                <i class="fas fa-star" style="color: #f59e0b;"></i>
+                Добавить в рекомендуемые курсы
             </label>
         </div>
     </div>
-    
+
     <!-- Creation Method -->
-    <div class="create-form-card">
-        <h3><i class="fas fa-magic"></i> Способ создания</h3>
-        <p class="text-muted mb-3">Выберите, как создать курс</p>
-        
-        <input type="hidden" name="auto_generate" id="autoGenerate" value="on">
-        
-        <div class="creation-method selected" onclick="selectMethod('auto', this)">
-            <div class="method-title">🚀 Автоматическая генерация</div>
-            <div class="method-description">
-                Полностью автоматическое создание курса с модулями, уроками и заданиями
+    <div class="form-section">
+        <h3 class="section-title"><i class="fas fa-magic"></i> Способ создания</h3>
+        <p class="section-description">Выберите как создать курс</p>
+
+        <div class="methods-grid">
+            <div class="method-card selected" onclick="selectMethod('auto', this)">
+                <div class="method-header">
+                    <div class="method-icon"><i class="fas fa-rocket"></i></div>
+                    <div class="method-title">Автоматическая генерация</div>
+                </div>
+                <div class="method-description">
+                    Полностью автоматическое создание курса с модулями, уроками и заданиями
+                </div>
+                <ul class="method-features">
+                    <li>Автоматическое разбиение на модули</li>
+                    <li>Генерация словарных уроков</li>
+                    <li>Создание заданий на понимание</li>
+                    <li>Готовый к использованию курс</li>
+                </ul>
             </div>
-            <ul class="method-features">
-                <li>Автоматическое разбиение книги на модули</li>
-                <li>Генерация словарных уроков</li>
-                <li>Создание заданий на понимание</li>
-                <li>Интеграция с системой повторения</li>
-                <li>Готовый к использованию курс</li>
-            </ul>
-        </div>
-        
-        <div class="creation-method" onclick="selectMethod('manual', this)">
-            <div class="method-title">✋ Ручная настройка</div>
-            <div class="method-description">
-                Создание только структуры курса для последующей ручной настройки
+
+            <div class="method-card" onclick="selectMethod('manual', this)">
+                <div class="method-header">
+                    <div class="method-icon"><i class="fas fa-hand-paper"></i></div>
+                    <div class="method-title">Ручная настройка</div>
+                </div>
+                <div class="method-description">
+                    Создание только структуры курса для последующей ручной настройки
+                </div>
+                <ul class="method-features">
+                    <li>Создание базовой структуры</li>
+                    <li>Ручная настройка модулей</li>
+                    <li>Контроль над содержанием</li>
+                    <li>Гибкость в настройке</li>
+                </ul>
             </div>
-            <ul class="method-features">
-                <li>Создание базовой структуры курса</li>
-                <li>Возможность ручной настройки модулей</li>
-                <li>Контроль над содержанием уроков</li>
-                <li>Гибкость в настройке заданий</li>
-            </ul>
         </div>
     </div>
-    
-    <!-- Submit Button -->
-    <div class="text-center">
-        <button type="submit" class="btn-create" id="submitBtn">
-            <i class="fas fa-spinner fa-spin loading-spinner"></i>
-            <i class="fas fa-magic"></i> Создать и сгенерировать курс
+
+    <!-- Submit -->
+    <div class="submit-section">
+        <button type="submit" class="btn-submit" id="submitBtn">
+            <i class="fas fa-spinner fa-spin spinner"></i>
+            <i class="fas fa-magic btn-icon"></i>
+            <span class="btn-text">Создать и сгенерировать курс</span>
         </button>
     </div>
 </form>
 
-{% endif %}
-
 <!-- Progress Modal -->
-<div class="modal fade" id="progressModal" tabindex="-1" data-bs-backdrop="static">
+<div class="modal fade progress-modal" id="progressModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Создание курса</h5>
-            </div>
-            <div class="modal-body text-center">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Загрузка...</span>
+            <div class="modal-body">
+                <div class="progress-spinner"></div>
+                <div class="progress-title" id="progressTitle">Создание курса...</div>
+                <div class="progress-description" id="progressDescription">
+                    Пожалуйста, подождите. Это может занять несколько минут.
                 </div>
-                <h6 id="progressTitle">Создание курса...</h6>
-                <p class="text-muted" id="progressDescription">
-                    Пожалуйста, подождите. Создание курса может занять несколько минут.
-                </p>
-                <div class="progress mt-3">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                         role="progressbar" style="width: 0%" id="progressBar"></div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progressBar" style="width: 0%"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -180,178 +591,134 @@ let selectedBookId = null;
 let selectedMethod = 'auto';
 
 function selectBook(bookId, element) {
-    // Remove previous selection
-    document.querySelectorAll('.book-selection-card').forEach(card => {
+    document.querySelectorAll('.book-card').forEach(card => {
         card.classList.remove('selected');
     });
-    
-    // Add selection to clicked card
+
     element.classList.add('selected');
-    
-    // Store selection
     selectedBookId = bookId;
     document.getElementById('selectedBookId').value = bookId;
-    
-    // Update course title placeholder if empty
+
+    // Update placeholder
     const titleInput = document.getElementById('courseTitle');
     if (!titleInput.value.trim()) {
-        const bookTitle = element.querySelector('.book-title').textContent;
+        const bookTitle = element.dataset.title;
         titleInput.placeholder = `English Course: ${bookTitle}`;
     }
 }
 
 function selectMethod(method, element) {
-    // Remove previous selection
-    document.querySelectorAll('.creation-method').forEach(card => {
+    document.querySelectorAll('.method-card').forEach(card => {
         card.classList.remove('selected');
     });
-    
-    // Add selection to clicked card
+
     element.classList.add('selected');
-    
-    // Store selection
     selectedMethod = method;
     document.getElementById('autoGenerate').value = method === 'auto' ? 'on' : 'off';
-    
-    // Update button text
-    const submitBtn = document.getElementById('submitBtn');
-    const btnIcon = submitBtn.querySelector('i:not(.loading-spinner)');
-    const btnTextNode = submitBtn.childNodes[2];
-    
+
+    // Update button
+    const btnIcon = document.querySelector('.btn-submit .btn-icon');
+    const btnText = document.querySelector('.btn-submit .btn-text');
+
     if (method === 'auto') {
-        btnIcon.className = 'fas fa-magic';
-        btnTextNode.textContent = ' Создать и сгенерировать курс';
+        btnIcon.className = 'fas fa-magic btn-icon';
+        btnText.textContent = 'Создать и сгенерировать курс';
     } else {
-        btnIcon.className = 'fas fa-plus';
-        btnTextNode.textContent = ' Создать структуру курса';
+        btnIcon.className = 'fas fa-plus btn-icon';
+        btnText.textContent = 'Создать структуру курса';
     }
 }
 
 // Form submission
-document.getElementById('createCourseForm').addEventListener('submit', function(e) {
+document.getElementById('createCourseForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     if (!selectedBookId) {
         showAlert('warning', 'Выберите книгу для создания курса');
         return;
     }
-    
+
     const submitBtn = document.getElementById('submitBtn');
-    const loadingSpinner = submitBtn.querySelector('.loading-spinner');
-    
-    // Disable form
+    submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-    loadingSpinner.style.display = 'inline-block';
-    
+
     // Show progress modal for auto generation
     if (selectedMethod === 'auto') {
         const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
         progressModal.show();
-        
-        // Simulate progress updates
+
         let progress = 0;
         const progressInterval = setInterval(() => {
             progress += Math.random() * 15;
             if (progress > 90) progress = 90;
-            
+
             document.getElementById('progressBar').style.width = progress + '%';
-            
-            if (progress > 20) {
-                document.getElementById('progressTitle').textContent = 'Анализ содержания книги...';
-            }
-            if (progress > 40) {
-                document.getElementById('progressTitle').textContent = 'Создание модулей...';
-            }
-            if (progress > 60) {
-                document.getElementById('progressTitle').textContent = 'Генерация уроков...';
-            }
-            if (progress > 80) {
-                document.getElementById('progressTitle').textContent = 'Финализация курса...';
-            }
+
+            const titles = [
+                'Анализ содержания книги...',
+                'Создание модулей...',
+                'Генерация уроков...',
+                'Создание заданий...',
+                'Финализация курса...'
+            ];
+            const titleIndex = Math.min(Math.floor(progress / 20), titles.length - 1);
+            document.getElementById('progressTitle').textContent = titles[titleIndex];
         }, 500);
-        
-        // Clean up interval when request completes
-        const originalFetch = window.fetch;
-        window.fetch = function(...args) {
-            return originalFetch.apply(this, args).finally(() => {
-                clearInterval(progressInterval);
-                window.fetch = originalFetch;
-            });
-        };
+
+        window.progressInterval = progressInterval;
     }
-    
-    // Submit form
+
     const formData = new FormData(this);
-    
+
     fetch(this.action, {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
+        if (window.progressInterval) clearInterval(window.progressInterval);
+
         if (data.success) {
-            showAlert('success', data.message);
-            
-            // Complete progress bar
             if (selectedMethod === 'auto') {
                 document.getElementById('progressBar').style.width = '100%';
                 document.getElementById('progressTitle').textContent = 'Курс создан успешно!';
-                
-                setTimeout(() => {
-                    window.location.href = data.redirect_url;
-                }, 2000);
-            } else {
-                setTimeout(() => {
-                    window.location.href = data.redirect_url;
-                }, 1500);
             }
+
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 1500);
         } else {
-            showAlert('danger', 'Ошибка: ' + data.error);
-            
-            // Hide progress modal
-            const progressModal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
-            if (progressModal) {
-                progressModal.hide();
-            }
-            
-            // Re-enable form
-            submitBtn.disabled = false;
-            loadingSpinner.style.display = 'none';
+            handleError(data.error);
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'Произошла ошибка при создании курса');
-        
-        // Hide progress modal
-        const progressModal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
-        if (progressModal) {
-            progressModal.hide();
-        }
-        
-        // Re-enable form
-        submitBtn.disabled = false;
-        loadingSpinner.style.display = 'none';
+        if (window.progressInterval) clearInterval(window.progressInterval);
+        handleError('Произошла ошибка при создании курса');
     });
 });
+
+function handleError(message) {
+    const progressModal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
+    if (progressModal) progressModal.hide();
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.classList.remove('loading');
+    submitBtn.disabled = false;
+
+    showAlert('danger', message);
+}
 
 function showAlert(type, message) {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.style.position = 'fixed';
-    alertDiv.style.top = '20px';
-    alertDiv.style.right = '20px';
-    alertDiv.style.zIndex = '9999';
+    alertDiv.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;min-width:300px;border-radius:12px;';
     alertDiv.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
-    
     document.body.appendChild(alertDiv);
-    
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 5000);
+    setTimeout(() => alertDiv.remove(), 5000);
 }
 </script>
 {% endblock %}

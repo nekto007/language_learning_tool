@@ -1,0 +1,744 @@
+{% extends "admin/base.html" %}
+{% block title %}День {{ lesson.day_number }}: {{ lesson.lesson_type }} - Админка{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Lesson Detail Page Styles */
+
+/* Navigation */
+.nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    color: var(--text-secondary, #6b7280);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.breadcrumb-link:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+}
+
+.breadcrumb-sep {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.75rem;
+}
+
+/* Lesson Hero */
+.lesson-hero {
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.lesson-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.lesson-hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.lesson-hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.lesson-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,0.2);
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+}
+
+.lesson-hero h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+}
+
+.lesson-type-tag {
+    display: inline-block;
+    padding: 0.375rem 0.75rem;
+    background: rgba(255,255,255,0.2);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+/* Lesson Navigation */
+.lesson-nav {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.lesson-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    color: white;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.lesson-nav-btn:hover {
+    background: rgba(255,255,255,0.3);
+    color: white;
+}
+
+.lesson-nav-btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Meta Grid */
+.lesson-meta-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.meta-item i {
+    opacity: 0.8;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.stat-card:hover {
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.75rem;
+    border-radius: 10px;
+    font-size: 1rem;
+}
+
+.stat-icon.words { background: #dbeafe; color: #2563eb; }
+.stat-icon.vocab { background: #dcfce7; color: #16a34a; }
+.stat-icon.users { background: #fef3c7; color: #d97706; }
+.stat-icon.chapter { background: #f3e8ff; color: #9333ea; }
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary, #1f2937);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Content Grid */
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 1.5rem;
+}
+
+/* Section Cards */
+.section-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.section-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+}
+
+.section-header h3 i {
+    color: var(--accent-color, #3b82f6);
+    font-size: 0.875rem;
+}
+
+.section-badge {
+    padding: 0.25rem 0.625rem;
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.section-content {
+    padding: 1.25rem;
+}
+
+/* Text Content */
+.text-content {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-primary, #1f2937);
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.text-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.text-content::-webkit-scrollbar-track {
+    background: var(--bg-secondary, #f3f4f6);
+    border-radius: 3px;
+}
+
+.text-content::-webkit-scrollbar-thumb {
+    background: var(--border-color, #d1d5db);
+    border-radius: 3px;
+}
+
+.text-content p {
+    margin-bottom: 1rem;
+}
+
+/* Vocabulary List */
+.vocab-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.vocab-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.vocab-item:hover {
+    background: #eef2ff;
+}
+
+.vocab-word {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+}
+
+.vocab-translation {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.vocab-freq {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 0.5rem;
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.vocab-new {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    background: #dcfce7;
+    color: #16a34a;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 0.5rem;
+}
+
+/* User Progress */
+.progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.progress-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary, #1f2937);
+}
+
+.user-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.completed {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.status-badge.in_progress {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.status-badge.not_started {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.empty-state i {
+    font-size: 2rem;
+    opacity: 0.3;
+    margin-bottom: 0.75rem;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Action Buttons */
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    color: var(--text-primary, #1f2937);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 0.5rem;
+}
+
+.action-btn:hover {
+    border-color: var(--accent-color, #3b82f6);
+    color: var(--accent-color, #3b82f6);
+    background: #f0f7ff;
+}
+
+.action-btn i {
+    width: 18px;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+}
+
+.action-btn:hover i {
+    color: var(--accent-color, #3b82f6);
+}
+
+.action-btn.primary {
+    background: var(--accent-color, #3b82f6);
+    border-color: var(--accent-color, #3b82f6);
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background: #2563eb;
+}
+
+.action-btn.primary i {
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 992px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .lesson-hero {
+        padding: 1.5rem;
+    }
+
+    .lesson-hero h1 {
+        font-size: 1.375rem;
+    }
+
+    .lesson-hero-top {
+        flex-direction: column;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .nav-breadcrumb {
+        gap: 0.25rem;
+    }
+
+    .breadcrumb-link {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Navigation -->
+<div class="nav-breadcrumb">
+    <a href="{{ url_for('admin.book_courses') }}" class="breadcrumb-link">
+        <i class="fas fa-graduation-cap"></i> Курсы
+    </a>
+    <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+    <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="breadcrumb-link">
+        {{ course.title[:30] }}{% if course.title|length > 30 %}...{% endif %}
+    </a>
+    <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+    <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}" class="breadcrumb-link">
+        Модуль {{ module.module_number }}
+    </a>
+    <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+    <span class="breadcrumb-link" style="background: var(--accent-color, #3b82f6); color: white; border-color: var(--accent-color, #3b82f6);">
+        День {{ lesson.day_number }}
+    </span>
+</div>
+
+<!-- Lesson Hero -->
+<div class="lesson-hero">
+    <div class="lesson-hero-content">
+        <div class="lesson-hero-top">
+            <div>
+                <div class="lesson-badge">
+                    <i class="fas fa-calendar-day"></i>
+                    День {{ lesson.day_number }}
+                </div>
+                <h1>{{ lesson.lesson_type.replace('_', ' ').title() }}</h1>
+                <div class="lesson-type-tag">
+                    <i class="fas fa-tag"></i> {{ lesson.lesson_type }}
+                </div>
+            </div>
+            <div class="lesson-nav">
+                {% if prev_lesson %}
+                <a href="{{ url_for('admin.view_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=prev_lesson.id) }}" class="lesson-nav-btn">
+                    <i class="fas fa-arrow-left"></i> День {{ prev_lesson.day_number }}
+                </a>
+                {% else %}
+                <span class="lesson-nav-btn disabled">
+                    <i class="fas fa-arrow-left"></i> Предыдущий
+                </span>
+                {% endif %}
+
+                {% if next_lesson %}
+                <a href="{{ url_for('admin.view_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=next_lesson.id) }}" class="lesson-nav-btn">
+                    День {{ next_lesson.day_number }} <i class="fas fa-arrow-right"></i>
+                </a>
+                {% else %}
+                <span class="lesson-nav-btn disabled">
+                    Следующий <i class="fas fa-arrow-right"></i>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="lesson-meta-grid">
+            <div class="meta-item">
+                <i class="fas fa-book"></i>
+                <span>{{ course.title }}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-layer-group"></i>
+                <span>Модуль {{ module.module_number }}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>{{ lesson.created_at.strftime('%d.%m.%Y') }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon words">
+            <i class="fas fa-file-word"></i>
+        </div>
+        <div class="stat-value">{{ lesson.word_count }}</div>
+        <div class="stat-label">Слов в тексте</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon vocab">
+            <i class="fas fa-spell-check"></i>
+        </div>
+        <div class="stat-value">{{ vocabulary|length }}</div>
+        <div class="stat-label">Слов для изучения</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon users">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-value">{{ user_progress|length }}</div>
+        <div class="stat-label">Студентов</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon chapter">
+            <i class="fas fa-bookmark"></i>
+        </div>
+        <div class="stat-value">{{ lesson.start_position }}-{{ lesson.end_position }}</div>
+        <div class="stat-label">Позиция</div>
+    </div>
+</div>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Main Content -->
+    <div class="main-column">
+        <!-- Text Content -->
+        <div class="section-card">
+            <div class="section-header">
+                <h3><i class="fas fa-align-left"></i> Текст урока</h3>
+                <span class="section-badge">{{ lesson.word_count }} слов</span>
+            </div>
+            <div class="section-content">
+                <div class="text-content">
+                    {{ lesson.slice_text|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Vocabulary -->
+        {% if vocabulary %}
+        <div class="section-card">
+            <div class="section-header">
+                <h3><i class="fas fa-spell-check"></i> Словарь урока</h3>
+                <span class="section-badge">{{ vocabulary|length }} слов</span>
+            </div>
+            <div class="section-content">
+                <div class="vocab-list">
+                    {% for vocab in vocabulary %}
+                    <div class="vocab-item">
+                        <div>
+                            <span class="vocab-word">{{ vocab.word.english_word if vocab.word else 'Unknown' }}</span>
+                            {% if vocab.is_new %}
+                            <span class="vocab-new">Новое</span>
+                            {% endif %}
+                            {% if vocab.word and vocab.word.russian_word %}
+                            <span class="vocab-translation">— {{ vocab.word.russian_word }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="vocab-freq" title="Частота в тексте">{{ vocab.frequency_in_slice }}×</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <!-- User Progress -->
+        <div class="section-card">
+            <div class="section-header">
+                <h3><i class="fas fa-users"></i> Прогресс студентов</h3>
+            </div>
+            <div class="section-content">
+                {% if user_progress %}
+                <div class="progress-list">
+                    {% for progress in user_progress %}
+                    <div class="progress-item">
+                        <div class="user-avatar">
+                            {{ progress.user.username[0].upper() }}
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ progress.user.username }}</div>
+                            <div class="user-meta">
+                                {% if progress.completed_at %}
+                                    {{ progress.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                                {% elif progress.started_at %}
+                                    Начат {{ progress.started_at.strftime('%d.%m.%Y') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="status-badge {{ progress.status }}">
+                            {% if progress.status == 'completed' %}Готово
+                            {% elif progress.status == 'in_progress' %}В процессе
+                            {% else %}Не начат
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-user-clock"></i>
+                    <p>Пока никто не начал этот урок</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section-card">
+            <div class="section-header">
+                <h3><i class="fas fa-cogs"></i> Действия</h3>
+            </div>
+            <div class="section-content">
+                <a href="{{ url_for('book_courses.view_lesson', course_id=course.id, module_id=module.id, lesson_number=lesson.day_number) }}"
+                   class="action-btn primary" target="_blank">
+                    <i class="fas fa-play"></i> Открыть как студент
+                </a>
+                <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}"
+                   class="action-btn">
+                    <i class="fas fa-arrow-left"></i> Назад к модулю
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
