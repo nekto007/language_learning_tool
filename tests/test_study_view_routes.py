@@ -203,10 +203,11 @@ class TestCards:
         assert response.status_code == 200
 
     def test_cards_invalid_deck_id(self, authenticated_client, study_settings):
-        """Test with non-existent deck ID"""
+        """Test with non-existent deck ID - should redirect to index"""
         response = authenticated_client.get('/study/cards/deck/99999')
 
-        assert response.status_code in [200, 404]
+        # Route does flash message and redirect when deck not found
+        assert response.status_code == 302
 
     def test_cards_requires_authentication(self, client):
         """Test that authentication is required"""
