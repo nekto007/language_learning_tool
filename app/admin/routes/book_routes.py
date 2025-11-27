@@ -586,7 +586,7 @@ def add_book():
                 clear_admin_cache()
                 action = "overwritten" if existing_book and overwrite else "added"
                 logger.info(f"Book {action} with chapters by admin {current_user.username}: {new_book.title}")
-                return redirect(url_for('admin.books'))
+                return redirect(url_for('book_admin.books'))
             else:
                 # Для других форматов используем старую логику
                 result = process_uploaded_book(
@@ -650,7 +650,7 @@ def add_book():
             flash(success_message, 'success')
             action = "overwritten" if existing_book and overwrite else "added"
             logger.info(f"Book {action} by admin {current_user.username}: {new_book.title}")
-            return redirect(url_for('admin.books'))
+            return redirect(url_for('book_admin.books'))
         else:
             logger.warning(f"[BOOK_ADD] Form validation failed - Errors: {form.errors}")
 
