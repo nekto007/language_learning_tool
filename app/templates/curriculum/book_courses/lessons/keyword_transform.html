@@ -1,0 +1,317 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}🔄 Трансформации{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Key Word Transformations</h1>
+  <p>Перепишите предложения, используя данное слово</p>
+</div>
+
+<div class="lesson-instructions">
+  <strong>Инструкция:</strong> Завершите второе предложение так, чтобы оно имело тот же смысл,
+  что и первое. Используйте данное ключевое слово. Используйте от 2 до 5 слов, включая ключевое слово.
+</div>
+
+<div class="transform-container" id="transform-container">
+  <!-- Will be populated -->
+</div>
+
+<div class="transform-summary" id="summary" style="display: none;">
+  <div class="summary-score">
+    <span id="correct-count">0</span> / <span id="total-count">6</span> правильно
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
+  Проверить ответы
+</button>
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Transformation data
+const transformData = [
+  {
+    id: 1,
+    original: "I started learning English three years ago.",
+    keyword: "BEEN",
+    target: "I ____________ English for three years.",
+    answers: ["have been learning", "have been studying"],
+    hint: "Present Perfect Continuous"
+  },
+  {
+    id: 2,
+    original: "\"I will call you tomorrow,\" she said.",
+    keyword: "WOULD",
+    target: "She said she ____________ the next day.",
+    answers: ["would call me", "would call him", "would call her"],
+    hint: "Reported Speech"
+  },
+  {
+    id: 3,
+    original: "It's possible that he forgot about the meeting.",
+    keyword: "MAY",
+    target: "He ____________ about the meeting.",
+    answers: ["may have forgotten", "might have forgotten"],
+    hint: "Modal + Perfect Infinitive"
+  },
+  {
+    id: 4,
+    original: "I regret not accepting the job offer.",
+    keyword: "WISH",
+    target: "I ____________ the job offer.",
+    answers: ["wish i had accepted", "wish i'd accepted"],
+    hint: "Wish + Past Perfect"
+  },
+  {
+    id: 5,
+    original: "The last time I saw her was in December.",
+    keyword: "SINCE",
+    target: "I ____________ December.",
+    answers: ["haven't seen her since", "have not seen her since"],
+    hint: "Present Perfect + since"
+  },
+  {
+    id: 6,
+    original: "It wasn't necessary for you to wait.",
+    keyword: "NEED",
+    target: "You ____________ waited.",
+    answers: ["needn't have", "didn't need to have", "need not have"],
+    hint: "Needn't have + past participle"
+  }
+];
+
+let userAnswers = {};
+let isChecked = false;
+
+function init() {
+  renderItems();
+}
+
+function renderItems() {
+  const container = document.getElementById('transform-container');
+  container.innerHTML = transformData.map(item => {
+    const parts = item.target.split('____________');
+    return `
+      <div class="transform-item" id="item-${item.id}">
+        <div class="item-number">${item.id}</div>
+        <div class="item-content">
+          <div class="original-sentence">
+            <span class="sentence-label">Оригинал:</span>
+            ${item.original}
+          </div>
+          <div class="keyword-badge">${item.keyword}</div>
+          <div class="target-sentence">
+            <span class="sentence-label">Перепишите:</span>
+            ${parts[0]}<input type="text"
+                              class="transform-input"
+                              id="input-${item.id}"
+                              data-id="${item.id}"
+                              oninput="onInputChange(${item.id})"
+                              autocomplete="off"
+                              placeholder="2-5 слов">${parts[1]}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function onInputChange(itemId) {
+  const input = document.getElementById(`input-${itemId}`);
+  userAnswers[itemId] = input.value.trim().toLowerCase();
+}
+
+function normalizeAnswer(answer) {
+  return answer.toLowerCase()
+    .replace(/['']/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function checkAnswers() {
+  if (isChecked) return;
+  isChecked = true;
+
+  let correctCount = 0;
+
+  transformData.forEach(item => {
+    const input = document.getElementById(`input-${item.id}`);
+    const userAnswer = normalizeAnswer(userAnswers[item.id] || '');
+    const isCorrect = item.answers.some(ans => normalizeAnswer(ans) === userAnswer);
+
+    input.disabled = true;
+    input.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    if (isCorrect) {
+      correctCount++;
+    } else {
+      // Show correct answer
+      const itemEl = document.getElementById(`item-${item.id}`);
+      const correction = document.createElement('div');
+      correction.className = 'correction';
+      correction.innerHTML = `<span class="correction-label">Возможный ответ:</span> ${item.answers[0]}`;
+      itemEl.querySelector('.item-content').appendChild(correction);
+    }
+  });
+
+  // Show summary
+  document.getElementById('correct-count').textContent = correctCount;
+  document.getElementById('total-count').textContent = transformData.length;
+  document.getElementById('summary').style.display = 'block';
+
+  // Calculate score
+  window.finalScore = Math.round((correctCount / transformData.length) * 100);
+
+  // Show complete button
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+function finishLesson() {
+  completeLesson(window.finalScore || 0);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* Transform Specific Styles */
+.transform-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.transform-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.item-number {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.item-content {
+  flex: 1;
+}
+
+.sentence-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.original-sentence {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.keyword-badge {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  background: var(--accent-color);
+  color: white;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.target-sentence {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.transform-input {
+  width: 200px;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg-primary);
+  margin: 0 0.25rem;
+}
+
+.transform-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.transform-input.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.transform-input.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.correction {
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: #e8f5e9;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.correction-label {
+  color: #2e7d32;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.transform-summary {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.summary-score {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .transform-item {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .item-number {
+    align-self: flex-start;
+  }
+
+  .transform-input {
+    width: 150px;
+  }
+}
+</style>
+{% endblock %}

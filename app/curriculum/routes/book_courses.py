@@ -5,8 +5,12 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
+from app import csrf
 
 from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress)
+from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
+from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -129,6 +133,7 @@ def view_course(course_id):
 
 
 @book_courses_bp.route('/book-courses/<int:course_id>/enroll', methods=['POST'])
+@csrf.exempt
 @login_required
 def enroll_in_course(course_id):
     """Enroll user in a book course"""
@@ -244,9 +249,34 @@ def view_module(course_id, module_id):
             db.session.add(module_progress)
             db.session.commit()
 
-        # Get lessons data
-        lessons_data = module.lessons_data or {}
-        lessons = lessons_data.get('lessons', [])
+        # Get lessons from DailyLesson table (new architecture)
+        daily_lessons = DailyLesson.query.filter_by(
+            book_course_module_id=module.id
+        ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+
+        # Convert to template format
+        lessons = []
+        for dl in daily_lessons:
+            lesson_type_display = {
+                'vocabulary': 'Словарь',
+                'reading_passage': 'Чтение',
+                'reading_mcq': 'Тест по чтению',
+                'match_headings': 'Заголовки',
+                'open_cloze': 'Пропуски',
+                'word_formation': 'Словообразование',
+                'keyword_transform': 'Трансформации',
+                'grammar_sheet': 'Грамматика',
+                'final_test': 'Финальный тест'
+            }.get(dl.lesson_type, dl.lesson_type.replace('_', ' ').title())
+
+            lessons.append({
+                'lesson_number': dl.day_number,
+                'type': dl.lesson_type,
+                'title': f'Day {dl.day_number}: {lesson_type_display}',
+                'id': dl.id,
+                'estimated_time': 15,
+                'description': None
+            })
 
         # Get next and previous modules
         next_module = BookCourseModule.query.filter(
@@ -259,6 +289,10 @@ def view_module(course_id, module_id):
             BookCourseModule.order_index < module.order_index
         ).order_by(BookCourseModule.order_index.desc()).first()
 
+        # Get due cards count for SRS review badge
+        srs_integration = BookSRSIntegration()
+        due_cards_count = srs_integration.get_due_cards_count(current_user.id)
+
         return render_template(
             'curriculum/book_courses/module_detail.html',
             course=course,
@@ -267,7 +301,8 @@ def view_module(course_id, module_id):
             module_progress=module_progress,
             lessons=lessons,
             next_module=next_module,
-            prev_module=prev_module
+            prev_module=prev_module,
+            due_cards_count=due_cards_count
         )
 
     except Exception as e:
@@ -342,6 +377,10 @@ def view_lesson(course_id, module_id, lesson_number):
             return redirect(url_for('book_courses.view_module',
                                     course_id=course_id, module_id=module_id))
 
+        # Get review cards for SRS section in all lessons
+        srs_integration = BookSRSIntegration()
+        review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
+
         # Route to appropriate lesson type handler
         lesson_type = lesson.get('type', 'text')
 
@@ -354,7 +393,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 lesson=lesson,
                 lesson_number=lesson_number,
                 module_progress=module_progress,
-                book=course.book
+                book=course.book,
+                review_cards=review_cards
             )
         elif lesson_type in ['reading_assignment', 'reading_passage']:
             template = 'curriculum/book_courses/lessons/reading_passage.html' if lesson_type == 'reading_passage' else 'curriculum/book_courses/lessons/reading_assignment.html'
@@ -370,7 +410,8 @@ def view_lesson(course_id, module_id, lesson_number):
                     module_progress=module_progress,
                     book=course.book,
                     daily_lesson=daily_lesson,
-                    use_api=True  # Flag to use API loading
+                    use_api=True,  # Flag to use API loading
+                    review_cards=review_cards
                 )
             else:
                 return render_template(
@@ -382,20 +423,18 @@ def view_lesson(course_id, module_id, lesson_number):
                     module_progress=module_progress,
                     book=course.book,
                     daily_lesson=daily_lesson if 'daily_lesson' in locals() else None,
-                    use_api=False
+                    use_api=False,
+                    review_cards=review_cards
                 )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary according to new architecture
             vocabulary_data = []
 
             if daily_lesson:
-                # Use new DailyLesson vocabulary
-                from app.curriculum.daily_lessons import SliceVocabulary
-                from app.words.models import CollectionWords
-
+                # Use new DailyLesson vocabulary with proper eager loading
                 slice_vocab = SliceVocabulary.query.filter_by(
                     daily_lesson_id=daily_lesson.id
-                ).join(CollectionWords).all()
+                ).options(joinedload(SliceVocabulary.word)).all()
 
                 for sv in slice_vocab:
                     word = sv.word
@@ -441,7 +480,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 module_progress=module_progress,
                 vocabulary_data=vocabulary_data,
                 total_words=len(vocabulary_data),
-                daily_lesson=daily_lesson
+                daily_lesson=daily_lesson,
+                review_cards=review_cards
             )
         elif lesson_type == 'grammar':
             return render_template(
@@ -450,7 +490,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 module=module,
                 lesson=lesson,
                 lesson_number=lesson_number,
-                module_progress=module_progress
+                module_progress=module_progress,
+                review_cards=review_cards
             )
         elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform']:
             # Specific lesson types with their own templates
@@ -460,7 +501,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 module=module,
                 lesson=lesson,
                 lesson_number=lesson_number,
-                module_progress=module_progress
+                module_progress=module_progress,
+                review_cards=review_cards
             )
         else:
             # Default text lesson for 'text', 'final_test' and other types
@@ -470,11 +512,170 @@ def view_lesson(course_id, module_id, lesson_number):
                 module=module,
                 lesson=lesson,
                 lesson_number=lesson_number,
-                module_progress=module_progress
+                module_progress=module_progress,
+                review_cards=review_cards
             )
 
     except Exception as e:
         logger.error(f"Error viewing lesson {lesson_number}: {str(e)}")
+        flash('Ошибка при загрузке урока', 'error')
+        return redirect(url_for('book_courses.view_module',
+                                course_id=course_id, module_id=module_id))
+
+
+@book_courses_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lesson/<int:lesson_id>')
+@login_required
+def view_lesson_by_id(course_id, module_id, lesson_id):
+    """Display specific lesson by ID within a module"""
+    try:
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.get_or_404(module_id)
+
+        if module.course_id != course_id:
+            abort(404)
+
+        # Check enrollment and module access
+        enrollment = BookCourseEnrollment.query.filter_by(
+            user_id=current_user.id,
+            course_id=course_id
+        ).first()
+
+        if not enrollment:
+            flash('Доступ запрещен', 'error')
+            return redirect(url_for('book_courses.view_course', course_id=course_id))
+
+        # Get Daily Lesson by ID
+        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+
+        if daily_lesson.book_course_module_id != module_id:
+            abort(404)
+
+        # Convert DailyLesson to lesson format for templates
+        lesson = {
+            'lesson_number': daily_lesson.day_number,
+            'type': daily_lesson.lesson_type,
+            'title': f'Day {daily_lesson.day_number}: {daily_lesson.lesson_type.replace("_", " ").title()}',
+            'slice_text': daily_lesson.slice_text,
+            'word_count': daily_lesson.word_count,
+            'task_id': daily_lesson.task_id,
+            'daily_lesson_id': daily_lesson.id,
+            'available_at': daily_lesson.available_at
+        }
+
+        # Get module progress
+        module_progress = BookModuleProgress.query.filter_by(
+            enrollment_id=enrollment.id,
+            module_id=module_id
+        ).first()
+
+        if not module_progress:
+            flash('Ошибка доступа к модулю', 'error')
+            return redirect(url_for('book_courses.view_module',
+                                    course_id=course_id, module_id=module_id))
+
+        # Get review cards for SRS section in all lessons
+        srs_integration = BookSRSIntegration()
+        review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
+
+        # Route to appropriate lesson type handler
+        lesson_type = lesson.get('type', 'text')
+        lesson_number = daily_lesson.day_number
+
+        # Special handling for SRS/Anki sessions
+        if lesson_type == 'anki_session' or lesson_type == 'srs':
+            return render_template(
+                'curriculum/book_courses/lessons/anki_session.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                book=course.book,
+                review_cards=review_cards
+            )
+        elif lesson_type in ['reading_assignment', 'reading_passage']:
+            template = 'curriculum/book_courses/lessons/reading_passage.html' if lesson_type == 'reading_passage' else 'curriculum/book_courses/lessons/reading_assignment.html'
+
+            return render_template(
+                template,
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                book=course.book,
+                daily_lesson=daily_lesson,
+                use_api=True,
+                review_cards=review_cards
+            )
+        elif lesson_type == 'vocabulary':
+            # Load vocabulary from SliceVocabulary
+            vocabulary_data = []
+
+            slice_vocab = SliceVocabulary.query.filter_by(
+                daily_lesson_id=daily_lesson.id
+            ).options(joinedload(SliceVocabulary.word)).all()
+
+            for sv in slice_vocab:
+                word = sv.word
+                vocab_item = {
+                    'id': word.id,
+                    'lemma': word.english_word,
+                    'translation': word.russian_word,
+                    'example': sv.context_sentence or '',
+                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                    'frequency': sv.frequency_in_slice,
+                    'part_of_speech': getattr(word, 'pos', 'unknown')
+                }
+                vocabulary_data.append(vocab_item)
+
+            vocabulary_data = vocabulary_data[:10]
+
+            return render_template(
+                'curriculum/book_courses/lessons/vocabulary.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                vocabulary_data=vocabulary_data,
+                total_words=len(vocabulary_data),
+                daily_lesson=daily_lesson,
+                review_cards=review_cards
+            )
+        elif lesson_type == 'grammar':
+            return render_template(
+                'curriculum/book_courses/lessons/grammar.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards
+            )
+        elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform']:
+            return render_template(
+                f'curriculum/book_courses/lessons/{lesson_type}.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards
+            )
+        else:
+            return render_template(
+                'curriculum/book_courses/lessons/text.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards
+            )
+
+    except Exception as e:
+        logger.error(f"Error viewing lesson by id {lesson_id}: {str(e)}")
         flash('Ошибка при загрузке урока', 'error')
         return redirect(url_for('book_courses.view_module',
                                 course_id=course_id, module_id=module_id))
@@ -510,7 +711,7 @@ def get_lesson_api(lesson_id):
             # GET /api/v1/lesson/:id → JSON: { words:[{id,lemma,translation,example,audio_url}] }
             slice_vocab = SliceVocabulary.query.filter_by(
                 daily_lesson_id=daily_lesson.id
-            ).join(CollectionWords).limit(10).all()
+            ).options(joinedload(SliceVocabulary.word)).limit(10).all()
 
             words = []
             for sv in slice_vocab:
@@ -529,7 +730,7 @@ def get_lesson_api(lesson_id):
             # { html, tooltip_map:{lemma:{translation,example}} }
             slice_vocab = SliceVocabulary.query.filter_by(
                 daily_lesson_id=daily_lesson.id
-            ).join(CollectionWords).all()
+            ).options(joinedload(SliceVocabulary.word)).all()
 
             tooltip_map = {}
             for sv in slice_vocab:

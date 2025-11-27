@@ -107,22 +107,28 @@ class SliceVocabulary(db.Model):
 class UserLessonProgress(db.Model):
     """Track user progress through daily lessons"""
     __tablename__ = 'user_lesson_progress'
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     daily_lesson_id = Column(Integer, ForeignKey('daily_lessons.id', ondelete='CASCADE'), nullable=False)
     enrollment_id = Column(Integer, ForeignKey('book_course_enrollments.id', ondelete='CASCADE'), nullable=False)
-    
+
     # Progress tracking
     status = Column(String(20), default='not_started')  # not_started, in_progress, completed
     score = Column(Float)  # Percentage score for tasks
     time_spent = Column(Integer, default=0)  # in seconds
-    
+
     # Timestamps
     started_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
     attempts = Column(Integer, default=0)
-    
+
+    # Extended metrics for analytics and adaptive learning
+    errors_count = Column(Integer, default=0)  # Total number of errors in this lesson
+    error_types = Column(JSONB)  # {'vocabulary': 2, 'grammar': 1, 'comprehension': 3}
+    last_attempt_at = Column(DateTime(timezone=True))  # When last attempt was made
+    review_intervals = Column(JSONB)  # [1, 3, 7, 14] - days between review attempts
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
@@ -145,17 +151,67 @@ class UserLessonProgress(db.Model):
             self.started_at = datetime.now(timezone.utc)
             self.attempts += 1
     
-    def complete_lesson(self, score=None):
-        """Mark lesson as completed with optional score"""
+    def complete_lesson(self, score=None, errors=None, error_breakdown=None):
+        """Mark lesson as completed with optional score and error metrics"""
         self.status = 'completed'
         self.completed_at = datetime.now(timezone.utc)
+        self.last_attempt_at = self.completed_at
+
         if score is not None:
             self.score = score
-        
+
+        # Track errors if provided
+        if errors is not None:
+            self.errors_count = (self.errors_count or 0) + errors
+
+        if error_breakdown:
+            # Merge error types with existing data
+            current_errors = self.error_types or {}
+            for error_type, count in error_breakdown.items():
+                current_errors[error_type] = current_errors.get(error_type, 0) + count
+            self.error_types = current_errors
+
         # Calculate time spent
         if self.started_at:
             time_delta = self.completed_at - self.started_at
             self.time_spent = int(time_delta.total_seconds())
+
+        # Update review intervals tracking
+        self._update_review_intervals()
+
+    def _update_review_intervals(self):
+        """Track intervals between review attempts for spaced repetition analysis"""
+        if not self.review_intervals:
+            self.review_intervals = []
+
+        if self.completed_at and self.started_at:
+            # Calculate days since first start
+            first_attempt = self.review_intervals[0] if self.review_intervals else 0
+            if len(self.review_intervals) > 0 and self.attempts > 1:
+                # Calculate interval since last review
+                # For simplicity, track attempt number as interval placeholder
+                self.review_intervals.append(self.attempts)
+
+    def record_error(self, error_type: str, count: int = 1):
+        """Record an error during the lesson"""
+        self.errors_count = (self.errors_count or 0) + count
+        current_errors = self.error_types or {}
+        current_errors[error_type] = current_errors.get(error_type, 0) + count
+        self.error_types = current_errors
+        self.last_attempt_at = datetime.now(timezone.utc)
+
+    def get_weak_areas(self) -> list:
+        """Identify weak areas based on error types"""
+        if not self.error_types:
+            return []
+
+        # Sort by error count descending
+        sorted_errors = sorted(
+            self.error_types.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        return [error_type for error_type, count in sorted_errors if count > 0]
 
 
 class LessonCompletionEvent(db.Model):

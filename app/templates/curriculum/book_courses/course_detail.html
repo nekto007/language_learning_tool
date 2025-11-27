@@ -1,0 +1,973 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="course-detail-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb-nav">
+    <a href="{{ url_for('book_courses.list_book_courses') }}" class="breadcrumb-link">
+      <i class="fas fa-book-reader"></i> Книжные курсы
+    </a>
+    <i class="fas fa-chevron-right breadcrumb-sep"></i>
+    <span class="breadcrumb-current">{{ course.title }}</span>
+  </nav>
+
+  <!-- Course Hero -->
+  <div class="course-hero">
+    <div class="course-hero-bg"></div>
+    <div class="course-hero-content">
+      <div class="course-cover-wrapper">
+        {% if book.cover_image %}
+          <div class="course-cover">
+            <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ course.title }}">
+          </div>
+        {% else %}
+          <div class="course-cover course-cover-placeholder">
+            <i class="fas fa-book-open"></i>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="course-info">
+        <div class="course-badges">
+          <span class="badge level-badge level-{{ course.level|lower }}">{{ course.level }}</span>
+          {% if course.is_featured %}
+            <span class="badge featured-badge"><i class="fas fa-star"></i> Рекомендуем</span>
+          {% endif %}
+        </div>
+
+        <h1 class="course-title">{{ course.title }}</h1>
+        <p class="course-author"><i class="fas fa-user-edit"></i> {{ book.author }}</p>
+
+        <p class="course-description">{{ course.description }}</p>
+
+        <div class="course-stats">
+          <div class="stat-item">
+            <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="stat-content">
+              <span class="stat-value">{{ total_modules }}</span>
+              <span class="stat-label">модулей</span>
+            </div>
+          </div>
+          {% if course.estimated_duration_weeks %}
+          <div class="stat-item">
+            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="stat-content">
+              <span class="stat-value">{{ course.estimated_duration_weeks }}</span>
+              <span class="stat-label">недель</span>
+            </div>
+          </div>
+          {% endif %}
+          {% if course.difficulty_score %}
+          <div class="stat-item">
+            <div class="stat-icon"><i class="fas fa-signal"></i></div>
+            <div class="stat-content">
+              <span class="stat-value">{{ course.difficulty_score|round(1) }}/10</span>
+              <span class="stat-label">сложность</span>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if not is_enrolled %}
+          <button id="enroll-btn" class="btn-enroll" onclick="enrollInCourse({{ course.id }})">
+            <i class="fas fa-plus-circle"></i> Записаться на курс
+          </button>
+        {% else %}
+          <div class="enrolled-section">
+            <div class="enrolled-badge">
+              <i class="fas fa-check-circle"></i> Вы записаны на курс
+            </div>
+            <div class="course-progress-section">
+              <div class="progress-header">
+                <span>Прогресс курса</span>
+                <span class="progress-percent">{{ enrollment.progress_percentage|round(1) }}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ enrollment.progress_percentage }}%"></div>
+              </div>
+            </div>
+            {% if enrollment.current_module %}
+              <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="btn-continue">
+                <i class="fas fa-play"></i> Продолжить обучение
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Content -->
+  <div class="content-section">
+    <div class="section-header">
+      <div class="section-title">
+        <i class="fas fa-list-ul"></i>
+        <h2>Содержание курса</h2>
+      </div>
+      <span class="section-badge">{{ total_modules }} модулей</span>
+    </div>
+
+    <div class="modules-list">
+      {% for module_data in modules %}
+        {% set module = module_data.module %}
+        {% set progress = module_data.progress %}
+        {% set is_unlocked = module_data.is_unlocked %}
+        {% set status = module_data.status %}
+
+        <div class="module-card {{ status }} {{ 'locked' if not is_unlocked else '' }}">
+          <div class="module-number-badge {{ status }}">
+            {% if not is_unlocked %}
+              <i class="fas fa-lock"></i>
+            {% elif status == 'completed' %}
+              <i class="fas fa-check"></i>
+            {% else %}
+              {{ module.module_number }}
+            {% endif %}
+          </div>
+
+          <div class="module-content">
+            <div class="module-header">
+              <h3 class="module-title">{{ module.title }}</h3>
+              <div class="module-meta">
+                {% if module.estimated_reading_time %}
+                  <span class="meta-tag"><i class="fas fa-clock"></i> {{ module.estimated_reading_time }} мин</span>
+                {% endif %}
+                <span class="meta-tag"><i class="fas fa-book-open"></i> {{ module.total_lessons }} уроков</span>
+              </div>
+            </div>
+
+            {% if module.description %}
+            <p class="module-description">{{ module.description }}</p>
+            {% endif %}
+
+            {% if module.learning_objectives %}
+            <div class="module-objectives">
+              {% for objective in module.learning_objectives[:3] %}
+                <span class="objective-tag"><i class="fas fa-check-circle"></i> {{ objective }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if is_unlocked and is_enrolled %}
+              <div class="module-progress">
+                <div class="progress-bar small">
+                  <div class="progress-fill" style="width: {{ module_data.progress_percentage }}%"></div>
+                </div>
+                <span class="progress-text">{{ module_data.progress_percentage|round(0)|int }}%</span>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="module-action">
+            {% if is_unlocked and is_enrolled %}
+              <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-module {{ status }}">
+                {% if status == 'completed' %}
+                  <i class="fas fa-redo"></i> Повторить
+                {% elif status == 'in_progress' %}
+                  <i class="fas fa-play"></i> Продолжить
+                {% else %}
+                  <i class="fas fa-arrow-right"></i> Начать
+                {% endif %}
+              </a>
+            {% elif not is_enrolled %}
+              <span class="locked-message">
+                <i class="fas fa-lock"></i> Запишитесь
+              </span>
+            {% else %}
+              <span class="locked-message">
+                <i class="fas fa-lock"></i> Заблокировано
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Additional Info -->
+  {% if course.author_info or course.literary_themes or course.language_features %}
+  <div class="info-section">
+    {% if course.author_info %}
+    <div class="info-card">
+      <div class="info-card-header">
+        <i class="fas fa-user"></i>
+        <h3>Об авторе</h3>
+      </div>
+      <div class="info-card-content">
+        <p class="author-name">{{ course.author_info.name }}</p>
+        {% if course.author_info.bio %}
+          <p class="author-bio">{{ course.author_info.bio }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if course.literary_themes %}
+    <div class="info-card">
+      <div class="info-card-header">
+        <i class="fas fa-palette"></i>
+        <h3>Темы книги</h3>
+      </div>
+      <div class="info-card-content">
+        <div class="tags-list">
+          {% for theme in course.literary_themes %}
+            <span class="theme-tag">{{ theme }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if course.language_features %}
+    <div class="info-card">
+      <div class="info-card-header">
+        <i class="fas fa-language"></i>
+        <h3>Языковые особенности</h3>
+      </div>
+      <div class="info-card-content">
+        {% if course.language_features.grammar_points %}
+        <div class="feature-group">
+          <span class="feature-label">Грамматика:</span>
+          <div class="tags-list">
+            {% for point in course.language_features.grammar_points %}
+              <span class="feature-tag">{{ point|replace('_', ' ') }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% if course.language_features.vocabulary_themes %}
+        <div class="feature-group">
+          <span class="feature-label">Лексика:</span>
+          <div class="tags-list">
+            {% for theme in course.language_features.vocabulary_themes %}
+              <span class="feature-tag">{{ theme }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<style>
+/* Course Detail Page */
+.course-detail-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+}
+
+/* Breadcrumb */
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.breadcrumb-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--accent-color, #3b82f6);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.breadcrumb-link:hover {
+  color: var(--accent-hover, #2563eb);
+}
+
+.breadcrumb-sep {
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.75rem;
+}
+
+.breadcrumb-current {
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Course Hero */
+.course-hero {
+  position: relative;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 24px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.course-hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.course-hero-content {
+  position: relative;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 2rem;
+  padding: 2rem;
+  padding-top: 60px;
+}
+
+.course-cover-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+.course-cover {
+  width: 180px;
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+}
+
+.course-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.course-cover-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: #9ca3af;
+}
+
+.course-info {
+  padding-top: 60px;
+}
+
+.course-badges {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  padding: 0.375rem 0.875rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.level-badge {
+  background: var(--bg-secondary, #f3f4f6);
+}
+
+.level-a1, .level-a2 { background: #dcfce7; color: #16a34a; }
+.level-b1, .level-b2 { background: #dbeafe; color: #2563eb; }
+.level-c1, .level-c2 { background: #fce7f3; color: #db2777; }
+
+.featured-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: white;
+}
+
+.course-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary, #1f2937);
+  line-height: 1.2;
+}
+
+.course-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary, #6b7280);
+  font-size: 1.125rem;
+  margin: 0 0 1rem 0;
+}
+
+.course-description {
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.7;
+  margin: 0 0 1.5rem 0;
+}
+
+.course-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 12px;
+  color: var(--accent-color, #3b82f6);
+  font-size: 1rem;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Enroll Button */
+.btn-enroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.btn-enroll:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+.btn-enroll:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Enrolled Section */
+.enrolled-section {
+  margin-top: 1rem;
+}
+
+.enrolled-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.course-progress-section {
+  margin-bottom: 1rem;
+  max-width: 300px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.progress-percent {
+  font-weight: 600;
+  color: var(--accent-color, #3b82f6);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar.small {
+  height: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.btn-continue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: var(--accent-color, #3b82f6);
+  color: white;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-continue:hover {
+  background: var(--accent-hover, #2563eb);
+  transform: translateY(-1px);
+}
+
+/* Content Section */
+.content-section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-title i {
+  font-size: 1.25rem;
+  color: var(--accent-color, #3b82f6);
+}
+
+.section-title h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary, #1f2937);
+}
+
+.section-badge {
+  padding: 0.375rem 0.875rem;
+  background: var(--accent-color, #3b82f6);
+  color: white;
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Modules List */
+.modules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.module-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: all 0.2s;
+}
+
+.module-card:hover:not(.locked) {
+  border-color: var(--accent-color, #3b82f6);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.module-card.locked {
+  opacity: 0.6;
+}
+
+.module-card.completed {
+  border-left: 4px solid #16a34a;
+}
+
+.module-card.in_progress {
+  border-left: 4px solid var(--accent-color, #3b82f6);
+}
+
+.module-number-badge {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-secondary, #6b7280);
+  flex-shrink: 0;
+}
+
+.module-number-badge.completed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.module-number-badge.in_progress {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.module-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.module-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary, #1f2937);
+}
+
+.module-meta {
+  display: flex;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.meta-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.module-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+.module-objectives {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.objective-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.625rem;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 50px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.objective-tag i {
+  color: #16a34a;
+  font-size: 0.625rem;
+}
+
+.module-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 200px;
+}
+
+.module-progress .progress-bar {
+  flex: 1;
+}
+
+.progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-color, #3b82f6);
+  white-space: nowrap;
+}
+
+.module-action {
+  flex-shrink: 0;
+}
+
+.btn-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: var(--accent-color, #3b82f6);
+  color: white;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-module:hover {
+  background: var(--accent-hover, #2563eb);
+  transform: translateY(-1px);
+}
+
+.btn-module.completed {
+  background: #16a34a;
+}
+
+.btn-module.completed:hover {
+  background: #15803d;
+}
+
+.locked-message {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1rem;
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-secondary, #6b7280);
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* Info Section */
+.info-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.info-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary, #f9fafb);
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.info-card-header i {
+  color: var(--accent-color, #3b82f6);
+}
+
+.info-card-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary, #1f2937);
+}
+
+.info-card-content {
+  padding: 1.5rem;
+}
+
+.author-name {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary, #1f2937);
+}
+
+.author-bio {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.theme-tag,
+.feature-tag {
+  padding: 0.375rem 0.875rem;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 50px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.feature-group {
+  margin-bottom: 1rem;
+}
+
+.feature-group:last-child {
+  margin-bottom: 0;
+}
+
+.feature-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .course-detail-page {
+    padding: 0 1rem 2rem;
+  }
+
+  .course-hero-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    padding-top: 80px;
+  }
+
+  .course-cover-wrapper {
+    display: flex;
+    justify-content: center;
+  }
+
+  .course-cover {
+    width: 140px;
+    height: 200px;
+  }
+
+  .course-info {
+    padding-top: 0;
+    text-align: center;
+  }
+
+  .course-badges {
+    justify-content: center;
+  }
+
+  .course-author {
+    justify-content: center;
+  }
+
+  .course-stats {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .enrolled-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .course-progress-section {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .module-card {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .module-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .module-action {
+    width: 100%;
+  }
+
+  .btn-module,
+  .locked-message {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .info-section {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script>
+function enrollInCourse(courseId) {
+  const btn = document.getElementById('enroll-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Записываем...';
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+  fetch(`/curriculum/book-courses/${courseId}/enroll`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.text().then(text => {
+        throw new Error(text);
+      });
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.success) {
+      window.location.reload();
+    } else {
+      alert(data.error || 'Ошибка при записи на курс');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-plus-circle"></i> Записаться на курс';
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Ошибка при записи на курс');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-plus-circle"></i> Записаться на курс';
+  });
+}
+</script>
+{% endblock %}

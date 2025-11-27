@@ -1,0 +1,424 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}📖 Чтение{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Reading Assignment</h1>
+  <p>Прочитайте текст и выполните задание</p>
+</div>
+
+<div class="reading-assignment-container">
+  <!-- Reading Section -->
+  <div class="reading-section">
+    <div class="reading-header">
+      <h2 id="reading-title">Chapter Reading</h2>
+      <div class="reading-meta">
+        <span class="word-count" id="word-count">~800 слов</span>
+        <span class="reading-time" id="reading-time">~4 мин</span>
+      </div>
+    </div>
+
+    <div class="reading-content" id="reading-content">
+      <p>The morning sun cast long shadows across the empty streets as Sarah made her way to the old bookshop. She had walked this path countless times before, but today felt different. There was an anticipation in the air, a sense that something was about to change.</p>
+
+      <p>The bookshop had been there for as long as anyone could remember. Its wooden sign, weathered by decades of rain and sun, simply read "Books" in faded gold letters. Inside, dust motes danced in the beams of light that filtered through the grimy windows.</p>
+
+      <p>Mr. Henderson, the elderly proprietor, looked up from behind the counter as the bell above the door announced her arrival. His eyes, magnified by thick spectacles, crinkled with recognition.</p>
+
+      <p>"Ah, Sarah. I was wondering when you'd come by. I have something for you."</p>
+
+      <p>He disappeared into the back room, leaving Sarah to wander among the towering shelves. The books seemed to whisper to her, each spine a door to another world. She ran her fingers along their covers, feeling the texture of leather and cloth, the embossed titles that promised adventure and knowledge.</p>
+
+      <p>When Mr. Henderson returned, he carried a small, leather-bound volume. It was clearly old, the cover worn smooth by countless hands, but there was something about it that drew her attention.</p>
+
+      <p>"This belonged to someone very special," he said, placing it in her hands. "I think it's time it found a new owner."</p>
+
+      <p>Sarah opened the book carefully, and as she read the first page, she understood why he had kept it for her. The words seemed to leap off the page, and she knew that her life would never be quite the same again.</p>
+    </div>
+
+    <div class="reading-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="read-progress" style="width: 0%"></div>
+      </div>
+      <span class="progress-text" id="progress-text">0% прочитано</span>
+    </div>
+  </div>
+
+  <!-- Comprehension Check -->
+  <div class="comprehension-section" id="comprehension-section" style="display: none;">
+    <h3>Проверка понимания</h3>
+    <p class="section-desc">Ответьте на вопросы по тексту</p>
+
+    <div class="questions-list" id="questions-list">
+      <!-- Questions will be populated -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="start-quiz-btn" class="btn btn-secondary btn-lg" onclick="showComprehension()" style="display: none;">
+  Проверить понимание
+</button>
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const comprehensionQuestions = [
+  {
+    id: 1,
+    question: "Where was Sarah going in the morning?",
+    options: [
+      "To a library",
+      "To an old bookshop",
+      "To school",
+      "To a coffee shop"
+    ],
+    correct: 1
+  },
+  {
+    id: 2,
+    question: "How long had the bookshop been there?",
+    options: [
+      "A few years",
+      "Since Sarah was born",
+      "As long as anyone could remember",
+      "Ten years"
+    ],
+    correct: 2
+  },
+  {
+    id: 3,
+    question: "Who is Mr. Henderson?",
+    options: [
+      "Sarah's father",
+      "A customer",
+      "The elderly proprietor of the shop",
+      "A writer"
+    ],
+    correct: 2
+  },
+  {
+    id: 4,
+    question: "What did Mr. Henderson give Sarah?",
+    options: [
+      "A new bestseller",
+      "A small, leather-bound volume",
+      "A magazine",
+      "A map"
+    ],
+    correct: 1
+  }
+];
+
+let userAnswers = {};
+let readingComplete = false;
+
+function init() {
+  trackReading();
+  renderQuestions();
+}
+
+function trackReading() {
+  const content = document.getElementById('reading-content');
+  const progressBar = document.getElementById('read-progress');
+  const progressText = document.getElementById('progress-text');
+  const startQuizBtn = document.getElementById('start-quiz-btn');
+
+  let maxScroll = 0;
+
+  function updateProgress() {
+    const scrollTop = window.scrollY;
+    const contentTop = content.offsetTop;
+    const contentHeight = content.offsetHeight;
+    const windowHeight = window.innerHeight;
+
+    const scrollInContent = Math.max(0, scrollTop - contentTop + windowHeight);
+    const progress = Math.min(100, (scrollInContent / contentHeight) * 100);
+
+    maxScroll = Math.max(maxScroll, progress);
+
+    progressBar.style.width = maxScroll + '%';
+    progressText.textContent = Math.round(maxScroll) + '% прочитано';
+
+    if (maxScroll >= 80 && !readingComplete) {
+      readingComplete = true;
+      startQuizBtn.style.display = 'inline-block';
+    }
+  }
+
+  window.addEventListener('scroll', updateProgress);
+  updateProgress();
+}
+
+function renderQuestions() {
+  const container = document.getElementById('questions-list');
+  container.innerHTML = comprehensionQuestions.map(q => `
+    <div class="question-item" id="question-${q.id}">
+      <div class="question-text">${q.id}. ${q.question}</div>
+      <div class="options-list">
+        ${q.options.map((opt, i) => `
+          <div class="option" data-question="${q.id}" data-option="${i}" onclick="selectAnswer(${q.id}, ${i})">
+            <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+            <span class="option-text">${opt}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function showComprehension() {
+  document.getElementById('comprehension-section').style.display = 'block';
+  document.getElementById('start-quiz-btn').style.display = 'none';
+
+  // Scroll to comprehension section
+  document.getElementById('comprehension-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function selectAnswer(questionId, optionIndex) {
+  userAnswers[questionId] = optionIndex;
+
+  // Update UI
+  const questionEl = document.getElementById(`question-${questionId}`);
+  const options = questionEl.querySelectorAll('.option');
+
+  options.forEach((opt, i) => {
+    opt.classList.remove('selected');
+    if (i === optionIndex) {
+      opt.classList.add('selected');
+    }
+  });
+
+  // Check if all questions answered
+  if (Object.keys(userAnswers).length === comprehensionQuestions.length) {
+    showResults();
+  }
+}
+
+function showResults() {
+  let correctCount = 0;
+
+  comprehensionQuestions.forEach(q => {
+    const questionEl = document.getElementById(`question-${q.id}`);
+    const options = questionEl.querySelectorAll('.option');
+    const userAnswer = userAnswers[q.id];
+
+    options.forEach((opt, i) => {
+      if (i === q.correct) {
+        opt.classList.add('correct');
+      } else if (i === userAnswer && userAnswer !== q.correct) {
+        opt.classList.add('incorrect');
+      }
+    });
+
+    if (userAnswer === q.correct) {
+      correctCount++;
+    }
+  });
+
+  // Calculate score
+  window.finalScore = Math.round((correctCount / comprehensionQuestions.length) * 100);
+
+  // Show complete button
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+function finishLesson() {
+  completeLesson(window.finalScore || 0);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* Reading Assignment Styles */
+.reading-assignment-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.reading-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.reading-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.reading-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.reading-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.reading-content {
+  font-size: 1.0625rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.reading-content p {
+  margin-bottom: 1.25rem;
+  text-indent: 1.5em;
+}
+
+.reading-content p:first-child {
+  text-indent: 0;
+}
+
+.reading-progress {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.3s;
+}
+
+.progress-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Comprehension Section */
+.comprehension-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+}
+
+.comprehension-section h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.section-desc {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.question-item {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.question-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.question-text {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: var(--accent-color);
+}
+
+.option.selected {
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.option.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.option.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.option-text {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .reading-section {
+    padding: 1.5rem;
+  }
+
+  .reading-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .reading-content {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+}
+</style>
+{% endblock %}

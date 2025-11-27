@@ -1,0 +1,297 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}🔤 Словообразование{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Word Formation</h1>
+  <p>Преобразуйте слова в скобках в правильную форму</p>
+</div>
+
+<div class="lesson-instructions">
+  <strong>Инструкция:</strong> Прочитайте предложения и измените форму слова в скобках так,
+  чтобы оно грамматически и лексически подходило к предложению.
+</div>
+
+<div class="word-formation-container" id="wf-container">
+  <!-- Will be populated -->
+</div>
+
+<div class="wf-summary" id="summary" style="display: none;">
+  <div class="summary-score">
+    <span id="correct-count">0</span> / <span id="total-count">8</span> правильно
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
+  Проверить ответы
+</button>
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Word formation data
+const wordFormationData = [
+  {
+    id: 1,
+    sentence: "The ______ of the new shopping center has created many jobs.",
+    baseWord: "DEVELOP",
+    answer: "development",
+    hint: "noun form"
+  },
+  {
+    id: 2,
+    sentence: "She gave a very ______ performance in the school play.",
+    baseWord: "IMPRESS",
+    answer: "impressive",
+    hint: "adjective form"
+  },
+  {
+    id: 3,
+    sentence: "The weather forecast was quite ______ as it didn't rain at all.",
+    baseWord: "ACCURATE",
+    answer: "inaccurate",
+    hint: "negative adjective"
+  },
+  {
+    id: 4,
+    sentence: "His ______ to the project was invaluable.",
+    baseWord: "CONTRIBUTE",
+    answer: "contribution",
+    hint: "noun form"
+  },
+  {
+    id: 5,
+    sentence: "The children behaved ______ during the ceremony.",
+    baseWord: "BEAUTY",
+    answer: "beautifully",
+    hint: "adverb form"
+  },
+  {
+    id: 6,
+    sentence: "There has been a significant ______ in air quality.",
+    baseWord: "IMPROVE",
+    answer: "improvement",
+    hint: "noun form"
+  },
+  {
+    id: 7,
+    sentence: "It's ______ to think that money can buy happiness.",
+    baseWord: "FOOL",
+    answer: "foolish",
+    hint: "adjective form"
+  },
+  {
+    id: 8,
+    sentence: "The ______ of the internet has changed our lives dramatically.",
+    baseWord: "INVENT",
+    answer: "invention",
+    hint: "noun form"
+  }
+];
+
+let userAnswers = {};
+let isChecked = false;
+
+function init() {
+  renderItems();
+}
+
+function renderItems() {
+  const container = document.getElementById('wf-container');
+  container.innerHTML = wordFormationData.map(item => {
+    const parts = item.sentence.split('______');
+    return `
+      <div class="wf-item" id="item-${item.id}">
+        <div class="item-number">${item.id}</div>
+        <div class="item-content">
+          <div class="sentence">
+            ${parts[0]}<input type="text"
+                              class="wf-input"
+                              id="input-${item.id}"
+                              data-id="${item.id}"
+                              oninput="onInputChange(${item.id})"
+                              autocomplete="off">${parts[1]}
+          </div>
+          <div class="base-word">(${item.baseWord})</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function onInputChange(itemId) {
+  const input = document.getElementById(`input-${itemId}`);
+  userAnswers[itemId] = input.value.trim().toLowerCase();
+}
+
+function checkAnswers() {
+  if (isChecked) return;
+  isChecked = true;
+
+  let correctCount = 0;
+
+  wordFormationData.forEach(item => {
+    const input = document.getElementById(`input-${item.id}`);
+    const userAnswer = (userAnswers[item.id] || '').toLowerCase();
+    const correctAnswer = item.answer.toLowerCase();
+    const isCorrect = userAnswer === correctAnswer;
+
+    input.disabled = true;
+    input.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    if (isCorrect) {
+      correctCount++;
+    } else {
+      // Show correct answer
+      const itemEl = document.getElementById(`item-${item.id}`);
+      const correction = document.createElement('div');
+      correction.className = 'correction';
+      correction.innerHTML = `<span class="correction-label">Правильно:</span> ${item.answer}`;
+      itemEl.querySelector('.item-content').appendChild(correction);
+    }
+  });
+
+  // Show summary
+  document.getElementById('correct-count').textContent = correctCount;
+  document.getElementById('total-count').textContent = wordFormationData.length;
+  document.getElementById('summary').style.display = 'block';
+
+  // Calculate score
+  window.finalScore = Math.round((correctCount / wordFormationData.length) * 100);
+
+  // Show complete button
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+function finishLesson() {
+  completeLesson(window.finalScore || 0);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* Word Formation Specific Styles */
+.word-formation-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.wf-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.item-number {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.item-content {
+  flex: 1;
+}
+
+.sentence {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.wf-input {
+  width: 150px;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg-primary);
+  margin: 0 0.25rem;
+}
+
+.wf-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.wf-input.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.wf-input.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.base-word {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--accent-color);
+  color: white;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.correction {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #e8f5e9;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.correction-label {
+  color: #2e7d32;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.wf-summary {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.summary-score {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .wf-item {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .item-number {
+    align-self: flex-start;
+  }
+
+  .wf-input {
+    width: 120px;
+  }
+}
+</style>
+{% endblock %}

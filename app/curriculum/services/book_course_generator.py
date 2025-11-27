@@ -24,6 +24,7 @@ class BookCourseGenerator:
     def __init__(self, book_id: int):
         self.book_id = book_id
         self.book = Book.query.get_or_404(book_id)
+        self.target_level = 'B1'  # Default level, updated in create_course_from_book
 
     def create_course_from_book(
             self,
@@ -37,6 +38,9 @@ class BookCourseGenerator:
 
         try:
             logger.info(f"Starting course creation for book: {self.book.title}")
+
+            # Store target level for vocabulary extraction
+            self.target_level = level or 'B1'
 
             # Step 1: Create the course
             course = self._create_book_course(course_title, course_description, level)
@@ -141,7 +145,7 @@ class BookCourseGenerator:
                 logger.info(f"Using existing vocabulary ({existing_vocab} entries) for book {self.book_id}")
                 return True
 
-            extractor = VocabularyExtractor(self.book_id)
+            extractor = VocabularyExtractor(self.book_id, target_level=self.target_level)
             return extractor.extract_vocabulary_for_all_blocks(max_words_per_block=20)
 
         except Exception as e:

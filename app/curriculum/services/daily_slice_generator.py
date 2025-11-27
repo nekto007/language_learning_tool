@@ -19,10 +19,22 @@ logger = logging.getLogger(__name__)
 class DailySliceGenerator:
     """
     Generates daily lesson slices from book chapters according to technical specification.
-    Each slice is approximately 800 words and represents one day of learning.
+    Each slice is sized according to CEFR level recommendations and represents one day of learning.
     """
 
-    SLICE_SIZE = 800  # Target words per slice
+    # Adaptive slice sizes based on CEFR level recommendations
+    # A1-A2: shorter texts for beginners (100-300 words)
+    # B1-B2: medium texts for intermediate (300-600 words)
+    # C1-C2: longer texts for advanced (700-1000 words)
+    SLICE_SIZE_BY_LEVEL = {
+        'A1': 200,
+        'A2': 300,
+        'B1': 400,
+        'B2': 600,
+        'C1': 800,
+        'C2': 1000
+    }
+    SLICE_SIZE_DEFAULT = 800  # Fallback for unknown levels
     SLICE_TOLERANCE = 50  # Allow +/- 50 words for better sentence boundaries
     # Lesson types rotation according to technical specification (section 3.1)
     LESSON_TYPES_ROTATION = [
@@ -41,15 +53,20 @@ class DailySliceGenerator:
     def generate_slices_for_module(self, module: BookCourseModule, block: Block) -> List[DailyLesson]:
         """
         Generate all daily lesson slices for a book course module.
-        
+
         Args:
             module: BookCourseModule instance
             block: Associated Block with chapters
-            
+
         Returns:
             List of created DailyLesson instances
         """
         logger.info(f"Generating daily slices for module {module.id} (block {block.id})")
+
+        # Determine slice size based on course/module level (CEFR)
+        level = self._determine_level(module)
+        slice_size = self.SLICE_SIZE_BY_LEVEL.get(level, self.SLICE_SIZE_DEFAULT)
+        logger.info(f"Using slice size {slice_size} words for level {level}")
 
         # Get all chapters for this block
         chapters = sorted(block.chapters, key=lambda c: c.chap_num)
@@ -65,7 +82,7 @@ class DailySliceGenerator:
         day_number = 1
 
         for chapter in chapters:
-            chapter_slices = self._slice_chapter(chapter, module, day_number, block_vocabulary)
+            chapter_slices = self._slice_chapter(chapter, module, day_number, block_vocabulary, slice_size)
             all_slices.extend(chapter_slices)
             # Each slice creates 3 lessons (vocabulary + reading + task), so increment by actual slice count
             day_number += len(chapter_slices) // 3
@@ -86,20 +103,47 @@ class DailySliceGenerator:
 
         return all_slices
 
-    def _slice_chapter(self, chapter: Chapter, module: BookCourseModule,
-                       start_day: int, block_vocabulary: Dict[int, Dict]) -> List[DailyLesson]:
+    def _determine_level(self, module: BookCourseModule) -> str:
         """
-        Slice a chapter into ~800 word daily lessons.
-        
+        Determine the CEFR level for a module.
+        Checks module.difficulty_level first, then falls back to course.level.
+
+        Args:
+            module: BookCourseModule instance
+
+        Returns:
+            CEFR level string (A1, A2, B1, B2, C1, C2)
+        """
+        # First check module's own difficulty level
+        if module.difficulty_level:
+            return module.difficulty_level
+
+        # Then check the course's level
+        if module.course and module.course.level:
+            return module.course.level
+
+        # Fallback to B1 as a sensible default
+        return 'B1'
+
+    def _slice_chapter(self, chapter: Chapter, module: BookCourseModule,
+                       start_day: int, block_vocabulary: Dict[int, Dict],
+                       slice_size: int = None) -> List[DailyLesson]:
+        """
+        Slice a chapter into daily lessons based on CEFR-appropriate word count.
+
         Args:
             chapter: Chapter to slice
             module: Parent module
             start_day: Starting day number for this chapter
             block_vocabulary: Dictionary of vocabulary words for the block
-            
+            slice_size: Target words per slice (based on CEFR level)
+
         Returns:
             List of DailyLesson instances
         """
+        # Use provided slice_size or fallback to default
+        target_size = slice_size or self.SLICE_SIZE_DEFAULT
+
         text = chapter.text_raw
         if not text:
             logger.warning(f"Chapter {chapter.id} has no text")
@@ -108,7 +152,7 @@ class DailySliceGenerator:
         # Split text into sentences
         sentences = self._split_into_sentences(text)
 
-        # Group sentences into slices of ~800 words
+        # Group sentences into slices based on target size
         slices = []
         current_slice = []
         current_word_count = 0
@@ -118,7 +162,7 @@ class DailySliceGenerator:
             sentence_words = len(sentence.split())
 
             # Check if adding this sentence would exceed target size
-            if current_word_count > 0 and current_word_count + sentence_words > self.SLICE_SIZE + self.SLICE_TOLERANCE:
+            if current_word_count > 0 and current_word_count + sentence_words > target_size + self.SLICE_TOLERANCE:
                 # Save current slice
                 slice_text = ' '.join(current_slice)
                 slices.append({

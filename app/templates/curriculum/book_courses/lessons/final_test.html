@@ -1,0 +1,624 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}🏆 Финальный тест{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Финальный тест модуля</h1>
+  <p>Проверьте свои знания по всему материалу модуля</p>
+</div>
+
+<div class="test-info" id="test-info">
+  <div class="info-card">
+    <div class="info-icon">📝</div>
+    <div class="info-text">
+      <h3>О тесте</h3>
+      <ul>
+        <li>32-36 вопросов по всем разделам модуля</li>
+        <li>Примерное время: 25-30 минут</li>
+        <li>Минимальный балл для прохождения: 70%</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="test-sections">
+    <h3>Разделы теста</h3>
+    <div class="sections-list">
+      <div class="section-item">
+        <span class="section-icon">📝</span>
+        <span>Vocabulary (10 вопросов)</span>
+      </div>
+      <div class="section-item">
+        <span class="section-icon">📖</span>
+        <span>Grammar (8 вопросов)</span>
+      </div>
+      <div class="section-item">
+        <span class="section-icon">📚</span>
+        <span>Reading Comprehension (8 вопросов)</span>
+      </div>
+      <div class="section-item">
+        <span class="section-icon">✏️</span>
+        <span>Use of English (10 вопросов)</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary btn-lg" onclick="startTest()">
+    Начать тест
+  </button>
+</div>
+
+<!-- Test Container (hidden initially) -->
+<div class="test-container" id="test-container" style="display: none;">
+  <div class="test-header">
+    <div class="test-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="test-progress" style="width: 0%"></div>
+      </div>
+      <span class="progress-text">Вопрос <span id="current-q">1</span> / <span id="total-q">36</span></span>
+    </div>
+    <div class="test-timer" id="timer">25:00</div>
+  </div>
+
+  <div class="section-indicator" id="section-indicator">
+    <span class="section-name">Vocabulary</span>
+  </div>
+
+  <div class="question-card" id="question-card">
+    <div class="question-text" id="question-text"></div>
+    <div class="options-list" id="options-list"></div>
+  </div>
+
+  <div class="test-nav">
+    <button class="btn btn-secondary" id="prev-btn" onclick="prevQuestion()" disabled>←</button>
+    <div class="question-dots" id="question-dots"></div>
+    <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()">→</button>
+  </div>
+</div>
+
+<!-- Results (hidden) -->
+<div class="test-results" id="test-results" style="display: none;">
+  <div class="results-card">
+    <div class="results-icon" id="results-icon">🎉</div>
+    <div class="results-score" id="results-score">0%</div>
+    <div class="results-status" id="results-status">Тест пройден!</div>
+
+    <div class="results-breakdown">
+      <h3>Результаты по разделам</h3>
+      <div class="breakdown-list" id="breakdown-list"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishTest()" style="display: none;">
+  Завершить и сохранить
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Test structure
+const testSections = [
+  {
+    name: 'Vocabulary',
+    icon: '📝',
+    questions: generateVocabQuestions()
+  },
+  {
+    name: 'Grammar',
+    icon: '📖',
+    questions: generateGrammarQuestions()
+  },
+  {
+    name: 'Reading Comprehension',
+    icon: '📚',
+    questions: generateReadingQuestions()
+  },
+  {
+    name: 'Use of English',
+    icon: '✏️',
+    questions: generateUseOfEnglishQuestions()
+  }
+];
+
+let allQuestions = [];
+let currentQuestion = 0;
+let answers = {};
+let timerInterval = null;
+let timeLeft = 25 * 60; // 25 minutes
+
+function generateVocabQuestions() {
+  // In production, these would come from the task payload
+  return Array(10).fill(null).map((_, i) => ({
+    type: 'vocabulary',
+    text: `Vocabulary question ${i + 1}: Choose the correct meaning.`,
+    options: ['Option A', 'Option B', 'Option C', 'Option D'],
+    correct: Math.floor(Math.random() * 4)
+  }));
+}
+
+function generateGrammarQuestions() {
+  return Array(8).fill(null).map((_, i) => ({
+    type: 'grammar',
+    text: `Grammar question ${i + 1}: Choose the correct form.`,
+    options: ['Option A', 'Option B', 'Option C', 'Option D'],
+    correct: Math.floor(Math.random() * 4)
+  }));
+}
+
+function generateReadingQuestions() {
+  return Array(8).fill(null).map((_, i) => ({
+    type: 'reading',
+    text: `Reading question ${i + 1}: Based on the passage...`,
+    options: ['Option A', 'Option B', 'Option C', 'Option D'],
+    correct: Math.floor(Math.random() * 4)
+  }));
+}
+
+function generateUseOfEnglishQuestions() {
+  return Array(10).fill(null).map((_, i) => ({
+    type: 'use_of_english',
+    text: `Use of English question ${i + 1}: Fill in the blank.`,
+    options: ['Option A', 'Option B', 'Option C', 'Option D'],
+    correct: Math.floor(Math.random() * 4)
+  }));
+}
+
+function startTest() {
+  // Flatten all questions
+  allQuestions = testSections.flatMap(s => s.questions);
+
+  document.getElementById('test-info').style.display = 'none';
+  document.getElementById('test-container').style.display = 'block';
+  document.getElementById('total-q').textContent = allQuestions.length;
+
+  // Generate question dots
+  renderQuestionDots();
+
+  // Start timer
+  startTimer();
+
+  // Show first question
+  showQuestion(0);
+}
+
+function renderQuestionDots() {
+  const container = document.getElementById('question-dots');
+  container.innerHTML = allQuestions.map((_, i) => `
+    <div class="dot ${i === 0 ? 'current' : ''}" data-index="${i}" onclick="goToQuestion(${i})"></div>
+  `).join('');
+}
+
+function showQuestion(index) {
+  currentQuestion = index;
+  const q = allQuestions[index];
+
+  // Update progress
+  document.getElementById('current-q').textContent = index + 1;
+  document.getElementById('test-progress').style.width =
+    ((index + 1) / allQuestions.length * 100) + '%';
+
+  // Update section indicator
+  let currentSection = testSections[0];
+  let questionOffset = 0;
+  for (const section of testSections) {
+    if (index < questionOffset + section.questions.length) {
+      currentSection = section;
+      break;
+    }
+    questionOffset += section.questions.length;
+  }
+  document.getElementById('section-indicator').innerHTML =
+    `<span class="section-icon">${currentSection.icon}</span><span class="section-name">${currentSection.name}</span>`;
+
+  // Render question
+  document.getElementById('question-text').textContent = q.text;
+  document.getElementById('options-list').innerHTML = q.options.map((opt, i) => `
+    <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
+      <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+      <span class="option-text">${opt}</span>
+    </div>
+  `).join('');
+
+  // Update dots
+  document.querySelectorAll('.dot').forEach((dot, i) => {
+    dot.classList.remove('current');
+    if (i === index) dot.classList.add('current');
+    if (answers[i] !== undefined) dot.classList.add('answered');
+  });
+
+  // Update nav
+  document.getElementById('prev-btn').disabled = index === 0;
+  document.getElementById('next-btn').textContent = index === allQuestions.length - 1 ? 'Завершить' : '→';
+}
+
+function selectOption(optionIndex) {
+  answers[currentQuestion] = optionIndex;
+
+  // Update UI
+  const options = document.querySelectorAll('.option');
+  options.forEach((opt, i) => {
+    opt.classList.remove('selected');
+    if (i === optionIndex) opt.classList.add('selected');
+  });
+
+  // Update dot
+  document.querySelector(`.dot[data-index="${currentQuestion}"]`).classList.add('answered');
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    showQuestion(currentQuestion - 1);
+  }
+}
+
+function nextQuestion() {
+  if (currentQuestion < allQuestions.length - 1) {
+    showQuestion(currentQuestion + 1);
+  } else {
+    finishTestQuestions();
+  }
+}
+
+function goToQuestion(index) {
+  showQuestion(index);
+}
+
+function startTimer() {
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    document.getElementById('timer').textContent =
+      `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      finishTestQuestions();
+    }
+  }, 1000);
+}
+
+function finishTestQuestions() {
+  clearInterval(timerInterval);
+
+  // Calculate scores
+  let totalCorrect = 0;
+  const sectionResults = {};
+
+  let questionIndex = 0;
+  testSections.forEach(section => {
+    let sectionCorrect = 0;
+    section.questions.forEach(q => {
+      if (answers[questionIndex] === q.correct) {
+        sectionCorrect++;
+        totalCorrect++;
+      }
+      questionIndex++;
+    });
+    sectionResults[section.name] = {
+      correct: sectionCorrect,
+      total: section.questions.length,
+      percent: Math.round((sectionCorrect / section.questions.length) * 100)
+    };
+  });
+
+  const totalScore = Math.round((totalCorrect / allQuestions.length) * 100);
+  window.finalScore = totalScore;
+
+  // Show results
+  document.getElementById('test-container').style.display = 'none';
+  document.getElementById('test-results').style.display = 'block';
+
+  document.getElementById('results-score').textContent = totalScore + '%';
+  document.getElementById('results-icon').textContent = totalScore >= 70 ? '🎉' : '📚';
+  document.getElementById('results-status').textContent =
+    totalScore >= 70 ? 'Тест пройден!' : 'Тест не пройден';
+
+  // Render breakdown
+  document.getElementById('breakdown-list').innerHTML = testSections.map(section => {
+    const result = sectionResults[section.name];
+    return `
+      <div class="breakdown-item">
+        <span class="breakdown-name">${section.icon} ${section.name}</span>
+        <span class="breakdown-score ${result.percent >= 70 ? 'good' : 'low'}">${result.percent}%</span>
+        <span class="breakdown-detail">(${result.correct}/${result.total})</span>
+      </div>
+    `;
+  }).join('');
+
+  // Show complete button
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+function finishTest() {
+  completeLesson(window.finalScore || 0);
+}
+</script>
+
+<style>
+/* Final Test Specific Styles */
+.test-info {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.info-card {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.info-icon {
+  font-size: 2.5rem;
+}
+
+.info-text h3 {
+  margin-bottom: 0.75rem;
+}
+
+.info-text ul {
+  padding-left: 1.25rem;
+  color: var(--text-secondary);
+}
+
+.info-text li {
+  margin-bottom: 0.25rem;
+}
+
+.test-sections {
+  margin-bottom: 2rem;
+}
+
+.test-sections h3 {
+  margin-bottom: 1rem;
+}
+
+.sections-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.section-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+}
+
+/* Test Container */
+.test-container {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.test-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.test-progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.test-progress .progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.test-progress .progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.3s;
+}
+
+.test-timer {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.section-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  color: var(--accent-color);
+}
+
+.question-card {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.question-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: var(--accent-color);
+}
+
+.option.selected {
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Navigation */
+.test-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.question-dots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 400px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dot.current {
+  background: var(--accent-color);
+  transform: scale(1.2);
+}
+
+.dot.answered {
+  background: #4caf50;
+}
+
+/* Results */
+.test-results {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.results-card {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.results-score {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent-color);
+}
+
+.results-status {
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.results-breakdown {
+  text-align: left;
+}
+
+.results-breakdown h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.breakdown-name {
+  flex: 1;
+}
+
+.breakdown-score {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.breakdown-score.good {
+  color: #4caf50;
+}
+
+.breakdown-score.low {
+  color: #f44336;
+}
+
+.breakdown-detail {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sections-list {
+    grid-template-columns: 1fr;
+  }
+
+  .question-dots {
+    max-width: 200px;
+  }
+}
+</style>
+{% endblock %}
