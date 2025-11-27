@@ -1,0 +1,251 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}📄 Текст{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>{{ lesson.title|default('Lesson Content') }}</h1>
+  <p>Изучите материал урока</p>
+</div>
+
+<div class="text-lesson-container">
+  <div class="text-content" id="text-content">
+    {% if lesson and lesson.content %}
+      {{ lesson.content|safe }}
+    {% else %}
+      <div class="placeholder-content">
+        <h2>Understanding the Text</h2>
+        <p>This lesson contains important information about the topic. Read through the content carefully and make sure you understand the key concepts before proceeding.</p>
+
+        <h3>Key Points</h3>
+        <ul>
+          <li>Pay attention to the main ideas presented in the text</li>
+          <li>Look up any unfamiliar vocabulary words</li>
+          <li>Consider how the concepts relate to what you've already learned</li>
+          <li>Take notes on important information</li>
+        </ul>
+
+        <h3>Study Tips</h3>
+        <p>To get the most out of this lesson:</p>
+        <ol>
+          <li>Read through the entire text once to get a general understanding</li>
+          <li>Re-read more carefully, focusing on details</li>
+          <li>Summarize the main points in your own words</li>
+          <li>Review any difficult sections before moving on</li>
+        </ol>
+
+        <blockquote>
+          <p>"The more that you read, the more things you will know. The more that you learn, the more places you'll go."</p>
+          <cite>— Dr. Seuss</cite>
+        </blockquote>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Reading Progress -->
+  <div class="reading-tracker">
+    <div class="tracker-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" id="read-progress" style="width: 0%"></div>
+      </div>
+      <span class="progress-label" id="progress-label">Прокрутите вниз для прочтения</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" disabled>
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+let readingComplete = false;
+let maxProgress = 0;
+
+function init() {
+  trackReading();
+}
+
+function trackReading() {
+  const content = document.getElementById('text-content');
+  const progressBar = document.getElementById('read-progress');
+  const progressLabel = document.getElementById('progress-label');
+  const completeBtn = document.getElementById('complete-btn');
+
+  function updateProgress() {
+    const scrollTop = window.scrollY;
+    const contentTop = content.offsetTop;
+    const contentHeight = content.offsetHeight;
+    const windowHeight = window.innerHeight;
+
+    // Calculate how much of the content has been scrolled through
+    const scrollInContent = Math.max(0, scrollTop - contentTop + windowHeight);
+    const progress = Math.min(100, (scrollInContent / contentHeight) * 100);
+
+    maxProgress = Math.max(maxProgress, progress);
+
+    progressBar.style.width = maxProgress + '%';
+
+    if (maxProgress < 30) {
+      progressLabel.textContent = 'Прокрутите вниз для прочтения';
+    } else if (maxProgress < 70) {
+      progressLabel.textContent = `${Math.round(maxProgress)}% прочитано`;
+    } else if (maxProgress < 95) {
+      progressLabel.textContent = 'Почти готово...';
+    } else {
+      progressLabel.textContent = 'Текст прочитан!';
+      if (!readingComplete) {
+        readingComplete = true;
+        completeBtn.disabled = false;
+      }
+    }
+  }
+
+  window.addEventListener('scroll', updateProgress);
+  updateProgress();
+}
+
+function finishLesson() {
+  // Text lessons get 100% score for completion
+  completeLesson(100);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* Text Lesson Styles */
+.text-lesson-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.text-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  font-size: 1.0625rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.text-content h2 {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.text-content h3 {
+  font-size: 1.25rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.text-content p {
+  margin-bottom: 1.25rem;
+}
+
+.text-content ul,
+.text-content ol {
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.text-content li {
+  margin-bottom: 0.5rem;
+}
+
+.text-content blockquote {
+  margin: 2rem 0;
+  padding: 1.5rem 2rem;
+  background: var(--bg-secondary);
+  border-left: 4px solid var(--accent-color);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.text-content blockquote p {
+  font-size: 1.125rem;
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.text-content blockquote cite {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: normal;
+}
+
+/* Reading Tracker */
+.reading-tracker {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 250px;
+}
+
+.tracker-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.3s;
+}
+
+.progress-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Placeholder Content Styling */
+.placeholder-content {
+  color: var(--text-primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .text-content {
+    padding: 1.5rem;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .reading-tracker {
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    min-width: auto;
+  }
+
+  .text-content blockquote {
+    padding: 1rem 1.5rem;
+  }
+}
+</style>
+{% endblock %}

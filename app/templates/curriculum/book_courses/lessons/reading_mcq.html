@@ -1,0 +1,494 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}❓ Тест на понимание{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Тест на понимание текста</h1>
+  <p>Ответьте на 10 вопросов по прочитанному тексту</p>
+</div>
+
+<div class="quiz-container">
+  <!-- Progress -->
+  <div class="quiz-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" id="quiz-progress" style="width: 10%"></div>
+    </div>
+    <span class="progress-text">Вопрос <span id="current-q">1</span> из 10</span>
+  </div>
+
+  <!-- Question Card -->
+  <div class="question-card" id="question-card">
+    <div class="question-number">Вопрос <span id="q-number">1</span></div>
+    <div class="question-text" id="question-text"></div>
+
+    <div class="options-list" id="options-list">
+      <!-- Options will be rendered here -->
+    </div>
+
+    <div class="question-feedback" id="feedback" style="display: none;">
+      <div class="feedback-icon" id="feedback-icon"></div>
+      <div class="feedback-text" id="feedback-text"></div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="quiz-nav">
+    <button class="nav-btn" id="prev-btn" onclick="prevQuestion()" disabled>← Назад</button>
+    <button class="nav-btn primary" id="next-btn" onclick="nextQuestion()" disabled>Далее →</button>
+  </div>
+</div>
+
+<!-- Results (hidden initially) -->
+<div class="quiz-results" id="results" style="display: none;">
+  <div class="results-card">
+    <div class="results-icon" id="results-icon">🎯</div>
+    <div class="results-score" id="results-score">0%</div>
+    <div class="results-correct" id="results-correct">0 из 10 правильно</div>
+    <div class="results-message" id="results-message"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishQuiz()" style="display: none;">
+  Завершить тест
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Quiz data - in production, this would come from the task payload
+let questions = [];
+let currentQuestion = 0;
+let answers = {};
+let score = 0;
+
+// Try to load from task if available
+{% if lesson.task_id %}
+async function loadQuestions() {
+  // For now, use placeholder questions
+  // In production, fetch from /api/task/{{ lesson.task_id }}
+  questions = generatePlaceholderQuestions();
+  showQuestion(0);
+}
+{% else %}
+function loadQuestions() {
+  questions = generatePlaceholderQuestions();
+  showQuestion(0);
+}
+{% endif %}
+
+function generatePlaceholderQuestions() {
+  // Placeholder questions for testing
+  return [
+    {
+      text: 'What is the main topic of the passage?',
+      options: ['Character development', 'Setting description', 'Plot advancement', 'Theme introduction'],
+      correct: 0,
+      explanation: 'The passage mainly focuses on character development.'
+    },
+    {
+      text: 'According to the text, what happens first?',
+      options: ['The protagonist makes a decision', 'A conflict arises', 'A new character appears', 'The setting changes'],
+      correct: 1,
+      explanation: 'The text describes a conflict arising as the first major event.'
+    },
+    {
+      text: 'What can we infer about the main character?',
+      options: ['They are cautious', 'They are impulsive', 'They are indifferent', 'They are experienced'],
+      correct: 0,
+      explanation: 'Based on the character\'s actions, we can infer they are cautious.'
+    },
+    {
+      text: 'Which word best describes the tone of the passage?',
+      options: ['Hopeful', 'Tense', 'Humorous', 'Melancholic'],
+      correct: 1,
+      explanation: 'The language and descriptions create a tense atmosphere.'
+    },
+    {
+      text: 'What is the purpose of the highlighted vocabulary in context?',
+      options: ['To describe emotions', 'To advance the plot', 'To create imagery', 'To introduce conflict'],
+      correct: 2,
+      explanation: 'The vocabulary words help create vivid imagery in the passage.'
+    },
+    {
+      text: 'Based on the passage, which statement is true?',
+      options: ['The events occur in the past', 'The narrator is omniscient', 'The story is autobiographical', 'The setting is fictional'],
+      correct: 1,
+      explanation: 'The narrative style suggests an omniscient narrator.'
+    },
+    {
+      text: 'What does the author imply about the situation?',
+      options: ['It will resolve quickly', 'It has deeper consequences', 'It is insignificant', 'It is unexpected'],
+      correct: 1,
+      explanation: 'The author\'s word choices imply deeper consequences.'
+    },
+    {
+      text: 'Which literary device is primarily used in this section?',
+      options: ['Metaphor', 'Foreshadowing', 'Irony', 'Personification'],
+      correct: 1,
+      explanation: 'The passage contains elements of foreshadowing about future events.'
+    },
+    {
+      text: 'What is the significance of the mentioned detail?',
+      options: ['It reveals character motivation', 'It establishes the time period', 'It creates suspense', 'It provides comic relief'],
+      correct: 0,
+      explanation: 'This detail helps reveal the character\'s underlying motivation.'
+    },
+    {
+      text: 'How does this passage connect to the overall narrative?',
+      options: ['It introduces the climax', 'It develops the rising action', 'It provides exposition', 'It signals the resolution'],
+      correct: 1,
+      explanation: 'This passage contributes to the rising action of the story.'
+    }
+  ];
+}
+
+function showQuestion(index) {
+  const q = questions[index];
+  currentQuestion = index;
+
+  document.getElementById('q-number').textContent = index + 1;
+  document.getElementById('current-q').textContent = index + 1;
+  document.getElementById('question-text').textContent = q.text;
+
+  // Update progress
+  document.getElementById('quiz-progress').style.width = ((index + 1) / questions.length * 100) + '%';
+
+  // Render options
+  const optionsList = document.getElementById('options-list');
+  optionsList.innerHTML = q.options.map((opt, i) => `
+    <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
+      <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+      <span class="option-text">${opt}</span>
+    </div>
+  `).join('');
+
+  // Update nav
+  document.getElementById('prev-btn').disabled = index === 0;
+  document.getElementById('next-btn').disabled = answers[index] === undefined;
+  document.getElementById('next-btn').textContent = index === questions.length - 1 ? 'Завершить' : 'Далее →';
+
+  // Hide feedback
+  document.getElementById('feedback').style.display = 'none';
+}
+
+function selectOption(optionIndex) {
+  const q = questions[currentQuestion];
+  answers[currentQuestion] = optionIndex;
+
+  // Update UI
+  const options = document.querySelectorAll('.option');
+  options.forEach((opt, i) => {
+    opt.classList.remove('selected', 'correct', 'incorrect');
+    if (i === optionIndex) {
+      opt.classList.add('selected');
+    }
+  });
+
+  // Show feedback
+  const isCorrect = optionIndex === q.correct;
+  const feedback = document.getElementById('feedback');
+  document.getElementById('feedback-icon').textContent = isCorrect ? '✓' : '✗';
+  document.getElementById('feedback-icon').className = 'feedback-icon ' + (isCorrect ? 'correct' : 'incorrect');
+  document.getElementById('feedback-text').textContent = q.explanation || (isCorrect ? 'Правильно!' : 'Неверно');
+  feedback.style.display = 'block';
+
+  // Highlight correct/incorrect
+  options.forEach((opt, i) => {
+    if (i === q.correct) {
+      opt.classList.add('correct');
+    } else if (i === optionIndex && !isCorrect) {
+      opt.classList.add('incorrect');
+    }
+  });
+
+  // Enable next
+  document.getElementById('next-btn').disabled = false;
+}
+
+function prevQuestion() {
+  if (currentQuestion > 0) {
+    showQuestion(currentQuestion - 1);
+  }
+}
+
+function nextQuestion() {
+  if (currentQuestion < questions.length - 1) {
+    showQuestion(currentQuestion + 1);
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  // Calculate score
+  let correct = 0;
+  questions.forEach((q, i) => {
+    if (answers[i] === q.correct) correct++;
+  });
+  score = Math.round((correct / questions.length) * 100);
+
+  // Hide quiz, show results
+  document.querySelector('.quiz-container').style.display = 'none';
+  const results = document.getElementById('results');
+  results.style.display = 'block';
+
+  // Update results display
+  document.getElementById('results-score').textContent = score + '%';
+  document.getElementById('results-correct').textContent = `${correct} из ${questions.length} правильно`;
+
+  const icon = score >= 70 ? '🎉' : score >= 50 ? '👍' : '💪';
+  const message = score >= 70 ? 'Отличный результат!' : score >= 50 ? 'Хорошая работа!' : 'Попробуйте перечитать текст';
+
+  document.getElementById('results-icon').textContent = icon;
+  document.getElementById('results-message').textContent = message;
+
+  // Show complete button
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+function finishQuiz() {
+  completeLesson(score);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', loadQuestions);
+</script>
+
+<style>
+/* Quiz Specific Styles */
+.quiz-container {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.quiz-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.quiz-progress .progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.quiz-progress .progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.3s ease;
+}
+
+.quiz-progress .progress-text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Question Card */
+.question-card {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.question-number {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.question-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+/* Options */
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: var(--accent-color);
+}
+
+.option.selected {
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.option.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.option.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.option.correct .option-letter {
+  background: #4caf50;
+  color: white;
+}
+
+.option.incorrect .option-letter {
+  background: #f44336;
+  color: white;
+}
+
+.option-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+/* Feedback */
+.question-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.feedback-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.feedback-icon.correct {
+  background: #4caf50;
+  color: white;
+}
+
+.feedback-icon.incorrect {
+  background: #f44336;
+  color: white;
+}
+
+.feedback-text {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Navigation */
+.quiz-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nav-btn.primary {
+  background: var(--accent-color);
+  color: white;
+}
+
+.nav-btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+/* Results */
+.quiz-results {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.results-card {
+  background: var(--card-bg);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.results-score {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+}
+
+.results-correct {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.results-message {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+</style>
+{% endblock %}

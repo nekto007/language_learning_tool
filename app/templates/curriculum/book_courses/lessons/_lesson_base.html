@@ -1,0 +1,583 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title or 'Урок' }} - {{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="lesson-container">
+  <!-- Lesson Header -->
+  <div class="lesson-header-bar">
+    <div class="lesson-nav">
+      <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="back-btn">
+        ← К модулю
+      </a>
+    </div>
+    <div class="lesson-info">
+      <span class="lesson-type">{% block lesson_type %}Урок{% endblock %}</span>
+      <span class="lesson-title">{{ lesson.title or ('Урок ' ~ lesson_number) }}</span>
+    </div>
+    <div class="lesson-progress-mini">
+      {% if module_progress %}
+        {{ module_progress.progress_percentage|round(0) }}%
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- SRS Review Section (if there are due cards) -->
+  {% if review_cards and review_cards|length > 0 %}
+  <div class="srs-review-section" id="srs-review-section">
+    <div class="review-header">
+      <div class="review-info">
+        <span class="review-icon">🔄</span>
+        <span class="review-title">Повторение слов</span>
+        <span class="review-count">{{ review_cards|length }} слов</span>
+      </div>
+      <button class="review-toggle-btn" onclick="toggleReviewSection()">
+        <span id="review-toggle-text">Начать</span>
+      </button>
+    </div>
+
+    <div class="review-content" id="review-content" style="display: none;">
+      <div class="review-card-container">
+        <div class="review-card" id="review-card" onclick="flipReviewCard()">
+          <div class="review-card-front">
+            <div class="review-word" id="review-front"></div>
+            <div class="review-hint">Нажмите для перевода</div>
+          </div>
+          <div class="review-card-back">
+            <div class="review-word" id="review-back"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-controls">
+        <div class="review-progress">
+          <span id="review-current">1</span> / <span id="review-total">{{ review_cards|length }}</span>
+        </div>
+        <div class="review-buttons" id="review-buttons" style="display: none;">
+          <button class="review-btn hard" onclick="rateReviewCard(1)">Забыл</button>
+          <button class="review-btn good" onclick="rateReviewCard(3)">Помню</button>
+          <button class="review-btn easy" onclick="rateReviewCard(5)">Легко</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Lesson Content -->
+  <div class="lesson-content">
+    {% block lesson_content %}{% endblock %}
+  </div>
+
+  <!-- Lesson Footer -->
+  <div class="lesson-footer">
+    {% block lesson_footer %}
+    <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" disabled>
+      Завершить урок
+    </button>
+    {% endblock %}
+  </div>
+</div>
+
+<style>
+/* Base Lesson Styles */
+.lesson-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.lesson-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.back-btn {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.back-btn:hover {
+  color: var(--accent-color);
+}
+
+.lesson-info {
+  text-align: center;
+}
+
+.lesson-type {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lesson-title {
+  font-weight: 600;
+}
+
+.lesson-progress-mini {
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.lesson-content {
+  flex: 1;
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.lesson-footer {
+  padding: 1.5rem 2rem;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+/* Common Lesson Elements */
+.lesson-intro {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.lesson-intro h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.lesson-intro p {
+  color: var(--text-secondary);
+}
+
+.lesson-instructions {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 2rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-lg {
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+}
+
+.btn-primary {
+  background: var(--accent-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+/* Results */
+.lesson-results {
+  text-align: center;
+  padding: 2rem;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.results-score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+}
+
+.results-message {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.results-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .lesson-header-bar {
+    padding: 1rem;
+  }
+
+  .lesson-content {
+    padding: 1rem;
+  }
+
+  .lesson-footer {
+    padding: 1rem;
+  }
+}
+
+/* SRS Review Section */
+.srs-review-section {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.5rem;
+  margin: 0 2rem 1rem;
+  border: 1px solid #ffcc80;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-icon {
+  font-size: 1.25rem;
+}
+
+.review-title {
+  font-weight: 600;
+  color: #e65100;
+}
+
+.review-count {
+  background: #ff9800;
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.review-toggle-btn {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.review-toggle-btn:hover {
+  background: #f57c00;
+}
+
+.review-content {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(230, 81, 0, 0.2);
+}
+
+.review-card-container {
+  perspective: 1000px;
+  margin-bottom: 1rem;
+}
+
+.review-card {
+  width: 100%;
+  height: 150px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+  cursor: pointer;
+}
+
+.review-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.review-card-front,
+.review-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.review-card-back {
+  transform: rotateY(180deg);
+  background: #fff8e1;
+}
+
+.review-word {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.review-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.review-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-progress {
+  font-size: 0.875rem;
+  color: #e65100;
+  font-weight: 500;
+}
+
+.review-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.review-btn {
+  padding: 0.4rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.review-btn.hard {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.review-btn.hard:hover {
+  background: #ffcdd2;
+}
+
+.review-btn.good {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.review-btn.good:hover {
+  background: #c8e6c9;
+}
+
+.review-btn.easy {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.review-btn.easy:hover {
+  background: #bbdefb;
+}
+
+.review-complete {
+  text-align: center;
+  padding: 1rem;
+  color: #2e7d32;
+  font-weight: 500;
+}
+</style>
+
+<script>
+const courseId = {{ course.id }};
+const moduleId = {{ module.id }};
+const lessonNumber = {{ lesson_number }};
+const dailyLessonId = {{ lesson.daily_lesson_id or 'null' }};
+
+function enableCompleteButton() {
+  document.getElementById('complete-btn').disabled = false;
+}
+
+function completeLesson(score = 100) {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняем...';
+
+  // Use new API if daily_lesson_id exists
+  const endpoint = dailyLessonId
+    ? `/curriculum/api/v1/lesson/${dailyLessonId}/complete`
+    : `/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`;
+
+  const body = dailyLessonId
+    ? {}
+    : { lesson_number: lessonNumber, score: score };
+
+  fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body)
+  })
+  .then(response => {
+    if (response.status === 201 || response.ok) {
+      return response.json ? response.json() : {};
+    }
+    throw new Error('Failed to complete lesson');
+  })
+  .then(data => {
+    // Show success and redirect
+    showResults(score);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Ошибка при сохранении прогресса');
+    btn.disabled = false;
+    btn.textContent = 'Завершить урок';
+  });
+}
+
+function showResults(score) {
+  const content = document.querySelector('.lesson-content');
+  const footer = document.querySelector('.lesson-footer');
+
+  const emoji = score >= 90 ? '🎉' : score >= 70 ? '👍' : '💪';
+  const message = score >= 90 ? 'Отличный результат!'
+    : score >= 70 ? 'Хорошая работа!'
+    : 'Продолжайте практиковаться!';
+
+  content.innerHTML = `
+    <div class="lesson-results">
+      <div class="results-icon">${emoji}</div>
+      <div class="results-score">${score}%</div>
+      <div class="results-message">${message}</div>
+      <div class="results-actions">
+        <a href="${document.referrer || '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}'}" class="btn btn-primary">
+          Продолжить
+        </a>
+      </div>
+    </div>
+  `;
+
+  footer.style.display = 'none';
+}
+
+// SRS Review Section Functions
+{% if review_cards and review_cards|length > 0 %}
+const reviewCards = {{ review_cards | tojson | safe }};
+let reviewIndex = 0;
+let reviewFlipped = false;
+
+function toggleReviewSection() {
+  const content = document.getElementById('review-content');
+  const toggleText = document.getElementById('review-toggle-text');
+
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    toggleText.textContent = 'Скрыть';
+    showReviewCard(0);
+  } else {
+    content.style.display = 'none';
+    toggleText.textContent = 'Начать';
+  }
+}
+
+function showReviewCard(index) {
+  if (index >= reviewCards.length) {
+    // All cards reviewed
+    document.getElementById('review-content').innerHTML = `
+      <div class="review-complete">
+        ✅ Отлично! Все слова повторены.
+      </div>
+    `;
+    return;
+  }
+
+  const card = reviewCards[index];
+  reviewIndex = index;
+  reviewFlipped = false;
+
+  document.getElementById('review-front').textContent = card.front;
+  document.getElementById('review-back').textContent = card.back;
+  document.getElementById('review-card').classList.remove('flipped');
+  document.getElementById('review-buttons').style.display = 'none';
+  document.getElementById('review-current').textContent = index + 1;
+}
+
+function flipReviewCard() {
+  reviewFlipped = !reviewFlipped;
+  document.getElementById('review-card').classList.toggle('flipped');
+
+  if (reviewFlipped) {
+    document.getElementById('review-buttons').style.display = 'flex';
+  } else {
+    document.getElementById('review-buttons').style.display = 'none';
+  }
+}
+
+function rateReviewCard(grade) {
+  const card = reviewCards[reviewIndex];
+
+  // Send grade to server
+  fetch('/curriculum/api/v1/srs/grade', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      card_id: card.card_id,
+      grade: grade,
+      session_key: 'lesson_review'
+    })
+  }).catch(e => console.log('Grade API not available'));
+
+  // Move to next card
+  setTimeout(() => showReviewCard(reviewIndex + 1), 200);
+}
+{% endif %}
+</script>
+
+{% block lesson_scripts %}{% endblock %}
+{% endblock %}

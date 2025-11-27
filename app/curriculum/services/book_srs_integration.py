@@ -336,3 +336,109 @@ class BookSRSIntegration:
         except Exception as e:
             logger.error(f"Error getting due cards count: {str(e)}")
             return 0
+
+    def get_due_cards_for_review(self, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Получает карточки для повторения в уроке.
+        Возвращает до `limit` карточек, отсортированных по приоритету.
+        """
+        try:
+            now = datetime.now(timezone.utc)
+
+            # Get due cards with word data
+            due_cards = (UserCardDirection.query
+                         .join(UserWord)
+                         .join(CollectionWords, UserWord.word_id == CollectionWords.id)
+                         .filter(UserWord.user_id == user_id)
+                         .filter(
+                db.or_(
+                    UserCardDirection.repetitions == 0,  # New cards
+                    UserCardDirection.next_review <= now  # Overdue
+                )
+            )
+                         .order_by(
+                # Priority: overdue cards first, then by interval
+                UserCardDirection.next_review.asc().nullsfirst()
+            )
+                         .limit(limit)
+                         .all())
+
+            # Format cards for review
+            review_cards = []
+            for card in due_cards:
+                word = card.user_word.word
+
+                if card.direction == 'eng-rus':
+                    front = word.english_word
+                    back = word.russian_word
+                else:
+                    front = word.russian_word
+                    back = word.english_word
+
+                # Determine card urgency
+                if card.next_review and card.next_review < now:
+                    days_overdue = (now - card.next_review).days
+                    urgency = 'overdue' if days_overdue > 0 else 'due'
+                else:
+                    urgency = 'new'
+
+                review_cards.append({
+                    'card_id': card.id,
+                    'front': front,
+                    'back': back,
+                    'direction': card.direction,
+                    'word_id': word.id,
+                    'urgency': urgency,
+                    'repetitions': card.repetitions,
+                    'ease_factor': card.ease_factor,
+                    'audio_url': self._get_audio_url(word, card.direction)
+                })
+
+            return review_cards
+
+        except Exception as e:
+            logger.error(f"Error getting due cards for review: {str(e)}")
+            return []
+
+    def get_review_summary(self, user_id: int) -> Dict[str, Any]:
+        """
+        Получает сводку карточек для повторения.
+        """
+        try:
+            now = datetime.now(timezone.utc)
+
+            # Count by category
+            new_count = (UserCardDirection.query
+                         .join(UserWord)
+                         .filter(UserWord.user_id == user_id)
+                         .filter(UserCardDirection.repetitions == 0)
+                         .count())
+
+            due_count = (UserCardDirection.query
+                         .join(UserWord)
+                         .filter(UserWord.user_id == user_id)
+                         .filter(UserCardDirection.repetitions > 0)
+                         .filter(UserCardDirection.next_review <= now)
+                         .count())
+
+            total_learned = (UserCardDirection.query
+                             .join(UserWord)
+                             .filter(UserWord.user_id == user_id)
+                             .filter(UserCardDirection.repetitions > 0)
+                             .count())
+
+            return {
+                'new_cards': new_count,
+                'due_cards': due_count,
+                'total_due': new_count + due_count,
+                'total_learned': total_learned
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting review summary: {str(e)}")
+            return {
+                'new_cards': 0,
+                'due_cards': 0,
+                'total_due': 0,
+                'total_learned': 0
+            }

@@ -1,0 +1,241 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}✏️ Заполнение пропусков{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Open Cloze Test</h1>
+  <p>Заполните пропуски в тексте подходящими словами</p>
+</div>
+
+<div class="lesson-instructions">
+  <strong>Инструкция:</strong> Прочитайте текст и заполните каждый пропуск одним словом.
+  Используйте контекст предложения для определения правильного ответа.
+</div>
+
+<div class="cloze-container" id="cloze-container">
+  <!-- Will be populated by JavaScript -->
+</div>
+
+<div class="cloze-summary" id="summary" style="display: none;">
+  <div class="summary-score">
+    <span id="correct-count">0</span> / <span id="total-count">8</span> правильно
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
+  Проверить ответы
+</button>
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Sample cloze data - in production, load from task payload
+const clozeData = {
+  text: `The importance of reading cannot (1) ______ overstated. When we read, we not only gain knowledge (2) ______ also improve our vocabulary and critical thinking skills. Many successful people attribute their achievements (3) ______ the habit of reading regularly.
+
+Reading fiction, (4) ______ particular, helps us develop empathy by allowing us to see the world through different perspectives. It has (5) ______ shown that regular readers are more likely to understand and relate to others' emotions.
+
+Furthermore, reading is one of the (6) ______ effective ways to reduce stress. Studies have found that just six minutes of reading can reduce stress levels (7) ______ up to 68 percent. This makes it even more beneficial (8) ______ watching television or listening to music.`,
+  gaps: [
+    { id: 1, answer: 'be', hint: 'auxiliary verb' },
+    { id: 2, answer: 'but', hint: 'conjunction' },
+    { id: 3, answer: 'to', hint: 'preposition' },
+    { id: 4, answer: 'in', hint: 'preposition (phrase)' },
+    { id: 5, answer: 'been', hint: 'past participle' },
+    { id: 6, answer: 'most', hint: 'superlative' },
+    { id: 7, answer: 'by', hint: 'preposition' },
+    { id: 8, answer: 'than', hint: 'comparison word' }
+  ]
+};
+
+let userAnswers = {};
+let isChecked = false;
+
+function init() {
+  renderClozeText();
+}
+
+function renderClozeText() {
+  const container = document.getElementById('cloze-container');
+  let html = clozeData.text;
+
+  // Replace gaps with input fields
+  clozeData.gaps.forEach(gap => {
+    const placeholder = `(${gap.id}) ______`;
+    const input = `<span class="gap-wrapper">
+      <span class="gap-number">(${gap.id})</span>
+      <input type="text"
+             class="gap-input"
+             id="gap-${gap.id}"
+             data-id="${gap.id}"
+             placeholder="..."
+             oninput="onInputChange(${gap.id})"
+             autocomplete="off">
+    </span>`;
+    html = html.replace(placeholder, input);
+  });
+
+  container.innerHTML = `<div class="cloze-text">${html}</div>`;
+}
+
+function onInputChange(gapId) {
+  const input = document.getElementById(`gap-${gapId}`);
+  userAnswers[gapId] = input.value.trim().toLowerCase();
+}
+
+function checkAnswers() {
+  if (isChecked) return;
+  isChecked = true;
+
+  let correctCount = 0;
+
+  clozeData.gaps.forEach(gap => {
+    const input = document.getElementById(`gap-${gap.id}`);
+    const userAnswer = (userAnswers[gap.id] || '').toLowerCase();
+    const isCorrect = userAnswer === gap.answer.toLowerCase();
+
+    input.disabled = true;
+    input.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    if (isCorrect) {
+      correctCount++;
+    } else {
+      // Show correct answer
+      const wrapper = input.parentElement;
+      const correction = document.createElement('span');
+      correction.className = 'correction';
+      correction.textContent = gap.answer;
+      wrapper.appendChild(correction);
+    }
+  });
+
+  // Show summary
+  document.getElementById('correct-count').textContent = correctCount;
+  document.getElementById('total-count').textContent = clozeData.gaps.length;
+  document.getElementById('summary').style.display = 'block';
+
+  // Hide check button, show complete button
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('complete-btn').style.display = 'inline-block';
+
+  // Calculate score
+  const score = Math.round((correctCount / clozeData.gaps.length) * 100);
+  window.finalScore = score;
+}
+
+function completeLesson() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняем...';
+
+  // Use the parent's completeLesson but pass the score
+  const score = window.finalScore || 0;
+
+  fetch(`/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lesson_number: lessonNumber, score: score })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showResults(score);
+    } else {
+      throw new Error(data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Ошибка при сохранении');
+    btn.disabled = false;
+    btn.textContent = 'Завершить урок';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* Cloze Specific Styles */
+.cloze-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.cloze-text {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  font-size: 1.125rem;
+  line-height: 2;
+  white-space: pre-wrap;
+}
+
+.gap-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.gap-number {
+  font-size: 0.75rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.gap-input {
+  width: 100px;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg-primary);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.gap-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.gap-input.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.gap-input.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.correction {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.cloze-summary {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.summary-score {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+</style>
+{% endblock %}

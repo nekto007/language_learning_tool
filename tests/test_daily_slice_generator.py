@@ -56,11 +56,56 @@ class TestInit:
 
     def test_initialization(self, generator):
         """Test generator initialization"""
-        assert generator.SLICE_SIZE == 800
+        # Test CEFR-based slice sizes
+        assert generator.SLICE_SIZE_BY_LEVEL == {
+            'A1': 200, 'A2': 300, 'B1': 400,
+            'B2': 600, 'C1': 800, 'C2': 1000
+        }
+        assert generator.SLICE_SIZE_DEFAULT == 800
         assert generator.SLICE_TOLERANCE == 50
         assert len(generator.LESSON_TYPES_ROTATION) == 6
         assert generator.VOCABULARY_WORDS_PER_SLICE == 10
         assert generator.timezone.zone == 'Europe/Amsterdam'
+
+
+class TestDetermineLevel:
+    """Test _determine_level method - CEFR level determination"""
+
+    def test_uses_module_difficulty_level(self, generator, mock_module):
+        """Test that module.difficulty_level is preferred"""
+        mock_module.difficulty_level = 'C1'
+        mock_module.course = Mock(level='B1')
+
+        result = generator._determine_level(mock_module)
+
+        assert result == 'C1'
+
+    def test_falls_back_to_course_level(self, generator, mock_module):
+        """Test fallback to course level when module has no difficulty_level"""
+        mock_module.difficulty_level = None
+        mock_module.course = Mock(level='B2')
+
+        result = generator._determine_level(mock_module)
+
+        assert result == 'B2'
+
+    def test_defaults_to_b1(self, generator, mock_module):
+        """Test default B1 when no level specified"""
+        mock_module.difficulty_level = None
+        mock_module.course = None
+
+        result = generator._determine_level(mock_module)
+
+        assert result == 'B1'
+
+    def test_defaults_to_b1_when_course_has_no_level(self, generator, mock_module):
+        """Test default B1 when course exists but has no level"""
+        mock_module.difficulty_level = None
+        mock_module.course = Mock(level=None)
+
+        result = generator._determine_level(mock_module)
+
+        assert result == 'B1'
 
 
 class TestGenerateSlicesForModule:

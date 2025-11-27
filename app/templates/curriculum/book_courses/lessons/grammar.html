@@ -1,0 +1,565 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}📚 Грамматика{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Grammar Focus</h1>
+  <p>Изучите грамматическую тему и выполните упражнения</p>
+</div>
+
+<div class="grammar-container">
+  <!-- Theory Section -->
+  <div class="grammar-theory" id="theory-section">
+    <div class="theory-header">
+      <h2 id="grammar-topic">Present Perfect Tense</h2>
+    </div>
+
+    <div class="theory-content" id="theory-content">
+      <div class="theory-explanation">
+        <h3>Когда используется</h3>
+        <ul>
+          <li>Для описания опыта без указания конкретного времени</li>
+          <li>Для действий, начавшихся в прошлом и продолжающихся до сих пор</li>
+          <li>Для недавних действий с результатом в настоящем</li>
+        </ul>
+      </div>
+
+      <div class="theory-formation">
+        <h3>Образование</h3>
+        <div class="formula">have/has + past participle (V3)</div>
+
+        <div class="examples">
+          <div class="example positive">
+            <span class="label">+</span>
+            <span>I have visited Paris twice.</span>
+          </div>
+          <div class="example negative">
+            <span class="label">-</span>
+            <span>She hasn't finished her work yet.</span>
+          </div>
+          <div class="example question">
+            <span class="label">?</span>
+            <span>Have you ever been to Japan?</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="theory-markers">
+        <h3>Слова-маркеры</h3>
+        <div class="markers-list">
+          <span class="marker">ever</span>
+          <span class="marker">never</span>
+          <span class="marker">already</span>
+          <span class="marker">yet</span>
+          <span class="marker">just</span>
+          <span class="marker">since</span>
+          <span class="marker">for</span>
+          <span class="marker">recently</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-secondary" onclick="showPractice()">
+      Перейти к упражнениям →
+    </button>
+  </div>
+
+  <!-- Practice Section (hidden initially) -->
+  <div class="grammar-practice" id="practice-section" style="display: none;">
+    <div class="practice-header">
+      <h2>Практика</h2>
+      <div class="practice-progress">
+        <span id="current-q">1</span> / <span id="total-q">5</span>
+      </div>
+    </div>
+
+    <div class="question-card" id="question-card">
+      <div class="question-text" id="question-text"></div>
+      <div class="options-list" id="options-list"></div>
+      <div class="feedback" id="feedback" style="display: none;"></div>
+    </div>
+
+    <div class="practice-nav">
+      <button class="btn btn-secondary" id="back-to-theory" onclick="showTheory()">
+        ← Вернуться к теории
+      </button>
+      <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()" disabled>
+        Далее →
+      </button>
+    </div>
+  </div>
+
+  <!-- Results (hidden) -->
+  <div class="grammar-results" id="results-section" style="display: none;">
+    <div class="results-card">
+      <div class="results-icon" id="results-icon">🎉</div>
+      <div class="results-score" id="results-score">0%</div>
+      <div class="results-message" id="results-message"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Practice questions
+const practiceQuestions = [
+  {
+    text: 'Which sentence is grammatically correct?',
+    options: [
+      'I have seen him yesterday.',
+      'I have seen him before.',
+      'I have seen him last week.',
+      'I seen him already.'
+    ],
+    correct: 1,
+    explanation: 'Present Perfect is used for experiences without specific time.'
+  },
+  {
+    text: 'Complete: She _____ here for five years.',
+    options: ['lives', 'has lived', 'lived', 'is living'],
+    correct: 1,
+    explanation: 'Use Present Perfect with "for" + period of time.'
+  },
+  {
+    text: 'Choose the correct form: They _____ just _____ their homework.',
+    options: ['have / finished', 'has / finished', 'have / finish', 'had / finished'],
+    correct: 0,
+    explanation: '"Just" is commonly used with Present Perfect.'
+  },
+  {
+    text: 'Which question is correct?',
+    options: [
+      'Did you ever visited Rome?',
+      'Have you ever visited Rome?',
+      'Do you ever visited Rome?',
+      'Are you ever visited Rome?'
+    ],
+    correct: 1,
+    explanation: 'Use "Have you ever..." for asking about life experiences.'
+  },
+  {
+    text: 'Fill in: I _____ this movie three times already.',
+    options: ['watched', 'have watched', 'am watching', 'watch'],
+    correct: 1,
+    explanation: '"Already" and "three times" indicate repeated experience up to now.'
+  }
+];
+
+let currentQuestion = 0;
+let answers = {};
+let score = 0;
+
+function showTheory() {
+  document.getElementById('theory-section').style.display = 'block';
+  document.getElementById('practice-section').style.display = 'none';
+  document.getElementById('results-section').style.display = 'none';
+}
+
+function showPractice() {
+  document.getElementById('theory-section').style.display = 'none';
+  document.getElementById('practice-section').style.display = 'block';
+  document.getElementById('results-section').style.display = 'none';
+  showQuestion(0);
+}
+
+function showQuestion(index) {
+  const q = practiceQuestions[index];
+  currentQuestion = index;
+
+  document.getElementById('current-q').textContent = index + 1;
+  document.getElementById('total-q').textContent = practiceQuestions.length;
+  document.getElementById('question-text').textContent = q.text;
+
+  // Render options
+  const optionsList = document.getElementById('options-list');
+  optionsList.innerHTML = q.options.map((opt, i) => `
+    <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
+      <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+      <span class="option-text">${opt}</span>
+    </div>
+  `).join('');
+
+  // Update nav
+  document.getElementById('next-btn').disabled = answers[index] === undefined;
+  document.getElementById('next-btn').textContent =
+    index === practiceQuestions.length - 1 ? 'Завершить' : 'Далее →';
+
+  // Hide feedback
+  document.getElementById('feedback').style.display = 'none';
+}
+
+function selectOption(optionIndex) {
+  const q = practiceQuestions[currentQuestion];
+  answers[currentQuestion] = optionIndex;
+
+  // Update UI
+  const options = document.querySelectorAll('.option');
+  options.forEach((opt, i) => {
+    opt.classList.remove('selected', 'correct', 'incorrect');
+    if (i === optionIndex) {
+      opt.classList.add('selected');
+    }
+  });
+
+  // Show feedback
+  const isCorrect = optionIndex === q.correct;
+  const feedback = document.getElementById('feedback');
+  feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  feedback.innerHTML = `
+    <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
+    <div class="feedback-text">${q.explanation}</div>
+  `;
+  feedback.style.display = 'flex';
+
+  // Highlight correct/incorrect
+  options.forEach((opt, i) => {
+    if (i === q.correct) {
+      opt.classList.add('correct');
+    } else if (i === optionIndex && !isCorrect) {
+      opt.classList.add('incorrect');
+    }
+  });
+
+  // Enable next
+  document.getElementById('next-btn').disabled = false;
+}
+
+function nextQuestion() {
+  if (currentQuestion < practiceQuestions.length - 1) {
+    showQuestion(currentQuestion + 1);
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  // Calculate score
+  let correct = 0;
+  practiceQuestions.forEach((q, i) => {
+    if (answers[i] === q.correct) correct++;
+  });
+  score = Math.round((correct / practiceQuestions.length) * 100);
+
+  // Show results
+  document.getElementById('practice-section').style.display = 'none';
+  document.getElementById('results-section').style.display = 'block';
+
+  document.getElementById('results-score').textContent = score + '%';
+
+  const icon = score >= 80 ? '🎉' : score >= 60 ? '👍' : '📚';
+  const message = score >= 80 ? 'Отлично! Вы хорошо освоили тему!'
+    : score >= 60 ? 'Хорошо! Но можно ещё попрактиковаться.'
+    : 'Рекомендуем повторить теорию.';
+
+  document.getElementById('results-icon').textContent = icon;
+  document.getElementById('results-message').textContent = message;
+
+  // Show complete button
+  document.getElementById('complete-btn').style.display = 'inline-block';
+  window.finalScore = score;
+}
+
+function completeLesson() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняем...';
+
+  fetch(`/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lesson_number: lessonNumber, score: window.finalScore || score })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      window.location.href = `{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}`;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.textContent = 'Завершить урок';
+  });
+}
+</script>
+
+<style>
+/* Grammar Specific Styles */
+.grammar-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Theory Section */
+.grammar-theory {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+}
+
+.theory-header h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: var(--accent-color);
+}
+
+.theory-content {
+  margin-bottom: 2rem;
+}
+
+.theory-content h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.theory-content h3:first-child {
+  margin-top: 0;
+}
+
+.theory-explanation ul {
+  padding-left: 1.25rem;
+  color: var(--text-secondary);
+}
+
+.theory-explanation li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.formula {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-family: monospace;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.examples {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.example {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.example .label {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.example.positive .label {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.example.negative .label {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.example.question .label {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.markers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.marker {
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+}
+
+/* Practice Section */
+.grammar-practice {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+}
+
+.practice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.practice-header h2 {
+  font-size: 1.25rem;
+}
+
+.practice-progress {
+  color: var(--text-secondary);
+}
+
+.question-card {
+  margin-bottom: 1.5rem;
+}
+
+.question-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: var(--accent-color);
+}
+
+.option.selected {
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.option.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.option.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+}
+
+.feedback.correct {
+  background: #e8f5e9;
+}
+
+.feedback.incorrect {
+  background: #ffebee;
+}
+
+.feedback-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.feedback.correct .feedback-icon {
+  background: #4caf50;
+  color: white;
+}
+
+.feedback.incorrect .feedback-icon {
+  background: #f44336;
+  color: white;
+}
+
+.feedback-text {
+  flex: 1;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.practice-nav {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Results */
+.grammar-results {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.results-card {
+  background: var(--card-bg);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.results-score {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+}
+
+.results-message {
+  color: var(--text-secondary);
+}
+</style>
+{% endblock %}

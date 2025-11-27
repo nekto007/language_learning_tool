@@ -1,0 +1,586 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}🧠 SRS Повторение{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Spaced Repetition Session</h1>
+  <p>Повторите слова с помощью интервального повторения</p>
+</div>
+
+<div class="srs-container">
+  <!-- Stats Bar -->
+  <div class="srs-stats">
+    <div class="stat-item new">
+      <span class="stat-count" id="new-count">0</span>
+      <span class="stat-label">Новые</span>
+    </div>
+    <div class="stat-item learning">
+      <span class="stat-count" id="learning-count">0</span>
+      <span class="stat-label">Изучаю</span>
+    </div>
+    <div class="stat-item review">
+      <span class="stat-count" id="review-count">0</span>
+      <span class="stat-label">Повтор</span>
+    </div>
+  </div>
+
+  <!-- Card Container -->
+  <div class="srs-card-container" id="card-container">
+    <div class="srs-card" id="srs-card">
+      <div class="card-front" id="card-front">
+        <div class="word-text" id="word-text">Loading...</div>
+        <div class="word-phonetic" id="word-phonetic"></div>
+      </div>
+      <div class="card-back" id="card-back" style="display: none;">
+        <div class="word-text" id="word-text-back">Loading...</div>
+        <div class="word-phonetic" id="word-phonetic-back"></div>
+        <div class="word-translation" id="word-translation"></div>
+        <div class="word-example" id="word-example"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reveal Button -->
+  <div class="srs-reveal" id="reveal-section">
+    <button class="btn btn-primary btn-lg" id="reveal-btn" onclick="revealCard()">
+      Показать ответ
+    </button>
+    <div class="reveal-hint">Нажмите пробел или кликните</div>
+  </div>
+
+  <!-- Rating Buttons (hidden until revealed) -->
+  <div class="srs-rating" id="rating-section" style="display: none;">
+    <div class="rating-label">Как хорошо вы знали это слово?</div>
+    <div class="rating-buttons">
+      <button class="rating-btn again" onclick="rateCard(1)">
+        <span class="rating-time">&lt;1м</span>
+        <span class="rating-text">Снова</span>
+      </button>
+      <button class="rating-btn hard" onclick="rateCard(2)">
+        <span class="rating-time">&lt;10м</span>
+        <span class="rating-text">Сложно</span>
+      </button>
+      <button class="rating-btn good" onclick="rateCard(3)">
+        <span class="rating-time" id="good-interval">1д</span>
+        <span class="rating-text">Хорошо</span>
+      </button>
+      <button class="rating-btn easy" onclick="rateCard(4)">
+        <span class="rating-time" id="easy-interval">4д</span>
+        <span class="rating-text">Легко</span>
+      </button>
+    </div>
+    <div class="rating-hint">Клавиши 1-4 для быстрого ответа</div>
+  </div>
+
+  <!-- Session Complete -->
+  <div class="srs-complete" id="complete-section" style="display: none;">
+    <div class="complete-icon">🎉</div>
+    <div class="complete-title">Сессия завершена!</div>
+    <div class="complete-stats">
+      <div class="stat-row">
+        <span>Изучено слов:</span>
+        <span id="studied-count">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Правильных ответов:</span>
+        <span id="correct-percent">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="srs-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" id="session-progress" style="width: 0%"></div>
+    </div>
+    <div class="progress-text">
+      <span id="cards-done">0</span> / <span id="cards-total">0</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// SRS data will be loaded from API
+let cards = [];
+let currentIndex = 0;
+let sessionStats = {
+  studied: 0,
+  correct: 0,
+  newCount: 0,
+  learningCount: 0,
+  reviewCount: 0
+};
+let isRevealed = false;
+
+// Initialize session
+async function init() {
+  try {
+    // Load vocabulary for this lesson
+    const response = await fetch(`/curriculum/api/book-courses/${courseId}/modules/${moduleId}/lessons/${lessonNumber}/srs-cards`);
+    if (response.ok) {
+      const data = await response.json();
+      cards = data.cards || [];
+
+      // Update stats
+      sessionStats.newCount = cards.filter(c => c.status === 'new').length;
+      sessionStats.learningCount = cards.filter(c => c.status === 'learning').length;
+      sessionStats.reviewCount = cards.filter(c => c.status === 'review').length;
+
+      updateStats();
+
+      if (cards.length > 0) {
+        document.getElementById('cards-total').textContent = cards.length;
+        showCard(0);
+      } else {
+        showComplete();
+      }
+    } else {
+      // Fallback to demo data
+      loadDemoData();
+    }
+  } catch (error) {
+    console.error('Error loading SRS cards:', error);
+    loadDemoData();
+  }
+}
+
+function loadDemoData() {
+  cards = [
+    { id: 1, word: 'accomplish', phonetic: '/əˈkʌmplɪʃ/', translation: 'достигать, выполнять', example: 'She accomplished all her goals.', status: 'new', interval: 0 },
+    { id: 2, word: 'significant', phonetic: '/sɪɡˈnɪfɪkənt/', translation: 'значительный', example: 'This is a significant achievement.', status: 'new', interval: 0 },
+    { id: 3, word: 'determine', phonetic: '/dɪˈtɜːmɪn/', translation: 'определять, устанавливать', example: 'We need to determine the cause.', status: 'learning', interval: 1 },
+    { id: 4, word: 'establish', phonetic: '/ɪˈstæblɪʃ/', translation: 'устанавливать, основывать', example: 'The company was established in 1990.', status: 'review', interval: 4 },
+    { id: 5, word: 'evidence', phonetic: '/ˈevɪdəns/', translation: 'доказательство', example: 'There is no evidence of fraud.', status: 'review', interval: 7 }
+  ];
+
+  sessionStats.newCount = cards.filter(c => c.status === 'new').length;
+  sessionStats.learningCount = cards.filter(c => c.status === 'learning').length;
+  sessionStats.reviewCount = cards.filter(c => c.status === 'review').length;
+
+  updateStats();
+  document.getElementById('cards-total').textContent = cards.length;
+  showCard(0);
+}
+
+function updateStats() {
+  document.getElementById('new-count').textContent = sessionStats.newCount;
+  document.getElementById('learning-count').textContent = sessionStats.learningCount;
+  document.getElementById('review-count').textContent = sessionStats.reviewCount;
+}
+
+function showCard(index) {
+  if (index >= cards.length) {
+    showComplete();
+    return;
+  }
+
+  currentIndex = index;
+  const card = cards[index];
+
+  // Reset card state
+  isRevealed = false;
+  document.getElementById('card-front').style.display = 'block';
+  document.getElementById('card-back').style.display = 'none';
+  document.getElementById('reveal-section').style.display = 'block';
+  document.getElementById('rating-section').style.display = 'none';
+
+  // Update front
+  document.getElementById('word-text').textContent = card.word;
+  document.getElementById('word-phonetic').textContent = card.phonetic || '';
+
+  // Prepare back
+  document.getElementById('word-text-back').textContent = card.word;
+  document.getElementById('word-phonetic-back').textContent = card.phonetic || '';
+  document.getElementById('word-translation').textContent = card.translation;
+  document.getElementById('word-example').textContent = card.example || '';
+
+  // Update interval hints based on card status
+  const goodInt = card.interval > 0 ? Math.ceil(card.interval * 2.5) : 1;
+  const easyInt = card.interval > 0 ? Math.ceil(card.interval * 4) : 4;
+  document.getElementById('good-interval').textContent = formatInterval(goodInt);
+  document.getElementById('easy-interval').textContent = formatInterval(easyInt);
+
+  // Update progress
+  document.getElementById('cards-done').textContent = sessionStats.studied;
+  const progress = (sessionStats.studied / cards.length) * 100;
+  document.getElementById('session-progress').style.width = progress + '%';
+}
+
+function formatInterval(days) {
+  if (days < 1) return '<1д';
+  if (days === 1) return '1д';
+  if (days < 7) return days + 'д';
+  if (days < 30) return Math.round(days / 7) + 'н';
+  return Math.round(days / 30) + 'м';
+}
+
+function revealCard() {
+  isRevealed = true;
+  document.getElementById('card-front').style.display = 'none';
+  document.getElementById('card-back').style.display = 'block';
+  document.getElementById('reveal-section').style.display = 'none';
+  document.getElementById('rating-section').style.display = 'block';
+}
+
+async function rateCard(rating) {
+  const card = cards[currentIndex];
+  sessionStats.studied++;
+
+  if (rating >= 3) {
+    sessionStats.correct++;
+  }
+
+  // Update card status based on rating
+  if (rating === 1) {
+    // Again - reset to learning
+    card.status = 'learning';
+    card.interval = 0;
+  } else if (rating === 2) {
+    // Hard - slight increase
+    card.status = 'learning';
+    card.interval = Math.max(1, card.interval * 1.2);
+  } else if (rating === 3) {
+    // Good - normal progression
+    card.status = 'review';
+    card.interval = card.interval > 0 ? card.interval * 2.5 : 1;
+  } else {
+    // Easy - fast progression
+    card.status = 'review';
+    card.interval = card.interval > 0 ? card.interval * 4 : 4;
+  }
+
+  // Send rating to server
+  try {
+    await fetch(`/curriculum/api/book-courses/${courseId}/modules/${moduleId}/lessons/${lessonNumber}/rate-card`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        card_id: card.id,
+        rating: rating,
+        new_interval: card.interval
+      })
+    });
+  } catch (error) {
+    console.error('Error saving rating:', error);
+  }
+
+  // Update status counts
+  updateStats();
+
+  // Next card
+  showCard(currentIndex + 1);
+}
+
+function showComplete() {
+  document.getElementById('card-container').style.display = 'none';
+  document.getElementById('reveal-section').style.display = 'none';
+  document.getElementById('rating-section').style.display = 'none';
+  document.getElementById('complete-section').style.display = 'block';
+
+  document.getElementById('studied-count').textContent = sessionStats.studied;
+  const percent = sessionStats.studied > 0
+    ? Math.round((sessionStats.correct / sessionStats.studied) * 100)
+    : 0;
+  document.getElementById('correct-percent').textContent = percent + '%';
+
+  // Update progress to 100%
+  document.getElementById('session-progress').style.width = '100%';
+  document.getElementById('cards-done').textContent = cards.length;
+
+  // Calculate final score
+  window.finalScore = percent;
+
+  // Show complete button
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (e.code === 'Space' && !isRevealed) {
+    e.preventDefault();
+    revealCard();
+  } else if (isRevealed && ['1', '2', '3', '4'].includes(e.key)) {
+    rateCard(parseInt(e.key));
+  }
+});
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* SRS Specific Styles */
+.srs-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Stats Bar */
+.srs-stats {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+}
+
+.stat-item.new {
+  background: #e3f2fd;
+}
+
+.stat-item.learning {
+  background: #fff3e0;
+}
+
+.stat-item.review {
+  background: #e8f5e9;
+}
+
+.stat-count {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-item.new .stat-count { color: #1976d2; }
+.stat-item.learning .stat-count { color: #f57c00; }
+.stat-item.review .stat-count { color: #388e3c; }
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Card Container */
+.srs-card-container {
+  margin-bottom: 2rem;
+}
+
+.srs-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.word-text {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.word-phonetic {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.word-translation {
+  font-size: 1.5rem;
+  color: var(--accent-color);
+  margin: 1.5rem 0;
+  font-weight: 600;
+}
+
+.word-example {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+/* Reveal Section */
+.srs-reveal {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.reveal-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Rating Section */
+.srs-rating {
+  text-align: center;
+}
+
+.rating-label {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+.rating-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.rating-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rating-btn:hover {
+  transform: translateY(-2px);
+}
+
+.rating-btn.again {
+  border-color: #f44336;
+}
+
+.rating-btn.again:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.rating-btn.hard {
+  border-color: #ff9800;
+}
+
+.rating-btn.hard:hover {
+  background: rgba(255, 152, 0, 0.1);
+}
+
+.rating-btn.good {
+  border-color: #4caf50;
+}
+
+.rating-btn.good:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.rating-btn.easy {
+  border-color: #2196f3;
+}
+
+.rating-btn.easy:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.rating-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.rating-text {
+  font-weight: 600;
+}
+
+.rating-btn.again .rating-text { color: #f44336; }
+.rating-btn.hard .rating-text { color: #ff9800; }
+.rating-btn.good .rating-text { color: #4caf50; }
+.rating-btn.easy .rating-text { color: #2196f3; }
+
+.rating-hint {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Complete Section */
+.srs-complete {
+  text-align: center;
+  padding: 3rem;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.complete-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.complete-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.complete-stats {
+  max-width: 250px;
+  margin: 0 auto;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+/* Progress Bar */
+.srs-progress {
+  margin-top: 2rem;
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.3s;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .rating-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .srs-stats {
+    gap: 1rem;
+  }
+
+  .stat-item {
+    padding: 0.5rem 1rem;
+  }
+}
+</style>
+{% endblock %}

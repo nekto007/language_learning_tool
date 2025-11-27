@@ -1,0 +1,378 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}📝 Словарь{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Изучение слов</h1>
+  <p>Изучите {{ total_words }} новых слов из этого раздела</p>
+</div>
+
+<div class="vocabulary-container">
+  <!-- Progress -->
+  <div class="vocab-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" id="vocab-progress" style="width: 0%"></div>
+    </div>
+    <span class="progress-text"><span id="current-word">1</span> / {{ total_words }}</span>
+  </div>
+
+  <!-- Flashcard -->
+  <div class="vocab-card-container">
+    <div class="vocab-card" id="flashcard" onclick="flipCard()">
+      <div class="vocab-card-front">
+        <div class="word-english" id="word-english"></div>
+        <div class="word-hint">Нажмите, чтобы увидеть перевод</div>
+      </div>
+      <div class="vocab-card-back">
+        <div class="word-translation" id="word-translation"></div>
+        <div class="word-example" id="word-example"></div>
+        {% if daily_lesson %}
+        <button class="audio-btn" id="audio-btn" onclick="event.stopPropagation(); playAudio()">
+          🔊 Прослушать
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="vocab-controls">
+    <button class="control-btn" id="prev-btn" onclick="prevWord()" disabled>
+      ← Назад
+    </button>
+    <div class="rating-buttons" id="rating-buttons" style="display: none;">
+      <button class="rating-btn hard" onclick="rateWord(1)">Сложно</button>
+      <button class="rating-btn good" onclick="rateWord(3)">Помню</button>
+      <button class="rating-btn easy" onclick="rateWord(5)">Легко</button>
+    </div>
+    <button class="control-btn" id="next-btn" onclick="nextWord()">
+      Далее →
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="footer-info">
+  Изучите все слова, чтобы завершить урок
+</div>
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" disabled>
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Vocabulary data
+const vocabularyData = {{ vocabulary_data | tojson | safe }};
+let currentIndex = 0;
+let isFlipped = false;
+let studiedWords = new Set();
+
+function init() {
+  if (vocabularyData.length > 0) {
+    showWord(0);
+  } else {
+    document.querySelector('.vocabulary-container').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <h4>Слова не найдены</h4>
+        <p>В этом уроке пока нет словарных слов</p>
+      </div>
+    `;
+    enableCompleteButton();
+  }
+}
+
+function showWord(index) {
+  const word = vocabularyData[index];
+  if (!word) return;
+
+  currentIndex = index;
+  isFlipped = false;
+
+  document.getElementById('word-english').textContent = word.lemma;
+  document.getElementById('word-translation').textContent = word.translation;
+  document.getElementById('word-example').textContent = word.example || '';
+
+  // Reset card state
+  document.getElementById('flashcard').classList.remove('flipped');
+  document.getElementById('rating-buttons').style.display = 'none';
+
+  // Update progress
+  document.getElementById('current-word').textContent = index + 1;
+  document.getElementById('vocab-progress').style.width =
+    ((index + 1) / vocabularyData.length * 100) + '%';
+
+  // Update nav buttons
+  document.getElementById('prev-btn').disabled = index === 0;
+  document.getElementById('next-btn').textContent =
+    index === vocabularyData.length - 1 ? 'Готово' : 'Далее →';
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('flashcard').classList.toggle('flipped');
+
+  if (isFlipped) {
+    document.getElementById('rating-buttons').style.display = 'flex';
+    studiedWords.add(currentIndex);
+    checkCompletion();
+  } else {
+    document.getElementById('rating-buttons').style.display = 'none';
+  }
+}
+
+function prevWord() {
+  if (currentIndex > 0) {
+    showWord(currentIndex - 1);
+  }
+}
+
+function nextWord() {
+  if (currentIndex < vocabularyData.length - 1) {
+    showWord(currentIndex + 1);
+  } else {
+    // At the end - mark as studied and enable completion
+    studiedWords.add(currentIndex);
+    checkCompletion();
+  }
+}
+
+function rateWord(rating) {
+  // Store rating for SRS (future integration)
+  console.log(`Word ${currentIndex} rated: ${rating}`);
+
+  // Auto-advance after rating
+  setTimeout(() => nextWord(), 300);
+}
+
+function playAudio() {
+  const word = vocabularyData[currentIndex];
+  if (word && word.audio_url) {
+    const audio = new Audio(word.audio_url);
+    audio.play().catch(e => console.log('Audio not available'));
+  }
+}
+
+function checkCompletion() {
+  if (studiedWords.size >= vocabularyData.length) {
+    enableCompleteButton();
+  }
+}
+
+// Initialize - call immediately if DOM is ready, otherwise wait
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+
+<style>
+/* Vocabulary Specific Styles */
+.vocabulary-container {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.vocab-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.vocab-progress .progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.vocab-progress .progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.3s ease;
+}
+
+.vocab-progress .progress-text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Vocabulary Card */
+.vocab-card-container {
+  perspective: 1000px;
+  margin-bottom: 2rem;
+}
+
+.vocab-card {
+  width: 100%;
+  height: 300px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  cursor: pointer;
+}
+
+.vocab-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.vocab-card-front,
+.vocab-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.vocab-card-back {
+  transform: rotateY(180deg);
+}
+
+.word-english {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.word-hint {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.word-translation {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  margin-bottom: 1rem;
+}
+
+.word-example {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.audio-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.audio-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Controls */
+.vocab-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.control-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Rating Buttons */
+.rating-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.rating-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.rating-btn.hard {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.rating-btn.hard:hover {
+  background: #ffcdd2;
+}
+
+.rating-btn.good {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.rating-btn.good:hover {
+  background: #ffe0b2;
+}
+
+.rating-btn.easy {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.rating-btn.easy:hover {
+  background: #c8e6c9;
+}
+
+.footer-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+</style>
+{% endblock %}

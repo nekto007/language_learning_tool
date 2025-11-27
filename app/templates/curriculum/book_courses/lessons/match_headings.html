@@ -1,0 +1,362 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}🔗 Сопоставление заголовков{% endblock %}
+
+{% block lesson_content %}
+<div class="lesson-intro">
+  <h1>Match Headings</h1>
+  <p>Сопоставьте заголовки с параграфами текста</p>
+</div>
+
+<div class="lesson-instructions">
+  <strong>Инструкция:</strong> Прочитайте параграфы и выберите наиболее подходящий заголовок для каждого из них.
+  Некоторые заголовки лишние и не подойдут ни к одному параграфу.
+</div>
+
+<div class="matching-container">
+  <div class="headings-panel">
+    <h3>Заголовки</h3>
+    <div class="headings-list" id="headings-list">
+      <!-- Will be populated -->
+    </div>
+  </div>
+
+  <div class="paragraphs-panel">
+    <h3>Параграфы</h3>
+    <div class="paragraphs-list" id="paragraphs-list">
+      <!-- Will be populated -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
+  Проверить ответы
+</button>
+<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" style="display: none;">
+  Завершить урок
+</button>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Sample matching data
+const matchingData = {
+  paragraphs: [
+    { id: 1, text: "Technology has revolutionized the way we communicate. From instant messaging to video calls, we can now connect with people across the globe in seconds. This has transformed both personal relationships and business interactions." },
+    { id: 2, text: "However, this constant connectivity comes at a cost. Many people find themselves unable to disconnect from their devices, leading to increased stress and anxiety. The boundary between work and personal life has become increasingly blurred." },
+    { id: 3, text: "Despite these challenges, the benefits of digital communication are undeniable. Remote work opportunities have expanded, allowing people to work from anywhere. Families separated by distance can stay connected more easily than ever before." },
+    { id: 4, text: "Looking ahead, experts predict even more dramatic changes in how we communicate. Virtual reality meetings may become commonplace, and artificial intelligence could help bridge language barriers in real-time." },
+    { id: 5, text: "Educational institutions have also embraced these changes. Online learning platforms now offer courses from prestigious universities to students worldwide, democratizing access to quality education." },
+    { id: 6, text: "The environmental impact of digital communication is another factor to consider. Reduced need for travel and paper-based correspondence contributes to lower carbon emissions, though data centers themselves require significant energy." }
+  ],
+  headings: [
+    { id: 'A', text: 'The dark side of constant connectivity', correctFor: 2 },
+    { id: 'B', text: 'Communication revolution in the digital age', correctFor: 1 },
+    { id: 'C', text: 'The future of human interaction', correctFor: 4 },
+    { id: 'D', text: 'Positive outcomes of technological advancement', correctFor: 3 },
+    { id: 'E', text: 'Traditional methods still have their place', correctFor: null },
+    { id: 'F', text: 'Learning without boundaries', correctFor: 5 },
+    { id: 'G', text: 'Environmental considerations', correctFor: 6 },
+    { id: 'H', text: 'The importance of face-to-face meetings', correctFor: null }
+  ]
+};
+
+let selectedHeading = null;
+let answers = {};
+let isChecked = false;
+
+function init() {
+  renderHeadings();
+  renderParagraphs();
+}
+
+function renderHeadings() {
+  const container = document.getElementById('headings-list');
+  container.innerHTML = matchingData.headings.map(h => `
+    <div class="heading-item" id="heading-${h.id}" onclick="selectHeading('${h.id}')" data-id="${h.id}">
+      <span class="heading-letter">${h.id}</span>
+      <span class="heading-text">${h.text}</span>
+    </div>
+  `).join('');
+}
+
+function renderParagraphs() {
+  const container = document.getElementById('paragraphs-list');
+  container.innerHTML = matchingData.paragraphs.map(p => `
+    <div class="paragraph-item" id="paragraph-${p.id}">
+      <div class="paragraph-header">
+        <span class="paragraph-number">Параграф ${p.id}</span>
+        <div class="answer-slot" id="slot-${p.id}" onclick="selectSlot(${p.id})">
+          <span class="slot-placeholder">Выберите заголовок</span>
+        </div>
+      </div>
+      <div class="paragraph-text">${p.text}</div>
+    </div>
+  `).join('');
+}
+
+function selectHeading(headingId) {
+  if (isChecked) return;
+
+  // Toggle selection
+  const headingEl = document.getElementById(`heading-${headingId}`);
+
+  if (selectedHeading === headingId) {
+    selectedHeading = null;
+    headingEl.classList.remove('selected');
+  } else {
+    // Deselect previous
+    if (selectedHeading) {
+      document.getElementById(`heading-${selectedHeading}`).classList.remove('selected');
+    }
+    selectedHeading = headingId;
+    headingEl.classList.add('selected');
+  }
+}
+
+function selectSlot(paragraphId) {
+  if (isChecked || !selectedHeading) return;
+
+  const heading = matchingData.headings.find(h => h.id === selectedHeading);
+  const slot = document.getElementById(`slot-${paragraphId}`);
+
+  // Check if this heading is already used
+  const existingPara = Object.entries(answers).find(([k, v]) => v === selectedHeading);
+  if (existingPara) {
+    // Remove from previous slot
+    const prevSlot = document.getElementById(`slot-${existingPara[0]}`);
+    prevSlot.innerHTML = '<span class="slot-placeholder">Выберите заголовок</span>';
+    delete answers[existingPara[0]];
+  }
+
+  // If slot already has answer, remove it
+  if (answers[paragraphId]) {
+    const prevHeading = answers[paragraphId];
+    document.getElementById(`heading-${prevHeading}`).classList.remove('used');
+  }
+
+  // Assign heading to slot
+  answers[paragraphId] = selectedHeading;
+  slot.innerHTML = `<span class="slot-answer">${heading.id}. ${heading.text}</span>`;
+  slot.classList.add('filled');
+
+  // Mark heading as used
+  document.getElementById(`heading-${selectedHeading}`).classList.add('used');
+
+  // Clear selection
+  document.getElementById(`heading-${selectedHeading}`).classList.remove('selected');
+  selectedHeading = null;
+}
+
+function checkAnswers() {
+  if (isChecked) return;
+  isChecked = true;
+
+  let correctCount = 0;
+
+  matchingData.paragraphs.forEach(p => {
+    const slot = document.getElementById(`slot-${p.id}`);
+    const userAnswer = answers[p.id];
+    const correctHeading = matchingData.headings.find(h => h.correctFor === p.id);
+
+    if (userAnswer && correctHeading && userAnswer === correctHeading.id) {
+      slot.classList.add('correct');
+      correctCount++;
+    } else {
+      slot.classList.add('incorrect');
+      // Show correct answer
+      if (correctHeading) {
+        const correction = document.createElement('div');
+        correction.className = 'slot-correction';
+        correction.textContent = `Правильно: ${correctHeading.id}. ${correctHeading.text}`;
+        slot.parentElement.appendChild(correction);
+      }
+    }
+  });
+
+  // Calculate score
+  const score = Math.round((correctCount / matchingData.paragraphs.length) * 100);
+  window.finalScore = score;
+
+  // Show complete button
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('complete-btn').style.display = 'inline-block';
+}
+
+function finishLesson() {
+  completeLesson(window.finalScore || 0);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<style>
+/* Matching Specific Styles */
+.matching-container {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.headings-panel h3,
+.paragraphs-panel h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+/* Headings */
+.headings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.heading-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.heading-item:hover:not(.used) {
+  border-color: var(--accent-color);
+}
+
+.heading-item.selected {
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.heading-item.used {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.heading-letter {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.heading-text {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Paragraphs */
+.paragraphs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.paragraph-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.paragraph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.paragraph-number {
+  font-weight: 600;
+  color: var(--accent-color);
+  font-size: 0.875rem;
+}
+
+.answer-slot {
+  flex: 1;
+  max-width: 250px;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-height: 40px;
+  transition: all 0.2s;
+}
+
+.answer-slot:hover {
+  border-color: var(--accent-color);
+}
+
+.answer-slot.filled {
+  border-style: solid;
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.answer-slot.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.answer-slot.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.slot-placeholder {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.slot-answer {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.slot-correction {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+
+.paragraph-text {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .matching-container {
+    grid-template-columns: 1fr;
+  }
+
+  .headings-panel {
+    order: 2;
+  }
+
+  .paragraphs-panel {
+    order: 1;
+  }
+}
+</style>
+{% endblock %}
