@@ -462,7 +462,9 @@ class TestGrantModulesToUsers:
         with app.app_context():
             # Create second user
             from app.auth.models import User
-            user2 = User(username='testuser2', email='test2@example.com')
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            user2 = User(username=f'testuser2_{unique_id}', email=f'test2_{unique_id}@example.com')
             user2.set_password('password')
             db_session.add(user2)
             db_session.commit()
@@ -490,7 +492,9 @@ class TestGetModuleStatistics:
         """Тест получения статистики модулей"""
         with app.app_context():
             from app.auth.models import User
-            user2 = User(username='statsuser', email='stats@example.com')
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            user2 = User(username=f'statsuser_{unique_id}', email=f'stats_{unique_id}@example.com')
             user2.set_password('password')
             db_session.add(user2)
             db_session.commit()
