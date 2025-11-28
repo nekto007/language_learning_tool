@@ -4,61 +4,75 @@
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Grammar Focus</h1>
+  <h1>{{ grammar_data.title if grammar_data else 'Grammar Focus' }}</h1>
   <p>Изучите грамматическую тему и выполните упражнения</p>
 </div>
 
 <div class="grammar-container">
   <!-- Theory Section -->
   <div class="grammar-theory" id="theory-section">
+    {% if grammar_data %}
     <div class="theory-header">
-      <h2 id="grammar-topic">Present Perfect Tense</h2>
+      <h2>{{ grammar_data.title }}</h2>
     </div>
 
-    <div class="theory-content" id="theory-content">
-      <div class="theory-explanation">
-        <h3>Когда используется</h3>
-        <ul>
-          <li>Для описания опыта без указания конкретного времени</li>
-          <li>Для действий, начавшихся в прошлом и продолжающихся до сих пор</li>
-          <li>Для недавних действий с результатом в настоящем</li>
+    <div class="theory-content">
+      <!-- Introduction -->
+      {% if grammar_data.introduction %}
+      <div class="theory-introduction">
+        <p>{{ grammar_data.introduction }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Sections -->
+      {% for section in grammar_data.sections %}
+      <div class="theory-section">
+        <h3>{{ section.subtitle }}</h3>
+        {% if section.description %}
+        <p class="section-description">{{ section.description }}</p>
+        {% endif %}
+
+        {% if section.table %}
+        <div class="examples-table">
+          {% for row in section.table %}
+          <div class="example-row">
+            {% if row.pronoun %}
+            <span class="pronoun">{{ row.pronoun }}</span>
+            {% endif %}
+            {% if row.verb %}
+            <span class="verb">{{ row.verb }}</span>
+            {% endif %}
+            <div class="example-content">
+              <span class="example-text">{{ row.example }}</span>
+              {% if row.translation %}
+              <span class="translation">{{ row.translation }}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <!-- Important Notes -->
+      {% if grammar_data.important_notes %}
+      <div class="theory-notes">
+        <h3>Важно запомнить</h3>
+        <ul class="notes-list">
+          {% for note in grammar_data.important_notes %}
+          <li>{{ note }}</li>
+          {% endfor %}
         </ul>
       </div>
-
-      <div class="theory-formation">
-        <h3>Образование</h3>
-        <div class="formula">have/has + past participle (V3)</div>
-
-        <div class="examples">
-          <div class="example positive">
-            <span class="label">+</span>
-            <span>I have visited Paris twice.</span>
-          </div>
-          <div class="example negative">
-            <span class="label">-</span>
-            <span>She hasn't finished her work yet.</span>
-          </div>
-          <div class="example question">
-            <span class="label">?</span>
-            <span>Have you ever been to Japan?</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="theory-markers">
-        <h3>Слова-маркеры</h3>
-        <div class="markers-list">
-          <span class="marker">ever</span>
-          <span class="marker">never</span>
-          <span class="marker">already</span>
-          <span class="marker">yet</span>
-          <span class="marker">just</span>
-          <span class="marker">since</span>
-          <span class="marker">for</span>
-          <span class="marker">recently</span>
-        </div>
-      </div>
+      {% endif %}
     </div>
+    {% else %}
+    <div class="theory-header">
+      <h2>Grammar Focus</h2>
+    </div>
+    <p>Грамматический материал загружается...</p>
+    {% endif %}
 
     <button class="btn btn-secondary" onclick="showPractice()">
       Перейти к упражнениям →
@@ -102,56 +116,22 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
-  Завершить урок
-</button>
+<div class="lesson-footer-buttons" id="footer-buttons">
+  <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
+    Завершить урок
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
-// Practice questions
-const practiceQuestions = [
-  {
-    text: 'Which sentence is grammatically correct?',
-    options: [
-      'I have seen him yesterday.',
-      'I have seen him before.',
-      'I have seen him last week.',
-      'I seen him already.'
-    ],
-    correct: 1,
-    explanation: 'Present Perfect is used for experiences without specific time.'
-  },
-  {
-    text: 'Complete: She _____ here for five years.',
-    options: ['lives', 'has lived', 'lived', 'is living'],
-    correct: 1,
-    explanation: 'Use Present Perfect with "for" + period of time.'
-  },
-  {
-    text: 'Choose the correct form: They _____ just _____ their homework.',
-    options: ['have / finished', 'has / finished', 'have / finish', 'had / finished'],
-    correct: 0,
-    explanation: '"Just" is commonly used with Present Perfect.'
-  },
-  {
-    text: 'Which question is correct?',
-    options: [
-      'Did you ever visited Rome?',
-      'Have you ever visited Rome?',
-      'Do you ever visited Rome?',
-      'Are you ever visited Rome?'
-    ],
-    correct: 1,
-    explanation: 'Use "Have you ever..." for asking about life experiences.'
-  },
-  {
-    text: 'Fill in: I _____ this movie three times already.',
-    options: ['watched', 'have watched', 'am watching', 'watch'],
-    correct: 1,
-    explanation: '"Already" and "three times" indicate repeated experience up to now.'
-  }
-];
+const dailyLessonId = {{ daily_lesson.id if daily_lesson else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const nextLessonUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}';
+
+// Practice questions from server
+const practiceQuestions = {{ grammar_data.exercises | tojson | safe if grammar_data and grammar_data.exercises else '[]' }};
 
 let currentQuestion = 0;
 let answers = {};
@@ -167,20 +147,32 @@ function showPractice() {
   document.getElementById('theory-section').style.display = 'none';
   document.getElementById('practice-section').style.display = 'block';
   document.getElementById('results-section').style.display = 'none';
-  showQuestion(0);
+
+  if (practiceQuestions.length > 0) {
+    showQuestion(0);
+  } else {
+    // No exercises - show results directly
+    showResults();
+  }
 }
 
 function showQuestion(index) {
+  if (index >= practiceQuestions.length) {
+    showResults();
+    return;
+  }
+
   const q = practiceQuestions[index];
   currentQuestion = index;
 
   document.getElementById('current-q').textContent = index + 1;
   document.getElementById('total-q').textContent = practiceQuestions.length;
-  document.getElementById('question-text').textContent = q.text;
+  document.getElementById('question-text').textContent = q.question || q.text || '';
 
   // Render options
+  const options = q.options || [];
   const optionsList = document.getElementById('options-list');
-  optionsList.innerHTML = q.options.map((opt, i) => `
+  optionsList.innerHTML = options.map((opt, i) => `
     <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
       <span class="option-letter">${String.fromCharCode(65 + i)}</span>
       <span class="option-text">${opt}</span>
@@ -215,7 +207,7 @@ function selectOption(optionIndex) {
   feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
   feedback.innerHTML = `
     <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
-    <div class="feedback-text">${q.explanation}</div>
+    <div class="feedback-text">${q.explanation || (isCorrect ? 'Правильно!' : 'Неправильно.')}</div>
   `;
   feedback.style.display = 'flex';
 
@@ -243,10 +235,14 @@ function nextQuestion() {
 function showResults() {
   // Calculate score
   let correct = 0;
-  practiceQuestions.forEach((q, i) => {
-    if (answers[i] === q.correct) correct++;
-  });
-  score = Math.round((correct / practiceQuestions.length) * 100);
+  if (practiceQuestions.length > 0) {
+    practiceQuestions.forEach((q, i) => {
+      if (answers[i] === q.correct) correct++;
+    });
+    score = Math.round((correct / practiceQuestions.length) * 100);
+  } else {
+    score = 100; // No exercises = perfect score
+  }
 
   // Show results
   document.getElementById('practice-section').style.display = 'none';
@@ -272,22 +268,50 @@ function completeLesson() {
   btn.disabled = true;
   btn.textContent = 'Сохраняем...';
 
-  fetch(`/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`, {
+  // Use new API if daily_lesson_id exists
+  const endpoint = dailyLessonId
+    ? `/curriculum/api/v1/lesson/${dailyLessonId}/complete`
+    : `/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`;
+
+  const body = dailyLessonId
+    ? {}
+    : { lesson_number: lessonNumber, score: window.finalScore || score };
+
+  fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lesson_number: lessonNumber, score: window.finalScore || score })
+    body: JSON.stringify(body)
   })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      window.location.href = `{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}`;
+  .then(response => {
+    if (response.status === 201 || response.ok) {
+      return response.json ? response.json() : {};
     }
+    throw new Error('Failed to complete lesson');
+  })
+  .then(data => {
+    showCompletionSuccess();
   })
   .catch(error => {
     console.error('Error:', error);
     btn.disabled = false;
     btn.textContent = 'Завершить урок';
   });
+}
+
+function showCompletionSuccess() {
+  const footerButtons = document.getElementById('footer-buttons');
+
+  if (hasNextLesson && nextLessonUrl) {
+    footerButtons.innerHTML = `
+      <span class="completion-check">✓ Грамматика завершена!</span>
+      <a href="${nextLessonUrl}" class="btn btn-primary btn-lg">Следующий урок →</a>
+    `;
+  } else {
+    footerButtons.innerHTML = `
+      <span class="completion-check">✓ Грамматика завершена!</span>
+      <a href="${moduleUrl}" class="btn btn-secondary">Вернуться к модулю</a>
+    `;
+  }
 }
 </script>
 
@@ -316,90 +340,103 @@ function completeLesson() {
   margin-bottom: 2rem;
 }
 
-.theory-content h3 {
+.theory-introduction {
+  background: var(--bg-secondary);
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.theory-section {
+  margin-bottom: 1.5rem;
+}
+
+.theory-section h3 {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 0.75rem;
-  margin-top: 1.5rem;
+  color: var(--text-primary);
 }
 
-.theory-content h3:first-child {
-  margin-top: 0;
-}
-
-.theory-explanation ul {
-  padding-left: 1.25rem;
+.section-description {
+  margin-bottom: 1rem;
   color: var(--text-secondary);
+  font-size: 0.95rem;
 }
 
-.theory-explanation li {
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.formula {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  font-family: monospace;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--accent-color);
-}
-
-.examples {
-  margin-top: 1rem;
+/* Examples Table */
+.examples-table {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.example {
+.example-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
   background: var(--bg-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent-color);
 }
 
-.example .label {
-  width: 24px;
-  height: 24px;
+.example-row .pronoun {
+  font-weight: 600;
+  color: var(--accent-color);
+  min-width: 100px;
+}
+
+.example-row .verb {
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.example-content {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-weight: 700;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.example.positive .label {
-  background: #e8f5e9;
-  color: #2e7d32;
+.example-text {
+  color: var(--text-primary);
 }
 
-.example.negative .label {
-  background: #ffebee;
-  color: #c62828;
-}
-
-.example.question .label {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.markers-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.marker {
-  padding: 0.25rem 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-full);
+.translation {
   font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Important Notes */
+.theory-notes {
+  margin-top: 2rem;
+  padding: 1rem 1.5rem;
+  background: #fff3e0;
+  border-radius: var(--radius-md);
+  border-left: 4px solid #ff9800;
+}
+
+.theory-notes h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #e65100;
+}
+
+.notes-list {
+  padding-left: 1.25rem;
+  color: #5d4037;
+  margin: 0;
+}
+
+.notes-list li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
 }
 
 /* Practice Section */
@@ -560,6 +597,32 @@ function completeLesson() {
 
 .results-message {
   color: var(--text-secondary);
+}
+
+/* Footer */
+.lesson-footer-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.completion-check {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .example-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .example-row .pronoun,
+  .example-row .verb {
+    min-width: auto;
+  }
 }
 </style>
 {% endblock %}

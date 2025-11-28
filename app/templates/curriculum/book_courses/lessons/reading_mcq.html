@@ -57,27 +57,41 @@
 {% endblock %}
 
 {% block lesson_scripts %}
+<!-- Server data -->
 <script>
-// Quiz data - in production, this would come from the task payload
+const serverQuestionData = {{ mcq_data | tojson | safe if mcq_data else 'null' }};
+</script>
+
+<script>
+// Quiz data - load from server or use fallback
 let questions = [];
 let currentQuestion = 0;
 let answers = {};
 let score = 0;
 
-// Try to load from task if available
-{% if lesson.task_id %}
-async function loadQuestions() {
-  // For now, use placeholder questions
-  // In production, fetch from /api/task/{{ lesson.task_id }}
-  questions = generatePlaceholderQuestions();
-  showQuestion(0);
-}
-{% else %}
 function loadQuestions() {
-  questions = generatePlaceholderQuestions();
+  // Try to load from server data first
+  if (serverQuestionData && serverQuestionData.questions && serverQuestionData.questions.length > 0) {
+    questions = serverQuestionData.questions.map(q => ({
+      text: q.question || q.text,
+      options: q.options || [],
+      correct: q.correct || 0,
+      explanation: q.explanation || ''
+    }));
+  } else {
+    // Use placeholder questions as fallback
+    questions = generatePlaceholderQuestions();
+  }
+
+  // Update total count
+  document.querySelectorAll('#total-q, .progress-text').forEach(el => {
+    if (el.textContent.includes('10')) {
+      el.textContent = el.textContent.replace('10', questions.length);
+    }
+  });
+
   showQuestion(0);
 }
-{% endif %}
 
 function generatePlaceholderQuestions() {
   // Placeholder questions for testing

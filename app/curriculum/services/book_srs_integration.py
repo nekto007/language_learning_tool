@@ -343,7 +343,9 @@ class BookSRSIntegration:
         Возвращает до `limit` карточек, отсортированных по приоритету.
         """
         try:
-            now = datetime.now(timezone.utc)
+            # Use naive datetime for DB comparison (SQLite doesn't handle timezone well)
+            now_utc = datetime.now(timezone.utc)
+            now_naive = datetime.utcnow()
 
             # Get due cards with word data
             due_cards = (UserCardDirection.query
@@ -353,7 +355,7 @@ class BookSRSIntegration:
                          .filter(
                 db.or_(
                     UserCardDirection.repetitions == 0,  # New cards
-                    UserCardDirection.next_review <= now  # Overdue
+                    UserCardDirection.next_review <= now_naive  # Overdue
                 )
             )
                          .order_by(
@@ -375,12 +377,16 @@ class BookSRSIntegration:
                     front = word.russian_word
                     back = word.english_word
 
-                # Determine card urgency
-                if card.next_review and card.next_review < now:
-                    days_overdue = (now - card.next_review).days
-                    urgency = 'overdue' if days_overdue > 0 else 'due'
-                else:
-                    urgency = 'new'
+                # Determine card urgency (handle both naive and aware datetimes)
+                urgency = 'new'
+                if card.next_review:
+                    next_review = card.next_review
+                    # Make both naive for comparison
+                    if next_review.tzinfo is not None:
+                        next_review = next_review.replace(tzinfo=None)
+                    if next_review < now_naive:
+                        days_overdue = (now_naive - next_review).days
+                        urgency = 'overdue' if days_overdue > 0 else 'due'
 
                 review_cards.append({
                     'card_id': card.id,
@@ -399,6 +405,56 @@ class BookSRSIntegration:
         except Exception as e:
             logger.error(f"Error getting due cards for review: {str(e)}")
             return []
+
+    def add_word_to_srs(self, user_id: int, word_id: int, source: str = 'book_reading') -> Dict[str, Any]:
+        """
+        Добавляет одно слово в SRS карточки.
+        Создает UserWord и карточки для обоих направлений.
+
+        Args:
+            user_id: ID пользователя
+            word_id: ID слова из CollectionWords
+            source: Источник добавления (book_reading, vocabulary_lesson и т.д.)
+
+        Returns:
+            Dict с результатом операции
+        """
+        try:
+            # Проверяем, существует ли слово
+            word = CollectionWords.query.get(word_id)
+            if not word:
+                return {'success': False, 'error': 'Слово не найдено'}
+
+            # Создаем или получаем UserWord
+            user_word = UserWord.get_or_create(user_id, word_id)
+
+            # Проверяем, есть ли уже карточки
+            existing_cards = UserCardDirection.query.filter_by(user_word_id=user_word.id).count()
+
+            if existing_cards >= 2:
+                return {'success': True, 'message': 'Слово уже добавлено в карточки', 'already_exists': True}
+
+            # Создаем карточки для обоих направлений
+            eng_rus_card = self._get_or_create_card_direction(user_word, 'eng-rus')
+            rus_eng_card = self._get_or_create_card_direction(user_word, 'rus-eng')
+
+            db.session.commit()
+
+            logger.info(f"Added word {word_id} to SRS for user {user_id} (source: {source})")
+
+            return {
+                'success': True,
+                'message': 'Слово добавлено в карточки',
+                'word_id': word_id,
+                'cards_created': 2,
+                'eng_rus_card_id': eng_rus_card.id,
+                'rus_eng_card_id': rus_eng_card.id
+            }
+
+        except Exception as e:
+            logger.error(f"Error adding word {word_id} to SRS: {str(e)}")
+            db.session.rollback()
+            return {'success': False, 'error': str(e)}
 
     def get_review_summary(self, user_id: int) -> Dict[str, Any]:
         """

@@ -34,9 +34,14 @@
 {% endblock %}
 
 {% block lesson_scripts %}
+<!-- Server data -->
 <script>
-// Sample cloze data - in production, load from task payload
-const clozeData = {
+const serverClozeData = {{ cloze_data | tojson | safe if cloze_data else 'null' }};
+</script>
+
+<script>
+// Cloze data - load from server or use fallback
+const clozeData = serverClozeData || {
   text: `The importance of reading cannot (1) ______ overstated. When we read, we not only gain knowledge (2) ______ also improve our vocabulary and critical thinking skills. Many successful people attribute their achievements (3) ______ the habit of reading regularly.
 
 Reading fiction, (4) ______ particular, helps us develop empathy by allowing us to see the world through different perspectives. It has (5) ______ shown that regular readers are more likely to understand and relate to others' emotions.

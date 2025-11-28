@@ -1,6 +1,6 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}🏆 Финальный тест{% endblock %}
+{% block lesson_type %}🏆 Тест модуля{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
@@ -14,13 +14,31 @@
     <div class="info-text">
       <h3>О тесте</h3>
       <ul>
-        <li>32-36 вопросов по всем разделам модуля</li>
-        <li>Примерное время: 25-30 минут</li>
-        <li>Минимальный балл для прохождения: 70%</li>
+        <li>{{ test_data.total_questions if test_data else 36 }} вопросов по всем разделам модуля</li>
+        <li>Примерное время: {{ test_data.estimated_time if test_data else 25 }} минут</li>
+        <li>Минимальный балл для прохождения: {{ test_data.pass_score if test_data else 70 }}%</li>
       </ul>
     </div>
   </div>
 
+  {% if test_data and test_data.sections %}
+  <div class="test-sections">
+    <h3>Разделы теста</h3>
+    <div class="sections-list">
+      {% for section in test_data.sections %}
+      <div class="section-item">
+        <span class="section-icon">
+          {% if section.name == 'Vocabulary' %}📝
+          {% elif section.name == 'Grammar' %}📖
+          {% elif section.name == 'Reading Comprehension' %}📚
+          {% else %}✏️{% endif %}
+        </span>
+        <span>{{ section.name }} ({{ section.questions|length }} вопросов)</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
   <div class="test-sections">
     <h3>Разделы теста</h3>
     <div class="sections-list">
@@ -42,6 +60,7 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <button class="btn btn-primary btn-lg" onclick="startTest()">
     Начать тест
@@ -92,79 +111,64 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishTest()" style="display: none;">
-  Завершить и сохранить
-</button>
+<div class="lesson-footer-buttons" id="footer-buttons">
+  <button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishTest()" style="display: none;">
+    Завершить и сохранить
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
-// Test structure
-const testSections = [
-  {
-    name: 'Vocabulary',
-    icon: '📝',
-    questions: generateVocabQuestions()
-  },
-  {
-    name: 'Grammar',
-    icon: '📖',
-    questions: generateGrammarQuestions()
-  },
-  {
-    name: 'Reading Comprehension',
-    icon: '📚',
-    questions: generateReadingQuestions()
-  },
-  {
-    name: 'Use of English',
-    icon: '✏️',
-    questions: generateUseOfEnglishQuestions()
-  }
-];
+const dailyLessonId = {{ daily_lesson.id if daily_lesson else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const nextLessonUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}';
+const passScore = {{ test_data.pass_score if test_data else 70 }};
+const estimatedTime = {{ test_data.estimated_time if test_data else 25 }};
+
+// Test sections from server
+const serverTestData = {{ test_data | tojson | safe if test_data else 'null' }};
+
+// Build test sections from server data or use fallback
+let testSections = [];
+if (serverTestData && serverTestData.sections) {
+  testSections = serverTestData.sections.map(section => ({
+    name: section.name,
+    icon: section.name === 'Vocabulary' ? '📝' :
+          section.name === 'Grammar' ? '📖' :
+          section.name === 'Reading Comprehension' ? '📚' : '✏️',
+    questions: section.questions.map(q => ({
+      type: q.type || section.name.toLowerCase(),
+      text: q.question || q.text || '',
+      options: q.options || ['Option A', 'Option B', 'Option C', 'Option D'],
+      correct: q.correct !== undefined ? q.correct : 0
+    }))
+  }));
+} else {
+  // Fallback to generated questions
+  testSections = [
+    { name: 'Vocabulary', icon: '📝', questions: generateFallbackQuestions('vocabulary', 10) },
+    { name: 'Grammar', icon: '📖', questions: generateFallbackQuestions('grammar', 8) },
+    { name: 'Reading Comprehension', icon: '📚', questions: generateFallbackQuestions('reading', 8) },
+    { name: 'Use of English', icon: '✏️', questions: generateFallbackQuestions('use_of_english', 10) }
+  ];
+}
+
+function generateFallbackQuestions(type, count) {
+  return Array(count).fill(null).map((_, i) => ({
+    type: type,
+    text: `${type.charAt(0).toUpperCase() + type.slice(1)} question ${i + 1}`,
+    options: ['Option A', 'Option B', 'Option C', 'Option D'],
+    correct: 0
+  }));
+}
 
 let allQuestions = [];
 let currentQuestion = 0;
 let answers = {};
 let timerInterval = null;
-let timeLeft = 25 * 60; // 25 minutes
-
-function generateVocabQuestions() {
-  // In production, these would come from the task payload
-  return Array(10).fill(null).map((_, i) => ({
-    type: 'vocabulary',
-    text: `Vocabulary question ${i + 1}: Choose the correct meaning.`,
-    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-    correct: Math.floor(Math.random() * 4)
-  }));
-}
-
-function generateGrammarQuestions() {
-  return Array(8).fill(null).map((_, i) => ({
-    type: 'grammar',
-    text: `Grammar question ${i + 1}: Choose the correct form.`,
-    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-    correct: Math.floor(Math.random() * 4)
-  }));
-}
-
-function generateReadingQuestions() {
-  return Array(8).fill(null).map((_, i) => ({
-    type: 'reading',
-    text: `Reading question ${i + 1}: Based on the passage...`,
-    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-    correct: Math.floor(Math.random() * 4)
-  }));
-}
-
-function generateUseOfEnglishQuestions() {
-  return Array(10).fill(null).map((_, i) => ({
-    type: 'use_of_english',
-    text: `Use of English question ${i + 1}: Fill in the blank.`,
-    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-    correct: Math.floor(Math.random() * 4)
-  }));
-}
+let timeLeft = estimatedTime * 60;
 
 function startTest() {
   // Flatten all questions
@@ -313,9 +317,9 @@ function finishTestQuestions() {
   document.getElementById('test-results').style.display = 'block';
 
   document.getElementById('results-score').textContent = totalScore + '%';
-  document.getElementById('results-icon').textContent = totalScore >= 70 ? '🎉' : '📚';
+  document.getElementById('results-icon').textContent = totalScore >= passScore ? '🎉' : '📚';
   document.getElementById('results-status').textContent =
-    totalScore >= 70 ? 'Тест пройден!' : 'Тест не пройден';
+    totalScore >= passScore ? 'Тест пройден!' : 'Тест не пройден';
 
   // Render breakdown
   document.getElementById('breakdown-list').innerHTML = testSections.map(section => {
@@ -323,7 +327,7 @@ function finishTestQuestions() {
     return `
       <div class="breakdown-item">
         <span class="breakdown-name">${section.icon} ${section.name}</span>
-        <span class="breakdown-score ${result.percent >= 70 ? 'good' : 'low'}">${result.percent}%</span>
+        <span class="breakdown-score ${result.percent >= passScore ? 'good' : 'low'}">${result.percent}%</span>
         <span class="breakdown-detail">(${result.correct}/${result.total})</span>
       </div>
     `;
@@ -334,7 +338,55 @@ function finishTestQuestions() {
 }
 
 function finishTest() {
-  completeLesson(window.finalScore || 0);
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняем...';
+
+  // Use new API if daily_lesson_id exists
+  const endpoint = dailyLessonId
+    ? `/curriculum/api/v1/lesson/${dailyLessonId}/complete`
+    : `/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`;
+
+  const body = dailyLessonId
+    ? {}
+    : { lesson_number: lessonNumber, score: window.finalScore || 0 };
+
+  fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  .then(response => {
+    if (response.status === 201 || response.ok) {
+      return response.json ? response.json() : {};
+    }
+    throw new Error('Failed to complete test');
+  })
+  .then(data => {
+    showCompletionSuccess();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.textContent = 'Завершить и сохранить';
+  });
+}
+
+function showCompletionSuccess() {
+  const footerButtons = document.getElementById('footer-buttons');
+  const passed = window.finalScore >= passScore;
+
+  if (passed) {
+    footerButtons.innerHTML = `
+      <span class="completion-check">✓ Модуль завершён!</span>
+      <a href="${moduleUrl}" class="btn btn-primary btn-lg">К следующему модулю</a>
+    `;
+  } else {
+    footerButtons.innerHTML = `
+      <span class="completion-warning">Результат сохранён</span>
+      <a href="${moduleUrl}" class="btn btn-secondary">Вернуться к модулю</a>
+    `;
+  }
 }
 </script>
 
@@ -608,6 +660,24 @@ function finishTest() {
 .breakdown-detail {
   color: var(--text-secondary);
   font-size: 0.875rem;
+}
+
+/* Footer */
+.lesson-footer-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.completion-check {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.completion-warning {
+  color: #ff9800;
+  font-weight: 500;
 }
 
 /* Responsive */

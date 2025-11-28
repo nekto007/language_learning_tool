@@ -1,0 +1,345 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Discussion{% endblock %}
+
+{% block lesson_content %}
+<div class="discussion-lesson">
+    <div class="lesson-intro">
+        <h1>Discussion Questions</h1>
+        <p>Reflect on what you've read and answer the questions below.</p>
+    </div>
+
+    <div class="lesson-instructions">
+        <strong>Instructions:</strong>
+        <ul>
+            <li>Read each question carefully</li>
+            <li>Write your thoughts in the provided space</li>
+            <li>There are no wrong answers - share your honest opinion</li>
+            <li>You can reveal example answers after writing your own</li>
+        </ul>
+    </div>
+
+    <!-- Discussion Questions -->
+    <div class="questions-container">
+        <div class="question-card" data-question="1">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-status" id="status-1">Not answered</span>
+            </div>
+            <div class="question-text">
+                What do you think were the main challenges faced by the characters in this part of the story?
+            </div>
+            <textarea
+                class="answer-textarea"
+                id="answer-1"
+                placeholder="Write your thoughts here..."
+                oninput="updateQuestionStatus(1)"
+            ></textarea>
+            <div class="example-toggle">
+                <button class="toggle-example-btn" onclick="toggleExample(1)">
+                    Show example answer
+                </button>
+            </div>
+            <div class="example-answer" id="example-1" style="display: none;">
+                <strong>Example answer:</strong>
+                <p>The characters faced several challenges including adapting to a new environment, building trust with others, and overcoming their own fears and insecurities.</p>
+            </div>
+        </div>
+
+        <div class="question-card" data-question="2">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-status" id="status-2">Not answered</span>
+            </div>
+            <div class="question-text">
+                How did the setting influence the mood and events of this section?
+            </div>
+            <textarea
+                class="answer-textarea"
+                id="answer-2"
+                placeholder="Write your thoughts here..."
+                oninput="updateQuestionStatus(2)"
+            ></textarea>
+            <div class="example-toggle">
+                <button class="toggle-example-btn" onclick="toggleExample(2)">
+                    Show example answer
+                </button>
+            </div>
+            <div class="example-answer" id="example-2" style="display: none;">
+                <strong>Example answer:</strong>
+                <p>The setting created an atmosphere of mystery and anticipation, which helped build tension throughout the narrative.</p>
+            </div>
+        </div>
+
+        <div class="question-card" data-question="3">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-status" id="status-3">Not answered</span>
+            </div>
+            <div class="question-text">
+                If you were in the main character's situation, what would you have done differently?
+            </div>
+            <textarea
+                class="answer-textarea"
+                id="answer-3"
+                placeholder="Write your thoughts here..."
+                oninput="updateQuestionStatus(3)"
+            ></textarea>
+            <div class="example-toggle">
+                <button class="toggle-example-btn" onclick="toggleExample(3)">
+                    Show example answer
+                </button>
+            </div>
+            <div class="example-answer" id="example-3" style="display: none;">
+                <strong>Example answer:</strong>
+                <p>I would have sought help from others sooner rather than trying to handle everything alone. Teamwork often leads to better solutions.</p>
+            </div>
+        </div>
+
+        <div class="question-card" data-question="4">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-status" id="status-4">Not answered</span>
+            </div>
+            <div class="question-text">
+                What themes or messages do you see emerging in this part of the story? How do they relate to real life?
+            </div>
+            <textarea
+                class="answer-textarea"
+                id="answer-4"
+                placeholder="Write your thoughts here..."
+                oninput="updateQuestionStatus(4)"
+            ></textarea>
+            <div class="example-toggle">
+                <button class="toggle-example-btn" onclick="toggleExample(4)">
+                    Show example answer
+                </button>
+            </div>
+            <div class="example-answer" id="example-4" style="display: none;">
+                <strong>Example answer:</strong>
+                <p>The themes of friendship, perseverance, and the importance of choices are evident. In real life, these themes remind us that our decisions shape our future and that having supportive people around us makes challenges easier to overcome.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Summary -->
+    <div class="progress-summary">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="discussion-progress" style="width: 0%"></div>
+        </div>
+        <span class="progress-text"><span id="answered-count">0</span>/4 questions answered</span>
+    </div>
+</div>
+
+<style>
+.discussion-lesson {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.questions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.question-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s;
+}
+
+.question-card.answered {
+    border-color: var(--success-color, #10b981);
+}
+
+.question-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.question-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.question-status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.question-status.answered {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.question-text {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.answer-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    line-height: 1.6;
+    resize: vertical;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    margin-bottom: 1rem;
+}
+
+.answer-textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.example-toggle {
+    margin-bottom: 0.5rem;
+}
+
+.toggle-example-btn {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.toggle-example-btn:hover {
+    color: var(--accent-hover);
+}
+
+.example-answer {
+    background: #fef3c7;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    border-left: 4px solid #f59e0b;
+}
+
+.example-answer strong {
+    color: #92400e;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.example-answer p {
+    color: #78350f;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.progress-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+}
+
+.progress-bar-container {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+</style>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const totalQuestions = 4;
+let answeredQuestions = new Set();
+
+function updateQuestionStatus(questionNum) {
+    const textarea = document.getElementById(`answer-${questionNum}`);
+    const status = document.getElementById(`status-${questionNum}`);
+    const card = document.querySelector(`[data-question="${questionNum}"]`);
+    const wordCount = textarea.value.trim().split(/\s+/).filter(w => w).length;
+
+    if (wordCount >= 10) {
+        status.textContent = 'Answered';
+        status.classList.add('answered');
+        card.classList.add('answered');
+        answeredQuestions.add(questionNum);
+    } else {
+        status.textContent = 'Not answered';
+        status.classList.remove('answered');
+        card.classList.remove('answered');
+        answeredQuestions.delete(questionNum);
+    }
+
+    updateProgress();
+}
+
+function toggleExample(questionNum) {
+    const example = document.getElementById(`example-${questionNum}`);
+    const btn = example.previousElementSibling.querySelector('.toggle-example-btn');
+
+    if (example.style.display === 'none') {
+        example.style.display = 'block';
+        btn.textContent = 'Hide example answer';
+    } else {
+        example.style.display = 'none';
+        btn.textContent = 'Show example answer';
+    }
+}
+
+function updateProgress() {
+    const answered = answeredQuestions.size;
+    const percentage = (answered / totalQuestions) * 100;
+
+    document.getElementById('discussion-progress').style.width = `${percentage}%`;
+    document.getElementById('answered-count').textContent = answered;
+
+    // Enable complete button if at least 3 questions answered
+    document.getElementById('complete-btn').disabled = answered < 3;
+}
+
+// Override complete lesson to calculate score
+const originalCompleteLesson = completeLesson;
+completeLesson = function(score) {
+    const answered = answeredQuestions.size;
+    const calculatedScore = Math.round((answered / totalQuestions) * 100);
+    originalCompleteLesson(calculatedScore);
+};
+</script>
+{% endblock %}

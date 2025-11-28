@@ -1,12 +1,20 @@
 """
-Book Course Generator
+Book Course Generator v3.0
 
-This module integrates the existing task generation system with the Book Courses system,
-allowing any book to be converted into a complete course with lessons and tasks.
+This module creates structured language courses from books.
+
+NEW ARCHITECTURE (v3.0):
+- Aggregates book chapters into 6-10 modules
+- Each day has 2 lessons: Reading + Practice (rotated type)
+- Reading lessons cover ~800-1000 words depending on CEFR level
+- Practice rotates: vocabulary, grammar, comprehension, cloze, review, summary
+- Full book coverage over ~100-200+ days
+- SRS integration in practice lessons
 """
 
 import logging
 from typing import Any, Dict, List, Optional
+import math
 
 from app.books.models import Block, BlockVocab, Book, Task
 from app.curriculum.book_courses import BookCourse, BookCourseModule
@@ -17,9 +25,13 @@ from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
+# Course structure constants
+MAX_MODULES = 10  # Maximum modules per book course
+MIN_MODULES = 6   # Minimum modules per book course
+
 
 class BookCourseGenerator:
-    """Generates complete courses from books"""
+    """Generates complete courses from books with structured lessons"""
 
     def __init__(self, book_id: int):
         self.book_id = book_id
@@ -199,16 +211,75 @@ class BookCourseGenerator:
             return False
 
     def _create_course_modules(self, course_id: int) -> bool:
-        """Create BookCourseModule records from blocks"""
+        """
+        Create BookCourseModule records by aggregating blocks into 6-8 modules.
+
+        NEW v2.0 Architecture:
+        - 19 blocks are aggregated into 6-8 modules
+        - Each module covers multiple blocks/chapters
+        - Module count depends on book size and CEFR level
+        """
         try:
             blocks = Block.query.filter_by(book_id=self.book_id).order_by(Block.block_num).all()
 
-            for block in blocks:
-                # Count chapters in this block
-                chapter_count = len(block.chapters)
+            if not blocks:
+                logger.error("No blocks found for module creation")
+                return False
 
-                # Get tasks for this block (for legacy compatibility)
-                tasks = Task.query.filter_by(block_id=block.id).all()
+            # Calculate optimal number of modules (6-8)
+            total_blocks = len(blocks)
+            num_modules = self._calculate_optimal_modules(total_blocks)
+
+            # Distribute blocks across modules
+            block_distribution = self._distribute_blocks(blocks, num_modules)
+
+            logger.info(f"Aggregating {total_blocks} blocks into {num_modules} modules")
+
+            module_number = 1
+            for module_blocks in block_distribution:
+                if not module_blocks:
+                    continue
+
+                # Use first block as primary reference (for tasks, vocabulary)
+                primary_block = module_blocks[0]
+
+                # Combine chapter info from all blocks in this module
+                all_chapters = []
+                for block in module_blocks:
+                    all_chapters.extend(block.chapters)
+
+                chapter_count = len(all_chapters)
+                chapter_nums = [ch.chap_num for ch in all_chapters]
+
+                # Create module title based on chapter range
+                if chapter_nums:
+                    if len(chapter_nums) == 1:
+                        title = f"Module {module_number}: Chapter {chapter_nums[0]}"
+                    else:
+                        title = f"Module {module_number}: Chapters {min(chapter_nums)}-{max(chapter_nums)}"
+                else:
+                    title = f"Module {module_number}"
+
+                # Combine learning objectives from all blocks
+                combined_objectives = []
+                combined_grammar = []
+                combined_vocab = []
+
+                for block in module_blocks:
+                    combined_objectives.extend(self._create_learning_objectives(block))
+                    if block.grammar_key:
+                        combined_grammar.append(block.grammar_key)
+                    combined_vocab.extend(self._get_block_vocabulary(block.id))
+
+                # Remove duplicates
+                combined_objectives = list(dict.fromkeys(combined_objectives))[:5]
+                combined_grammar = list(dict.fromkeys(combined_grammar))
+                combined_vocab = list(dict.fromkeys(combined_vocab))[:15]
+
+                # Calculate total reading time for all blocks in module
+                total_reading_time = sum(
+                    self._estimate_reading_time(block) for block in module_blocks
+                )
 
                 # Create placeholder lessons data - will be replaced by daily slices
                 lessons_data = {'lessons': [], 'total_lessons': 0}
@@ -216,37 +287,80 @@ class BookCourseGenerator:
                 # Create the module
                 module = BookCourseModule(
                     course_id=course_id,
-                    block_id=block.id,  # Add block reference
-                    module_number=block.block_num,
-                    title=f"Block {block.block_num}",
-                    description=f"Chapters {chapter_count} chapters focusing on {block.focus_vocab or 'general vocabulary'}",
-                    estimated_reading_time=self._estimate_reading_time(block),
-                    learning_objectives=self._create_learning_objectives(block),
-                    vocabulary_focus=self._get_block_vocabulary(block.id),
-                    grammar_focus=[block.grammar_key] if block.grammar_key else [],
+                    block_id=primary_block.id,  # Primary block reference
+                    module_number=module_number,
+                    title=title,
+                    description=f"Covering {chapter_count} chapters with focus on vocabulary and grammar",
+                    estimated_reading_time=total_reading_time,
+                    learning_objectives=combined_objectives,
+                    vocabulary_focus=combined_vocab,
+                    grammar_focus=combined_grammar,
                     literary_elements=[],
                     lessons_data=lessons_data,
                     difficulty_level=self._get_course_level(course_id),
-                    order_index=block.block_num,
-                    is_locked=block.block_num > 1  # Lock all except first block
+                    order_index=module_number,
+                    is_locked=module_number > 1  # Lock all except first module
                 )
 
                 db.session.add(module)
-                db.session.flush()  # Get module ID for daily slice generation
+                db.session.flush()
 
-                # Store block reference for daily slice generation
-                module.block = block
+                # Store primary block reference for daily slice generation
+                module.block = primary_block
+
+                # Store all blocks for this module (for vocabulary aggregation)
+                module._all_blocks = module_blocks
+
+                module_number += 1
 
             # Update course total_modules count
             course = BookCourse.query.get(course_id)
-            course.total_modules = len(blocks)
+            course.total_modules = num_modules
 
-            logger.info(f"Created {len(blocks)} modules for course {course_id}")
+            logger.info(f"Created {num_modules} aggregated modules for course {course_id}")
             return True
 
         except Exception as e:
             logger.error(f"Error creating course modules: {str(e)}")
             return False
+
+    def _calculate_optimal_modules(self, total_blocks: int) -> int:
+        """
+        Calculate optimal number of modules based on block count and level.
+
+        Target: 6-8 modules per course
+        """
+        if total_blocks <= MIN_MODULES:
+            return total_blocks  # Can't aggregate if fewer blocks than min modules
+
+        if total_blocks <= MAX_MODULES:
+            return total_blocks  # One module per block if within range
+
+        # For books with more blocks, aggregate to MAX_MODULES
+        return MAX_MODULES
+
+    def _distribute_blocks(self, blocks: List[Block], num_modules: int) -> List[List[Block]]:
+        """
+        Distribute blocks evenly across modules.
+
+        Example: 19 blocks into 8 modules = [3, 2, 2, 3, 2, 2, 3, 2] blocks each
+        """
+        if num_modules >= len(blocks):
+            # One block per module
+            return [[block] for block in blocks]
+
+        distribution = []
+        blocks_per_module = len(blocks) / num_modules
+
+        start_idx = 0
+        for i in range(num_modules):
+            # Calculate end index for this module
+            end_idx = int(round((i + 1) * blocks_per_module))
+            module_blocks = blocks[start_idx:end_idx]
+            distribution.append(module_blocks)
+            start_idx = end_idx
+
+        return distribution
 
     def _create_lessons_from_tasks(self, tasks: List[Task]) -> Dict[str, Any]:
         """Convert tasks to lessons data structure according to specification"""
@@ -377,12 +491,31 @@ class BookCourseGenerator:
         return placeholders.get(lesson_type, "Lesson content will be provided based on the reading material.")
 
     def _estimate_duration(self) -> int:
-        """Estimate course duration in weeks"""
-        blocks = Block.query.filter_by(book_id=self.book_id).count()
+        """
+        Estimate course duration in weeks based on v3.0 architecture.
 
-        # Assume 1 week per 2 blocks, minimum 2 weeks
-        weeks = max(2, (blocks + 1) // 2)
-        return min(weeks, 12)  # Cap at 12 weeks
+        With ~800 words/day reading and full book coverage:
+        - 50k words book = ~63 days = ~9 weeks
+        - 100k words book = ~125 days = ~18 weeks
+        - 185k words book = ~231 days = ~33 weeks
+        """
+        # Get total word count from chapters
+        total_words = 0
+        blocks = Block.query.filter_by(book_id=self.book_id).all()
+        for block in blocks:
+            for chapter in block.chapters:
+                if chapter.words:
+                    total_words += chapter.words
+
+        if total_words == 0:
+            # Fallback to old estimation
+            return max(4, len(blocks) * 2)
+
+        # Calculate days based on 800 words/day (B1 level)
+        days = total_words // 800
+        weeks = (days + 6) // 7  # Round up to nearest week
+
+        return max(4, weeks)  # Minimum 4 weeks
 
     def _extract_author_info(self) -> Dict[str, Any]:
         """Extract author information"""
@@ -444,13 +577,17 @@ class BookCourseGenerator:
         return course.level if course else 'B1'
 
     def _generate_daily_slices(self, course_id: int) -> bool:
-        """Generate daily lesson slices for all modules in the course"""
+        """
+        Generate structured lessons for all modules in the course.
+
+        NEW v2.0: Uses the block_id stored in each module, creates 6-10 lessons per module.
+        """
         try:
             # Get all modules for this course
             modules = BookCourseModule.query.filter_by(course_id=course_id).order_by(BookCourseModule.order_index).all()
 
             if not modules:
-                logger.warning("No modules found for daily slice generation")
+                logger.warning("No modules found for lesson generation")
                 return False
 
             slice_generator = DailySliceGenerator()
@@ -458,20 +595,20 @@ class BookCourseGenerator:
 
             for module in modules:
                 try:
-                    # Get the corresponding block
-                    block = Block.query.filter_by(book_id=self.book_id, block_num=module.module_number).first()
+                    # Get the primary block for this module (stored during module creation)
+                    block = Block.query.get(module.block_id)
 
                     if not block:
-                        logger.warning(f"No block found for module {module.module_number}")
+                        logger.warning(f"No block found for module {module.module_number} (block_id={module.block_id})")
                         continue
 
-                    logger.info(f"Generating daily slices for module {module.module_number}")
+                    logger.info(f"Generating structured lessons for module {module.module_number}")
 
-                    # Generate slices for this module
+                    # Generate structured lessons for this module
                     daily_lessons = slice_generator.generate_slices_for_module(module, block)
 
                     if daily_lessons:
-                        # Update module lessons_data with daily slice information
+                        # Update module lessons_data with structured lesson information
                         lessons_data = {
                             'lessons': [],
                             'total_lessons': len(daily_lessons)
@@ -489,43 +626,43 @@ class BookCourseGenerator:
                                 'max_score': 100,
                                 'available_at': lesson.available_at.isoformat() if lesson.available_at else None
                             }
-
-                            # Add vocabulary lesson before each daily slice
-                            if lesson.lesson_type != 'final_test':
-                                vocab_lesson = {
-                                    'lesson_number': lesson.day_number,
-                                    'sub_lesson': 'a',
-                                    'type': 'vocabulary',
-                                    'title': f'Day {lesson.day_number} Vocabulary',
-                                    'description': f'Study vocabulary from today\'s reading ({len(lesson.vocabulary)} words)',
-                                    'daily_lesson_id': lesson.id,
-                                    'estimated_time': 15,
-                                    'max_score': 100,
-                                    'available_at': lesson.available_at.isoformat() if lesson.available_at else None
-                                }
-                                lessons_data['lessons'].append(vocab_lesson)
-
                             lessons_data['lessons'].append(lesson_info)
 
                         module.lessons_data = lessons_data
                         success_count += 1
-                        logger.info(f"Generated {len(daily_lessons)} daily lessons for module {module.module_number}")
+                        logger.info(f"Generated {len(daily_lessons)} structured lessons for module {module.module_number}")
                     else:
-                        logger.warning(f"No daily lessons generated for module {module.module_number}")
+                        logger.warning(f"No lessons generated for module {module.module_number}")
 
                 except Exception as e:
-                    logger.error(f"Error generating daily slices for module {module.module_number}: {str(e)}")
+                    logger.error(f"Error generating lessons for module {module.module_number}: {str(e)}")
 
-            logger.info(f"Generated daily slices for {success_count}/{len(modules)} modules")
+            logger.info(f"Generated lessons for {success_count}/{len(modules)} modules")
             return success_count > 0
 
         except Exception as e:
-            logger.error(f"Error in daily slice generation: {str(e)}")
+            logger.error(f"Error in lesson generation: {str(e)}")
             return False
 
     def _get_lesson_title(self, lesson_type: str, day_number: int) -> str:
         """Get appropriate title for lesson type"""
         titles = {
+            # v3.0 lesson types
+            'reading': f'Day {day_number}: Reading',
+            'vocabulary': f'Day {day_number}: Vocabulary',
+            'grammar_focus': f'Day {day_number}: Grammar Focus',
+            'comprehension_mcq': f'Day {day_number}: Comprehension Quiz',
+            'cloze_practice': f'Day {day_number}: Cloze Practice',
+            'vocabulary_review': f'Day {day_number}: Vocabulary Review',
+            'summary_writing': f'Day {day_number}: Summary Writing',
+            'module_test': 'Module Test',
+            # Legacy v2.0 lesson types (for compatibility)
+            'reading_part1': f'Day {day_number}: Reading Part 1',
+            'reading_part2': f'Day {day_number}: Reading Part 2',
+            'vocabulary_practice': f'Day {day_number}: Vocabulary Practice',
+            'discussion': f'Day {day_number}: Discussion',
+            'mixed_practice': f'Day {day_number}: Mixed Practice',
+            # Legacy lesson types (for compatibility)
             'reading_mcq': f'Day {day_number}: Reading Comprehension',
             'match_headings': f'Day {day_number}: Match Headings',
             'open_cloze': f'Day {day_number}: Open Cloze Test',
@@ -533,13 +670,29 @@ class BookCourseGenerator:
             'keyword_transform': f'Day {day_number}: Key Word Transformations',
             'grammar_sheet': f'Day {day_number}: Grammar Focus',
             'final_test': 'Module Final Test',
-            'vocabulary': f'Day {day_number}: Vocabulary Practice'
+            'reading_passage': f'Day {day_number}: Reading Passage'
         }
         return titles.get(lesson_type, f'Day {day_number}: Lesson')
 
     def _get_lesson_description(self, lesson_type: str) -> str:
         """Get description for lesson type"""
         descriptions = {
+            # v3.0 lesson types
+            'reading': 'Read today\'s text passage (~800-1000 words)',
+            'vocabulary': 'Learn new vocabulary from the text (10-15 words)',
+            'grammar_focus': 'Study grammar patterns from the text with exercises',
+            'comprehension_mcq': 'Test your understanding with multiple choice questions',
+            'cloze_practice': 'Practice with open cloze and word formation exercises',
+            'vocabulary_review': 'Review vocabulary with matching and fill-in exercises',
+            'summary_writing': 'Write a summary of what you\'ve read this week',
+            'module_test': 'Comprehensive test covering all module material',
+            # Legacy v2.0 lesson types (for compatibility)
+            'reading_part1': 'Read first half of the text with comprehension questions',
+            'reading_part2': 'Read second half of the text with comprehension questions',
+            'vocabulary_practice': 'Practice vocabulary: cloze, word formation, matching',
+            'discussion': 'Answer open-ended questions for reflection',
+            'mixed_practice': 'Combined exercises covering all skills',
+            # Legacy lesson types (for compatibility)
             'reading_mcq': 'Answer multiple choice questions about the text (10 questions)',
             'match_headings': 'Match paragraphs with appropriate headings (6 paragraphs → 8 headings)',
             'open_cloze': 'Fill in missing words in the text (8 gaps)',
@@ -547,13 +700,29 @@ class BookCourseGenerator:
             'keyword_transform': 'Rewrite sentences using given key words (6 sentences)',
             'grammar_sheet': 'Grammar lesson with explanations and practice (4-5 questions)',
             'final_test': 'Comprehensive test covering all material (32-36 questions)',
-            'vocabulary': 'Study key vocabulary words with interactive exercises'
+            'reading_passage': 'Read the main text passage'
         }
         return descriptions.get(lesson_type, 'Complete the lesson')
 
     def _estimate_lesson_time(self, lesson_type: str) -> int:
         """Estimate time in minutes for lesson type"""
         times = {
+            # v3.0 lesson types
+            'reading': 25,              # ~800 words at 150-200 wpm
+            'vocabulary': 15,           # 10-15 words
+            'grammar_focus': 20,        # Grammar exercises
+            'comprehension_mcq': 15,    # MCQ quiz
+            'cloze_practice': 18,       # Cloze + word formation
+            'vocabulary_review': 15,    # Review exercises
+            'summary_writing': 20,      # Writing practice
+            'module_test': 30,          # Comprehensive test
+            # Legacy v2.0 lesson types (for compatibility)
+            'reading_part1': 25,
+            'reading_part2': 25,
+            'vocabulary_practice': 18,
+            'discussion': 20,
+            'mixed_practice': 18,
+            # Legacy lesson types (for compatibility)
             'reading_mcq': 15,
             'match_headings': 10,
             'open_cloze': 12,
@@ -561,7 +730,7 @@ class BookCourseGenerator:
             'keyword_transform': 12,
             'grammar_sheet': 18,
             'final_test': 25,
-            'vocabulary': 15
+            'reading_passage': 20
         }
         return times.get(lesson_type, 15)
 

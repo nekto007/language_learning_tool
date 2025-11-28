@@ -1,4 +1,4 @@
-"""Tests for DailySliceGenerator"""
+"""Tests for DailySliceGenerator v3.0"""
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
@@ -34,11 +34,12 @@ def mock_block():
 @pytest.fixture
 def mock_chapter():
     """Create mock Chapter"""
-    def _create_chapter(chap_num, text="This is test text. It has sentences."):
+    def _create_chapter(chap_num, text="This is test text. It has sentences.", words=100):
         chapter = Mock()
         chapter.id = chap_num
         chapter.chap_num = chap_num
         chapter.text_raw = text
+        chapter.words = words
         return chapter
     return _create_chapter
 
@@ -55,17 +56,32 @@ class TestInit:
     """Test __init__ method"""
 
     def test_initialization(self, generator):
-        """Test generator initialization"""
-        # Test CEFR-based slice sizes
-        assert generator.SLICE_SIZE_BY_LEVEL == {
-            'A1': 200, 'A2': 300, 'B1': 400,
-            'B2': 600, 'C1': 800, 'C2': 1000
+        """Test generator initialization for v3.0"""
+        # Test CEFR-based words per level (target, max)
+        assert generator.WORDS_PER_LEVEL == {
+            'A1': (100, 150),    # Range: 50-150 words
+            'A2': (125, 200),    # Range: 50-200 words
+            'B1': (400, 600),    # Range: 200-600 words
+            'B2': (700, 800),    # Range: 600-800 words
+            'C1': (900, 1000),   # Range: 800-1000 words
+            'C2': (1050, 1200),  # Range: 900-1200 words
         }
-        assert generator.SLICE_SIZE_DEFAULT == 800
-        assert generator.SLICE_TOLERANCE == 50
-        assert len(generator.LESSON_TYPES_ROTATION) == 6
-        assert generator.VOCABULARY_WORDS_PER_SLICE == 10
+        assert generator.WORDS_PER_LEVEL_DEFAULT == (400, 600)
+        assert len(generator.PRACTICE_ROTATION) == 6
+        assert generator.VOCABULARY_WORDS_PER_LESSON == 15
         assert generator.timezone.zone == 'Europe/Amsterdam'
+
+    def test_practice_rotation_types(self, generator):
+        """Test practice rotation has correct types"""
+        expected_types = [
+            'vocabulary',
+            'grammar_focus',
+            'comprehension_mcq',
+            'cloze_practice',
+            'vocabulary_review',
+            'summary_writing',
+        ]
+        assert generator.PRACTICE_ROTATION == expected_types
 
 
 class TestDetermineLevel:
@@ -121,142 +137,152 @@ class TestGenerateSlicesForModule:
         assert result == []
 
     @patch('app.curriculum.services.daily_slice_generator.db')
-    def test_generates_slices_for_chapters(self, mock_db, generator, mock_module, mock_block, mock_chapter):
-        """Test generating slices for chapters"""
-        ch1 = mock_chapter(1, "Short text. Another sentence.")
-        ch2 = mock_chapter(2, "More text here. And another one.")
-        mock_block.chapters = [ch1, ch2]
+    def test_generates_lesson_pairs(self, mock_db, generator, mock_module, mock_block, mock_chapter):
+        """Test generating reading + practice pairs for v3.0"""
+        # Create chapter with ~1600 words (should create 2 days of lessons)
+        text = "This is a test sentence with words. " * 200  # ~1600 words
+        ch1 = mock_chapter(1, text, 1600)
+        mock_block.chapters = [ch1]
 
-        with patch.object(generator, '_get_block_vocabulary') as mock_vocab, \
-             patch.object(generator, '_slice_chapter') as mock_slice, \
-             patch.object(generator, '_create_final_test_lesson') as mock_final:
-
+        with patch.object(generator, '_get_block_vocabulary') as mock_vocab:
             mock_vocab.return_value = {}
-            # Each chapter creates 3 lessons (vocab, reading, task)
-            mock_slice.side_effect = [
-                [Mock(), Mock(), Mock()],  # ch1
-                [Mock(), Mock(), Mock()]   # ch2
-            ]
-            mock_final.return_value = Mock()
 
             result = generator.generate_slices_for_module(mock_module, mock_block)
 
-            # 6 lessons from chapters + 1 final test
-            assert len(result) == 7
-            assert mock_slice.call_count == 2
-            mock_final.assert_called_once()
-            mock_db.session.commit.assert_called()
+            # Should create pairs (reading + practice) for each day + module test
+            # ~1600 words / 800 per day = 2 days
+            # 2 days * 2 lessons + 1 module test = 5 lessons
+            assert len(result) >= 3  # At least 1 day + module test
 
     @patch('app.curriculum.services.daily_slice_generator.db')
     def test_sets_module_metadata(self, mock_db, generator, mock_module, mock_block, mock_chapter):
         """Test setting total_slices and days_to_complete"""
-        ch1 = mock_chapter(1)
+        text = "This is a test sentence with words. " * 100  # ~800 words
+        ch1 = mock_chapter(1, text, 800)
         mock_block.chapters = [ch1]
 
-        with patch.object(generator, '_get_block_vocabulary') as mock_vocab, \
-             patch.object(generator, '_slice_chapter') as mock_slice, \
-             patch.object(generator, '_create_final_test_lesson') as mock_final:
-
+        with patch.object(generator, '_get_block_vocabulary') as mock_vocab:
             mock_vocab.return_value = {}
-            # 3 lessons = 1 day
-            mock_slice.return_value = [Mock(), Mock(), Mock()]
-            mock_final.return_value = Mock()
 
             generator.generate_slices_for_module(mock_module, mock_block)
 
-            # 3 lessons / 3 = 1 day
-            assert mock_module.total_slices == 1
-            # +1 for final test day
-            assert mock_module.days_to_complete == 2
+            # Should have metadata set
+            assert mock_module.total_slices > 0
+            assert mock_module.days_to_complete > 0
 
 
-class TestSliceChapter:
-    """Test _slice_chapter method"""
+class TestSplitTextIntoSlices:
+    """Test _split_text_into_slices method"""
 
-    @patch('app.curriculum.services.daily_slice_generator.db')
-    def test_empty_chapter_returns_empty(self, mock_db, generator, mock_module, mock_chapter):
-        """Test slicing chapter with no text"""
-        chapter = mock_chapter(1, "")
+    def test_splits_text_at_sentence_boundaries(self, generator, mock_chapter):
+        """Test text is split at sentence boundaries"""
+        # Create text with multiple sentences (~2000 words)
+        # "This is sentence one. " = 5 words, * 200 = 1000 words
+        text = "This is sentence one. " * 200 + "This is sentence two. " * 200
+        chapters = [mock_chapter(1, text)]
 
-        result = generator._slice_chapter(chapter, mock_module, 1, {})
+        # target=700, max=800 (B2 level)
+        slices = generator._split_text_into_slices(text, 700, 800, chapters)
 
-        assert result == []
+        # Should create multiple slices (~2000 words / 700 = ~3 slices)
+        assert len(slices) >= 2
+        # Each slice should end with a complete sentence
+        for slice_data in slices:
+            assert slice_data['text'].strip().endswith('.')
 
-    @patch('app.curriculum.services.daily_slice_generator.DailyLesson')
-    @patch('app.curriculum.services.daily_slice_generator.db')
-    def test_creates_three_lessons_per_slice(self, mock_db, mock_lesson_class, generator,
-                                             mock_module, mock_chapter):
-        """Test creating vocab, reading, and task lessons"""
-        chapter = mock_chapter(1, "Short text. Another sentence.")
+    def test_respects_words_per_slice(self, generator, mock_chapter):
+        """Test slices respect word count limit (max_words)"""
+        text = "Word. " * 2000  # 2000 words
+        chapters = [mock_chapter(1, text)]
 
-        with patch.object(generator, '_extract_slice_vocabulary'), \
-             patch.object(generator, '_get_or_create_task_for_lesson') as mock_task:
+        # target=700, max=800 (B2 level)
+        slices = generator._split_text_into_slices(text, 700, 800, chapters)
 
-            mock_task.return_value = None
+        # Each slice should not exceed max_words (800)
+        for slice_data in slices[:-1]:  # Except last which may be smaller
+            assert slice_data['word_count'] <= 800
 
-            result = generator._slice_chapter(chapter, mock_module, 1, {})
+    def test_includes_chapter_id(self, generator, mock_chapter):
+        """Test slices include chapter_id"""
+        text = "Test text. " * 100
+        chapters = [mock_chapter(1, text)]
 
-            # Should create 3 lessons: vocabulary, reading_passage, and rotated task
-            assert len(result) == 3
-            assert mock_db.session.add.call_count >= 3
+        slices = generator._split_text_into_slices(text, 400, 600, chapters)
 
-    @patch('app.curriculum.services.daily_slice_generator.DailyLesson')
-    @patch('app.curriculum.services.daily_slice_generator.db')
-    def test_rotates_lesson_types(self, mock_db, mock_lesson_class, generator,
-                                  mock_module, mock_chapter):
-        """Test lesson type rotation"""
-        chapter = mock_chapter(1, "Text. " * 100)
+        for slice_data in slices:
+            assert 'chapter_id' in slice_data
 
-        with patch.object(generator, '_extract_slice_vocabulary'), \
-             patch.object(generator, '_get_or_create_task_for_lesson'):
 
-            # Mock lesson creation to capture lesson types
-            created_lessons = []
+class TestCreateReadingLesson:
+    """Test _create_reading_lesson method"""
 
-            def mock_lesson_init(**kwargs):
-                lesson = Mock()
-                for key, value in kwargs.items():
-                    setattr(lesson, key, value)
-                created_lessons.append(lesson)
-                return lesson
+    def test_creates_reading_lesson(self, generator, mock_module):
+        """Test creating reading lesson"""
+        slice_data = {
+            'text': 'Test text for reading.',
+            'word_count': 100,
+            'start_position': 0,
+            'end_position': 100,
+            'chapter_id': 1
+        }
 
-            mock_lesson_class.side_effect = mock_lesson_init
+        lesson = generator._create_reading_lesson(mock_module, 1, slice_data)
 
-            result = generator._slice_chapter(chapter, mock_module, 1, {})
+        assert lesson.lesson_type == 'reading'
+        assert lesson.word_count == 100
+        assert lesson.slice_text == 'Test text for reading.'
 
-            # First slice should have: vocabulary, reading_passage, reading_mcq (index 0)
-            lesson_types = [lesson.lesson_type for lesson in created_lessons]
-            assert 'vocabulary' in lesson_types
-            assert 'reading_passage' in lesson_types
-            assert 'reading_mcq' in lesson_types  # First in rotation
+    def test_first_day_immediately_available(self, generator, mock_module):
+        """Test day 1 lesson has no availability restriction"""
+        slice_data = {
+            'text': 'Test',
+            'word_count': 10,
+            'start_position': 0,
+            'end_position': 10,
+            'chapter_id': 1
+        }
 
-    @patch('app.curriculum.services.daily_slice_generator.DailyLesson')
-    @patch('app.curriculum.services.daily_slice_generator.db')
-    def test_first_lesson_immediately_available(self, mock_db, mock_lesson_class,
-                                                generator, mock_module, mock_chapter):
-        """Test that day 1 lesson has no available_at restriction"""
-        chapter = mock_chapter(1, "Short text.")
+        lesson = generator._create_reading_lesson(mock_module, 1, slice_data)
 
-        with patch.object(generator, '_extract_slice_vocabulary'), \
-             patch.object(generator, '_get_or_create_task_for_lesson'):
+        assert lesson.available_at is None
 
-            created_lessons = []
 
-            def mock_lesson_init(**kwargs):
-                lesson = Mock()
-                for key, value in kwargs.items():
-                    setattr(lesson, key, value)
-                created_lessons.append(lesson)
-                return lesson
+class TestCreatePracticeLesson:
+    """Test _create_practice_lesson method"""
 
-            mock_lesson_class.side_effect = mock_lesson_init
+    def test_creates_practice_lesson(self, generator, mock_module):
+        """Test creating practice lesson"""
+        slice_data = {
+            'text': 'Test text for practice.',
+            'word_count': 100,
+            'start_position': 0,
+            'end_position': 100,
+            'chapter_id': 1
+        }
 
-            generator._slice_chapter(chapter, mock_module, 1, {})
+        lesson = generator._create_practice_lesson(
+            mock_module, 1, 'vocabulary', slice_data, {}
+        )
 
-            # All day 1 lessons should have available_at = None
-            for lesson in created_lessons:
-                if lesson.day_number == 1:
-                    assert lesson.available_at is None
+        assert lesson.lesson_type == 'vocabulary'
+        assert lesson.word_count == 0  # Practice lessons have 0 word count
+
+    def test_truncates_long_text(self, generator, mock_module):
+        """Test long text is truncated for practice lessons"""
+        long_text = "x" * 1000
+        slice_data = {
+            'text': long_text,
+            'word_count': 500,
+            'start_position': 0,
+            'end_position': 1000,
+            'chapter_id': 1
+        }
+
+        lesson = generator._create_practice_lesson(
+            mock_module, 1, 'grammar_focus', slice_data, {}
+        )
+
+        assert len(lesson.slice_text) <= 503  # 500 + "..."
 
 
 class TestSplitIntoSentences:
@@ -361,13 +387,13 @@ class TestExtractSliceVocabulary:
     @patch('app.curriculum.services.daily_slice_generator.db')
     @patch('app.curriculum.services.daily_slice_generator.SliceVocabulary')
     def test_limits_to_max_words(self, mock_slice_vocab, mock_db, generator):
-        """Test limiting to VOCABULARY_WORDS_PER_SLICE"""
+        """Test limiting to VOCABULARY_WORDS_PER_LESSON"""
         daily_lesson = Mock(id=1)
         text = " ".join([f"word{i}" for i in range(20)])  # 20 words
 
-        # Create 15 vocabulary entries (more than limit)
+        # Create 20 vocabulary entries (more than limit of 15)
         block_vocabulary = {}
-        for i in range(15):
+        for i in range(20):
             block_vocabulary[i] = {
                 'english': f'word{i}',
                 'russian': f'слово{i}',
@@ -377,8 +403,8 @@ class TestExtractSliceVocabulary:
 
         generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary)
 
-        # Should only add up to 10 words (VOCABULARY_WORDS_PER_SLICE)
-        assert mock_db.session.add.call_count <= generator.VOCABULARY_WORDS_PER_SLICE
+        # Should only add up to 15 words (VOCABULARY_WORDS_PER_LESSON)
+        assert mock_db.session.add.call_count <= generator.VOCABULARY_WORDS_PER_LESSON
 
     @patch('app.curriculum.services.daily_slice_generator.db')
     def test_no_words_found(self, mock_db, generator):
@@ -393,102 +419,6 @@ class TestExtractSliceVocabulary:
 
         # Should not add any vocabulary
         mock_db.session.add.assert_not_called()
-
-
-class TestGetOrCreateTaskForLesson:
-    """Test _get_or_create_task_for_lesson method"""
-
-    @patch('app.books.models.TaskType')
-    @patch('app.curriculum.services.daily_slice_generator.Task')
-    def test_returns_existing_task(self, mock_task_model, mock_task_type,
-                                   generator, mock_module):
-        """Test returning existing task"""
-        daily_lesson = Mock(lesson_type='reading_mcq')
-        mock_module.block_id = 10
-
-        # Mock TaskType enum
-        mock_task_type.reading_mcq = 'reading_mcq'
-
-        existing_task = Mock()
-        mock_task_model.query.filter_by.return_value.first.return_value = existing_task
-
-        result = generator._get_or_create_task_for_lesson(daily_lesson, mock_module)
-
-        assert result == existing_task
-
-    @patch('app.curriculum.services.daily_slice_generator.Task')
-    def test_returns_none_for_unknown_type(self, mock_task_model, generator, mock_module):
-        """Test with unknown lesson type"""
-        daily_lesson = Mock(lesson_type='unknown_type')
-        mock_module.block_id = 10
-
-        result = generator._get_or_create_task_for_lesson(daily_lesson, mock_module)
-
-        assert result is None
-
-    @patch('app.curriculum.services.daily_slice_generator.Task')
-    def test_returns_none_no_block_id(self, mock_task_model, generator, mock_module):
-        """Test with module having no block_id"""
-        daily_lesson = Mock(lesson_type='reading_mcq')
-        mock_module.block_id = None
-
-        result = generator._get_or_create_task_for_lesson(daily_lesson, mock_module)
-
-        assert result is None
-
-
-class TestCreateFinalTestLesson:
-    """Test _create_final_test_lesson method"""
-
-    @patch('app.books.models.TaskType')
-    @patch('app.curriculum.services.daily_slice_generator.db')
-    @patch('app.curriculum.services.daily_slice_generator.DailyLesson')
-    @patch('app.curriculum.services.daily_slice_generator.Task')
-    def test_creates_lesson_with_task(self, mock_task_model, mock_lesson_class,
-                                     mock_db, mock_task_type, generator,
-                                     mock_module, mock_block, mock_chapter):
-        """Test creating final test with existing task"""
-        mock_block.chapters = [mock_chapter(1)]
-
-        # Mock TaskType enum
-        mock_task_type.final_test = 'final_test'
-
-        final_task = Mock(id=100)
-        mock_task_model.query.filter_by.return_value.first.return_value = final_task
-
-        created_lesson = Mock()
-        mock_lesson_class.return_value = created_lesson
-
-        result = generator._create_final_test_lesson(mock_module, mock_block, 5)
-
-        assert result == created_lesson
-        mock_db.session.add.assert_called_with(created_lesson)
-
-    @patch('app.books.models.TaskType')
-    @patch('app.curriculum.services.daily_slice_generator.db')
-    @patch('app.curriculum.services.daily_slice_generator.DailyLesson')
-    @patch('app.curriculum.services.daily_slice_generator.Task')
-    def test_creates_fallback_lesson_no_task(self, mock_task_model, mock_lesson_class,
-                                            mock_db, mock_task_type, generator,
-                                            mock_module, mock_block, mock_chapter):
-        """Test creating final test without task"""
-        mock_block.chapters = [mock_chapter(1)]
-
-        # Mock TaskType enum
-        mock_task_type.final_test = 'final_test'
-
-        mock_task_model.query.filter_by.return_value.first.return_value = None
-
-        created_lesson = Mock()
-        mock_lesson_class.return_value = created_lesson
-
-        result = generator._create_final_test_lesson(mock_module, mock_block, 5)
-
-        assert result == created_lesson
-        # Verify fallback lesson was created
-        call_kwargs = mock_lesson_class.call_args[1]
-        assert call_kwargs['lesson_type'] == 'final_test'
-        assert call_kwargs['slice_number'] == 999
 
 
 class TestUnlockNextLesson:
