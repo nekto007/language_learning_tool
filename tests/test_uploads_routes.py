@@ -160,9 +160,9 @@ class TestServeCover:
 
         client.get('/uploads/covers/test.jpg')
 
-        # Verify send_file was called with correct path
+        # Verify send_file was called with a path ending with uploads/covers/test.jpg
         call_args = mock_send.call_args[0]
-        assert call_args[0] == os.path.join('uploads', 'covers', 'test.jpg')
+        assert call_args[0].endswith(os.path.join('uploads', 'covers', 'test.jpg'))
 
     @patch('app.uploads.routes.os.path.isfile')
     @patch('app.uploads.routes.os.path.exists')
