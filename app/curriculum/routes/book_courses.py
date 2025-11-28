@@ -6,11 +6,13 @@ from datetime import UTC, datetime
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import flag_modified
 from app import csrf
 
 from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress)
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
+from app.curriculum.services.grammar_focus_generator import GrammarFocusGenerator
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -258,7 +260,22 @@ def view_module(course_id, module_id):
         lessons = []
         for dl in daily_lessons:
             lesson_type_display = {
+                # v3.0 lesson types
+                'reading': 'Чтение',
                 'vocabulary': 'Словарь',
+                'grammar_focus': 'Грамматика',
+                'comprehension_mcq': 'Тест на понимание',
+                'cloze_practice': 'Заполнение пропусков',
+                'vocabulary_review': 'Повторение слов',
+                'summary_writing': 'Пересказ',
+                'module_test': 'Тест модуля',
+                # v2.0 lesson types (legacy)
+                'reading_part1': 'Чтение (часть 1)',
+                'reading_part2': 'Чтение (часть 2)',
+                'vocabulary_practice': 'Практика словаря',
+                'discussion': 'Обсуждение',
+                'mixed_practice': 'Смешанная практика',
+                # Legacy lesson types
                 'reading_passage': 'Чтение',
                 'reading_mcq': 'Тест по чтению',
                 'match_headings': 'Заголовки',
@@ -381,6 +398,28 @@ def view_lesson(course_id, module_id, lesson_number):
         srs_integration = BookSRSIntegration()
         review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
 
+        # Get next lesson URL
+        next_lesson_url = None
+        has_next_lesson = False
+        if daily_lesson:
+            # Get all lessons in order and find the next one
+            all_lessons = DailyLesson.query.filter_by(
+                book_course_module_id=module_id
+            ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+
+            # Find current lesson position and get next
+            for i, dl in enumerate(all_lessons):
+                if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
+                    next_daily_lesson = all_lessons[i + 1]
+                    has_next_lesson = True
+                    next_lesson_url = url_for(
+                        'book_courses.view_lesson_by_id',
+                        course_id=course_id,
+                        module_id=module_id,
+                        lesson_id=next_daily_lesson.id
+                    )
+                    break
+
         # Route to appropriate lesson type handler
         lesson_type = lesson.get('type', 'text')
 
@@ -396,36 +435,24 @@ def view_lesson(course_id, module_id, lesson_number):
                 book=course.book,
                 review_cards=review_cards
             )
-        elif lesson_type in ['reading_assignment', 'reading_passage']:
-            template = 'curriculum/book_courses/lessons/reading_passage.html' if lesson_type == 'reading_passage' else 'curriculum/book_courses/lessons/reading_assignment.html'
+        elif lesson_type in ['reading', 'reading_assignment', 'reading_passage', 'reading_part1', 'reading_part2']:
+            # All reading types use the reading_passage template
+            template = 'curriculum/book_courses/lessons/reading_passage.html'
 
-            # For reading_passage, prepare data according to specification
-            if lesson_type == 'reading_passage' and daily_lesson:
-                return render_template(
-                    template,
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    book=course.book,
-                    daily_lesson=daily_lesson,
-                    use_api=True,  # Flag to use API loading
-                    review_cards=review_cards
-                )
-            else:
-                return render_template(
-                    template,
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    book=course.book,
-                    daily_lesson=daily_lesson if 'daily_lesson' in locals() else None,
-                    use_api=False,
-                    review_cards=review_cards
-                )
+            return render_template(
+                template,
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                book=course.book,
+                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
+                use_api=True if daily_lesson else False,
+                review_cards=review_cards,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson
+            )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary according to new architecture
             vocabulary_data = []
@@ -438,14 +465,24 @@ def view_lesson(course_id, module_id, lesson_number):
 
                 for sv in slice_vocab:
                     word = sv.word
+                    # Context sentence from book (relevant to current reading)
+                    context = sv.context_sentence or ''
+
+                    # Example with translation from DB
+                    db_example = getattr(word, 'sentences', '') or ''
+                    db_example = db_example.replace('\\n', '\n').replace('<br>', '\n').replace('<br/>', '\n')
+
                     vocab_item = {
                         'id': word.id,
                         'lemma': word.english_word,  # As per specification
                         'translation': word.russian_word,
-                        'example': sv.context_sentence or '',
+                        'context': context,  # From book
+                        'example': db_example,  # From DB with translation
                         'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
                         'frequency': sv.frequency_in_slice,
-                        'part_of_speech': getattr(word, 'pos', 'unknown')
+                        'part_of_speech': getattr(word, 'pos', 'unknown'),
+                        'level': getattr(word, 'level', None),
+                        'transcription': getattr(word, 'transcription', None)
                     }
                     vocabulary_data.append(vocab_item)
             else:
@@ -483,7 +520,12 @@ def view_lesson(course_id, module_id, lesson_number):
                 daily_lesson=daily_lesson,
                 review_cards=review_cards
             )
-        elif lesson_type == 'grammar':
+        elif lesson_type in ['grammar', 'grammar_focus']:
+            # Get grammar content from GrammarFocusGenerator
+            course_level = course.level or 'B1'
+            day_number = daily_lesson.day_number if daily_lesson else lesson_number
+            grammar_data = GrammarFocusGenerator.get_grammar_for_day(course_level, day_number)
+
             return render_template(
                 'curriculum/book_courses/lessons/grammar.html',
                 course=course,
@@ -491,12 +533,148 @@ def view_lesson(course_id, module_id, lesson_number):
                 lesson=lesson,
                 lesson_number=lesson_number,
                 module_progress=module_progress,
+                review_cards=review_cards,
+                grammar_data=grammar_data,
+                daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson
+            )
+        elif lesson_type in ['vocabulary_review']:
+            # Vocabulary review - similar to vocabulary but for review
+            vocabulary_data = []
+
+            if daily_lesson:
+                slice_vocab = SliceVocabulary.query.filter_by(
+                    daily_lesson_id=daily_lesson.id
+                ).options(joinedload(SliceVocabulary.word)).all()
+
+                for sv in slice_vocab:
+                    word = sv.word
+                    vocab_item = {
+                        'id': word.id,
+                        'lemma': word.english_word,
+                        'translation': word.russian_word,
+                        'example': sv.context_sentence or '',
+                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                        'frequency': sv.frequency_in_slice,
+                    }
+                    vocabulary_data.append(vocab_item)
+
+            return render_template(
+                'curriculum/book_courses/lessons/vocabulary.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                vocabulary_data=vocabulary_data[:15],
+                total_words=len(vocabulary_data[:15]),
+                daily_lesson=daily_lesson,
+                review_cards=review_cards,
+                is_review=True  # Flag to show review mode
+            )
+        elif lesson_type in ['comprehension_mcq']:
+            # Comprehension MCQ - use reading_mcq template
+            mcq_data = None
+            if daily_lesson and daily_lesson.task_id:
+                from app.books.models import Task
+                task = Task.query.get(daily_lesson.task_id)
+                if task and task.payload:
+                    mcq_data = task.payload
+
+            return render_template(
+                'curriculum/book_courses/lessons/reading_mcq.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
+                mcq_data=mcq_data
+            )
+        elif lesson_type in ['cloze_practice']:
+            # Cloze practice - use open_cloze template
+            cloze_data = None
+            if daily_lesson and daily_lesson.task_id:
+                from app.books.models import Task
+                task = Task.query.get(daily_lesson.task_id)
+                if task and task.payload:
+                    cloze_data = task.payload
+
+            return render_template(
+                'curriculum/book_courses/lessons/open_cloze.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
+                cloze_data=cloze_data
+            )
+        elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform', 'vocabulary_practice']:
+            # Vocabulary practice uses word_formation template as fallback
+            template_name = 'word_formation' if lesson_type == 'vocabulary_practice' else lesson_type
+            return render_template(
+                f'curriculum/book_courses/lessons/{template_name}.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
                 review_cards=review_cards
             )
-        elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform']:
-            # Specific lesson types with their own templates
+        elif lesson_type == 'summary_writing':
+            # Summary writing - productive task
             return render_template(
-                f'curriculum/book_courses/lessons/{lesson_type}.html',
+                'curriculum/book_courses/lessons/summary.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None
+            )
+        elif lesson_type == 'discussion':
+            # Discussion questions - productive task
+            return render_template(
+                'curriculum/book_courses/lessons/discussion.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None
+            )
+        elif lesson_type in ['module_test', 'final_test']:
+            # Load test data from task
+            test_data = None
+            if daily_lesson and daily_lesson.task_id:
+                from app.books.models import Task
+                task = Task.query.get(daily_lesson.task_id)
+                if task and task.payload:
+                    test_data = task.payload
+
+            return render_template(
+                'curriculum/book_courses/lessons/final_test.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson,
+                test_data=test_data,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson
+            )
+        elif lesson_type == 'mixed_practice':
+            # Mixed practice uses text template
+            return render_template(
+                'curriculum/book_courses/lessons/text.html',
                 course=course,
                 module=module,
                 lesson=lesson,
@@ -505,7 +683,7 @@ def view_lesson(course_id, module_id, lesson_number):
                 review_cards=review_cards
             )
         else:
-            # Default text lesson for 'text', 'final_test' and other types
+            # Default text lesson for other types
             return render_template(
                 'curriculum/book_courses/lessons/text.html',
                 course=course,
@@ -577,6 +755,27 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
         srs_integration = BookSRSIntegration()
         review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
 
+        # Get next lesson URL
+        next_lesson_url = None
+        has_next_lesson = False
+        # Get all lessons in order and find the next one
+        all_lessons = DailyLesson.query.filter_by(
+            book_course_module_id=module_id
+        ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+
+        # Find current lesson position and get next
+        for i, dl in enumerate(all_lessons):
+            if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
+                next_daily_lesson = all_lessons[i + 1]
+                has_next_lesson = True
+                next_lesson_url = url_for(
+                    'book_courses.view_lesson_by_id',
+                    course_id=course_id,
+                    module_id=module_id,
+                    lesson_id=next_daily_lesson.id
+                )
+                break
+
         # Route to appropriate lesson type handler
         lesson_type = lesson.get('type', 'text')
         lesson_number = daily_lesson.day_number
@@ -593,8 +792,9 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 book=course.book,
                 review_cards=review_cards
             )
-        elif lesson_type in ['reading_assignment', 'reading_passage']:
-            template = 'curriculum/book_courses/lessons/reading_passage.html' if lesson_type == 'reading_passage' else 'curriculum/book_courses/lessons/reading_assignment.html'
+        elif lesson_type in ['reading', 'reading_assignment', 'reading_passage', 'reading_part1', 'reading_part2']:
+            # All reading types use the reading_passage template
+            template = 'curriculum/book_courses/lessons/reading_passage.html'
 
             return render_template(
                 template,
@@ -606,7 +806,9 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 book=course.book,
                 daily_lesson=daily_lesson,
                 use_api=True,
-                review_cards=review_cards
+                review_cards=review_cards,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson
             )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary
@@ -618,11 +820,19 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
 
             for sv in slice_vocab:
                 word = sv.word
+                # Context sentence from book (relevant to current reading)
+                context = sv.context_sentence or ''
+
+                # Example with translation from DB
+                db_example = getattr(word, 'sentences', '') or ''
+                db_example = db_example.replace('\\n', '\n').replace('<br>', '\n').replace('<br/>', '\n')
+
                 vocab_item = {
                     'id': word.id,
                     'lemma': word.english_word,
                     'translation': word.russian_word,
-                    'example': sv.context_sentence or '',
+                    'context': context,  # From book
+                    'example': db_example,  # From DB with translation
                     'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
                     'frequency': sv.frequency_in_slice,
                     'part_of_speech': getattr(word, 'pos', 'unknown')
@@ -643,7 +853,12 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 daily_lesson=daily_lesson,
                 review_cards=review_cards
             )
-        elif lesson_type == 'grammar':
+        elif lesson_type in ['grammar', 'grammar_focus']:
+            # Get grammar content from GrammarFocusGenerator
+            course_level = course.level or 'B1'
+            day_number = daily_lesson.day_number if daily_lesson else lesson_number
+            grammar_data = GrammarFocusGenerator.get_grammar_for_day(course_level, day_number)
+
             return render_template(
                 'curriculum/book_courses/lessons/grammar.html',
                 course=course,
@@ -651,11 +866,131 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 lesson=lesson,
                 lesson_number=lesson_number,
                 module_progress=module_progress,
-                review_cards=review_cards
+                review_cards=review_cards,
+                grammar_data=grammar_data,
+                daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson
+            )
+        elif lesson_type in ['vocabulary_review']:
+            # Vocabulary review - similar to vocabulary but for review
+            vocabulary_data = []
+            slice_vocab = SliceVocabulary.query.filter_by(
+                daily_lesson_id=daily_lesson.id
+            ).options(joinedload(SliceVocabulary.word)).all()
+
+            for sv in slice_vocab:
+                word = sv.word
+                vocab_item = {
+                    'id': word.id,
+                    'lemma': word.english_word,
+                    'translation': word.russian_word,
+                    'example': sv.context_sentence or '',
+                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                    'frequency': sv.frequency_in_slice,
+                }
+                vocabulary_data.append(vocab_item)
+
+            return render_template(
+                'curriculum/book_courses/lessons/vocabulary.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                vocabulary_data=vocabulary_data[:15],
+                total_words=len(vocabulary_data[:15]),
+                daily_lesson=daily_lesson,
+                review_cards=review_cards,
+                is_review=True
+            )
+        elif lesson_type in ['comprehension_mcq']:
+            # Comprehension MCQ - use reading_mcq template
+            mcq_data = None
+            if daily_lesson and daily_lesson.task_id:
+                from app.books.models import Task
+                task = Task.query.get(daily_lesson.task_id)
+                if task and task.payload:
+                    mcq_data = task.payload
+
+            return render_template(
+                'curriculum/book_courses/lessons/reading_mcq.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson,
+                mcq_data=mcq_data
+            )
+        elif lesson_type in ['cloze_practice']:
+            # Cloze practice - use open_cloze template
+            cloze_data = None
+            if daily_lesson and daily_lesson.task_id:
+                from app.books.models import Task
+                task = Task.query.get(daily_lesson.task_id)
+                if task and task.payload:
+                    cloze_data = task.payload
+
+            return render_template(
+                'curriculum/book_courses/lessons/open_cloze.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson,
+                cloze_data=cloze_data
+            )
+        elif lesson_type == 'summary_writing':
+            # Summary writing - productive task
+            return render_template(
+                'curriculum/book_courses/lessons/summary.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson
             )
         elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform']:
             return render_template(
                 f'curriculum/book_courses/lessons/{lesson_type}.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards
+            )
+        elif lesson_type in ['module_test', 'final_test']:
+            # Load test data from task
+            test_data = None
+            if daily_lesson and daily_lesson.task_id:
+                from app.books.models import Task
+                task = Task.query.get(daily_lesson.task_id)
+                if task and task.payload:
+                    test_data = task.payload
+
+            return render_template(
+                'curriculum/book_courses/lessons/final_test.html',
+                course=course,
+                module=module,
+                lesson=lesson,
+                lesson_number=lesson_number,
+                module_progress=module_progress,
+                review_cards=review_cards,
+                daily_lesson=daily_lesson,
+                test_data=test_data,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson
+            )
+        elif lesson_type == 'mixed_practice':
+            return render_template(
+                'curriculum/book_courses/lessons/text.html',
                 course=course,
                 module=module,
                 lesson=lesson,
@@ -726,46 +1061,101 @@ def get_lesson_api(lesson_id):
 
             return jsonify({'words': words})
 
-        elif lesson_type == 'reading_passage':
-            # { html, tooltip_map:{lemma:{translation,example}} }
+        elif lesson_type in ['reading', 'reading_passage']:
+            # { html, tooltip_map:{lemma:{id,translation,example,audio_url}} }
+
+            # Try to get vocabulary from this lesson first
             slice_vocab = SliceVocabulary.query.filter_by(
                 daily_lesson_id=daily_lesson.id
             ).options(joinedload(SliceVocabulary.word)).all()
 
             tooltip_map = {}
-            for sv in slice_vocab:
-                word = sv.word
-                tooltip_map[word.english_word.lower()] = {
-                    'translation': word.russian_word,
-                    'example': sv.context_sentence or ''
-                }
+
+            # If no vocabulary for this lesson, try to get from module's block vocabulary
+            if not slice_vocab:
+                from app.books.models import BlockVocab
+                from app.words.models import CollectionWords as CW
+
+                module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
+                if module and module.block_id:
+                    # Get all vocabulary from the block
+                    block_vocab = (db.session.query(BlockVocab, CW)
+                                   .join(CW, BlockVocab.word_id == CW.id)
+                                   .filter(BlockVocab.block_id == module.block_id)
+                                   .order_by(BlockVocab.freq.desc())
+                                   .limit(50)
+                                   .all())
+
+                    text_lower = (daily_lesson.slice_text or '').lower()
+                    for bv, word in block_vocab:
+                        word_lower = word.english_word.lower()
+                        # Only include words that appear in this slice
+                        if word_lower in text_lower:
+                            tooltip_map[word_lower] = {
+                                'id': word.id,
+                                'translation': word.russian_word,
+                                'example': '',
+                                'audio_url': f'/static/audio/pronunciation_en_{word_lower}.mp3',
+                                'transcription': getattr(word, 'transcription', None),
+                                'pos': getattr(word, 'pos', None)
+                            }
+            else:
+                # Use vocabulary from SliceVocabulary
+                for sv in slice_vocab:
+                    word = sv.word
+                    tooltip_map[word.english_word.lower()] = {
+                        'id': word.id,
+                        'translation': word.russian_word,
+                        'example': sv.context_sentence or '',
+                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                        'transcription': getattr(word, 'transcription', None),
+                        'pos': getattr(word, 'pos', None)
+                    }
 
             # Highlight vocabulary words in text with better regex
             import re
-            html_text = daily_lesson.slice_text
+            html_text = daily_lesson.slice_text or ''
 
-            # Split text into paragraphs and wrap them
-            paragraphs = html_text.split('\n\n')
+            # Handle both literal \n (escaped) and actual newlines
+            # First replace literal backslash-n with actual newlines
+            html_text = html_text.replace('\\n', '\n')
+            html_text = html_text.replace('\r\n', '\n')
+
+            # Split by double newlines or treat single newlines as paragraph breaks
+            if '\n\n' in html_text:
+                paragraphs = html_text.split('\n\n')
+            elif '\n' in html_text:
+                paragraphs = html_text.split('\n')
+            else:
+                paragraphs = [html_text]
+
             html_paragraphs = []
 
             for idx, paragraph in enumerate(paragraphs):
-                if paragraph.strip():
-                    # Highlight vocabulary words in this paragraph
-                    highlighted_paragraph = paragraph
-                    for lemma in tooltip_map:
-                        # Use word boundaries to match whole words only
-                        pattern = r'\b' + re.escape(lemma) + r'\b'
-                        highlighted_paragraph = re.sub(
-                            pattern,
-                            f'<span class="word" data-lemma="{lemma}">{lemma}</span>',
-                            highlighted_paragraph,
-                            flags=re.IGNORECASE
-                        )
+                paragraph = paragraph.strip()
+                if not paragraph:
+                    continue
 
-                    # Wrap in paragraph with data-paragraph-index
-                    html_paragraphs.append(
-                        f'<p data-paragraph-index="{idx}">{highlighted_paragraph}</p>'
+                # Highlight vocabulary words in this paragraph (preserve original case)
+                highlighted_paragraph = paragraph
+                for lemma in tooltip_map:
+                    # Use word boundaries to match whole words only, preserve original case
+                    pattern = r'\b(' + re.escape(lemma) + r')\b'
+                    highlighted_paragraph = re.sub(
+                        pattern,
+                        lambda m: f'<span class="word" data-lemma="{lemma}">{m.group(1)}</span>',
+                        highlighted_paragraph,
+                        flags=re.IGNORECASE
                     )
+
+                # Wrap in paragraph with data-paragraph-index
+                html_paragraphs.append(
+                    f'<p data-paragraph-index="{idx}">{highlighted_paragraph}</p>'
+                )
+
+            # If no paragraphs found, wrap entire text in one paragraph
+            if not html_paragraphs and html_text.strip():
+                html_paragraphs = [f'<p>{html_text.strip()}</p>']
 
             final_html = '\n'.join(html_paragraphs)
 
@@ -773,7 +1163,7 @@ def get_lesson_api(lesson_id):
                 'html': final_html,
                 'tooltip_map': tooltip_map,
                 'word_count': daily_lesson.word_count,
-                'title': f'Reading Passage - Day {daily_lesson.day_number}'
+                'title': f'Reading - Day {daily_lesson.day_number}'
             })
 
         else:
@@ -824,6 +1214,21 @@ def complete_lesson_api_v1(lesson_id):
 
         progress.status = 'completed'
         progress.completed_at = datetime.now(UTC)
+
+        # Also update BookModuleProgress.lessons_completed for template compatibility
+        module_progress = BookModuleProgress.query.filter_by(
+            enrollment_id=enrollment.id,
+            module_id=daily_lesson.book_course_module_id
+        ).first()
+
+        if module_progress:
+            lessons_completed = list(module_progress.lessons_completed or [])
+            if daily_lesson.id not in lessons_completed:
+                lessons_completed.append(daily_lesson.id)
+                module_progress.lessons_completed = lessons_completed
+                flag_modified(module_progress, 'lessons_completed')
+                # Update module status
+                module_progress.status = 'in_progress'
 
         # Create completion event
         completion_event = LessonCompletionEvent(
@@ -989,4 +1394,36 @@ def get_course_progress_api(course_id):
 
     except Exception as e:
         logger.error(f"Error getting course progress: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+@book_courses_bp.route('/api/srs/add-card', methods=['POST'])
+@login_required
+def add_word_to_srs():
+    """
+    Add a word to user's SRS flashcards.
+    POST /api/srs/add-card {word_id, source, lesson_id}
+    """
+    try:
+        data = request.get_json()
+        word_id = data.get('word_id')
+        source = data.get('source', 'book_reading')
+
+        if not word_id:
+            return jsonify({'success': False, 'error': 'word_id required'}), 400
+
+        srs_integration = BookSRSIntegration()
+        result = srs_integration.add_word_to_srs(
+            user_id=current_user.id,
+            word_id=word_id,
+            source=source
+        )
+
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        logger.error(f"Error adding word to SRS: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500

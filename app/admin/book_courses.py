@@ -432,7 +432,13 @@ def register_book_course_routes(admin_bp):
             if delete_type == 'hard':
                 # Physical deletion
                 logger.info(f"Hard deleting course {course_id}: {course.title}")
-                
+
+                # Clear current_module_id references in enrollments first (foreign key)
+                BookCourseEnrollment.query.filter_by(course_id=course_id).update(
+                    {'current_module_id': None},
+                    synchronize_session=False
+                )
+
                 # Delete related data in proper order
                 # Delete user lesson progress
                 UserLessonProgress.query.filter(
@@ -660,6 +666,125 @@ def register_book_course_routes(admin_bp):
             return jsonify({
                 'success': False,
                 'error': f'Ошибка при генерации модулей: {str(e)}'
+            }), 500
+
+    @admin_bp.route('/book-courses/<int:course_id>/regenerate', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def regenerate_course(course_id):
+        """Regenerate course with new CEFR-based settings (delete and recreate modules)"""
+
+        course = BookCourse.query.get_or_404(course_id)
+
+        try:
+            if not BookCourseGenerator:
+                return jsonify({
+                    'success': False,
+                    'error': 'Генератор курсов недоступен'
+                }), 500
+
+            logger.info(f"Regenerating course {course_id}: {course.title}")
+
+            # Step 1: Delete existing content (in proper order)
+            # First, clear current_module_id references in enrollments
+            BookCourseEnrollment.query.filter_by(course_id=course_id).update(
+                {'current_module_id': None},
+                synchronize_session=False
+            )
+
+            # Delete user lesson progress
+            UserLessonProgress.query.filter(
+                UserLessonProgress.daily_lesson_id.in_(
+                    db.session.query(DailyLesson.id).filter(
+                        DailyLesson.book_course_module_id.in_(
+                            db.session.query(BookCourseModule.id).filter_by(course_id=course_id)
+                        )
+                    )
+                )
+            ).delete(synchronize_session=False)
+
+            # Delete slice vocabulary
+            SliceVocabulary.query.filter(
+                SliceVocabulary.daily_lesson_id.in_(
+                    db.session.query(DailyLesson.id).filter(
+                        DailyLesson.book_course_module_id.in_(
+                            db.session.query(BookCourseModule.id).filter_by(course_id=course_id)
+                        )
+                    )
+                )
+            ).delete(synchronize_session=False)
+
+            # Delete daily lessons
+            DailyLesson.query.filter(
+                DailyLesson.book_course_module_id.in_(
+                    db.session.query(BookCourseModule.id).filter_by(course_id=course_id)
+                )
+            ).delete(synchronize_session=False)
+
+            # Delete module progress
+            BookModuleProgress.query.filter(
+                BookModuleProgress.module_id.in_(
+                    db.session.query(BookCourseModule.id).filter_by(course_id=course_id)
+                )
+            ).delete(synchronize_session=False)
+
+            # Delete modules
+            BookCourseModule.query.filter_by(course_id=course_id).delete()
+
+            db.session.flush()
+            logger.info(f"Deleted existing content for course {course_id}")
+
+            # Step 2: Regenerate using BookCourseGenerator
+            generator = BookCourseGenerator(course.book_id)
+            generator.target_level = course.level or 'B1'
+
+            # Setup blocks if needed
+            generator._setup_blocks(None)
+
+            # Extract vocabulary with level filtering
+            generator._extract_vocabulary()
+
+            # Generate tasks
+            generator._generate_tasks()
+
+            # Create new modules
+            generator._create_course_modules(course.id)
+
+            # Generate daily slices
+            generator._generate_daily_slices(course.id)
+
+            # Update course timestamp
+            course.is_active = True
+            course.updated_at = datetime.now(UTC).replace(tzinfo=None)
+
+            db.session.commit()
+
+            # Get statistics
+            module_count = BookCourseModule.query.filter_by(course_id=course_id).count()
+            lesson_count = DailyLesson.query.join(BookCourseModule).filter(
+                BookCourseModule.course_id == course_id
+            ).count()
+            vocab_count = SliceVocabulary.query.join(DailyLesson).join(BookCourseModule).filter(
+                BookCourseModule.course_id == course_id
+            ).count()
+
+            logger.info(f"Regenerated course {course_id}: {module_count} modules, {lesson_count} lessons, {vocab_count} vocab words")
+
+            flash(f'Курс пересоздан! {module_count} модулей, {lesson_count} уроков, {vocab_count} слов (уровень {course.level})', 'success')
+            return jsonify({
+                'success': True,
+                'message': f'Курс успешно пересоздан с учетом уровня {course.level}!',
+                'module_count': module_count,
+                'lesson_count': lesson_count,
+                'vocab_count': vocab_count
+            })
+
+        except Exception as e:
+            logger.error(f"Error regenerating course {course_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка при пересоздании курса: {str(e)}'
             }), 500
 
     # ====================

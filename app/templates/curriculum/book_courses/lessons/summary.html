@@ -1,0 +1,307 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Summary Writing{% endblock %}
+
+{% block lesson_content %}
+<div class="summary-lesson">
+    <div class="lesson-intro">
+        <h1>Write a Summary</h1>
+        <p>Summarize what you've read in this module in your own words.</p>
+    </div>
+
+    <div class="lesson-instructions">
+        <strong>Instructions:</strong>
+        <ul>
+            <li>Write 100-200 words summarizing the main points</li>
+            <li>Use your own words - don't copy directly from the text</li>
+            <li>Include the main characters, events, and themes</li>
+            <li>Check the checklist below to make sure you covered everything</li>
+        </ul>
+    </div>
+
+    <!-- Summary Writing Area -->
+    <div class="summary-container">
+        <div class="summary-header">
+            <span class="word-count">Words: <span id="word-count">0</span> / 200</span>
+        </div>
+        <textarea
+            id="summary-textarea"
+            class="summary-textarea"
+            placeholder="Write your summary here..."
+            oninput="updateWordCount()"
+        ></textarea>
+    </div>
+
+    <!-- Key Points Checklist -->
+    <div class="checklist-container">
+        <h3>Did you include?</h3>
+        <div class="checklist-items" id="checklist">
+            <label class="checklist-item">
+                <input type="checkbox" onchange="updateChecklist()">
+                <span>Main characters mentioned</span>
+            </label>
+            <label class="checklist-item">
+                <input type="checkbox" onchange="updateChecklist()">
+                <span>Key events described</span>
+            </label>
+            <label class="checklist-item">
+                <input type="checkbox" onchange="updateChecklist()">
+                <span>Setting/location mentioned</span>
+            </label>
+            <label class="checklist-item">
+                <input type="checkbox" onchange="updateChecklist()">
+                <span>Theme or message identified</span>
+            </label>
+            <label class="checklist-item">
+                <input type="checkbox" onchange="updateChecklist()">
+                <span>Used vocabulary from the module</span>
+            </label>
+        </div>
+        <div class="checklist-progress">
+            <span id="checklist-count">0</span>/5 points covered
+        </div>
+    </div>
+
+    <!-- Self-Assessment -->
+    <div class="self-assessment">
+        <h3>Self-Assessment</h3>
+        <p>How confident do you feel about your summary?</p>
+        <div class="assessment-options">
+            <button class="assessment-btn" data-value="1" onclick="selectAssessment(1)">
+                <span class="emoji">😕</span>
+                <span>Need more practice</span>
+            </button>
+            <button class="assessment-btn" data-value="2" onclick="selectAssessment(2)">
+                <span class="emoji">🤔</span>
+                <span>Getting there</span>
+            </button>
+            <button class="assessment-btn" data-value="3" onclick="selectAssessment(3)">
+                <span class="emoji">😊</span>
+                <span>Confident</span>
+            </button>
+            <button class="assessment-btn" data-value="4" onclick="selectAssessment(4)">
+                <span class="emoji">🌟</span>
+                <span>Very confident</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.summary-lesson {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.summary-container {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.summary-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+.word-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+}
+
+.summary-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    line-height: 1.6;
+    resize: vertical;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.summary-textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.checklist-container {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.checklist-container h3 {
+    margin-bottom: 1rem;
+    font-size: 1.125rem;
+}
+
+.checklist-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    transition: background 0.2s;
+}
+
+.checklist-item:hover {
+    background: var(--bg-secondary);
+}
+
+.checklist-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.checklist-progress {
+    text-align: center;
+    font-weight: 500;
+    color: var(--accent-color);
+}
+
+.self-assessment {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.self-assessment h3 {
+    margin-bottom: 0.5rem;
+}
+
+.self-assessment p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.assessment-options {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+
+.assessment-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.assessment-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.assessment-btn.selected {
+    border-color: var(--accent-color);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.assessment-btn .emoji {
+    font-size: 1.5rem;
+}
+
+.assessment-btn span:last-child {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .assessment-options {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+let selectedAssessment = 0;
+
+function updateWordCount() {
+    const textarea = document.getElementById('summary-textarea');
+    const text = textarea.value.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    document.getElementById('word-count').textContent = words;
+
+    checkReadyToComplete();
+}
+
+function updateChecklist() {
+    const checkboxes = document.querySelectorAll('#checklist input[type="checkbox"]');
+    const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+    document.getElementById('checklist-count').textContent = checked;
+
+    checkReadyToComplete();
+}
+
+function selectAssessment(value) {
+    selectedAssessment = value;
+
+    document.querySelectorAll('.assessment-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+
+    document.querySelector(`.assessment-btn[data-value="${value}"]`).classList.add('selected');
+
+    checkReadyToComplete();
+}
+
+function checkReadyToComplete() {
+    const wordCount = parseInt(document.getElementById('word-count').textContent);
+    const checklistCount = parseInt(document.getElementById('checklist-count').textContent);
+
+    // Enable complete button if:
+    // - At least 50 words written
+    // - At least 3 checklist items checked
+    // - Self-assessment selected
+    const isReady = wordCount >= 50 && checklistCount >= 3 && selectedAssessment > 0;
+
+    document.getElementById('complete-btn').disabled = !isReady;
+}
+
+// Override complete lesson to include summary data
+const originalCompleteLesson = completeLesson;
+completeLesson = function(score) {
+    const summaryText = document.getElementById('summary-textarea').value;
+    const wordCount = parseInt(document.getElementById('word-count').textContent);
+    const checklistCount = parseInt(document.getElementById('checklist-count').textContent);
+
+    // Calculate score based on completion
+    const calculatedScore = Math.min(100,
+        (wordCount >= 100 ? 30 : wordCount / 100 * 30) +
+        (checklistCount * 10) +
+        (selectedAssessment * 5)
+    );
+
+    originalCompleteLesson(Math.round(calculatedScore));
+};
+</script>
+{% endblock %}

@@ -11,45 +11,77 @@
 <div class="vocabulary-container">
   <!-- Progress -->
   <div class="vocab-progress">
+    <div class="progress-info">
+      <span class="progress-label">Прогресс</span>
+      <span class="progress-count"><span id="current-word">1</span> из {{ total_words }}</span>
+    </div>
     <div class="progress-bar">
       <div class="progress-fill" id="vocab-progress" style="width: 0%"></div>
     </div>
-    <span class="progress-text"><span id="current-word">1</span> / {{ total_words }}</span>
   </div>
 
   <!-- Flashcard -->
   <div class="vocab-card-container">
     <div class="vocab-card" id="flashcard" onclick="flipCard()">
       <div class="vocab-card-front">
+        <div class="card-badge" id="word-pos"></div>
         <div class="word-english" id="word-english"></div>
-        <div class="word-hint">Нажмите, чтобы увидеть перевод</div>
+        <div class="word-transcription" id="word-transcription"></div>
+        <button class="audio-btn-inline" id="audio-btn-front" onclick="event.stopPropagation(); playAudio()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        </button>
+        <div class="word-hint">
+          <span class="hint-icon">👆</span> Нажмите для перевода
+        </div>
       </div>
       <div class="vocab-card-back">
+        <div class="card-badge translation-badge">Перевод</div>
         <div class="word-translation" id="word-translation"></div>
-        <div class="word-example" id="word-example"></div>
-        {% if daily_lesson %}
-        <button class="audio-btn" id="audio-btn" onclick="event.stopPropagation(); playAudio()">
-          🔊 Прослушать
-        </button>
-        {% endif %}
+        <div class="word-details">
+          <div class="detail-item" id="word-level-container">
+            <span class="detail-label">Уровень</span>
+            <span class="detail-value level-badge" id="word-level"></span>
+          </div>
+          <div class="detail-item" id="word-freq-container">
+            <span class="detail-label">Частота</span>
+            <span class="detail-value" id="word-frequency"></span>
+          </div>
+        </div>
+        <div class="word-context-section" id="context-section">
+          <div class="example-label">📖 В тексте</div>
+          <div class="word-context" id="word-context"></div>
+        </div>
+        <div class="word-example-section" id="example-section">
+          <div class="example-label">💡 Пример с переводом</div>
+          <div class="word-example" id="word-example"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Controls -->
-  <div class="vocab-controls">
-    <button class="control-btn" id="prev-btn" onclick="prevWord()" disabled>
-      ← Назад
-    </button>
-    <div class="rating-buttons" id="rating-buttons" style="display: none;">
-      <button class="rating-btn hard" onclick="rateWord(1)">Сложно</button>
-      <button class="rating-btn good" onclick="rateWord(3)">Помню</button>
-      <button class="rating-btn easy" onclick="rateWord(5)">Легко</button>
+  <!-- Rating Buttons (shown after flip) -->
+  <div class="rating-section" id="rating-section" style="display: none;">
+    <div class="rating-label">Насколько хорошо вы знаете это слово?</div>
+    <div class="rating-buttons" id="rating-buttons">
+      <button class="rating-btn hard" onclick="rateWord(1)">
+        <span class="rating-icon">😕</span>
+        <span class="rating-text">Не знаю</span>
+      </button>
+      <button class="rating-btn good" onclick="rateWord(3)">
+        <span class="rating-icon">🤔</span>
+        <span class="rating-text">Сомневаюсь</span>
+      </button>
+      <button class="rating-btn easy" onclick="rateWord(5)">
+        <span class="rating-icon">😊</span>
+        <span class="rating-text">Знаю</span>
+      </button>
     </div>
-    <button class="control-btn" id="next-btn" onclick="nextWord()">
-      Далее →
-    </button>
   </div>
+
+  <!-- Navigation Dots -->
+  <div class="nav-dots" id="nav-dots"></div>
 </div>
 {% endblock %}
 
@@ -70,8 +102,22 @@ let currentIndex = 0;
 let isFlipped = false;
 let studiedWords = new Set();
 
+// Part of speech translations
+const posLabels = {
+  'noun': 'сущ.',
+  'verb': 'гл.',
+  'adjective': 'прил.',
+  'adverb': 'нареч.',
+  'preposition': 'предл.',
+  'conjunction': 'союз',
+  'pronoun': 'мест.',
+  'interjection': 'межд.',
+  'unknown': ''
+};
+
 function init() {
   if (vocabularyData.length > 0) {
+    createNavDots();
     showWord(0);
   } else {
     document.querySelector('.vocabulary-container').innerHTML = `
@@ -85,6 +131,33 @@ function init() {
   }
 }
 
+function createNavDots() {
+  const dotsContainer = document.getElementById('nav-dots');
+  if (!dotsContainer) return;
+
+  dotsContainer.innerHTML = '';
+  const maxDots = Math.min(vocabularyData.length, 10);
+
+  for (let i = 0; i < maxDots; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => showWord(i);
+    dotsContainer.appendChild(dot);
+  }
+}
+
+function updateNavDots() {
+  const dots = document.querySelectorAll('.nav-dot');
+  dots.forEach((dot, i) => {
+    dot.classList.remove('active', 'completed');
+    if (i === currentIndex) {
+      dot.classList.add('active');
+    } else if (studiedWords.has(i)) {
+      dot.classList.add('completed');
+    }
+  });
+}
+
 function showWord(index) {
   const word = vocabularyData[index];
   if (!word) return;
@@ -92,23 +165,81 @@ function showWord(index) {
   currentIndex = index;
   isFlipped = false;
 
+  // Front side
   document.getElementById('word-english').textContent = word.lemma;
-  document.getElementById('word-translation').textContent = word.translation;
-  document.getElementById('word-example').textContent = word.example || '';
+
+  // Part of speech
+  const posEl = document.getElementById('word-pos');
+  const pos = word.part_of_speech || 'unknown';
+  posEl.textContent = posLabels[pos] || pos;
+  posEl.style.display = posLabels[pos] ? 'inline-block' : 'none';
+
+  // Transcription (if available)
+  const transcEl = document.getElementById('word-transcription');
+  if (word.transcription) {
+    transcEl.textContent = `/${word.transcription}/`;
+    transcEl.style.display = 'block';
+  } else {
+    transcEl.style.display = 'none';
+  }
+
+  // Back side
+  document.getElementById('word-translation').textContent = word.translation || 'Нет перевода';
+
+  // Level badge
+  const levelEl = document.getElementById('word-level');
+  const levelContainer = document.getElementById('word-level-container');
+  if (word.level) {
+    levelEl.textContent = word.level;
+    levelEl.className = 'detail-value level-badge level-' + word.level.toLowerCase();
+    levelContainer.style.display = 'flex';
+  } else {
+    levelContainer.style.display = 'none';
+  }
+
+  // Frequency
+  const freqEl = document.getElementById('word-frequency');
+  const freqContainer = document.getElementById('word-freq-container');
+  if (word.frequency) {
+    freqEl.textContent = word.frequency + 'x в тексте';
+    freqContainer.style.display = 'flex';
+  } else {
+    freqContainer.style.display = 'none';
+  }
+
+  // Context from book
+  const contextSection = document.getElementById('context-section');
+  const contextEl = document.getElementById('word-context');
+  if (word.context) {
+    let context = word.context.replace(/\\n/g, ' ').replace(/<br\s*\/?>/gi, ' ');
+    contextEl.textContent = context;
+    contextSection.style.display = 'block';
+  } else {
+    contextSection.style.display = 'none';
+  }
+
+  // Example with translation from DB
+  const exampleSection = document.getElementById('example-section');
+  const exampleEl = document.getElementById('word-example');
+  if (word.example) {
+    // Handle escaped newlines
+    let example = word.example.replace(/\\n/g, '\n').replace(/<br\s*\/?>/gi, '\n');
+    exampleEl.textContent = example;
+    exampleSection.style.display = 'block';
+  } else {
+    exampleSection.style.display = 'none';
+  }
 
   // Reset card state
   document.getElementById('flashcard').classList.remove('flipped');
-  document.getElementById('rating-buttons').style.display = 'none';
+  document.getElementById('rating-section').style.display = 'none';
 
   // Update progress
   document.getElementById('current-word').textContent = index + 1;
   document.getElementById('vocab-progress').style.width =
-    ((index + 1) / vocabularyData.length * 100) + '%';
+    ((studiedWords.size) / vocabularyData.length * 100) + '%';
 
-  // Update nav buttons
-  document.getElementById('prev-btn').disabled = index === 0;
-  document.getElementById('next-btn').textContent =
-    index === vocabularyData.length - 1 ? 'Готово' : 'Далее →';
+  updateNavDots();
 }
 
 function flipCard() {
@@ -116,17 +247,17 @@ function flipCard() {
   document.getElementById('flashcard').classList.toggle('flipped');
 
   if (isFlipped) {
-    document.getElementById('rating-buttons').style.display = 'flex';
+    document.getElementById('rating-section').style.display = 'block';
     studiedWords.add(currentIndex);
+
+    // Update progress bar
+    document.getElementById('vocab-progress').style.width =
+      ((studiedWords.size) / vocabularyData.length * 100) + '%';
+
+    updateNavDots();
     checkCompletion();
   } else {
-    document.getElementById('rating-buttons').style.display = 'none';
-  }
-}
-
-function prevWord() {
-  if (currentIndex > 0) {
-    showWord(currentIndex - 1);
+    document.getElementById('rating-section').style.display = 'none';
   }
 }
 
@@ -134,18 +265,23 @@ function nextWord() {
   if (currentIndex < vocabularyData.length - 1) {
     showWord(currentIndex + 1);
   } else {
-    // At the end - mark as studied and enable completion
     studiedWords.add(currentIndex);
     checkCompletion();
   }
 }
 
 function rateWord(rating) {
-  // Store rating for SRS (future integration)
-  console.log(`Word ${currentIndex} rated: ${rating}`);
+  const word = vocabularyData[currentIndex];
+  console.log(`Word "${word.lemma}" rated: ${rating}`);
 
-  // Auto-advance after rating
-  setTimeout(() => nextWord(), 300);
+  // Visual feedback
+  const btn = event.target.closest('.rating-btn');
+  btn.classList.add('selected');
+
+  setTimeout(() => {
+    btn.classList.remove('selected');
+    nextWord();
+  }, 200);
 }
 
 function playAudio() {
@@ -162,7 +298,7 @@ function checkCompletion() {
   }
 }
 
-// Initialize - call immediately if DOM is ready, otherwise wait
+// Initialize
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -171,51 +307,64 @@ if (document.readyState === 'loading') {
 </script>
 
 <style>
-/* Vocabulary Specific Styles */
+/* Vocabulary Container */
 .vocabulary-container {
-  max-width: 500px;
+  max-width: 550px;
   margin: 0 auto;
 }
 
+/* Progress Section */
 .vocab-progress {
+  margin-bottom: 1.5rem;
+}
+
+.progress-info {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.progress-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.progress-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent-color);
 }
 
 .vocab-progress .progress-bar {
-  flex: 1;
-  height: 6px;
+  height: 8px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-full);
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .vocab-progress .progress-fill {
   height: 100%;
-  background: var(--accent-color);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--accent-color), #10b981);
+  border-radius: 4px;
+  transition: width 0.4s ease;
 }
 
-.vocab-progress .progress-text {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/* Vocabulary Card */
+/* Flashcard */
 .vocab-card-container {
   perspective: 1000px;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .vocab-card {
   width: 100%;
-  height: 300px;
+  height: 450px;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.6s;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 
@@ -236,130 +385,288 @@ if (document.readyState === 'loading') {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  background: #fff;
-  border: 2px solid #e0e0e0;
-  border-radius: 16px;
+  padding: 1.5rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
   text-align: center;
   box-sizing: border-box;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 
 .vocab-card-back {
   transform: rotateY(180deg);
+  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%);
+  justify-content: flex-start;
+  padding-top: 2rem;
 }
 
+/* Card Badge */
+.card-badge {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.translation-badge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* Front Side */
 .word-english {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.word-transcription {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
   margin-bottom: 1rem;
-  color: #333;
+}
+
+.audio-btn-inline {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #6366f1;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.audio-btn-inline svg {
+  fill: white;
+}
+
+.audio-btn-inline:hover {
+  transform: scale(1.1);
+  background: #4f46e5;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
 .word-hint {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.word-translation {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--accent-color);
-  margin-bottom: 1rem;
-}
-
-.word-example {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  line-height: 1.5;
-  margin-bottom: 1rem;
-}
-
-.audio-btn {
-  padding: 0.5rem 1rem;
-  background: var(--bg-secondary);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 0.875rem;
-}
-
-.audio-btn:hover {
-  background: var(--bg-tertiary);
-}
-
-/* Controls */
-.vocab-controls {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-}
-
-.control-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--bg-secondary);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.control-btn:hover:not(:disabled) {
-  background: var(--bg-tertiary);
-}
-
-.control-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Rating Buttons */
-.rating-buttons {
-  display: flex;
   gap: 0.5rem;
 }
 
-.rating-btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
+.hint-icon {
+  font-size: 1rem;
+}
+
+/* Back Side */
+.word-translation {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #166534;
+  margin-bottom: 1rem;
+}
+
+.word-details {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.7);
+  border-radius: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+}
+
+.detail-value {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.level-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.level-a1, .level-a2 { background: #dbeafe; color: #1e40af; }
+.level-b1, .level-b2 { background: #fef3c7; color: #92400e; }
+.level-c1, .level-c2 { background: #fee2e2; color: #991b1b; }
+
+.word-context-section,
+.word-example-section {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.7);
+  border-radius: 12px;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+.word-context-section:last-child,
+.word-example-section:last-child {
+  margin-bottom: 0;
+}
+
+.word-context {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.example-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.word-example {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Rating Section */
+.rating-section {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.rating-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.rating-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.rating-btn {
+  flex: 1;
+  max-width: 120px;
+  padding: 0.75rem 0.5rem;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
   transition: all 0.2s;
 }
 
-.rating-btn.hard {
-  background: #ffebee;
-  color: #c62828;
+.rating-icon {
+  font-size: 1.5rem;
 }
 
-.rating-btn.hard:hover {
-  background: #ffcdd2;
+.rating-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rating-btn.hard {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.rating-btn.hard:hover, .rating-btn.hard.selected {
+  background: #fecaca;
+  transform: scale(1.05);
 }
 
 .rating-btn.good {
-  background: #fff3e0;
-  color: #e65100;
+  background: #fffbeb;
+  color: #92400e;
 }
 
-.rating-btn.good:hover {
-  background: #ffe0b2;
+.rating-btn.good:hover, .rating-btn.good.selected {
+  background: #fde68a;
+  transform: scale(1.05);
 }
 
 .rating-btn.easy {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #f0fdf4;
+  color: #166534;
 }
 
-.rating-btn.easy:hover {
-  background: #c8e6c9;
+.rating-btn.easy:hover, .rating-btn.easy.selected {
+  background: #bbf7d0;
+  transform: scale(1.05);
 }
 
+/* Navigation Dots */
+.nav-dots {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.nav-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-dot:hover {
+  background: var(--text-secondary);
+}
+
+.nav-dot.active {
+  background: var(--accent-color);
+  transform: scale(1.2);
+}
+
+.nav-dot.completed {
+  background: #10b981;
+}
+
+/* Footer */
 .footer-info {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   margin-bottom: 1rem;
 }
@@ -368,11 +675,33 @@ if (document.readyState === 'loading') {
 .empty-state {
   text-align: center;
   padding: 3rem;
+  background: var(--bg-secondary);
+  border-radius: 16px;
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .vocab-card {
+    height: 420px;
+  }
+
+  .word-english {
+    font-size: 1.75rem;
+  }
+
+  .word-translation {
+    font-size: 1.5rem;
+  }
+
+  .word-context,
+  .word-example {
+    font-size: 0.8rem;
+  }
 }
 </style>
 {% endblock %}

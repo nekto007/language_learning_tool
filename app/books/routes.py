@@ -478,13 +478,16 @@ def api_translate():
             return jsonify({
                 'success': True,
                 'translation': word_entry.russian_word,
-                'word': word
+                'word': word,
+                'word_id': word_entry.id,
+                'sentences': word_entry.sentences or ''
             })
         else:
             return jsonify({
                 'success': True,
-                'translation': 'Translation not found',
-                'word': word
+                'translation': 'Перевод не найден',
+                'word': word,
+                'word_id': None
             })
 
     except Exception as e:

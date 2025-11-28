@@ -5,56 +5,89 @@
 {% block lesson_content %}
 <div class="lesson-intro">
   <h1>Чтение с переводом</h1>
-  <p>Прочитайте текст. Наведите на выделенные слова, чтобы увидеть перевод.</p>
+  <p>Прочитайте текст. Нажмите на любое слово для перевода.</p>
 </div>
 
-<div class="reading-container">
+<div class="reading-wrapper">
   <!-- Reading Stats -->
   <div class="reading-stats">
-    <span class="stat">📖 <span id="word-count">{{ lesson.word_count or '~800' }}</span> слов</span>
-    <span class="stat">⏱️ ~<span id="read-time">4</span> мин.</span>
+    <span class="stat">📖 <span id="word-count">{{ lesson.word_count or '~200' }}</span> слов</span>
+    <span class="stat">⏱️ ~<span id="read-time">2</span> мин.</span>
   </div>
 
-  <!-- Reading Content -->
-  <div class="reading-content" id="reading-content">
-    {% if use_api %}
-      <div class="loading">Загрузка текста...</div>
-    {% else %}
-      <div class="passage-text">
-        {{ lesson.slice_text | safe }}
-      </div>
-    {% endif %}
+  <!-- Scrollable Reading Content -->
+  <div class="reading-scroll-container" id="reading-scroll-container">
+    <div class="reading-content" id="reading-content">
+      {% if use_api %}
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <p>Загрузка текста...</p>
+        </div>
+      {% else %}
+        <div class="passage-text">
+          {{ lesson.slice_text | safe }}
+        </div>
+      {% endif %}
+    </div>
   </div>
 
-  <!-- Vocabulary Tooltip -->
-  <div class="tooltip" id="word-tooltip" style="display: none;">
-    <div class="tooltip-word" id="tooltip-word"></div>
-    <div class="tooltip-translation" id="tooltip-translation"></div>
-    <div class="tooltip-example" id="tooltip-example"></div>
+  <!-- Reading Progress -->
+  <div class="reading-progress-section">
+    <span class="progress-label">Прочитано: <span id="progress-percent">0</span>%</span>
+    <div class="reading-progress-bar">
+      <div class="progress-fill" id="reading-progress" style="width: 0%"></div>
+    </div>
   </div>
 </div>
 
-<!-- Reading Progress -->
-<div class="reading-progress-bar">
-  <div class="progress-fill" id="reading-progress" style="width: 0%"></div>
+<!-- Word Popup Modal -->
+<div class="word-popup-overlay" id="word-popup-overlay">
+  <div class="word-popup" id="word-popup">
+    <div class="popup-word" id="popup-word">word</div>
+    <div class="popup-translation" id="popup-translation">перевод</div>
+    <div class="popup-example" id="popup-example"></div>
+
+    <div class="popup-actions">
+      <button class="popup-btn" id="popup-audio-btn" onclick="playAudio()" title="Озвучить">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+      <button class="popup-btn popup-btn-primary" id="popup-add-btn" onclick="addToFlashcards()" title="Добавить в карточки">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="popup-status" id="popup-status"></div>
+  </div>
 </div>
+
+<!-- Hidden Audio Element -->
+<audio id="word-audio" preload="none"></audio>
 {% endblock %}
 
 {% block lesson_footer %}
-<div class="footer-info">
-  Прочитайте текст до конца, чтобы завершить урок
+<div class="lesson-footer-buttons" id="footer-buttons">
+  <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeReadingLesson()" disabled>
+    Завершить чтение
+  </button>
 </div>
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" disabled>
-  Завершить урок
-</button>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
-let tooltipMap = {};
-const useApi = {{ 'true' if use_api else 'false' }};
+let currentWord = null;
+let currentWordId = null;
 
-// Load content via API if needed
+function getCSRFToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
 {% if use_api %}
 async function loadContent() {
   try {
@@ -62,258 +95,580 @@ async function loadContent() {
     const data = await response.json();
 
     if (data.html) {
-      document.getElementById('reading-content').innerHTML = `
-        <div class="passage-text">${data.html}</div>
-      `;
-      tooltipMap = data.tooltip_map || {};
+      document.getElementById('reading-content').innerHTML = `<div class="passage-text">${data.html}</div>`;
 
       if (data.word_count) {
         document.getElementById('word-count').textContent = data.word_count;
-        document.getElementById('read-time').textContent = Math.ceil(data.word_count / 200);
+        document.getElementById('read-time').textContent = Math.ceil(data.word_count / 150);
       }
 
-      initVocabularyHighlights();
+      makeWordsClickable();
+      initReadingProgress();
+    } else if (data.error) {
+      document.getElementById('reading-content').innerHTML = `<div class="error-state"><p>Ошибка: ${data.error}</p></div>`;
     }
   } catch (error) {
-    console.error('Error loading content:', error);
-    document.getElementById('reading-content').innerHTML = `
-      <div class="error-state">
-        <p>Ошибка загрузки текста. Пожалуйста, обновите страницу.</p>
-      </div>
-    `;
+    console.error('Error:', error);
+    document.getElementById('reading-content').innerHTML = `<div class="error-state"><p>Ошибка загрузки</p></div>`;
   }
 }
-
 document.addEventListener('DOMContentLoaded', loadContent);
 {% else %}
-// Initialize with pre-loaded data
-tooltipMap = {{ (lesson.tooltip_map or {}) | tojson | safe }};
-document.addEventListener('DOMContentLoaded', initVocabularyHighlights);
+document.addEventListener('DOMContentLoaded', () => {
+  makeWordsClickable();
+  initReadingProgress();
+});
 {% endif %}
 
-function initVocabularyHighlights() {
-  const words = document.querySelectorAll('.word');
-  const tooltip = document.getElementById('word-tooltip');
+function makeWordsClickable() {
+  const content = document.querySelector('.passage-text');
+  if (!content) return;
 
-  words.forEach(word => {
-    word.addEventListener('mouseenter', (e) => showTooltip(e, word));
-    word.addEventListener('mouseleave', hideTooltip);
-    word.addEventListener('click', (e) => {
-      e.preventDefault();
-      showTooltip(e, word);
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null, false);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+  textNodes.forEach(textNode => {
+    const text = textNode.textContent;
+    const parts = text.split(/(\s+|[.,!?;:'"()\[\]{}—–-]+)/);
+    const fragment = document.createDocumentFragment();
+
+    parts.forEach(part => {
+      if (part.trim() && /[a-zA-Z]/.test(part)) {
+        const span = document.createElement('span');
+        span.className = 'clickable-word';
+        span.textContent = part;
+        span.onclick = (e) => handleWordClick(e, part);
+        fragment.appendChild(span);
+      } else {
+        fragment.appendChild(document.createTextNode(part));
+      }
     });
-  });
 
-  // Track reading progress
-  initReadingProgress();
+    if (textNode.parentNode) {
+      textNode.parentNode.replaceChild(fragment, textNode);
+    }
+  });
 }
 
-function showTooltip(e, wordEl) {
-  const lemma = wordEl.dataset.lemma || wordEl.textContent.toLowerCase();
-  const wordData = tooltipMap[lemma];
+async function handleWordClick(event, word) {
+  event.stopPropagation();
+  const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
+  if (!cleanWord) return;
 
-  if (!wordData) return;
+  currentWord = cleanWord;
+  currentWordId = null;
 
-  const tooltip = document.getElementById('word-tooltip');
-  document.getElementById('tooltip-word').textContent = lemma;
-  document.getElementById('tooltip-translation').textContent = wordData.translation || '';
-  document.getElementById('tooltip-example').textContent = wordData.example || '';
+  // Show popup
+  document.getElementById('popup-word').textContent = cleanWord;
+  document.getElementById('popup-translation').textContent = '...';
+  document.getElementById('popup-example').textContent = '';
+  document.getElementById('popup-example').style.display = 'none';
+  document.getElementById('popup-status').textContent = '';
+  document.getElementById('popup-status').className = 'popup-status';
+  resetAddButton();
+  document.getElementById('word-popup-overlay').classList.add('active');
 
-  // Position tooltip
-  const rect = wordEl.getBoundingClientRect();
-  tooltip.style.left = rect.left + 'px';
-  tooltip.style.top = (rect.bottom + 8) + 'px';
-  tooltip.style.display = 'block';
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ word: cleanWord })
+    });
+    const data = await response.json();
 
-  // Adjust if off screen
-  const tooltipRect = tooltip.getBoundingClientRect();
-  if (tooltipRect.right > window.innerWidth) {
-    tooltip.style.left = (window.innerWidth - tooltipRect.width - 16) + 'px';
+    if (data.success) {
+      document.getElementById('popup-translation').textContent = data.translation || 'Не найдено';
+      if (data.word_id) currentWordId = data.word_id;
+      if (data.sentences) {
+        // Replace <br> with newlines and render
+        const example = data.sentences.replace(/<br\s*\/?>/gi, '\n');
+        document.getElementById('popup-example').textContent = example;
+        document.getElementById('popup-example').style.display = 'block';
+      }
+    } else {
+      document.getElementById('popup-translation').textContent = 'Не найдено';
+    }
+  } catch (error) {
+    document.getElementById('popup-translation').textContent = 'Ошибка';
   }
 }
 
-function hideTooltip() {
-  document.getElementById('word-tooltip').style.display = 'none';
+// Close popup on overlay click
+document.getElementById('word-popup-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'word-popup-overlay') {
+    document.getElementById('word-popup-overlay').classList.remove('active');
+    currentWord = null;
+    currentWordId = null;
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('word-popup-overlay').classList.remove('active');
+  }
+});
+
+function playAudio() {
+  if (!currentWord) return;
+  const audio = document.getElementById('word-audio');
+  audio.src = `/static/audio/pronunciation_en_${currentWord}.mp3`;
+  audio.play().catch(() => showStatus('Нет аудио', 'error'));
+}
+
+async function addToFlashcards() {
+  if (!currentWord) return;
+  const btn = document.getElementById('popup-add-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    if (!currentWordId) {
+      const searchResp = await fetch(`/api/words/search?term=${encodeURIComponent(currentWord)}`);
+      const searchData = await searchResp.json();
+      if (searchData.length > 0) {
+        const exact = searchData.find(w => w.english_word.toLowerCase() === currentWord);
+        currentWordId = exact ? exact.id : searchData[0].id;
+      }
+    }
+
+    if (!currentWordId) {
+      showStatus('Слово не в словаре', 'error');
+      resetAddButton();
+      return;
+    }
+
+    const resp = await fetch('/curriculum/api/srs/add-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ word_id: currentWordId, source: 'book_reading' })
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      showStatus('✓ Добавлено!', 'success');
+      btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
+    } else {
+      showStatus(data.error || 'Ошибка', 'error');
+      resetAddButton();
+    }
+  } catch (error) {
+    showStatus('Ошибка сети', 'error');
+    resetAddButton();
+  }
+}
+
+function resetAddButton() {
+  const btn = document.getElementById('popup-add-btn');
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('popup-status');
+  el.textContent = msg;
+  el.className = 'popup-status ' + type;
 }
 
 function initReadingProgress() {
-  const content = document.getElementById('reading-content');
+  const container = document.getElementById('reading-scroll-container');
   const progressBar = document.getElementById('reading-progress');
+  const progressPercent = document.getElementById('progress-percent');
+  const completeBtn = document.getElementById('complete-btn');
   let maxScroll = 0;
 
-  function updateProgress() {
-    const scrollTop = window.scrollY;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const scrollPercent = (scrollTop / docHeight) * 100;
-
-    // Track maximum scroll position
-    if (scrollPercent > maxScroll) {
-      maxScroll = scrollPercent;
-      progressBar.style.width = maxScroll + '%';
-
-      // Enable completion when 80% read
-      if (maxScroll >= 80) {
-        enableCompleteButton();
-      }
+  function updateProgress(percent) {
+    const rounded = Math.round(percent);
+    progressBar.style.width = percent + '%';
+    progressPercent.textContent = rounded;
+    if (percent >= 80 && completeBtn) {
+      completeBtn.disabled = false;
     }
   }
 
-  window.addEventListener('scroll', updateProgress);
+  container.addEventListener('scroll', () => {
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight - container.clientHeight;
+    if (scrollHeight <= 0) return;
 
-  // Check if content is short enough to complete without scrolling
+    const percent = Math.min((scrollTop / scrollHeight) * 100, 100);
+    if (percent > maxScroll) {
+      maxScroll = percent;
+      updateProgress(maxScroll);
+    }
+  });
+
+  // For short content
   setTimeout(() => {
-    const docHeight = document.documentElement.scrollHeight;
-    const viewHeight = window.innerHeight;
-    if (docHeight <= viewHeight * 1.2) {
-      progressBar.style.width = '100%';
-      enableCompleteButton();
+    if (container.scrollHeight <= container.clientHeight * 1.1) {
+      updateProgress(100);
     }
   }, 500);
+}
+
+const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}";
+
+async function completeReadingLesson() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняем...';
+
+  try {
+    {% if daily_lesson %}
+    const response = await fetch(`/curriculum/api/v1/lesson/{{ daily_lesson.id }}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }
+    });
+
+    if (response.status === 201 || response.ok) {
+      showCompletionSuccess();
+    } else {
+      throw new Error('Failed to save');
+    }
+    {% else %}
+    showCompletionSuccess();
+    {% endif %}
+  } catch (error) {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.textContent = 'Завершить чтение';
+    alert('Ошибка сохранения');
+  }
+}
+
+function showCompletionSuccess() {
+  const footerButtons = document.getElementById('footer-buttons');
+
+  if (hasNextLesson && nextLessonUrl) {
+    footerButtons.innerHTML = `
+      <a href="${nextLessonUrl}" class="btn btn-primary btn-lg next-lesson-btn">
+        Следующий урок →
+      </a>
+    `;
+  } else {
+    footerButtons.innerHTML = `
+      <span class="completion-message">✓ Чтение завершено!</span>
+      <a href="${moduleUrl}" class="btn btn-primary btn-lg">
+        Вернуться к модулю
+      </a>
+    `;
+  }
 }
 </script>
 
 <style>
-/* Reading Specific Styles */
-.reading-container {
-  max-width: 700px;
+.reading-wrapper {
+  max-width: 750px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 350px);
+  min-height: 300px;
+}
+
+/* Ensure footer is always visible */
+.lesson-footer {
+  position: fixed !important;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--card-bg, #fff) !important;
+  z-index: 100;
+  display: block !important;
+}
+
+.lesson-content {
+  padding-bottom: 100px; /* Space for fixed footer */
 }
 
 .reading-stats {
   display: flex;
   gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .reading-stats .stat {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: #666;
+}
+
+.reading-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .reading-content {
-  background: var(--card-bg);
   padding: 2rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
 }
 
 .passage-text {
   font-size: 1.125rem;
-  line-height: 1.8;
-  color: var(--text-primary);
+  line-height: 1.85;
+  color: #1f2937;
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
 .passage-text p {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  text-indent: 1.5em;
 }
 
-.passage-text p:last-child {
-  margin-bottom: 0;
+.passage-text p:first-child { text-indent: 0; }
+.passage-text p:last-child { margin-bottom: 0; }
+
+.clickable-word {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s, color 0.15s;
 }
 
-/* Highlighted Words */
-.passage-text .word {
-  background: rgba(var(--accent-rgb), 0.15);
-  border-bottom: 2px solid var(--accent-color);
-  cursor: help;
-  padding: 0 2px;
-  border-radius: 2px;
-  transition: background 0.2s;
+.clickable-word:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #4f46e5;
 }
 
-.passage-text .word:hover {
-  background: rgba(var(--accent-rgb), 0.3);
+.reading-progress-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-shrink: 0;
 }
 
-/* Tooltip */
-.tooltip {
-  position: fixed;
-  z-index: 1000;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1rem;
-  box-shadow: var(--shadow-lg);
-  max-width: 300px;
-  pointer-events: none;
-}
-
-.tooltip-word {
-  font-weight: 700;
-  font-size: 1.125rem;
-  margin-bottom: 0.5rem;
-}
-
-.tooltip-translation {
-  color: var(--accent-color);
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-}
-
-.tooltip-example {
+.progress-label {
   font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  line-height: 1.4;
+  color: #6b7280;
+  white-space: nowrap;
+  min-width: 100px;
 }
 
-/* Reading Progress */
 .reading-progress-bar {
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  height: 4px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-full);
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 10px;
   overflow: hidden;
 }
 
 .reading-progress-bar .progress-fill {
   height: 100%;
-  background: var(--accent-color);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  transition: width 0.3s;
 }
 
-/* Loading State */
+/* Popup */
+.word-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+}
+
+.word-popup-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.word-popup {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 280px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  transform: scale(0.9);
+  transition: transform 0.2s;
+  text-align: center;
+}
+
+.word-popup-overlay.active .word-popup {
+  transform: scale(1);
+}
+
+.popup-word {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.popup-translation {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #4f46e5;
+  margin-bottom: 0.75rem;
+}
+
+.popup-example {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  display: none;
+}
+
+.popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.popup-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.popup-btn:hover {
+  background: #e5e7eb;
+  transform: scale(1.05);
+}
+
+.popup-btn-primary {
+  background: #6366f1;
+  color: #fff;
+}
+
+.popup-btn-primary:hover {
+  background: #4f46e5;
+}
+
+.popup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.popup-status {
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+  min-height: 1rem;
+}
+
+.popup-status.success { color: #10b981; }
+.popup-status.error { color: #ef4444; }
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .loading {
   text-align: center;
   padding: 3rem;
-  color: var(--text-secondary);
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
 }
 
 .error-state {
   text-align: center;
   padding: 2rem;
-  color: var(--error-color);
+  color: #ef4444;
 }
 
-.footer-info {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+.lesson-footer-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.lesson-footer-buttons .btn {
+  min-width: 200px;
+}
+
+/* Explicit button styling */
+#complete-btn {
+  background: #6366f1 !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#complete-btn:disabled {
+  background: #9ca3af !important;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+#complete-btn:not(:disabled):hover {
+  background: #4f46e5 !important;
+  transform: translateY(-1px);
+}
+
+.lesson-footer-buttons .btn-primary {
+  background: #6366f1 !important;
+  color: #fff !important;
+}
+
+.completion-message {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #10b981;
   margin-bottom: 1rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .reading-content {
-    padding: 1rem;
-  }
+.next-lesson-btn {
+  background: #10b981 !important;
+}
 
+.next-lesson-btn:hover {
+  background: #059669 !important;
+}
+
+@media (max-width: 768px) {
+  .reading-wrapper {
+    height: calc(100vh - 200px);
+  }
+  .reading-content {
+    padding: 1.25rem;
+  }
   .passage-text {
     font-size: 1rem;
-    line-height: 1.7;
-  }
-
-  .tooltip {
-    left: 1rem !important;
-    right: 1rem;
-    width: auto !important;
-    max-width: none;
   }
 }
 </style>
