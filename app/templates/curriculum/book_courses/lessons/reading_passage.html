@@ -450,24 +450,10 @@ function showCompletionSuccess() {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 350px);
-  min-height: 300px;
+  height: calc(100vh - 200px);
+  min-height: 400px;
 }
 
-/* Ensure footer is always visible */
-.lesson-footer {
-  position: fixed !important;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--card-bg, #fff) !important;
-  z-index: 100;
-  display: block !important;
-}
-
-.lesson-content {
-  padding-bottom: 100px; /* Space for fixed footer */
-}
 
 .reading-stats {
   display: flex;
@@ -476,7 +462,6 @@ function showCompletionSuccess() {
   background: #f8f9fa;
   border-radius: 10px;
   margin-bottom: 1rem;
-  flex-shrink: 0;
 }
 
 .reading-stats .stat {
@@ -528,7 +513,7 @@ function showCompletionSuccess() {
   align-items: center;
   gap: 1rem;
   margin-top: 1rem;
-  flex-shrink: 0;
+  margin-bottom: 1rem;
 }
 
 .progress-label {
