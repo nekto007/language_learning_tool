@@ -60,18 +60,20 @@ def mock_card():
 class TestCreateSRSSessionForLesson:
     """Test create_srs_session_for_lesson method"""
 
+    @patch('app.curriculum.services.book_srs_integration.db.session')
     @patch.object(BookSRSIntegration, '_format_deck_for_session')
     @patch.object(BookSRSIntegration, '_filter_due_cards')
     @patch.object(BookSRSIntegration, '_get_or_create_srs_cards')
     @patch.object(BookSRSIntegration, '_get_vocabulary_words_for_lesson')
-    def test_creates_session_with_cards(self, mock_get_vocab, mock_get_cards, mock_filter, mock_format, integration, daily_lesson):
+    def test_creates_session_with_cards(self, mock_get_vocab, mock_get_cards, mock_filter, mock_format, mock_db, integration, daily_lesson):
         """Test creating SRS session"""
-        mock_word = Mock(id=1)
-        mock_get_vocab.return_value = [mock_word]
+        mock_word_data = {'word': Mock(id=1), 'context': 'Test', 'frequency': 5, 'word_id': 1}
+        mock_get_vocab.return_value = [mock_word_data]
 
-        mock_card = Mock()
-        mock_get_cards.return_value = [mock_card]
-        mock_filter.return_value = [mock_card]
+        # Cards with context dict structure, including direction and last_reviewed
+        mock_card = Mock(direction='eng-rus', last_reviewed=None)
+        mock_get_cards.return_value = [{'card': mock_card, 'context': 'Test'}]
+        mock_filter.return_value = [{'card': mock_card, 'context': 'Test'}]
 
         deck_item = {'card_id': 1, 'front': 'hello', 'back': 'привет'}
         mock_format.return_value = [deck_item]
@@ -95,15 +97,17 @@ class TestCreateSRSSessionForLesson:
         assert result['deck'] == []
         assert result['session_key'] is None
 
+    @patch('app.curriculum.services.book_srs_integration.db.session')
     @patch.object(BookSRSIntegration, '_format_deck_for_session')
     @patch.object(BookSRSIntegration, '_filter_due_cards')
     @patch.object(BookSRSIntegration, '_get_or_create_srs_cards')
     @patch.object(BookSRSIntegration, '_get_vocabulary_words_for_lesson')
-    def test_limits_to_25_cards_when_over_50(self, mock_get_vocab, mock_get_cards, mock_filter, mock_format, integration, daily_lesson):
+    def test_limits_to_25_cards_when_over_50(self, mock_get_vocab, mock_get_cards, mock_filter, mock_format, mock_db, integration, daily_lesson):
         """Test card limit when >50 due cards"""
-        mock_get_vocab.return_value = [Mock(id=i) for i in range(60)]
-        mock_get_cards.return_value = [Mock() for _ in range(60)]
-        mock_filter.return_value = [Mock() for _ in range(60)]
+        mock_get_vocab.return_value = [{'word': Mock(id=i), 'context': None, 'frequency': 1, 'word_id': i} for i in range(60)]
+        mock_cards = [{'card': Mock(direction='eng-rus', last_reviewed=None), 'context': None} for _ in range(60)]
+        mock_get_cards.return_value = mock_cards
+        mock_filter.return_value = mock_cards
         mock_format.return_value = [{'card_id': i} for i in range(25)]
 
         enrollment = Mock()
@@ -116,38 +120,50 @@ class TestCreateSRSSessionForLesson:
 class TestGetVocabularyWordsForLesson:
     """Test _get_vocabulary_words_for_lesson method"""
 
-    @patch('app.curriculum.services.book_srs_integration.CollectionWords')
     @patch('app.curriculum.services.book_srs_integration.SliceVocabulary')
-    def test_retrieves_vocabulary_words(self, mock_slice, mock_words, integration, daily_lesson):
-        """Test retrieving vocabulary words"""
-        entry1 = Mock(word=Mock(id=1, english_word='hello'))
-        entry2 = Mock(word=Mock(id=2, english_word='world'))
+    def test_retrieves_vocabulary_words(self, mock_slice, integration, daily_lesson):
+        """Test retrieving vocabulary words from lesson"""
+        # Mock entries with word objects and required fields
+        word1 = Mock(id=1, english_word='hello')
+        word2 = Mock(id=2, english_word='world')
+        entry1 = Mock(word=word1, word_id=1, context_sentence='Hello context', frequency_in_slice=10)
+        entry2 = Mock(word=word2, word_id=2, context_sentence='World context', frequency_in_slice=5)
 
         query_mock = Mock()
         mock_slice.query = query_mock
-        query_mock.filter_by.return_value.join.return_value.order_by.return_value.limit.return_value.all.return_value = [entry1, entry2]
+        query_mock.filter_by.return_value.join.return_value.order_by.return_value.all.return_value = [entry1, entry2]
+
+        # daily_lesson needs module attribute for the fallback logic
+        daily_lesson.module = None
 
         result = integration._get_vocabulary_words_for_lesson(daily_lesson)
 
         assert len(result) == 2
-        assert result[0].english_word == 'hello'
+        # Result is now a list of dicts with 'word' key
+        assert result[0]['word'].english_word == 'hello'
+        assert result[0]['context'] == 'Hello context'
 
     @patch('app.curriculum.services.book_srs_integration.SliceVocabulary')
-    def test_limits_to_10_words(self, mock_slice, integration, daily_lesson):
-        """Test 10 word limit"""
-        # Create mock entries with .word attribute
-        mock_entries = [Mock(word=Mock(id=i)) for i in range(15)]
+    def test_limits_to_target_count(self, mock_slice, integration, daily_lesson):
+        """Test target_count limit (default 10)"""
+        # Create 15 mock entries
+        mock_entries = []
+        for i in range(15):
+            word = Mock(id=i, english_word=f'word{i}')
+            entry = Mock(word=word, word_id=i, context_sentence=f'Context {i}', frequency_in_slice=15-i)
+            mock_entries.append(entry)
 
         query_mock = Mock()
         mock_slice.query = query_mock
-        query_mock.filter_by.return_value.join.return_value.order_by.return_value.limit.return_value.all.return_value = mock_entries
+        query_mock.filter_by.return_value.join.return_value.order_by.return_value.all.return_value = mock_entries
 
-        result = integration._get_vocabulary_words_for_lesson(daily_lesson)
+        # daily_lesson needs module attribute
+        daily_lesson.module = None
 
-        # Verify limit(10) was called
-        query_mock.filter_by.return_value.join.return_value.order_by.return_value.limit.assert_called_with(10)
-        # Should return all entries from mock (test verifies limit call, not actual limiting)
-        assert len(result) == 15
+        result = integration._get_vocabulary_words_for_lesson(daily_lesson, target_count=10)
+
+        # Should return only 10 words (target_count)
+        assert len(result) == 10
 
 
 class TestGetOrCreateSRSCards:
@@ -165,11 +181,14 @@ class TestGetOrCreateSRSCards:
         rus_card = Mock(id=2, direction='rus-eng')
         mock_get_card.side_effect = [eng_card, rus_card]
 
-        result = integration._get_or_create_srs_cards(1, [mock_word], daily_lesson)
+        # word_data_list is now a list of dicts with 'word' key
+        word_data = {'word': mock_word, 'context': 'Test context', 'frequency': 10, 'word_id': mock_word.id}
+        result = integration._get_or_create_srs_cards(1, [word_data], daily_lesson)
 
         assert len(result) == 2
-        assert result[0].direction == 'eng-rus'
-        assert result[1].direction == 'rus-eng'
+        # Result is now list of dicts with 'card' key
+        assert result[0]['card'].direction == 'eng-rus'
+        assert result[1]['card'].direction == 'rus-eng'
 
 
 class TestGetOrCreateCardDirection:
@@ -205,8 +224,8 @@ class TestFilterDueCards:
 
     def test_includes_new_cards(self, integration):
         """Test including new cards (repetitions=0)"""
-        new_card = Mock(repetitions=0, next_review=None)
-        cards = [new_card]
+        new_card = Mock(repetitions=0, next_review=None, direction='eng-rus')
+        cards = [{'card': new_card, 'context': None}]
 
         result = integration._filter_due_cards(cards)
 
@@ -216,9 +235,10 @@ class TestFilterDueCards:
         """Test including overdue cards"""
         overdue_card = Mock(
             repetitions=5,
-            next_review=datetime.now(timezone.utc) - timedelta(hours=1)
+            next_review=datetime.now(timezone.utc) - timedelta(hours=1),
+            direction='eng-rus'
         )
-        cards = [overdue_card]
+        cards = [{'card': overdue_card, 'context': None}]
 
         result = integration._filter_due_cards(cards)
 
@@ -228,9 +248,10 @@ class TestFilterDueCards:
         """Test excluding cards due in future"""
         future_card = Mock(
             repetitions=3,
-            next_review=datetime.now(timezone.utc) + timedelta(days=1)
+            next_review=datetime.now(timezone.utc) + timedelta(days=1),
+            direction='eng-rus'
         )
-        cards = [future_card]
+        cards = [{'card': future_card, 'context': None}]
 
         result = integration._filter_due_cards(cards)
 
@@ -250,14 +271,18 @@ class TestFormatDeckForSession:
         card.interval = 0
         card.user_word = Mock(word=mock_word)
 
+        # Input is now list of dicts with 'card' and 'context' keys
+        cards_with_context = [{'card': card, 'context': 'Test context'}]
+
         with patch.object(integration, '_get_audio_url', return_value='audio.mp3'):
-            result = integration._format_deck_for_session([card])
+            result = integration._format_deck_for_session(cards_with_context)
 
         assert len(result) == 1
         assert result[0]['front'] == 'hello'
         assert result[0]['back'] == 'привет'
         assert result[0]['phase'] == 'new'
         assert result[0]['new'] is True
+        assert result[0]['context'] == 'Test context'
 
     def test_formats_rus_eng_card(self, integration, mock_word):
         """Test formatting rus-eng card"""
@@ -269,8 +294,10 @@ class TestFormatDeckForSession:
         card.interval = 7
         card.user_word = Mock(word=mock_word)
 
+        cards_with_context = [{'card': card, 'context': None}]
+
         with patch.object(integration, '_get_audio_url', return_value=None):
-            result = integration._format_deck_for_session([card])
+            result = integration._format_deck_for_session(cards_with_context)
 
         assert result[0]['front'] == 'привет'
         assert result[0]['back'] == 'hello'
@@ -287,8 +314,10 @@ class TestFormatDeckForSession:
         card.interval = 1
         card.user_word = Mock(word=mock_word)
 
+        cards_with_context = [{'card': card, 'context': None}]
+
         with patch.object(integration, '_get_audio_url', return_value=None):
-            result = integration._format_deck_for_session([card])
+            result = integration._format_deck_for_session(cards_with_context)
 
         assert result[0]['phase'] == 'learning'
 

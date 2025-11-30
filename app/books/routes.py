@@ -463,6 +463,7 @@ def read_book_v2(book_slug, chapter_num=None):
 def api_translate():
     """
     API for word translation (optimized reader)
+    With lemmatization support for plurals, verb forms, etc.
     """
     data = request.get_json()
     word = data.get('word', '').strip().lower()
@@ -471,8 +472,56 @@ def api_translate():
         return jsonify({'success': False, 'error': 'Word is required'}), 400
 
     try:
-        # Search for word in dictionary
+        # Search for exact match first
         word_entry = CollectionWords.query.filter_by(english_word=word).first()
+
+        # If not found, try lemmatization (base forms)
+        if not word_entry:
+            word_variants = []
+
+            # Irregular verbs
+            if word in irregular_verbs:
+                word_variants.append(irregular_verbs[word])
+
+            # -ing forms
+            if word.endswith('ing') and len(word) > 4:
+                base = word[:-3]
+                word_variants.extend([base, base + 'e'])
+                if len(base) >= 2 and base[-1] == base[-2]:
+                    word_variants.append(base[:-1])
+
+            # -ed forms
+            if word.endswith('ed') and len(word) > 3:
+                word_variants.extend([word[:-2], word[:-1]])
+                base = word[:-2]
+                if len(base) >= 2 and base[-1] == base[-2]:
+                    word_variants.append(base[:-1])
+
+            # Plural -s, -es, -ies
+            if word.endswith('s') and not word.endswith('ss') and len(word) > 2:
+                word_variants.append(word[:-1])
+                if word.endswith('es') and len(word) > 3:
+                    word_variants.append(word[:-2])
+                if word.endswith('ies') and len(word) > 4:
+                    word_variants.append(word[:-3] + 'y')
+
+            # -er comparative
+            if word.endswith('er') and len(word) > 3:
+                word_variants.append(word[:-2])
+                if word.endswith('ier'):
+                    word_variants.append(word[:-3] + 'y')
+
+            # -est superlative
+            if word.endswith('est') and len(word) > 4:
+                word_variants.append(word[:-3])
+                if word.endswith('iest'):
+                    word_variants.append(word[:-4] + 'y')
+
+            # Search for variants
+            if word_variants:
+                word_entry = CollectionWords.query.filter(
+                    CollectionWords.english_word.in_(word_variants)
+                ).first()
 
         if word_entry and word_entry.russian_word:
             return jsonify({

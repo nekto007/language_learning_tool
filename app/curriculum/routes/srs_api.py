@@ -1,4 +1,9 @@
 # app/curriculum/routes/srs_api.py
+"""
+Unified SRS API routes.
+
+Supports both new 1-2-3 rating scale and legacy 0-5 scale for backward compatibility.
+"""
 
 import logging
 from datetime import datetime
@@ -9,6 +14,8 @@ from flask_login import current_user, login_required
 from app.curriculum.book_courses import BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
+from app.srs import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, MAX_SESSION_ATTEMPTS
+from app.srs.service import unified_srs_service
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +71,19 @@ def get_srs_session():
 @login_required
 def grade_card():
     """
-    POST /api/v1/srs/grade {card_id,grade,session_key}
-    
-    Система оценок согласно детальному плану:
-    0 (Again): "Не помню" - сброс прогресса
-    1-2: Неправильный ответ
-    3 (Hard): Правильно, но сложно  
-    4 (Good): Стандартный правильный ответ
-    5 (Easy): Легкий ответ
+    POST /api/v1/srs/grade {card_id, rating, session_key}
+
+    Unified Rating Scale (1-2-3):
+        1 - Не знаю (Don't know): Reset, show in 1-2 cards
+        2 - Сомневаюсь (Doubt): Moderate, show in 3-5 cards
+        3 - Знаю (Know): Good, remove from session
+
+    Legacy compatibility (0-5 scale via 'grade' param):
+        0-1 → 1 (Don't know)
+        2-3 → 2 (Doubt)
+        4-5 → 3 (Know)
+
+    Response includes 'requeue_position' for client-side queue management.
     """
     try:
         data = request.get_json()
@@ -80,21 +92,37 @@ def grade_card():
             return jsonify({'error': 'JSON data required'}), 400
 
         card_id = data.get('card_id')
+        session_key = data.get('session_key', '')
+
+        # Support both 'rating' (new 1-2-3) and 'grade' (legacy 0-5)
+        rating = data.get('rating')
         grade = data.get('grade')
-        session_key = data.get('session_key')
 
-        if card_id is None or grade is None or session_key is None:
-            return jsonify({'error': 'card_id, grade, and session_key are required'}), 400
+        if card_id is None:
+            return jsonify({'error': 'card_id is required'}), 400
 
-        if not isinstance(grade, int) or grade < 0 or grade > 5:
-            return jsonify({'error': 'grade must be integer from 0 to 5'}), 400
+        if rating is None and grade is None:
+            return jsonify({'error': 'rating (1-3) or grade (0-5) is required'}), 400
 
-        # Обрабатываем оценку карточки
-        srs_integration = BookSRSIntegration()
-        result = srs_integration.process_card_grade(
-            user_id=current_user.id,
+        # Convert grade to rating if needed
+        if rating is None:
+            # Map legacy 0-5 to unified 1-2-3
+            if grade <= 1:
+                rating = RATING_DONT_KNOW  # 1
+            elif grade <= 3:
+                rating = RATING_DOUBT  # 2
+            else:
+                rating = RATING_KNOW  # 3
+        else:
+            # Validate rating is 1-3
+            if not isinstance(rating, int) or rating < 1 or rating > 3:
+                return jsonify({'error': 'rating must be 1, 2, or 3'}), 400
+
+        # Use unified SRS service
+        result = unified_srs_service.grade_card(
             card_id=card_id,
-            grade=grade,
+            rating=rating,
+            user_id=current_user.id,
             session_key=session_key
         )
 

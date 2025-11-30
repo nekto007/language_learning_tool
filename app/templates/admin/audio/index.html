@@ -135,10 +135,10 @@
                                         <i class="fas fa-wrench text-warning"></i> Исправить поля listening
                                     </h5>
                                     <p class="card-text small">
-                                        Заменить HTTP URL в полях listening на правильный формат Anki
+                                        Заменить HTTP URL на чистое имя файла (pronunciation_en_word.mp3)
                                     </p>
                                     <button class="btn btn-warning btn-sm" onclick="fixListeningFields()">
-                                        <i class="fas fa-wrench"></i> Исправить поля
+                                        <i class="fas fa-wrench"></i> Исправить HTTP
                                     </button>
                                 </div>
                             </div>
@@ -161,6 +161,24 @@
                                             CSV
                                         </a>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-left-primary h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-broom text-primary"></i> Нормализовать формат
+                                    </h5>
+                                    <p class="card-text small">
+                                        Убрать обертку [sound:...] и оставить чистые имена файлов для веб-приложения
+                                    </p>
+                                    <button class="btn btn-primary btn-sm" onclick="normalizeListeningFields()">
+                                        <i class="fas fa-broom"></i> Нормализовать
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -251,7 +269,9 @@
                                             {% if word.listening.startswith('http') %}
                                                 <span class="badge badge-danger">HTTP URL</span>
                                             {% elif word.listening.startswith('[sound:') %}
-                                                <span class="badge badge-success">Anki Format</span>
+                                                <span class="badge badge-warning">Anki Format</span>
+                                            {% elif word.listening.startswith('pronunciation_en_') %}
+                                                <span class="badge badge-success">Clean</span>
                                             {% else %}
                                                 <span class="badge badge-secondary">Другой</span>
                                             {% endif %}
@@ -375,8 +395,8 @@ function updateDownloadStatus() {
 }
 
 function fixListeningFields() {
-    showProgressModal('Исправление полей listening...');
-    
+    showProgressModal('Исправление полей listening (HTTP → Clean)...');
+
     fetch('{{ url_for("audio_admin.fix_audio_listening_fields") }}', {
         method: 'POST',
         headers: {
@@ -388,7 +408,7 @@ function fixListeningFields() {
     .then(response => response.json())
     .then(data => {
         hideProgressModal();
-        
+
         if (data.success) {
             showResultsModal(
                 `<div class="alert alert-success">
@@ -397,7 +417,7 @@ function fixListeningFields() {
                     <p>Исправлено записей: <strong>${data.fixed_count}</strong></p>
                 </div>`
             );
-            
+
             // Refresh page after 2 seconds
             setTimeout(() => {
                 location.reload();
@@ -406,6 +426,54 @@ function fixListeningFields() {
             showResultsModal(
                 `<div class="alert alert-danger">
                     <h5>Ошибка при исправлении</h5>
+                    <p>${data.error}</p>
+                </div>`
+            );
+        }
+    })
+    .catch(error => {
+        hideProgressModal();
+        showResultsModal(
+            `<div class="alert alert-danger">
+                <h5>Сетевая ошибка</h5>
+                <p>${error.message}</p>
+            </div>`
+        );
+    });
+}
+
+function normalizeListeningFields() {
+    showProgressModal('Нормализация полей listening ([sound:] → Clean)...');
+
+    fetch('{{ url_for("audio_admin.normalize_audio_listening_fields") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideProgressModal();
+
+        if (data.success) {
+            showResultsModal(
+                `<div class="alert alert-success">
+                    <h5>Нормализация завершена!</h5>
+                    <p>${data.message}</p>
+                    <p>Нормализовано записей: <strong>${data.fixed_count}</strong></p>
+                </div>`
+            );
+
+            // Refresh page after 2 seconds
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showResultsModal(
+                `<div class="alert alert-danger">
+                    <h5>Ошибка при нормализации</h5>
                     <p>${data.error}</p>
                 </div>`
             );

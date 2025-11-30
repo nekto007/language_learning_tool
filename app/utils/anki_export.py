@@ -87,15 +87,23 @@ def create_anki_package(words, output_file, deck_name, card_format, include_pron
             # Pronunciation field
             pronunciation = ''
             if include_pronunciation and word.listening:
-                pronunciation = word.listening
+                audio_filename = word.listening
 
-                # Extract audio filename from [sound:filename] format
-                if '[sound:' in pronunciation and ']' in pronunciation:
-                    audio_file = pronunciation[7:-1]  # Remove [sound: and ]
-                    from flask import current_app
-                    audio_path = os.path.join(current_app.config['AUDIO_UPLOAD_FOLDER'], audio_file)
-                    if os.path.exists(audio_path):
-                        media_files.append(audio_path)
+                # Handle both formats: clean filename or legacy [sound:...] format
+                if '[sound:' in audio_filename and ']' in audio_filename:
+                    # Legacy format - extract filename
+                    audio_file = audio_filename[7:-1]  # Remove [sound: and ]
+                else:
+                    # Clean filename format - use as-is
+                    audio_file = audio_filename
+
+                # Wrap in [sound:...] for Anki
+                pronunciation = f"[sound:{audio_file}]"
+
+                from flask import current_app
+                audio_path = os.path.join(current_app.config['AUDIO_UPLOAD_FOLDER'], audio_file)
+                if os.path.exists(audio_path):
+                    media_files.append(audio_path)
 
             note = genanki.Note(
                 model=model,
@@ -134,15 +142,23 @@ def create_anki_package(words, output_file, deck_name, card_format, include_pron
             # Pronunciation field
             pronunciation = ''
             if include_pronunciation and word.listening:
-                pronunciation = word.listening
+                audio_filename = word.listening
 
-                # Extract audio filename from [sound:filename] format
-                if '[sound:' in pronunciation and ']' in pronunciation:
-                    audio_file = pronunciation[7:-1]  # Remove [sound: and ]
-                    from flask import current_app
-                    audio_path = os.path.join(current_app.config['AUDIO_UPLOAD_FOLDER'], audio_file)
-                    if os.path.exists(audio_path):
-                        media_files.append(audio_path)
+                # Handle both formats: clean filename or legacy [sound:...] format
+                if '[sound:' in audio_filename and ']' in audio_filename:
+                    # Legacy format - extract filename
+                    audio_file = audio_filename[7:-1]  # Remove [sound: and ]
+                else:
+                    # Clean filename format - use as-is
+                    audio_file = audio_filename
+
+                # Wrap in [sound:...] for Anki
+                pronunciation = f"[sound:{audio_file}]"
+
+                from flask import current_app
+                audio_path = os.path.join(current_app.config['AUDIO_UPLOAD_FOLDER'], audio_file)
+                if os.path.exists(audio_path):
+                    media_files.append(audio_path)
 
             note = genanki.Note(
                 model=model,

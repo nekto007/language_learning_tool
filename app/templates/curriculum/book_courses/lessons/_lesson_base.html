@@ -53,10 +53,11 @@
         <div class="review-progress">
           <span id="review-current">1</span> / <span id="review-total">{{ review_cards|length }}</span>
         </div>
+        <!-- Unified 1-2-3 rating scale -->
         <div class="review-buttons" id="review-buttons" style="display: none;">
-          <button class="review-btn hard" onclick="rateReviewCard(1)">Забыл</button>
-          <button class="review-btn good" onclick="rateReviewCard(3)">Помню</button>
-          <button class="review-btn easy" onclick="rateReviewCard(5)">Легко</button>
+          <button class="review-btn hard" onclick="rateReviewCard(1)">Не знаю</button>
+          <button class="review-btn good" onclick="rateReviewCard(2)">Сомневаюсь</button>
+          <button class="review-btn easy" onclick="rateReviewCard(3)">Знаю</button>
         </div>
       </div>
     </div>
@@ -439,7 +440,8 @@ const lessonNumber = {{ lesson_number }};
 const dailyLessonId = {{ lesson.daily_lesson_id or 'null' }};
 
 function enableCompleteButton() {
-  document.getElementById('complete-btn').disabled = false;
+  const btn = document.getElementById('complete-btn');
+  if (btn) btn.disabled = false;
 }
 
 function completeLesson(score = 100) {
@@ -465,11 +467,17 @@ function completeLesson(score = 100) {
   })
   .then(response => {
     if (response.status === 201 || response.ok) {
-      return response.json ? response.json() : {};
+      // Handle empty or JSON responses
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      }
+      return { success: true };
     }
     throw new Error('Failed to complete lesson');
   })
   .then(data => {
+    console.log('Lesson completed:', data);
     // Show success and redirect
     showResults(score);
   })
@@ -559,19 +567,32 @@ function flipReviewCard() {
   }
 }
 
-function rateReviewCard(grade) {
+function rateReviewCard(rating) {
   const card = reviewCards[reviewIndex];
 
-  // Send grade to server
+  // Send rating to server (unified 1-2-3 scale)
   fetch('/curriculum/api/v1/srs/grade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       card_id: card.card_id,
-      grade: grade,
+      rating: rating,  // Unified 1-2-3 scale
       session_key: 'lesson_review'
     })
-  }).catch(e => console.log('Grade API not available'));
+  })
+  .then(response => response.json())
+  .then(result => {
+    console.log('SRS grade result:', result);
+    // Handle requeue if needed (rating 1 or 2)
+    if (result.requeue_position !== null && result.requeue_position !== undefined) {
+      const cardCopy = { ...card, isRequeue: true };
+      const insertAt = Math.min(reviewIndex + result.requeue_position + 1, reviewCards.length);
+      reviewCards.splice(insertAt, 0, cardCopy);
+      document.getElementById('review-total').textContent = reviewCards.length;
+      console.log(`Card requeued at position +${result.requeue_position}`);
+    }
+  })
+  .catch(e => console.log('Grade API not available:', e));
 
   // Move to next card
   setTimeout(() => showReviewCard(reviewIndex + 1), 200);

@@ -13,9 +13,65 @@ from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookC
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.curriculum.services.grammar_focus_generator import GrammarFocusGenerator
+from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+# Словарь переводов типов уроков
+LESSON_TYPE_TRANSLATIONS = {
+    # v3.0 lesson types
+    'vocabulary': 'Словарь',
+    'reading': 'Чтение',
+    'grammar_focus': 'Грамматика',
+    'comprehension_mcq': 'Тест на понимание',
+    'cloze_practice': 'Заполнение пропусков',
+    'vocabulary_review': 'Повторение слов',
+    'summary_writing': 'Пересказ',
+    'module_test': 'Тест модуля',
+    # v2.0 lesson types (legacy)
+    'reading_part1': 'Чтение (часть 1)',
+    'reading_part2': 'Чтение (часть 2)',
+    'vocabulary_practice': 'Практика словаря',
+    'discussion': 'Обсуждение',
+    'mixed_practice': 'Смешанная практика',
+    # Legacy lesson types
+    'reading_passage': 'Чтение',
+    'reading_mcq': 'Тест по чтению',
+    'match_headings': 'Заголовки',
+    'open_cloze': 'Пропуски',
+    'word_formation': 'Словообразование',
+    'keyword_transform': 'Трансформации',
+    'grammar_sheet': 'Грамматика',
+    'grammar': 'Грамматика',
+    'final_test': 'Финальный тест'
+}
+
+
+def get_lesson_type_display(lesson_type: str) -> str:
+    """Получить русское название типа урока"""
+    return LESSON_TYPE_TRANSLATIONS.get(lesson_type, lesson_type.replace('_', ' ').title())
+
+
+def truncate_context(text: str, max_sentences: int = 1) -> str:
+    """Обрезать контекст до указанного количества предложений"""
+    if not text:
+        return ''
+
+    import re
+    # Разбиваем по точке с пробелом и заглавной буквой (более надёжно)
+    # Ищем: точка + пробел + заглавная буква
+    parts = re.split(r'\.\s+(?=[A-Z])', text.strip())
+
+    if len(parts) <= max_sentences:
+        return text
+
+    # Возвращаем первые N предложений с точкой
+    result = '. '.join(parts[:max_sentences])
+    if not result.endswith('.'):
+        result += '.'
+    return result
+
 
 # Create blueprint for book course routes
 book_courses_bp = Blueprint('book_courses', __name__)
@@ -259,37 +315,10 @@ def view_module(course_id, module_id):
         # Convert to template format
         lessons = []
         for dl in daily_lessons:
-            lesson_type_display = {
-                # v3.0 lesson types
-                'reading': 'Чтение',
-                'vocabulary': 'Словарь',
-                'grammar_focus': 'Грамматика',
-                'comprehension_mcq': 'Тест на понимание',
-                'cloze_practice': 'Заполнение пропусков',
-                'vocabulary_review': 'Повторение слов',
-                'summary_writing': 'Пересказ',
-                'module_test': 'Тест модуля',
-                # v2.0 lesson types (legacy)
-                'reading_part1': 'Чтение (часть 1)',
-                'reading_part2': 'Чтение (часть 2)',
-                'vocabulary_practice': 'Практика словаря',
-                'discussion': 'Обсуждение',
-                'mixed_practice': 'Смешанная практика',
-                # Legacy lesson types
-                'reading_passage': 'Чтение',
-                'reading_mcq': 'Тест по чтению',
-                'match_headings': 'Заголовки',
-                'open_cloze': 'Пропуски',
-                'word_formation': 'Словообразование',
-                'keyword_transform': 'Трансформации',
-                'grammar_sheet': 'Грамматика',
-                'final_test': 'Финальный тест'
-            }.get(dl.lesson_type, dl.lesson_type.replace('_', ' ').title())
-
             lessons.append({
                 'lesson_number': dl.day_number,
                 'type': dl.lesson_type,
-                'title': f'Day {dl.day_number}: {lesson_type_display}',
+                'title': f'День {dl.day_number}: {get_lesson_type_display(dl.lesson_type)}',
                 'id': dl.id,
                 'estimated_time': 15,
                 'description': None
@@ -375,7 +404,7 @@ def view_lesson(course_id, module_id, lesson_number):
             lesson = {
                 'lesson_number': daily_lesson.day_number,
                 'type': daily_lesson.lesson_type,
-                'title': f'Day {daily_lesson.day_number}: {daily_lesson.lesson_type.replace("_", " ").title()}',
+                'title': f'День {daily_lesson.day_number}: {get_lesson_type_display(daily_lesson.lesson_type)}',
                 'slice_text': daily_lesson.slice_text,
                 'word_count': daily_lesson.word_count,
                 'task_id': daily_lesson.task_id,
@@ -422,6 +451,7 @@ def view_lesson(course_id, module_id, lesson_number):
 
         # Route to appropriate lesson type handler
         lesson_type = lesson.get('type', 'text')
+        logger.info(f"view_lesson: course={course_id}, module={module_id}, lesson_type='{lesson_type}'")
 
         # Special handling for SRS/Anki sessions
         if lesson_type == 'anki_session' or lesson_type == 'srs':
@@ -465,8 +495,8 @@ def view_lesson(course_id, module_id, lesson_number):
 
                 for sv in slice_vocab:
                     word = sv.word
-                    # Context sentence from book (relevant to current reading)
-                    context = sv.context_sentence or ''
+                    # Context sentence from book (relevant to current reading) - max 2 sentences
+                    context = truncate_context(sv.context_sentence or '', max_sentences=2)
 
                     # Example with translation from DB
                     db_example = getattr(word, 'sentences', '') or ''
@@ -478,7 +508,8 @@ def view_lesson(course_id, module_id, lesson_number):
                         'translation': word.russian_word,
                         'context': context,  # From book
                         'example': db_example,  # From DB with translation
-                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
+                        'has_audio': getattr(word, 'get_download', 0) == 1,
                         'frequency': sv.frequency_in_slice,
                         'part_of_speech': getattr(word, 'pos', 'unknown'),
                         'level': getattr(word, 'level', None),
@@ -508,6 +539,36 @@ def view_lesson(course_id, module_id, lesson_number):
             # Limit to 10 words as per specification
             vocabulary_data = vocabulary_data[:10]
 
+            # Create deck for this book course (if not exists) and add words
+            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
+            from app.study.models import QuizDeckWord
+            try:
+                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (vocabulary in view_lesson)")
+                book_deck = get_or_create_book_course_deck(current_user.id, course)
+
+                # Add vocabulary words to deck
+                if book_deck and vocabulary_data:
+                    words_added = 0
+                    for vocab in vocabulary_data:
+                        word_id = vocab.get('id')
+                        if word_id:
+                            existing = QuizDeckWord.query.filter_by(
+                                deck_id=book_deck.id, word_id=word_id
+                            ).first()
+                            if not existing:
+                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
+                                db.session.add(deck_word)
+                                words_added += 1
+                    if words_added > 0:
+                        logger.info(f"Added {words_added} words to deck {book_deck.id}")
+
+                db.session.commit()
+                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}, title={book_deck.title if book_deck else 'None'}")
+            except Exception as e:
+                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
+                db.session.rollback()
+                book_deck = None
+
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
                 course=course,
@@ -518,7 +579,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 vocabulary_data=vocabulary_data,
                 total_words=len(vocabulary_data),
                 daily_lesson=daily_lesson,
-                review_cards=review_cards
+                review_cards=review_cards,
+                book_deck=book_deck
             )
         elif lesson_type in ['grammar', 'grammar_focus']:
             # Get grammar content from GrammarFocusGenerator
@@ -554,11 +616,42 @@ def view_lesson(course_id, module_id, lesson_number):
                         'id': word.id,
                         'lemma': word.english_word,
                         'translation': word.russian_word,
-                        'example': sv.context_sentence or '',
-                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                        'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                         'frequency': sv.frequency_in_slice,
                     }
                     vocabulary_data.append(vocab_item)
+
+            # Create deck for this book course (if not exists) and add words
+            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
+            from app.study.models import QuizDeckWord
+            try:
+                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (vocabulary_review in view_lesson)")
+                book_deck = get_or_create_book_course_deck(current_user.id, course)
+
+                # Add vocabulary words to deck
+                vocab_to_add = vocabulary_data[:15]
+                if book_deck and vocab_to_add:
+                    words_added = 0
+                    for vocab in vocab_to_add:
+                        word_id = vocab.get('id')
+                        if word_id:
+                            existing = QuizDeckWord.query.filter_by(
+                                deck_id=book_deck.id, word_id=word_id
+                            ).first()
+                            if not existing:
+                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
+                                db.session.add(deck_word)
+                                words_added += 1
+                    if words_added > 0:
+                        logger.info(f"Added {words_added} words to deck {book_deck.id} (vocabulary_review)")
+
+                db.session.commit()
+                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
+            except Exception as e:
+                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
+                db.session.rollback()
+                book_deck = None
 
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
@@ -571,7 +664,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 total_words=len(vocabulary_data[:15]),
                 daily_lesson=daily_lesson,
                 review_cards=review_cards,
-                is_review=True  # Flag to show review mode
+                is_review=True,  # Flag to show review mode
+                book_deck=book_deck
             )
         elif lesson_type in ['comprehension_mcq']:
             # Comprehension MCQ - use reading_mcq template
@@ -581,6 +675,12 @@ def view_lesson(course_id, module_id, lesson_number):
                 task = Task.query.get(daily_lesson.task_id)
                 if task and task.payload:
                     mcq_data = task.payload
+
+            # Generate MCQ from slice text if no task data
+            if not mcq_data and daily_lesson and daily_lesson.slice_text:
+                mcq_data = ComprehensionMCQGenerator.generate_questions(
+                    daily_lesson.slice_text, num_questions=10
+                )
 
             return render_template(
                 'curriculum/book_courses/lessons/reading_mcq.html',
@@ -601,6 +701,12 @@ def view_lesson(course_id, module_id, lesson_number):
                 task = Task.query.get(daily_lesson.task_id)
                 if task and task.payload:
                     cloze_data = task.payload
+
+            # Generate cloze from slice text if no task data
+            if not cloze_data and daily_lesson and daily_lesson.slice_text:
+                cloze_data = ClozePracticeGenerator.generate_cloze(
+                    daily_lesson.slice_text, num_gaps=8
+                )
 
             return render_template(
                 'curriculum/book_courses/lessons/open_cloze.html',
@@ -732,7 +838,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
         lesson = {
             'lesson_number': daily_lesson.day_number,
             'type': daily_lesson.lesson_type,
-            'title': f'Day {daily_lesson.day_number}: {daily_lesson.lesson_type.replace("_", " ").title()}',
+            'title': f'День {daily_lesson.day_number}: {get_lesson_type_display(daily_lesson.lesson_type)}',
             'slice_text': daily_lesson.slice_text,
             'word_count': daily_lesson.word_count,
             'task_id': daily_lesson.task_id,
@@ -820,8 +926,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
 
             for sv in slice_vocab:
                 word = sv.word
-                # Context sentence from book (relevant to current reading)
-                context = sv.context_sentence or ''
+                # Context sentence from book (relevant to current reading) - max 2 sentences
+                context = truncate_context(sv.context_sentence or '', max_sentences=2)
 
                 # Example with translation from DB
                 db_example = getattr(word, 'sentences', '') or ''
@@ -833,13 +939,43 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                     'translation': word.russian_word,
                     'context': context,  # From book
                     'example': db_example,  # From DB with translation
-                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                     'frequency': sv.frequency_in_slice,
                     'part_of_speech': getattr(word, 'pos', 'unknown')
                 }
                 vocabulary_data.append(vocab_item)
 
             vocabulary_data = vocabulary_data[:10]
+
+            # Create deck for this book course (if not exists) and add words
+            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
+            from app.study.models import QuizDeckWord
+            try:
+                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id}")
+                book_deck = get_or_create_book_course_deck(current_user.id, course)
+
+                # Add vocabulary words to deck
+                if book_deck and vocabulary_data:
+                    words_added = 0
+                    for vocab in vocabulary_data:
+                        word_id = vocab.get('id')
+                        if word_id:
+                            existing = QuizDeckWord.query.filter_by(
+                                deck_id=book_deck.id, word_id=word_id
+                            ).first()
+                            if not existing:
+                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
+                                db.session.add(deck_word)
+                                words_added += 1
+                    if words_added > 0:
+                        logger.info(f"Added {words_added} words to deck {book_deck.id}")
+
+                db.session.commit()
+                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
+            except Exception as e:
+                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
+                db.session.rollback()
+                book_deck = None
 
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
@@ -851,7 +987,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 vocabulary_data=vocabulary_data,
                 total_words=len(vocabulary_data),
                 daily_lesson=daily_lesson,
-                review_cards=review_cards
+                review_cards=review_cards,
+                book_deck=book_deck
             )
         elif lesson_type in ['grammar', 'grammar_focus']:
             # Get grammar content from GrammarFocusGenerator
@@ -885,11 +1022,42 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                     'id': word.id,
                     'lemma': word.english_word,
                     'translation': word.russian_word,
-                    'example': sv.context_sentence or '',
-                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                    'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                     'frequency': sv.frequency_in_slice,
                 }
                 vocabulary_data.append(vocab_item)
+
+            # Create deck for this book course (if not exists) and add words
+            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
+            from app.study.models import QuizDeckWord
+            try:
+                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (vocabulary_review)")
+                book_deck = get_or_create_book_course_deck(current_user.id, course)
+
+                # Add vocabulary words to deck
+                vocab_to_add = vocabulary_data[:15]
+                if book_deck and vocab_to_add:
+                    words_added = 0
+                    for vocab in vocab_to_add:
+                        word_id = vocab.get('id')
+                        if word_id:
+                            existing = QuizDeckWord.query.filter_by(
+                                deck_id=book_deck.id, word_id=word_id
+                            ).first()
+                            if not existing:
+                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
+                                db.session.add(deck_word)
+                                words_added += 1
+                    if words_added > 0:
+                        logger.info(f"Added {words_added} words to deck {book_deck.id} (vocabulary_review)")
+
+                db.session.commit()
+                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
+            except Exception as e:
+                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
+                db.session.rollback()
+                book_deck = None
 
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
@@ -902,7 +1070,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 total_words=len(vocabulary_data[:15]),
                 daily_lesson=daily_lesson,
                 review_cards=review_cards,
-                is_review=True
+                is_review=True,
+                book_deck=book_deck
             )
         elif lesson_type in ['comprehension_mcq']:
             # Comprehension MCQ - use reading_mcq template
@@ -912,6 +1081,12 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 task = Task.query.get(daily_lesson.task_id)
                 if task and task.payload:
                     mcq_data = task.payload
+
+            # Generate MCQ from slice text if no task data
+            if not mcq_data and daily_lesson and daily_lesson.slice_text:
+                mcq_data = ComprehensionMCQGenerator.generate_questions(
+                    daily_lesson.slice_text, num_questions=10
+                )
 
             return render_template(
                 'curriculum/book_courses/lessons/reading_mcq.html',
@@ -932,6 +1107,12 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 task = Task.query.get(daily_lesson.task_id)
                 if task and task.payload:
                     cloze_data = task.payload
+
+            # Generate cloze from slice text if no task data
+            if not cloze_data and daily_lesson and daily_lesson.slice_text:
+                cloze_data = ClozePracticeGenerator.generate_cloze(
+                    daily_lesson.slice_text, num_gaps=8
+                )
 
             return render_template(
                 'curriculum/book_courses/lessons/open_cloze.html',
@@ -1055,8 +1236,8 @@ def get_lesson_api(lesson_id):
                     'id': word.id,
                     'lemma': word.english_word,
                     'translation': word.russian_word,
-                    'example': sv.context_sentence or '',
-                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3'
+                    'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3'
                 })
 
             return jsonify({'words': words})
@@ -1095,7 +1276,7 @@ def get_lesson_api(lesson_id):
                                 'id': word.id,
                                 'translation': word.russian_word,
                                 'example': '',
-                                'audio_url': f'/static/audio/pronunciation_en_{word_lower}.mp3',
+                                'audio_url': f'/static/audio/pronunciation_en_{word_lower.replace(" ", "_")}.mp3',
                                 'transcription': getattr(word, 'transcription', None),
                                 'pos': getattr(word, 'pos', None)
                             }
@@ -1106,8 +1287,8 @@ def get_lesson_api(lesson_id):
                     tooltip_map[word.english_word.lower()] = {
                         'id': word.id,
                         'translation': word.russian_word,
-                        'example': sv.context_sentence or '',
-                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower()}.mp3',
+                        'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                         'transcription': getattr(word, 'transcription', None),
                         'pos': getattr(word, 'pos', None)
                     }
@@ -1163,7 +1344,7 @@ def get_lesson_api(lesson_id):
                 'html': final_html,
                 'tooltip_map': tooltip_map,
                 'word_count': daily_lesson.word_count,
-                'title': f'Reading - Day {daily_lesson.day_number}'
+                'title': f'Чтение — День {daily_lesson.day_number}'
             })
 
         else:
@@ -1254,7 +1435,7 @@ def complete_lesson_api_v1(lesson_id):
 
         db.session.commit()
 
-        return '', 201
+        return jsonify({'success': True, 'message': 'Lesson completed'}), 201
 
     except Exception as e:
         logger.error(f"Error completing lesson {lesson_id}: {str(e)}")
@@ -1397,17 +1578,90 @@ def get_course_progress_api(course_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
+@book_courses_bp.route('/api/srs/session/<int:lesson_id>', methods=['GET'])
+@login_required
+def get_srs_session(lesson_id):
+    """
+    Get SRS session for vocabulary lesson.
+    Returns only cards that are due for review today.
+    """
+    try:
+        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+
+        # Get enrollment
+        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
+        enrollment = BookCourseEnrollment.query.filter_by(
+            user_id=current_user.id,
+            course_id=module.course_id
+        ).first()
+
+        if not enrollment:
+            return jsonify({'error': 'Not enrolled'}), 403
+
+        srs_integration = BookSRSIntegration()
+        session_data = srs_integration.create_srs_session_for_lesson(
+            user_id=current_user.id,
+            daily_lesson=daily_lesson,
+            enrollment=enrollment
+        )
+
+        return jsonify(session_data)
+
+    except Exception as e:
+        logger.error(f"Error creating SRS session: {str(e)}")
+        return jsonify({'error': 'Server error'}), 500
+
+
+@book_courses_bp.route('/api/srs/grade', methods=['POST'])
+@login_required
+def grade_srs_card():
+    """
+    Grade an SRS card.
+    POST /api/srs/grade {card_id, grade, session_key}
+
+    Grade scale:
+    1 = "Не знаю" (Again)
+    3 = "Сомневаюсь" (Hard)
+    5 = "Знаю" (Easy)
+    """
+    try:
+        data = request.get_json()
+        card_id = data.get('card_id')
+        grade = data.get('grade')
+        session_key = data.get('session_key', '')
+
+        if not card_id or grade is None:
+            return jsonify({'success': False, 'error': 'card_id and grade required'}), 400
+
+        srs_integration = BookSRSIntegration()
+        result = srs_integration.process_card_grade(
+            user_id=current_user.id,
+            card_id=card_id,
+            grade=grade,
+            session_key=session_key
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error grading SRS card: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
 @book_courses_bp.route('/api/srs/add-card', methods=['POST'])
 @login_required
 def add_word_to_srs():
     """
     Add a word to user's SRS flashcards.
-    POST /api/srs/add-card {word_id, source, lesson_id}
+    POST /api/srs/add-card {word_id, source, course_id}
+
+    Returns word_status: 'not_added', 'in_learning', or 'learned'
     """
     try:
         data = request.get_json()
         word_id = data.get('word_id')
         source = data.get('source', 'book_reading')
+        course_id = data.get('course_id')
 
         if not word_id:
             return jsonify({'success': False, 'error': 'word_id required'}), 400
@@ -1416,12 +1670,14 @@ def add_word_to_srs():
         result = srs_integration.add_word_to_srs(
             user_id=current_user.id,
             word_id=word_id,
-            source=source
+            source=source,
+            course_id=course_id
         )
 
         if result.get('success'):
             return jsonify(result)
         else:
+            # Return word_status even on failure (for UI to update)
             return jsonify(result), 400
 
     except Exception as e:

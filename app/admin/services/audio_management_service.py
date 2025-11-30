@@ -87,15 +87,32 @@ class AudioManagementService:
             raise
 
     @staticmethod
+    def _get_clean_audio_filename(english_word: str) -> str:
+        """
+        Генерирует чистое имя аудио файла для слова
+
+        Args:
+            english_word: Английское слово
+
+        Returns:
+            str: Имя файла вида pronunciation_en_word.mp3
+        """
+        # Заменяем пробелы на подчеркивания для составных слов (breaking news -> breaking_news)
+        word_slug = english_word.lower().replace(' ', '_')
+        return f"pronunciation_en_{word_slug}.mp3"
+
+    @staticmethod
     def fix_listening_fields():
         """
-        Исправляет поля прослушивания (listening) для слов
+        Исправляет поля прослушивания (listening) для слов с HTTP URL.
+        Сохраняет чистое имя файла (pronunciation_en_word.mp3) без обертки [sound:...].
+        Формат [sound:...] добавляется только при экспорте в Anki.
 
         Returns:
             tuple: (success: bool, fixed_count: int, message: str)
         """
         try:
-            # Находим слова, требующие исправления
+            # Находим слова с HTTP URL, требующие исправления
             words_to_fix = CollectionWords.query.filter(
                 CollectionWords.russian_word.isnot(None),
                 CollectionWords.english_word.isnot(None),
@@ -104,41 +121,68 @@ class AudioManagementService:
             ).all()
 
             if not words_to_fix:
-                return True, 0, 'Нет записей, требующих исправления'
+                return True, 0, 'Нет записей с HTTP URL, требующих исправления'
 
-            # Исправляем поля listening
+            # Исправляем поля listening - сохраняем чистое имя файла
             count = 0
-            try:
-                from app.audio.manager import AudioManager
-                audio_manager = AudioManager()
-
-                for word in words_to_fix:
-                    try:
-                        listening = audio_manager.update_anki_field_format(word.english_word)
-                        word.listening = listening
-                        count += 1
-                    except Exception as e:
-                        logger.warning(f"Error processing word {word.english_word}: {str(e)}")
-                        continue
-
-            except ImportError:
-                # Если модуль AudioManager недоступен, используем простую замену
-                for word in words_to_fix:
-                    try:
-                        word.listening = f"[sound:pronunciation_en_{word.english_word}.mp3]"
-                        count += 1
-                    except Exception as e:
-                        logger.warning(f"Error processing word {word.english_word}: {str(e)}")
-                        continue
+            for word in words_to_fix:
+                try:
+                    word.listening = AudioManagementService._get_clean_audio_filename(word.english_word)
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"Error processing word {word.english_word}: {str(e)}")
+                    continue
 
             # Сохраняем изменения
             db.session.commit()
 
-            logger.info(f"Audio listening fields fixed: {count} records")
-            return True, count, f'Исправлено полей listening: {count}'
+            logger.info(f"Audio listening fields fixed (HTTP->clean): {count} records")
+            return True, count, f'Исправлено полей listening (HTTP→чистый формат): {count}'
 
         except Exception as e:
             logger.error(f"Error fixing listening fields: {str(e)}")
+            db.session.rollback()
+            return False, 0, str(e)
+
+    @staticmethod
+    def normalize_listening_fields():
+        """
+        Нормализует поля listening: убирает обертку [sound:...] и оставляет чистое имя файла.
+        Это позволяет использовать аудио напрямую в приложении, а формат [sound:...]
+        добавлять только при экспорте в Anki.
+
+        Returns:
+            tuple: (success: bool, fixed_count: int, message: str)
+        """
+        import re
+        try:
+            # Находим слова с форматом [sound:...]
+            words_to_fix = CollectionWords.query.filter(
+                CollectionWords.listening.like('[sound:%')
+            ).all()
+
+            if not words_to_fix:
+                return True, 0, 'Нет записей с форматом [sound:...], требующих нормализации'
+
+            count = 0
+            for word in words_to_fix:
+                try:
+                    # Извлекаем чистое имя файла из [sound:filename.mp3]
+                    match = re.search(r'\[sound:([^\]]+)\]', word.listening)
+                    if match:
+                        word.listening = match.group(1)
+                        count += 1
+                except Exception as e:
+                    logger.warning(f"Error normalizing word {word.english_word}: {str(e)}")
+                    continue
+
+            db.session.commit()
+
+            logger.info(f"Audio listening fields normalized: {count} records")
+            return True, count, f'Нормализовано полей listening ([sound:]→чистый формат): {count}'
+
+        except Exception as e:
+            logger.error(f"Error normalizing listening fields: {str(e)}")
             db.session.rollback()
             return False, 0, str(e)
 
@@ -229,6 +273,7 @@ class AudioManagementService:
                         WHEN listening LIKE 'http%%' THEN 'HTTP URL'
                         WHEN listening LIKE '[sound:%%' THEN 'Anki Format'
                         WHEN listening IS NULL OR listening = '' THEN 'Empty'
+                        WHEN listening LIKE 'pronunciation_en_%%' THEN 'Clean Filename'
                         ELSE 'Other Format'
                     END as format_type,
                     COUNT(*) as row_count
@@ -238,6 +283,7 @@ class AudioManagementService:
                         WHEN listening LIKE 'http%%' THEN 'HTTP URL'
                         WHEN listening LIKE '[sound:%%' THEN 'Anki Format'
                         WHEN listening IS NULL OR listening = '' THEN 'Empty'
+                        WHEN listening LIKE 'pronunciation_en_%%' THEN 'Clean Filename'
                         ELSE 'Other Format'
                     END
                 ORDER BY row_count DESC""", fetch=True)

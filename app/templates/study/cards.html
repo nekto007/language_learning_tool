@@ -129,20 +129,24 @@
                     <div id="example-translation" class="text-secondary"></div>
                 </div>
 
+                <!-- Unified 1-2-3 rating scale -->
                 <div class="d-flex justify-content-center gap-2 mt-4">
-                    <button type="button" class="rating-btn btn-danger flex-fill" style="max-width: 150px;" data-rating="0">
-                        {{ _('Снова') }}
-                </button>
-                <button type="button" class="rating-btn btn-hard" data-rating="2">
-                    {{ _('Трудно') }}
-                </button>
-                <button type="button" class="rating-btn btn-good" data-rating="3">
-                    {{ _('Хорошо') }}
-                </button>
-                <button type="button" class="rating-btn btn-easy" data-rating="4">
-                    {{ _('Легко') }}
-                </button>
-            </div>
+                    <button type="button" class="rating-btn btn-danger flex-fill" style="max-width: 150px;" data-rating="1">
+                        <span class="rating-icon">😕</span>
+                        {{ _('Не знаю') }}
+                        <small class="rating-hint">1-2 карточки</small>
+                    </button>
+                    <button type="button" class="rating-btn btn-warning flex-fill" style="max-width: 150px;" data-rating="2">
+                        <span class="rating-icon">🤔</span>
+                        {{ _('Сомневаюсь') }}
+                        <small class="rating-hint">3-5 карточек</small>
+                    </button>
+                    <button type="button" class="rating-btn btn-success flex-fill" style="max-width: 150px;" data-rating="3">
+                        <span class="rating-icon">😊</span>
+                        {{ _('Знаю') }}
+                        <small class="rating-hint">Готово</small>
+                    </button>
+                </div>
         </div>
 
         <!-- Сообщение о завершении дневного лимита -->
@@ -819,8 +823,12 @@
             }
         }
 
-        // Rate a card and move to the next
-        async function rateCard(quality) {
+        // Session attempts tracking for requeue limit (max 3 shows per card)
+        const sessionAttempts = {};  // card_key → count
+        const MAX_SESSION_ATTEMPTS = 3;
+
+        // Rate a card and move to the next (Unified 1-2-3 scale)
+        async function rateCard(rating) {
             if (!cards || currentCardIndex >= cards.length) {
                 console.error('Cannot rate card - invalid card index');
                 return;
@@ -829,23 +837,12 @@
             const csrfToken = csrfMeta && csrfMeta.content;
             const card = cards[currentCardIndex];
 
-            // Implement card shuffling for "Again" rating to avoid immediate repetition
-            if (quality === 0) {
-                // "Снова" - shuffle remaining cards to avoid showing the same card immediately
-                const remainingCards = cards.slice(currentCardIndex + 1);
-                if (remainingCards.length > 1) {
-                    // Shuffle remaining cards
-                    for (let i = remainingCards.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [remainingCards[i], remainingCards[j]] = [remainingCards[j], remainingCards[i]];
-                    }
-                    // Replace remaining cards in the original array
-                    cards.splice(currentCardIndex + 1, remainingCards.length, ...remainingCards);
-                }
-            }
+            // Track session attempts for this card+direction
+            const cardKey = `${card.word_id}_${card.direction}`;
+            sessionAttempts[cardKey] = (sessionAttempts[cardKey] || 0) + 1;
 
             try {
-                // Send rating to server with direction
+                // Send rating to server with direction (unified 1-2-3 scale)
                 const response = await fetch('/study/api/update-study-item', {
                     method: 'POST',
                     credentials: 'same-origin',
@@ -855,10 +852,10 @@
                     },
                     body: JSON.stringify({
                         word_id: card.word_id,
-                        direction: card.direction,  // Include the direction
-                        quality: quality,
+                        direction: card.direction,
+                        quality: rating,  // Unified 1-2-3 scale (backward compatible)
                         session_id: sessionId,
-                        is_new: card.is_new  // Include new card flag for limit validation
+                        is_new: card.is_new
                     }),
                 });
 
@@ -867,31 +864,56 @@
                 // Check if daily limit was exceeded (race condition protection)
                 if (!data.success && data.error === 'daily_limit_exceeded') {
                     alert('{{ _("Daily limit for new cards has been reached. This card was not counted.") }}');
-                    // Move to next card without updating stats
                     showCard(currentCardIndex + 1);
                     return;
+                }
+
+                // Handle requeue based on rating and server response
+                let shouldRequeue = false;
+                let requeuePosition = null;
+
+                if (data.requeue_position !== null && data.requeue_position !== undefined) {
+                    // Check session limit before requeuing
+                    if (sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
+                        shouldRequeue = true;
+                        requeuePosition = data.requeue_position;
+                    }
+                } else if (rating === 1 && sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
+                    // Fallback: if server doesn't return requeue_position, handle locally
+                    shouldRequeue = true;
+                    requeuePosition = Math.floor(Math.random() * 2) + 1; // 1-2 cards
+                } else if (rating === 2 && sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
+                    shouldRequeue = true;
+                    requeuePosition = Math.floor(Math.random() * 3) + 3; // 3-5 cards
+                }
+
+                // Requeue the card if needed
+                if (shouldRequeue && requeuePosition !== null) {
+                    const cardCopy = { ...card, isRequeue: true };
+                    const insertAt = Math.min(currentCardIndex + requeuePosition + 1, cards.length);
+                    cards.splice(insertAt, 0, cardCopy);
+                    console.log(`Card requeued at position +${requeuePosition} (attempt ${sessionAttempts[cardKey]})`);
                 }
 
                 // Update session stats
                 sessionStats.total++;
 
-                // Update simplified counters based on user request
-                if (card.is_new) {
+                // Update simplified counters
+                if (card.is_new && !card.isRequeue) {
                     sessionStats.new_cards--;
                     if (newCardsCounter) {
                         newCardsCounter.textContent = `{{ _('Новых') }}: ${Math.max(0, sessionStats.new_cards)}`;
                     }
-                } else {
+                } else if (!card.isRequeue) {
                     sessionStats.review_cards--;
                     if (reviewCardsCounter) {
                         reviewCardsCounter.textContent = `{{ _('Повторить') }}: ${Math.max(0, sessionStats.review_cards)}`;
                     }
                 }
-                
+
                 // Update studied cards counter
-                const studiedCount = sessionStats.total;
                 if (studiedCardsCounter) {
-                    studiedCardsCounter.textContent = `{{ _('Изучено') }}: ${studiedCount}`;
+                    studiedCardsCounter.textContent = `{{ _('Изучено') }}: ${sessionStats.total}`;
                 }
 
                 // Move to next card
@@ -986,22 +1008,19 @@
             }
         });
 
-        // Keyboard shortcuts for rating cards
+        // Keyboard shortcuts for rating cards (Unified 1-2-3 scale)
         document.addEventListener('keydown', function(e) {
             // Rating shortcuts when card back is visible
             if (cardBack.style.display === 'flex') {
                 if (e.key === '1') {
                     e.preventDefault();
-                    rateCard(0); // Снова
+                    rateCard(1); // Не знаю (show in 1-2 cards)
                 } else if (e.key === '2') {
                     e.preventDefault();
-                    rateCard(2); // Трудно
+                    rateCard(2); // Сомневаюсь (show in 3-5 cards)
                 } else if (e.key === '3') {
                     e.preventDefault();
-                    rateCard(3); // Хорошо
-                } else if (e.key === '4') {
-                    e.preventDefault();
-                    rateCard(4); // Легко
+                    rateCard(3); // Знаю (done)
                 }
             }
             // Show answer when front card is visible and spacebar is pressed

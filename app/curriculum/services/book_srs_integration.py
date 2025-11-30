@@ -4,13 +4,85 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from app.curriculum.book_courses import BookCourseEnrollment
+from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson, LessonCompletionEvent, SliceVocabulary
-from app.study.models import UserCardDirection, UserWord
-from app.utils.db import db
+from app.study.models import QuizDeck, QuizDeckWord, UserCardDirection, UserWord
+from app.utils.db import db, word_book_link
 from app.words.models import CollectionWords
 
+# Константа для определения "выученного" слова
+LEARNED_INTERVAL_THRESHOLD = 35  # дней
+
 logger = logging.getLogger(__name__)
+
+
+def is_word_learned(user_id: int, word_id: int, threshold: int = LEARNED_INTERVAL_THRESHOLD) -> bool:
+    """
+    Проверяет, выучено ли слово пользователем.
+    Слово считается выученным если ОБА направления (eng-rus и rus-eng)
+    имеют interval >= threshold дней.
+    """
+    user_word = UserWord.query.filter_by(user_id=user_id, word_id=word_id).first()
+    if not user_word:
+        return False
+
+    cards = UserCardDirection.query.filter_by(user_word_id=user_word.id).all()
+    if len(cards) < 2:
+        return False
+
+    return all(card.interval >= threshold for card in cards)
+
+
+def get_word_status_for_ui(user_id: int, word_id: int) -> str:
+    """
+    Возвращает статус слова для UI:
+    - 'not_added': слово не добавлено, можно добавить
+    - 'in_learning': слово в процессе изучения (скрыть кнопку добавления)
+    - 'learned': слово выучено (показать ✓ Выучено)
+    """
+    user_word = UserWord.query.filter_by(user_id=user_id, word_id=word_id).first()
+    if not user_word:
+        return 'not_added'
+
+    # Проверяем есть ли карточки
+    cards_count = UserCardDirection.query.filter_by(user_word_id=user_word.id).count()
+    if cards_count == 0:
+        return 'not_added'
+
+    if is_word_learned(user_id, word_id):
+        return 'learned'
+
+    return 'in_learning'
+
+
+def get_or_create_book_course_deck(user_id: int, course: BookCourse) -> QuizDeck:
+    """
+    Создаёт или получает колоду для книжного курса.
+    Название: "Книга: {book.title}"
+    """
+    # Получаем название книги
+    book_title = course.book.title if course.book else f"Курс {course.id}"
+    deck_title = f"Книга: {book_title}"
+
+    existing = QuizDeck.query.filter_by(
+        user_id=user_id,
+        title=deck_title
+    ).first()
+
+    if existing:
+        return existing
+
+    deck = QuizDeck(
+        user_id=user_id,
+        title=deck_title,
+        description=f"Слова из курса: {course.title}",
+        is_public=False
+    )
+    db.session.add(deck)
+    db.session.flush()  # Получаем ID без полного коммита
+
+    logger.info(f"Created book course deck '{deck_title}' for user {user_id}")
+    return deck
 
 
 class BookSRSIntegration:
@@ -31,8 +103,8 @@ class BookSRSIntegration:
         try:
             logger.info(f"Creating SRS session for user {user_id}, lesson {daily_lesson.id}")
 
-            # Получаем слова для этого daily lesson
-            vocabulary_words = self._get_vocabulary_words_for_lesson(daily_lesson)
+            # Получаем слова для этого daily lesson (фильтруем выученные)
+            vocabulary_words = self._get_vocabulary_words_for_lesson(daily_lesson, user_id=user_id)
 
             if not vocabulary_words:
                 logger.warning(f"No vocabulary words found for lesson {daily_lesson.id}")
@@ -40,6 +112,9 @@ class BookSRSIntegration:
 
             # Создаем или получаем SRS карточки для этих слов
             cards = self._get_or_create_srs_cards(user_id, vocabulary_words, daily_lesson)
+
+            # Commit новые карточки в базу
+            db.session.commit()
 
             # Фильтруем карточки по дате повторения (due today or overdue)
             due_cards = self._filter_due_cards(cards)
@@ -49,42 +124,166 @@ class BookSRSIntegration:
                 due_cards = due_cards[:25]  # Split in two как в спецификации
                 logger.info(f"Too many cards ({len(due_cards)}), limiting to 25")
 
+            # Считаем сколько слов изучено СЕГОДНЯ в рамках этого урока
+            # (карточки с last_reviewed = сегодня, направление eng-rus)
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            studied_today = 0
+            for item in cards:
+                card = item['card']
+                if card.direction == 'eng-rus' and card.last_reviewed:
+                    last_rev = card.last_reviewed
+                    if last_rev.tzinfo is None:
+                        last_rev = last_rev.replace(tzinfo=timezone.utc)
+                    if last_rev >= today_start:
+                        studied_today += 1
+
             # Формируем deck согласно API спецификации
             deck = self._format_deck_for_session(due_cards)
 
             # Создаем session_key для отслеживания
             session_key = f"book_lesson_{daily_lesson.id}_{user_id}_{datetime.now().timestamp()}"
 
-            logger.info(f"Created SRS session with {len(deck)} cards for lesson {daily_lesson.id}")
+            logger.info(f"Created SRS session with {len(deck)} cards for lesson {daily_lesson.id}, studied today: {studied_today}")
 
             return {
                 'deck': deck,
                 'session_key': session_key,
                 'lesson_id': daily_lesson.id,
-                'total_cards': len(deck)
+                'total_cards': len(deck),
+                'studied_today': studied_today  # Слов изучено сегодня
             }
 
         except Exception as e:
             logger.error(f"Error creating SRS session for lesson {daily_lesson.id}: {str(e)}")
             return {'deck': [], 'session_key': None}
 
-    def _get_vocabulary_words_for_lesson(self, daily_lesson: DailyLesson) -> List[CollectionWords]:
-        """Получает vocabulary words для daily lesson"""
-        vocabulary_entries = (SliceVocabulary.query
-                              .filter_by(daily_lesson_id=daily_lesson.id)
-                              .join(CollectionWords)
-                              .order_by(SliceVocabulary.frequency_in_slice.desc())
-                              .limit(10)  # Максимум 10 слов согласно спецификации
-                              .all())
+    def _get_vocabulary_words_for_lesson(self, daily_lesson: DailyLesson,
+                                          user_id: int = None,
+                                          filter_learned: bool = True,
+                                          target_count: int = 10) -> List[Dict[str, Any]]:
+        """
+        Получает vocabulary words для изучения.
 
-        return [entry.word for entry in vocabulary_entries]
+        Логика:
+        1. Сначала берём слова из текущего урока (SliceVocabulary)
+        2. Если не хватает — берём слова из всей книги (word_book_link)
+        3. Ищем пока не найдём target_count незнакомых слов или не переберём все слова книги
 
-    def _get_or_create_srs_cards(self, user_id: int, words: List[CollectionWords],
-                                 daily_lesson: DailyLesson) -> List[UserCardDirection]:
-        """Создает или получает SRS карточки для слов"""
-        cards = []
+        Returns:
+            List[Dict] с ключами: word, context, frequency, word_id
+            Пустой список если все слова книги выучены
+        """
+        result = []
+        seen_word_ids = set()
 
-        for word in words:
+        # 1. Сначала слова из текущего урока (с контекстом)
+        current_lesson_words = self._get_words_from_lesson(
+            daily_lesson, user_id, filter_learned, seen_word_ids
+        )
+        result.extend(current_lesson_words)
+
+        if len(result) >= target_count:
+            return result[:target_count]
+
+        # 2. Если не хватает — берём слова из всей книги через word_book_link
+        module = daily_lesson.module
+        if module and module.book_course:
+            book_id = module.book_course.book_id
+            if book_id:
+                book_words = self._get_words_from_book(
+                    book_id, user_id, filter_learned, seen_word_ids,
+                    limit=target_count - len(result)
+                )
+                result.extend(book_words)
+
+        logger.info(f"Found {len(result)} unknown words for lesson {daily_lesson.id} "
+                   f"(target: {target_count}, searched whole book)")
+
+        return result[:target_count] if result else result
+
+    def _get_words_from_book(self, book_id: int, user_id: int,
+                             filter_learned: bool, seen_word_ids: set,
+                             limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Получает незнакомые слова из всей книги через word_book_link.
+        Слова отсортированы по частоте (самые частые первыми).
+        """
+        # Получаем слова книги, отсортированные по частоте
+        query = (
+            db.session.query(CollectionWords, word_book_link.c.frequency)
+            .join(word_book_link, CollectionWords.id == word_book_link.c.word_id)
+            .filter(word_book_link.c.book_id == book_id)
+            .order_by(word_book_link.c.frequency.desc())
+        )
+
+        result = []
+        for word, frequency in query.all():
+            if len(result) >= limit:
+                break
+
+            # Пропускаем уже добавленные слова
+            if word.id in seen_word_ids:
+                continue
+
+            # Фильтруем выученные слова
+            if filter_learned and user_id:
+                if is_word_learned(user_id, word.id):
+                    continue
+
+            seen_word_ids.add(word.id)
+            result.append({
+                'word': word,
+                'context': None,  # Контекст берётся только из SliceVocabulary
+                'frequency': frequency,
+                'word_id': word.id
+            })
+
+        return result
+
+    def _get_words_from_lesson(self, lesson: DailyLesson, user_id: int,
+                               filter_learned: bool, seen_word_ids: set) -> List[Dict[str, Any]]:
+        """
+        Получает незнакомые слова из конкретного урока.
+        Обновляет seen_word_ids чтобы избежать дубликатов.
+        """
+        vocabulary_entries = (
+            SliceVocabulary.query
+            .filter_by(daily_lesson_id=lesson.id)
+            .join(CollectionWords)
+            .order_by(SliceVocabulary.frequency_in_slice.desc())
+            .all()
+        )
+
+        result = []
+        for entry in vocabulary_entries:
+            # Пропускаем уже добавленные слова
+            if entry.word_id in seen_word_ids:
+                continue
+
+            # Фильтруем выученные слова
+            if filter_learned and user_id:
+                if is_word_learned(user_id, entry.word_id):
+                    continue
+
+            seen_word_ids.add(entry.word_id)
+            result.append({
+                'word': entry.word,
+                'context': entry.context_sentence,
+                'frequency': entry.frequency_in_slice,
+                'word_id': entry.word_id
+            })
+
+        return result
+
+    def _get_or_create_srs_cards(self, user_id: int, word_data_list: List[Dict[str, Any]],
+                                 daily_lesson: DailyLesson) -> List[Dict[str, Any]]:
+        """Создает или получает SRS карточки для слов с контекстом"""
+        cards_with_context = []
+
+        for word_data in word_data_list:
+            word = word_data['word']
+            context = word_data.get('context')
+
             # Создаем или получаем UserWord
             user_word = UserWord.get_or_create(user_id, word.id)
 
@@ -96,9 +295,11 @@ class BookSRSIntegration:
             self._link_card_to_book_lesson(eng_rus_card, daily_lesson)
             self._link_card_to_book_lesson(rus_eng_card, daily_lesson)
 
-            cards.extend([eng_rus_card, rus_eng_card])
+            # Store cards with context
+            cards_with_context.append({'card': eng_rus_card, 'context': context})
+            cards_with_context.append({'card': rus_eng_card, 'context': context})
 
-        return cards
+        return cards_with_context
 
     def _get_or_create_card_direction(self, user_word: UserWord, direction: str) -> UserCardDirection:
         """Создает или получает карточку для направления"""
@@ -110,12 +311,13 @@ class BookSRSIntegration:
         if not card:
             card = UserCardDirection(
                 user_word_id=user_word.id,
-                direction=direction,
-                ease_factor=2.5,
-                interval=0,
-                repetitions=0,
-                next_review=datetime.now(timezone.utc)
+                direction=direction
             )
+            # Set defaults (model has defaults, but set explicitly for clarity)
+            card.ease_factor = 2.5
+            card.interval = 0
+            card.repetitions = 0
+            card.next_review = datetime.now(timezone.utc)
             db.session.add(card)
             db.session.flush()
 
@@ -127,23 +329,45 @@ class BookSRSIntegration:
         # Пока используем existing поля для отслеживания источника
         pass
 
-    def _filter_due_cards(self, cards: List[UserCardDirection]) -> List[UserCardDirection]:
-        """Фильтрует карточки, которые нужно повторить сегодня"""
+    def _filter_due_cards(self, cards_with_context: List[Dict[str, Any]],
+                          direction_filter: str = None) -> List[Dict[str, Any]]:
+        """Фильтрует карточки, которые нужно повторить сегодня
+
+        По умолчанию включает оба направления (eng-rus и rus-eng).
+        Если указан direction_filter - только указанное направление.
+
+        Каждая карточка (eng-rus, rus-eng) фильтруется независимо.
+        """
         now = datetime.now(timezone.utc)
         due_cards = []
 
-        for card in cards:
+        for item in cards_with_context:
+            card = item['card']
+
+            # Only include specified direction if filter is set
+            if direction_filter and card.direction != direction_filter:
+                continue
+
             # Новые карточки (repetitions = 0) или просроченные
-            if card.repetitions == 0 or (card.next_review and card.next_review <= now):
-                due_cards.append(card)
+            if card.repetitions == 0:
+                due_cards.append(item)
+            elif card.next_review:
+                # Make timezone-aware comparison safe
+                next_review = card.next_review
+                if next_review.tzinfo is None:
+                    next_review = next_review.replace(tzinfo=timezone.utc)
+                if next_review <= now:
+                    due_cards.append(item)
 
         return due_cards
 
-    def _format_deck_for_session(self, cards: List[UserCardDirection]) -> List[Dict[str, Any]]:
+    def _format_deck_for_session(self, cards_with_context: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Форматирует карточки для SRS сессии согласно API спецификации"""
         deck = []
 
-        for card in cards:
+        for item in cards_with_context:
+            card = item['card']
+            context = item.get('context')
             word = card.user_word.word
 
             # Определяем front и back согласно направлению
@@ -162,6 +386,11 @@ class BookSRSIntegration:
             else:
                 phase = 'review'
 
+            # Get examples, but filter out Anki templates (contain {{ }})
+            examples = getattr(word, 'sentences', None)
+            if examples and '{{' in examples:
+                examples = None  # Skip Anki template syntax
+
             deck_item = {
                 'card_id': card.id,
                 'front': front,
@@ -171,7 +400,18 @@ class BookSRSIntegration:
                 'direction': card.direction,
                 'ease_factor': card.ease_factor,
                 'interval': card.interval,
-                'audio_url': self._get_audio_url(word, card.direction)
+                'audio_url': self._get_audio_url(word, card.direction),
+                'has_audio': getattr(word, 'get_download', 0) == 1,
+                # Full word data for vocabulary template
+                'word_id': word.id,
+                'lemma': word.english_word,
+                'translation': word.russian_word,
+                'part_of_speech': getattr(word, 'part_of_speech', None),
+                'level': getattr(word, 'level', None),
+                'transcription': getattr(word, 'transcription', None),
+                'examples': examples,
+                # Context from book (SliceVocabulary)
+                'context': context,
             }
 
             deck.append(deck_item)
@@ -179,13 +419,23 @@ class BookSRSIntegration:
         return deck
 
     def _get_audio_url(self, word: CollectionWords, direction: str) -> Optional[str]:
-        """Получает URL аудио для слова"""
-        # Аудио только для английских слов
-        if direction == 'eng-rus' and hasattr(word, 'get_download') and word.get_download == 1:
-            if hasattr(word, 'listening') and word.listening:
-                # Предполагаем, что listening содержит имя файла
-                return f"/static/audio/{word.listening}"
-        return None
+        """
+        Получает URL аудио для слова.
+        Поддерживает оба формата в БД:
+        - Clean filename: pronunciation_en_word.mp3
+        - Legacy Anki format: [sound:pronunciation_en_word.mp3]
+
+        Аудио возвращается для обоих направлений (английское произношение).
+        """
+        if hasattr(word, 'listening') and word.listening:
+            filename = word.listening
+            # Извлекаем имя файла из Anki формата если нужно
+            if filename.startswith('[sound:') and filename.endswith(']'):
+                filename = filename[7:-1]  # Remove [sound: and ]
+            return f"/static/audio/{filename}"
+        # Fallback: генерируем URL на основе слова (пробелы -> _)
+        word_slug = word.english_word.lower().replace(' ', '_')
+        return f"/static/audio/pronunciation_en_{word_slug}.mp3"
 
     def process_card_grade(self, user_id: int, card_id: int, grade: int,
                            session_key: str) -> Dict[str, Any]:
@@ -406,55 +656,91 @@ class BookSRSIntegration:
             logger.error(f"Error getting due cards for review: {str(e)}")
             return []
 
-    def add_word_to_srs(self, user_id: int, word_id: int, source: str = 'book_reading') -> Dict[str, Any]:
+    def add_word_to_srs(self, user_id: int, word_id: int, source: str = 'book_reading',
+                         course_id: int = None) -> Dict[str, Any]:
         """
         Добавляет одно слово в SRS карточки.
         Создает UserWord и карточки для обоих направлений.
+        Если указан course_id — добавляет слово в колоду книжного курса.
 
         Args:
             user_id: ID пользователя
             word_id: ID слова из CollectionWords
             source: Источник добавления (book_reading, vocabulary_lesson и т.д.)
+            course_id: ID книжного курса (опционально)
 
         Returns:
-            Dict с результатом операции
+            Dict с результатом операции и word_status
         """
         try:
+            # Проверяем текущий статус слова
+            word_status = get_word_status_for_ui(user_id, word_id)
+
+            # Если слово уже выучено — возвращаем статус
+            if word_status == 'learned':
+                return {
+                    'success': False,
+                    'error': 'Слово уже выучено',
+                    'word_status': 'learned',
+                    'already_exists': True
+                }
+
+            # Если слово уже в обучении — возвращаем статус
+            if word_status == 'in_learning':
+                return {
+                    'success': True,
+                    'message': 'Слово уже в обучении',
+                    'word_status': 'in_learning',
+                    'already_exists': True
+                }
+
             # Проверяем, существует ли слово
             word = CollectionWords.query.get(word_id)
             if not word:
-                return {'success': False, 'error': 'Слово не найдено'}
+                return {'success': False, 'error': 'Слово не найдено', 'word_status': 'not_added'}
 
             # Создаем или получаем UserWord
             user_word = UserWord.get_or_create(user_id, word_id)
-
-            # Проверяем, есть ли уже карточки
-            existing_cards = UserCardDirection.query.filter_by(user_word_id=user_word.id).count()
-
-            if existing_cards >= 2:
-                return {'success': True, 'message': 'Слово уже добавлено в карточки', 'already_exists': True}
 
             # Создаем карточки для обоих направлений
             eng_rus_card = self._get_or_create_card_direction(user_word, 'eng-rus')
             rus_eng_card = self._get_or_create_card_direction(user_word, 'rus-eng')
 
+            # Если указан course_id — добавляем в колоду курса
+            deck_id = None
+            if course_id:
+                course = BookCourse.query.get(course_id)
+                if course:
+                    deck = get_or_create_book_course_deck(user_id, course)
+                    deck_id = deck.id
+
+                    # Добавляем слово в колоду если его там нет
+                    existing_deck_word = QuizDeckWord.query.filter_by(
+                        deck_id=deck.id, word_id=word_id
+                    ).first()
+                    if not existing_deck_word:
+                        deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id)
+                        db.session.add(deck_word)
+
             db.session.commit()
 
-            logger.info(f"Added word {word_id} to SRS for user {user_id} (source: {source})")
+            logger.info(f"Added word {word_id} to SRS for user {user_id} (source: {source}, course: {course_id})")
 
             return {
                 'success': True,
                 'message': 'Слово добавлено в карточки',
                 'word_id': word_id,
+                'word_status': 'in_learning',
                 'cards_created': 2,
                 'eng_rus_card_id': eng_rus_card.id,
-                'rus_eng_card_id': rus_eng_card.id
+                'rus_eng_card_id': rus_eng_card.id,
+                'deck_id': deck_id
             }
 
         except Exception as e:
             logger.error(f"Error adding word {word_id} to SRS: {str(e)}")
             db.session.rollback()
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': str(e), 'word_status': 'not_added'}
 
     def get_review_summary(self, user_id: int) -> Dict[str, Any]:
         """

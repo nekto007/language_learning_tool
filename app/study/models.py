@@ -275,79 +275,81 @@ class UserCardDirection(db.Model):
 
     def update_after_review(self, quality):
         """
-        Update SRS parameters after review. Similar to StudyItem.update_after_review
-        but tailored for card directions.
+        Update SRS parameters after review using unified 1-2-3 rating scale.
 
-        quality: Rating from 0 to 5
-            0 - Complete blackout, wrong answer
-            1-2 - Incorrect response but recognized the word
-            3 - Correct response but with difficulty
-            4 - Correct response with some hesitation
-            5 - Perfect response
+        Unified Rating Scale (1-2-3):
+            1 - Не знаю (Don't know): Reset progress, show again soon
+            2 - Сомневаюсь (Doubt): Moderate progress, shorter interval
+            3 - Знаю (Know): Good progress, longer interval with bonus
+
+        Legacy compatibility (0-5 scale):
+            0-1 → mapped to 1 (Don't know)
+            2-3 → mapped to 2 (Doubt)
+            4-5 → mapped to 3 (Know)
         """
+        # Map legacy 0-5 scale to unified 1-2-3 scale
+        if quality <= 1:
+            rating = 1  # Не знаю
+        elif quality <= 3:
+            rating = 2  # Сомневаюсь
+        else:
+            rating = 3  # Знаю
+
         # Update correct/incorrect count
-        if quality >= 3:
+        if rating >= 2:
             self.correct_count += 1
         else:
             self.incorrect_count += 1
 
         # Update SM-2 algorithm parameters
         old_ease_factor = self.ease_factor
+        old_interval = self.interval
 
-        # Implement SM-2 algorithm (Anki-like)
-        # Quality mapping: 0=Again, 2=Hard, 3=Good, 4=Easy
-        if quality == 0:
-            # "Again" - response was wrong, start over
+        if rating == 1:
+            # "Не знаю" - Reset progress
             self.repetitions = 0
             self.interval = 0
-            # EF decreases but should not go below 1.3
             self.ease_factor = max(1.3, old_ease_factor - 0.20)
-        else:
-            # Correct answer (quality 2, 3, or 4)
+
+        elif rating == 2:
+            # "Сомневаюсь" - Moderate progress
             self.repetitions += 1
+            # EF stays the same
+            self.ease_factor = old_ease_factor
 
-            # Update ease factor based on quality
-            if quality == 2:
-                # "Hard" - decrease EF slightly
-                self.ease_factor = max(1.3, old_ease_factor - 0.15)
-            elif quality == 3:
-                # "Good" - maintain EF (Anki default behavior)
-                self.ease_factor = old_ease_factor
-            elif quality == 4:
-                # "Easy" - increase EF
-                self.ease_factor = min(2.5, old_ease_factor + 0.15)  # Cap at 2.5
-
-            # Calculate interval based on repetitions
             if self.repetitions == 1:
-                # First correct repetition
                 self.interval = 1
             elif self.repetitions == 2:
-                # Second correct repetition
+                self.interval = 3  # Shorter than "Know"
+            else:
+                # 80% of normal interval
+                self.interval = max(1, round(old_interval * old_ease_factor * 0.8))
+
+        elif rating == 3:
+            # "Знаю" - Good progress with bonus
+            self.repetitions += 1
+            self.ease_factor = min(2.5, old_ease_factor + 0.15)
+
+            if self.repetitions == 1:
+                self.interval = 1
+            elif self.repetitions == 2:
                 self.interval = 6
             else:
-                # For subsequent repetitions, calculate based on previous interval and ease factor
-                if quality == 2:
-                    # "Hard" button - apply penalty (relearn faster)
-                    hard_multiplier = 1.2  # Slightly increase interval
-                    self.interval = max(1, round(self.interval * hard_multiplier))
-                elif quality == 3:
-                    # "Good" button - standard calculation
-                    self.interval = max(1, round(self.interval * self.ease_factor))
-                elif quality == 4:
-                    # "Easy" button - apply bonus
-                    easy_multiplier = self.ease_factor * 1.3  # 30% bonus
-                    self.interval = max(1, round(self.interval * easy_multiplier))
+                # 120% bonus to interval
+                self.interval = max(1, round(old_interval * old_ease_factor * 1.2))
 
         # Update review dates
         self.last_reviewed = datetime.now(timezone.utc)
 
         # Add ±10% variance to prevent review cliffs (all cards reviewing at once)
-        # This is a standard practice in spaced repetition systems
         import random
         variance = random.uniform(0.9, 1.1)
-        adjusted_interval = max(1, round(self.interval * variance))
+        adjusted_interval = max(0, round(self.interval * variance)) if self.interval > 0 else 0
 
         self.next_review = datetime.now(timezone.utc) + timedelta(days=adjusted_interval)
+
+        # Increment session_attempts
+        self.session_attempts = (self.session_attempts or 0) + 1
 
         # Update the parent UserWord status if needed
         self.update_user_word_status()
@@ -584,9 +586,18 @@ class QuizDeckWord(db.Model):
 
     @property
     def audio_url(self):
-        """Get audio URL from collection_words or custom"""
+        """
+        Get audio URL from collection_words or custom.
+        Supports both formats in DB:
+        - Clean filename: pronunciation_en_word.mp3
+        - Legacy Anki format: [sound:pronunciation_en_word.mp3]
+        """
         if self.word and self.word.get_download == 1 and self.word.listening:
-            return f'/static/audio/{self.word.listening[7:-1]}'
+            filename = self.word.listening
+            # Extract filename from Anki format if needed
+            if filename.startswith('[sound:') and filename.endswith(']'):
+                filename = filename[7:-1]
+            return f'/static/audio/{filename}'
         return self.custom_audio_url
 
     def __repr__(self):

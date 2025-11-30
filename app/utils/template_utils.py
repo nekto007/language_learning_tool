@@ -254,3 +254,19 @@ def init_template_utils(app):
     def format_chapter_text_filter(text):
         """Jinja filter to format chapter text with proper paragraphs"""
         return format_chapter_text(text)
+
+    @app.template_filter('audio_filename')
+    def audio_filename_filter(listening):
+        """
+        Jinja filter to extract clean audio filename.
+        Supports both formats in DB:
+        - Clean filename: pronunciation_en_word.mp3
+        - Legacy Anki format: [sound:pronunciation_en_word.mp3]
+
+        Usage: {{ word.listening|audio_filename }}
+        """
+        if not listening:
+            return ''
+        if listening.startswith('[sound:') and listening.endswith(']'):
+            return listening[7:-1]
+        return listening
