@@ -168,7 +168,7 @@
                     </td>
                     <td>
                         {% if word.get_download and word.listening %}
-                        <button class="audio-btn" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}">
+                        <button class="audio-btn" onclick="playAudio('{{ url_for('static', filename='audio/' + (word.listening|audio_filename)) }}')" title="{{ _('Прослушать произношение') }}">
                             <i class="fas fa-volume-up"></i>
                         </button>
                         {% else %}

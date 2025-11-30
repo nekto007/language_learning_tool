@@ -31,6 +31,30 @@
     </div>
   </div>
 
+  <!-- Comprehension Questions (if available) -->
+  {% if comprehension_questions and comprehension_questions|length > 0 %}
+  <div class="comprehension-section" id="comprehension-section" style="display: none;">
+    <h3 class="comprehension-title">📝 Проверка понимания</h3>
+    <div class="comprehension-questions">
+      {% for q in comprehension_questions %}
+      <div class="question-item" data-question-id="{{ loop.index }}">
+        <p class="question-text">{{ loop.index }}. {{ q.question }}</p>
+        <div class="question-options">
+          {% for opt in q.options %}
+          <label class="option-label">
+            <input type="radio" name="q{{ loop.index }}" value="{{ opt }}"
+                   data-correct="{{ 'true' if opt == q.correct_answer else 'false' }}">
+            <span class="option-text">{{ opt }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="question-feedback" id="feedback-{{ loop.index }}"></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Reading Progress -->
   <div class="reading-progress-section">
     <span class="progress-label">Прочитано: <span id="progress-percent">0</span>%</span>
@@ -82,6 +106,7 @@
 <script>
 let currentWord = null;
 let currentWordId = null;
+// courseId already defined in _lesson_base.html
 
 function getCSRFToken() {
   const meta = document.querySelector('meta[name="csrf-token"]');
@@ -241,11 +266,23 @@ async function addToFlashcards() {
     const resp = await fetch('/curriculum/api/srs/add-card', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-      body: JSON.stringify({ word_id: currentWordId, source: 'book_reading' })
+      body: JSON.stringify({
+        word_id: currentWordId,
+        source: 'book_reading',
+        course_id: courseId
+      })
     });
     const data = await resp.json();
 
-    if (data.success) {
+    // Handle word_status from response
+    if (data.word_status === 'learned') {
+      showStatus('✓ Уже выучено', 'success');
+      btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
+      btn.classList.add('learned');
+    } else if (data.word_status === 'in_learning') {
+      showStatus('📚 В обучении', 'success');
+      btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
+    } else if (data.success) {
       showStatus('✓ Добавлено!', 'success');
       btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
     } else {
@@ -275,12 +312,23 @@ function initReadingProgress() {
   const progressBar = document.getElementById('reading-progress');
   const progressPercent = document.getElementById('progress-percent');
   const completeBtn = document.getElementById('complete-btn');
+  const comprehensionSection = document.getElementById('comprehension-section');
   let maxScroll = 0;
+  let comprehensionShown = false;
 
   function updateProgress(percent) {
     const rounded = Math.round(percent);
     progressBar.style.width = percent + '%';
     progressPercent.textContent = rounded;
+
+    // Show comprehension questions at 80%
+    if (percent >= 80 && comprehensionSection && !comprehensionShown) {
+      comprehensionSection.style.display = 'block';
+      comprehensionShown = true;
+      initComprehensionQuestions();
+    }
+
+    // Enable complete button at 80%
     if (percent >= 80 && completeBtn) {
       completeBtn.disabled = false;
     }
@@ -304,6 +352,44 @@ function initReadingProgress() {
       updateProgress(100);
     }
   }, 500);
+}
+
+function initComprehensionQuestions() {
+  const options = document.querySelectorAll('.option-label input');
+  options.forEach(input => {
+    input.addEventListener('change', function() {
+      const questionItem = this.closest('.question-item');
+      const questionId = questionItem.dataset.questionId;
+      const allOptions = questionItem.querySelectorAll('.option-label');
+      const feedback = document.getElementById('feedback-' + questionId);
+      const isCorrect = this.dataset.correct === 'true';
+
+      // Reset all options
+      allOptions.forEach(opt => {
+        opt.classList.remove('correct', 'incorrect');
+      });
+
+      // Mark selected
+      const selectedLabel = this.closest('.option-label');
+      if (isCorrect) {
+        selectedLabel.classList.add('correct');
+        feedback.textContent = '✓ Правильно!';
+        feedback.className = 'question-feedback correct';
+      } else {
+        selectedLabel.classList.add('incorrect');
+        feedback.textContent = '✗ Попробуйте ещё раз';
+        feedback.className = 'question-feedback incorrect';
+        // Show correct answer after delay
+        setTimeout(() => {
+          allOptions.forEach(opt => {
+            if (opt.querySelector('input').dataset.correct === 'true') {
+              opt.classList.add('correct');
+            }
+          });
+        }, 1000);
+      }
+    });
+  });
 }
 
 const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
@@ -563,6 +649,11 @@ function showCompletionSuccess() {
   cursor: not-allowed;
 }
 
+.popup-btn.learned {
+  background: #10b981;
+  color: #fff;
+}
+
 .popup-status {
   font-size: 0.8rem;
   margin-top: 0.75rem;
@@ -658,6 +749,90 @@ function showCompletionSuccess() {
 
 .next-lesson-btn:hover {
   background: #059669 !important;
+}
+
+/* Comprehension Section */
+.comprehension-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.comprehension-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 1.25rem;
+}
+
+.question-item {
+  padding: 1rem;
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+.question-item:last-child {
+  margin-bottom: 0;
+}
+
+.question-text {
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+
+.question-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.option-label:hover {
+  background: #f3f4f6;
+}
+
+.option-label input {
+  accent-color: #6366f1;
+}
+
+.option-label.correct {
+  background: #dcfce7;
+  border-color: #22c55e;
+}
+
+.option-label.incorrect {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.question-feedback {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  min-height: 1.25rem;
+}
+
+.question-feedback.correct {
+  color: #16a34a;
+}
+
+.question-feedback.incorrect {
+  color: #dc2626;
 }
 
 @media (max-width: 768px) {

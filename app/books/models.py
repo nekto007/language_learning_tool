@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Float, CheckConstraint, Enum as SQLAEnum
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Float, CheckConstraint, Enum as SQLAEnum, text
 from sqlalchemy.dialects.postgresql import TSVECTOR, JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -135,17 +135,19 @@ class Task(db.Model):
     __tablename__ = 'task'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    block_id = Column(Integer, ForeignKey('block.id', ondelete='CASCADE'), nullable=False)
+    block_id = Column(Integer, ForeignKey('block.id', ondelete='CASCADE'), nullable=True)  # Nullable for daily lesson tasks
     task_type = Column(SQLAEnum(TaskType, name='task_enum'), nullable=False)  # TaskType enum values
     payload = Column(JSONB, nullable=False)  # Structure depends on task_type
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     block = relationship("Block", back_populates="tasks")
     answers = relationship("UserTaskAnswer", back_populates="task", cascade="all, delete-orphan")
-    
+
     __table_args__ = (
-        UniqueConstraint('block_id', 'task_type', name='uix_block_task_type'),
+        # Partial unique index: (block_id, task_type) unique only when block_id is NOT NULL
+        Index('uix_block_task_type_partial', 'block_id', 'task_type',
+              unique=True, postgresql_where=text('block_id IS NOT NULL')),
         Index('idx_task_type', 'task_type'),
     )
 

@@ -27,6 +27,24 @@ is_auto_deck = DeckService.is_auto_deck
 sync_master_decks = DeckService.sync_master_decks
 
 
+def get_audio_url_for_word(word):
+    """
+    Получает URL аудио для слова.
+    Поддерживает оба формата в БД:
+    - Clean filename: pronunciation_en_word.mp3
+    - Legacy Anki format: [sound:pronunciation_en_word.mp3]
+    """
+    if not hasattr(word, 'get_download') or word.get_download != 1 or not word.listening:
+        return None
+
+    filename = word.listening
+    # Извлекаем имя файла из Anki формата если нужно
+    if filename.startswith('[sound:') and filename.endswith(']'):
+        filename = filename[7:-1]  # Remove [sound: and ]
+
+    return url_for('static', filename=f'audio/{filename}')
+
+
 @study.route('/')
 @login_required
 @module_required('study')
@@ -473,9 +491,7 @@ def get_study_items():
             if not word or not word.russian_word:
                 continue
             
-            audio_url = None
-            if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
-                audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
+            audio_url = get_audio_url_for_word(word)
             
             if direction.direction == 'eng-rus':
                 result_items.append({
@@ -523,9 +539,7 @@ def get_study_items():
 
         # Add new words to result
         for word in new_words:
-            audio_url = None
-            if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
-                audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
+            audio_url = get_audio_url_for_word(word)
 
             # Add both directions (eng-rus and rus-eng)
             # English to Russian
@@ -623,7 +637,7 @@ def update_study_item():
         direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
         db.session.add(direction)
 
-    # Update the direction with the review
+    # Update the direction with the review (supports unified 1-2-3 scale)
     interval = direction.update_after_review(quality)
 
     # Update session statistics if provided
@@ -631,7 +645,8 @@ def update_study_item():
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
             session.words_studied += 1
-            if quality >= 3:
+            # Map to unified scale for correct tracking: 1=wrong, 2-3=correct
+            if quality >= 2:
                 session.correct_answers += 1
             else:
                 session.incorrect_answers += 1
@@ -642,10 +657,25 @@ def update_study_item():
     sync_master_decks(current_user.id)
     db.session.commit()
 
+    # Calculate requeue position for client-side queue management (unified 1-2-3 scale)
+    # Map legacy 0-5 to unified 1-2-3 for requeue calculation
+    if quality <= 1:
+        rating = 1  # Не знаю
+    elif quality <= 3:
+        rating = 2  # Сомневаюсь
+    else:
+        rating = 3  # Знаю
+
+    # Import here to avoid circular imports
+    from app.srs.service import UnifiedSRSService
+    requeue_position = UnifiedSRSService.get_requeue_position(rating)
+
     return jsonify({
         'success': True,
         'interval': interval,
-        'next_review': direction.next_review.strftime('%Y-%m-%d') if direction.next_review else None
+        'next_review': direction.next_review.strftime('%Y-%m-%d') if direction.next_review else None,
+        'requeue_position': requeue_position,  # For client-side queue management
+        'session_attempts': direction.session_attempts or 1
     })
 
 
@@ -987,8 +1017,8 @@ def create_multiple_choice_question(word, all_words, direction):
 
     # Audio for English word
     audio_url = None
-    if direction == 'eng_to_rus' and word.get_download == 1 and word.listening:
-        audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
+    if direction == 'eng_to_rus':
+        audio_url = get_audio_url_for_word(word)
 
     first_word = correct_answer.split(',')[0].strip()
     letter_form = "букв"
@@ -1099,8 +1129,8 @@ def create_fill_blank_question(word, direction):
 
     # Audio for English word
     audio_url = None
-    if direction == 'eng_to_rus' and word.get_download == 1 and word.listening:
-        audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
+    if direction == 'eng_to_rus':
+        audio_url = get_audio_url_for_word(word)
 
     first_word = answer.split(',')[0].strip()
     letter_form = "букв"
@@ -1229,9 +1259,7 @@ def get_matching_words():
             example = word.sentences
 
         # Get audio URL if available
-        audio_url = None
-        if hasattr(word, 'get_download') and word.get_download == 1 and word.listening:
-            audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
+        audio_url = get_audio_url_for_word(word)
 
         game_words.append({
             'id': word.id,

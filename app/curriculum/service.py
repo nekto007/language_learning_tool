@@ -10,6 +10,24 @@ from app.utils.db import db
 from app.words.models import CollectionWords
 
 
+def get_audio_filename(word):
+    """
+    Получает имя аудио файла для слова.
+    Поддерживает оба формата в БД:
+    - Clean filename: pronunciation_en_word.mp3
+    - Legacy Anki format: [sound:pronunciation_en_word.mp3]
+    """
+    if not hasattr(word, 'get_download') or word.get_download != 1 or not word.listening:
+        return None
+
+    filename = word.listening
+    # Извлекаем имя файла из Anki формата если нужно
+    if filename.startswith('[sound:') and filename.endswith(']'):
+        filename = filename[7:-1]  # Remove [sound: and ]
+
+    return filename
+
+
 def get_user_level_progress(user_id):
     """
     Получает прогресс пользователя по всем уровням CEFR
@@ -1386,7 +1404,7 @@ def get_cards_for_lesson(lesson_id, user_id):
                     'front': word.english_word if direction.direction == 'eng-rus' else word.russian_word,
                     'back': word.russian_word if direction.direction == 'eng-rus' else word.english_word,
                     'examples': word.sentences,
-                    'audio': f'{word.listening[7:-1]}' if word.get_download == 1 and word.listening else None,
+                    'audio': get_audio_filename(word),
                     'is_new': False,
                     'interval': direction.interval,
                     'ease_factor': direction.ease_factor,
@@ -1421,7 +1439,7 @@ def get_cards_for_lesson(lesson_id, user_id):
                     'front': word.english_word if direction.direction == 'eng-rus' else word.russian_word,
                     'back': word.russian_word if direction.direction == 'eng-rus' else word.english_word,
                     'examples': word.sentences,
-                    'audio': f'{word.listening[7:-1]}' if word.get_download == 1 and word.listening else None,
+                    'audio': get_audio_filename(word),
                     'is_new': True,
                     'interval': 0,
                     'ease_factor': 2.5,

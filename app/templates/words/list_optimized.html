@@ -356,7 +356,7 @@
                     </td>
                     <td>
                         {% if word.get_download and word.listening %}
-                        <button class="btn btn-primary btn-sm rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                        <button class="btn btn-primary btn-sm rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + (word.listening|audio_filename)) }}')" title="{{ _('Прослушать произношение') }}" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-volume-up"></i>
                         </button>
                         {% else %}
@@ -424,7 +424,7 @@
                 {% endif %}
 
                 {% if word.get_download and word.listening %}
-                <button class="btn btn-primary btn-sm rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}')" title="{{ _('Прослушать произношение') }}" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                <button class="btn btn-primary btn-sm rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + (word.listening|audio_filename)) }}')" title="{{ _('Прослушать произношение') }}" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">
                     <i class="fas fa-volume-up"></i>
                 </button>
                 {% endif %}

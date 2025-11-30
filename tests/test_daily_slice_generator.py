@@ -68,8 +68,17 @@ class TestInit:
         }
         assert generator.WORDS_PER_LEVEL_DEFAULT == (400, 600)
         assert len(generator.PRACTICE_ROTATION) == 6
-        assert generator.VOCABULARY_WORDS_PER_LESSON == 15
+        assert generator.VOCABULARY_WORDS_PER_LESSON == 20
         assert generator.timezone.zone == 'Europe/Amsterdam'
+
+        # v3.1: Level-specific schedules
+        assert len(generator.LESSON_SCHEDULE_BEGINNER) == 7  # 7-day cycle for A1-A2
+        assert len(generator.LESSON_SCHEDULE_INTERMEDIATE) == 6  # 6-day cycle for B1+
+
+        # Check beginner schedule structure
+        day1 = generator.LESSON_SCHEDULE_BEGINNER[0]
+        assert day1['lesson1'] == 'vocabulary'  # vocabulary BEFORE reading on day 1
+        assert day1['lesson2'] == 'reading'
 
     def test_practice_rotation_types(self, generator):
         """Test practice rotation has correct types"""
@@ -403,7 +412,7 @@ class TestExtractSliceVocabulary:
 
         generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary)
 
-        # Should only add up to 15 words (VOCABULARY_WORDS_PER_LESSON)
+        # Should only add up to 20 words (VOCABULARY_WORDS_PER_LESSON)
         assert mock_db.session.add.call_count <= generator.VOCABULARY_WORDS_PER_LESSON
 
     @patch('app.curriculum.services.daily_slice_generator.db')

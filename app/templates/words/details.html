@@ -18,7 +18,7 @@
                 <i class="fas fa-volume-up"></i>
             </button>
             <audio id="pronunciationAudio" style="display: none;">
-                <source src="{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}" type="audio/mpeg">
+                <source src="{{ url_for('static', filename='audio/' + (word.listening|audio_filename)) }}" type="audio/mpeg">
                 Your browser does not support the audio element.
             </audio>
             {% endif %}

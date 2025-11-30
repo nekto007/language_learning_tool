@@ -18,10 +18,11 @@ from typing import Dict, List, Any, Optional, Tuple
 
 import pytz
 
-from app.books.models import Block, BlockVocab, Chapter, Task
+from app.books.models import Block, BlockVocab, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
-from app.utils.db import db
+from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
+from app.utils.db import db, word_book_link
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class DailySliceGenerator:
     }
     WORDS_PER_LEVEL_DEFAULT = (400, 600)
 
-    # Practice lesson types - rotates every 6 days
+    # Legacy practice rotation (for backward compatibility)
     PRACTICE_ROTATION = [
         'vocabulary',        # Day 1: New words from slice (10-15 words)
         'grammar_focus',     # Day 2: Grammar patterns from text
@@ -65,9 +66,39 @@ class DailySliceGenerator:
         'summary_writing',   # Day 6: Summary of week's reading
     ]
 
+    # NEW v3.1: Level-specific lesson schedules
+    # For A1-A2: 8-day cycle, vocabulary/review comes BEFORE reading on some days
+    LESSON_SCHEDULE_BEGINNER = [
+        # Day 1: vocabulary → reading (learn words, then see in context)
+        {'lesson1': 'vocabulary', 'lesson2': 'reading'},
+        # Day 2: reading → grammar (read, then grammar from text)
+        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        # Day 3: reading → comprehension (read, then MCQ)
+        {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
+        # Day 4: reading → cloze (read, then fill gaps)
+        {'lesson1': 'reading', 'lesson2': 'cloze_practice'},
+        # Day 5: vocabulary_review → reading (SRS review, then light reading)
+        {'lesson1': 'vocabulary_review', 'lesson2': 'reading'},
+        # Day 6: reading → summary (read, then write summary)
+        {'lesson1': 'reading', 'lesson2': 'summary_writing'},
+        # Day 7: vocabulary → reading (new words for dense text)
+        {'lesson1': 'vocabulary', 'lesson2': 'reading'},
+    ]
+    # Day 8 will be module_test (added separately)
+
+    # For B1+: 6-day cycle, reading always first
+    LESSON_SCHEDULE_INTERMEDIATE = [
+        {'lesson1': 'reading', 'lesson2': 'vocabulary'},
+        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
+        {'lesson1': 'reading', 'lesson2': 'cloze_practice'},
+        {'lesson1': 'reading', 'lesson2': 'vocabulary_review'},
+        {'lesson1': 'reading', 'lesson2': 'summary_writing'},
+    ]
+
 
     # Vocabulary limits
-    VOCABULARY_WORDS_PER_LESSON = 15  # Max words per vocabulary lesson
+    VOCABULARY_WORDS_PER_LESSON = 20  # Max words per vocabulary lesson (reserve pool)
     VOCABULARY_WORDS_PER_MODULE = 50  # Max words tracked per module
 
     def __init__(self):
@@ -75,12 +106,12 @@ class DailySliceGenerator:
 
     def generate_slices_for_module(self, module: BookCourseModule, block: Block) -> List[DailyLesson]:
         """
-        Generate daily lesson pairs for a book course module (v3.0).
+        Generate daily lesson pairs for a book course module (v3.1).
 
-        NEW v3.0 Architecture:
-        - Each day has 2 lessons: Reading + Practice
-        - Reading lesson covers a text slice (~800-1000 words depending on level)
-        - Practice lesson type rotates through PRACTICE_ROTATION
+        NEW v3.1 Architecture:
+        - Level-specific lesson schedules (A1-A2 vs B1+)
+        - A1-A2: 8-day cycle, vocabulary sometimes BEFORE reading
+        - B1+: 6-day cycle, reading always first
         - Covers 100% of module text over multiple days
         - Ends with Module Test
 
@@ -91,12 +122,18 @@ class DailySliceGenerator:
         Returns:
             List of created DailyLesson instances
         """
-        logger.info(f"Generating v3.0 daily lessons for module {module.id}")
+        logger.info(f"Generating v3.1 daily lessons for module {module.id}")
 
         # Determine CEFR level and get word limits
         level = self._determine_level(module)
         target_words, max_words = self.WORDS_PER_LEVEL.get(level, self.WORDS_PER_LEVEL_DEFAULT)
         logger.info(f"Level: {level}, target: {target_words}, max: {max_words} words per day")
+
+        # Select lesson schedule based on level
+        is_beginner = level in ['A1', 'A2']
+        schedule = self.LESSON_SCHEDULE_BEGINNER if is_beginner else self.LESSON_SCHEDULE_INTERMEDIATE
+        schedule_len = len(schedule)
+        logger.info(f"Using {'beginner (8-day)' if is_beginner else 'intermediate (6-day)'} schedule")
 
         # Get all chapters for this module
         chapters = sorted(block.chapters, key=lambda c: c.chap_num)
@@ -111,8 +148,8 @@ class DailySliceGenerator:
 
         # Split module text into daily reading slices
         reading_slices = self._split_text_into_slices(module_text, target_words, max_words, chapters)
-        num_days = len(reading_slices)
-        logger.info(f"Created {num_days} reading slices")
+        num_slices = len(reading_slices)
+        logger.info(f"Created {num_slices} reading slices")
 
         # Get vocabulary for the module
         module_vocabulary = self._get_block_vocabulary(block)
@@ -120,36 +157,56 @@ class DailySliceGenerator:
         # Generate lesson pairs for each day
         daily_lessons = []
         day_number = 1
+        slice_index = 0
 
-        for slice_data in reading_slices:
-            # Lesson 1: Reading
-            reading_lesson = self._create_reading_lesson(
+        while slice_index < num_slices:
+            # Get schedule for this day (cycles through schedule)
+            day_schedule = schedule[(day_number - 1) % schedule_len]
+            lesson1_type = day_schedule['lesson1']
+            lesson2_type = day_schedule['lesson2']
+
+            # Get current slice data
+            slice_data = reading_slices[slice_index]
+
+            # Create Lesson 1
+            lesson1 = self._create_lesson_by_type(
                 module=module,
                 day_number=day_number,
-                slice_data=slice_data
-            )
-            db.session.add(reading_lesson)
-            db.session.flush()
-            daily_lessons.append(reading_lesson)
-
-            # Lesson 2: Practice (rotated type)
-            practice_type = self.PRACTICE_ROTATION[(day_number - 1) % len(self.PRACTICE_ROTATION)]
-            practice_lesson = self._create_practice_lesson(
-                module=module,
-                day_number=day_number,
-                practice_type=practice_type,
+                lesson_type=lesson1_type,
                 slice_data=slice_data,
-                module_vocabulary=module_vocabulary
+                module_vocabulary=module_vocabulary,
+                lesson_order=1
             )
-            db.session.add(practice_lesson)
+            db.session.add(lesson1)
             db.session.flush()
 
-            # Extract vocabulary for vocabulary-type practice lessons
-            if practice_type in ['vocabulary', 'vocabulary_review']:
-                self._extract_slice_vocabulary(practice_lesson, slice_data['text'], module_vocabulary)
+            # Extract vocabulary if needed
+            if lesson1_type in ['vocabulary', 'vocabulary_review']:
+                self._extract_slice_vocabulary(lesson1, slice_data['text'], module_vocabulary)
 
-            daily_lessons.append(practice_lesson)
+            daily_lessons.append(lesson1)
+
+            # Create Lesson 2 (if exists)
+            if lesson2_type:
+                lesson2 = self._create_lesson_by_type(
+                    module=module,
+                    day_number=day_number,
+                    lesson_type=lesson2_type,
+                    slice_data=slice_data,
+                    module_vocabulary=module_vocabulary,
+                    lesson_order=2
+                )
+                db.session.add(lesson2)
+                db.session.flush()
+
+                # Extract vocabulary if needed
+                if lesson2_type in ['vocabulary', 'vocabulary_review']:
+                    self._extract_slice_vocabulary(lesson2, slice_data['text'], module_vocabulary)
+
+                daily_lessons.append(lesson2)
+
             day_number += 1
+            slice_index += 1
 
         # Add Module Test as final lesson
         module_test = self._create_module_test_lesson(
@@ -162,11 +219,12 @@ class DailySliceGenerator:
         daily_lessons.append(module_test)
 
         # Update module metadata
+        num_days = day_number  # day_number was incremented after module_test was added
         module.total_slices = len(daily_lessons)
-        module.days_to_complete = num_days + 1  # +1 for module test
+        module.days_to_complete = num_days
 
         db.session.commit()
-        logger.info(f"Generated {len(daily_lessons)} lessons ({num_days} days + test) for module {module.id}")
+        logger.info(f"Generated {len(daily_lessons)} lessons ({num_slices} slices + test) for module {module.id}")
 
         return daily_lessons
 
@@ -252,8 +310,33 @@ class DailySliceGenerator:
 
         return boundaries
 
+    def _create_lesson_by_type(self, module: BookCourseModule, day_number: int,
+                                lesson_type: str, slice_data: Dict[str, Any],
+                                module_vocabulary: Dict[int, Dict],
+                                lesson_order: int = 1) -> DailyLesson:
+        """
+        Create a lesson based on type (v3.1).
+
+        Args:
+            module: BookCourseModule instance
+            day_number: Day number in the module
+            lesson_type: Type of lesson (reading, vocabulary, grammar_focus, etc.)
+            slice_data: Data about the text slice
+            module_vocabulary: Vocabulary for the module
+            lesson_order: 1 or 2 (first or second lesson of the day)
+
+        Returns:
+            DailyLesson instance
+        """
+        if lesson_type == 'reading':
+            return self._create_reading_lesson(module, day_number, slice_data, lesson_order)
+        else:
+            return self._create_practice_lesson(
+                module, day_number, lesson_type, slice_data, module_vocabulary, lesson_order
+            )
+
     def _create_reading_lesson(self, module: BookCourseModule, day_number: int,
-                                slice_data: Dict[str, Any]) -> DailyLesson:
+                                slice_data: Dict[str, Any], lesson_order: int = 1) -> DailyLesson:
         """Create a reading lesson for the day."""
         lesson = DailyLesson(
             book_course_module_id=module.id,
@@ -267,15 +350,23 @@ class DailySliceGenerator:
             end_position=slice_data['end_position']
         )
 
-        # Set availability
-        lesson.available_at = self._calculate_available_at(day_number, lesson_order=1)
+        # Set availability based on lesson order
+        lesson.available_at = self._calculate_available_at(day_number, lesson_order=lesson_order)
 
         return lesson
 
     def _create_practice_lesson(self, module: BookCourseModule, day_number: int,
                                  practice_type: str, slice_data: Dict[str, Any],
-                                 module_vocabulary: Dict[int, Dict]) -> DailyLesson:
-        """Create a practice lesson for the day with rotated type."""
+                                 module_vocabulary: Dict[int, Dict],
+                                 lesson_order: int = 2) -> DailyLesson:
+        """Create a practice lesson for the day with specified type."""
+        # Generate task for comprehension_mcq and cloze_practice
+        task_id = None
+        if practice_type == 'comprehension_mcq':
+            task_id = self._generate_mcq_task(module, slice_data['text'], day_number)
+        elif practice_type == 'cloze_practice':
+            task_id = self._generate_cloze_task(module, slice_data['text'], day_number)
+
         lesson = DailyLesson(
             book_course_module_id=module.id,
             slice_number=day_number,
@@ -285,19 +376,72 @@ class DailySliceGenerator:
             slice_text=slice_data['text'][:500] + "..." if len(slice_data['text']) > 500 else slice_data['text'],
             word_count=0,  # Practice lessons don't have word count
             start_position=slice_data['start_position'],
-            end_position=slice_data['end_position']
+            end_position=slice_data['end_position'],
+            task_id=task_id
         )
 
-        # Set availability - practice available same day as reading
-        lesson.available_at = self._calculate_available_at(day_number, lesson_order=2)
+        # Set availability based on lesson order
+        lesson.available_at = self._calculate_available_at(day_number, lesson_order=lesson_order)
 
         return lesson
+
+    def _generate_mcq_task(self, module: BookCourseModule, text: str, day_number: int) -> Optional[int]:
+        """Generate and save MCQ task for comprehension lesson."""
+        try:
+            # Generate questions from text
+            mcq_data = ComprehensionMCQGenerator.generate_questions(text, num_questions=10)
+
+            if not mcq_data or not mcq_data.get('questions'):
+                logger.warning(f"Failed to generate MCQ for module {module.id}, day {day_number}")
+                return None
+
+            # Note: We don't set block_id because of unique constraint (block_id, task_type)
+            # Daily lesson tasks are standalone and linked via DailyLesson.task_id
+            task = Task(
+                block_id=None,  # No block_id to avoid constraint violation
+                task_type=TaskType.reading_mcq,
+                payload=mcq_data
+            )
+            db.session.add(task)
+            db.session.flush()
+
+            logger.info(f"Generated MCQ task {task.id} for module {module.id}, day {day_number}")
+            return task.id
+
+        except Exception as e:
+            logger.error(f"Error generating MCQ task: {e}")
+            return None
+
+    def _generate_cloze_task(self, module: BookCourseModule, text: str, day_number: int) -> Optional[int]:
+        """Generate and save Cloze task for cloze_practice lesson."""
+        try:
+            # Generate cloze exercise from text
+            cloze_data = ClozePracticeGenerator.generate_cloze(text, num_gaps=8)
+
+            if not cloze_data or not cloze_data.get('gaps'):
+                logger.warning(f"Failed to generate Cloze for module {module.id}, day {day_number}")
+                return None
+
+            # Note: We don't set block_id because of unique constraint (block_id, task_type)
+            # Daily lesson tasks are standalone and linked via DailyLesson.task_id
+            task = Task(
+                block_id=None,  # No block_id to avoid constraint violation
+                task_type=TaskType.open_cloze,
+                payload=cloze_data
+            )
+            db.session.add(task)
+            db.session.flush()
+
+            logger.info(f"Generated Cloze task {task.id} for module {module.id}, day {day_number}")
+            return task.id
+
+        except Exception as e:
+            logger.error(f"Error generating Cloze task: {e}")
+            return None
 
     def _create_module_test_lesson(self, module: BookCourseModule, day_number: int,
                                     chapters: List[Chapter], block: Block) -> DailyLesson:
         """Create the module test lesson."""
-        from app.books.models import TaskType
-
         # Try to find existing final test task
         final_test_task = Task.query.filter_by(
             block_id=block.id,
@@ -347,27 +491,41 @@ class DailySliceGenerator:
 
     def _extract_slice_vocabulary(self, daily_lesson: DailyLesson, text: str,
                                    module_vocabulary: Dict[int, Dict]):
-        """Extract vocabulary words that appear in this slice."""
+        """
+        Extract vocabulary words that appear in this slice.
+
+        First tries to find words from module_vocabulary (BlockVocab).
+        If not enough words found, falls back to word_book_link (all book words).
+        Target: 10 words per vocabulary lesson.
+        """
+        TARGET_WORDS = 10
         text_lower = text.lower()
         words_in_slice = []
+        used_word_ids = set()
 
+        # 1. First, find words from module vocabulary
         for word_id, word_data in module_vocabulary.items():
             word_text = word_data['english'].lower()
             occurrences = len(re.findall(r'\b' + re.escape(word_text) + r'\b', text_lower))
 
             if occurrences > 0:
-                sentences = self._split_into_sentences(text)
-                context_sentence = None
-                for sentence in sentences:
-                    if word_text in sentence.lower():
-                        context_sentence = sentence
-                        break
-
+                context_sentence = self._find_context_sentence(text, word_text)
                 words_in_slice.append({
                     'word_id': word_id,
                     'frequency': occurrences,
                     'context': context_sentence
                 })
+                used_word_ids.add(word_id)
+
+        # 2. If not enough, get more words from the book via word_book_link
+        if len(words_in_slice) < TARGET_WORDS:
+            book_id = self._get_book_id_from_lesson(daily_lesson)
+            if book_id:
+                additional_words = self._get_words_from_book_in_text(
+                    book_id, text, used_word_ids,
+                    limit=TARGET_WORDS - len(words_in_slice)
+                )
+                words_in_slice.extend(additional_words)
 
         # Sort by frequency and take top N
         words_in_slice.sort(key=lambda x: x['frequency'], reverse=True)
@@ -382,6 +540,64 @@ class DailySliceGenerator:
                 context_sentence=word_data['context']
             )
             db.session.add(slice_vocab)
+
+        logger.info(f"Extracted {len(words_in_slice)} vocabulary words for lesson {daily_lesson.id}")
+
+    def _find_context_sentence(self, text: str, word: str) -> Optional[str]:
+        """Find a sentence containing the word for context."""
+        sentences = self._split_into_sentences(text)
+        for sentence in sentences:
+            if word in sentence.lower():
+                return sentence
+        return None
+
+    def _get_book_id_from_lesson(self, daily_lesson: DailyLesson) -> Optional[int]:
+        """Get book_id from daily lesson's module -> course -> book."""
+        try:
+            if daily_lesson.module and daily_lesson.module.course:
+                return daily_lesson.module.course.book_id
+        except Exception:
+            pass
+        return None
+
+    def _get_words_from_book_in_text(self, book_id: int, text: str,
+                                      exclude_ids: set, limit: int) -> List[Dict]:
+        """
+        Find words from book's vocabulary that appear in the text.
+        Uses word_book_link table to get all book words.
+        """
+        text_lower = text.lower()
+        result = []
+
+        # Get all words from the book, sorted by frequency
+        book_words = (
+            db.session.query(CollectionWords, word_book_link.c.frequency)
+            .join(word_book_link, CollectionWords.id == word_book_link.c.word_id)
+            .filter(word_book_link.c.book_id == book_id)
+            .order_by(word_book_link.c.frequency.desc())
+            .all()
+        )
+
+        for word, freq in book_words:
+            if len(result) >= limit:
+                break
+
+            if word.id in exclude_ids:
+                continue
+
+            word_text = word.english_word.lower()
+            occurrences = len(re.findall(r'\b' + re.escape(word_text) + r'\b', text_lower))
+
+            if occurrences > 0:
+                context_sentence = self._find_context_sentence(text, word_text)
+                result.append({
+                    'word_id': word.id,
+                    'frequency': occurrences,
+                    'context': context_sentence
+                })
+                exclude_ids.add(word.id)
+
+        return result
 
     def _determine_level(self, module: BookCourseModule) -> str:
         """

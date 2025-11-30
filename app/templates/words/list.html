@@ -110,7 +110,7 @@
                         </td>
                         <td class="text-center">
                             {% if word.get_download and word.listening %}
-                            <span class="word-pronunciation" data-audio="{{ url_for('static', filename='audio/' + word.listening[7:-1]) }}" title="{{ _('Listen to pronunciation') }}">
+                            <span class="word-pronunciation" data-audio="{{ url_for('static', filename='audio/' + (word.listening|audio_filename)) }}" title="{{ _('Listen to pronunciation') }}">
                                 <i class="fas fa-volume-up"></i>
                             </span>
                             {% endif %}

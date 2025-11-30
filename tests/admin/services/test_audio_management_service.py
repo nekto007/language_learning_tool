@@ -157,15 +157,16 @@ class TestFixListeningFields:
         mock_query.filter.return_value.all.return_value = [mock_word1, mock_word2]
         mock_words.query = mock_query
 
-        # Execute (no AudioManager available - will use fallback)
+        # Execute - now stores clean filenames without [sound:...] wrapper
         success, count, message = AudioManagementService.fix_listening_fields()
 
         # Assert
         assert success is True
         assert count == 2
-        assert 'Исправлено полей listening: 2' in message
-        assert mock_word1.listening == '[sound:pronunciation_en_hello.mp3]'
-        assert mock_word2.listening == '[sound:pronunciation_en_world.mp3]'
+        assert 'HTTP→чистый формат' in message
+        # Now stores clean filename without [sound:...] wrapper
+        assert mock_word1.listening == 'pronunciation_en_hello.mp3'
+        assert mock_word2.listening == 'pronunciation_en_world.mp3'
         mock_db.session.commit.assert_called_once()
 
     @patch('app.admin.services.audio_management_service.db')
@@ -194,7 +195,8 @@ class TestFixListeningFields:
             # Assert
             assert success is True
             assert count == 1
-            assert mock_word.listening == '[sound:pronunciation_en_test.mp3]'
+            # Now stores clean filename without [sound:...] wrapper
+            assert mock_word.listening == 'pronunciation_en_test.mp3'
             mock_db.session.commit.assert_called_once()
         finally:
             if audio_module is not None:

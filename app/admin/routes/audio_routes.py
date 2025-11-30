@@ -116,6 +116,40 @@ def fix_audio_listening_fields():
         }), 500
 
 
+@audio_bp.route('/audio/normalize-listening-fields', methods=['POST'])
+@admin_required
+@handle_admin_errors(return_json=True)
+def normalize_audio_listening_fields():
+    """
+    Нормализация полей listening: убирает обертку [sound:...] и оставляет чистое имя файла.
+    Это позволяет использовать аудио напрямую в приложении.
+    """
+    try:
+        success, fixed_count, message = AudioManagementService.normalize_listening_fields()
+
+        if success:
+            clear_admin_cache()
+            logger.info(f"Audio listening fields normalized by {current_user.username}: {fixed_count} records")
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'fixed_count': fixed_count
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': message
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error normalizing listening fields: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @audio_bp.route('/audio/get-download-list')
 @admin_required
 def get_audio_download_list():
