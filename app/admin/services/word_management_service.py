@@ -298,12 +298,13 @@ class WordManagementService:
             # Добавляем новые слова (если выбраны)
             for word_data in missing_words:
                 if str(word_data['line_num']) in words_to_add:
+                    english_word_normalized = word_data['english_word'].lower().strip()
                     new_word = CollectionWords(
-                        english_word=word_data['english_word'],
+                        english_word=english_word_normalized,
                         russian_word=word_data['russian_translate'],
                         sentences=f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}",
                         level=word_data['level'],
-                        listening=f"[sound:pronunciation_en_{word_data['english_word'].replace(' ', '_').lower()}.mp3]"
+                        listening=f"[sound:pronunciation_en_{english_word_normalized.replace(' ', '_')}.mp3]"
                     )
                     db.session.add(new_word)
                     added_count += 1

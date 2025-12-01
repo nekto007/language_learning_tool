@@ -556,13 +556,16 @@ def add_word_to_learning():
         return jsonify({'success': False, 'error': 'Word is required'}), 400
 
     try:
+        # Normalize word to lowercase
+        word_normalized = word.lower().strip()
+
         # Check if word exists in dictionary
-        word_entry = CollectionWords.query.filter_by(english_word=word).first()
+        word_entry = CollectionWords.query.filter_by(english_word=word_normalized).first()
 
         if not word_entry:
             # Create new word entry
             word_entry = CollectionWords(
-                english_word=word,
+                english_word=word_normalized,
                 russian_word='',  # Will be filled later
                 level='A1'  # Default level
             )
