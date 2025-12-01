@@ -174,14 +174,16 @@
                             <div class="lesson-main">
                                 <div class="lesson-type-icon">
                                     {% if lesson.type == 'vocabulary' %}📝
-                                    {% elif lesson.type == 'reading_passage' %}📖
-                                    {% elif lesson.type == 'reading_mcq' %}❓
+                                    {% elif lesson.type in ['reading_passage', 'reading'] %}📖
+                                    {% elif lesson.type == 'reading_mcq' or lesson.type == 'mcq' %}❓
                                     {% elif lesson.type == 'match_headings' %}🔗
-                                    {% elif lesson.type == 'open_cloze' %}✏️
+                                    {% elif lesson.type in ['open_cloze', 'cloze'] %}✏️
                                     {% elif lesson.type == 'word_formation' %}🔤
                                     {% elif lesson.type == 'keyword_transform' %}🔄
-                                    {% elif lesson.type == 'grammar_sheet' %}📚
+                                    {% elif lesson.type in ['grammar_sheet', 'grammar_focus', 'grammar'] %}📚
                                     {% elif lesson.type == 'final_test' %}🏆
+                                    {% elif lesson.type == 'summary' %}📋
+                                    {% elif lesson.type == 'discussion' %}💬
                                     {% else %}📄
                                     {% endif %}
                                 </div>
@@ -190,15 +192,17 @@
                                     <h4 class="lesson-title">{{ lesson.title or ('Урок ' ~ lesson.lesson_number) }}</h4>
                                     <span class="lesson-type">
                                         {% if lesson.type == 'vocabulary' %}Словарь
-                                        {% elif lesson.type == 'reading_passage' %}Чтение
-                                        {% elif lesson.type == 'reading_mcq' %}Тест по чтению
-                                        {% elif lesson.type == 'match_headings' %}Соответствие заголовков
-                                        {% elif lesson.type == 'open_cloze' %}Заполнение пропусков
+                                        {% elif lesson.type in ['reading_passage', 'reading'] %}Чтение
+                                        {% elif lesson.type == 'reading_mcq' or lesson.type == 'mcq' %}Тест
+                                        {% elif lesson.type == 'match_headings' %}Заголовки
+                                        {% elif lesson.type in ['open_cloze', 'cloze'] %}Пропуски
                                         {% elif lesson.type == 'word_formation' %}Словообразование
                                         {% elif lesson.type == 'keyword_transform' %}Трансформации
-                                        {% elif lesson.type == 'grammar_sheet' %}Грамматика
+                                        {% elif lesson.type in ['grammar_sheet', 'grammar_focus', 'grammar'] %}Грамматика
                                         {% elif lesson.type == 'final_test' %}Финальный тест
-                                        {% else %}{{ lesson.type }}
+                                        {% elif lesson.type == 'summary' %}Резюме
+                                        {% elif lesson.type == 'discussion' %}Обсуждение
+                                        {% else %}Урок
                                         {% endif %}
                                     </span>
                                 </div>
