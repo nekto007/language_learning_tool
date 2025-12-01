@@ -130,52 +130,37 @@
             <p class="section-desc">Выполняйте уроки последовательно для лучшего результата</p>
         </div>
 
-        <div class="lessons-timeline">
+        <div class="lessons-list">
             {% set completed_lessons = module_progress.lessons_completed or [] if module_progress else [] %}
-            {# Convert completed lesson IDs to strings for comparison #}
             {% set completed_ids = completed_lessons | map('string') | list %}
-            {# Track state across loop iterations #}
-            {% set ns = namespace(found_current=false, prev_completed=true) %}
+            {% set ns = namespace(found_current=false) %}
 
             {% for lesson in lessons %}
-                {# Check completion by lesson ID #}
                 {% set is_completed = (lesson.id|string) in completed_ids %}
-                {# First uncompleted lesson is current #}
-                {% set is_current = not is_completed and not ns.found_current and ns.prev_completed %}
-                {# Update found_current flag #}
+                {# Current = first uncompleted lesson #}
+                {% set is_current = not is_completed and not ns.found_current %}
                 {% if is_current %}
                     {% set ns.found_current = true %}
                 {% endif %}
-                {# Locked if not completed and previous lesson was not completed #}
-                {% set is_locked = not is_completed and not is_current and not ns.prev_completed %}
-                {# Update prev_completed for next iteration #}
-                {% set ns.prev_completed = is_completed %}
 
-                <div class="lesson-item {{ 'completed' if is_completed else 'current' if is_current else 'locked' if is_locked else 'available' }}">
-                    <div class="lesson-connector">
-                        <div class="connector-line {{ 'filled' if is_completed else '' }}"></div>
-                        <div class="connector-dot">
-                            {% if is_completed %}
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                <path d="M5 12l5 5L20 7"/>
-                            </svg>
-                            {% elif is_locked %}
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                            </svg>
-                            {% else %}
-                            <span>{{ loop.index }}</span>
-                            {% endif %}
-                        </div>
+                <div class="lesson-row {{ 'completed' if is_completed else 'current' if is_current else 'available' }}">
+                    <div class="lesson-status-dot">
+                        {% if is_completed %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <path d="M5 12l5 5L20 7"/>
+                        </svg>
+                        {% else %}
+                        <span>{{ loop.index }}</span>
+                        {% endif %}
                     </div>
 
-                    <div class="lesson-card-wrapper">
-                        <div class="lesson-card">
-                            <div class="lesson-main">
-                                <div class="lesson-type-icon">
+                    <div class="lesson-content">
+                        <div class="lesson-header">
+                            <div class="lesson-title-row">
+                                <span class="lesson-icon">
                                     {% if lesson.type == 'vocabulary' %}📝
                                     {% elif lesson.type in ['reading_passage', 'reading'] %}📖
-                                    {% elif lesson.type == 'reading_mcq' or lesson.type == 'mcq' %}❓
+                                    {% elif lesson.type in ['reading_mcq', 'mcq'] %}❓
                                     {% elif lesson.type == 'match_headings' %}🔗
                                     {% elif lesson.type in ['open_cloze', 'cloze'] %}✏️
                                     {% elif lesson.type == 'word_formation' %}🔤
@@ -186,14 +171,12 @@
                                     {% elif lesson.type == 'discussion' %}💬
                                     {% else %}📄
                                     {% endif %}
-                                </div>
-
-                                <div class="lesson-info">
-                                    <h4 class="lesson-title">{{ lesson.title or ('Урок ' ~ lesson.lesson_number) }}</h4>
-                                    <span class="lesson-type">
+                                </span>
+                                <h4 class="lesson-title">
+                                    {% set type_name %}
                                         {% if lesson.type == 'vocabulary' %}Словарь
                                         {% elif lesson.type in ['reading_passage', 'reading'] %}Чтение
-                                        {% elif lesson.type == 'reading_mcq' or lesson.type == 'mcq' %}Тест
+                                        {% elif lesson.type in ['reading_mcq', 'mcq'] %}Тест
                                         {% elif lesson.type == 'match_headings' %}Заголовки
                                         {% elif lesson.type in ['open_cloze', 'cloze'] %}Пропуски
                                         {% elif lesson.type == 'word_formation' %}Словообразование
@@ -204,53 +187,31 @@
                                         {% elif lesson.type == 'discussion' %}Обсуждение
                                         {% else %}Урок
                                         {% endif %}
-                                    </span>
-                                </div>
-
-                                {% if lesson.estimated_time %}
-                                <div class="lesson-time">
-                                    <span>~{{ lesson.estimated_time }} мин</span>
-                                </div>
-                                {% endif %}
+                                    {% endset %}
+                                    Урок {{ loop.index }}: {{ type_name|trim }}
+                                </h4>
                             </div>
-
-                            {% if lesson.description %}
-                            <p class="lesson-desc">{{ lesson.description }}</p>
+                            {% if lesson.estimated_time %}
+                            <span class="lesson-time">~{{ lesson.estimated_time }} мин</span>
                             {% endif %}
+                        </div>
 
-                            <div class="lesson-footer">
-                                {% if is_completed %}
-                                    {% set score = (module_progress.lesson_scores or {}).get(lesson.id|string, 0) %}
-                                    {% if score %}
-                                    <div class="lesson-score {{ 'excellent' if score >= 90 else 'good' if score >= 70 else 'average' }}">
-                                        <span class="score-label">Результат:</span>
-                                        <span class="score-value">{{ score|round|int }}%</span>
-                                    </div>
-                                    {% else %}
-                                    <div class="lesson-score completed-badge">
-                                        <span>Завершено</span>
-                                    </div>
-                                    {% endif %}
-                                    <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn secondary">
-                                        Повторить
-                                    </a>
-                                {% elif is_current or not is_locked %}
-                                    <div class="lesson-status-hint">
-                                        {% if is_current %}Текущий урок{% else %}Доступен{% endif %}
-                                    </div>
-                                    <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn primary">
-                                        {% if is_current %}Продолжить{% else %}Начать{% endif %}
-                                    </a>
-                                {% else %}
-                                    <div class="lesson-locked-hint">
-                                        {% if lesson.available_at %}
-                                            Доступно {{ lesson.available_at }}
-                                        {% else %}
-                                            Завершите предыдущий урок
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            </div>
+                        <div class="lesson-actions">
+                            {% if is_completed %}
+                                <span class="lesson-badge completed">Завершено</span>
+                                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn secondary">
+                                    Повторить
+                                </a>
+                            {% elif is_current %}
+                                <span class="lesson-badge current">Текущий</span>
+                                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn primary">
+                                    Продолжить
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn primary">
+                                    Начать
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -602,214 +563,131 @@
     margin-bottom: 2rem;
 }
 
-.lessons-timeline {
-    position: relative;
-}
-
-.lesson-item {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 0;
-}
-
-.lesson-item:last-child .connector-line {
-    display: none;
-}
-
-.lesson-connector {
+.lessons-list {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    width: 40px;
-    flex-shrink: 0;
+    gap: 0.75rem;
 }
 
-.connector-line {
-    width: 2px;
-    flex: 1;
-    background: var(--border-color);
-    margin-top: 8px;
-}
-
-.connector-line.filled {
-    background: linear-gradient(180deg, #4caf50 0%, #4caf50 100%);
-}
-
-.connector-dot {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    border: 2px solid var(--border-color);
+.lesson-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-}
-
-.lesson-item.completed .connector-dot {
-    background: #4caf50;
-    border-color: #4caf50;
-    color: white;
-}
-
-.lesson-item.completed .connector-dot svg {
-    width: 18px;
-    height: 18px;
-}
-
-.lesson-item.current .connector-dot {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #667eea;
-    color: white;
-}
-
-.lesson-item.locked .connector-dot {
-    opacity: 0.5;
-}
-
-.lesson-item.locked .connector-dot svg {
-    width: 16px;
-    height: 16px;
-}
-
-.lesson-card-wrapper {
-    flex: 1;
-    padding-bottom: 1rem;
-}
-
-.lesson-card {
+    gap: 1rem;
+    padding: 1rem 1.25rem;
     background: var(--card-bg);
-    border-radius: 16px;
-    padding: 1.25rem;
+    border-radius: 12px;
     border: 1px solid var(--border-color);
     transition: all 0.2s;
 }
 
-.lesson-item:not(.locked) .lesson-card:hover {
+.lesson-row:hover {
     border-color: #667eea;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
 }
 
-.lesson-item.completed .lesson-card {
+.lesson-row.completed {
     border-left: 3px solid #4caf50;
 }
 
-.lesson-item.current .lesson-card {
+.lesson-row.current {
     border-left: 3px solid #667eea;
-    background: linear-gradient(to right, rgba(102, 126, 234, 0.05), transparent);
+    background: linear-gradient(to right, rgba(102, 126, 234, 0.03), transparent);
 }
 
-.lesson-item.locked .lesson-card {
-    opacity: 0.6;
-}
-
-.lesson-main {
+.lesson-status-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.lesson-row.completed .lesson-status-dot {
+    background: #4caf50;
+    color: white;
+}
+
+.lesson-row.completed .lesson-status-dot svg {
+    width: 18px;
+    height: 18px;
+}
+
+.lesson-row.current .lesson-status-dot {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.lesson-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 1rem;
 }
 
-.lesson-type-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
+.lesson-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
 }
 
-.lesson-info {
-    flex: 1;
-    min-width: 0;
+.lesson-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.lesson-icon {
+    font-size: 1.25rem;
 }
 
 .lesson-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 500;
     color: var(--text-primary);
-}
-
-.lesson-type {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+    margin: 0;
 }
 
 .lesson-time {
     font-size: 0.8rem;
     color: var(--text-secondary);
-    background: var(--bg-secondary);
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
+}
+
+.lesson-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     flex-shrink: 0;
 }
 
-.lesson-desc {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin: 0.75rem 0;
-    line-height: 1.4;
+.lesson-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-weight: 500;
 }
 
-.lesson-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.lesson-score {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-}
-
-.score-label {
-    color: var(--text-secondary);
-}
-
-.score-value {
-    font-weight: 600;
-}
-
-.lesson-score.excellent .score-value {
-    color: #4caf50;
-}
-
-.lesson-score.good .score-value {
-    color: #8bc34a;
-}
-
-.lesson-score.average .score-value {
-    color: #ff9800;
-}
-
-.lesson-score.completed-badge {
+.lesson-badge.completed {
     background: #e8f5e9;
-    color: #4caf50;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-weight: 500;
+    color: #2e7d32;
 }
 
-.lesson-status-hint {
-    font-size: 0.8rem;
+.lesson-badge.current {
+    background: rgba(102, 126, 234, 0.1);
     color: #667eea;
-    font-weight: 500;
-}
-
-.lesson-locked-hint {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
 }
 
 .lesson-btn {
-    padding: 0.5rem 1.25rem;
-    border-radius: 10px;
-    font-size: 0.875rem;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
     font-weight: 500;
     text-decoration: none;
     transition: all 0.2s;
@@ -821,8 +699,7 @@
 }
 
 .lesson-btn.primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
 .lesson-btn.secondary {
@@ -832,6 +709,24 @@
 
 .lesson-btn.secondary:hover {
     background: var(--bg-tertiary);
+}
+
+/* Responsive lessons */
+@media (max-width: 600px) {
+    .lesson-row {
+        flex-wrap: wrap;
+    }
+
+    .lesson-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .lesson-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
 
 /* Navigation */
