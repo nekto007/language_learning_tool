@@ -2017,7 +2017,7 @@ def sync_lesson_cards_to_words(lesson):
                 skipped_count += 1
                 continue
 
-            english = card.get('back', '').strip()
+            english = card.get('back', '').strip().lower()
             russian = card.get('front', '').strip()
 
             if not english:
