@@ -1390,12 +1390,15 @@ def book_details(book_id):
     }
 
     # Обновляем статистику с реальными данными
+    # Сначала собираем все статусы кроме 'new'
+    tracked_count = 0
     for status, count in status_counts:
-        if status in word_stats:
+        if status in word_stats and status != 'new':
             word_stats[status] = count
-            # Если у слова есть статус, вычитаем его из 'new'
-            if status != 'new':
-                word_stats['new'] -= count
+            tracked_count += count
+
+    # new = все слова минус те что уже отслеживаются
+    word_stats['new'] = max(0, unique_words - tracked_count)
 
     # Расчет процента прогресса слов
     if book.unique_words and book.unique_words > 0:
@@ -1586,11 +1589,15 @@ def book_words(book_id):
 
     status_counts = db.session.execute(stats_query).all()
 
+    # Сначала собираем все статусы кроме 'new'
+    tracked_count = 0
     for status_name, count in status_counts:
-        if status_name in word_stats:
+        if status_name in word_stats and status_name != 'new':
             word_stats[status_name] = count
-            if status_name != 'new':
-                word_stats['new'] -= count
+            tracked_count += count
+
+    # new = все слова минус те что уже отслеживаются
+    word_stats['new'] = max(0, (book.unique_words or 0) - tracked_count)
 
     # A/B testing for optimized version
     use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
