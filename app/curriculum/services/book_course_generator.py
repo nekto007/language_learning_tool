@@ -251,14 +251,14 @@ class BookCourseGenerator:
                 chapter_count = len(all_chapters)
                 chapter_nums = [ch.chap_num for ch in all_chapters]
 
-                # Create module title based on chapter range
+                # Create module title based on chapter range (in Russian)
                 if chapter_nums:
                     if len(chapter_nums) == 1:
-                        title = f"Module {module_number}: Chapter {chapter_nums[0]}"
+                        title = f"Модуль {module_number}: Глава {chapter_nums[0]}"
                     else:
-                        title = f"Module {module_number}: Chapters {min(chapter_nums)}-{max(chapter_nums)}"
+                        title = f"Модуль {module_number}: Главы {min(chapter_nums)}-{max(chapter_nums)}"
                 else:
-                    title = f"Module {module_number}"
+                    title = f"Модуль {module_number}"
 
                 # Combine learning objectives from all blocks
                 combined_objectives = []
@@ -290,7 +290,7 @@ class BookCourseGenerator:
                     block_id=primary_block.id,  # Primary block reference
                     module_number=module_number,
                     title=title,
-                    description=f"Covering {chapter_count} chapters with focus on vocabulary and grammar",
+                    description=f"Изучение {chapter_count} глав с акцентом на лексику и грамматику",
                     estimated_reading_time=total_reading_time,
                     learning_objectives=combined_objectives,
                     vocabulary_focus=combined_vocab,
@@ -549,19 +549,19 @@ class BookCourseGenerator:
         return max(30, total_words // 200)
 
     def _create_learning_objectives(self, block: Block) -> List[str]:
-        """Create learning objectives for a block"""
+        """Create learning objectives for a block (in Russian)"""
         objectives = []
 
         if block.grammar_key:
-            objectives.append(f"Master {block.grammar_key.replace('_', ' ').title()} grammar")
+            objectives.append(f"Освоить грамматику: {block.grammar_key.replace('_', ' ')}")
 
         if block.focus_vocab:
-            objectives.append(f"Learn vocabulary related to {block.focus_vocab}")
+            objectives.append(f"Изучить лексику по теме: {block.focus_vocab}")
 
         objectives.extend([
-            "Improve reading comprehension skills",
-            "Practice vocabulary in context",
-            "Develop critical thinking through analysis"
+            "Развить навыки понимания прочитанного",
+            "Практиковать лексику в контексте",
+            "Развить критическое мышление через анализ текста"
         ])
 
         return objectives
