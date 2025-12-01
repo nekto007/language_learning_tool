@@ -566,23 +566,22 @@
 .lessons-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .lesson-row {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
     background: var(--card-bg);
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid var(--border-color);
     transition: all 0.2s;
 }
 
 .lesson-row:hover {
     border-color: #667eea;
-    box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
 }
 
 .lesson-row.completed {
@@ -591,18 +590,18 @@
 
 .lesson-row.current {
     border-left: 3px solid #667eea;
-    background: linear-gradient(to right, rgba(102, 126, 234, 0.03), transparent);
+    background: rgba(102, 126, 234, 0.03);
 }
 
 .lesson-status-dot {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     flex-shrink: 0;
     background: var(--bg-secondary);
     color: var(--text-secondary);
@@ -614,8 +613,8 @@
 }
 
 .lesson-row.completed .lesson-status-dot svg {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
 }
 
 .lesson-row.current .lesson-status-dot {
@@ -628,49 +627,49 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .lesson-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     flex: 1;
 }
 
 .lesson-title-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .lesson-icon {
-    font-size: 1.25rem;
+    font-size: 1rem;
 }
 
 .lesson-title {
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-primary);
     margin: 0;
 }
 
 .lesson-time {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-secondary);
 }
 
 .lesson-actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     flex-shrink: 0;
 }
 
 .lesson-badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.6rem;
-    border-radius: 12px;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
     font-weight: 500;
 }
 
@@ -685,9 +684,9 @@
 }
 
 .lesson-btn {
-    padding: 0.4rem 1rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
     font-weight: 500;
     text-decoration: none;
     transition: all 0.2s;
