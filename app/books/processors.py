@@ -91,7 +91,7 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
                 if len(current_chunk) + len(paragraph_text) > chunk_size:
                     # Обрабатываем текущий чанк, если он не пустой
                     if current_chunk.strip():
-                        words = process_text(current_chunk, english_vocab, stop_words)
+                        words = process_text(current_chunk, english_vocab, stop_words, brown_words)
                         all_words.extend(words)
 
                     # Начинаем новый чанк с текущего параграфа
@@ -109,7 +109,7 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
 
             # Обрабатываем последний чанк, если он не пустой
             if current_chunk.strip():
-                words = process_text(current_chunk, english_vocab, stop_words)
+                words = process_text(current_chunk, english_vocab, stop_words, brown_words)
                 all_words.extend(words)
         else:
             # Для небольших книг обрабатываем весь текст сразу
@@ -122,7 +122,7 @@ def extract_words_from_html_content(html_content: str) -> List[str]:
                 return []
 
             # Обрабатываем текст
-            all_words = process_text(text, english_vocab, stop_words)
+            all_words = process_text(text, english_vocab, stop_words, brown_words)
 
         # Очистка памяти перед возвратом результата
         import gc
@@ -781,7 +781,7 @@ def extract_words_from_text_content(text_content: str) -> List[str]:
         english_vocab, brown_words, stop_words = initialize_nltk()
         
         # Обрабатываем текст с помощью process_text
-        all_words = process_text(text_content, english_vocab, stop_words)
+        all_words = process_text(text_content, english_vocab, stop_words, brown_words)
         
         logger.info(f"Извлечено {len(all_words)} слов из текстового контента")
         return all_words
