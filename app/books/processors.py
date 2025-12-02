@@ -254,6 +254,14 @@ def _process_book_words_internal(book_id: int, html_content: str) -> Dict:
         repo = DatabaseRepository()
         repo.update_book_stats(book_id, total_words, unique_words)
 
+        # Refresh DB session before populate_block_vocab
+        # (connection may have been closed during long processing)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        db.session.remove()
+
         # Заполняем block_vocab если есть блоки
         block_vocab_result = populate_block_vocab(book_id)
 
