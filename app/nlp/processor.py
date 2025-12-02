@@ -3,6 +3,7 @@ Natural language processing module for English texts.
 Includes functions for tokenization, lemmatization, and word processing.
 """
 import logging
+import re
 from typing import List, Set, Tuple
 
 import nltk
@@ -107,6 +108,10 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     """
     # Expand contractions before tokenizing
     text = expand_contractions(text)
+
+    # Replace em-dashes, en-dashes and other special dashes with spaces
+    # so words like "these—ouch—shoes" are properly tokenized
+    text = re.sub(r'[—–−‐‑‒―]', ' ', text)
 
     words = nltk.word_tokenize(text)
     # Filter only alphabetic characters and convert to lowercase
