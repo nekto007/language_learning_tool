@@ -70,6 +70,30 @@ def extract_text_from_html(html_content: str, selector: str = None) -> str:
     return element.text
 
 
+def expand_contractions(text: str) -> str:
+    """
+    Expands common English contractions to full forms.
+    This ensures words like can't -> can not are properly tokenized.
+    """
+    contractions = {
+        "can't": "can not",
+        "won't": "will not",
+        "n't": " not",  # general: don't, doesn't, didn't, etc.
+        "'ll": " will",
+        "'re": " are",
+        "'ve": " have",
+        "'m": " am",
+        "'d": " would",
+        "let's": "let us",
+    }
+    text_lower = text
+    for contraction, expansion in contractions.items():
+        text_lower = text_lower.replace(contraction, expansion)
+        text_lower = text_lower.replace(contraction.capitalize(), expansion)
+        text_lower = text_lower.replace(contraction.upper(), expansion.upper())
+    return text_lower
+
+
 def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     """
     Tokenizes text and filters stop words and non-alphabetic tokens.
@@ -81,6 +105,9 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     Returns:
         List[str]: List of tokens.
     """
+    # Expand contractions before tokenizing
+    text = expand_contractions(text)
+
     words = nltk.word_tokenize(text)
     # Filter only alphabetic characters and convert to lowercase
     words = [word.lower() for word in words if word.isalpha()]
@@ -127,7 +154,8 @@ def filter_english_words(words: List[str], english_vocab: Set[str]) -> List[str]
     return [word for word in words if word.lower() in english_vocab]
 
 
-def process_text(text: str, english_vocab: Set[str], stop_words: Set[str]) -> List[str]:
+def process_text(text: str, english_vocab: Set[str], stop_words: Set[str],
+                 brown_words: Set[str] = None) -> List[str]:
     """
     Processes text: tokenizes, filters, lemmatizes.
 
@@ -135,6 +163,7 @@ def process_text(text: str, english_vocab: Set[str], stop_words: Set[str]) -> Li
         text (str): Source text.
         english_vocab (Set[str]): Set of English words.
         stop_words (Set[str]): Set of stop words.
+        brown_words (Set[str]): Set of words from Brown corpus (for validating short words).
 
     Returns:
         List[str]: List of processed words.
@@ -148,11 +177,26 @@ def process_text(text: str, english_vocab: Set[str], stop_words: Set[str]) -> Li
     # Filtering only English words
     english_words = filter_english_words(lemmatized_words, english_vocab)
 
-    stop_words = ["i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don"]
-    # Remove stop words
-    words = [word for word in english_words if word not in stop_words]
-    english_words = words
+    # Additional stop words (contractions are now expanded before tokenization)
+    additional_stop_words = {"i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don"}
 
+    # Fix common lemmatization errors (verb forms wrongly lemmatized)
+    lemma_fixes = {
+        "plat": "plate",  # plates wrongly lemmatized as verb
+    }
+    english_words = [lemma_fixes.get(word, word) for word in english_words]
+
+    # Remove stop words
+    # For short words (< 3 chars), keep only if they exist in Brown corpus
+    def should_keep(word):
+        if word in additional_stop_words:
+            return False
+        if len(word) < 3:
+            # Keep short words only if they are in Brown corpus (real words like "on", "in", "go", "do")
+            return brown_words is not None and word in brown_words
+        return True
+
+    english_words = [word for word in english_words if should_keep(word)]
 
     return english_words
 
