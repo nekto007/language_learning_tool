@@ -1,9 +1,25 @@
 # app/curriculum/models/book_courses.py
 
+import re
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, Boolean
 from sqlalchemy.orm import relationship
 from app.utils.db import db
+
+
+def generate_slug(text: str) -> str:
+    """Generate URL-friendly slug from text"""
+    # Lowercase and replace spaces with hyphens
+    slug = text.lower().strip()
+    # Remove special characters, keep only letters, numbers, spaces, hyphens
+    slug = re.sub(r'[^\w\s-]', '', slug)
+    # Replace spaces with hyphens
+    slug = re.sub(r'[\s_]+', '-', slug)
+    # Remove multiple consecutive hyphens
+    slug = re.sub(r'-+', '-', slug)
+    # Remove leading/trailing hyphens
+    slug = slug.strip('-')
+    return slug
 
 
 class BookCourse(db.Model):
@@ -12,6 +28,7 @@ class BookCourse(db.Model):
 
     id = Column(Integer, primary_key=True)
     book_id = Column(Integer, ForeignKey('book.id', ondelete='CASCADE'), nullable=False)
+    slug = Column(String(250), unique=True, nullable=True)  # URL-friendly identifier
     title = Column(String(200), nullable=False)
     description = Column(Text)
     level = Column(String(10), nullable=False)  # A1, A2, B1, B2, C1, C2
@@ -42,6 +59,7 @@ class BookCourse(db.Model):
 
     __table_args__ = (
         Index('idx_book_courses_book_id', 'book_id'),
+        Index('idx_book_courses_slug', 'slug'),
         Index('idx_book_courses_level', 'level'),
         Index('idx_book_courses_active', 'is_active'),
         Index('idx_book_courses_featured', 'is_featured'),
@@ -49,6 +67,14 @@ class BookCourse(db.Model):
 
     def __repr__(self):
         return f"<BookCourse {self.id}: {self.title} ({self.level})>"
+
+    def generate_slug_from_book(self):
+        """Generate slug from book title"""
+        if self.book:
+            self.slug = generate_slug(self.book.title)
+        elif self.title:
+            self.slug = generate_slug(self.title)
+        return self.slug
     
     @property
     def completion_rate(self):

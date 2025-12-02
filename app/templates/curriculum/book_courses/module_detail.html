@@ -197,18 +197,19 @@
                         </div>
 
                         <div class="lesson-actions">
+                            {% set lesson_url = url_for('book_courses.view_lesson_by_slug', course_slug=course.slug, module_number=module.module_number, lesson_number=loop.index) if course.slug else url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) %}
                             {% if is_completed %}
                                 <span class="lesson-badge completed">Завершено</span>
-                                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn secondary">
+                                <a href="{{ lesson_url }}" class="lesson-btn secondary">
                                     Повторить
                                 </a>
                             {% elif is_current %}
                                 <span class="lesson-badge current">Текущий</span>
-                                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn primary">
+                                <a href="{{ lesson_url }}" class="lesson-btn primary">
                                     Продолжить
                                 </a>
                             {% else %}
-                                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="lesson-btn primary">
+                                <a href="{{ lesson_url }}" class="lesson-btn primary">
                                     Начать
                                 </a>
                             {% endif %}
@@ -222,7 +223,8 @@
     <!-- Navigation -->
     <div class="module-nav">
         {% if prev_module %}
-        <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=prev_module.id) }}" class="nav-link prev">
+        {% set prev_url = url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=prev_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=prev_module.id) %}
+        <a href="{{ prev_url }}" class="nav-link prev">
             <span class="nav-arrow">←</span>
             <div class="nav-text">
                 <span class="nav-label">Предыдущий</span>
@@ -233,13 +235,15 @@
         <div class="nav-link disabled"></div>
         {% endif %}
 
-        <a href="{{ url_for('book_courses.view_course', course_id=course.id) }}" class="nav-link center">
+        {% set course_url = url_for('book_courses.view_course_by_slug', course_slug=course.slug) if course.slug else url_for('book_courses.view_course', course_id=course.id) %}
+        <a href="{{ course_url }}" class="nav-link center">
             <span class="nav-icon">📚</span>
             <span>К курсу</span>
         </a>
 
         {% if next_module %}
-        <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=next_module.id) }}" class="nav-link next {{ 'locked' if next_module.is_locked else '' }}">
+        {% set next_url = url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=next_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=next_module.id) %}
+        <a href="{{ next_url }}" class="nav-link next {{ 'locked' if next_module.is_locked else '' }}">
             <div class="nav-text">
                 <span class="nav-label">Следующий</span>
                 <span class="nav-title">{{ next_module.title|truncate(25) }}</span>
