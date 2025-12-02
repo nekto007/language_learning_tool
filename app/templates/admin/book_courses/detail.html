@@ -828,15 +828,13 @@ function deleteCourseAction(courseId, deleteType) {
     const isHard = deleteType === 'hard';
     if (isHard && !confirm('⚠️ Это действие НЕЛЬЗЯ отменить!\n\nПродолжить?')) return;
 
-    const formData = new FormData();
-    formData.append('delete_type', deleteType);
-
     fetch(`/admin/book-courses/${courseId}/delete`, {
         method: 'POST',
         headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
             'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: formData
+        body: `delete_type=${deleteType}`
     })
     .then(response => response.json())
     .then(data => {
