@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 from app import csrf
 
-from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress)
+from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress, generate_slug)
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.curriculum.services.grammar_focus_generator import GrammarFocusGenerator
@@ -75,6 +75,17 @@ def truncate_context(text: str, max_sentences: int = 1) -> str:
 
 # Create blueprint for book course routes
 book_courses_bp = Blueprint('book_courses', __name__)
+
+
+def get_course_by_slug_or_id(course_identifier):
+    """Get course by slug or id"""
+    # Try to parse as integer (id)
+    try:
+        course_id = int(course_identifier)
+        return BookCourse.query.get_or_404(course_id)
+    except (ValueError, TypeError):
+        # It's a slug
+        return BookCourse.query.filter_by(slug=course_identifier).first_or_404()
 
 
 @book_courses_bp.route('/book-courses')
@@ -1683,3 +1694,81 @@ def add_word_to_srs():
     except Exception as e:
         logger.error(f"Error adding word to SRS: {str(e)}")
         return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+# ==================== NEW ROUTES WITH SLUG AND ORDINAL NUMBERS ====================
+# URL format: /curriculum/courses/<slug>/modules/<module_number>/lessons/<lesson_number>
+# Example: /curriculum/courses/harry-potter-order-phoenix/modules/1/lessons/2
+
+@book_courses_bp.route('/courses/<course_slug>')
+@login_required
+def view_course_by_slug(course_slug):
+    """Display course details by slug - redirects to main view_course"""
+    course = get_course_by_slug_or_id(course_slug)
+    return view_course(course.id)
+
+
+@book_courses_bp.route('/courses/<course_slug>/enroll', methods=['POST'])
+@csrf.exempt
+@login_required
+def enroll_by_slug(course_slug):
+    """Enroll in course by slug"""
+    course = get_course_by_slug_or_id(course_slug)
+    return enroll_in_course(course.id)
+
+
+@book_courses_bp.route('/courses/<course_slug>/modules/<int:module_number>')
+@login_required
+def view_module_by_slug(course_slug, module_number):
+    """Display module by course slug and module number"""
+    course = get_course_by_slug_or_id(course_slug)
+
+    # Get module by number
+    module = BookCourseModule.query.filter_by(
+        course_id=course.id,
+        module_number=module_number
+    ).first_or_404()
+
+    return view_module(course.id, module.id)
+
+
+@book_courses_bp.route('/courses/<course_slug>/modules/<int:module_number>/lessons/<int:lesson_number>')
+@login_required
+def view_lesson_by_slug(course_slug, module_number, lesson_number):
+    """Display lesson by course slug, module number and lesson number"""
+    course = get_course_by_slug_or_id(course_slug)
+
+    # Get module by number
+    module = BookCourseModule.query.filter_by(
+        course_id=course.id,
+        module_number=module_number
+    ).first_or_404()
+
+    # Get lesson by number within module
+    daily_lesson = DailyLesson.query.filter_by(
+        book_course_module_id=module.id
+    ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+
+    # Find lesson by index (lesson_number is 1-based)
+    if lesson_number < 1 or lesson_number > len(daily_lesson):
+        abort(404)
+
+    lesson = daily_lesson[lesson_number - 1]
+
+    return view_lesson_by_id(course.id, module.id, lesson.id)
+
+
+# Helper to generate URL for lessons with pretty format
+def get_pretty_lesson_url(course, module, lesson_index):
+    """Generate pretty URL for lesson"""
+    if course.slug:
+        return url_for('book_courses.view_lesson_by_slug',
+                      course_slug=course.slug,
+                      module_number=module.module_number,
+                      lesson_number=lesson_index)
+    else:
+        # Fallback to id-based URL
+        return url_for('book_courses.view_lesson',
+                      course_id=course.id,
+                      module_id=module.id,
+                      lesson_number=lesson_index)
