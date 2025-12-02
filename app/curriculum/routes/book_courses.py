@@ -506,8 +506,8 @@ def view_lesson(course_id, module_id, lesson_number):
 
                 for sv in slice_vocab:
                     word = sv.word
-                    # Context sentence from book (relevant to current reading) - max 2 sentences
-                    context = truncate_context(sv.context_sentence or '', max_sentences=2)
+                    # Context sentence from book (relevant to current reading) - max 1 sentences
+                    context = truncate_context(sv.context_sentence or '', max_sentences=1)
 
                     # Example with translation from DB
                     db_example = getattr(word, 'sentences', '') or ''
@@ -627,7 +627,7 @@ def view_lesson(course_id, module_id, lesson_number):
                         'id': word.id,
                         'lemma': word.english_word,
                         'translation': word.russian_word,
-                        'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                        'example': truncate_context(sv.context_sentence or '', max_sentences=1),
                         'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                         'frequency': sv.frequency_in_slice,
                     }
@@ -937,8 +937,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
 
             for sv in slice_vocab:
                 word = sv.word
-                # Context sentence from book (relevant to current reading) - max 2 sentences
-                context = truncate_context(sv.context_sentence or '', max_sentences=2)
+                # Context sentence from book (relevant to current reading) - max 1 sentences
+                context = truncate_context(sv.context_sentence or '', max_sentences=1)
 
                 # Example with translation from DB
                 db_example = getattr(word, 'sentences', '') or ''
@@ -1033,7 +1033,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                     'id': word.id,
                     'lemma': word.english_word,
                     'translation': word.russian_word,
-                    'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                    'example': truncate_context(sv.context_sentence or '', max_sentences=1),
                     'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                     'frequency': sv.frequency_in_slice,
                 }
@@ -1247,7 +1247,7 @@ def get_lesson_api(lesson_id):
                     'id': word.id,
                     'lemma': word.english_word,
                     'translation': word.russian_word,
-                    'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                    'example': truncate_context(sv.context_sentence or '', max_sentences=1),
                     'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3'
                 })
 
@@ -1298,7 +1298,7 @@ def get_lesson_api(lesson_id):
                     tooltip_map[word.english_word.lower()] = {
                         'id': word.id,
                         'translation': word.russian_word,
-                        'example': truncate_context(sv.context_sentence or '', max_sentences=2),
+                        'example': truncate_context(sv.context_sentence or '', max_sentences=1),
                         'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
                         'transcription': getattr(word, 'transcription', None),
                         'pos': getattr(word, 'pos', None)
