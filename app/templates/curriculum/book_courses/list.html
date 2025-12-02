@@ -93,7 +93,7 @@
               <div class="progress-fill" style="width: {{ course_data.progress_percentage }}%"></div>
             </div>
           </div>
-          <a href="{{ url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-continue">
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-continue">
             <i class="fas fa-play"></i> Продолжить
           </a>
         </div>
@@ -137,7 +137,7 @@
           <h3 class="course-title">{{ course_data.course.title }}</h3>
           <p class="course-author"><i class="fas fa-user-edit"></i> {{ course_data.book.author }}</p>
           <p class="course-description">{{ course_data.course.description[:120] }}{% if course_data.course.description|length > 120 %}...{% endif %}</p>
-          <a href="{{ url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-explore">
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-explore">
             Подробнее <i class="fas fa-arrow-right"></i>
           </a>
         </div>
@@ -170,7 +170,7 @@
             </div>
           {% endif %}
           <div class="course-overlay">
-            <a href="{{ url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="overlay-btn">
+            <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="overlay-btn">
               <i class="fas fa-eye"></i> Подробнее
             </a>
           </div>
@@ -184,7 +184,7 @@
           </div>
           <h3 class="course-title">{{ course_data.course.title }}</h3>
           <p class="course-author">{{ course_data.book.author }}</p>
-          <a href="{{ url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-view">
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-view">
             Смотреть курс
           </a>
         </div>
