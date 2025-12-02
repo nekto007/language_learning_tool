@@ -89,7 +89,7 @@
               </div>
             </div>
             {% if enrollment.current_module %}
-              <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="btn-continue">
+              <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=enrollment.current_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="btn-continue">
                 <i class="fas fa-play"></i> Продолжить обучение
               </a>
             {% endif %}
@@ -162,7 +162,7 @@
 
           <div class="module-action">
             {% if is_unlocked and is_enrolled %}
-              <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-module {{ status }}">
+              <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-module {{ status }}">
                 {% if status == 'completed' %}
                   <i class="fas fa-redo"></i> Повторить
                 {% elif status == 'in_progress' %}
