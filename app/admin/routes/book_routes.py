@@ -450,6 +450,26 @@ def cleanup_books():
         return redirect(url_for('book_admin.cleanup_books'))
 
 
+@book_bp.route('/books/<int:book_id>/edit', methods=['GET', 'POST'])
+@admin_required
+@handle_admin_errors(return_json=False)
+def edit_book(book_id):
+    """Редактирование книги"""
+    book = Book.query.get_or_404(book_id)
+
+    if request.method == 'POST':
+        book.title = request.form.get('title', book.title).strip()
+        book.author = request.form.get('author', book.author).strip()
+        book.level = request.form.get('level', book.level)
+        book.description = request.form.get('description', book.description)
+
+        db.session.commit()
+        flash(f'Книга "{book.title}" обновлена', 'success')
+        return redirect(url_for('book_admin.books'))
+
+    return render_template('admin/books/edit.html', book=book)
+
+
 @book_bp.route('/books/<int:book_id>/delete', methods=['POST'])
 @admin_required
 @handle_admin_errors(return_json=True)
