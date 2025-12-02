@@ -486,7 +486,9 @@ class DailySliceGenerator:
         texts = []
         for chapter in chapters:
             if chapter.text_raw:
-                texts.append(chapter.text_raw)
+                # Convert escaped newlines to real newlines
+                text = chapter.text_raw.replace('\\n', '\n')
+                texts.append(text)
         return '\n\n'.join(texts)
 
     def _extract_slice_vocabulary(self, daily_lesson: DailyLesson, text: str,
@@ -623,17 +625,21 @@ class DailySliceGenerator:
 
     def _split_into_sentences(self, text: str) -> List[str]:
         """Split text into sentences, handling common edge cases."""
-        # Simple sentence splitting - can be enhanced with NLTK or spaCy
-        text = text.replace('\n\n', ' <PARAGRAPH> ')
-        text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
+        # First split by paragraph breaks
+        paragraphs = re.split(r'\n\s*\n', text)
 
-        # Split on sentence endings
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        sentences = []
+        for para in paragraphs:
+            # Normalize whitespace within paragraph
+            para = re.sub(r'\s+', ' ', para).strip()
+            if not para:
+                continue
 
-        # Restore paragraph breaks
-        sentences = [s.replace(' <PARAGRAPH> ', '\n\n') for s in sentences]
+            # Split on sentence endings (.!?) followed by space or end
+            para_sentences = re.split(r'(?<=[.!?])\s+', para)
+            sentences.extend([s.strip() for s in para_sentences if s.strip()])
 
-        return [s.strip() for s in sentences if s.strip()]
+        return sentences
 
     def _get_block_vocabulary(self, block: Block) -> Dict[int, Dict]:
         """Get vocabulary words for a block as a dictionary."""
