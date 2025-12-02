@@ -232,6 +232,9 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('book_admin.edit_book', book_id=book.id) }}" class="btn btn-outline-primary" title="Редактировать">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                             <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-info" title="Просмотр" target="_blank">
                                                 <i class="fas fa-eye"></i>
                                             </a>
@@ -307,6 +310,9 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('book_admin.edit_book', book_id=book.id) }}" class="btn btn-outline-primary" title="Редактировать">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                             <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-info" title="Просмотр" target="_blank">
                                                 <i class="fas fa-eye"></i>
                                             </a>
