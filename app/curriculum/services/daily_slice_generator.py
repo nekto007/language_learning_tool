@@ -548,8 +548,9 @@ class DailySliceGenerator:
     def _find_context_sentence(self, text: str, word: str) -> Optional[str]:
         """Find a sentence containing the word for context."""
         sentences = self._split_into_sentences(text)
+        word_pattern = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
         for sentence in sentences:
-            if word in sentence.lower():
+            if word_pattern.search(sentence):
                 # Remove all quote characters from the sentence
                 sentence = re.sub(r'["\'"«»""'']', '', sentence)
                 # Clean up any double spaces that may result
