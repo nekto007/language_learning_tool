@@ -20,6 +20,7 @@ COPY run.py .
 COPY main.py .
 COPY babel.cfg .
 COPY cli.py .
+COPY convert_fb2_to_txt.py .
 COPY app app/
 COPY config config/
 # Добавляем другие нужные файлы/папки, если необходимо
