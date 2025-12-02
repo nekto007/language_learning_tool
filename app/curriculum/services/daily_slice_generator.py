@@ -550,6 +550,10 @@ class DailySliceGenerator:
         sentences = self._split_into_sentences(text)
         for sentence in sentences:
             if word in sentence.lower():
+                # Remove all quote characters from the sentence
+                sentence = re.sub(r'["\'"«»""'']', '', sentence)
+                # Clean up any double spaces that may result
+                sentence = re.sub(r'\s+', ' ', sentence).strip()
                 return sentence
         return None
 
@@ -635,8 +639,10 @@ class DailySliceGenerator:
             if not para:
                 continue
 
-            # Split on sentence endings (.!?) followed by space or end
-            para_sentences = re.split(r'(?<=[.!?])\s+', para)
+            # Split on sentence endings (.!?) followed by space or quote+space
+            # Also split on closing quotes followed by space (end of dialogue)
+            quote_chars = '"\'»""\u2019\u2018'
+            para_sentences = re.split(r'(?<=[.!?])[' + quote_chars + r']*\s+', para)
             sentences.extend([s.strip() for s in para_sentences if s.strip()])
 
         return sentences
