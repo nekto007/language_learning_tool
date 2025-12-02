@@ -450,6 +450,37 @@ def cleanup_books():
         return redirect(url_for('book_admin.cleanup_books'))
 
 
+@book_bp.route('/books/<int:book_id>/delete', methods=['POST'])
+@admin_required
+@handle_admin_errors(return_json=True)
+def delete_book(book_id):
+    """Удаление книги"""
+    book = Book.query.get_or_404(book_id)
+    book_title = book.title
+
+    try:
+        # Delete chapters first
+        Chapter.query.filter_by(book_id=book_id).delete()
+
+        # Delete the book
+        db.session.delete(book)
+        db.session.commit()
+
+        logger.info(f"Book deleted: {book_title} (ID: {book_id})")
+
+        return jsonify({
+            'success': True,
+            'message': f'Книга "{book_title}" удалена'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting book {book_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @book_bp.route('/books/add', methods=['GET', 'POST'])
 @admin_required
 @handle_admin_errors(return_json=False)
