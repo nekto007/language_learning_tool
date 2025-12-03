@@ -258,9 +258,13 @@ def _process_book_words_internal(book_id: int, html_content: str) -> Dict:
         # (connection may have been closed during long processing)
         try:
             db.session.rollback()
+            db.session.close()
         except Exception:
             pass
+
+        # Force new connection by disposing engine pool and removing session
         db.session.remove()
+        db.engine.dispose()
 
         # Заполняем block_vocab если есть блоки
         block_vocab_result = populate_block_vocab(book_id)
