@@ -86,6 +86,14 @@ def expand_contractions(text: str) -> str:
         "'m": " am",
         "'d": " would",
         "let's": "let us",
+        # Informal/dialectal contractions (e.g., "'gree" -> "agree")
+        "'gree": "agree",
+        "'bout": "about",
+        "'cause": "because",
+        "'em": "them",
+        "'til": "until",
+        "'tis": "it is",
+        "'twas": "it was",
     }
     text_lower = text
     for contraction, expansion in contractions.items():
