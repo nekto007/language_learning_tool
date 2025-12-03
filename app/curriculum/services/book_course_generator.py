@@ -16,7 +16,7 @@ import logging
 from typing import Any, Dict, List, Optional
 import math
 
-from app.books.models import Block, BlockVocab, Book, Task
+from app.books.models import Block, BlockChapter, BlockVocab, Book, Task
 from app.curriculum.book_courses import BookCourse, BookCourseModule
 from app.curriculum.services.block_schema_importer import BlockSchemaImporter
 from app.curriculum.services.daily_slice_generator import DailySliceGenerator
@@ -147,11 +147,21 @@ class BookCourseGenerator:
     def _setup_blocks(self, schema_data: Optional[List[Dict]]) -> bool:
         """Setup blocks for the book using schema or defaults"""
         try:
-            # Check if blocks already exist
+            # Check if blocks already exist WITH chapter links
             existing_blocks = Block.query.filter_by(book_id=self.book_id).count()
-            if existing_blocks > 0:
-                logger.info(f"Using existing {existing_blocks} blocks for book {self.book_id}")
+            existing_links = BlockChapter.query.join(Block).filter(Block.book_id == self.book_id).count()
+
+            if existing_blocks > 0 and existing_links > 0:
+                logger.info(f"Using existing {existing_blocks} blocks with {existing_links} chapter links for book {self.book_id}")
+                print(f"[BOOK COURSE] Используем существующие {existing_blocks} блоков с {existing_links} связями", flush=True)
                 return True
+
+            # If blocks exist but no links, delete blocks and recreate
+            if existing_blocks > 0 and existing_links == 0:
+                logger.warning(f"Found {existing_blocks} blocks without chapter links, recreating...")
+                print(f"[BOOK COURSE] Найдено {existing_blocks} блоков без связей с главами, пересоздаём...", flush=True)
+                Block.query.filter_by(book_id=self.book_id).delete()
+                db.session.flush()
 
             importer = BlockSchemaImporter(self.book_id)
 
