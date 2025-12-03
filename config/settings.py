@@ -187,7 +187,7 @@ class Config:
         'pool_size': 10,              # Number of connections to maintain
         'max_overflow': 20,           # Maximum additional connections when pool is full
         'pool_timeout': 30,           # Seconds to wait before giving up on getting a connection
-        'pool_recycle': 3600,         # Recycle connections after 1 hour (prevent stale connections)
+        'pool_recycle': 300,          # Recycle connections after 5 minutes (prevent stale connections)
 
         # Connection health checks
         'pool_pre_ping': True,        # Test connection before using it
@@ -199,7 +199,11 @@ class Config:
         # Additional PostgreSQL optimizations
         'connect_args': {
             'connect_timeout': 10,    # Connection timeout in seconds
-            'options': '-c statement_timeout=30000'  # Query timeout: 30 seconds
+            'options': '-c statement_timeout=0',  # No query timeout (needed for long book processing)
+            'keepalives': 1,          # Enable TCP keepalive
+            'keepalives_idle': 30,    # Seconds before sending keepalive
+            'keepalives_interval': 10,  # Seconds between keepalive probes
+            'keepalives_count': 5     # Number of failed probes before giving up
         }
     }
 

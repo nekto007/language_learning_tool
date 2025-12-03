@@ -601,6 +601,7 @@ def add_book():
                         book_id_to_process = new_book.id
 
                         def start_chapter_processing():
+                            print(f"[BOOK PROCESSING] Начало обработки глав книги {book_id_to_process}", flush=True)
                             logger.info(f"[ADMIN] Starting chapter processing thread for book {book_id_to_process}")
                             try:
                                 with app.app_context():
@@ -611,8 +612,10 @@ def add_book():
                                     diagnosis = diagnose_import_issue()
                                     logger.info(f"[ADMIN] Diagnosis results: {diagnosis}")
                                     result = safe_process_book_chapters_words(book_id_to_process)
+                                    print(f"[BOOK PROCESSING] Результат обработки книги {book_id_to_process}: {result.get('status')}", flush=True)
                                     logger.info(f"[ADMIN] Processing result: {result}")
                             except Exception as e:
+                                print(f"[BOOK PROCESSING] Ошибка обработки книги {book_id_to_process}: {str(e)}", flush=True)
                                 logger.error(f"[ADMIN] Error in chapter processing thread: {str(e)}")
 
                         processing_thread = threading.Thread(

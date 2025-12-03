@@ -250,35 +250,25 @@ def _process_book_words_internal(book_id: int, html_content: str) -> Dict:
             import gc
             gc.collect()
 
+        print(f"[BOOK PROCESSING] Книга {book_id}: слова обработаны, всего {total_words}, уникальных {unique_words}", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: слова обработаны, всего {total_words}, уникальных {unique_words}")
+
         # Обновляем статистику книги в конце
+        print(f"[BOOK PROCESSING] Книга {book_id}: обновляем статистику...", flush=True)
         repo = DatabaseRepository()
         repo.update_book_stats(book_id, total_words, unique_words)
-
-        # Refresh DB session before populate_block_vocab
-        # (connection may have been closed during long processing)
-        try:
-            db.session.rollback()
-            db.session.close()
-        except Exception:
-            pass
-
-        # Force new connection by disposing engine pool and removing session
-        db.session.remove()
-        db.engine.dispose()
-
-        # Заполняем block_vocab если есть блоки
-        block_vocab_result = populate_block_vocab(book_id)
+        print(f"[BOOK PROCESSING] Книга {book_id}: статистика обновлена", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: статистика обновлена")
 
         elapsed_time = time.time() - start_time
-        logger.info(
-            f"Завершена обработка {total_added} слов для книги ID {book_id} за {elapsed_time:.2f} секунд")
+        print(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов")
 
         return {
             "status": "success",
             "total_words": total_words,
             "unique_words": unique_words,
             "words_added": total_added,
-            "block_vocab_populated": block_vocab_result.get("blocks_updated", 0),
             "elapsed_time": elapsed_time
         }
 
@@ -547,78 +537,6 @@ def cleanup_old_statuses(max_age=MAX_STATUS_AGE):
 
 
 
-def populate_block_vocab(book_id: int) -> Dict:
-    """
-    Заполняет таблицу block_vocab для блоков книги на основе частоты слов.
-    
-    Args:
-        book_id (int): ID книги
-        
-    Returns:
-        Dict: Результат заполнения block_vocab
-    """
-    try:
-        # Получаем все блоки для данной книги
-        blocks = Block.query.filter_by(book_id=book_id).all()
-        
-        if not blocks:
-            return {"blocks_updated": 0, "message": "No blocks found for this book"}
-        
-        blocks_updated = 0
-        
-        for block in blocks:
-            # Очищаем старые записи block_vocab для этого блока
-            BlockVocab.query.filter_by(block_id=block.id).delete()
-            
-            # Получаем главы этого блока
-            from app.books.models import BlockChapter, Chapter
-            chapter_ids = db.session.query(BlockChapter.chapter_id).filter_by(block_id=block.id).subquery()
-            
-            # Получаем слова из глав этого блока
-            # Используем word_book_link как источник слов для блока
-            top_words = db.session.execute(text("""
-                SELECT cw.id, cw.english_word, wbl.frequency
-                FROM word_book_link wbl
-                JOIN collection_words cw ON wbl.word_id = cw.id
-                WHERE wbl.book_id = :book_id
-                AND LENGTH(cw.english_word) > 3  -- Исключаем короткие слова
-                AND cw.english_word NOT IN (
-                    'the', 'and', 'that', 'have', 'for', 'not', 'with', 'you', 'this', 'but', 
-                    'his', 'from', 'they', 'she', 'her', 'been', 'than', 'has', 'was', 'were'
-                )  -- Исключаем стоп-слова
-                ORDER BY wbl.frequency DESC
-                LIMIT 20  -- 20 слов на блок
-            """), {"book_id": book_id}).fetchall()
-            
-            # Добавляем слова в block_vocab
-            words_added = 0
-            for word_id, lemma, freq in top_words:
-                block_vocab = BlockVocab(
-                    block_id=block.id,
-                    word_id=word_id,
-                    freq=freq
-                )
-                db.session.add(block_vocab)
-                words_added += 1
-            
-            logger.info(f"Добавлено {words_added} слов в block_vocab для блока {block.block_num}")
-            blocks_updated += 1
-        
-        db.session.commit()
-        
-        logger.info(f"Обновлено {blocks_updated} блоков с vocabulary для книги ID {book_id}")
-        
-        return {
-            "blocks_updated": blocks_updated,
-            "total_blocks": len(blocks)
-        }
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Ошибка при заполнении block_vocab для книги {book_id}: {str(e)}")
-        return {"blocks_updated": 0, "error": str(e)}
-
-
 def process_book_chapters_words(book_id: int) -> Dict:
     """
     Обрабатывает слова из глав книги, создает связи слово-книга и обновляет статистику.
@@ -755,23 +673,25 @@ def _process_book_chapters_words_internal(book_id: int) -> Dict:
             import gc
             gc.collect()
 
+        print(f"[BOOK PROCESSING] Книга {book_id}: слова обработаны, всего {total_words}, уникальных {unique_words}", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: слова обработаны, всего {total_words}, уникальных {unique_words}")
+
         # Обновляем статистику книги в конце
+        print(f"[BOOK PROCESSING] Книга {book_id}: обновляем статистику...", flush=True)
         repo = DatabaseRepository()
         repo.update_book_stats(book_id, total_words, unique_words)
-
-        # Заполняем block_vocab если есть блоки
-        block_vocab_result = populate_block_vocab(book_id)
+        print(f"[BOOK PROCESSING] Книга {book_id}: статистика обновлена", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: статистика обновлена")
 
         elapsed_time = time.time() - start_time
-        logger.info(
-            f"Завершена обработка {total_added} слов из глав для книги ID {book_id} за {elapsed_time:.2f} секунд")
+        print(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов")
 
         return {
             "status": "success",
             "total_words": total_words,
             "unique_words": unique_words,
             "words_added": total_added,
-            "block_vocab_populated": block_vocab_result.get("blocks_updated", 0),
             "elapsed_time": elapsed_time
         }
 
