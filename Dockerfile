@@ -41,4 +41,4 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 #RUN chmod -R 755 /app
 
 # Run application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "--graceful-timeout", "30", "run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "600", "--graceful-timeout", "60", "run:app"]

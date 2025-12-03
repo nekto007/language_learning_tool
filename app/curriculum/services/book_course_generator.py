@@ -49,43 +49,70 @@ class BookCourseGenerator:
         """Create a complete course from a book"""
 
         try:
+            print(f"[BOOK COURSE] Начало создания курса для книги: {self.book.title}", flush=True)
             logger.info(f"Starting course creation for book: {self.book.title}")
 
             # Store target level for vocabulary extraction
             self.target_level = level or 'B1'
 
             # Step 1: Create the course
+            print(f"[BOOK COURSE] Шаг 1: Создание записи курса...", flush=True)
             course = self._create_book_course(course_title, course_description, level)
             if not course:
+                print(f"[BOOK COURSE] Ошибка: не удалось создать курс", flush=True)
                 return None
+            print(f"[BOOK COURSE] Шаг 1: Курс создан (ID: {course.id})", flush=True)
 
             # Step 2: Import or generate block schema
+            print(f"[BOOK COURSE] Шаг 2: Создание блоков...", flush=True)
             if not self._setup_blocks(schema_data):
+                print(f"[BOOK COURSE] Ошибка: не удалось создать блоки", flush=True)
                 db.session.rollback()
                 return None
+            blocks_count = Block.query.filter_by(book_id=self.book_id).count()
+            print(f"[BOOK COURSE] Шаг 2: Блоки созданы ({blocks_count} блоков)", flush=True)
 
             # Step 3: Extract vocabulary for blocks
+            print(f"[BOOK COURSE] Шаг 3: Извлечение словаря для блоков...", flush=True)
             if not self._extract_vocabulary():
+                print(f"[BOOK COURSE] Предупреждение: извлечение словаря не удалось", flush=True)
                 logger.warning("Vocabulary extraction failed, but continuing...")
+            else:
+                vocab_count = BlockVocab.query.join(Block).filter(Block.book_id == self.book_id).count()
+                print(f"[BOOK COURSE] Шаг 3: Словарь извлечён ({vocab_count} слов)", flush=True)
 
             # Step 4: Generate tasks for blocks
+            print(f"[BOOK COURSE] Шаг 4: Генерация заданий...", flush=True)
             if generate_tasks and not self._generate_tasks():
+                print(f"[BOOK COURSE] Предупреждение: генерация заданий не удалась", flush=True)
                 logger.warning("Task generation failed, but continuing...")
+            else:
+                print(f"[BOOK COURSE] Шаг 4: Задания сгенерированы", flush=True)
 
             # Step 5: Create course modules from blocks
+            print(f"[BOOK COURSE] Шаг 5: Создание модулей курса...", flush=True)
             if not self._create_course_modules(course.id):
+                print(f"[BOOK COURSE] Ошибка: не удалось создать модули", flush=True)
                 db.session.rollback()
                 return None
+            modules_count = BookCourseModule.query.filter_by(course_id=course.id).count()
+            print(f"[BOOK COURSE] Шаг 5: Модули созданы ({modules_count} модулей)", flush=True)
 
             # Step 6: Generate daily slices for all modules
+            print(f"[BOOK COURSE] Шаг 6: Генерация уроков...", flush=True)
             if not self._generate_daily_slices(course.id):
+                print(f"[BOOK COURSE] Предупреждение: генерация уроков не удалась", flush=True)
                 logger.warning("Daily slice generation failed, but continuing...")
+            else:
+                print(f"[BOOK COURSE] Шаг 6: Уроки сгенерированы", flush=True)
 
             db.session.commit()
+            print(f"[BOOK COURSE] Курс успешно создан: {course.title} (ID: {course.id})", flush=True)
             logger.info(f"Successfully created course: {course.title}")
             return course
 
         except Exception as e:
+            print(f"[BOOK COURSE] Ошибка создания курса: {str(e)}", flush=True)
             logger.error(f"Error creating course from book {self.book_id}: {str(e)}")
             db.session.rollback()
             return None
