@@ -94,6 +94,12 @@ def expand_contractions(text: str) -> str:
         "'til": "until",
         "'tis": "it is",
         "'twas": "it was",
+        "'ere": "here",
+        "'dere": "there",
+        "'ouse": "house",
+        "'arry": "harry",
+        # Dropped g in -ing words (savin' -> saving)
+        "in'": "ing",
     }
     text_lower = text
     for contraction, expansion in contractions.items():
