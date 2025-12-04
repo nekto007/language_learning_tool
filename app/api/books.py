@@ -317,6 +317,13 @@ def get_word_translation(word):
     word = word.lower().strip()
     original_word = word
 
+    # Expand dialect contractions (e.g., "orf" -> "off", "'arry" -> "harry")
+    from app.nlp.processor import expand_contractions
+    expanded = expand_contractions(word)
+    if expanded != word:
+        logger.debug(f"Expanded contraction: {word} -> {expanded}")
+        word = expanded.strip()
+
     # Dictionary of irregular verbs
     irregular_verbs = {
         'was': 'be', 'were': 'be', 'been': 'be',
