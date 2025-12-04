@@ -100,6 +100,11 @@ def expand_contractions(text: str) -> str:
         "'arry": "harry",
         # Dropped g in -ing words (savin' -> saving)
         "in'": "ing",
+        # Cockney/dialect pronunciations
+        "orf": "off",
+        "nuffink": "nothing",
+        "summat": "something",
+        "wiv": "with",
     }
     text_lower = text
     for contraction, expansion in contractions.items():
