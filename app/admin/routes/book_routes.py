@@ -602,21 +602,18 @@ def add_book():
 
                         def start_chapter_processing():
                             print(f"[BOOK PROCESSING] Начало обработки глав книги {book_id_to_process}", flush=True)
-                            logger.info(f"[ADMIN] Starting chapter processing thread for book {book_id_to_process}")
+                            success = False
                             try:
                                 with app.app_context():
-                                    from app.books.safe_processors import (
-                                        safe_process_book_chapters_words,
-                                        diagnose_import_issue
-                                    )
-                                    diagnosis = diagnose_import_issue()
-                                    logger.info(f"[ADMIN] Diagnosis results: {diagnosis}")
+                                    from app.books.safe_processors import safe_process_book_chapters_words
                                     result = safe_process_book_chapters_words(book_id_to_process)
-                                    print(f"[BOOK PROCESSING] Результат обработки книги {book_id_to_process}: {result.get('status')}", flush=True)
-                                    logger.info(f"[ADMIN] Processing result: {result}")
+                                    status = result.get('status', 'unknown')
+                                    success = (status == 'success')
+                                    print(f"[BOOK PROCESSING] Результат обработки книги {book_id_to_process}: {status}", flush=True)
                             except Exception as e:
-                                print(f"[BOOK PROCESSING] Ошибка обработки книги {book_id_to_process}: {str(e)}", flush=True)
-                                logger.error(f"[ADMIN] Error in chapter processing thread: {str(e)}")
+                                # Игнорируем ошибки соединения при закрытии контекста если обработка успешна
+                                if not success:
+                                    print(f"[BOOK PROCESSING] Ошибка обработки книги {book_id_to_process}: {str(e)}", flush=True)
 
                         processing_thread = threading.Thread(
                             target=start_chapter_processing,

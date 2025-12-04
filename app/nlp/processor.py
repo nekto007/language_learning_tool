@@ -127,6 +127,10 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     # so words like "these—ouch—shoes" are properly tokenized
     text = re.sub(r'[—–−‐‑‒―]', ' ', text)
 
+    # Replace hyphens with spaces to split compound words
+    # like "triple-decker" into "triple" and "decker"
+    text = text.replace('-', ' ')
+
     words = nltk.word_tokenize(text)
     # Filter only alphabetic characters and convert to lowercase
     words = [word.lower() for word in words if word.isalpha()]
