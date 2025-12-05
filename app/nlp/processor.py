@@ -100,11 +100,35 @@ def expand_contractions(text: str) -> str:
         "'arry": "harry",
         # Dropped g in -ing words (savin' -> saving)
         "in'": "ing",
-        # Cockney/dialect pronunciations
+        # Cockney/dialect pronunciations (Hagrid, Mundungus)
         "orf": "off",
         "nuffink": "nothing",
         "summat": "something",
         "wiv": "with",
+        "fer": "for",
+        "ter": "to",
+        "yeh": "you",
+        "yer": "your",
+        "bin": "been",
+        "wuz": "was",
+        "meself": "myself",
+        "yerself": "yourself",
+        # More dialect words
+        "ave": "have",
+        "bes": "best",
+        "kep": "kept",
+        "gon": "going",
+        "myst": "must",
+        "pur": "pure",
+        "roun": "round",
+        "mon": "man",
+        "wha": "what",
+        "tha": "that",
+        "wid": "with",
+        "de": "the",
+        "la": "the",
+        "en": "and",
+        "fraid": "afraid",
     }
     text_lower = text
     for contraction, expansion in contractions.items():
@@ -214,10 +238,89 @@ def process_text(text: str, english_vocab: Set[str], stop_words: Set[str],
     }
     english_words = [lemma_fixes.get(word, word) for word in english_words]
 
+    # Harry Potter specific names and made-up words to exclude
+    # These are proper nouns and fictional terms, not real English vocabulary
+    # Only includes words that are NOT real English words
+    hp_exclusions = {
+        # Character names (surnames and unusual first names only)
+        "hermione", "granger", "weasley", "dumbledore", "voldemort", "snape",
+        "hagrid", "lupin", "draco", "malfoy", "neville", "longbottom", "lovegood",
+        "ginny", "tonks", "mcgonagall", "flitwick", "trelawney", "slughorn",
+        "umbridge", "scrimgeour", "bellatrix", "lestrange", "lucius", "narcissa",
+        "pettigrew", "wormtail", "padfoot", "prongs", "moony", "cho", "chang",
+        "cedric", "diggory", "krum", "fleur", "delacour", "dobby", "kreacher",
+        "winky", "hedwig", "crookshanks", "scabbers", "pigwidgeon", "errol",
+        "fawkes", "nagini", "norbert", "norberta", "buckbeak", "aragog", "grawp",
+        "firenze", "peeves", "filch", "pomfrey", "hooch", "quirrell", "lockhart",
+        "riddle", "marvolo", "morfin", "merope", "gaunt", "gryffindor", "hufflepuff",
+        "ravenclaw", "slytherin", "ollivander", "gregorovitch", "grindelwald",
+        "flamel", "peverell", "dursley", "petunia", "mundungus", "aberforth",
+        "ariana", "shunpike", "macmillan", "fletchley", "finnigan", "patil",
+        "parkinson", "crabbe", "goyle", "zabini", "bulstrode", "spinnet",
+        "mclaggen", "romilda", "creevey", "jorkins", "hepzibah", "hokey",
+        "regulus", "arcturus", "walburga", "andromeda", "nymphadora", "fenrir",
+        "greyback", "scabior", "yaxley", "rowle", "dolohov", "rookwood", "selwyn",
+        "jugson", "mulciber", "rosier", "amycus", "alecto", "carrow", "rodolphus",
+        "rabastan", "ignatius", "benjy", "fenwick", "mckinnon", "meadowes",
+        "caradoc", "prewett", "emmeline", "podmore", "dedalus", "diggle",
+        "elphias", "griselda", "marchbanks", "mafalda", "hopkirk", "broderick",
+        "croaker", "peasegood", "inigo", "malkin", "fortescue", "florean",
+        "celestina", "warbeck", "wagtail", "tremlett", "araminta", "meliflua",
+        "phineas", "nigellus", "dippet", "derwent", "marjoribanks", "goshawk",
+        "arsenius", "jigger", "bathilda", "bagshot", "waffling", "slinkhard",
+        "vindictus", "viridian", "gilderoy",
+        # HP-specific place names
+        "hogwarts", "hogsmeade", "diagon", "knockturn", "azkaban", "nurmengard",
+        "durmstrang", "beauxbatons", "grimmauld", "gringotts", "ollivanders",
+        "eeylops", "honeydukes", "zonko", "scrivenshaft", "gladrags", "puddifoot",
+        # HP-specific magical terms (not real English words)
+        "muggle", "muggles", "mudblood", "squib", "animagus", "animagi",
+        "metamorphmagus", "legilimency", "legilimens", "occlumency", "occlumens",
+        "horcrux", "horcruxes", "patronus", "patronuses", "dementor", "dementors",
+        "inferius", "inferi", "thestral", "thestrals", "hippogriff", "hippogriffs",
+        "acromantula", "acromantulas", "grindylow", "grindylows", "hinkypunk",
+        "quintaped", "quintapeds", "billywig", "billywigs", "bowtruckle", "bowtruckles",
+        "bundimun", "chizpurfle", "clabbert", "demiguise", "diricawl", "dugbog",
+        "erkling", "erumpent", "flobberworm", "fwooper", "glumbumble", "graphorn",
+        "hidebehind", "horklump", "jobberknoll", "knarl", "kneazle", "kneazles",
+        "lobalug", "malaclaw", "mooncalf", "murtlap", "niffler", "nifflers",
+        "nogtail", "occamy", "plimpy", "pogrebin", "porlock", "puffskein",
+        "runespoor", "shrake", "snidget", "streeler", "tebo", "pukwudgie",
+        "firebolt", "nimbus", "cleansweep", "bluebottle", "oakshaft", "moontrimmer",
+        "tinderblast", "twigger", "swiftstick", "quaffle", "bludger", "snitch",
+        "remembrall", "sneakoscope", "deluminator", "pensieve", "portkey",
+        "timeturner", "erised", "triwizard", "apparate", "disapparate", "splinch",
+        # HP spells (Latin-ish made-up words)
+        "accio", "aguamenti", "alohomora", "anapneo", "aparecium", "avada",
+        "kedavra", "bombarda", "brackium", "emendo", "colloportus", "confringo",
+        "confundo", "crucio", "defodio", "deletrius", "densaugeo", "deprimo",
+        "diffindo", "diminuendo", "dissendium", "engorgio", "episkey", "evanesco",
+        "expelliarmus", "expulso", "ferula", "fidelius", "fiendfyre", "flagrate",
+        "flipendo", "furnunculus", "geminio", "glisseo", "homenum", "revelio",
+        "homonculous", "immobulus", "impedimenta", "imperio", "impervius",
+        "incarcerous", "langlock", "levicorpus", "liberacorpus", "locomotor",
+        "lumos", "meteolojinx", "mobiliarbus", "mobilicorpus", "morsmordre",
+        "muffliato", "obliviate", "oppugno", "orchideous", "peskipiksi",
+        "pesternomi", "petrificus", "totalus", "piertotum", "portus", "protego",
+        "horribilis", "totalum", "reducio", "reducto", "relashio", "rennervate",
+        "reparo", "repello", "muggletum", "rictusempra", "riddikulus", "salvio",
+        "hexia", "scourgify", "sectumsempra", "serpensortia", "silencio", "sonorus",
+        "spongify", "stupefy", "tarantallegra", "tergeo", "waddiwasi", "wingardium",
+        "leviosa", "incantatem",
+        # HP potions and made-up terms
+        "amortentia", "polyjuice", "veritaserum", "wolfsbane", "pepperup",
+        "bubotuber", "quidditch", "quibbler", "wizengamot", "auror", "aurors",
+        "obliviator", "spew", "tentacula", "gillyweed", "mimbulus", "mimbletonia",
+        "flitterbloom", "screechsnap", "snargaluff", "puffapod", "shrivelfig",
+        "fluxweed", "knotgrass", "acanthia", "mungo",
+    }
+
     # Remove stop words
     # For short words (< 3 chars), keep only if they exist in Brown corpus
     def should_keep(word):
         if word in additional_stop_words:
+            return False
+        if word in hp_exclusions:
             return False
         if len(word) < 3:
             # Keep short words only if they are in Brown corpus (real words like "on", "in", "go", "do")
