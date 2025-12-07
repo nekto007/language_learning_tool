@@ -66,7 +66,7 @@
     </div>
 
     <!-- Toast notification container -->
-    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+    <div id="toast-container" class="toast-container-fixed"></div>
 
     <!-- Add Word -->
     <div class="card shadow-sm mb-4" style="position: relative; z-index: 50;">
@@ -591,12 +591,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function showMessage(message, type) {
         const toastContainer = document.getElementById('toast-container');
 
-        // Map alert types to toast styles
+        // Get CSS variables for colors
+        const styles = getComputedStyle(document.documentElement);
         const typeConfig = {
-            'success': { icon: '✓', color: '#28a745', bg: '#d4edda' },
-            'danger': { icon: '✗', color: '#dc3545', bg: '#f8d7da' },
-            'info': { icon: 'ℹ', color: '#17a2b8', bg: '#d1ecf1' },
-            'warning': { icon: '⚠', color: '#ffc107', bg: '#fff3cd' }
+            'success': { icon: '✓', color: styles.getPropertyValue('--success-500').trim() || '#22c55e', bg: styles.getPropertyValue('--success-100').trim() || '#dcfce7' },
+            'danger': { icon: '✗', color: styles.getPropertyValue('--danger-500').trim() || '#ef4444', bg: styles.getPropertyValue('--danger-100').trim() || '#fee2e2' },
+            'info': { icon: 'ℹ', color: styles.getPropertyValue('--info-500').trim() || '#3b82f6', bg: styles.getPropertyValue('--info-100').trim() || '#dbeafe' },
+            'warning': { icon: '⚠', color: styles.getPropertyValue('--warning-500').trim() || '#f59e0b', bg: styles.getPropertyValue('--warning-100').trim() || '#fef3c7' }
         };
 
         const config = typeConfig[type] || typeConfig['info'];

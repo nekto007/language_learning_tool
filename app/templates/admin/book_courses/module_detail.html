@@ -615,20 +615,20 @@
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: var(--z-tooltip, 1070);
     min-width: 300px;
     padding: 1rem 1.25rem;
     background: white;
     border-radius: 10px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-    border-left: 4px solid var(--accent-color, #3b82f6);
+    box-shadow: var(--shadow-xl);
+    border-left: 4px solid var(--info-500);
     animation: slideIn 0.3s ease;
 }
 
-.alert-toast.info { border-left-color: #3b82f6; }
-.alert-toast.success { border-left-color: #16a34a; }
-.alert-toast.warning { border-left-color: #f59e0b; }
-.alert-toast.error { border-left-color: #dc2626; }
+.alert-toast.info { border-left-color: var(--info-500); }
+.alert-toast.success { border-left-color: var(--success-600); }
+.alert-toast.warning { border-left-color: var(--warning-500); }
+.alert-toast.error { border-left-color: var(--danger-600); }
 
 @keyframes slideIn {
     from {
