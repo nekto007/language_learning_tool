@@ -5,8 +5,8 @@
 {% block content %}
 <div class="container py-4">
     <!-- Header -->
-    <div class="card shadow-lg mb-4" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-white p-4">
+    <div class="card shadow-lg mb-4 hero-gradient-card">
+        <div class="card-body p-4">
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <h1 class="mb-2"><i class="fas fa-trophy me-2"></i>Достижения</h1>
@@ -84,18 +84,10 @@
                 {% set earned_at = item.earned_at %}
 
                 <div class="col-md-6 col-lg-4">
-                    <div class="achievement-card {% if earned %}earned{% else %}locked{% endif %}"
-                         style="border: 2px solid {% if earned %}#28a745{% else %}#e0e0e0{% endif %};
-                                border-radius: 12px;
-                                padding: 16px;
-                                transition: all 0.3s;
-                                position: relative;
-                                background: {% if earned %}linear-gradient(135deg, #f0fff4 0%, #ffffff 100%){% else %}#f8f9fa{% endif %};
-                                {% if not earned %}opacity: 0.6; filter: grayscale(50%);{% endif %}">
-
+                    <div class="achievement-card {% if earned %}earned{% else %}locked{% endif %}">
                         <!-- Earned badge -->
                         {% if earned %}
-                        <div style="position: absolute; top: 8px; right: 8px; background: #28a745; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                        <div class="achievement-earned-badge">
                             <i class="fas fa-check me-1"></i>Получено
                         </div>
                         {% endif %}
@@ -109,7 +101,7 @@
 
                         <!-- XP reward -->
                         <div class="d-flex align-items-center justify-content-between mt-3">
-                            <span class="badge" style="background: {% if earned %}#667eea{% else %}#6c757d{% endif %}; font-size: 13px;">
+                            <span class="achievement-xp-badge {% if earned %}earned{% else %}locked{% endif %}">
                                 +{{ ach.xp_reward }} XP
                             </span>
 
@@ -135,22 +127,5 @@
     {% endfor %}
 </div>
 
-<style>
-.achievement-card {
-    cursor: pointer;
-}
-
-.achievement-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.1) !important;
-}
-
-.achievement-card.earned:hover {
-    border-color: #20c997 !important;
-}
-
-.achievement-card.locked:hover {
-    border-color: #6c757d !important;
-}
-</style>
+<!-- Styles moved to design-system.css -->
 {% endblock %}

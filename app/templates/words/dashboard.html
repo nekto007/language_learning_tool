@@ -70,8 +70,8 @@
     </div>
 
     <!-- Achievements & XP Progress -->
-    <div class="card shadow-lg mb-4" style="border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
-        <div class="card-body text-white p-4 position-relative">
+    <div class="card shadow-lg mb-4 hero-gradient-card" style="overflow: hidden;">
+        <div class="card-body p-4 position-relative">
             <!-- Decorative background pattern -->
             <div style="position: absolute; top: 0; right: 0; opacity: 0.1; font-size: 200px; line-height: 1; pointer-events: none;">⚡</div>
 
@@ -85,7 +85,7 @@
 
                     <div class="d-flex align-items-center mb-3 mt-3">
                         <!-- Level badge -->
-                        <div class="me-3 text-center" style="background: rgba(255,255,255,0.2); padding: 12px 16px; border-radius: 12px; backdrop-filter: blur(10px);">
+                        <div class="me-3 text-center dashboard-level-badge">
                             <div style="font-size: 42px; font-weight: 700; line-height: 1;">{{ user_level or 1 }}</div>
                             <div style="font-size: 11px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">уровень</div>
                         </div>
@@ -113,8 +113,8 @@
                     </div>
 
                     <div class="mt-3">
-                        <a href="{{ url_for('study.index') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                            <i class="fas fa-graduation-cap me-1" style="color: #667eea;"></i>Изучение
+                        <a href="{{ url_for('study.index') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: var(--shadow-md);">
+                            <i class="fas fa-graduation-cap me-1" style="color: var(--brand-color);"></i>Изучение
                         </a>
                     </div>
                 </div>
@@ -129,22 +129,7 @@
                     {% if user_achievements %}
                     <div class="d-flex flex-wrap gap-2 mb-3 mt-3">
                         {% for ach in user_achievements %}
-                        <div class="badge"
-                             style="background: rgba(255,255,255,0.25);
-                                    padding: 10px 14px;
-                                    border-radius: 10px;
-                                    font-size: 14px;
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 8px;
-                                    backdrop-filter: blur(10px);
-                                    border: 1px solid rgba(255,255,255,0.3);
-                                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                                    transition: transform 0.2s, box-shadow 0.2s;
-                                    cursor: pointer;"
-                             onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.15)';"
-                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';"
-                             title="{{ ach.description }}">
+                        <div class="badge dashboard-achievement-badge" title="{{ ach.description }}">
                             <span style="font-size: 20px;">{{ ach.icon }}</span>
                             <span style="font-weight: 600;">{{ ach.name }}</span>
                         </div>
@@ -172,8 +157,8 @@
                         </div>
                         <br>
                         {% endif %}
-                        <a href="{{ url_for('study.achievements') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-                            <i class="fas fa-trophy me-1" style="color: #667eea;"></i>Все достижения
+                        <a href="{{ url_for('study.achievements') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: var(--shadow-md);">
+                            <i class="fas fa-trophy me-1" style="color: var(--brand-color);"></i>Все достижения
                         </a>
                     </div>
                 </div>

@@ -181,7 +181,7 @@ async function deleteDeck(button, deckId) {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: var(--z-tooltip, 1070); min-width: 250px;';
     toast.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>

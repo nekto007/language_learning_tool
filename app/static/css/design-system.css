@@ -6067,3 +6067,818 @@ body.dark-theme #translationPopup {
         page-break-inside: avoid;
     }
 }
+
+/* ========================================
+   Legacy Gradients & Brand Colors
+   (Migrated from old CSS files)
+   ======================================== */
+
+:root {
+    /* Hero/Brand Gradients - used across multiple templates */
+    --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-pink: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-gold: linear-gradient(90deg, #ffd89b 0%, #19547b 50%, #ffd89b 100%);
+
+    /* Brand color for navbar */
+    --brand-color: #667eea;
+}
+
+/* ========================================
+   Navbar Brand Styles
+   ======================================== */
+
+.navbar-brand-custom {
+    font-size: 20px;
+    color: var(--brand-color);
+}
+
+.navbar-brand-custom:hover {
+    color: var(--brand-color);
+}
+
+/* ========================================
+   Hero Gradient Cards
+   ======================================== */
+
+.hero-gradient-card {
+    border: none;
+    background: var(--gradient-hero);
+    color: white;
+}
+
+.hero-gradient-card .card-title,
+.hero-gradient-card .card-text,
+.hero-gradient-card h1,
+.hero-gradient-card h2,
+.hero-gradient-card h3,
+.hero-gradient-card h4,
+.hero-gradient-card h5,
+.hero-gradient-card h6,
+.hero-gradient-card p {
+    color: white;
+}
+
+.hero-gradient-pink {
+    border: none;
+    background: var(--gradient-pink);
+    color: white;
+}
+
+/* ========================================
+   XP Badge
+   ======================================== */
+
+.xp-badge-gradient {
+    background: var(--gradient-hero);
+    padding: 6px 12px;
+    border-radius: 20px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.xp-badge-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ========================================
+   Achievement Cards
+   ======================================== */
+
+.achievement-card {
+    border: 2px solid var(--border-light);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s;
+    position: relative;
+    background: var(--gray-50);
+}
+
+.achievement-card.earned {
+    border-color: var(--success-500);
+    background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+}
+
+.achievement-card.locked {
+    opacity: 0.6;
+    filter: grayscale(50%);
+}
+
+.achievement-earned-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--success-500);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.achievement-xp-badge {
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    color: white;
+}
+
+.achievement-xp-badge.earned {
+    background: var(--primary-500);
+}
+
+.achievement-xp-badge.locked {
+    background: var(--gray-500);
+}
+
+/* ========================================
+   Leaderboard Styles
+   ======================================== */
+
+.leaderboard-user-highlight {
+    border-left: 4px solid var(--primary-500);
+    background-color: rgba(99, 102, 241, 0.05);
+}
+
+.level-badge-gradient {
+    background: var(--gradient-hero);
+    font-size: 14px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: white;
+}
+
+/* Leaderboard tabs */
+.leaderboard-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1rem;
+    transition: all var(--transition-fast);
+}
+
+.leaderboard-tabs .nav-link:hover {
+    color: var(--primary-500);
+    border-bottom-color: var(--primary-200);
+}
+
+.leaderboard-tabs .nav-link.active {
+    color: var(--primary-500);
+    border-bottom-color: var(--primary-500);
+    background: transparent;
+}
+
+/* ========================================
+   Toast Notifications
+   ======================================== */
+
+.toast-container-fixed {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: var(--z-tooltip);
+}
+
+.toast-success {
+    background: var(--success-100);
+    border-left: 4px solid var(--success-500);
+}
+
+.toast-danger {
+    background: var(--danger-100);
+    border-left: 4px solid var(--danger-500);
+}
+
+.toast-warning {
+    background: var(--warning-100);
+    border-left: 4px solid var(--warning-500);
+}
+
+.toast-info {
+    background: var(--info-100);
+    border-left: 4px solid var(--info-500);
+}
+
+/* ========================================
+   Dashboard Components
+   ======================================== */
+
+.dashboard-level-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 12px 16px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.dashboard-achievement-badge {
+    background: rgba(255,255,255,0.25);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.dashboard-achievement-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* ========================================
+   Reading Interface (Books)
+   (Migrated from style.css)
+   ======================================== */
+
+.reading-container {
+    max-width: 1000px;
+    margin: 0 auto 70px;
+}
+
+#book-content {
+    font-family: 'Georgia', serif;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px;
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+    text-align: left;
+    white-space: normal;
+    word-spacing: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+#book-content h1,
+#book-content h2,
+#book-content h3,
+#book-content h4,
+#book-content h5,
+#book-content h6 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    white-space: normal;
+    word-spacing: normal;
+}
+
+#book-content .book-paragraph {
+    text-align: justify;
+    text-indent: 1.5em;
+    margin-bottom: 1rem;
+    white-space: normal;
+    word-spacing: normal;
+}
+
+#book-content p {
+    text-align: justify;
+    text-indent: 2em;
+    margin-bottom: 1rem;
+    line-height: 1.6;
+    white-space: normal;
+    word-spacing: normal;
+    max-width: 100%;
+}
+
+#book-content .word {
+    cursor: pointer;
+    position: relative;
+    display: inline;
+    white-space: normal;
+    word-spacing: normal;
+    word-break: normal;
+    margin: 0;
+    padding: 0;
+}
+
+#book-content .word:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-radius: 3px;
+}
+
+#book-content h1 { font-size: 1.8rem; }
+#book-content h2 { font-size: 1.6rem; }
+#book-content h3 { font-size: 1.4rem; }
+
+#book-content img {
+    max-width: 100%;
+    height: auto;
+    margin: 1rem auto;
+    display: block;
+    border-radius: var(--radius-sm);
+}
+
+/* Dark mode for books */
+#book-content.dark-mode {
+    background-color: #2c2c2c;
+    color: #f0f0f0;
+}
+
+#book-content.dark-mode h1,
+#book-content.dark-mode h2,
+#book-content.dark-mode h3,
+#book-content.dark-mode h4,
+#book-content.dark-mode h5,
+#book-content.dark-mode h6 {
+    color: #eceff4;
+}
+
+/* Interactive word styling */
+.word {
+    cursor: pointer;
+    position: relative;
+    display: inline;
+    white-space: normal;
+    word-spacing: normal;
+}
+
+.word:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-radius: 3px;
+}
+
+/* Word tooltip */
+.word-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--gray-700);
+    color: white;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    z-index: var(--z-tooltip);
+    display: none;
+    white-space: nowrap;
+    font-size: 14px;
+    box-shadow: var(--shadow-lg);
+    min-width: 150px;
+    text-align: center;
+}
+
+.word-tooltip:after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--gray-700) transparent transparent transparent;
+}
+
+/* Word status colors */
+.status-0 { background-color: var(--gray-400); }  /* New */
+.status-1 { background-color: var(--success-500); }  /* Known */
+.status-2 { background-color: var(--primary-500); }  /* Queued */
+.status-3 { background-color: var(--info-500); }     /* Active */
+.status-4 { background-color: var(--warning-500); }  /* Mastered */
+
+/* Word status text colors */
+.status-new { color: var(--gray-500); }
+.status-known { color: var(--success-500); }
+.status-queued { color: var(--primary-500); }
+.status-active { color: var(--info-500); }
+.status-mastered { color: var(--warning-500); }
+
+/* Reading controls */
+#reading-controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: var(--z-fixed);
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.reading-progress-bar {
+    height: 5px;
+    background-color: var(--gray-200);
+    margin-bottom: 10px;
+    width: 220px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.reading-progress-value {
+    height: 100%;
+    background-color: var(--primary-500);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.reading-toolbar {
+    padding: 10px;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.font-size-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.font-size-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background-color: var(--bg-primary);
+    color: var(--primary-500);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-fast);
+}
+
+.font-size-btn:hover {
+    background-color: var(--primary-500);
+    color: white;
+}
+
+/* ========================================
+   Book Cover Styles
+   ======================================== */
+
+.book-cover-thumbnail {
+    width: 60px;
+    height: 85px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+.book-cover-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-cover {
+    width: 60px;
+    height: 85px;
+    background-color: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: 1.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.book-cover {
+    max-width: 100%;
+    max-height: 350px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease;
+}
+
+.book-cover:hover {
+    transform: scale(1.02);
+}
+
+.no-cover-large {
+    width: 200px;
+    height: 300px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+}
+
+/* ========================================
+   Lesson Cards (unified-styles)
+   ======================================== */
+
+.lesson-card {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.lesson-card-header {
+    background-color: var(--info-50);
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.lesson-card-body {
+    padding: 1.5rem;
+}
+
+.lesson-card-footer {
+    background-color: var(--bg-secondary);
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border-light);
+}
+
+/* Instruction Block */
+.instruction-block {
+    background-color: var(--warning-100);
+    border-left: 4px solid var(--warning-500);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.instruction-block h5 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.instruction-block p {
+    margin-bottom: 0;
+}
+
+/* Lesson Navigation */
+.lesson-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+}
+
+.lesson-navigation .btn-prev {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+.lesson-navigation .btn-next {
+    background-color: var(--primary-500);
+    border-color: var(--primary-500);
+    color: white;
+}
+
+.lesson-navigation .btn-complete {
+    background-color: var(--success-500);
+    border-color: var(--success-500);
+    color: white;
+}
+
+/* Lesson Progress */
+.lesson-progress {
+    margin-bottom: 1.5rem;
+}
+
+.lesson-progress .progress {
+    height: 10px;
+    border-radius: var(--radius-sm);
+    background-color: var(--gray-200);
+    margin-bottom: 0.5rem;
+}
+
+.lesson-progress .progress-bar {
+    background-color: var(--primary-500);
+    border-radius: var(--radius-sm);
+    transition: width 0.6s ease;
+}
+
+.lesson-progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   Completion Celebration
+   ======================================== */
+
+.completion-celebration {
+    margin: 2.5rem 0;
+    text-align: center;
+    animation: slide-up 0.7s ease;
+}
+
+.celebration-card {
+    border: none;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.celebration-header {
+    background-color: var(--success-500);
+    color: white;
+    padding: 1.25rem;
+}
+
+.celebration-body {
+    padding: 2.5rem;
+    text-align: center;
+}
+
+.trophy-image {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 1.5rem;
+    animation: trophy-pulse 2s infinite alternate;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+}
+
+@keyframes slide-up {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes trophy-pulse {
+    from { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5)); }
+    to { transform: scale(1.08); filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.9)); }
+}
+
+/* Confetti Canvas */
+#confetti-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 100;
+    width: 100%;
+    height: 100%;
+    display: none;
+}
+
+/* ========================================
+   Anki Card Styles
+   ======================================== */
+
+.anki-container {
+    perspective: 1000px;
+    height: 350px;
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.anki-card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+}
+
+.anki-card.flipped {
+    transform: rotateY(180deg);
+}
+
+.anki-card-front,
+.anki-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    border-radius: var(--radius-md);
+}
+
+.anki-card-front {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    font-size: 2rem;
+    font-weight: 500;
+}
+
+.anki-card-back {
+    background-color: var(--info-50);
+    border: 1px solid var(--info-300);
+    transform: rotateY(180deg);
+    font-size: 2rem;
+}
+
+/* ========================================
+   Level Indicator Colors
+   ======================================== */
+
+.level-a1, .level-a2 {
+    background-color: var(--success-500);
+    color: white;
+}
+
+.level-b1, .level-b2 {
+    background-color: var(--info-500);
+    color: white;
+}
+
+.level-c1, .level-c2 {
+    background-color: var(--warning-500);
+    color: var(--gray-900);
+}
+
+/* ========================================
+   Responsive Adjustments for Reading
+   ======================================== */
+
+@media (max-width: 767.98px) {
+    #book-content {
+        padding: 20px;
+        font-size: 16px;
+    }
+
+    #book-content p {
+        text-indent: 1.2em;
+    }
+
+    .reading-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .reading-progress-bar {
+        width: 150px;
+    }
+
+    #reading-controls {
+        padding: 8px 10px;
+    }
+
+    .lesson-navigation {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .lesson-navigation .btn {
+        width: 100%;
+    }
+
+    .no-cover-large {
+        width: 150px;
+        height: 225px;
+    }
+}
+
+/* Print Styles for Reading */
+@media print {
+    .reading-toolbar,
+    #reading-controls,
+    .word-tooltip {
+        display: none !important;
+    }
+
+    #book-content {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        margin: 0;
+        font-size: 12pt;
+        line-height: 1.5;
+    }
+
+    #book-content p {
+        text-indent: 1em;
+    }
+
+    .reading-container {
+        margin: 0;
+        max-width: 100%;
+    }
+}

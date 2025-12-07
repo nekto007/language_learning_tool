@@ -4,16 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ _('Изучение английского языка') }}{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome (local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/fontawesome.min.css') }}">
-    <!-- Design System -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251102-2">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Unified Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/unified-styles.css') }}">
+    <!-- Design System (unified CSS) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251207">
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
 </head>
@@ -25,18 +23,18 @@
             <!-- Logo & Brand (clickable unless on homepage) -->
             {% if current_user.is_authenticated %}
                 {% if request.endpoint == 'words.dashboard' %}
-                <span class="navbar-brand fw-bold" style="font-size: 20px; color: #667eea; cursor: default;">
+                <span class="navbar-brand fw-bold navbar-brand-custom" style="cursor: default;">
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
                     LLT English
                 </span>
                 {% else %}
-                <a class="navbar-brand fw-bold" href="{{ url_for('words.dashboard') }}" style="font-size: 20px; color: #667eea;">
+                <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('words.dashboard') }}">
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
                     LLT English
                 </a>
                 {% endif %}
             {% else %}
-                <a class="navbar-brand fw-bold" href="{{ url_for('auth.login') }}" style="font-size: 20px; color: #667eea;">
+                <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('auth.login') }}">
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
                     LLT English
                 </a>
@@ -121,7 +119,7 @@
                     <!-- XP Badge -->
                     {% if user_level %}
                     <li class="nav-item d-flex align-items-center me-3">
-                        <div class="xp-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 6px 12px; border-radius: 20px; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ xp_to_next_level }} XP до уровня {{ user_level + 1 }}">
+                        <div class="xp-badge-gradient" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ xp_to_next_level }} XP до уровня {{ user_level + 1 }}">
                             <span style="font-size: 16px;">⚡</span>
                             <span>Ур. {{ user_level }}</span>
                             <span style="opacity: 0.8;">•</span>
@@ -192,10 +190,10 @@
     </main>
 
     <!-- Modern Clean Footer -->
-    <footer class="mt-auto py-4" style="background: #f8f9fa; border-top: 1px solid #e9ecef;">
+    <footer class="mt-auto py-4" style="background: var(--bg-secondary); border-top: 1px solid var(--border-light);">
         <div class="container">
             <div class="text-center">
-                <span class="fw-bold" style="color: #667eea; font-size: 18px;">LLT English</span>
+                <span class="fw-bold navbar-brand-custom" style="font-size: 18px;">LLT English</span>
                 <span class="text-muted mx-2">•</span>
                 <span class="text-muted">Платформа для изучения английского</span>
                 <div class="mt-2">
