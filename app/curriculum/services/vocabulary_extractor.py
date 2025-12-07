@@ -3,6 +3,12 @@ Vocabulary Extractor for Book Courses
 
 Extracts vocabulary words from book chapters and links them to the CollectionWords database.
 Used by BookCourseGenerator to populate BlockVocab entries.
+
+Uses WordScorer for intelligent word selection based on:
+- Book frequency
+- Global frequency (inverse)
+- CEFR level match
+- TF-IDF (story importance)
 """
 
 import logging
@@ -11,8 +17,15 @@ from collections import Counter
 from typing import Dict, List, Optional, Set, Tuple
 
 from app.books.models import Block, BlockVocab, Chapter
+from app.curriculum.services.word_scorer import (
+    WordScorer,
+    VOCABULARY_WORDS_PER_BLOCK,
+    VOCABULARY_WORDS_PER_MODULE,
+    CEFR_LEVELS,
+    DEFAULT_LEVEL
+)
 from app.utils.db import db
-from app.words.models import CollectionWords
+from app.words.models import CollectionWords, PhrasalVerb
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +60,6 @@ STOP_WORDS = {
 class VocabularyExtractor:
     """Extracts and manages vocabulary for book blocks"""
 
-    # CEFR level ordering for filtering
-    CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-    DEFAULT_LEVEL = 'B1'
-
     def __init__(self, book_id: int, target_level: str = None):
         """
         Initialize the vocabulary extractor.
@@ -60,9 +69,16 @@ class VocabularyExtractor:
             target_level: Target CEFR level for vocabulary filtering (A1-C2)
         """
         self.book_id = book_id
-        self.target_level = target_level or self.DEFAULT_LEVEL
+        self.target_level = target_level or DEFAULT_LEVEL
         self._word_cache: Dict[str, CollectionWords] = {}
         self._load_word_cache()
+
+        # Calculate total words in book for TF-IDF
+        total_words = self._calculate_total_words()
+        self.word_scorer = WordScorer(
+            target_level=self.target_level,
+            total_words_in_book=total_words
+        )
 
     def _load_word_cache(self):
         """Pre-load all collection words for faster lookup"""
@@ -70,6 +86,16 @@ class VocabularyExtractor:
         for word in words:
             self._word_cache[word.english_word.lower()] = word
         logger.info(f"Loaded {len(self._word_cache)} words into cache")
+
+    def _calculate_total_words(self) -> int:
+        """Calculate total word count in book for TF-IDF normalization"""
+        blocks = Block.query.filter_by(book_id=self.book_id).all()
+        total = 0
+        for block in blocks:
+            for chapter in block.chapters:
+                if chapter.text_raw:
+                    total += len(chapter.text_raw.split())
+        return max(total, 1)  # Avoid division by zero
 
     def extract_vocabulary_for_all_blocks(self, max_words_per_block: int = 20) -> bool:
         """
@@ -170,12 +196,6 @@ class VocabularyExtractor:
 
         return word_counts
 
-    def _get_level_index(self, level: str) -> int:
-        """Get numeric index for CEFR level for comparison"""
-        if level and level in self.CEFR_LEVELS:
-            return self.CEFR_LEVELS.index(level)
-        return self.CEFR_LEVELS.index(self.DEFAULT_LEVEL)  # Default to B1
-
     def _find_matching_words(
             self,
             word_frequencies: Counter,
@@ -183,12 +203,13 @@ class VocabularyExtractor:
             max_words: int
     ) -> List[Tuple[int, int]]:
         """
-        Find words that exist in CollectionWords database, filtered by CEFR level.
+        Find words that exist in CollectionWords database using WordScorer.
 
-        Words are prioritized as follows:
-        1. Words at or below the target CEFR level
-        2. Words closest to the target level (preferring target level itself)
-        3. By frequency in the text
+        Uses multi-factor scoring:
+        - Book frequency (how often word appears)
+        - Global frequency (prefer medium-frequency words)
+        - CEFR level match (words appropriate for student level)
+        - TF-IDF (story-important words unique to this book)
 
         Args:
             word_frequencies: Counter with word frequencies
@@ -198,51 +219,21 @@ class VocabularyExtractor:
         Returns:
             List of tuples (word_id, frequency)
         """
-        target_idx = self._get_level_index(self.target_level)
+        # Use WordScorer for intelligent word selection
+        scored_words = self.word_scorer.score_and_rank_words(
+            word_frequencies=word_frequencies,
+            word_cache=self._word_cache,
+            used_words=used_words,
+            max_words=max_words
+        )
 
-        # Collect all matching words with their level info
-        candidates = []
-
-        for word, freq in word_frequencies.most_common():
-            # Check if word exists in database
-            if word in self._word_cache:
-                db_word = self._word_cache[word]
-
-                # Skip if already used
-                if db_word.id in used_words:
-                    continue
-
-                # Get word's CEFR level
-                word_level = getattr(db_word, 'level', None) or self.DEFAULT_LEVEL
-                word_level_idx = self._get_level_index(word_level)
-
-                # Only include words at or below target level
-                # This ensures beginners don't get advanced vocabulary
-                if word_level_idx <= target_idx:
-                    # Calculate priority: closer to target level = better
-                    # Words at exactly target level get priority 0
-                    # Lower levels get positive priority (less preferred)
-                    level_distance = abs(target_idx - word_level_idx)
-
-                    candidates.append({
-                        'word_id': db_word.id,
-                        'freq': freq,
-                        'level_distance': level_distance,
-                        'level': word_level
-                    })
-
-        # Sort candidates:
-        # 1. By level distance (closer to target level first)
-        # 2. By frequency (higher frequency first)
-        candidates.sort(key=lambda x: (x['level_distance'], -x['freq']))
-
-        # Take top max_words
-        matched_words = [(c['word_id'], c['freq']) for c in candidates[:max_words]]
+        # Convert to (word_id, freq) tuples - scorer returns (word_id, freq, score)
+        matched_words = [(word_id, freq) for word_id, freq, score in scored_words]
 
         if matched_words:
             logger.info(
                 f"Found {len(matched_words)} words for level {self.target_level} "
-                f"(target index: {target_idx})"
+                f"using WordScorer"
             )
 
         return matched_words
@@ -332,3 +323,65 @@ class VocabularyExtractor:
                 return sentence
 
         return None
+
+    def extract_phrasal_verbs_from_text(self, text: str) -> List[PhrasalVerb]:
+        """
+        Find phrasal verbs from the database that appear in the text.
+
+        Args:
+            text: Text to search in
+
+        Returns:
+            List of PhrasalVerb objects found in the text
+        """
+        text_lower = text.lower()
+        found_pvs = []
+
+        # Get all phrasal verbs from database
+        all_pvs = PhrasalVerb.query.all()
+
+        for pv in all_pvs:
+            pv_text = pv.phrasal_verb.lower()
+            # Use word boundary matching
+            pattern = r'\b' + re.escape(pv_text) + r'\b'
+            if re.search(pattern, text_lower):
+                found_pvs.append(pv)
+
+        logger.info(f"Found {len(found_pvs)} phrasal verbs in text")
+        return found_pvs
+
+    def extract_vocabulary_with_phrasal_verbs(
+            self,
+            block_id: int,
+            max_words: int = 20,
+            include_phrasal_verbs: bool = True
+    ) -> Tuple[List[Tuple[int, int]], List[PhrasalVerb]]:
+        """
+        Extract vocabulary and phrasal verbs for a block.
+
+        Args:
+            block_id: ID of the block
+            max_words: Maximum number of single words
+            include_phrasal_verbs: Whether to include phrasal verbs
+
+        Returns:
+            Tuple of (matched_words list, phrasal_verbs list)
+        """
+        block = Block.query.get(block_id)
+        if not block:
+            return [], []
+
+        chapter_text = self._get_block_text(block)
+        if not chapter_text:
+            return [], []
+
+        # Extract single words
+        word_frequencies = self._extract_words_from_text(chapter_text)
+        matched_words = self._find_matching_words(word_frequencies, set(), max_words)
+
+        # Extract phrasal verbs
+        phrasal_verbs = []
+        if include_phrasal_verbs:
+            phrasal_verbs = self.extract_phrasal_verbs_from_text(chapter_text)
+
+        return matched_words, phrasal_verbs

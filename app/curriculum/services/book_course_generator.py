@@ -630,6 +630,9 @@ class BookCourseGenerator:
             slice_generator = DailySliceGenerator()
             success_count = 0
 
+            # Track used words across ALL modules in the course to avoid repetition
+            used_word_ids_in_course: set = set()
+
             for module in modules:
                 try:
                     # Get the primary block for this module (stored during module creation)
@@ -642,7 +645,10 @@ class BookCourseGenerator:
                     logger.info(f"Generating structured lessons for module {module.module_number}")
 
                     # Generate structured lessons for this module
-                    daily_lessons = slice_generator.generate_slices_for_module(module, block)
+                    # Pass used_word_ids_in_course to avoid word repetition between modules
+                    daily_lessons = slice_generator.generate_slices_for_module(
+                        module, block, used_word_ids_in_course
+                    )
 
                     if daily_lessons:
                         # Update module lessons_data with structured lesson information
