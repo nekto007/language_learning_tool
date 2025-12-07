@@ -22,6 +22,8 @@ from app.books.models import Block, BlockVocab, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
 from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
+from app.curriculum.services.vocabulary_extractor import STOP_WORDS
+from app.nlp.processor import HP_EXCLUSIONS
 from app.utils.db import db, word_book_link
 from app.words.models import CollectionWords
 
@@ -99,12 +101,13 @@ class DailySliceGenerator:
 
     # Vocabulary limits
     VOCABULARY_WORDS_PER_LESSON = 20  # Max words per vocabulary lesson (reserve pool)
-    VOCABULARY_WORDS_PER_MODULE = 50  # Max words tracked per module
+    VOCABULARY_WORDS_PER_MODULE = 40  # Max words tracked per module (was 50)
 
     def __init__(self):
         self.timezone = pytz.timezone('Europe/Amsterdam')
 
-    def generate_slices_for_module(self, module: BookCourseModule, block: Block) -> List[DailyLesson]:
+    def generate_slices_for_module(self, module: BookCourseModule, block: Block,
+                                    used_word_ids_in_course: set = None) -> List[DailyLesson]:
         """
         Generate daily lesson pairs for a book course module (v3.1).
 
@@ -154,6 +157,13 @@ class DailySliceGenerator:
         # Get vocabulary for the module
         module_vocabulary = self._get_block_vocabulary(block)
 
+        # Track used words across all lessons to avoid repetition
+        # Use course-level tracking if provided, otherwise module-level only
+        if used_word_ids_in_course is not None:
+            used_word_ids_in_module = used_word_ids_in_course
+        else:
+            used_word_ids_in_module = set()
+
         # Generate lesson pairs for each day
         daily_lessons = []
         day_number = 1
@@ -182,7 +192,9 @@ class DailySliceGenerator:
 
             # Extract vocabulary if needed
             if lesson1_type in ['vocabulary', 'vocabulary_review']:
-                self._extract_slice_vocabulary(lesson1, slice_data['text'], module_vocabulary)
+                self._extract_slice_vocabulary(
+                    lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module
+                )
 
             daily_lessons.append(lesson1)
 
@@ -201,7 +213,9 @@ class DailySliceGenerator:
 
                 # Extract vocabulary if needed
                 if lesson2_type in ['vocabulary', 'vocabulary_review']:
-                    self._extract_slice_vocabulary(lesson2, slice_data['text'], module_vocabulary)
+                    self._extract_slice_vocabulary(
+                        lesson2, slice_data['text'], module_vocabulary, used_word_ids_in_module
+                    )
 
                 daily_lessons.append(lesson2)
 
@@ -492,22 +506,43 @@ class DailySliceGenerator:
         return '\n\n'.join(texts)
 
     def _extract_slice_vocabulary(self, daily_lesson: DailyLesson, text: str,
-                                   module_vocabulary: Dict[int, Dict]):
+                                   module_vocabulary: Dict[int, Dict],
+                                   used_word_ids_in_module: set):
         """
         Extract vocabulary words that appear in this slice.
 
         First tries to find words from module_vocabulary (BlockVocab).
         If not enough words found, falls back to word_book_link (all book words).
-        Target: 10 words per vocabulary lesson.
+        Target: 8 words per vocabulary lesson.
+
+        Args:
+            daily_lesson: The lesson to add vocabulary to
+            text: Text of the slice
+            module_vocabulary: Vocabulary for the module
+            used_word_ids_in_module: Set of word IDs already used in this module
+                                     (will be updated with new words)
         """
-        TARGET_WORDS = 10
+        TARGET_WORDS = 8  # was 10
         text_lower = text.lower()
         words_in_slice = []
-        used_word_ids = set()
+        used_word_ids = set(used_word_ids_in_module)  # Copy to track local usage
 
         # 1. First, find words from module vocabulary
         for word_id, word_data in module_vocabulary.items():
+            # Skip if already used in this module
+            if word_id in used_word_ids_in_module:
+                continue
+
             word_text = word_data['english'].lower()
+
+            # Filter out stop words and HP-specific terms
+            if word_text in STOP_WORDS:
+                continue
+            if word_text in HP_EXCLUSIONS:
+                continue
+            if len(word_text) < 3:
+                continue
+
             occurrences = len(re.findall(r'\b' + re.escape(word_text) + r'\b', text_lower))
 
             if occurrences > 0:
@@ -528,12 +563,15 @@ class DailySliceGenerator:
                     limit=TARGET_WORDS - len(words_in_slice)
                 )
                 words_in_slice.extend(additional_words)
+                # Add additional word IDs to used set
+                for w in additional_words:
+                    used_word_ids.add(w['word_id'])
 
         # Sort by frequency and take top N
         words_in_slice.sort(key=lambda x: x['frequency'], reverse=True)
         words_in_slice = words_in_slice[:self.VOCABULARY_WORDS_PER_LESSON]
 
-        # Create SliceVocabulary entries
+        # Create SliceVocabulary entries and update module-level tracking
         for word_data in words_in_slice:
             slice_vocab = SliceVocabulary(
                 daily_lesson_id=daily_lesson.id,
@@ -542,6 +580,8 @@ class DailySliceGenerator:
                 context_sentence=word_data['context']
             )
             db.session.add(slice_vocab)
+            # Mark word as used in module
+            used_word_ids_in_module.add(word_data['word_id'])
 
         logger.info(f"Extracted {len(words_in_slice)} vocabulary words for lesson {daily_lesson.id}")
 
@@ -572,6 +612,7 @@ class DailySliceGenerator:
         """
         Find words from book's vocabulary that appear in the text.
         Uses word_book_link table to get all book words.
+        Filters out stop words and HP-specific terms.
         """
         text_lower = text.lower()
         result = []
@@ -593,6 +634,16 @@ class DailySliceGenerator:
                 continue
 
             word_text = word.english_word.lower()
+
+            # Filter out stop words and HP-specific terms
+            if word_text in STOP_WORDS:
+                continue
+            if word_text in HP_EXCLUSIONS:
+                continue
+            # Skip very short words
+            if len(word_text) < 3:
+                continue
+
             occurrences = len(re.findall(r'\b' + re.escape(word_text) + r'\b', text_lower))
 
             if occurrences > 0:

@@ -387,8 +387,9 @@ class TestExtractSliceVocabulary:
             1: {'english': 'hello', 'russian': 'привет', 'frequency': 10, 'word': Mock()},
             2: {'english': 'test', 'russian': 'тест', 'frequency': 5, 'word': Mock()}
         }
+        used_word_ids = set()
 
-        generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary)
+        generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary, used_word_ids)
 
         # Should add vocabulary entries for words found in text
         assert mock_db.session.add.call_count == 2
@@ -409,8 +410,9 @@ class TestExtractSliceVocabulary:
                 'frequency': i,
                 'word': Mock()
             }
+        used_word_ids = set()
 
-        generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary)
+        generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary, used_word_ids)
 
         # Should only add up to 20 words (VOCABULARY_WORDS_PER_LESSON)
         assert mock_db.session.add.call_count <= generator.VOCABULARY_WORDS_PER_LESSON
@@ -423,8 +425,9 @@ class TestExtractSliceVocabulary:
         block_vocabulary = {
             1: {'english': 'hello', 'russian': 'привет', 'frequency': 10, 'word': Mock()}
         }
+        used_word_ids = set()
 
-        generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary)
+        generator._extract_slice_vocabulary(daily_lesson, text, block_vocabulary, used_word_ids)
 
         # Should not add any vocabulary
         mock_db.session.add.assert_not_called()
