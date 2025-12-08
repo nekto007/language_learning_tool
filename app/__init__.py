@@ -161,20 +161,6 @@ def create_app(config_class=Config):
         from app.auth.models import User
         return User.query.get(int(user_id))
 
-    @app.before_request
-    def update_last_active():
-        """Update user's last_login every 12 hours on activity"""
-        from flask_login import current_user
-        from datetime import datetime, timezone, timedelta
-
-        if current_user.is_authenticated:
-            now = datetime.now(timezone.utc)
-            # Update if last_login is None or older than 12 hours
-            if current_user.last_login is None or \
-               (now - current_user.last_login.replace(tzinfo=timezone.utc)) > timedelta(hours=12):
-                current_user.last_login = now
-                db.session.commit()
-
     @login_manager.unauthorized_handler
     def unauthorized():
         """Custom unauthorized handler that preserves the original URL"""
