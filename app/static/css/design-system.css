@@ -7712,3 +7712,223 @@ textarea:focus-visible,
     color: var(--danger-700);
     border: 1px solid var(--danger-200);
 }
+
+/* ========================================
+   Quiz Components
+   ======================================== */
+
+/* Quiz container */
+.quiz-container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Timer container */
+.quiz-timer {
+    margin-bottom: 10px;
+}
+
+/* Quiz header */
+.quiz-header {
+    margin-bottom: 10px;
+}
+
+.quiz-question-label {
+    font-size: 14px;
+}
+
+/* Question word container */
+.quiz-question-container {
+    margin: 15px 0;
+}
+
+.quiz-question-text {
+    font-size: 24px;
+    margin: 0;
+}
+
+/* Feedback container (compact) */
+.quiz-feedback {
+    margin: 8px 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: var(--radius-sm);
+}
+
+.quiz-feedback p {
+    margin: 0;
+    font-weight: var(--font-semibold);
+}
+
+.quiz-feedback .correct-answer {
+    margin: 3px 0 0 0;
+    font-size: 11px;
+}
+
+/* Multiple choice options grid */
+.quiz-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.quiz-option-btn {
+    padding: 12px;
+    font-size: 14px;
+    min-height: 50px;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background: white;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.quiz-option-btn:hover:not(:disabled) {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+}
+
+.quiz-option-btn.selected {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+}
+
+.quiz-option-btn.correct {
+    border-color: var(--success-500);
+    background: var(--success-50);
+}
+
+.quiz-option-btn.incorrect {
+    border-color: var(--danger-500);
+    background: var(--danger-50);
+}
+
+/* Fill blank container */
+.quiz-fill-blank {
+    margin: 10px 0;
+}
+
+.quiz-fill-input {
+    padding: 12px;
+    font-size: 16px;
+    width: 100%;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius-md);
+}
+
+.quiz-fill-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+}
+
+/* Quiz buttons row */
+.quiz-buttons-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 15px 0;
+    flex-wrap: nowrap;
+}
+
+.quiz-btn {
+    padding: 8px 15px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Session complete */
+.quiz-session-complete {
+    text-align: center;
+    padding: 25px;
+    max-width: 480px;
+    margin: 0 auto;
+    border-radius: var(--radius-lg);
+    background: white;
+    box-shadow: var(--shadow-md);
+}
+
+.quiz-complete-title {
+    font-size: 20px;
+    font-weight: var(--font-semibold);
+    margin: 0 0 20px 0;
+    color: var(--gray-800);
+}
+
+.quiz-score {
+    font-size: 48px;
+    font-weight: var(--font-bold);
+    margin-bottom: 5px;
+    color: var(--primary-500);
+}
+
+.quiz-score-label {
+    font-size: 13px;
+    color: var(--gray-500);
+}
+
+/* Stats summary */
+.quiz-stats-summary {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--gray-600);
+}
+
+/* XP Earned badge (quiz) */
+.quiz-xp-badge {
+    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    margin-bottom: 20px;
+    display: inline-block;
+    font-weight: var(--font-semibold);
+    font-size: 15px;
+}
+
+/* Achievement badges */
+.quiz-achievements {
+    margin-bottom: 20px;
+}
+
+.quiz-achievements-label {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+}
+
+.quiz-achievement-badges {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.quiz-achievement-badge {
+    background: white;
+    border: 2px solid #ffd700;
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: var(--font-medium);
+}
+
+/* Action buttons */
+.quiz-action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.quiz-action-buttons .btn {
+    flex: 1;
+    max-width: 180px;
+}
