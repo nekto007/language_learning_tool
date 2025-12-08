@@ -91,20 +91,18 @@
 
   <!-- Аудио плеер для listening_immersion или если есть audio -->
   {% if text_content and text_content.audio %}
-    <div class="listening-audio-player" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-      <div style="text-align: center;">
-        <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem;">
-          <i class="fas fa-headphones"></i> {{ text_content.title or _('Прослушайте диалог') }}
-        </h3>
-        {% set audio_file = text_content.audio.replace('[sound:', '').replace(']', '') if '[sound:' in text_content.audio else text_content.audio %}
-        <audio id="listening-audio" controls style="width: 100%; max-width: 500px; border-radius: 50px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">
-          <source src="{{ url_for('static', filename='audio/' + audio_file) }}" type="audio/mpeg">
-          Ваш браузер не поддерживает аудио элемент.
-        </audio>
-        <p style="color: rgba(255,255,255,0.9); margin-top: 1rem; font-size: 0.9rem;">
-          <i class="fas fa-info-circle"></i> Прослушайте несколько раз для лучшего запоминания
-        </p>
-      </div>
+    <div class="listening-audio-player-card">
+      <h3>
+        <i class="fas fa-headphones"></i> {{ text_content.title or _('Прослушайте диалог') }}
+      </h3>
+      {% set audio_file = text_content.audio.replace('[sound:', '').replace(']', '') if '[sound:' in text_content.audio else text_content.audio %}
+      <audio id="listening-audio" controls class="w-100" style="max-width: 500px; border-radius: 50px;">
+        <source src="{{ url_for('static', filename='audio/' + audio_file) }}" type="audio/mpeg">
+        Ваш браузер не поддерживает аудио элемент.
+      </audio>
+      <p>
+        <i class="fas fa-info-circle"></i> Прослушайте несколько раз для лучшего запоминания
+      </p>
     </div>
   {% endif %}
 
@@ -112,26 +110,26 @@
   {% if text_content and text_content.is_reading_with_lines and text_content.text and text_content.text.lines %}
     {% set has_audio = text_content.text.lines | selectattr('audio') | list | length > 0 %}
     {% if has_audio %}
-    <div class="audio-player-controller" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
-      <div class="audio-controller-content" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
-          <button id="play-all-btn" onclick="toggleAutoPlay()" style="padding: 0.75rem 1.25rem; background: white; color: #667eea; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); white-space: nowrap; flex-shrink: 0;">
+    <div class="audio-controller-bar">
+      <div class="audio-controller-content">
+        <div class="d-flex align-items-center gap-3 flex-grow-1" style="min-width: 0;">
+          <button id="play-all-btn" class="audio-play-btn" onclick="toggleAutoPlay()">
             <i class="fas fa-play"></i>
             <span class="play-btn-text">{{ _('Воспроизвести всё') }}</span>
             <span class="play-btn-text-short" style="display: none;">{{ _('Играть') }}</span>
           </button>
-          <div id="audio-progress-text" style="color: white; font-size: 0.9rem; display: none; white-space: nowrap;">
+          <div id="audio-progress-text" class="audio-progress-text" style="display: none;">
             <i class="fas fa-music"></i> <span id="current-audio-index">0</span> / <span id="total-audio-count">0</span>
           </div>
         </div>
-        <div class="audio-info-text" style="color: rgba(255,255,255,0.9); font-size: 0.85rem;">
+        <div class="audio-info-text">
           <i class="fas fa-info-circle"></i>
           <span class="info-text-full">{{ _('Автоматическое воспроизведение всех фраз') }}</span>
           <span class="info-text-short" style="display: none;">{{ _('Автопроигрывание') }}</span>
         </div>
       </div>
-      <div id="audio-progress-bar" style="width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin-top: 1rem; overflow: hidden; display: none;">
-        <div id="audio-progress-fill" style="width: 0%; height: 100%; background: white; transition: width 0.3s;"></div>
+      <div id="audio-progress-bar" class="audio-progress-bar" style="display: none;">
+        <div id="audio-progress-fill" class="audio-progress-fill" style="width: 0%;"></div>
       </div>
     </div>
     {% endif %}
@@ -157,8 +155,8 @@
             <h3 class="reading-title">{{ text_content.text.title }}</h3>
           {% endif %}
           {% for line in text_content.text.lines %}
-            <div class="reading-line" style="margin-bottom: 1.5rem;">
-              <div class="reading-line-text" style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 0.5rem;">
+            <div class="reading-line">
+              <div class="reading-line-text">
                 {{ line.text|safe }}
                 {% if line.audio %}
                   {% set audio_file = line.audio.replace('[sound:', '').replace(']', '') if '[sound:' in line.audio else line.audio %}
@@ -168,7 +166,7 @@
                 {% endif %}
               </div>
               {% if line.translation %}
-                <div class="reading-line-translation" style="color: #6b7280; font-size: 0.95rem; font-style: italic;">
+                <div class="reading-line-translation">
                   {{ line.translation }}
                 </div>
               {% endif %}
@@ -183,14 +181,14 @@
         </script>
       {% elif text_content.is_listening_immersion %}
         <!-- Listening Immersion: прогрессивное отображение текста -->
-        <div class="listening-immersion-content" style="max-width: 800px; margin: 0 auto;">
+        <div class="listening-immersion-content mx-auto" style="max-width: 800px;">
           {% set text_str = text_content.text if text_content.text is string else '' %}
           {% set has_dialogue_format = ':' in text_str and '\n' in text_str %}
 
           {% if has_dialogue_format %}
             <!-- Английский диалог с современным форматированием -->
-            <div class="listening-dialogue-section" style="margin-bottom: 2rem;">
-              <h4 style="color: #667eea; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+            <div class="listening-dialogue-section mb-4">
+              <h4 class="listening-section-header english">
                 <i class="fas fa-comments"></i> English Dialogue
               </h4>
               <div class="dialogue-container" id="listening-dialogue-container"></div>
@@ -201,16 +199,16 @@
 
             {% if text_content.translation %}
               <!-- Русский перевод -->
-              <div class="listening-translation-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #10b981; margin-top: 2rem;">
-                <h4 style="color: #10b981; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+              <div class="listening-content-block translation mt-4">
+                <h4 class="listening-section-header translation">
                   <i class="fas fa-language"></i> Перевод
                 </h4>
-                <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.translation }}</div>
+                <div class="listening-content-text">{{ text_content.translation }}</div>
               </div>
 
               <!-- Инструкция для начального уровня -->
-              <div class="listening-instruction" style="background: #f0f9ff; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
-                <p style="color: #1e40af; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+              <div class="listening-instruction-box info">
+                <p>
                   <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз. Попробуйте понять содержание, глядя на английский текст, затем сверьтесь с переводом.
                 </p>
               </div>
@@ -220,31 +218,31 @@
             <!-- Обычный текст без диалога -->
             {% if text_content.translation %}
               <!-- Есть перевод - показываем ТОЛЬКО русский текст -->
-              <div class="listening-translation-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #10b981;">
-                <h4 style="color: #10b981; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+              <div class="listening-content-block translation">
+                <h4 class="listening-section-header translation">
                   <i class="fas fa-language"></i> Текст диалога
                 </h4>
-                <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.translation }}</div>
+                <div class="listening-content-text">{{ text_content.translation }}</div>
               </div>
 
               <!-- Инструкция для начального уровня -->
-              <div class="listening-instruction" style="background: #f0f9ff; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #3b82f6;">
-                <p style="color: #1e40af; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+              <div class="listening-instruction-box info">
+                <p>
                   <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз, читая русский текст. Постарайтесь уловить английские слова и фразы на слух.
                 </p>
               </div>
             {% else %}
               <!-- Нет перевода - показываем английский текст (для продвинутого уровня) -->
-              <div class="listening-text-block" style="background: white; border-radius: 12px; padding: 2.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.1); border-left: 4px solid #667eea;">
-                <h4 style="color: #667eea; margin-bottom: 1.5rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem;">
+              <div class="listening-content-block english">
+                <h4 class="listening-section-header english">
                   <i class="fas fa-language"></i> English Text
                 </h4>
-                <div style="font-size: 1.15rem; line-height: 2; white-space: pre-wrap; color: #1f2937;">{{ text_content.text }}</div>
+                <div class="listening-content-text">{{ text_content.text }}</div>
               </div>
 
               <!-- Инструкция для продвинутого уровня -->
-              <div class="listening-instruction" style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; border-left: 4px solid #f59e0b;">
-                <p style="color: #92400e; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+              <div class="listening-instruction-box warning">
+                <p>
                   <i class="fas fa-star"></i> <strong>Продвинутый уровень:</strong> Прослушайте диалог и постарайтесь понять содержание. При необходимости можете обратиться к тексту.
                 </p>
               </div>
@@ -253,8 +251,8 @@
 
           <!-- Кастомная инструкция из JSON (если есть) -->
           {% if text_content.instruction %}
-            <div class="listening-custom-instruction" style="background: #fff7ed; border-radius: 12px; padding: 1.5rem; margin-top: 1rem; border-left: 4px solid #f59e0b;">
-              <p style="color: #92400e; margin: 0; font-size: 0.95rem;">
+            <div class="listening-instruction-box tip mt-3">
+              <p>
                 <i class="fas fa-lightbulb"></i> <strong>Совет:</strong> {{ text_content.instruction }}
               </p>
             </div>
@@ -332,18 +330,18 @@
 
             {% if question.type == 'true_false' %}
               {# True/False question #}
-              <div class="answer-options" style="display: flex; gap: 1rem;">
-                <button class="answer-option-btn" data-value="true" onclick="checkTrueFalseAnswer({{ question_index }}, true)" style="flex: 1;">
-                  <i class="fas fa-check-circle" style="color: #10b981;"></i> {{ _('Правда') }}
+              <div class="answer-options answer-options-flex">
+                <button class="answer-option-btn flex-fill" data-value="true" onclick="checkTrueFalseAnswer({{ question_index }}, true)">
+                  <i class="fas fa-check-circle text-success"></i> {{ _('Правда') }}
                 </button>
-                <button class="answer-option-btn" data-value="false" onclick="checkTrueFalseAnswer({{ question_index }}, false)" style="flex: 1;">
-                  <i class="fas fa-times-circle" style="color: #ef4444;"></i> {{ _('Ложь') }}
+                <button class="answer-option-btn flex-fill" data-value="false" onclick="checkTrueFalseAnswer({{ question_index }}, false)">
+                  <i class="fas fa-times-circle text-danger"></i> {{ _('Ложь') }}
                 </button>
               </div>
 
             {% elif question.type == 'multiple_choice' %}
               {# Multiple choice question #}
-              <div class="answer-options" style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 0.5rem;">
+              <div class="answer-options answer-options-grid">
                 {% for option in question.options %}
                   <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
                     {{ option|safe }}
@@ -353,7 +351,7 @@
 
             {% elif question.type == 'fill_blank' and question.options %}
               {# Fill blank with options #}
-              <div class="answer-options" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+              <div class="answer-options answer-options-grid-2col">
                 {% for option in question.options %}
                   <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
                     {{ option|safe }}
@@ -363,20 +361,20 @@
 
             {% elif question.type == 'ordering' %}
               {# Ordering question - build sentence from words #}
-              <div class="reorder-answer" style="margin: 1rem 0;">
-                <div class="words-container" id="words-container-{{ question_index }}" style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 1rem; min-height: 80px;">
+              <div class="reorder-answer">
+                <div class="words-container" id="words-container-{{ question_index }}">
                   {% for word in question.words %}
-                    <button type="button" class="word-button" data-word="{{ word }}" onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)" style="padding: 0.5rem 1rem; background: white; border: 2px solid #e5e7eb; border-radius: 0.375rem; font-size: 1rem; cursor: pointer; transition: all 0.3s;">
+                    <button type="button" class="word-button" data-word="{{ word }}" onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)">
                       {{ word }}
                     </button>
                   {% endfor %}
                 </div>
                 <div class="sentence-container">
-                  <div class="sentence-display" id="sentence-{{ question_index }}" onclick="clearSentence({{ question_index }})" style="min-height: 60px; padding: 1rem; background: white; border: 2px solid #4f46e5; border-radius: 0.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; cursor: pointer;">
-                    <span class="placeholder-text" style="color: #9ca3af; font-style: italic;">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
+                  <div class="sentence-display" id="sentence-{{ question_index }}" onclick="clearSentence({{ question_index }})">
+                    <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
                   </div>
                 </div>
-                <button type="button" class="btn btn-primary" style="margin-top: 0.75rem; padding: 0.5rem 1.5rem;" onclick="submitOrderingAnswer({{ question_index }})">
+                <button type="button" class="btn btn-primary mt-3" onclick="submitOrderingAnswer({{ question_index }})">
                   {{ _('Проверить') }}
                 </button>
               </div>
