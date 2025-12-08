@@ -8431,3 +8431,154 @@ textarea:focus-visible,
     font-weight: var(--font-semibold);
     color: var(--indigo-500);
 }
+
+/* ==========================================================================
+   Final Test Components
+   ========================================================================== */
+
+/* Final Test Dialogue Question */
+.final-test-dialogue-question {
+    margin-bottom: 1.5rem;
+}
+
+.final-test-dialogue-line-a {
+    display: block !important;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-200) 100%);
+    border-radius: 0.75rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.final-test-dialogue-line-b {
+    display: block !important;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--amber-100) 0%, var(--amber-200) 100%);
+    border-radius: 0.75rem;
+    line-height: 1.6;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.final-test-speaker-label {
+    color: var(--error-600);
+}
+
+.final-test-speaker-a-text {
+    color: var(--gray-800);
+}
+
+.final-test-speaker-b-text {
+    color: var(--amber-800);
+    font-style: italic;
+}
+
+/* Final Test Translation Question */
+.final-test-translation-header {
+    color: #667eea;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+/* Final Test Audio Player */
+.final-test-audio-container {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.final-test-audio-player {
+    width: 100%;
+    max-width: 500px;
+}
+
+/* Final Test Instruction */
+.final-test-instruction {
+    color: #667eea;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+/* Final Test Transformation Instruction */
+.final-test-transform-instruction {
+    font-size: 1rem;
+    color: var(--gray-500);
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-left: 4px solid var(--error-600);
+    border-radius: var(--radius-md);
+}
+
+/* Final Test Source Sentence */
+.final-test-source-sentence {
+    font-size: 1.2rem;
+    font-weight: var(--font-semibold);
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--amber-100) 0%, var(--amber-200) 100%);
+    color: var(--amber-800);
+    border-radius: 0.75rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Final Test Matching Instruction */
+.final-test-matching-instruction {
+    font-size: 1rem;
+    color: var(--gray-500);
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-left: 4px solid var(--error-600);
+    border-radius: var(--radius-md);
+}
+
+/* Final Test Matching Hint */
+.final-test-matching-hint {
+    font-size: 0.95rem;
+    color: var(--gray-500);
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Final Test Matching Game Grid */
+.final-test-matching-game {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+/* Final Test Matching Word Button */
+.final-test-matching-btn {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: white;
+    border: 2px solid var(--gray-200);
+    border-radius: 0.75rem;
+    font-size: 1.05rem;
+    font-weight: var(--font-semibold);
+    color: var(--gray-800);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.final-test-matching-btn.left-word {
+    text-align: left;
+}
+
+.final-test-matching-btn.right-word {
+    text-align: right;
+}
+
+.final-test-matching-btn:hover {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+}
