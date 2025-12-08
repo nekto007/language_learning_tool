@@ -21,8 +21,8 @@
                     <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">{{ _('End Session') }}</button>
                 </div>
             </div>
-            <div class="progress" style="height: 10px;">
-                <div class="progress-bar bg-success" id="progress-fill" style="width: 0%; transition: width 0.3s ease;"></div>
+            <div class="progress progress-thin">
+                <div class="progress-bar bg-success progress-animated" id="progress-fill" style="width: 0%;"></div>
             </div>
         </div>
     </div>
@@ -37,10 +37,10 @@
 
     <!-- Nothing to study message -->
     {% if nothing_to_study %}
-    <div id="nothing-to-study" class="card shadow-sm text-center" style="display: none; padding: 60px 40px;">
+    <div id="nothing-to-study" class="card shadow-sm text-center nothing-to-study-card" style="display: none;">
         <div class="card-body">
             {% if limit_reached %}
-            <div style="font-size: 80px; margin-bottom: 20px;">📚</div>
+            <div class="celebration-icon">📚</div>
             <h2 class="mb-3">Дневной лимит достигнут!</h2>
             <p class="text-muted fs-5 mb-4">
                 Вы уже изучили <strong>{{ new_cards_today }}</strong> новых слов сегодня.<br>
@@ -50,7 +50,7 @@
                 Можете изменить лимит в <a href="{{ url_for('study.settings') }}">настройках</a> или попробовать другие режимы обучения.
             </p>
             {% else %}
-            <div style="font-size: 80px; margin-bottom: 20px;">🎉</div>
+            <div class="celebration-icon">🎉</div>
             <h2 class="mb-3">Отлично! Все изучено на сегодня!</h2>
             <p class="text-muted fs-5 mb-4">
                 {% if deck_title %}
@@ -91,7 +91,7 @@
     <!-- Cards container -->
     <div id="flashcard-view" style="display: none;">
         <!-- Front side (question) -->
-        <div id="card-front" class="card shadow-sm mb-4 text-center" style="min-height: 400px; padding: 40px 30px; position: relative;">
+        <div id="card-front" class="card shadow-sm mb-4 text-center flashcard">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
                 <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
@@ -99,7 +99,7 @@
                     <i class="fas fa-volume-up me-2"></i>Произношение
                 </button>
 
-                <p id="hint-text" class="text-secondary my-4 hint-text" style="font-size: 1rem; word-wrap: break-word; max-width: 100%; overflow-wrap: break-word;"></p>
+                <p id="hint-text" class="text-secondary my-4 hint-text hint-text-styles"></p>
 
                 <button id="show-answer-btn" class="btn btn-primary btn-lg mt-auto">
                     Показать ответ
@@ -108,7 +108,7 @@
         </div>
 
         <!-- Back side (answer) -->
-        <div id="card-back" class="card shadow-sm mb-4 text-center" style="display: none; min-height: 400px; padding: 40px 30px; position: relative;">
+        <div id="card-back" class="card shadow-sm mb-4 text-center flashcard" style="display: none;">
             <div class="card-body">
                 <h1 id="back-word" class="display-3 mb-4 fw-medium"></h1>
 
@@ -116,7 +116,7 @@
                     <i class="fas fa-volume-up me-2"></i>Произношение
                 </button>
 
-                <hr class="my-4" style="max-width: 500px; margin-left: auto; margin-right: auto;">
+                <hr class="my-4 divider-centered">
 
                 <div class="mb-4">
                     <div class="text-secondary mb-2 fw-semibold">{{ _('Translation') }}</div>
@@ -131,17 +131,17 @@
 
                 <!-- Unified 1-2-3 rating scale -->
                 <div class="d-flex justify-content-center gap-2 mt-4">
-                    <button type="button" class="rating-btn btn-danger flex-fill" style="max-width: 150px;" data-rating="1">
+                    <button type="button" class="rating-btn btn-danger flex-fill rating-btn-sized" data-rating="1">
                         <span class="rating-icon">😕</span>
                         {{ _('Не знаю') }}
                         <small class="rating-hint">1-2 карточки</small>
                     </button>
-                    <button type="button" class="rating-btn btn-warning flex-fill" style="max-width: 150px;" data-rating="2">
+                    <button type="button" class="rating-btn btn-warning flex-fill rating-btn-sized" data-rating="2">
                         <span class="rating-icon">🤔</span>
                         {{ _('Сомневаюсь') }}
                         <small class="rating-hint">3-5 карточек</small>
                     </button>
-                    <button type="button" class="rating-btn btn-success flex-fill" style="max-width: 150px;" data-rating="3">
+                    <button type="button" class="rating-btn btn-success flex-fill rating-btn-sized" data-rating="3">
                         <span class="rating-icon">😊</span>
                         {{ _('Знаю') }}
                         <small class="rating-hint">Готово</small>
@@ -202,12 +202,12 @@
             </h2>
 
             <!-- XP Earned Banner -->
-            <div id="xp-earned-banner" class="mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);">
-                <div style="font-size: 48px; margin-bottom: 8px;">⚡</div>
-                <div style="font-size: 32px; font-weight: 700; color: #ffd89b;">
+            <div id="xp-earned-banner" class="mb-4 xp-banner">
+                <div class="celebration-icon-sm">⚡</div>
+                <div class="xp-banner-value">
                     +<span id="xp-earned-amount">0</span> XP
                 </div>
-                <div style="font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 8px;">
+                <div class="xp-banner-label">
                     Уровень <span id="current-level">1</span> • <span id="total-xp">0</span> XP
                 </div>
             </div>
