@@ -8582,3 +8582,67 @@ textarea:focus-visible,
     border-color: var(--primary-500);
     background: var(--primary-50);
 }
+
+/* ==========================================================================
+   Deck Edit Components
+   ========================================================================== */
+
+/* Deck Edit Card with z-index */
+.deck-edit-card-elevated {
+    position: relative;
+    z-index: 50;
+}
+
+.deck-edit-card-low {
+    position: relative;
+    z-index: 10;
+}
+
+/* Deck Edit Card Body with overflow */
+.deck-edit-card-body-overflow {
+    overflow: visible;
+}
+
+/* Autocomplete Container */
+.autocomplete-container {
+    position: relative;
+    z-index: 100;
+}
+
+/* Autocomplete Dropdown */
+.autocomplete-dropdown {
+    z-index: 1050;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-sm);
+    margin-top: 2px;
+}
+
+/* Table Column Widths */
+.deck-col-num { width: 5%; }
+.deck-col-english { width: 20%; }
+.deck-col-russian { width: 20%; }
+.deck-col-examples { width: 40%; }
+.deck-col-actions { width: 15%; }
+
+/* Inline Form */
+.form-inline {
+    display: inline;
+}
+
+/* Sentence Example Text */
+.sentence-example-text {
+    font-size: 0.85rem;
+}
+
+/* Toast Icon */
+.toast-icon-lg {
+    font-size: 24px;
+}
+
+.toast-message {
+    flex: 1;
+}
