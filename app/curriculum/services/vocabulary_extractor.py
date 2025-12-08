@@ -25,7 +25,7 @@ from app.curriculum.services.word_scorer import (
     DEFAULT_LEVEL
 )
 from app.utils.db import db
-from app.words.models import CollectionWords, PhrasalVerb
+from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +97,17 @@ class VocabularyExtractor:
                     total += len(chapter.text_raw.split())
         return max(total, 1)  # Avoid division by zero
 
-    def extract_vocabulary_for_all_blocks(self, max_words_per_block: int = 20) -> bool:
+    def extract_vocabulary_for_all_blocks(
+            self,
+            max_words_per_block: int = 20,
+            max_phrasal_verbs_per_block: int = 5
+    ) -> bool:
         """
-        Extract vocabulary for all blocks in the book.
+        Extract vocabulary (words + phrasal verbs) for all blocks in the book.
 
         Args:
-            max_words_per_block: Maximum number of vocabulary words per block
+            max_words_per_block: Maximum number of single words per block
+            max_phrasal_verbs_per_block: Maximum number of phrasal verbs per block
 
         Returns:
             True if extraction was successful
@@ -126,22 +131,29 @@ class VocabularyExtractor:
                     logger.warning(f"No text found for block {block.block_num}")
                     continue
 
-                # Extract and rank words
+                # Extract and rank single words
                 word_frequencies = self._extract_words_from_text(chapter_text)
-
-                # Find matching words in database
                 matched_words = self._find_matching_words(word_frequencies, used_words, max_words_per_block)
 
-                if matched_words:
+                # Extract phrasal verbs from text
+                phrasal_verbs = self._find_phrasal_verbs_in_text(chapter_text, used_words, max_phrasal_verbs_per_block)
+
+                # Combine words and phrasal verbs
+                all_vocab = matched_words + phrasal_verbs
+
+                if all_vocab:
                     # Create BlockVocab entries
-                    self._create_block_vocab_entries(block.id, matched_words)
+                    self._create_block_vocab_entries(block.id, all_vocab)
 
                     # Track used words to avoid repetition
-                    for word_id, _ in matched_words:
+                    for word_id, _ in all_vocab:
                         used_words.add(word_id)
 
                     success_count += 1
-                    logger.info(f"Added {len(matched_words)} vocabulary words to block {block.block_num}")
+                    logger.info(
+                        f"Added {len(matched_words)} words + {len(phrasal_verbs)} phrasal verbs "
+                        f"to block {block.block_num}"
+                    )
                 else:
                     logger.warning(f"No matching vocabulary found for block {block.block_num}")
 
@@ -238,6 +250,53 @@ class VocabularyExtractor:
 
         return matched_words
 
+    def _find_phrasal_verbs_in_text(
+            self,
+            text: str,
+            used_words: Set[int],
+            max_phrasal_verbs: int
+    ) -> List[Tuple[int, int]]:
+        """
+        Find phrasal verbs that appear in the text.
+
+        Args:
+            text: Text to search in
+            used_words: Set of word IDs already used
+            max_phrasal_verbs: Maximum number of phrasal verbs to return
+
+        Returns:
+            List of tuples (word_id, frequency) for found phrasal verbs
+        """
+        text_lower = text.lower()
+        found_pvs = []
+
+        # Get all phrasal verbs from CollectionWords
+        all_pvs = CollectionWords.query.filter_by(item_type='phrasal_verb').all()
+
+        for pv in all_pvs:
+            # Skip if already used
+            if pv.id in used_words:
+                continue
+
+            pv_text = pv.english_word.lower()
+            # Use word boundary matching
+            pattern = r'\b' + re.escape(pv_text) + r'\b'
+            matches = re.findall(pattern, text_lower)
+
+            if matches:
+                # Count frequency of this phrasal verb in text
+                freq = len(matches)
+                found_pvs.append((pv.id, freq, pv))
+
+        # Sort by frequency (most frequent first) and limit
+        found_pvs.sort(key=lambda x: x[1], reverse=True)
+        result = [(pv_id, freq) for pv_id, freq, _ in found_pvs[:max_phrasal_verbs]]
+
+        if result:
+            logger.info(f"Found {len(result)} phrasal verbs in text")
+
+        return result
+
     def _create_block_vocab_entries(self, block_id: int, matched_words: List[Tuple[int, int]]) -> bool:
         """
         Create BlockVocab entries for matched words.
@@ -324,7 +383,7 @@ class VocabularyExtractor:
 
         return None
 
-    def extract_phrasal_verbs_from_text(self, text: str) -> List[PhrasalVerb]:
+    def extract_phrasal_verbs_from_text(self, text: str) -> List[CollectionWords]:
         """
         Find phrasal verbs from the database that appear in the text.
 
@@ -332,16 +391,16 @@ class VocabularyExtractor:
             text: Text to search in
 
         Returns:
-            List of PhrasalVerb objects found in the text
+            List of CollectionWords objects (phrasal verbs) found in the text
         """
         text_lower = text.lower()
         found_pvs = []
 
-        # Get all phrasal verbs from database
-        all_pvs = PhrasalVerb.query.all()
+        # Get all phrasal verbs from CollectionWords
+        all_pvs = CollectionWords.query.filter_by(item_type='phrasal_verb').all()
 
         for pv in all_pvs:
-            pv_text = pv.phrasal_verb.lower()
+            pv_text = pv.english_word.lower()
             # Use word boundary matching
             pattern = r'\b' + re.escape(pv_text) + r'\b'
             if re.search(pattern, text_lower):
@@ -355,7 +414,7 @@ class VocabularyExtractor:
             block_id: int,
             max_words: int = 20,
             include_phrasal_verbs: bool = True
-    ) -> Tuple[List[Tuple[int, int]], List[PhrasalVerb]]:
+    ) -> Tuple[List[Tuple[int, int]], List[CollectionWords]]:
         """
         Extract vocabulary and phrasal verbs for a block.
 

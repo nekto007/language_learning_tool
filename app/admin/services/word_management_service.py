@@ -318,3 +318,157 @@ class WordManagementService:
             logger.error(f"Error importing translations: {str(e)}")
             db.session.rollback()
             raise
+
+    @staticmethod
+    def get_phrasal_verb_statistics():
+        """
+        Получает статистику по фразовым глаголам (теперь из CollectionWords)
+
+        Returns:
+            dict: Статистика с total, with_audio, without_audio
+        """
+        try:
+            total = CollectionWords.query.filter_by(item_type='phrasal_verb').count()
+            with_audio = CollectionWords.query.filter(
+                CollectionWords.item_type == 'phrasal_verb',
+                CollectionWords.listening != None,
+                CollectionWords.listening != ''
+            ).count()
+
+            return {
+                'total': total,
+                'with_audio': with_audio,
+                'without_audio': total - with_audio
+            }
+        except Exception as e:
+            logger.error(f"Error getting phrasal verb statistics: {str(e)}")
+            return {'error': str(e)}
+
+    @staticmethod
+    def parse_phrasal_verbs_file(content):
+        """
+        Парсит CSV файл с фразовыми глаголами
+
+        Args:
+            content: Текстовое содержимое файла
+
+        Returns:
+            tuple: (new_verbs: list, existing_verbs: list, errors: list)
+        """
+        import csv
+        from io import StringIO
+
+        new_verbs = []
+        existing_verbs = []
+        errors = []
+
+        try:
+            reader = csv.reader(StringIO(content))
+            header = next(reader, None)  # Skip header row
+
+            if not header:
+                return [], [], [{'line_num': 1, 'error': 'Файл пустой'}]
+
+            for line_num, row in enumerate(reader, 2):  # Start from 2 (after header)
+                if not row or all(cell.strip() == '' for cell in row):
+                    continue
+
+                if len(row) < 4:
+                    errors.append({
+                        'line_num': line_num,
+                        'line': ','.join(row),
+                        'error': f'Недостаточно полей (ожидается 4, получено {len(row)})'
+                    })
+                    continue
+
+                phrasal_verb = row[0].strip()
+                russian_translate = row[1].strip()
+                using = row[2].strip()
+                sentence = row[3].strip()
+
+                if not phrasal_verb:
+                    errors.append({
+                        'line_num': line_num,
+                        'line': ','.join(row),
+                        'error': 'Пустой фразовый глагол'
+                    })
+                    continue
+
+                verb_data = {
+                    'line_num': line_num,
+                    'phrasal_verb': phrasal_verb,
+                    'russian_translate': russian_translate,
+                    'using': using,
+                    'sentence': sentence
+                }
+
+                # Check if phrasal verb already exists in CollectionWords
+                existing = CollectionWords.query.filter_by(english_word=phrasal_verb).first()
+                if existing:
+                    existing_verbs.append(verb_data)
+                else:
+                    new_verbs.append(verb_data)
+
+        except Exception as e:
+            errors.append({
+                'line_num': 0,
+                'line': '',
+                'error': f'Ошибка парсинга CSV: {str(e)}'
+            })
+
+        return new_verbs, existing_verbs, errors
+
+    @staticmethod
+    def import_phrasal_verbs(new_verbs, existing_verbs, update_existing=False):
+        """
+        Импортирует фразовые глаголы в CollectionWords
+
+        Args:
+            new_verbs: Список новых фразовых глаголов
+            existing_verbs: Список существующих фразовых глаголов
+            update_existing: Обновлять ли существующие записи
+
+        Returns:
+            tuple: (added_count: int, updated_count: int)
+        """
+        try:
+            added_count = 0
+            updated_count = 0
+
+            # Add new phrasal verbs to CollectionWords
+            for verb_data in new_verbs:
+                new_word = CollectionWords(
+                    english_word=verb_data['phrasal_verb'],
+                    russian_word=verb_data['russian_translate'],
+                    sentences=verb_data['sentence'],
+                    item_type='phrasal_verb',
+                    usage_context=verb_data['using'],
+                    level='B1'  # Default level for phrasal verbs
+                )
+                db.session.add(new_word)
+                added_count += 1
+
+            # Update existing if requested
+            if update_existing:
+                for verb_data in existing_verbs:
+                    word = CollectionWords.query.filter_by(
+                        english_word=verb_data['phrasal_verb']
+                    ).first()
+                    if word:
+                        word.russian_word = verb_data['russian_translate']
+                        word.sentences = verb_data['sentence']
+                        word.usage_context = verb_data['using']
+                        word.item_type = 'phrasal_verb'
+                        updated_count += 1
+
+            db.session.commit()
+
+            logger.info(
+                f"Phrasal verbs imported: {added_count} added, {updated_count} updated"
+            )
+            return added_count, updated_count
+
+        except Exception as e:
+            logger.error(f"Error importing phrasal verbs: {str(e)}")
+            db.session.rollback()
+            raise

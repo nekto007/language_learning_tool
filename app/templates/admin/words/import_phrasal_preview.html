@@ -1,0 +1,191 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Предпросмотр импорта фразовых глаголов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Предпросмотр импорта фразовых глаголов</h1>
+        <a href="{{ url_for('word_admin.import_phrasal_verbs') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад
+        </a>
+    </div>
+
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Новых глаголов</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_verbs|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-plus-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Уже существуют</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ existing_verbs|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-sync fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Ошибки</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ errors|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" value="confirm">
+        <input type="hidden" name="import_id" value="{{ import_id }}">
+
+        <!-- New verbs to add -->
+        {% if new_verbs %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-success">
+                    <i class="fas fa-plus-circle"></i> Новые фразовые глаголы ({{ new_verbs|length }})
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Фразовый глагол</th>
+                                <th>Перевод</th>
+                                <th>Контекст</th>
+                                <th>Пример</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for verb in new_verbs %}
+                            <tr>
+                                <td><strong>{{ verb.phrasal_verb }}</strong></td>
+                                <td>{{ verb.russian_translate }}</td>
+                                <td><small class="text-muted">{{ verb.using }}</small></td>
+                                <td><small>{{ verb.sentence|safe }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Existing verbs -->
+        {% if existing_verbs %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="fas fa-sync"></i> Уже существующие ({{ existing_verbs|length }})
+                </h6>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="update_existing" name="update_existing">
+                    <label class="form-check-label" for="update_existing">
+                        Обновить существующие записи
+                    </label>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Фразовый глагол</th>
+                                <th>Перевод</th>
+                                <th>Контекст</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for verb in existing_verbs %}
+                            <tr>
+                                <td>{{ verb.phrasal_verb }}</td>
+                                <td>{{ verb.russian_translate }}</td>
+                                <td><small class="text-muted">{{ verb.using }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Errors -->
+        {% if errors %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Ошибки ({{ errors|length }})
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                    <table class="table table-sm table-danger">
+                        <thead>
+                            <tr>
+                                <th>Строка</th>
+                                <th>Ошибка</th>
+                                <th>Содержимое</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in errors %}
+                            <tr>
+                                <td>{{ error.line_num }}</td>
+                                <td>{{ error.error }}</td>
+                                <td><small>{{ error.line[:50] }}{% if error.line|length > 50 %}...{% endif %}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action buttons -->
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('word_admin.import_phrasal_verbs') }}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Отмена
+            </a>
+            {% if new_verbs or existing_verbs %}
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check"></i> Подтвердить импорт
+            </button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

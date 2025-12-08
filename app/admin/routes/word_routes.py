@@ -244,3 +244,107 @@ def word_statistics():
         logger.error(f"Error getting word statistics: {str(e)}")
         flash(f'Ошибка при получении статистики: {str(e)}', 'danger')
         return redirect(url_for('word_admin.word_management'))
+
+
+@word_bp.route('/words/import-phrasal-verbs', methods=['GET', 'POST'])
+@admin_required
+def import_phrasal_verbs():
+    """Импорт фразовых глаголов из CSV файла"""
+    if request.method == 'POST':
+        action = request.form.get('action', 'preview')
+
+        try:
+            if action == 'preview':
+                # Preview stage
+                if 'phrasal_file' not in request.files:
+                    flash('Файл не выбран', 'danger')
+                    return redirect(request.url)
+
+                file = request.files['phrasal_file']
+                if file.filename == '':
+                    flash('Файл не выбран', 'danger')
+                    return redirect(request.url)
+
+                # Validate file
+                from app.utils.file_security import validate_text_file_upload
+                is_valid, error_msg = validate_text_file_upload(
+                    file,
+                    allowed_extensions={'txt', 'csv'},
+                    max_size_mb=5
+                )
+
+                if not is_valid:
+                    flash(f'Ошибка валидации файла: {error_msg}', 'danger')
+                    return redirect(request.url)
+
+                # Read and parse file
+                content = file.read().decode('utf-8')
+                new_verbs, existing_verbs, errors = \
+                    WordManagementService.parse_phrasal_verbs_file(content)
+
+                # Save to temp file
+                import_id = save_import_data({
+                    'new_verbs': new_verbs,
+                    'existing_verbs': existing_verbs,
+                    'errors': errors
+                })
+
+                session['phrasal_import_id'] = import_id
+
+                return render_template(
+                    'admin/words/import_phrasal_preview.html',
+                    new_verbs=new_verbs,
+                    existing_verbs=existing_verbs,
+                    errors=errors,
+                    import_id=import_id
+                )
+
+            elif action == 'confirm':
+                # Confirm import
+                import_id = request.form.get('import_id') or session.get('phrasal_import_id')
+
+                if not import_id:
+                    flash('Данные для импорта не найдены. Загрузите файл заново.', 'danger')
+                    return redirect(request.url)
+
+                import_data = load_import_data(import_id)
+                if not import_data:
+                    flash('Данные для импорта устарели. Загрузите файл заново.', 'danger')
+                    return redirect(request.url)
+
+                new_verbs = import_data['new_verbs']
+                existing_verbs = import_data['existing_verbs']
+                update_existing = request.form.get('update_existing') == 'on'
+
+                # Import
+                added_count, updated_count = WordManagementService.import_phrasal_verbs(
+                    new_verbs, existing_verbs, update_existing
+                )
+
+                # Cleanup
+                delete_import_data(import_id)
+                session.pop('phrasal_import_id', None)
+
+                messages = []
+                if added_count > 0:
+                    messages.append(f'Добавлено фразовых глаголов: {added_count}')
+                if updated_count > 0:
+                    messages.append(f'Обновлено фразовых глаголов: {updated_count}')
+
+                if messages:
+                    flash('; '.join(messages), 'success')
+                else:
+                    flash('Никаких изменений не было внесено', 'info')
+
+                logger.info(
+                    f"Phrasal verbs import by {current_user.username}: "
+                    f"{added_count} added, {updated_count} updated"
+                )
+
+        except Exception as e:
+            logger.error(f"Error importing phrasal verbs: {str(e)}")
+            flash(f'Ошибка при импорте: {str(e)}', 'danger')
+
+    # GET - show form with statistics
+    stats = WordManagementService.get_phrasal_verb_statistics()
+    return render_template('admin/words/import_phrasal_verbs.html', stats=stats)

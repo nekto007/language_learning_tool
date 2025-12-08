@@ -195,7 +195,10 @@ class BookCourseGenerator:
                 return True
 
             extractor = VocabularyExtractor(self.book_id, target_level=self.target_level)
-            return extractor.extract_vocabulary_for_all_blocks(max_words_per_block=20)
+            return extractor.extract_vocabulary_for_all_blocks(
+                max_words_per_block=20,
+                max_phrasal_verbs_per_block=5
+            )
 
         except Exception as e:
             logger.error(f"Error extracting vocabulary: {str(e)}")
