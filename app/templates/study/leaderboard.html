@@ -21,7 +21,7 @@
                 {% if current_user_xp_rank %}
                 <div class="col-md-6">
                     <div class="d-flex align-items-center">
-                        <div class="me-3" style="font-size: 36px;">⚡</div>
+                        <div class="me-3 leaderboard-icon-lg">⚡</div>
                         <div>
                             <div class="fs-4 fw-bold text-primary">#{{ current_user_xp_rank }}</div>
                             <div class="text-muted">По опыту (XP)</div>
@@ -32,7 +32,7 @@
                 {% if current_user_achievement_rank %}
                 <div class="col-md-6">
                     <div class="d-flex align-items-center">
-                        <div class="me-3" style="font-size: 36px;">🏆</div>
+                        <div class="me-3 leaderboard-icon-lg">🏆</div>
                         <div>
                             <div class="fs-4 fw-bold text-warning">#{{ current_user_achievement_rank }}</div>
                             <div class="text-muted">По достижениям</div>
@@ -66,9 +66,9 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
-                            <thead style="background: #f8f9fa;">
+                            <thead class="leaderboard-thead">
                                 <tr>
-                                    <th style="width: 60px;" class="text-center">Место</th>
+                                    <th class="leaderboard-col-rank text-center">Место</th>
                                     <th>Пользователь</th>
                                     <th class="text-center">Уровень</th>
                                     <th class="text-end">Опыт (XP)</th>
@@ -76,21 +76,21 @@
                             </thead>
                             <tbody>
                                 {% for user in top_xp_users %}
-                                <tr {% if user['username'] == current_user.username %}style="background: #e7f3ff;"{% endif %}>
+                                <tr {% if user['username'] == current_user.username %}class="leaderboard-row-current-xp"{% endif %}>
                                     <td class="text-center fw-bold">
                                         {% if loop.index == 1 %}
-                                            <span style="font-size: 24px;">🥇</span>
+                                            <span class="leaderboard-medal">🥇</span>
                                         {% elif loop.index == 2 %}
-                                            <span style="font-size: 24px;">🥈</span>
+                                            <span class="leaderboard-medal">🥈</span>
                                         {% elif loop.index == 3 %}
-                                            <span style="font-size: 24px;">🥉</span>
+                                            <span class="leaderboard-medal">🥉</span>
                                         {% else %}
                                             {{ loop.index }}
                                         {% endif %}
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-weight: 600;">
+                                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2 leaderboard-avatar">
                                                 {{ user['username'][0].upper() }}
                                             </div>
                                             <span class="fw-semibold">{{ user['username'] }}</span>
@@ -122,30 +122,30 @@
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
-                            <thead style="background: #f8f9fa;">
+                            <thead class="leaderboard-thead">
                                 <tr>
-                                    <th style="width: 60px;" class="text-center">Место</th>
+                                    <th class="leaderboard-col-rank text-center">Место</th>
                                     <th>Пользователь</th>
                                     <th class="text-end">Достижения</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for user in top_achievement_users %}
-                                <tr {% if user['username'] == current_user.username %}style="background: #fff8e1;"{% endif %}>
+                                <tr {% if user['username'] == current_user.username %}class="leaderboard-row-current-achievement"{% endif %}>
                                     <td class="text-center fw-bold">
                                         {% if loop.index == 1 %}
-                                            <span style="font-size: 24px;">🥇</span>
+                                            <span class="leaderboard-medal">🥇</span>
                                         {% elif loop.index == 2 %}
-                                            <span style="font-size: 24px;">🥈</span>
+                                            <span class="leaderboard-medal">🥈</span>
                                         {% elif loop.index == 3 %}
-                                            <span style="font-size: 24px;">🥉</span>
+                                            <span class="leaderboard-medal">🥉</span>
                                         {% else %}
                                             {{ loop.index }}
                                         {% endif %}
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <div class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px; font-weight: 600;">
+                                            <div class="rounded-circle bg-warning text-white d-flex align-items-center justify-content-center me-2 leaderboard-avatar">
                                                 {{ user['username'][0].upper() }}
                                             </div>
                                             <span class="fw-semibold">{{ user['username'] }}</span>
