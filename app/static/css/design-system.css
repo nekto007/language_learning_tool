@@ -187,6 +187,9 @@ main {
     --gradient-success: linear-gradient(135deg, var(--success-500) 0%, var(--success-700) 100%);
     --gradient-info: linear-gradient(135deg, var(--info-500) 0%, var(--info-700) 100%);
     --gradient-warning: linear-gradient(135deg, var(--warning-500) 0%, var(--warning-700) 100%);
+    --gradient-danger: linear-gradient(135deg, var(--danger-500) 0%, var(--danger-700) 100%);
+    --gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-dark: linear-gradient(135deg, var(--gray-800) 0%, var(--gray-900) 100%);
 
     /* Admin Panel Variables */
     --admin-sidebar-width: 250px;
@@ -194,6 +197,45 @@ main {
     --admin-sidebar-bg: #1e293b;
     --admin-sidebar-text: #cbd5e1;
     --admin-sidebar-hover: #334155;
+
+    /* Missing variables (added for completeness) */
+    --border-default: var(--border-light);
+    --surface-primary: var(--bg-primary);
+
+    /* RGB variants for rgba() usage */
+    --primary-rgb: 99, 102, 241;
+    --success-rgb: 34, 197, 94;
+    --warning-rgb: 245, 158, 11;
+    --danger-rgb: 239, 68, 68;
+    --info-rgb: 59, 130, 246;
+
+    /* Missing color scale values */
+    --success-200: #bbf7d0;
+    --success-300: #86efac;
+    --success-400: #4ade80;
+    --success-800: #166534;
+    --warning-200: #fef08a;
+    --warning-300: #fde047;
+    --warning-400: #facc15;
+    --warning-800: #92400e;
+    --danger-200: #fecaca;
+    --danger-300: #fca5a5;
+    --danger-400: #f87171;
+    --danger-800: #991b1b;
+    --info-200: #bfdbfe;
+    --info-300: #93c5fd;
+    --info-400: #60a5fa;
+    --info-800: #1e40af;
+
+    /* Special colors */
+    --color-gold: #ffd700;
+    --color-silver: #c0c0c0;
+    --color-bronze: #cd7f32;
+
+    /* Brand colors */
+    --brand-color: var(--primary-500);
+    --gradient-hero: var(--gradient-purple);
+    --gradient-pink: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
 /* ========================================
@@ -1104,8 +1146,8 @@ select.form-control {
 
 /* Hero Section with Dark Gradient */
 .book-hero {
-    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-700) 100%);
+    color: var(--text-inverse);
     padding: var(--space-4) 0;
     margin-bottom: var(--space-4);
     position: relative;
@@ -2106,77 +2148,77 @@ select.form-control {
 
 /* Dark theme for reader */
 body.dark-theme {
-    background: #1a1a1a;
+    background: var(--gray-900);
     color: var(--gray-100);
 }
 
 body.dark-theme .reader-header {
-    background: #2d3748;
-    border-bottom-color: #4a5568;
+    background: var(--gray-700);
+    border-bottom-color: var(--gray-600);
     color: var(--gray-100);
 }
 
 body.dark-theme .reader-content {
-    background: #2d3748;
+    background: var(--gray-700);
     color: var(--gray-100);
 }
 
 body.dark-theme .reader-body {
-    background: #1a202c;
+    background: var(--gray-800);
 }
 
 body.dark-theme .sidebar-modal {
-    background: #2d3748;
+    background: var(--gray-700);
     color: var(--gray-100);
 }
 
 body.dark-theme .sidebar-header {
-    border-bottom-color: #4a5568;
+    border-bottom-color: var(--gray-600);
 }
 
 body.dark-theme .chapter-info {
-    background: #4a5568;
+    background: var(--gray-600);
 }
 
 body.dark-theme .font-controls {
-    background: #4a5568;
+    background: var(--gray-600);
 }
 
 body.dark-theme .font-control-btn {
-    background: #2d3748;
-    border-color: #4a5568;
+    background: var(--gray-700);
+    border-color: var(--gray-600);
     color: var(--gray-100);
 }
 
 body.dark-theme .font-control-btn:hover {
-    background: #4a5568;
-    border-color: #6b7280;
+    background: var(--gray-600);
+    border-color: var(--gray-500);
 }
 
 body.dark-theme .btn-outline-secondary {
     color: var(--gray-100);
-    border-color: #4a5568;
+    border-color: var(--gray-600);
 }
 
 body.dark-theme .btn-outline-secondary:hover {
-    background: #4a5568;
-    border-color: #6b7280;
+    background: var(--gray-600);
+    border-color: var(--gray-500);
     color: var(--gray-100);
 }
 
 body.dark-theme .form-select {
-    background: #4a5568;
-    border-color: #6b7280;
+    background: var(--gray-600);
+    border-color: var(--gray-500);
     color: var(--gray-100);
 }
 
 body.dark-theme .word-clickable:hover {
-    background-color: rgba(59, 130, 246, 0.3);
+    background-color: rgba(var(--info-rgb), 0.3);
 }
 
 body.dark-theme #translationPopup {
-    background: #2d3748;
-    border-color: #4a5568;
+    background: var(--gray-700);
+    border-color: var(--gray-600);
     color: var(--gray-100);
 }
 
@@ -2294,18 +2336,18 @@ body.dark-theme #translationPopup {
 }
 
 .rank-1 {
-    background-color: #FFD700;
-    color: #333;
+    background-color: var(--color-gold);
+    color: var(--gray-800);
 }
 
 .rank-2 {
-    background-color: #C0C0C0;
-    color: #333;
+    background-color: var(--color-silver);
+    color: var(--gray-800);
 }
 
 .rank-3 {
-    background-color: #CD7F32;
-    color: white;
+    background-color: var(--color-bronze);
+    color: var(--text-inverse);
 }
 
 .player-cell {
@@ -2760,12 +2802,12 @@ body.dark-theme #translationPopup {
 }
 
 .reading-audio-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-purple);
     border: none;
     border-radius: 50%;
     width: 36px;
     height: 36px;
-    color: white;
+    color: var(--text-inverse);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -3724,18 +3766,18 @@ body.dark-theme #translationPopup {
 }
 
 .level-a {
-    background: #e3f2fd;
-    color: #1976d2;
+    background: var(--info-100);
+    color: var(--info-700);
 }
 
 .level-b {
-    background: #fff3e0;
-    color: #f57c00;
+    background: var(--warning-100);
+    color: var(--warning-700);
 }
 
 .level-c {
-    background: #ffebee;
-    color: #d32f2f;
+    background: var(--danger-100);
+    color: var(--danger-700);
 }
 
 .hero-title-group h1 {
@@ -4158,23 +4200,23 @@ body.dark-theme #translationPopup {
 }
 
 .stat-card.streak {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
-    color: white;
+    background: var(--gradient-danger);
+    color: var(--text-inverse);
 }
 
 .stat-card.points {
-    background: linear-gradient(135deg, #ffd93d 0%, #ffb700 100%);
-    color: #333;
+    background: var(--gradient-warning);
+    color: var(--gray-800);
 }
 
 .stat-card.level {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    color: white;
+    background: var(--gradient-primary);
+    color: var(--text-inverse);
 }
 
 .stat-card.daily {
-    background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
-    color: white;
+    background: var(--gradient-success);
+    color: var(--text-inverse);
 }
 
 .hero-section .stat-icon {
@@ -5599,12 +5641,12 @@ body.dark-theme #translationPopup {
 
 /* First speaker (odd lines) - Sarah */
 .dialogue-line:nth-child(odd) .speaker {
-    color: #667eea;
+    color: var(--primary-500);
 }
 
 /* Second speaker (even lines) - Michael */
 .dialogue-line:nth-child(even) .speaker {
-    color: #10b981;
+    color: var(--success-500);
 }
 
 /* Speech bubble */
@@ -5627,22 +5669,22 @@ body.dark-theme #translationPopup {
 
 /* First speaker bubble (Sarah) - Purple gradient */
 .dialogue-line:nth-child(odd) .speech {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--gradient-purple);
+    color: var(--text-inverse);
     border-bottom-left-radius: 0.25rem;
 }
 
 /* Second speaker bubble (Michael) - Green gradient */
 .dialogue-line:nth-child(even) .speech {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
+    background: var(--gradient-success);
+    color: var(--text-inverse);
     border-bottom-right-radius: 0.25rem;
 }
 
 /* Narrative text (if any) */
 .narrative {
     text-align: center;
-    color: #6b7280;
+    color: var(--text-secondary);
     font-style: italic;
     font-size: 0.95rem;
     padding: 0.75rem 0;
@@ -6073,15 +6115,7 @@ body.dark-theme #translationPopup {
    (Migrated from old CSS files)
    ======================================== */
 
-:root {
-    /* Hero/Brand Gradients - used across multiple templates */
-    --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-pink: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --gradient-gold: linear-gradient(90deg, #ffd89b 0%, #19547b 50%, #ffd89b 100%);
-
-    /* Brand color for navbar */
-    --brand-color: #667eea;
-}
+/* Note: gradient-hero and brand-color moved to main :root block */
 
 /* ========================================
    Navbar Brand Styles
@@ -6881,4 +6915,516 @@ body.dark-theme #translationPopup {
         margin: 0;
         max-width: 100%;
     }
+}
+
+/* ========================================
+   Accessibility (A11Y) Styles
+   ======================================== */
+
+/* Focus visible styles for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Enhanced focus for interactive elements */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Skip to content link */
+.skip-to-content {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-600);
+    color: var(--text-inverse);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    z-index: var(--z-tooltip);
+    font-weight: var(--font-medium);
+    text-decoration: none;
+    transition: top var(--transition-fast);
+}
+
+.skip-to-content:focus {
+    top: var(--space-2);
+}
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Make sr-only visible when focused (for skip links) */
+.sr-only-focusable:focus,
+.sr-only-focusable:active {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --border-light: var(--gray-400);
+        --border-medium: var(--gray-500);
+        --text-secondary: var(--gray-700);
+    }
+
+    .btn {
+        border-width: 2px;
+    }
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+
+/* Display utilities */
+.d-none { display: none !important; }
+.d-block { display: block !important; }
+.d-inline { display: inline !important; }
+.d-inline-block { display: inline-block !important; }
+
+/* Width utilities */
+.w-25 { width: 25% !important; }
+.w-50 { width: 50% !important; }
+.w-75 { width: 75% !important; }
+.w-100 { width: 100% !important; }
+.w-auto { width: auto !important; }
+
+/* Table column width utilities */
+.table-col-xs { width: 4%; }
+.table-col-sm { width: 8%; }
+.table-col-md { width: 12%; }
+.table-col-lg { width: 16%; }
+.table-col-xl { width: 20%; }
+
+/* Opacity utilities */
+.opacity-0 { opacity: 0 !important; }
+.opacity-25 { opacity: 0.25 !important; }
+.opacity-50 { opacity: 0.5 !important; }
+.opacity-75 { opacity: 0.75 !important; }
+.opacity-100 { opacity: 1 !important; }
+
+/* ========================================
+   New Components
+   ======================================== */
+
+/* Circular button (for audio, actions) */
+.btn-circle {
+    width: var(--space-10);
+    height: var(--space-10);
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-circle-sm {
+    width: var(--space-8);
+    height: var(--space-8);
+}
+
+.btn-circle-lg {
+    width: var(--space-12);
+    height: var(--space-12);
+}
+
+/* Status indicator dot */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.status-indicator-sm {
+    width: 8px;
+    height: 8px;
+}
+
+.status-indicator-lg {
+    width: 16px;
+    height: 16px;
+}
+
+.status-indicator-new { background-color: var(--status-new); }
+.status-indicator-learning { background-color: var(--status-learning); }
+.status-indicator-review { background-color: var(--status-review); }
+.status-indicator-mastered { background-color: var(--status-mastered); }
+
+/* Level badges */
+.badge-level-a1,
+.badge-level-a2 {
+    background: var(--success-100);
+    color: var(--success-700);
+}
+
+.badge-level-b1,
+.badge-level-b2 {
+    background: var(--info-100);
+    color: var(--info-700);
+}
+
+.badge-level-c1,
+.badge-level-c2 {
+    background: var(--warning-100);
+    color: var(--warning-700);
+}
+
+/* ========================================
+   Fluid Typography (Modern)
+   ======================================== */
+
+.text-fluid-sm {
+    font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+}
+
+.text-fluid-base {
+    font-size: clamp(1rem, 2vw, 1.125rem);
+}
+
+.text-fluid-lg {
+    font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+}
+
+.text-fluid-xl {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.text-fluid-2xl {
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.text-fluid-3xl {
+    font-size: clamp(1.875rem, 5vw, 3rem);
+}
+
+.text-fluid-4xl {
+    font-size: clamp(2.25rem, 6vw, 4rem);
+}
+
+/* ========================================
+   Card Variants
+   ======================================== */
+
+.card-rounded-lg {
+    border-radius: var(--radius-lg);
+}
+
+.card-gradient-light {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--bg-primary) 100%);
+}
+
+/* ========================================
+   Stat Box Component
+   ======================================== */
+
+.stat-box {
+    text-align: center;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    transition: var(--transition-base);
+}
+
+.stat-box:hover {
+    transform: translateY(-2px);
+}
+
+.stat-box-value {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+}
+
+.stat-box-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   Audio Button Component
+   ======================================== */
+
+.audio-btn-circle {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.audio-btn-circle:hover {
+    transform: scale(1.1);
+}
+
+/* ========================================
+   Mobile Responsive Helpers
+   ======================================== */
+
+@media (max-width: 768px) {
+    .d-none-mobile { display: none !important; }
+    .d-block-mobile { display: block !important; }
+}
+
+@media (min-width: 769px) {
+    .d-none-desktop { display: none !important; }
+    .d-block-desktop { display: block !important; }
+}
+
+/* ========================================
+   Letter Filter Button
+   ======================================== */
+
+.letter-filter-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-semibold);
+}
+
+/* ========================================
+   Bulk Actions Panel
+   ======================================== */
+
+.bulk-actions-panel {
+    border-radius: var(--radius-lg);
+    transition: var(--transition-slow);
+    transform: translateY(-10px);
+    opacity: 0;
+}
+
+.bulk-actions-panel.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* ========================================
+   Table Wrapper with Rounded Corners
+   ======================================== */
+
+.table-wrapper-rounded {
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+}
+
+/* ========================================
+   Table Column Widths
+   ======================================== */
+
+.table-col-4 { width: 4%; }
+.table-col-8 { width: 8%; }
+.table-col-12 { width: 12%; }
+.table-col-16 { width: 16%; }
+.table-col-18 { width: 18%; }
+
+/* ========================================
+   Status Indicator Dot
+   ======================================== */
+
+.status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 2px solid white;
+    box-shadow: var(--shadow-sm);
+}
+
+.status-dot-mastered { background-color: var(--primary-500); }
+.status-dot-review { background-color: var(--info-500); }
+.status-dot-learning { background-color: var(--success-500); }
+.status-dot-new { background-color: var(--gray-500); }
+
+/* ========================================
+   Word Text Styles
+   ======================================== */
+
+.word-english {
+    font-weight: var(--font-bold);
+    color: var(--gray-900);
+    font-size: 1.1rem;
+}
+
+/* ========================================
+   Level Badge with Gradient
+   ======================================== */
+
+.badge-level {
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    font-weight: var(--font-bold);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    box-shadow: var(--shadow-sm);
+}
+
+.badge-level-a { background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%); }
+.badge-level-b { background: linear-gradient(135deg, var(--info-500) 0%, var(--info-600) 100%); }
+.badge-level-c { background: linear-gradient(135deg, var(--warning-500) 0%, var(--warning-600) 100%); }
+
+/* Mobile badge (smaller) */
+.badge-level-sm {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.75rem;
+}
+
+/* ========================================
+   Audio Button (Small Circle)
+   ======================================== */
+
+.audio-btn-sm {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-btn-xs {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========================================
+   Empty State Icon
+   ======================================== */
+
+.empty-state-icon {
+    font-size: 4rem;
+    opacity: 0.5;
+}
+
+/* ========================================
+   Study Flashcards Components
+   ======================================== */
+
+/* Progress bar thin */
+.progress-thin {
+    height: 10px;
+}
+
+.progress-animated {
+    transition: width 0.3s ease;
+}
+
+/* Empty state / celebration icon (large emoji) */
+.celebration-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+}
+
+.celebration-icon-sm {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+/* Flashcard container */
+.flashcard {
+    min-height: 400px;
+    padding: 40px 30px;
+    position: relative;
+}
+
+/* Nothing to study card padding */
+.nothing-to-study-card {
+    padding: 60px 40px;
+}
+
+/* Hint text styles */
+.hint-text-styles {
+    font-size: 1rem;
+    word-wrap: break-word;
+    max-width: 100%;
+    overflow-wrap: break-word;
+}
+
+/* Divider centered */
+.divider-centered {
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Rating button max width */
+.rating-btn-sized {
+    max-width: 150px;
+}
+
+/* XP Earned Banner */
+.xp-banner {
+    background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
+    padding: 20px;
+    border-radius: var(--radius-xl);
+    box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.3);
+}
+
+.xp-banner-value {
+    font-size: 32px;
+    font-weight: var(--font-bold);
+    color: #ffd89b;
+}
+
+.xp-banner-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 8px;
 }
