@@ -69,11 +69,11 @@
     <div id="toast-container" class="toast-container-fixed"></div>
 
     <!-- Add Word -->
-    <div class="card shadow-sm mb-4" style="position: relative; z-index: 50;">
+    <div class="card shadow-sm mb-4 deck-edit-card-elevated">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Добавить слово</h5>
         </div>
-        <div class="card-body" style="overflow: visible;">
+        <div class="card-body deck-edit-card-body-overflow">
             <form method="POST" action="{{ url_for('study.add_word_to_deck', deck_id=deck.id) }}" id="add-word-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="word_id" id="word-id-input" value="">
@@ -81,10 +81,10 @@
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label for="custom_english" class="form-label">English *</label>
-                        <div style="position: relative; z-index: 100;">
+                        <div class="autocomplete-container">
                             <input type="text" class="form-control" id="custom_english" name="custom_english"
                                    placeholder="Начните вводить..." required autocomplete="off">
-                            <div id="autocomplete-results" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 300px; overflow-y: auto; display: none; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; margin-top: 2px;"></div>
+                            <div id="autocomplete-results" class="list-group position-absolute w-100 autocomplete-dropdown"></div>
                         </div>
                         <small class="text-muted">Начните вводить для поиска в базе</small>
                     </div>
@@ -139,7 +139,7 @@
     </div>
 
     <!-- Word List -->
-    <div class="card shadow-sm mb-4" style="position: relative; z-index: 10;">
+    <div class="card shadow-sm mb-4 deck-edit-card-low">
         <div class="card-header bg-info text-white">
             <h5 class="mb-0">
                 <i class="fas fa-list me-2"></i>Слова в колоде
@@ -151,11 +151,11 @@
                 <table class="table table-hover" id="words-table">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 5%;">#</th>
-                            <th style="width: 20%;">English</th>
-                            <th style="width: 20%;">Русский</th>
-                            <th style="width: 40%;">Примеры</th>
-                            <th style="width: 15%;" class="text-center">Действия</th>
+                            <th class="deck-col-num">#</th>
+                            <th class="deck-col-english">English</th>
+                            <th class="deck-col-russian">Русский</th>
+                            <th class="deck-col-examples">Примеры</th>
+                            <th class="deck-col-actions text-center">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -171,7 +171,7 @@
                             <td>{{ word.russian_word }}</td>
                             <td>
                                 {% if word.sentences %}
-                                <small class="text-muted" style="font-size: 0.85rem;">
+                                <small class="text-muted sentence-example-text">
                                     {{ word.sentences[:150] }}{% if word.sentences|length > 150 %}...{% endif %}
                                 </small>
                                 {% else %}
@@ -185,7 +185,7 @@
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form method="POST" action="{{ url_for('study.remove_word_from_deck', deck_id=deck.id, word_id=word.id) }}"
-                                      onsubmit="return confirm('Удалить это слово из колоды?')" style="display: inline;">
+                                      onsubmit="return confirm('Удалить это слово из колоды?')" class="form-inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-danger btn-sm" title="Удалить">
                                         <i class="fas fa-trash"></i>
@@ -548,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Format sentences
         let sentencesHtml = '';
         if (word.sentences) {
-            sentencesHtml = `<small class="text-muted" style="font-size: 0.85rem;">${escapeHtml(word.sentences)}</small>`;
+            sentencesHtml = `<small class="text-muted sentence-example-text">${escapeHtml(word.sentences)}</small>`;
         } else {
             sentencesHtml = '<small class="text-muted fst-italic">Нет примеров</small>';
         }
@@ -563,7 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <td>${sentencesHtml}</td>
             <td class="text-center">
                 <form method="POST" action="/study/my-decks/{{ deck.id }}/words/${word.id}/delete"
-                      onsubmit="return confirm('Удалить это слово из колоды?')" style="display: inline;">
+                      onsubmit="return confirm('Удалить это слово из колоды?')" class="form-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-danger btn-sm" title="Удалить">
                         <i class="fas fa-trash"></i>
@@ -621,8 +621,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         toast.innerHTML = `
-            <span style="font-size: 24px; color: ${config.color};">${config.icon}</span>
-            <span style="flex: 1;">${message}</span>
+            <span class="toast-icon-lg" style="color: ${config.color};">${config.icon}</span>
+            <span class="toast-message">${message}</span>
         `;
 
         toastContainer.appendChild(toast);
@@ -697,7 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         // Update sentences cell
                         if (data.word.sentences) {
-                            cells[3].innerHTML = `<small class="text-muted" style="font-size: 0.85rem;">${escapeHtml(data.word.sentences)}</small>`;
+                            cells[3].innerHTML = `<small class="text-muted sentence-example-text">${escapeHtml(data.word.sentences)}</small>`;
                         } else {
                             cells[3].innerHTML = '<small class="text-muted fst-italic">Нет примеров</small>';
                         }
