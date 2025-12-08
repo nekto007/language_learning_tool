@@ -676,6 +676,12 @@ def _process_book_chapters_words_internal(book_id: int) -> Dict:
         print(f"[BOOK PROCESSING] Книга {book_id}: слова обработаны, всего {total_words}, уникальных {unique_words}", flush=True)
         logger.warning(f"[BOOK PROCESSING] Книга {book_id}: слова обработаны, всего {total_words}, уникальных {unique_words}")
 
+        # Поиск фразовых глаголов в тексте
+        print(f"[BOOK PROCESSING] Книга {book_id}: поиск фразовых глаголов...", flush=True)
+        phrasal_verbs_found = find_phrasal_verbs_in_text(all_text, book_id)
+        print(f"[BOOK PROCESSING] Книга {book_id}: найдено {phrasal_verbs_found} фразовых глаголов", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: найдено {phrasal_verbs_found} фразовых глаголов")
+
         # Обновляем статистику книги в конце
         print(f"[BOOK PROCESSING] Книга {book_id}: обновляем статистику...", flush=True)
         repo = DatabaseRepository()
@@ -684,14 +690,15 @@ def _process_book_chapters_words_internal(book_id: int) -> Dict:
         logger.warning(f"[BOOK PROCESSING] Книга {book_id}: статистика обновлена")
 
         elapsed_time = time.time() - start_time
-        print(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов", flush=True)
-        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов")
+        print(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов, {phrasal_verbs_found} фразовых глаголов", flush=True)
+        logger.warning(f"[BOOK PROCESSING] Книга {book_id}: завершено за {elapsed_time:.2f} сек, добавлено {total_added} слов, {phrasal_verbs_found} фразовых глаголов")
 
         return {
             "status": "success",
             "total_words": total_words,
             "unique_words": unique_words,
             "words_added": total_added,
+            "phrasal_verbs_found": phrasal_verbs_found,
             "elapsed_time": elapsed_time
         }
 
@@ -700,10 +707,10 @@ def extract_words_from_text_content(text_content: str) -> List[str]:
     """
     Извлекает слова из обычного текстового контента (не HTML).
     Используется для обработки глав книг.
-    
+
     Args:
         text_content (str): Текстовый контент
-        
+
     Returns:
         List[str]: Список обработанных слов
     """
@@ -711,13 +718,68 @@ def extract_words_from_text_content(text_content: str) -> List[str]:
         # Загружаем ресурсы NLTK
         download_nltk_resources()
         english_vocab, brown_words, stop_words = initialize_nltk()
-        
+
         # Обрабатываем текст с помощью process_text
         all_words = process_text(text_content, english_vocab, stop_words, brown_words)
-        
+
         logger.info(f"Извлечено {len(all_words)} слов из текстового контента")
         return all_words
-        
+
     except Exception as e:
         logger.error(f"Ошибка при извлечении слов из текста: {str(e)}")
         return []
+
+
+def find_phrasal_verbs_in_text(content: str, book_id: int) -> int:
+    """
+    Находит фразовые глаголы в тексте и создаёт связи с книгой.
+
+    Args:
+        content: Текст для поиска
+        book_id: ID книги
+
+    Returns:
+        Количество найденных фразовых глаголов
+    """
+    import re
+
+    text_lower = content.lower()
+    found_count = 0
+
+    # Получаем все фразовые глаголы из CollectionWords
+    phrasal_verbs = CollectionWords.query.filter_by(item_type='phrasal_verb').all()
+
+    if not phrasal_verbs:
+        logger.info("Нет фразовых глаголов в базе данных")
+        return 0
+
+    logger.info(f"Поиск {len(phrasal_verbs)} фразовых глаголов в тексте книги {book_id}")
+
+    for pv in phrasal_verbs:
+        pv_text = pv.english_word.lower()
+        # Используем word boundary для точного совпадения
+        pattern = r'\b' + re.escape(pv_text) + r'\b'
+        matches = re.findall(pattern, text_lower)
+
+        if matches:
+            frequency = len(matches)
+            # Создаём связь фразового глагола с книгой
+            try:
+                db.session.execute(
+                    text("""
+                        INSERT INTO word_book_link (word_id, book_id, frequency)
+                        VALUES (:word_id, :book_id, :frequency)
+                        ON CONFLICT (word_id, book_id)
+                        DO UPDATE SET frequency = word_book_link.frequency + EXCLUDED.frequency
+                    """),
+                    {"word_id": pv.id, "book_id": book_id, "frequency": frequency}
+                )
+                found_count += 1
+            except Exception as e:
+                logger.error(f"Ошибка при добавлении связи для '{pv.english_word}': {e}")
+
+    if found_count > 0:
+        db.session.commit()
+        logger.info(f"Найдено {found_count} фразовых глаголов в книге {book_id}")
+
+    return found_count

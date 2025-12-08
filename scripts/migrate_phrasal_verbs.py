@@ -64,10 +64,11 @@ def migrate_phrasal_verbs():
     from sqlalchemy import text
 
     # Get phrasal verbs directly from the old table using raw SQL
+    # Note: "using" is a reserved word in PostgreSQL, must be quoted
     with db.engine.connect() as conn:
         result = conn.execute(text(
-            "SELECT id, phrasal_verb, russian_translate, using, sentence, word_id, listening, get_download "
-            "FROM phrasal_verb"
+            'SELECT id, phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download '
+            'FROM phrasal_verb'
         ))
         pvs = result.fetchall()
 
