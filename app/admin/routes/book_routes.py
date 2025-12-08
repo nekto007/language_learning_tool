@@ -25,7 +25,7 @@ from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter
 from app.books.parsers import extract_file_metadata, process_uploaded_book
 from app.utils.db import db
-from app.words.models import CollectionWords, PhrasalVerb
+from app.words.models import CollectionWords
 
 # Создаем blueprint для book routes
 book_bp = Blueprint('book_admin', __name__)
@@ -248,23 +248,28 @@ def process_phrasal_verbs():
                 errors.append(f'Строка {line_num}: базовое слово "{english_word}" не найдено')
                 continue
 
-            phrasal_verb = PhrasalVerb.query.filter_by(phrasal_verb=phrasal_verb_text).first()
+            # Check if phrasal verb exists in CollectionWords
+            phrasal_verb_entry = CollectionWords.query.filter_by(english_word=phrasal_verb_text).first()
 
-            if not phrasal_verb:
-                phrasal_verb = PhrasalVerb(
-                    phrasal_verb=phrasal_verb_text,
-                    russian_translate=russian_translate.strip(),
-                    using=using.strip(),
-                    sentence=f"{english_sentence.strip()}<br>{russian_sentence.strip()}",
-                    word_id=base_word.id,
+            if not phrasal_verb_entry:
+                phrasal_verb_entry = CollectionWords(
+                    english_word=phrasal_verb_text,
+                    russian_word=russian_translate.strip(),
+                    usage_context=using.strip(),
+                    sentences=f"{english_sentence.strip()}<br>{russian_sentence.strip()}",
+                    base_word_id=base_word.id,
                     listening=f"[sound:pronunciation_en_{phrasal_verb_text.lower().replace(' ', '_')}.mp3]",
-                    get_download=0
+                    get_download=0,
+                    item_type='phrasal_verb',
+                    level='B1'
                 )
-                db.session.add(phrasal_verb)
+                db.session.add(phrasal_verb_entry)
             else:
-                phrasal_verb.russian_translate = russian_translate.strip()
-                phrasal_verb.using = using.strip()
-                phrasal_verb.sentence = f"{english_sentence.strip()}<br>{russian_sentence.strip()}"
+                phrasal_verb_entry.russian_word = russian_translate.strip()
+                phrasal_verb_entry.usage_context = using.strip()
+                phrasal_verb_entry.sentences = f"{english_sentence.strip()}<br>{russian_sentence.strip()}"
+                phrasal_verb_entry.item_type = 'phrasal_verb'
+                phrasal_verb_entry.base_word_id = base_word.id
 
             processed_count += 1
 
@@ -320,10 +325,11 @@ def book_statistics():
             func.avg(Book.unique_words).label('avg_unique')
         ).first()
 
+        # Get phrasal verb stats from CollectionWords
         phrasal_stats = db.session.query(
-            func.count(PhrasalVerb.id).label('total_phrasal_verbs'),
-            func.count(PhrasalVerb.id).filter(PhrasalVerb.get_download == 1).label('with_audio')
-        ).first()
+            func.count(CollectionWords.id).label('total_phrasal_verbs'),
+            func.count(CollectionWords.id).filter(CollectionWords.get_download == 1).label('with_audio')
+        ).filter(CollectionWords.item_type == 'phrasal_verb').first()
 
         return render_template(
             'admin/books/statistics.html',

@@ -107,12 +107,13 @@ def dashboard():
 @module_required('words')
 def word_list():
     from app.study.models import UserWord
-    
+
     # Получение параметров фильтра
     search = request.args.get('search', '')
     status = request.args.get('status', '')  # Изменяем на строку для новой системы
     letter = request.args.get('letter', '')
     book_id = request.args.get('book_id', type=int)
+    item_type = request.args.get('type', 'all')  # 'all', 'word', 'phrasal_verb'
 
     # Параметры пагинации
     page = request.args.get('page', 1, type=int)
@@ -127,9 +128,15 @@ def word_list():
         CollectionWords,
         UserWord.status.label('user_status')
     ).outerjoin(
-        UserWord, 
+        UserWord,
         (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
     )
+
+    # Применяем фильтр по типу (word/phrasal_verb)
+    if item_type == 'word':
+        query = query.filter(CollectionWords.item_type == 'word')
+    elif item_type == 'phrasal_verb':
+        query = query.filter(CollectionWords.item_type == 'phrasal_verb')
 
     # Применяем фильтр поиска
     if search:
@@ -220,12 +227,21 @@ def word_list():
         for status_val, count in counts:
             status_counts[status_val] = count
 
+    # Получаем количество по типам
+    type_counts = {
+        'all': CollectionWords.query.count(),
+        'word': CollectionWords.query.filter_by(item_type='word').count(),
+        'phrasal_verb': CollectionWords.query.filter_by(item_type='phrasal_verb').count()
+    }
+
     return render_template(
         'words/list_optimized.html',
         words=words,
         search_form=search_form,
         filter_form=filter_form,
-        status_counts=status_counts
+        status_counts=status_counts,
+        item_type=item_type,
+        type_counts=type_counts
     )
 
 
@@ -289,3 +305,14 @@ def update_word_status(word_id, status):
     # Перенаправляем обратно на страницу, с которой пришел запрос
     next_page = request.args.get('next') or request.referrer or url_for('words.word_list')
     return redirect(next_page)
+
+
+@words.route('/phrasal-verbs')
+@login_required
+@module_required('words')
+def phrasal_verb_list():
+    """Редирект на единую страницу слов с фильтром по фразовым глаголам"""
+    # Сохраняем параметры поиска при редиректе
+    args = request.args.to_dict()
+    args['type'] = 'phrasal_verb'
+    return redirect(url_for('words.word_list', **args))

@@ -200,6 +200,29 @@
         </div>
     </div>
 
+    <!-- Type Switcher -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="btn-group w-100" role="group" aria-label="{{ _('Тип элементов') }}">
+                <a href="{{ url_for('words.word_list', type='all', search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
+                   class="btn {{ 'btn-primary' if item_type == 'all' else 'btn-outline-primary' }}">
+                    <i class="fas fa-globe me-2"></i>{{ _('Все') }}
+                    <span class="badge bg-white text-primary ms-2">{{ type_counts.all }}</span>
+                </a>
+                <a href="{{ url_for('words.word_list', type='word', search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
+                   class="btn {{ 'btn-primary' if item_type == 'word' else 'btn-outline-primary' }}">
+                    <i class="fas fa-font me-2"></i>{{ _('Слова') }}
+                    <span class="badge bg-white text-primary ms-2">{{ type_counts.word }}</span>
+                </a>
+                <a href="{{ url_for('words.word_list', type='phrasal_verb', search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
+                   class="btn {{ 'btn-primary' if item_type == 'phrasal_verb' else 'btn-outline-primary' }}">
+                    <i class="fas fa-link me-2"></i>{{ _('Phrasal Verbs') }}
+                    <span class="badge bg-white text-primary ms-2">{{ type_counts.phrasal_verb }}</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats Bar -->
     {% if words %}
     <div class="card shadow-sm mb-4" style="background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);">
@@ -230,6 +253,8 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <form method="GET" action="{{ url_for('words.word_list') }}">
+                <!-- Hidden field to preserve type filter -->
+                <input type="hidden" name="type" value="{{ item_type }}">
                 <div class="row g-3">
                     <!-- Search -->
                     <div class="col-md-4">
@@ -261,13 +286,13 @@
                 <div class="col-12 mt-3">
                     <label class="form-label fw-semibold">{{ _('Фильтр по букве') }}</label>
                     <div class="d-flex flex-wrap gap-2">
-                        <a href="{{ url_for('words.word_list') }}"
+                        <a href="{{ url_for('words.word_list', type=item_type) }}"
                            class="btn btn-sm {{ 'btn-primary' if not filter_form.letter.data else 'btn-outline-secondary' }}"
                            style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 600;">
                             {{ _('Все') }}
                         </a>
                         {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
-                        <a href="{{ url_for('words.word_list', letter=letter) }}"
+                        <a href="{{ url_for('words.word_list', type=item_type, letter=letter) }}"
                            class="btn btn-sm {{ 'btn-primary' if filter_form.letter.data == letter else 'btn-outline-secondary' }}"
                            style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 600;">
                             {{ letter }}
@@ -464,7 +489,7 @@
             <ul class="pagination">
                 {% if words.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('words.word_list', page=words.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">
+                    <a class="page-link" href="{{ url_for('words.word_list', page=words.prev_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 </li>
@@ -474,7 +499,7 @@
                     {% if page_num %}
                         {% if page_num != words.page %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('words.word_list', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('words.word_list', page=page_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">{{ page_num }}</a>
                         </li>
                         {% else %}
                         <li class="page-item active">
@@ -490,7 +515,7 @@
 
                 {% if words.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('words.word_list', page=words.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">
+                    <a class="page-link" href="{{ url_for('words.word_list', page=words.next_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">
                         <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>

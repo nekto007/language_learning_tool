@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import os
 
 from config.settings import DB_CONFIG
-from app.words.models import PhrasalVerb, CollectionWords as Word
+from app.words.models import CollectionWords as Word
 from app.books.models import Book
 
 logger = logging.getLogger(__name__)
@@ -364,68 +364,67 @@ class DatabaseRepository:
         except psycopg2.Error as e:
             logger.error(f"Error linking word to book: {e}")
 
-    def insert_or_update_phrasal_verb(self, verb: PhrasalVerb) -> int:
+    def insert_or_update_phrasal_verb(self, english_word: str, russian_word: str,
+                                        usage_context: str, sentences: str,
+                                        base_word_id: int = None, listening: str = None,
+                                        get_download: int = 0) -> int:
         """
-        Inserts or updates a phrasal verb in the database.
+        Inserts or updates a phrasal verb in CollectionWords.
 
         Args:
-            verb (PhrasalVerb): Phrasal verb object.
+            english_word: The phrasal verb text (e.g., "give up")
+            russian_word: Russian translation
+            usage_context: Usage context description
+            sentences: Example sentences
+            base_word_id: ID of the base word (optional)
+            listening: Audio file reference (optional)
+            get_download: Download status (0 or 1)
 
         Returns:
-            int: ID of the inserted phrasal verb.
+            int: ID of the inserted/updated phrasal verb.
         """
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
-                    # Check if phrasal verb exists
-                    cursor.execute("SELECT id FROM phrasal_verb WHERE phrasal_verb = %s", (verb.phrasal_verb,))
+                    # Check if phrasal verb exists in collection_words
+                    cursor.execute(
+                        "SELECT id FROM collection_words WHERE english_word = %s",
+                        (english_word,)
+                    )
                     result = cursor.fetchone()
 
                     if result:
                         verb_id = result[0]
-
-                        # Update phrasal verb
+                        # Update existing entry
                         update_query = """
-                            UPDATE phrasal_verb
-                            SET russian_translate = COALESCE(%s, russian_translate),
-                                "using" = COALESCE(%s, "using"),
-                                sentence = COALESCE(%s, sentence),
-                                word_id = COALESCE(%s, word_id),
+                            UPDATE collection_words
+                            SET russian_word = COALESCE(%s, russian_word),
+                                usage_context = COALESCE(%s, usage_context),
+                                sentences = COALESCE(%s, sentences),
+                                base_word_id = COALESCE(%s, base_word_id),
                                 listening = COALESCE(%s, listening),
-                                get_download = COALESCE(%s, get_download)
+                                get_download = COALESCE(%s, get_download),
+                                item_type = 'phrasal_verb'
                             WHERE id = %s
                         """
                         cursor.execute(
                             update_query,
-                            (
-                                verb.russian_translate,
-                                verb.using,
-                                verb.sentence,
-                                verb.word_id,
-                                verb.listening,
-                                verb.get_download,
-                                verb_id,
-                            ),
+                            (russian_word, usage_context, sentences,
+                             base_word_id, listening, get_download, verb_id)
                         )
                     else:
                         # Insert new phrasal verb
                         insert_query = """
-                            INSERT INTO phrasal_verb
-                            (phrasal_verb, russian_translate, "using", sentence, word_id, listening, get_download)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            INSERT INTO collection_words
+                            (english_word, russian_word, usage_context, sentences,
+                             base_word_id, listening, get_download, item_type, level)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, 'phrasal_verb', 'B1')
                             RETURNING id
                         """
                         cursor.execute(
                             insert_query,
-                            (
-                                verb.phrasal_verb,
-                                verb.russian_translate,
-                                verb.using,
-                                verb.sentence,
-                                verb.word_id,
-                                verb.listening,
-                                verb.get_download,
-                            ),
+                            (english_word, russian_word, usage_context, sentences,
+                             base_word_id, listening, get_download)
                         )
                         result = cursor.fetchone()
                         verb_id = result[0] if result else 0
@@ -635,7 +634,7 @@ class DatabaseRepository:
 
     def process_phrasal_verb_file(self, phrasal_verb_file: str) -> int:
         """
-        Processes phrasal verb file and updates the database.
+        Processes phrasal verb file and adds to CollectionWords.
 
         Args:
             phrasal_verb_file (str): Path to phrasal verb file.
@@ -666,39 +665,39 @@ class DatabaseRepository:
                                 phrasal_verb, russian_translate, using, english_sentence, russian_sentence = parts
 
                                 # Get base verb (first word)
-                                english_word = phrasal_verb.split(" ")[0]
+                                base_word = phrasal_verb.split(" ")[0]
 
                                 # Get base verb ID
-                                cursor.execute("SELECT id FROM collection_words WHERE english_word = %s", (english_word,))
+                                cursor.execute(
+                                    "SELECT id FROM collection_words WHERE english_word = %s",
+                                    (base_word,)
+                                )
                                 result = cursor.fetchone()
-
-                                if not result:
-                                    logger.warning(f"Base word not found: {english_word}")
-                                    continue
-
-                                word_id = result[0]
+                                base_word_id = result[0] if result else None
 
                                 # Form path to audio file
                                 sound_file = phrasal_verb.lower().replace(" ", "_")
                                 listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
+                                sentences = f"{english_sentence}<br>{russian_sentence}"
 
-                                # Insert phrasal verb
+                                # Insert/update phrasal verb in collection_words
                                 insert_query = """
-                                    INSERT INTO phrasal_verb
-                                    (phrasal_verb, russian_translate, "using", sentence, word_id, listening)
-                                    VALUES (%s, %s, %s, %s, %s, %s)
-                                    ON CONFLICT (phrasal_verb) DO NOTHING
+                                    INSERT INTO collection_words
+                                    (english_word, russian_word, usage_context, sentences,
+                                     base_word_id, listening, item_type, level)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'phrasal_verb', 'B1')
+                                    ON CONFLICT (english_word) DO UPDATE SET
+                                        russian_word = COALESCE(EXCLUDED.russian_word, collection_words.russian_word),
+                                        usage_context = COALESCE(EXCLUDED.usage_context, collection_words.usage_context),
+                                        sentences = COALESCE(EXCLUDED.sentences, collection_words.sentences),
+                                        base_word_id = COALESCE(EXCLUDED.base_word_id, collection_words.base_word_id),
+                                        listening = COALESCE(EXCLUDED.listening, collection_words.listening),
+                                        item_type = 'phrasal_verb'
                                 """
                                 cursor.execute(
                                     insert_query,
-                                    (
-                                        phrasal_verb,
-                                        russian_translate,
-                                        using,
-                                        f"{english_sentence}<br>{russian_sentence}",
-                                        word_id,
-                                        listening,
-                                    ),
+                                    (phrasal_verb, russian_translate, using,
+                                     sentences, base_word_id, listening)
                                 )
                                 processed_count += 1
                             else:

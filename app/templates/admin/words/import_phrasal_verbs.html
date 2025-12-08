@@ -1,0 +1,94 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Импорт фразовых глаголов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Импорт фразовых глаголов</h1>
+        <a href="{{ url_for('word_admin.word_management') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к управлению словами
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Загрузка файла с фразовыми глаголами</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="action" value="preview">
+
+                        <div class="form-group">
+                            <label for="phrasal_file">CSV файл с фразовыми глаголами:</label>
+                            <input type="file" class="form-control-file" id="phrasal_file"
+                                   name="phrasal_file" accept=".txt,.csv" required>
+                            <small class="form-text text-muted">
+                                Поддерживаются файлы формата .txt и .csv
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Формат файла:</h6>
+                            <p>CSV файл с заголовком и 4 колонками:</p>
+                            <pre>phrasal_verb,russian_translate,using,sentence</pre>
+                            <p><strong>Пример:</strong></p>
+                            <pre>"add up","сходиться; складываться","о цифрах/фактах: иметь смысл","Your story doesn't add up.&lt;br&gt;Твоя история не сходится."
+"back down","отступить","не настаивать дальше","She wouldn't back down.&lt;br&gt;Она не собиралась отступать."</pre>
+                        </div>
+
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-search"></i> Предварительный просмотр
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">Текущая статистика</h6>
+                </div>
+                <div class="card-body">
+                    {% if stats and 'error' not in stats %}
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Всего фразовых глаголов:</span>
+                            <strong>{{ stats.total }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>С аудио:</span>
+                            <strong class="text-success">{{ stats.with_audio }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Без аудио:</span>
+                            <strong class="text-warning">{{ stats.without_audio }}</strong>
+                        </li>
+                    </ul>
+                    {% else %}
+                    <p class="text-muted">Статистика недоступна</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card shadow mt-3">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Колонки файла</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li><strong>phrasal_verb:</strong> Фразовый глагол (например "break down")</li>
+                        <li><strong>russian_translate:</strong> Русский перевод</li>
+                        <li><strong>using:</strong> Контекст использования</li>
+                        <li><strong>sentence:</strong> Пример предложения с переводом (через &lt;br&gt;)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

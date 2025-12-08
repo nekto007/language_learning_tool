@@ -22,8 +22,19 @@ class CollectionWords(db.Model):
     get_download = Column(Integer, default=0)
     frequency_rank = Column(Integer, default=0)
 
+    # New fields for phrasal verbs integration
+    item_type = Column(String(20), default='word')  # 'word' | 'phrasal_verb'
+    base_word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='SET NULL'), nullable=True)
+    usage_context = Column(Text, nullable=True)  # "using" field from PhrasalVerb
+
     books = relationship("Book", secondary="word_book_link", back_populates="words")
-    phrasal_verbs = relationship("PhrasalVerb", back_populates="base_word")
+    # Self-referential relationship for phrasal verbs -> base word
+    base_word = relationship(
+        "CollectionWords",
+        remote_side=[id],
+        foreign_keys=[base_word_id],
+        backref="phrasal_verbs"  # base_word.phrasal_verbs returns derived phrasal verbs
+    )
 
     topics = relationship("Topic", secondary="topic_words", back_populates="words")
     collections = relationship("Collection", secondary="collection_words_link", back_populates="words")
@@ -31,6 +42,7 @@ class CollectionWords(db.Model):
     __table_args__ = (
         Index('idx_collection_words_english_word', 'english_word'),
         Index('idx_collection_words_frequency_rank', 'frequency_rank'),
+        Index('idx_collection_words_item_type', 'item_type'),
     )
 
 
@@ -116,16 +128,6 @@ class CollectionWordLink(db.Model):
     )
 
 
-class PhrasalVerb(db.Model):
-    __tablename__ = 'phrasal_verb'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    phrasal_verb = Column(String(255), unique=True, nullable=False)
-    russian_translate = Column(String(255))
-    using = Column(Text)
-    sentence = Column(Text)
-    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='SET NULL'))
-    listening = Column(Text)
-    get_download = Column(Integer, default=0)
-
-    base_word = relationship("CollectionWords", back_populates="phrasal_verbs")
+# PhrasalVerb model has been deprecated.
+# Phrasal verbs are now stored in CollectionWords with item_type='phrasal_verb'
+# The old phrasal_verb table is kept for backwards compatibility but not used.

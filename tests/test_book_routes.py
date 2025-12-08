@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch, MagicMock
 from io import BytesIO
 
 from app.books.models import Book, Chapter
-from app.words.models import PhrasalVerb, CollectionWords
+from app.words.models import CollectionWords
 
 
 class TestBookRoutes:

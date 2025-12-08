@@ -161,17 +161,15 @@ class TestProcessPhrasalVerbs:
     """Tests for process_phrasal_verbs() POST endpoint"""
 
     @patch('app.admin.routes.book_routes.db.session')
-    @patch('app.words.models.PhrasalVerb')
-    @patch('app.words.models.CollectionWords')
-    def test_process_phrasal_verbs_success(self, mock_words_class, mock_phrasal_class, mock_session, admin_client, mock_admin_user):
+    @patch('app.admin.routes.book_routes.CollectionWords')
+    def test_process_phrasal_verbs_success(self, mock_words_class, mock_session, admin_client, mock_admin_user):
         """Test successful phrasal verbs processing with text input"""
         # Setup mock base word
         mock_word = MagicMock()
         mock_word.id = 1
-        mock_words_class.query.filter_by.return_value.first.return_value = mock_word
 
-        # Setup mock phrasal verb (doesn't exist yet)
-        mock_phrasal_class.query.filter_by.return_value.first.return_value = None
+        # First call returns base word, second call returns None (phrasal verb doesn't exist)
+        mock_words_class.query.filter_by.return_value.first.side_effect = [mock_word, None]
 
         phrasal_data = "look up;искать;in dictionary;I look up words;Я ищу слова"
         response = admin_client.post(
@@ -203,10 +201,10 @@ class TestBookStatistics:
 
     @patch('app.admin.routes.book_routes.render_template')
     @patch('app.admin.routes.book_routes.BookProcessingService.get_book_statistics')
-    @patch('app.admin.routes.book_routes.PhrasalVerb')
+    @patch('app.admin.routes.book_routes.CollectionWords')
     @patch('app.admin.routes.book_routes.db.session')
     @patch('app.admin.routes.book_routes.Book')
-    def test_book_statistics_success(self, mock_book, mock_session, mock_phrasal, mock_get_stats, mock_render, admin_client, mock_admin_user):
+    def test_book_statistics_success(self, mock_book, mock_session, mock_collection_words, mock_get_stats, mock_render, admin_client, mock_admin_user):
         """Test successful book statistics retrieval"""
         # Mock BookProcessingService response
         mock_get_stats.return_value = {
@@ -242,10 +240,10 @@ class TestBookStatistics:
         mock_result.avg_unique = 100
         mock_session.query.return_value.first.return_value = mock_result
 
-        # Mock phrasal verb query
-        mock_phrasal_result = MagicMock()
-        mock_phrasal.id = MagicMock()
-        mock_phrasal.get_download = MagicMock()
+        # Mock phrasal verb query (now uses CollectionWords)
+        mock_collection_words.id = MagicMock()
+        mock_collection_words.get_download = MagicMock()
+        mock_collection_words.item_type = MagicMock()
 
         # Mock render_template to avoid caching
         mock_render.return_value = '<html>statistics</html>'
