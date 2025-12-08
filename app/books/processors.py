@@ -746,6 +746,12 @@ def find_phrasal_verbs_in_text(content: str, book_id: int) -> int:
     text_lower = content.lower()
     found_count = 0
 
+    # Обновляем сессию перед запросом (соединение могло закрыться во время долгой обработки)
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+
     # Получаем все фразовые глаголы из CollectionWords
     phrasal_verbs = CollectionWords.query.filter_by(item_type='phrasal_verb').all()
 
