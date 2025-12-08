@@ -1094,7 +1094,7 @@
       </details>
 
       <!-- Retry button -->
-      <div style="text-align: center; margin-top: 2rem;">
+      <div class="retry-section">
         <button type="button" class="btn btn-outline-primary" onclick="retryQuiz()">
           <i class="fas fa-redo"></i> {{ _('Пройти викторину заново') }}
         </button>
@@ -1185,11 +1185,11 @@
                 </h3>
               {% elif question.get('instruction') %}
                 {# Show instruction for fill_blank if available #}
-                <p class="instruction-text" style="margin-bottom: 1rem; font-size: 0.95rem; color: #6b7280;">
+                <p class="quiz-instruction-text">
                   {{ question.get('instruction') }}
                 </p>
               {% endif %}
-              <p class="sentence-prompt" style="font-size: 1.2rem; margin-bottom: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
+              <p class="quiz-sentence-prompt">
                 {% if question.type == 'translation' %}
                   {{ unescape_html(question.get('russian', question.get('question', ''))) }}
                 {% else %}
@@ -1242,7 +1242,7 @@
                 {% set instruction_text = question.get('instruction') or 'Составьте правильное предложение из слов' %}
                 {% if main_text and main_text != instruction_text %}
                   {# Show main question text if it's different from instruction #}
-                  <p class="question-text" style="font-size: 1.15rem; margin-bottom: 1rem; font-weight: 600;">
+                  <p class="quiz-question-text-lg">
                     {{ unescape_html(main_text) }}
                   </p>
                 {% endif %}
@@ -1282,7 +1282,7 @@
                       <div class="matching-item left">{{ pair.left }}</div>
                       <div class="match-connector"></div>
                       <div class="matching-item right empty" data-slot="{{ loop.index0 }}">
-                        <span style="color: #9ca3af; font-style: italic;">{{ _('Выберите →') }}</span>
+                        <span class="quiz-matching-placeholder">{{ _('Выберите →') }}</span>
                       </div>
                     </div>
                   {% endfor %}
@@ -1329,13 +1329,13 @@
             {% elif question.type == 'listening_choice' %}
               {# Audio listening question with multiple choice #}
               {% if question.get('instruction') %}
-                <p class="instruction-text" style="margin-bottom: 1rem; font-size: 0.9rem; color: #6b7280;">
+                <p class="quiz-instruction-text-sm">
                   {{ question.get('instruction') }}
                 </p>
               {% endif %}
               {% if question.get('audio') %}
-                <div class="audio-player" style="margin-bottom: 1.5rem; text-align: center;">
-                  <button class="audio-play-btn" onclick="playQuestionAudio('{{ question.get('audio') }}', this)" style="padding: 1rem 2rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; font-size: 1rem; cursor: pointer;">
+                <div class="quiz-audio-player">
+                  <button class="quiz-audio-btn" onclick="playQuestionAudio('{{ question.get('audio') }}', this)">
                     <i class="fas fa-play"></i> {{ _('Прослушать') }}
                   </button>
                 </div>
@@ -1356,17 +1356,17 @@
             {% elif question.type == 'dialogue_completion' %}
               {# Dialogue completion question #}
               {% if question.get('instruction') %}
-                <p class="instruction-text" style="margin-bottom: 1rem; font-size: 0.9rem; color: #6b7280;">
+                <p class="quiz-instruction-text-sm">
                   {{ question.get('instruction') }}
                 </p>
               {% endif %}
               {% if question.get('dialogue') %}
-                <div class="dialogue-box" style="margin-bottom: 1.5rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #3b82f6;">
+                <div class="quiz-dialogue-box">
                   {% for line in question.get('dialogue', []) %}
-                    <div class="dialogue-line" style="display: block !important; margin-bottom: 0.75rem; line-height: 1.6;">
+                    <div class="quiz-dialogue-line">
                       <strong>{{ line.speaker }}:</strong>
                       {% if line.get('blank') %}
-                        <span style="color: #3b82f6; font-weight: 600;">___</span>
+                        <span class="quiz-blank-marker">___</span>
                       {% else %}
                         {{ line.text|safe }}
                       {% endif %}
@@ -1394,7 +1394,7 @@
                 <div class="feedback-icon"></div>
                 <div class="feedback-text"></div>
               </div>
-              <button type="button" class="btn btn-primary mt-2" onclick="QuizApp.nextQuestion()" style="width: 100%; padding: 0.5rem 1rem; font-size: 0.9rem;">
+              <button type="button" class="btn btn-primary mt-2 quiz-next-btn-full" onclick="QuizApp.nextQuestion()">
                 <span class="btn-text">{{ _('Следующий вопрос') }}</span>
                 <i class="fas fa-arrow-right ms-1"></i>
               </button>
@@ -2215,7 +2215,7 @@ window.QuizApp = {
               if (rightSlot) {
                 rightSlot.classList.remove('matched', 'correct', 'incorrect');
                 rightSlot.classList.add('empty');
-                rightSlot.innerHTML = '<span style="color: #9ca3af; font-style: italic;">{{ _("Выберите →") }}</span>';
+                rightSlot.innerHTML = '<span class="quiz-matching-placeholder">{{ _("Выберите →") }}</span>';
                 delete rightSlot.dataset.value;
               }
               row.classList.remove('matched');
@@ -2463,21 +2463,21 @@ window.QuizApp = {
     let achievementsHtml = '';
     if (data.new_achievements && data.new_achievements.length > 0) {
       const achievementsList = data.new_achievements.map(achievement => `
-        <div style="padding: 0.75rem; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 0.5rem; margin-bottom: 0.5rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.5rem;">${achievement.icon || '🏆'}</span>
+        <div class="quiz-achievement-item">
+          <div class="quiz-achievement-content">
+            <span class="quiz-achievement-icon">${achievement.icon || '🏆'}</span>
             <div>
-              <div style="font-weight: 600; color: #92400e;">${achievement.name}</div>
-              <div style="font-size: 0.85rem; color: #78350f;">${achievement.description}</div>
-              <div style="font-size: 0.75rem; color: #a16207; margin-top: 0.25rem;">+${achievement.xp} XP</div>
+              <div class="quiz-achievement-name">${achievement.name}</div>
+              <div class="quiz-achievement-desc">${achievement.description}</div>
+              <div class="quiz-achievement-xp">+${achievement.xp} XP</div>
             </div>
           </div>
         </div>
       `).join('');
 
       achievementsHtml = `
-        <div class="achievements-display" style="margin: 1rem 0; padding: 1rem; background: #fffbeb; border: 2px solid #fbbf24; border-radius: 0.5rem;">
-          <h4 style="margin: 0 0 0.75rem 0; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
+        <div class="quiz-achievements-display">
+          <h4 class="quiz-achievements-title">
             <i class="fas fa-medal"></i>
             {{ _('Новые достижения!') }}
           </h4>
@@ -2497,14 +2497,14 @@ window.QuizApp = {
           {{ _('Правильно') }}: ${correctCount} {{ _('из') }} ${totalQuestions} {{ _('вопросов') }}
         </p>
         ${correctSecondAttempt > 0 ? `
-          <div class="attempts-breakdown" style="font-size: 0.9rem; color: #6b7280; margin-top: 0.5rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; border-left: 3px solid #4f46e5;">
-            <div style="margin-bottom: 0.25rem;">
+          <div class="quiz-attempts-breakdown">
+            <div class="quiz-attempts-line">
               ✓ С первой попытки: ${correctFirstAttempt} (${correctFirstAttempt} ${correctFirstAttempt === 1 ? 'балл' : 'балла'})
             </div>
             <div>
               ½ Со второй попытки: ${correctSecondAttempt} (${correctSecondAttempt * 0.5} ${correctSecondAttempt === 1 ? 'балл' : 'балла'})
             </div>
-            <div style="margin-top: 0.5rem; font-weight: 600; color: #4f46e5;">
+            <div class="quiz-attempts-total">
               Итого: ${totalPoints} из ${totalQuestions} баллов
             </div>
           </div>
