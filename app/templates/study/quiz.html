@@ -84,21 +84,21 @@
 
     <!-- Quiz container -->
     <div id="quiz-view" style="display: none;">
-        <div id="quiz-container" class="quiz-container" style="padding: 20px; max-width: 800px; margin: 0 auto;">
+        <div id="quiz-container" class="quiz-container">
             <!-- Timer (optional) -->
-            <div class="timer-container" id="timer-container" style="margin-bottom: 10px;">
+            <div class="timer-container quiz-timer" id="timer-container">
                 <i class="fas fa-clock timer-icon"></i>
                 <span class="timer-value" id="timer-value">30</span>
             </div>
 
             <!-- Question header with label -->
-            <div class="quiz-header" style="margin-bottom: 10px;">
-                <span class="question-label" id="question-label" style="font-size: 14px;"></span>
+            <div class="quiz-header">
+                <span class="quiz-question-label" id="question-label"></span>
             </div>
 
             <!-- Question text (the word to translate) -->
-            <div class="question-word-container" style="margin: 15px 0;">
-                <h2 class="question-text" id="question-text" style="font-size: 24px; margin: 0;"></h2>
+            <div class="quiz-question-container">
+                <h2 class="quiz-question-text" id="question-text"></h2>
                 <!-- Audio button (if available) -->
                 <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать">
                     <i class="fas fa-volume-up"></i>
@@ -106,30 +106,30 @@
             </div>
 
             <!-- Feedback container (compact, above answer options) -->
-            <div id="feedback-container" class="feedback-container" style="margin: 8px 0; padding: 6px 10px; font-size: 12px; border-radius: 4px;">
-                <p id="feedback-text" style="margin: 0; font-weight: 600;"></p>
-                <p id="correct-answer" class="correct-answer" style="margin: 3px 0 0 0; font-size: 11px;"></p>
+            <div id="feedback-container" class="feedback-container quiz-feedback">
+                <p id="feedback-text"></p>
+                <p id="correct-answer" class="correct-answer"></p>
             </div>
 
             <!-- Multiple choice options (2x2 grid) -->
-            <div class="options-container options-grid" id="multiple-choice-container" style="display: none; gap: 10px;">
-                <button class="option-btn" data-option="0" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 1</button>
-                <button class="option-btn" data-option="1" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 2</button>
-                <button class="option-btn" data-option="2" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 3</button>
-                <button class="option-btn" data-option="3" style="padding: 12px; font-size: 14px; min-height: 50px; border: 2px solid #ddd; border-radius: 8px;">Option 4</button>
+            <div class="options-container quiz-options-grid" id="multiple-choice-container" style="display: none;">
+                <button class="option-btn quiz-option-btn" data-option="0">Option 1</button>
+                <button class="option-btn quiz-option-btn" data-option="1">Option 2</button>
+                <button class="option-btn quiz-option-btn" data-option="2">Option 3</button>
+                <button class="option-btn quiz-option-btn" data-option="3">Option 4</button>
             </div>
 
             <!-- Fill in the blank -->
-            <div class="fill-blank-container" id="fill-blank-container" style="display: none; margin: 10px 0;">
-                <input type="text" class="fill-blank-input" id="fill-blank-input" placeholder="Введите ваш ответ здесь..." style="padding: 12px; font-size: 16px;">
+            <div class="quiz-fill-blank" id="fill-blank-container" style="display: none;">
+                <input type="text" class="quiz-fill-input" id="fill-blank-input" placeholder="Введите ваш ответ здесь...">
             </div>
 
             <!-- Buttons row -->
-            <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; margin: 15px 0; flex-wrap: nowrap;">
-                <button id="hint-btn" class="hint-btn" style="padding: 8px 15px; font-size: 13px; white-space: nowrap; flex-shrink: 0;">💡 Подсказка</button>
-                <div style="display: flex; gap: 8px; flex-shrink: 0;">
-                    <button id="submit-answer-btn" class="submit-answer-btn" style="padding: 8px 15px; font-size: 13px; white-space: nowrap;">Отправить</button>
-                    <button id="next-btn" class="next-btn" style="padding: 8px 15px; font-size: 13px; white-space: nowrap;">Далее →</button>
+            <div class="quiz-buttons-row">
+                <button id="hint-btn" class="hint-btn quiz-btn">💡 Подсказка</button>
+                <div class="d-flex gap-2">
+                    <button id="submit-answer-btn" class="submit-answer-btn quiz-btn">Отправить</button>
+                    <button id="next-btn" class="next-btn quiz-btn">Далее →</button>
                 </div>
             </div>
 
@@ -140,44 +140,44 @@
         </div>
 
         <!-- Session complete message - COMPACT VERSION with XP -->
-        <div id="session-complete" class="quiz-container session-complete" style="display: none; text-align: center; padding: 25px; max-width: 480px; margin: 0 auto; border-radius: 12px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div id="session-complete" class="quiz-session-complete" style="display: none;">
             <!-- Title -->
-            <h3 style="font-size: 20px; font-weight: 600; margin: 0 0 20px 0; color: #333;">🎯 Квиз завершен</h3>
+            <h3 class="quiz-complete-title">🎯 Квиз завершен</h3>
 
             <!-- Score display -->
-            <div style="margin-bottom: 15px;">
-                <div class="session-score" id="final-score" style="font-size: 48px; font-weight: bold; margin-bottom: 5px; color: #007bff;">85%</div>
-                <div class="score-label" style="font-size: 13px; color: #888;">правильно</div>
+            <div class="mb-3">
+                <div class="quiz-score" id="final-score">85%</div>
+                <div class="quiz-score-label">правильно</div>
             </div>
 
             <!-- Compact stats - one line -->
-            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; font-size: 14px; color: #666;">
-                <span id="stats-summary" style="display: flex; align-items: center; gap: 5px;">
-                    <span id="stats-correct" style="color: #28a745; font-weight: 600;">17</span>/<span id="stats-questions" style="font-weight: 600;">20</span>
-                    <span style="color: #ddd;">•</span>
-                    <span id="stats-time" style="font-weight: 500;">5:23</span>
+            <div class="quiz-stats-summary">
+                <span id="stats-summary" class="d-flex align-items-center gap-2">
+                    <span id="stats-correct" class="text-success fw-semibold">17</span>/<span id="stats-questions" class="fw-semibold">20</span>
+                    <span class="text-muted">•</span>
+                    <span id="stats-time" class="fw-medium">5:23</span>
                 </span>
             </div>
 
             <!-- XP Earned -->
-            <div id="xp-earned" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: inline-block; font-weight: 600; font-size: 15px;">
+            <div id="xp-earned" class="quiz-xp-badge">
                 +<span id="xp-amount">0</span> XP
             </div>
 
             <!-- Achievements (hidden by default, shown if earned) -->
-            <div id="achievements-earned" style="display: none; margin-bottom: 20px;">
-                <div style="font-size: 13px; color: #888; margin-bottom: 8px;">Новые достижения:</div>
-                <div id="achievement-badges" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <div id="achievements-earned" class="quiz-achievements" style="display: none;">
+                <div class="quiz-achievements-label">Новые достижения:</div>
+                <div id="achievement-badges" class="quiz-achievement-badges">
                     <!-- Achievement badges will be inserted here by JavaScript -->
                 </div>
             </div>
 
             <!-- Action buttons - compact row -->
-            <div id="action-buttons" style="display: flex; justify-content: center; gap: 10px;">
-                <a id="retry-quiz-btn" href="#" class="btn btn-primary" style="flex: 1; max-width: 180px;">
+            <div id="action-buttons" class="quiz-action-buttons">
+                <a id="retry-quiz-btn" href="#" class="btn btn-primary">
                     <i class="fas fa-redo me-1"></i> Еще раз
                 </a>
-                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary" style="flex: 1; max-width: 180px;">
+                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-home me-1"></i> Назад
                 </a>
             </div>
