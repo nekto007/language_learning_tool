@@ -7932,3 +7932,502 @@ textarea:focus-visible,
     flex: 1;
     max-width: 180px;
 }
+
+/* ========================================
+   Dashboard Components
+   ======================================== */
+
+/* Hero card */
+.dashboard-hero-card {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.dashboard-hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+/* Progress bar thin */
+.progress-xs {
+    height: 4px;
+}
+
+/* Decorative background icon */
+.decorative-bg-icon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    opacity: 0.1;
+    font-size: 200px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* Level badge in dashboard */
+.dashboard-level-badge {
+    font-size: 42px;
+    font-weight: var(--font-bold);
+    line-height: 1;
+}
+
+.dashboard-level-label {
+    font-size: 11px;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* XP text styles */
+.xp-current {
+    font-size: 15px;
+    font-weight: var(--font-semibold);
+}
+
+.xp-remaining {
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+/* XP Progress bar */
+.xp-progress-bar {
+    height: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.xp-progress-fill {
+    background: linear-gradient(90deg, #ffd89b 0%, #19547b 50%, #ffd89b 100%);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(255, 216, 155, 0.5);
+    transition: width 0.6s ease;
+}
+
+/* Section icon */
+.section-icon {
+    font-size: 28px;
+}
+
+/* Achievement badge in dashboard */
+.dashboard-achievement-badge {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(10px);
+}
+
+.dashboard-achievement-badge .icon {
+    font-size: 20px;
+}
+
+.dashboard-achievement-badge .name {
+    font-weight: var(--font-semibold);
+}
+
+/* Empty achievement state */
+.empty-achievement-box {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    text-align: center;
+    font-size: 13px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 16px;
+}
+
+.empty-achievement-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    filter: grayscale(0.3);
+}
+
+.empty-achievement-text {
+    font-weight: var(--font-medium);
+    line-height: 1.4;
+}
+
+/* Achievement count badge */
+.achievement-count-badge {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(10px);
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: var(--font-semibold);
+}
+
+/* Recent word item */
+.recent-word-item {
+    transition: var(--transition-base);
+}
+
+.recent-word-item:hover {
+    background: var(--gray-50);
+}
+
+/* Status dot small */
+.status-dot-sm {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* Empty state icon smaller */
+.empty-icon-md {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+/* ========================================
+   Study Index Components
+   ======================================== */
+
+/* Container max width */
+.container-xl {
+    max-width: 1400px;
+}
+
+/* Large icon */
+.icon-lg {
+    font-size: 48px;
+}
+
+/* Level title */
+.level-title {
+    font-weight: var(--font-bold);
+}
+
+/* XP info text */
+.xp-info {
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+/* XP progress bar (study index) */
+.study-xp-progress {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    height: 12px;
+    overflow: hidden;
+}
+
+.study-xp-progress-fill {
+    background: rgba(255, 255, 255, 0.9);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+/* XP hint text */
+.xp-hint {
+    opacity: 0.8;
+    font-size: 12px;
+}
+
+/* Search input group */
+.search-input-group {
+    width: 300px;
+}
+
+/* Progress bar slim */
+.progress-slim {
+    height: 6px;
+}
+
+/* Table column widths for decks */
+.deck-col-name { width: 30%; }
+.deck-col-count { width: 10%; }
+.deck-col-action { width: 10%; }
+
+/* Public deck card border */
+.deck-card-public {
+    border-left: 3px solid var(--success-500);
+}
+
+/* Card description height */
+.card-description-clamp {
+    font-size: 0.8rem;
+    height: 2.4em;
+    overflow: hidden;
+}
+
+/* Badge small */
+.badge-xs {
+    font-size: 0.6rem;
+}
+
+.badge-sm {
+    font-size: 0.7rem;
+}
+
+/* Study mode icon circle */
+.study-mode-icon {
+    width: 60px;
+    height: 60px;
+}
+
+/* Hover card effect */
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ========================================
+   Curriculum Quiz Components
+   ======================================== */
+
+/* Retry button center */
+.retry-section {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+/* Instruction text */
+.quiz-instruction-text {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: var(--gray-500);
+}
+
+.quiz-instruction-text-sm {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--gray-500);
+}
+
+/* Sentence prompt */
+.quiz-sentence-prompt {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+}
+
+/* Question text large */
+.quiz-question-lg {
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+    font-weight: var(--font-semibold);
+}
+
+/* Matching placeholder */
+.matching-placeholder {
+    color: var(--gray-400);
+    font-style: italic;
+}
+
+/* Audio player section */
+.quiz-audio-player {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.quiz-audio-btn {
+    padding: 1rem 2rem;
+    background: var(--info-500);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.quiz-audio-btn:hover {
+    background: var(--info-600);
+}
+
+/* Dialogue box */
+.quiz-dialogue-box {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--info-500);
+}
+
+.quiz-dialogue-line {
+    display: block !important;
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.quiz-blank-marker {
+    color: var(--info-500);
+    font-weight: var(--font-semibold);
+}
+
+/* Next question button full width */
+.quiz-next-btn-full {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+/* Curriculum Quiz Instruction Text */
+.quiz-instruction-text {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: var(--gray-500);
+}
+
+.quiz-instruction-text-sm {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--gray-500);
+}
+
+/* Curriculum Quiz Sentence Prompt */
+.quiz-sentence-prompt {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+}
+
+/* Curriculum Quiz Question Text */
+.quiz-question-text-lg {
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+    font-weight: var(--font-semibold);
+}
+
+/* Curriculum Quiz Matching Placeholder */
+.quiz-matching-placeholder {
+    color: var(--gray-400);
+    font-style: italic;
+}
+
+/* Curriculum Quiz Audio Player */
+.quiz-audio-player {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.quiz-audio-btn {
+    padding: 1rem 2rem;
+    background: var(--info-500);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.quiz-audio-btn:hover {
+    background: var(--info-600);
+}
+
+/* Curriculum Quiz Grade Display (JS template) */
+.quiz-grade-display {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+}
+
+.quiz-grade-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.quiz-grade-letter {
+    font-size: 2rem;
+    font-weight: var(--font-bold);
+}
+
+.quiz-grade-name {
+    font-weight: var(--font-semibold);
+}
+
+.quiz-grade-label {
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+/* Curriculum Quiz Achievement Item (JS template) */
+.quiz-achievement-item {
+    padding: 0.75rem;
+    background: var(--amber-100);
+    border-left: 3px solid var(--amber-500);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.5rem;
+}
+
+.quiz-achievement-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.quiz-achievement-icon {
+    font-size: 1.5rem;
+}
+
+.quiz-achievement-name {
+    font-weight: var(--font-semibold);
+    color: var(--amber-800);
+}
+
+.quiz-achievement-desc {
+    font-size: 0.85rem;
+    color: var(--amber-900);
+}
+
+.quiz-achievement-xp {
+    font-size: 0.75rem;
+    color: var(--amber-700);
+    margin-top: 0.25rem;
+}
+
+/* Curriculum Quiz Achievements Container (JS template) */
+.quiz-achievements-display {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--amber-50);
+    border: 2px solid var(--amber-400);
+    border-radius: var(--radius-md);
+}
+
+.quiz-achievements-title {
+    margin: 0 0 0.75rem 0;
+    color: var(--amber-800);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Curriculum Quiz Attempts Breakdown (JS template) */
+.quiz-attempts-breakdown {
+    font-size: 0.9rem;
+    color: var(--gray-500);
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--indigo-500);
+}
+
+.quiz-attempts-line {
+    margin-bottom: 0.25rem;
+}
+
+.quiz-attempts-total {
+    margin-top: 0.5rem;
+    font-weight: var(--font-semibold);
+    color: var(--indigo-500);
+}
