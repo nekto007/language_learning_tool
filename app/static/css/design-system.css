@@ -8646,3 +8646,43 @@ textarea:focus-visible,
 .toast-message {
     flex: 1;
 }
+
+/* ==========================================================================
+   Leaderboard Components
+   ========================================================================== */
+
+/* Leaderboard Icon Large */
+.leaderboard-icon-lg {
+    font-size: 36px;
+}
+
+/* Leaderboard Medal */
+.leaderboard-medal {
+    font-size: 24px;
+}
+
+/* Leaderboard Avatar */
+.leaderboard-avatar {
+    width: 36px;
+    height: 36px;
+    font-weight: var(--font-semibold);
+}
+
+/* Leaderboard Table Header */
+.leaderboard-thead {
+    background: var(--gray-50);
+}
+
+/* Leaderboard Column Widths */
+.leaderboard-col-rank {
+    width: 60px;
+}
+
+/* Leaderboard Current User Row */
+.leaderboard-row-current-xp {
+    background: #e7f3ff;
+}
+
+.leaderboard-row-current-achievement {
+    background: #fff8e1;
+}
