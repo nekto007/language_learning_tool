@@ -9083,3 +9083,24 @@ textarea:focus-visible,
 .progress-medium {
     height: 20px;
 }
+
+/* ==========================================================================
+   Reader Simple Sidebar Components
+   ========================================================================== */
+
+/* Sidebar Section Spacing */
+.sidebar-section-spacing {
+    margin-bottom: 1rem;
+}
+
+/* Sidebar Flex Row */
+.sidebar-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Label No Margin */
+.label-no-margin {
+    margin-bottom: 0;
+}

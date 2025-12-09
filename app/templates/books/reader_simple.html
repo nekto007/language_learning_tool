@@ -136,7 +136,7 @@
             <h3>{{ _('Quick Settings') }}</h3>
             
             <!-- Font Size -->
-            <div style="margin-bottom: 1rem;">
+            <div class="sidebar-section-spacing">
                 <label class="form-label">{{ _('Font Size') }}</label>
                 <div class="font-controls">
                     <div class="font-control-btn" onclick="changeFontSize(-2)">
@@ -150,9 +150,9 @@
             </div>
             
             <!-- Dark Theme -->
-            <div style="margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label class="form-label" style="margin-bottom: 0;">{{ _('Dark Theme') }}</label>
+            <div class="sidebar-section-spacing">
+                <div class="sidebar-flex-between">
+                    <label class="form-label label-no-margin">{{ _('Dark Theme') }}</label>
                     <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()"></div>
                 </div>
             </div>
