@@ -269,7 +269,7 @@
                         {% if deck.word_count > 0 %}
                         <div class="mb-2">
                             <div class="progress progress-xs">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"
+                                <div class="progress-bar bg-success progress-bar-full" role="progressbar"
                                      title="{{ deck.word_count }} слов в колоде"></div>
                             </div>
                         </div>
@@ -278,7 +278,7 @@
                             <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-success btn-sm">
                                 <i class="fas fa-play me-1"></i>Квиз
                             </a>
-                            <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" style="margin: 0;">
+                            <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" class="form-compact">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-outline-primary btn-sm w-100">
                                     <i class="fas fa-copy me-1"></i>Копировать

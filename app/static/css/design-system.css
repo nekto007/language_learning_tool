@@ -8993,3 +8993,13 @@ textarea:focus-visible,
 .card-accent-left-success {
     border-left: 4px solid var(--bs-success);
 }
+
+/* Progress Bar Full Width */
+.progress-bar-full {
+    width: 100%;
+}
+
+/* Form No Margin */
+.form-compact {
+    margin: 0;
+}
