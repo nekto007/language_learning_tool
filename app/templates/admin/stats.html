@@ -1,21 +1,22 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
-{% block title %}Statistics{% endblock %}
+{% block title %}Статистика{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Статистика', '')]) }}
+{% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1 class="page-title">Platform Statistics</h1>
-    <p class="page-subtitle">Detailed analytics and user behavior insights</p>
-</div>
+{{ page_header('Статистика платформы', 'Детальная аналитика и статистика поведения пользователей') }}
 
 <!-- Time Period Selector -->
 <div class="card mb-4">
     <div class="card-body">
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-primary active" onclick="updatePeriod('week')">Last 7 Days</button>
-            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('month')">Last 30 Days</button>
-            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('quarter')">Last 90 Days</button>
+            <button type="button" class="btn btn-outline-primary active" onclick="updatePeriod('week')">Последние 7 дней</button>
+            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('month')">Последние 30 дней</button>
+            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('quarter')">Последние 90 дней</button>
         </div>
     </div>
 </div>
@@ -26,7 +27,7 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">User Registration Trends</h5>
+                <h5 class="mb-0">Динамика регистраций</h5>
             </div>
             <div class="card-body">
                 <canvas id="registrationChart" height="100"></canvas>
@@ -38,7 +39,7 @@
     <div class="col-lg-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Activity by Hour</h5>
+                <h5 class="mb-0">Активность по часам</h5>
             </div>
             <div class="card-body">
                 <canvas id="hourlyActivityChart" height="250"></canvas>
@@ -53,7 +54,7 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Course Completion by Level</h5>
+                <h5 class="mb-0">Завершение курсов по уровням</h5>
             </div>
             <div class="card-body">
                 <canvas id="courseProgressChart" height="150"></canvas>
@@ -65,7 +66,7 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Content Distribution</h5>
+                <h5 class="mb-0">Распределение контента</h5>
             </div>
             <div class="card-body">
                 <canvas id="contentDistributionChart" height="150"></canvas>
@@ -80,17 +81,17 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Top Active Users</h5>
+                <h5 class="mb-0">Топ активных пользователей</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>User</th>
-                                <th>Sessions</th>
-                                <th>Words Learned</th>
-                                <th>Progress</th>
+                                <th>Пользователь</th>
+                                <th>Сессии</th>
+                                <th>Изучено слов</th>
+                                <th>Прогресс</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -135,35 +136,35 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Most Popular Content</h5>
+                <h5 class="mb-0">Популярный контент</h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Content</th>
-                                <th>Type</th>
-                                <th>Views</th>
-                                <th>Completion Rate</th>
+                                <th>Контент</th>
+                                <th>Тип</th>
+                                <th>Просмотры</th>
+                                <th>% завершения</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>Basic Greetings</td>
-                                <td><span class="badge bg-primary">Lesson</span></td>
+                                <td>Базовые приветствия</td>
+                                <td><span class="badge bg-primary">Урок</span></td>
                                 <td>1,234</td>
                                 <td>89%</td>
                             </tr>
                             <tr>
-                                <td>Travel Vocabulary</td>
-                                <td><span class="badge bg-info">Collection</span></td>
+                                <td>Словарь путешественника</td>
+                                <td><span class="badge bg-info">Коллекция</span></td>
                                 <td>987</td>
                                 <td>76%</td>
                             </tr>
                             <tr>
-                                <td>Business English</td>
-                                <td><span class="badge bg-success">Topic</span></td>
+                                <td>Бизнес английский</td>
+                                <td><span class="badge bg-success">Тема</span></td>
                                 <td>856</td>
                                 <td>82%</td>
                             </tr>
@@ -178,16 +179,16 @@
 <!-- Export Options -->
 <div class="card mt-4">
     <div class="card-body text-center">
-        <h5 class="mb-3">Export Statistics</h5>
+        <h5 class="mb-3">Экспорт статистики</h5>
         <div class="btn-group">
             <button class="btn btn-outline-primary" onclick="exportData('csv')">
-                <i class="fas fa-file-csv me-2"></i> Export CSV
+                <i class="fas fa-file-csv me-2"></i> Экспорт CSV
             </button>
             <button class="btn btn-outline-primary" onclick="exportData('pdf')">
-                <i class="fas fa-file-pdf me-2"></i> Export PDF
+                <i class="fas fa-file-pdf me-2"></i> Экспорт PDF
             </button>
             <button class="btn btn-outline-primary" onclick="exportData('excel')">
-                <i class="fas fa-file-excel me-2"></i> Export Excel
+                <i class="fas fa-file-excel me-2"></i> Экспорт Excel
             </button>
         </div>
     </div>
@@ -228,13 +229,13 @@ new Chart(registrationCtx, {
     data: {
         labels: labels,
         datasets: [{
-            label: 'New Registrations',
+            label: 'Новые регистрации',
             data: regValues,
             borderColor: '#4f46e5',
             backgroundColor: 'rgba(79, 70, 229, 0.1)',
             tension: 0.4
         }, {
-            label: 'User Logins',
+            label: 'Входы пользователей',
             data: loginValues,
             borderColor: '#10b981',
             backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -276,7 +277,7 @@ new Chart(hourlyCtx, {
     data: {
         labels: Array.from({length: 24}, (_, i) => i + ':00'),
         datasets: [{
-            label: 'Activity',
+            label: 'Активность',
             data: hourlyActivity,
             backgroundColor: '#4f46e5',
         }]
@@ -304,7 +305,7 @@ new Chart(courseProgressCtx, {
     data: {
         labels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
         datasets: [{
-            label: 'Completion Rate',
+            label: 'Процент завершения',
             data: [85, 72, 68, 45, 32, 15],
             backgroundColor: [
                 '#10b981',
@@ -339,7 +340,7 @@ const contentCtx = document.getElementById('contentDistributionChart').getContex
 new Chart(contentCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Vocabulary', 'Grammar', 'Reading', 'Exercises', 'Other'],
+        labels: ['Словарь', 'Грамматика', 'Чтение', 'Упражнения', 'Прочее'],
         datasets: [{
             data: [35, 25, 20, 15, 5],
             backgroundColor: [

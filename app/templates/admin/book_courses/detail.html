@@ -1,25 +1,14 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import breadcrumb %}
+
 {% block title %}{{ course.title }} - Детали курса{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(30), '')]) }}
+{% endblock %}
 
 {% block extra_css %}
 <style>
-/* Course Detail - Modern Design */
-.breadcrumb-nav {
-    margin-bottom: 1.5rem;
-}
-
-.breadcrumb-nav a {
-    color: var(--text-secondary);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.breadcrumb-nav a:hover {
-    color: var(--primary-color);
-}
-
 /* Course Hero */
 .course-hero {
     background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%);
@@ -101,18 +90,18 @@
 }
 
 .badge-status.active {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--success-100);
+    color: var(--success-800);
 }
 
 .badge-status.inactive {
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--danger-100);
+    color: var(--danger-800);
 }
 
 .badge-status.featured {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--warning-100);
+    color: var(--warning-800);
 }
 
 /* Stats Grid */
@@ -294,7 +283,7 @@
 .user-avatar {
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, var(--primary-color), #6366f1);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-500));
     color: white;
     border-radius: 10px;
     display: flex;
@@ -331,7 +320,7 @@
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary-color), #10b981);
+    background: linear-gradient(90deg, var(--primary-color), var(--success-500));
     border-radius: 3px;
     transition: width 0.3s;
 }
@@ -373,18 +362,18 @@
 }
 
 .quick-action-btn.warning:hover {
-    background: #f59e0b;
-    border-color: #f59e0b;
+    background: var(--warning-500);
+    border-color: var(--warning-500);
 }
 
 .quick-action-btn.success:hover {
-    background: #10b981;
-    border-color: #10b981;
+    background: var(--success-500);
+    border-color: var(--success-500);
 }
 
 .quick-action-btn.danger:hover {
-    background: #ef4444;
-    border-color: #ef4444;
+    background: var(--danger-500);
+    border-color: var(--danger-500);
 }
 
 .quick-action-btn i {
@@ -414,13 +403,13 @@
 }
 
 .btn-icon.warning:hover {
-    background: #f59e0b;
-    border-color: #f59e0b;
+    background: var(--warning-500);
+    border-color: var(--warning-500);
 }
 
 .btn-icon.danger:hover {
-    background: #ef4444;
-    border-color: #ef4444;
+    background: var(--danger-500);
+    border-color: var(--danger-500);
 }
 
 /* Responsive */
@@ -450,13 +439,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Breadcrumb -->
-<div class="breadcrumb-nav">
-    <a href="{{ url_for('admin.book_courses') }}">
-        <i class="fas fa-arrow-left"></i> Назад к списку курсов
-    </a>
-</div>
-
 <!-- Course Hero -->
 <div class="course-hero">
     <div class="course-hero-header">

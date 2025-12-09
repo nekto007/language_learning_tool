@@ -1,19 +1,19 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
-{% block title %}CEFR Levels{% endblock %}
+{% block title %}Уровни CEFR{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Учебный план', url_for('admin_curriculum.curriculum')), ('Уровни', '')]) }}
+{% endblock %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">CEFR Levels</h1>
-        <p class="page-subtitle">Manage Common European Framework levels</p>
-    </div>
-    <div>
-        <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>New Level
-        </a>
-    </div>
-</div>
+{% set actions %}
+<a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-2"></i>Новый уровень
+</a>
+{% endset %}
+{{ page_header('Уровни CEFR', 'Управление уровнями Common European Framework', actions=actions) }}
 
 <div class="card">
     <div class="card-body p-0">
@@ -22,13 +22,13 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th width="100">Code</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th width="100" class="text-center">Modules</th>
-                        <th width="100" class="text-center">Lessons</th>
-                        <th width="100" class="text-center">Order</th>
-                        <th width="150" class="text-center">Actions</th>
+                        <th width="100">Код</th>
+                        <th>Название</th>
+                        <th>Описание</th>
+                        <th width="100" class="text-center">Модули</th>
+                        <th width="100" class="text-center">Уроки</th>
+                        <th width="100" class="text-center">Порядок</th>
+                        <th width="150" class="text-center">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -41,7 +41,7 @@
                             <strong>{{ level.name }}</strong>
                         </td>
                         <td>
-                            <small class="text-muted">{{ level.description[:100] if level.description else 'No description' }}{% if level.description and level.description|length > 100 %}...{% endif %}</small>
+                            <small class="text-muted">{{ level.description[:100] if level.description else 'Без описания' }}{% if level.description and level.description|length > 100 %}...{% endif %}</small>
                         </td>
                         <td class="text-center">
                             <span class="badge bg-info">{{ level.module_count }}</span>
@@ -55,19 +55,19 @@
                         <td class="text-center">
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ url_for('admin.edit_level', level_id=level.id) }}"
-                                   class="btn btn-outline-primary" title="Edit">
+                                   class="btn btn-outline-primary" title="Редактировать">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <a href="{{ url_for('admin_curriculum.module_list', level_id=level.id) }}"
-                                   class="btn btn-outline-info" title="View Modules">
+                                   class="btn btn-outline-info" title="Просмотр модулей">
                                     <i class="fas fa-book"></i>
                                 </a>
                                 <form method="POST" action="{{ url_for('admin.delete_level', level_id=level.id) }}"
                                       class="d-inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            onclick="return confirm('Delete this level? This cannot be undone.')"
-                                            title="Delete"
+                                            onclick="return confirm('Удалить этот уровень? Это действие нельзя отменить.')"
+                                            title="Удалить"
                                             {% if level.module_count > 0 %}disabled{% endif %}>
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -82,9 +82,9 @@
         {% else %}
         <div class="text-center py-5">
             <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-            <p class="text-muted">No CEFR levels created yet</p>
+            <p class="text-muted">Уровни CEFR ещё не созданы</p>
             <a href="{{ url_for('admin.create_level') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Create First Level
+                <i class="fas fa-plus me-2"></i>Создать первый уровень
             </a>
         </div>
         {% endif %}
@@ -95,7 +95,7 @@
 {% if levels %}
 <div class="card mt-4">
     <div class="card-header">
-        <h5 class="mb-0">Level Progression</h5>
+        <h5 class="mb-0">Прогрессия уровней</h5>
     </div>
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center">
@@ -107,7 +107,7 @@
                     </span>
                 </div>
                 <h6>{{ level.name }}</h6>
-                <small class="text-muted">{{ level.module_count }} modules</small>
+                <small class="text-muted">{{ level.module_count }} модулей</small>
             </div>
             {% endfor %}
         </div>
@@ -119,15 +119,15 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Quick Actions</h5>
+                <h5 class="mb-0">Быстрые действия</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
-                        <i class="fas fa-file-import me-2"></i>Import Curriculum from JSON
+                        <i class="fas fa-file-import me-2"></i>Импорт учебного плана из JSON
                     </a>
                     <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Curriculum Overview
+                        <i class="fas fa-arrow-left me-2"></i>Назад к обзору учебного плана
                     </a>
                 </div>
             </div>
@@ -137,7 +137,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">CEFR Reference</h5>
+                <h5 class="mb-0">Справочник CEFR</h5>
             </div>
             <div class="card-body">
                 <dl class="row mb-0 small">

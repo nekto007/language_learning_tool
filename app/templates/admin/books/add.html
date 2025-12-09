@@ -1,21 +1,21 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Добавить книгу{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Books', url_for('book_admin.books')), ('Add', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1 class="page-title">
-        {% if book %}Редактировать книгу{% else %}Добавить новую книгу{% endif %}
-    </h1>
-    <p class="page-subtitle">
-        {% if book %}
-            Изменение информации и содержания книги "{{ book.title }}"
-        {% else %}
-            Создание новой книги в системе
-        {% endif %}
-    </p>
-</div>
+{% set subtitle %}
+{% if book %}
+    Изменение информации и содержания книги "{{ book.title }}"
+{% else %}
+    Создание новой книги в системе
+{% endif %}
+{% endset %}
+{{ page_header('Добавить новую книгу' if not book else 'Редактировать книгу', subtitle) }}
 
 <!-- Flash Messages -->
 {% with messages = get_flashed_messages(with_categories=true) %}

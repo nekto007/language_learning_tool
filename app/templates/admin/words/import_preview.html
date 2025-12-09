@@ -1,15 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Предварительный просмотр импорта{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Words', url_for('word_admin.word_management')), ('Import', url_for('word_admin.import_translations')), ('Preview', '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Предварительный просмотр импорта', 'Проверьте данные перед импортом') }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Предварительный просмотр импорта</h1>
-        <a href="{{ url_for('word_admin.import_translations') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Назад к импорту
-        </a>
-    </div>
 
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

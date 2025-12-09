@@ -1,21 +1,16 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}{{ title }} - Admin{% endblock %}
 
-{% block content %}
-<div class="container-fluid pt-4">
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('topic_admin.topic_list') }}">{{ _('Topics') }}</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
-                </ol>
-            </nav>
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Topics', url_for('topic_admin.topic_list')), (title, '')]) }}
+{% endblock %}
 
-            <h1 class="h2">{{ title }}</h1>
-        </div>
-    </div>
+{% block content %}
+{{ page_header(title, _('Topic Information')) }}
+
+<div class="container-fluid pt-4">
 
     <div class="row">
         <div class="col-md-12">

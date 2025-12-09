@@ -1,17 +1,19 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb, stat_card %}
 
 {% block title %}Управление аудио{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Аудио', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Управление аудио файлами</h1>
-        <div>
-            <a href="{{ url_for('audio_admin.audio_statistics') }}" class="btn btn-info btn-sm">
-                <i class="fas fa-chart-bar"></i> Статистика
-            </a>
-        </div>
-    </div>
+{% set actions %}
+<a href="{{ url_for('audio_admin.audio_statistics') }}" class="btn btn-info btn-sm">
+    <i class="fas fa-chart-bar"></i> Статистика
+</a>
+{% endset %}
+{{ page_header('Управление аудио файлами', 'Генерация и управление аудио произношением', actions=actions) }}
 
     <!-- Statistics Overview -->
     <div class="row mb-4">

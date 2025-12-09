@@ -1,103 +1,44 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb, stat_card %}
 
 {% block title %}Управление словами{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Слова', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Управление словами</h1>
-        <div>
-            <a href="{{ url_for('word_admin.import_translations') }}" class="btn btn-success btn-sm">
-                <i class="fas fa-upload"></i> Импорт переводов
-            </a>
-            <a href="{{ url_for('word_admin.bulk_status_update') }}" class="btn btn-primary btn-sm">
-                <i class="fas fa-edit"></i> Массовое обновление
-            </a>
-        </div>
+{% set actions %}
+<a href="{{ url_for('word_admin.import_translations') }}" class="btn btn-success btn-sm">
+    <i class="fas fa-upload"></i> Импорт переводов
+</a>
+<a href="{{ url_for('word_admin.bulk_status_update') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-edit"></i> Массовое обновление
+</a>
+{% endset %}
+{{ page_header('Управление словами', 'Импорт, редактирование и статистика слов', actions=actions) }}
+
+<!-- Statistics Overview -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+        {{ stat_card('Всего слов', total_words, 'fa-spell-check', 'primary') }}
     </div>
-
-    <!-- Statistics Overview -->
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Всего слов
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_words }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-book fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Без переводов
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ words_without_translation }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Пользователей изучает
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ status_stats|sum(attribute='count') if status_stats else 0 }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Статусов активно
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ status_stats|length }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="col-lg-3 col-md-6">
+        {{ stat_card('Без переводов', words_without_translation, 'fa-exclamation-triangle', 'warning') }}
     </div>
+    <div class="col-lg-3 col-md-6">
+        {{ stat_card('Пользователей изучает', status_stats|sum(attribute='count') if status_stats else 0, 'fa-users', 'info') }}
+    </div>
+    <div class="col-lg-3 col-md-6">
+        {{ stat_card('Статусов активно', status_stats|length, 'fa-chart-line', 'success') }}
+    </div>
+</div>
 
-    <!-- Quick Actions -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header py-3">
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
                     <h6 class="m-0 font-weight-bold text-primary">Быстрые действия</h6>
                 </div>
                 <div class="card-body">

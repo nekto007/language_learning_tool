@@ -1,17 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Редактировать: {{ book.title }}{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Books', url_for('book_admin.books')), (book.title|truncate(20), '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Редактирование книги', book.title) }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <a href="{{ url_for('book_admin.books') }}" class="text-muted text-decoration-none">
-                <i class="fas fa-arrow-left me-2"></i>Назад к списку
-            </a>
-            <h1 class="h3 mt-2 mb-0">Редактирование книги</h1>
-        </div>
-    </div>
 
     <div class="row">
         <div class="col-lg-8">

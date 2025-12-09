@@ -1,14 +1,19 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}{{ deck.title }}{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Quiz Decks', url_for('admin.quiz_decks_list')), (deck.title|truncate(30), '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="mb-4">
-    <a href="{{ url_for('admin.quiz_decks_list') }}" class="btn btn-outline-secondary mb-3">
-        <i class="fas fa-arrow-left me-2"></i>Назад к списку
-    </a>
-    <h1><i class="fas fa-layer-group me-2"></i>{{ deck.title }}</h1>
-</div>
+{% set actions %}
+<a href="{{ url_for('admin.quiz_deck_edit', deck_id=deck.id) }}" class="btn btn-primary">
+    <i class="fas fa-edit me-2"></i>Редактировать
+</a>
+{% endset %}
+{{ page_header(deck.title, deck.description or 'Колода для квизов', actions=actions) }}
 
 <!-- Deck Info -->
 <div class="row mb-4">

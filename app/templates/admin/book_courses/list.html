@@ -1,30 +1,14 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
 {% block title %}Управление курсами-книгами{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', '')]) }}
+{% endblock %}
 
 {% block extra_css %}
 <style>
-/* Book Courses Admin - Modern Design */
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.page-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.page-header h1 i {
-    color: var(--primary-color);
-}
 
 /* Stats Overview */
 .stats-overview {
@@ -65,7 +49,7 @@
 
 /* Available Books Alert */
 .available-books-alert {
-    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    background: linear-gradient(135deg, var(--info-100) 0%, var(--info-200) 100%);
     border: none;
     border-radius: 16px;
     padding: 1.5rem;
@@ -73,13 +57,13 @@
 }
 
 .available-books-alert h5 {
-    color: #0369a1;
+    color: var(--info-700);
     margin-bottom: 0.75rem;
     font-weight: 600;
 }
 
 .available-books-alert p {
-    color: #0c4a6e;
+    color: var(--info-900);
     margin-bottom: 1rem;
 }
 
@@ -98,13 +82,13 @@
 }
 
 .book-preview-item .author {
-    color: #64748b;
+    color: var(--gray-500);
     font-size: 0.75rem;
 }
 
 .book-preview-item .title {
     font-weight: 600;
-    color: #0c4a6e;
+    color: var(--info-900);
 }
 
 /* Bulk Actions Bar */
@@ -190,18 +174,18 @@
 }
 
 .badge-status.active {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--success-100);
+    color: var(--success-800);
 }
 
 .badge-status.inactive {
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--danger-100);
+    color: var(--danger-800);
 }
 
 .badge-status.featured {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--warning-100);
+    color: var(--warning-800);
 }
 
 .course-card-body {
@@ -313,18 +297,18 @@
 }
 
 .btn-action.warning:hover {
-    background: #f59e0b;
-    border-color: #f59e0b;
+    background: var(--warning-500);
+    border-color: var(--warning-500);
 }
 
 .btn-action.success:hover {
-    background: #10b981;
-    border-color: #10b981;
+    background: var(--success-500);
+    border-color: var(--success-500);
 }
 
 .btn-action.danger:hover {
-    background: #ef4444;
-    border-color: #ef4444;
+    background: var(--danger-500);
+    border-color: var(--danger-500);
 }
 
 /* Empty State */
@@ -423,13 +407,12 @@
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1><i class="fas fa-graduation-cap"></i> Управление курсами-книгами</h1>
-    <a href="{{ url_for('admin.create_book_course') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i> Создать курс
-    </a>
-</div>
+{% set actions %}
+<a href="{{ url_for('admin.create_book_course') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-2"></i> Создать курс
+</a>
+{% endset %}
+{{ page_header('Управление курсами-книгами', 'Курсы на основе книг для изучения языка', actions=actions) }}
 
 <!-- Statistics Overview -->
 <div class="stats-overview">

@@ -1,15 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Статистика аудио{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Audio', url_for('audio_admin.audio_management')), ('Statistics', '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Статистика аудио файлов', 'Аналитика по загрузке и использованию аудио') }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Статистика аудио файлов</h1>
-        <a href="{{ url_for('audio_admin.audio_management') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Назад к управлению аудио
-        </a>
-    </div>
 
     <!-- Download Status Statistics -->
     {% if download_stats %}

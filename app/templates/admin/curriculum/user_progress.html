@@ -1,12 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}User Progress{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), ('User Progress', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">User Progress</h1>
-    <p class="page-subtitle">Track student progress through the curriculum</p>
-</div>
+{{ page_header('User Progress', 'Track student progress through the curriculum') }}
 
 <!-- Summary Statistics -->
 <div class="row mb-4">

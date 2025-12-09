@@ -1,13 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Books Cleanup{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Books', url_for('book_admin.books')), ('Cleanup', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1 class="page-title">🧹 Books Cleanup & Optimization</h1>
-    <p class="page-subtitle">Clean up and optimize the books section for better performance</p>
-</div>
+{{ page_header('Books Cleanup & Optimization', 'Clean up and optimize the books section for better performance') }}
 
 <!-- Flash Messages -->
 {% with messages = get_flashed_messages(with_categories=true) %}

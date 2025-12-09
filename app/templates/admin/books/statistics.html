@@ -1,15 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Статистика книг{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Books', url_for('book_admin.books')), ('Statistics', '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Статистика книг', 'Общая статистика и аналитика по книгам') }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Статистика книг</h1>
-        <a href="{{ url_for('book_admin.books') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Назад к управлению книгами
-        </a>
-    </div>
 
     <!-- Overall Statistics -->
     {% if total_stats %}

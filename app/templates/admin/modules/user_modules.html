@@ -1,25 +1,20 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Модули пользователя{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Users', url_for('user_admin.users')), (user.username, ''), ('Modules', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="page-title">Модули пользователя</h1>
-            <p class="page-subtitle">
-                <strong>{{ user.username }}</strong> ({{ user.email }})
-                {% if user.is_admin %}
-                <span class="badge bg-danger ms-1">Admin</span>
-                {% endif %}
-            </p>
-        </div>
-        <a href="{{ url_for('user_admin.users') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i> К списку пользователей
-        </a>
-    </div>
-</div>
+{% set subtitle %}
+<strong>{{ user.username }}</strong> ({{ user.email }})
+{% if user.is_admin %}
+<span class="badge bg-danger ms-1">Admin</span>
+{% endif %}
+{% endset %}
+{{ page_header('Модули пользователя', subtitle) }}
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
