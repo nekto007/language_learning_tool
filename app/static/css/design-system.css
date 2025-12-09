@@ -9122,3 +9122,18 @@ textarea:focus-visible,
 .user-modules-col-status-sm { width: 100px; }
 .user-modules-col-default { width: 120px; }
 .user-modules-col-actions-sm { width: 120px; }
+
+/* ==========================================================================
+   Admin Topic Words Components
+   ========================================================================== */
+
+/* Search Input Fixed Width */
+.search-input-sm {
+    width: 200px;
+}
+
+/* Scrollable Table Container */
+.table-scroll-container {
+    max-height: 500px;
+    overflow-y: auto;
+}

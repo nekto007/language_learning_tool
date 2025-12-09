@@ -29,14 +29,14 @@
           <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">{{ _('Words in Topic') }} ({{ topic_words|length }})</h5>
 
-            <div class="input-group input-group-sm" style="width: 200px;">
+            <div class="input-group input-group-sm search-input-sm">
               <input type="text" id="search-topic-words" class="form-control" placeholder="{{ _('Search...') }}">
               <button class="btn btn-outline-secondary" type="button">
                 <i class="fas fa-search"></i>
               </button>
             </div>
           </div>
-          <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+          <div class="card-body p-0 table-scroll-container">
             <table class="table table-hover mb-0">
               <thead class="table-light sticky-top">
               <tr>
@@ -84,14 +84,14 @@
           <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">{{ _('Available Words') }}</h5>
 
-            <div class="input-group input-group-sm" style="width: 200px;">
+            <div class="input-group input-group-sm search-input-sm">
               <input type="text" id="search-available-words" class="form-control" placeholder="{{ _('Search...') }}">
               <button class="btn btn-outline-secondary" type="button">
                 <i class="fas fa-search"></i>
               </button>
             </div>
           </div>
-          <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+          <div class="card-body p-0 table-scroll-container">
             <table class="table table-hover mb-0">
               <thead class="table-light sticky-top">
               <tr>
