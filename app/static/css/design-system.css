@@ -9165,3 +9165,16 @@ textarea:focus-visible,
 
 /* Display inline for forms */
 .d-inline { display: inline; }
+
+/* Width auto for select elements */
+.w-auto { width: auto; }
+
+/* Grid full-width span */
+.grid-full-span { grid-column: 1 / -1; }
+
+/* Danger text color for options */
+.text-danger-option { color: #dc3545; }
+
+/* Progress bar variants */
+.progress-tall { height: 24px; }
+.progress-medium { height: 16px; }
