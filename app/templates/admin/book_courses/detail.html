@@ -476,7 +476,7 @@
                 <i class="fas fa-edit"></i>
             </a>
             {% if not course.is_active %}
-            <button class="btn-icon" style="background: #10b981; border-color: #10b981; color: white;"
+            <button class="btn-icon btn-icon-success"
                     onclick="generateModules({{ course.id }})" title="Сгенерировать модули">
                 <i class="fas fa-magic"></i>
             </button>
@@ -565,7 +565,7 @@
             {% if modules %}
                 {% for module in modules %}
                 <div class="module-item">
-                    <div class="module-info" style="display: flex; align-items: center;">
+                    <div class="module-info module-info-row">
                         <span class="module-number">{{ module.order_index }}</span>
                         <div>
                             <div class="module-title">{{ module.title }}</div>
@@ -602,7 +602,7 @@
     <!-- Sidebar -->
     <div>
         <!-- Recent Enrollments -->
-        <div class="section-card" style="margin-bottom: 1.5rem;">
+        <div class="section-card section-card-mb">
             <div class="section-header">
                 <h3><i class="fas fa-users"></i> Последние записи</h3>
                 <a href="{{ url_for('admin.book_courses_analytics') }}?course_id={{ course.id }}"
@@ -629,10 +629,10 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty-state" style="padding: 2rem;">
-                        <i class="fas fa-user-plus" style="font-size: 2rem;"></i>
-                        <h5 style="font-size: 1rem;">Нет записей</h5>
-                        <p style="font-size: 0.85rem; margin-bottom: 0;">Пока никто не записался</p>
+                    <div class="empty-state empty-state-sm">
+                        <i class="fas fa-user-plus empty-state-icon-md"></i>
+                        <h5 class="empty-state-title-sm">Нет записей</h5>
+                        <p class="empty-state-text-xs">Пока никто не записался</p>
                     </div>
                 {% endif %}
             </div>
@@ -795,23 +795,23 @@ function deleteCourse(courseId) {
     modal.className = 'modal fade';
     modal.innerHTML = `
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
-                <div class="modal-header" style="border-bottom: 1px solid var(--border-color);">
+            <div class="modal-content modal-content-rounded">
+                <div class="modal-header modal-header-bordered">
                     <h5 class="modal-title">Удаление курса</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" style="padding: 1.5rem;">
-                    <p style="margin-bottom: 1.5rem;">Выберите тип удаления:</p>
-                    <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        <button class="btn btn-warning" onclick="deleteCourseAction(${courseId}, 'soft')" style="padding: 1rem; text-align: left;">
+                <div class="modal-body modal-body-padded">
+                    <p class="mb-4">Выберите тип удаления:</p>
+                    <div class="delete-options-container">
+                        <button class="btn btn-warning delete-option-btn" onclick="deleteCourseAction(${courseId}, 'soft')">
                             <i class="fas fa-eye-slash me-2"></i>
                             <strong>Деактивировать</strong>
                             <small class="d-block text-muted mt-1">Курс останется в базе, но будет скрыт</small>
                         </button>
-                        <button class="btn btn-danger" onclick="deleteCourseAction(${courseId}, 'hard')" style="padding: 1rem; text-align: left;">
+                        <button class="btn btn-danger delete-option-btn" onclick="deleteCourseAction(${courseId}, 'hard')">
                             <i class="fas fa-trash me-2"></i>
                             <strong>Удалить полностью</strong>
-                            <small class="d-block mt-1" style="opacity: 0.9;">⚠️ Удалит курс и все данные НАВСЕГДА</small>
+                            <small class="d-block mt-1 delete-warning-text">⚠️ Удалит курс и все данные НАВСЕГДА</small>
                         </button>
                     </div>
                 </div>
