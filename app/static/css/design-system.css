@@ -8940,3 +8940,26 @@ textarea:focus-visible,
 .book-words-col-book { width: 12%; }
 .book-words-col-audio { width: 8%; }
 .book-words-col-actions { width: 16%; }
+
+/* ==========================================================================
+   Admin Modules List Components
+   ========================================================================== */
+
+/* Table Column Widths - Admin Modules */
+.admin-modules-col-id { width: 50px; }
+.admin-modules-col-icon { width: 60px; }
+.admin-modules-col-order { width: 80px; }
+.admin-modules-col-status { width: 100px; }
+.admin-modules-col-default { width: 120px; }
+.admin-modules-col-users { width: 150px; }
+.admin-modules-col-actions { width: 180px; }
+
+/* Modal Users Table */
+.modal-users-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Modal Users Checkbox Column */
+.modal-users-col-checkbox { width: 40px; }
+.modal-users-col-actions { width: 120px; }
