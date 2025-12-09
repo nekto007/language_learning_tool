@@ -224,16 +224,7 @@
   pointer-events: none;
 }
 
-@keyframes cardSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
+/* cardSlideIn animation moved to design-system.css */
 
 .question-text {
   font-size: 1.3rem;
@@ -358,16 +349,7 @@
   margin: 0;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* slideIn animation moved to design-system.css */
 
 /* Text input for translation/fill_blank */
 .text-answer .form-control {
@@ -506,16 +488,7 @@
   animation: matchPulse 0.5s ease;
 }
 
-@keyframes matchPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
+/* matchPulse and shake animations moved to design-system.css */
 
 @media (max-width: 768px) {
   .matching-game {

@@ -68,7 +68,7 @@
     margin: 0 5px;
     position: relative;
     overflow: hidden;
-    transition: all 0.3s;
+    transition: var(--transition-base);
 }
 
 .rating-btn:first-child {

@@ -33,7 +33,7 @@
   padding: 15px;
   pointer-events: auto;
   border: 2px solid #4e73df;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   cursor: move; /* Указатель на возможность перетаскивания */
   max-width: 90vw; /* Максимальная ширина - 90% от ширины экрана */
   opacity: 0.95; /* Немного прозрачности */

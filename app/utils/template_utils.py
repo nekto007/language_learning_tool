@@ -81,8 +81,10 @@ def init_template_utils(app):
 
     @app.context_processor
     def utility_processor():
+        from datetime import datetime
         return {
-            'url_params': url_params_with_updated_args
+            'url_params': url_params_with_updated_args,
+            'now': datetime.now
         }
 
     @app.context_processor

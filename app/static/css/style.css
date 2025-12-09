@@ -59,7 +59,7 @@ body {
     font-weight: 500;
     border-radius: 0.35rem;
     padding: 0.375rem 0.85rem;
-    transition: all 0.2s ease-in-out;
+    transition: var(--transition-fast);
 }
 
 .btn-primary {
@@ -678,7 +678,7 @@ footer {
     margin-left: 8px;
     color: var(--primary-color);
     opacity: 0.7;
-    transition: all 0.2s ease;
+    transition: var(--transition-fast);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -700,7 +700,7 @@ footer {
 
 /* Стили для кнопки воспроизведения на странице деталей слова */
 #playPronunciation {
-    transition: all 0.3s ease;
+    transition: var(--transition-base);
 }
 
 #playPronunciation.active {

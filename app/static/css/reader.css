@@ -47,7 +47,7 @@ svg.w-6,
     font-size: 0.875rem !important;
     line-height: 1.25rem !important;
     border-radius: 0.25rem !important;
-    transition: all 0.2s !important;
+    transition: var(--transition-fast) !important;
     text-decoration: none !important;
     max-height: 32px !important;
 }
@@ -550,7 +550,7 @@ a svg, button svg {
     cursor: pointer;
     color: #1cc88a;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: var(--transition-fast);
 }
 
 .add-to-learning:hover {
