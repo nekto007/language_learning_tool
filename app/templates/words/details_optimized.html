@@ -22,27 +22,27 @@
     </nav>
 
     <!-- Hero Section -->
-    <div class="card bg-primary text-white shadow-lg mb-4" style="border-radius: var(--radius-lg); overflow: hidden;">
-        <div class="card-body p-4" style="position: relative; z-index: 1;">
+    <div class="card bg-primary text-white shadow-lg mb-4 word-details-hero">
+        <div class="card-body p-4 word-details-hero-body">
             <div class="row align-items-center">
                 <div class="col-lg-8">
-                    <h1 class="display-3 fw-bold mb-2" style="line-height: 1.1;">{{ word.english_word }}</h1>
+                    <h1 class="display-3 fw-bold mb-2 word-title-lg">{{ word.english_word }}</h1>
                     <div class="display-6 mb-3 opacity-90">{{ word.russian_word }}</div>
 
                     <div class="d-flex gap-2 flex-wrap mb-3">
                         {% if word.level %}
-                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
+                        <span class="badge rounded-pill px-3 py-2 badge-glass">
                             <i class="fas fa-layer-group me-2"></i>{{ word.level }}
                         </span>
                         {% endif %}
 
                         {% if word.books %}
-                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
+                        <span class="badge rounded-pill px-3 py-2 badge-glass">
                             <i class="fas fa-book me-2"></i>{{ word.books[0].title }}
                         </span>
                         {% endif %}
 
-                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
+                        <span class="badge rounded-pill px-3 py-2 badge-glass">
                             <i class="fas fa-{{ 'check' if word.user_status == 'mastered' else 'plus' if word.user_status == 'learning' else 'clock' if word.user_status == 'review' else 'star' }} me-2"></i>
                             {{ _('Выучено') if word.user_status == 'mastered' else _('Изучается') if word.user_status == 'learning' else _('Повторение') if word.user_status == 'review' else _('Новое') }}
                         </span>
@@ -50,12 +50,12 @@
 
                     <div class="d-flex gap-2 flex-wrap">
                         {% if word.get_download and word.listening %}
-                        <button class="btn text-white fw-semibold" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" style="border: 2px solid rgba(255,255,255,0.3); border-radius: 25px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 0.75rem 1.5rem;">
+                        <button class="btn text-white fw-semibold btn-glass" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')">
                             <i class="fas fa-volume-up me-2"></i>{{ _('Произношение') }}
                         </button>
                         {% endif %}
 
-                        <a href="{{ url_for('study.index') }}" class="btn fw-semibold text-primary" style="border-radius: 25px; background: rgba(255,255,255,0.9); padding: 0.75rem 1.5rem;">
+                        <a href="{{ url_for('study.index') }}" class="btn fw-semibold text-primary btn-white-rounded">
                             <i class="fas fa-play me-2"></i>{{ _('Изучать') }}
                         </a>
                     </div>
@@ -74,7 +74,7 @@
                         <i class="fas fa-volume-up text-primary"></i>{{ _('Произношение') }}
                     </h3>
                     <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
-                        <button class="btn btn-primary rounded-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}" style="width: 48px; height: 48px; padding: 0;">
+                        <button class="btn btn-primary rounded-circle btn-play-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}">
                             <i class="fas fa-play"></i>
                         </button>
                         <div>
@@ -93,7 +93,7 @@
                     <h3 class="d-flex align-items-center gap-2 mb-3">
                         <i class="fas fa-quote-left text-primary"></i>{{ _('Примеры использования') }}
                     </h3>
-                    <div class="bg-light p-3 rounded fst-italic" style="border-left: 4px solid var(--primary-500);">
+                    <div class="bg-light p-3 rounded fst-italic quote-box">
                         {{ word.sentences|safe }}
                     </div>
                 </div>
@@ -109,7 +109,7 @@
                     </h3>
                     <div class="grid grid-cols-3 gap-3">
                         {% for related in related_words[:6] %}
-                        <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="card hover-lift text-decoration-none" style="transition: var(--transition-base);">
+                        <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="card hover-lift text-decoration-none related-word-card">
                             <div class="card-body">
                                 <div class="fw-semibold text-dark">{{ related.english_word }}</div>
                                 <div class="text-sm text-secondary">{{ related.russian_word }}</div>
@@ -124,9 +124,9 @@
 
         <div class="col-lg-4">
             <!-- Status Section -->
-            <div class="card shadow-sm text-center mb-4" style="background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);">
+            <div class="card shadow-sm text-center mb-4 status-card-gradient">
                 <div class="card-body p-4">
-                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center text-white" style="width: 80px; height: 80px; font-size: 2rem; background-color: {% if word.user_status == 'mastered' %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %};">
+                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center text-white status-icon-circle" style="background-color: {% if word.user_status == 'mastered' %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %};">
                         <i class="fas fa-{{ 'check' if word.user_status == 'mastered' else 'graduation-cap' if word.user_status == 'learning' else 'redo' if word.user_status == 'review' else 'star' }}"></i>
                     </div>
 
@@ -178,7 +178,7 @@
 </div>
 
 <!-- Audio Element -->
-<audio id="audioPlayer" style="display: none;"></audio>
+<audio id="audioPlayer" class="audio-hidden"></audio>
 
 <script>
 function playAudio(audioUrl) {
