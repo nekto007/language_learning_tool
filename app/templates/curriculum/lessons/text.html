@@ -96,7 +96,7 @@
         <i class="fas fa-headphones"></i> {{ text_content.title or _('Прослушайте диалог') }}
       </h3>
       {% set audio_file = text_content.audio.replace('[sound:', '').replace(']', '') if '[sound:' in text_content.audio else text_content.audio %}
-      <audio id="listening-audio" controls class="w-100" style="max-width: 500px; border-radius: 50px;">
+      <audio id="listening-audio" controls class="w-100 audio-player-rounded">
         <source src="{{ url_for('static', filename='audio/' + audio_file) }}" type="audio/mpeg">
         Ваш браузер не поддерживает аудио элемент.
       </audio>
@@ -112,7 +112,7 @@
     {% if has_audio %}
     <div class="audio-controller-bar">
       <div class="audio-controller-content">
-        <div class="d-flex align-items-center gap-3 flex-grow-1" style="min-width: 0;">
+        <div class="d-flex align-items-center gap-3 flex-grow-1 audio-controller-row">
           <button id="play-all-btn" class="audio-play-btn" onclick="toggleAutoPlay()">
             <i class="fas fa-play"></i>
             <span class="play-btn-text">{{ _('Воспроизвести всё') }}</span>
@@ -181,7 +181,7 @@
         </script>
       {% elif text_content.is_listening_immersion %}
         <!-- Listening Immersion: прогрессивное отображение текста -->
-        <div class="listening-immersion-content mx-auto" style="max-width: 800px;">
+        <div class="listening-immersion-content mx-auto">
           {% set text_str = text_content.text if text_content.text is string else '' %}
           {% set has_dialogue_format = ':' in text_str and '\n' in text_str %}
 
@@ -426,7 +426,7 @@
 </div>
 
 <!-- Аудио элемент для словаря -->
-<audio id="vocab-audio" style="display: none;"></audio>
+<audio id="vocab-audio" class="audio-hidden"></audio>
 
 <script>
 let startTime = Date.now();
@@ -827,7 +827,7 @@ function clearSentence(questionIndex) {
   });
 
   // Clear sentence and add placeholder
-  sentenceDiv.innerHTML = '<span class="placeholder-text" style="color: #9ca3af; font-style: italic;">{{ _("Нажмите на слова выше, чтобы составить предложение") }}</span>';
+  sentenceDiv.innerHTML = '<span class="placeholder-text placeholder-text-muted">{{ _("Нажмите на слова выше, чтобы составить предложение") }}</span>';
 }
 
 // Обновление результатов
