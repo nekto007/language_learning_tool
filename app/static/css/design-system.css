@@ -9003,3 +9003,20 @@ textarea:focus-visible,
 .form-compact {
     margin: 0;
 }
+
+/* ==========================================================================
+   Admin Modules Statistics Components
+   ========================================================================== */
+
+/* Table Column Widths - Admin Modules Statistics */
+.admin-stats-col-total { width: 150px; }
+.admin-stats-col-active { width: 150px; }
+.admin-stats-col-granted { width: 150px; }
+.admin-stats-col-status { width: 120px; }
+.admin-stats-col-default { width: 120px; }
+.admin-stats-col-percentage { width: 150px; }
+
+/* Progress Bar Tall */
+.progress-tall {
+    height: 25px;
+}

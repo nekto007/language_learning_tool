@@ -27,12 +27,12 @@
                 <thead>
                     <tr>
                         <th>Модуль</th>
-                        <th style="width: 150px;">Всего пользователей</th>
-                        <th style="width: 150px;">Активных</th>
-                        <th style="width: 150px;">Выдано админом</th>
-                        <th style="width: 120px;">Статус</th>
-                        <th style="width: 120px;">По умолчанию</th>
-                        <th style="width: 150px;">Процент активации</th>
+                        <th class="admin-stats-col-total">Всего пользователей</th>
+                        <th class="admin-stats-col-active">Активных</th>
+                        <th class="admin-stats-col-granted">Выдано админом</th>
+                        <th class="admin-stats-col-status">Статус</th>
+                        <th class="admin-stats-col-default">По умолчанию</th>
+                        <th class="admin-stats-col-percentage">Процент активации</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -65,7 +65,7 @@
                         <td>
                             {% if stat.total_users > 0 %}
                             {% set percentage = (stat.enabled_users / stat.total_users * 100)|round(1) %}
-                            <div class="progress" style="height: 25px;">
+                            <div class="progress progress-tall">
                                 <div class="progress-bar {% if percentage >= 75 %}bg-success{% elif percentage >= 50 %}bg-info{% elif percentage >= 25 %}bg-warning{% else %}bg-danger{% endif %}"
                                      role="progressbar" style="width: {{ percentage }}%"
                                      aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
