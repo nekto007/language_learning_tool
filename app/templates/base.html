@@ -15,7 +15,7 @@
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% if progress and progress.status == 'completed' %}lesson-completed{% endif %}{% endblock %}" style="display: flex; flex-direction: column; min-height: 100vh;">
+<body class="{% block body_class %}{% if progress and progress.status == 'completed' %}lesson-completed{% endif %}{% endblock %} body-full-height">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- Skip to main content (A11Y) -->
     <a href="#main-content" class="skip-to-content">{{ _('Перейти к основному контенту') }}</a>
@@ -25,19 +25,19 @@
             <!-- Logo & Brand (clickable unless on homepage) -->
             {% if current_user.is_authenticated %}
                 {% if request.endpoint == 'words.dashboard' %}
-                <span class="navbar-brand fw-bold navbar-brand-custom" style="cursor: default;">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
+                <span class="navbar-brand fw-bold navbar-brand-custom navbar-brand-static">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo">
                     LLT English
                 </span>
                 {% else %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('words.dashboard') }}">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo">
                     LLT English
                 </a>
                 {% endif %}
             {% else %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('auth.login') }}">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" style="height: 32px; margin-right: 8px;">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo">
                     LLT English
                 </a>
             {% endif %}
@@ -122,9 +122,9 @@
                     {% if user_level %}
                     <li class="nav-item d-flex align-items-center me-3">
                         <div class="xp-badge-gradient" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ xp_to_next_level }} XP до уровня {{ user_level + 1 }}">
-                            <span style="font-size: 16px;">⚡</span>
+                            <span class="xp-badge-icon">⚡</span>
                             <span>Ур. {{ user_level }}</span>
-                            <span style="opacity: 0.8;">•</span>
+                            <span class="xp-badge-separator">•</span>
                             <span>{{ user_xp }} XP</span>
                         </div>
                     </li>
@@ -177,7 +177,7 @@
         </div>
     </nav>
 
-    <main id="main-content" class="container py-4" style="flex: 1;">
+    <main id="main-content" class="container py-4 main-content-flex">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
@@ -192,14 +192,14 @@
     </main>
 
     <!-- Modern Clean Footer -->
-    <footer class="mt-auto py-4" style="background: var(--bg-secondary); border-top: 1px solid var(--border-light);">
+    <footer class="mt-auto py-4 footer-styled">
         <div class="container">
             <div class="text-center">
-                <span class="fw-bold navbar-brand-custom" style="font-size: 18px;">LLT English</span>
+                <span class="fw-bold navbar-brand-custom footer-brand">LLT English</span>
                 <span class="text-muted mx-2">•</span>
                 <span class="text-muted">Платформа для изучения английского</span>
                 <div class="mt-2">
-                    <span class="text-muted" style="font-size: 14px;">&copy; 2025</span>
+                    <span class="text-muted footer-copyright">&copy; 2025</span>
                 </div>
             </div>
         </div>

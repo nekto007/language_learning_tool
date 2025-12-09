@@ -8865,3 +8865,56 @@ textarea:focus-visible,
     color: var(--gray-400);
     font-style: italic;
 }
+
+/* ==========================================================================
+   Base Template Components
+   ========================================================================== */
+
+/* Body Full Height */
+.body-full-height {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Navbar Brand Cursor */
+.navbar-brand-static {
+    cursor: default;
+}
+
+/* Navbar Logo */
+.navbar-logo {
+    height: 32px;
+    margin-right: 8px;
+}
+
+/* XP Badge Icon */
+.xp-badge-icon {
+    font-size: 16px;
+}
+
+/* XP Badge Separator */
+.xp-badge-separator {
+    opacity: 0.8;
+}
+
+/* Main Content Flex */
+.main-content-flex {
+    flex: 1;
+}
+
+/* Footer Styled */
+.footer-styled {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-light);
+}
+
+/* Footer Brand */
+.footer-brand {
+    font-size: 18px;
+}
+
+/* Footer Copyright */
+.footer-copyright {
+    font-size: 14px;
+}
