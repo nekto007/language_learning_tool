@@ -9109,3 +9109,16 @@ textarea:focus-visible,
 .progress-w-75 { width: 75%; }
 .progress-w-65 { width: 65%; }
 .progress-w-55 { width: 55%; }
+
+/* ==========================================================================
+   Admin User Modules Table
+   ========================================================================== */
+
+.user-modules-col-icon { width: 60px; }
+.user-modules-col-status { width: 120px; }
+.user-modules-col-date { width: 150px; }
+.user-modules-col-source { width: 150px; }
+.user-modules-col-actions { width: 150px; }
+.user-modules-col-status-sm { width: 100px; }
+.user-modules-col-default { width: 120px; }
+.user-modules-col-actions-sm { width: 120px; }
