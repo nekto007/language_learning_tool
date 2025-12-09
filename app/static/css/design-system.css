@@ -9104,3 +9104,8 @@ textarea:focus-visible,
 .label-no-margin {
     margin-bottom: 0;
 }
+
+/* Progress Bar Widths (for demo/static pages) */
+.progress-w-75 { width: 75%; }
+.progress-w-65 { width: 65%; }
+.progress-w-55 { width: 55%; }
