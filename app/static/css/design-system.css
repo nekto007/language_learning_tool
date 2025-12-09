@@ -8963,3 +8963,33 @@ textarea:focus-visible,
 /* Modal Users Checkbox Column */
 .modal-users-col-checkbox { width: 40px; }
 .modal-users-col-actions { width: 120px; }
+
+/* ==========================================================================
+   Quiz Deck Select Components
+   ========================================================================== */
+
+/* Container Max Width */
+.container-quiz-decks {
+    max-width: 1200px;
+}
+
+/* Icon Box Large */
+.icon-box-lg {
+    width: 80px;
+    height: 80px;
+}
+
+/* Icon Size Extra Large */
+.icon-size-xl {
+    font-size: 2.5rem;
+}
+
+/* Card Border Thick */
+.card-border-thick {
+    border-width: 2px;
+}
+
+/* Card Accent Left */
+.card-accent-left-success {
+    border-left: 4px solid var(--bs-success);
+}
