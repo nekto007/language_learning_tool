@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ _('Topics') }} - English Learning App{% endblock %}
+{% block title %}Темы - Изучение английского{% endblock %}
 
 {% block content %}
   <div class="container mt-4">
-    <h1 class="mb-4">{{ _('Word Topics') }}</h1>
+    <h1 class="mb-4">Темы слов</h1>
 
     <div class="row row-cols-1 row-cols-md-3 g-4">
       {% for topic in topics %}
@@ -12,7 +12,7 @@
           <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <h5 class="mb-0">{{ topic.name }}</h5>
-              <span class="badge bg-primary">{{ topic.word_count }} {{ _('words') }}</span>
+              <span class="badge bg-primary">{{ topic.word_count }} слов</span>
             </div>
             <div class="card-body">
               {% if topic.description %}
@@ -29,7 +29,7 @@
                   </div>
                 </div>
                 <p class="small text-muted mb-3">
-                  {{ _('You are studying') }} {{ topic.words_in_study }}/{{ topic.word_count }} {{ _('words') }}
+                  Вы изучаете {{ topic.words_in_study }}/{{ topic.word_count }} слов
                 </p>
               {% endif %}
 
@@ -38,19 +38,19 @@
                   <span class="badge bg-light text-dark me-1 mb-1">{{ word.english_word }}</span>
                 {% endfor %}
                 {% if topic.word_count > 5 %}
-                  <span class="badge bg-light text-primary">+ {{ topic.word_count - 5 }} {{ _('more') }}</span>
+                  <span class="badge bg-light text-primary">+ {{ topic.word_count - 5 }} ещё</span>
                 {% endif %}
               </div>
             </div>
             <div class="card-footer bg-transparent d-flex justify-content-between">
               <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="btn btn-outline-primary btn-sm">
-                {{ _('View Words') }}
+                Смотреть слова
               </a>
 
               <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="add-topic-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-success btn-sm add-topic-btn">
-                  <i class="fas fa-plus me-1"></i> {{ _('Add to Study') }}
+                  <i class="fas fa-plus me-1"></i> Добавить к изучению
                 </button>
               </form>
             </div>
@@ -59,7 +59,7 @@
       {% else %}
         <div class="col-12">
           <div class="alert alert-info">
-            {{ _('No topics found.') }}
+            Темы не найдены.
           </div>
         </div>
       {% endfor %}
@@ -79,7 +79,7 @@
 
                   const submitBtn = this.querySelector('.add-topic-btn');
                   submitBtn.disabled = true;
-                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Adding...") }}';
+                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
 
                   fetch(this.action, {
                       method: 'POST',
@@ -97,7 +97,7 @@
                             <div class="toast-container position-fixed bottom-0 end-0 p-3">
                                 <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
                                     <div class="toast-header bg-success text-white">
-                                        <strong class="me-auto">{{ _('Success') }}</strong>
+                                        <strong class="me-auto">Успешно</strong>
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
                                     </div>
                                     <div class="toast-body">
@@ -121,11 +121,11 @@
                               if (data.added_count > 0) {
                                   submitBtn.classList.remove('btn-success');
                                   submitBtn.classList.add('btn-outline-success');
-                                  submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> {{ _("Added") }}';
+                                  submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> Добавлено';
                                   submitBtn.disabled = true;
                               } else {
                                   submitBtn.disabled = false;
-                                  submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add to Study") }}';
+                                  submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить к изучению';
                               }
 
                               // Перезагрузить страницу через 2 секунды для обновления прогресса
@@ -137,7 +137,7 @@
                       .catch(error => {
                           console.error('Error:', error);
                           submitBtn.disabled = false;
-                          submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add to Study") }}';
+                          submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить к изучению';
                       });
               });
           });

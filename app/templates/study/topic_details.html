@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ topic.name }} - {{ _('Topic Details') }}{% endblock %}
+{% block title %}{{ topic.name }} - Детали темы{% endblock %}
 
 {% block content %}
   <div class="container mt-4">
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('study.topics') }}">{{ _('Topics') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('study.topics') }}">Темы</a></li>
         <li class="breadcrumb-item active" aria-current="page">{{ topic.name }}</li>
       </ol>
     </nav>
@@ -14,19 +14,19 @@
     <div class="card mb-4">
       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h3 class="mb-0">{{ topic.name }}</h3>
-        <span class="badge bg-light text-primary">{{ words|length }} {{ _('words') }}</span>
+        <span class="badge bg-light text-primary">{{ words|length }} слов</span>
       </div>
       <div class="card-body">
         {% if topic.description %}
           <div class="mb-4">
-            <h5>{{ _('Description') }}</h5>
+            <h5>Описание</h5>
             <p>{{ topic.description }}</p>
           </div>
         {% endif %}
 
         {% if related_collections %}
           <div class="mb-4">
-            <h5>{{ _('Related Collections') }}</h5>
+            <h5>Связанные коллекции</h5>
             <div class="row row-cols-1 row-cols-md-3 g-3">
               {% for collection in related_collections %}
                 <div class="col">
@@ -38,7 +38,7 @@
                     <div class="card-footer bg-transparent">
                       <a href="{{ url_for('study.collection_details', collection_id=collection.id) }}"
                          class="btn btn-sm btn-outline-primary w-100">
-                        {{ _('View Collection') }}
+                        Смотреть коллекцию
                       </a>
                     </div>
                   </div>
@@ -50,13 +50,13 @@
 
         <div class="d-flex justify-content-between align-items-center">
           <a href="{{ url_for('study.topics') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i> {{ _('Back to Topics') }}
+            <i class="fas fa-arrow-left me-1"></i> Назад к темам
           </a>
 
           <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" id="add-topic-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-success" id="add-topic-btn">
-              <i class="fas fa-plus me-1"></i> {{ _('Add All Words to Study List') }}
+              <i class="fas fa-plus me-1"></i> Добавить все слова к изучению
             </button>
           </form>
         </div>
@@ -65,18 +65,18 @@
 
     <div class="card">
       <div class="card-header bg-light">
-        <h4 class="mb-0">{{ _('Words in this Topic') }}</h4>
+        <h4 class="mb-0">Слова в этой теме</h4>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
           <table class="table table-hover mb-0">
             <thead class="table-light">
             <tr>
-              <th>{{ _('English') }}</th>
-              <th>{{ _('Russian') }}</th>
-              <th>{{ _('Level') }}</th>
-              <th>{{ _('Status') }}</th>
-              <th class="text-end">{{ _('Actions') }}</th>
+              <th>Английский</th>
+              <th>Русский</th>
+              <th>Уровень</th>
+              <th>Статус</th>
+              <th class="text-end">Действия</th>
             </tr>
             </thead>
             <tbody>
@@ -99,9 +99,9 @@
                 </td>
                 <td>
                   {% if word.is_studying %}
-                    <span class="badge bg-success">{{ _('In Study List') }}</span>
+                    <span class="badge bg-success">Изучается</span>
                   {% else %}
-                    <span class="badge bg-secondary">{{ _('Not Studying') }}</span>
+                    <span class="badge bg-secondary">Не изучается</span>
                   {% endif %}
                 </td>
                 <td class="text-end">
@@ -110,12 +110,12 @@
                           class="d-inline add-word-form">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn btn-sm btn-outline-success add-word-btn">
-                        <i class="fas fa-plus"></i> {{ _('Add to Study') }}
+                        <i class="fas fa-plus"></i> Добавить
                       </button>
                     </form>
                   {% else %}
                     <button type="button" class="btn btn-sm btn-outline-success" disabled>
-                      <i class="fas fa-check"></i> {{ _('Added') }}
+                      <i class="fas fa-check"></i> Добавлено
                     </button>
                   {% endif %}
                 </td>
@@ -141,7 +141,7 @@
                   e.preventDefault();
 
                   addTopicBtn.disabled = true;
-                  addTopicBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Adding...") }}';
+                  addTopicBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
 
                   fetch(this.action, {
                       method: 'POST',
@@ -159,7 +159,7 @@
                             <div class="toast-container position-fixed bottom-0 end-0 p-3">
                                 <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
                                     <div class="toast-header bg-success text-white">
-                                        <strong class="me-auto">{{ _('Success') }}</strong>
+                                        <strong class="me-auto">Успешно</strong>
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
                                     </div>
                                     <div class="toast-body">
@@ -183,7 +183,7 @@
                               if (data.added_count > 0) {
                                   addTopicBtn.classList.remove('btn-success');
                                   addTopicBtn.classList.add('btn-outline-success');
-                                  addTopicBtn.innerHTML = '<i class="fas fa-check me-1"></i> {{ _("Words Added") }}';
+                                  addTopicBtn.innerHTML = '<i class="fas fa-check me-1"></i> Слова добавлены';
                                   addTopicBtn.disabled = true;
 
                                   // Перезагрузить страницу через 2 секунды
@@ -192,14 +192,14 @@
                                   }, 2000);
                               } else {
                                   addTopicBtn.disabled = false;
-                                  addTopicBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add All Words to Study List") }}';
+                                  addTopicBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить все слова к изучению';
                               }
                           }
                       })
                       .catch(error => {
                           console.error('Error:', error);
                           addTopicBtn.disabled = false;
-                          addTopicBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add All Words to Study List") }}';
+                          addTopicBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить все слова к изучению';
                       });
               });
           }
@@ -225,14 +225,14 @@
                   })
                       .then(response => {
                           if (response.ok) {
-                              // Изменить кнопку на "Added"
-                              submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Added") }}';
+                              // Изменить кнопку на "Добавлено"
+                              submitBtn.innerHTML = '<i class="fas fa-check"></i> Добавлено';
                               submitBtn.disabled = true;
 
                               // Обновить строку таблицы
                               const row = submitBtn.closest('tr');
                               const statusCell = row.querySelector('td:nth-child(4)');
-                              statusCell.innerHTML = '<span class="badge bg-success">{{ _("In Study List") }}</span>';
+                              statusCell.innerHTML = '<span class="badge bg-success">Изучается</span>';
                           } else {
                               throw new Error('Server error');
                           }
@@ -240,7 +240,7 @@
                       .catch(error => {
                           console.error('Error:', error);
                           submitBtn.disabled = false;
-                          submitBtn.innerHTML = '<i class="fas fa-plus"></i> {{ _("Add to Study") }}';
+                          submitBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить';
                       });
               });
           });
