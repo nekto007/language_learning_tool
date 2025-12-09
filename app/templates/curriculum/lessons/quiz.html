@@ -120,16 +120,7 @@
   pointer-events: none;
 }
 
-@keyframes cardSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
+/* cardSlideIn animation moved to design-system.css */
 
 .question-text {
   font-size: 1.3rem;
@@ -258,16 +249,7 @@
   margin: 0;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* slideIn animation moved to design-system.css */
 
 /* Quiz progress */
 .quiz-progress-section {
@@ -407,11 +389,7 @@
   animation: shake 0.3s;
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-10px); }
-  75% { transform: translateX(10px); }
-}
+/* shake animation moved to design-system.css */
 
 /* Text input for translation/fill_blank */
 .text-answer {
@@ -650,11 +628,7 @@
   min-width: 120px;
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
-}
+/* shake animation - see design-system.css */
 
 /* Responsive styles for matching questions */
 @media (max-width: 768px) {

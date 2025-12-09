@@ -300,13 +300,10 @@
     height: 150px;
     top: 50%;
     right: 20%;
-    animation: float 6s ease-in-out infinite;
+    animation: floatRotate 6s ease-in-out infinite;
 }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-20px) rotate(5deg); }
-}
+/* floatRotate animation moved to design-system.css */
 
 .hero-breadcrumb {
     display: flex;
@@ -406,13 +403,10 @@
     background: rgba(255, 193, 7, 0.3);
     padding: 0.35rem 0.75rem;
     border-radius: 20px;
-    animation: pulse 2s infinite;
+    animation: pulseScale 2s infinite;
 }
 
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-}
+/* pulseScale animation moved to design-system.css */
 
 .hero-progress {
     margin-top: 1.5rem;
