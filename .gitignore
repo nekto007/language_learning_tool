@@ -326,3 +326,41 @@ requirements-test.txt
 
 # Test runner script
 run_tests.sh
+
+# Books data (fb2, images, txt)
+books/
+
+# User uploads (covers, etc)
+uploads/
+
+# Session and progress MD files
+*_PROGRESS.md
+*_SUMMARY.md
+*_REPORT.md
+*_COMPLETE.md
+ADMIN_TESTING_PROGRESS.md
+BOOK_COURSES_TEST_REPORT.md
+COVERAGE_ROADMAP_TO_55.md
+FINAL_COVERAGE_REPORT.md
+REFACTORING_BOOKS_MODULE.md
+REFACTORING_COMPLETE.md
+REFACTORING_FINAL_SUMMARY.md
+REFACTORING_PROGRESS.md
+TEST_FIXES_REPORT.md
+TESTING_SESSION_SUMMARY.md
+TEST_COVERAGE_FINAL_REPORT.md
+SESSION_SUMMARY_*.md
+
+# Commit guidelines
+.commit_guidelines
+
+# Coverage JSON files
+coverage_*.json
+
+# Skills directory
+.claude/skills/
+
+# Misc development files
+db_log.txt
+*.txt
+!requirements*.txt
