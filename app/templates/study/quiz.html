@@ -5,40 +5,10 @@
 {% block styles %}
 {{ super() }}
 <style>
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
-    }
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeInScale {
-    from {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
+/* Animations moved to design-system.css: pulse, slideInUp, fadeInScale */
 
 #xp-earned {
-    transition: all 0.3s ease;
+    transition: var(--transition-base);
 }
 
 #session-complete {
@@ -96,13 +66,14 @@
                 <span class="quiz-question-label" id="question-label"></span>
             </div>
 
-            <!-- Question text (the word to translate) -->
+            <!-- Question text (the word to translate) with audio -->
             <div class="quiz-question-container">
-                <h2 class="quiz-question-text" id="question-text"></h2>
-                <!-- Audio button (if available) -->
-                <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать">
-                    <i class="fas fa-volume-up"></i>
-                </button>
+                <div class="quiz-word-row">
+                    <h2 class="quiz-question-text" id="question-text"></h2>
+                    <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Feedback container (compact, above answer options) -->
@@ -120,17 +91,17 @@
             </div>
 
             <!-- Fill in the blank -->
-            <div class="quiz-fill-blank" id="fill-blank-container" style="display: none;">
-                <input type="text" class="quiz-fill-input" id="fill-blank-input" placeholder="Введите ваш ответ здесь...">
+            <div class="quiz-fill-blank" id="fill-blank-container" style="display: none; justify-content: center;">
+                <input type="text" class="quiz-fill-input" id="fill-blank-input"
+                       style="width: 300px; max-width: 100%; text-align: center;"
+                       placeholder="Введите ваш ответ здесь...">
             </div>
 
-            <!-- Buttons row -->
-            <div class="quiz-buttons-row">
-                <button id="hint-btn" class="hint-btn quiz-btn">💡 Подсказка</button>
-                <div class="d-flex gap-2">
-                    <button id="submit-answer-btn" class="submit-answer-btn quiz-btn">Отправить</button>
-                    <button id="next-btn" class="next-btn quiz-btn">Далее →</button>
-                </div>
+            <!-- Buttons row - centered -->
+            <div class="quiz-buttons-row" style="display: flex; justify-content: center; gap: 16px; margin: 24px 0;">
+                <button id="hint-btn" class="hint-btn">💡 Подсказка</button>
+                <button id="submit-answer-btn" class="submit-answer-btn">Отправить</button>
+                <button id="next-btn" class="next-btn">Далее →</button>
             </div>
 
             <!-- Hint text -->
@@ -623,6 +594,7 @@
             // Reset timer
             timeRemaining = 30;
             timerValue.textContent = timeRemaining;
+            timerContainer.classList.remove('warning');
 
             // Clear any existing timer
             if (timer) {
@@ -635,9 +607,9 @@
                 timerValue.textContent = timeRemaining;
 
                 if (timeRemaining <= 10) {
-                    timerValue.style.color = '#F44336';
+                    timerContainer.classList.add('warning');
                 } else {
-                    timerValue.style.color = '#666';
+                    timerContainer.classList.remove('warning');
                 }
 
                 if (timeRemaining <= 0) {
