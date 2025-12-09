@@ -361,3 +361,10 @@ db_log.txt
 *.txt
 !requirements*.txt
 !app/templates/emails/*.txt
+
+# Documentation folder (local only)
+docs/
+
+# Tests documentation
+tests/README.md
+tests/TEST_SAFETY.md
