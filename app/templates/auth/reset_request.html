@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
 
-{% block title %}Reset Password - English Learning App{% endblock %}
+{% block title %}Сброс пароля - Изучение английского{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0">{{ _('Reset Password') }}</h4>
+                <h4 class="mb-0">Сброс пароля</h4>
             </div>
             <div class="card-body">
-                <p>{{ _('Enter your email address and we will send you a link to reset your password.') }}</p>
+                <p>Введите ваш email, и мы отправим вам ссылку для сброса пароля.</p>
                 <form method="POST" action="{{ url_for('auth.reset_request') }}">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
@@ -26,7 +26,7 @@
                 </form>
             </div>
             <div class="card-footer text-center">
-                <p class="mb-0">{{ _('Remember your password?') }} <a href="{{ url_for('auth.login') }}">{{ _('Login here') }}</a></p>
+                <p class="mb-0">Вспомнили пароль? <a href="{{ url_for('auth.login') }}">Войти</a></p>
             </div>
         </div>
     </div>

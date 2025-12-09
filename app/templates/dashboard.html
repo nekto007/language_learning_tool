@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ _('Dashboard') }} - {{ _('English Learning App') }}{% endblock %}
+{% block title %}Главная - Изучение английского{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -112,14 +112,14 @@
 <div class="hero-section mb-4">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <h1 class="display-6 fw-bold mb-3">{{ _('Welcome,') }} {{ current_user.username }}! 👋</h1>
-            <p class="lead text-muted">{{ _('Improve your English vocabulary') }}</p>
+            <h1 class="display-6 fw-bold mb-3">Привет, {{ current_user.username }}! 👋</h1>
+            <p class="lead text-muted">Улучшайте свой английский словарный запас</p>
         </div>
         <div class="col-md-4 text-md-end">
             <div class="d-inline-block">
                 <div class="text-center">
                     <div class="h2 mb-0 fw-bold text-primary">{{ progress }}%</div>
-                    <small class="text-muted">{{ _('Progress') }}</small>
+                    <small class="text-muted">Прогресс</small>
                 </div>
             </div>
         </div>
@@ -134,11 +134,11 @@
                 <div class="row align-items-center">
                     <div class="col-md-8">
                         <h3 class="fw-bold mb-2">
-                            <i class="fas fa-graduation-cap me-2"></i>{{ _('Structured Learning Path') }}
+                            <i class="fas fa-graduation-cap me-2"></i>Структурированное обучение
                         </h3>
-                        <p class="mb-3 opacity-90">{{ _('Follow our CEFR-aligned curriculum from A0 to C2 level') }}</p>
+                        <p class="mb-3 opacity-90">Следуйте нашей программе от уровня A0 до C2 по стандарту CEFR</p>
                         <a href="/learn/" class="btn btn-light btn-lg shadow-sm">
-                            <i class="fas fa-book-open me-2"></i>{{ _('Start Learning') }}
+                            <i class="fas fa-book-open me-2"></i>Начать обучение
                         </a>
                     </div>
                     <div class="col-md-4 text-center d-none d-md-block">
@@ -160,10 +160,10 @@
                     <i class="fas fa-book fa-2x"></i>
                 </div>
                 <h3 class="h2 fw-bold mb-1">{{ status_stats[1] }}</h3>
-                <p class="text-muted mb-0">{{ _('Learning') }}</p>
+                <p class="text-muted mb-0">Изучаю</p>
                 <div class="mt-3">
                     <a href="{{ url_for('study.index') }}" class="btn btn-sm btn-primary">
-                        {{ _('Study Now') }}
+                        Учить
                     </a>
                 </div>
             </div>
@@ -178,10 +178,10 @@
                     <i class="fas fa-redo fa-2x"></i>
                 </div>
                 <h3 class="h2 fw-bold mb-1">{{ status_stats[2] }}</h3>
-                <p class="text-muted mb-0">{{ _('Review') }}</p>
+                <p class="text-muted mb-0">Повторение</p>
                 <div class="mt-3">
                     <a href="{{ url_for('study.cards', word_source='review') }}" class="btn btn-sm btn-warning">
-                        {{ _('Review') }}
+                        Повторить
                     </a>
                 </div>
             </div>
@@ -196,9 +196,9 @@
                     <i class="fas fa-check-circle fa-2x"></i>
                 </div>
                 <h3 class="h2 fw-bold mb-1">{{ status_stats[3] }}</h3>
-                <p class="text-muted mb-0">{{ _('Mastered') }}</p>
+                <p class="text-muted mb-0">Выучено</p>
                 <div class="mt-3">
-                    <span class="badge bg-success">{{ _('Well done!') }}</span>
+                    <span class="badge bg-success">Отлично!</span>
                 </div>
             </div>
         </div>
@@ -212,10 +212,10 @@
                     <i class="fas fa-language fa-2x"></i>
                 </div>
                 <h3 class="h2 fw-bold mb-1">{{ total_words }}</h3>
-                <p class="text-muted mb-0">{{ _('Total') }}</p>
+                <p class="text-muted mb-0">Всего</p>
                 <div class="mt-3">
                     <a href="{{ url_for('words.word_list') }}" class="btn btn-sm btn-info text-white">
-                        {{ _('Browse') }}
+                        Смотреть
                     </a>
                 </div>
             </div>
@@ -232,10 +232,10 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
                 <h5 class="fw-bold mb-0">
-                    <i class="fas fa-book-reader me-2 text-primary"></i>{{ _('Continue Reading') }}
+                    <i class="fas fa-book-reader me-2 text-primary"></i>Продолжить чтение
                 </h5>
                 <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">
-                    {{ _('All Books') }}
+                    Все книги
                 </a>
             </div>
             <div class="card-body">
@@ -244,7 +244,7 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1">
                             <h6 class="fw-bold mb-1">{{ progress.book.title }}</h6>
-                            <p class="text-muted small mb-2">{{ progress.book.author or _('Unknown Author') }}</p>
+                            <p class="text-muted small mb-2">{{ progress.book.author or 'Неизвестный автор' }}</p>
                         </div>
                         <small class="text-muted">{{ progress.last_read.strftime('%d %b') }}</small>
                     </div>
@@ -256,10 +256,10 @@
                     </div>
                     
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">{{ percent_read }}% {{ _('completed') }}</small>
-                        <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}" 
+                        <small class="text-muted">{{ percent_read }}% прочитано</small>
+                        <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}"
                            class="btn btn-sm btn-primary">
-                            <i class="fas fa-book-open me-1"></i>{{ _('Continue') }}
+                            <i class="fas fa-book-open me-1"></i>Продолжить
                         </a>
                     </div>
                 </div>
@@ -272,10 +272,10 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
                 <h5 class="fw-bold mb-0">
-                    <i class="fas fa-layer-group me-2 text-primary"></i>{{ _('Word Topics') }}
+                    <i class="fas fa-layer-group me-2 text-primary"></i>Темы слов
                 </h5>
                 <a href="{{ url_for('study.topics') }}" class="btn btn-sm btn-outline-primary">
-                    {{ _('View All') }}
+                    Все темы
                 </a>
             </div>
             <div class="card-body">
@@ -286,29 +286,29 @@
                         <div class="topic-card p-3 rounded-3 border hover-shadow h-100">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h6 class="fw-bold mb-0">{{ topic.name }}</h6>
-                                <span class="badge bg-light text-dark">{{ topic.word_count }} {{ _('words') }}</span>
+                                <span class="badge bg-light text-dark">{{ topic.word_count }} слов</span>
                             </div>
-                            
+
                             {% if topic.words_in_study > 0 %}
                             <div class="progress mb-2" style="height: 4px;">
                                 <div class="progress-bar" role="progressbar"
                                      style="width: {{ (topic.words_in_study / topic.word_count * 100)|int }}%"></div>
                             </div>
                             <small class="text-muted d-block mb-2">
-                                {{ topic.words_in_study }}/{{ topic.word_count }} {{ _('in study') }}
+                                {{ topic.words_in_study }}/{{ topic.word_count }} изучается
                             </small>
                             {% endif %}
-                            
+
                             <div class="d-flex gap-2">
-                                <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" 
+                                <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}"
                                    class="btn btn-sm btn-outline-primary flex-fill">
-                                    {{ _('View') }}
+                                    Открыть
                                 </a>
                                 {% if topic.words_in_study < topic.word_count %}
                                 <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="flex-fill">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-success w-100">
-                                        <i class="fas fa-plus"></i> {{ _('Add') }}
+                                        <i class="fas fa-plus"></i> Добавить
                                     </button>
                                 </form>
                                 {% endif %}
@@ -320,9 +320,9 @@
                 {% else %}
                 <div class="text-center py-5">
                     <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">{{ _('Explore our word topics to enhance your vocabulary!') }}</p>
+                    <p class="text-muted">Изучайте темы слов для расширения словарного запаса!</p>
                     <a href="{{ url_for('study.topics') }}" class="btn btn-primary">
-                        {{ _('Browse Topics') }}
+                        Смотреть темы
                     </a>
                 </div>
                 {% endif %}
@@ -333,7 +333,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-header bg-transparent border-0 pt-3">
                 <h5 class="fw-bold mb-0">
-                    <i class="fas fa-history me-2 text-primary"></i>{{ _('Recently Studied Words') }}
+                    <i class="fas fa-history me-2 text-primary"></i>Недавно изученные слова
                 </h5>
             </div>
             <div class="card-body">
@@ -355,9 +355,9 @@
                 {% else %}
                 <div class="text-center py-4">
                     <i class="fas fa-history fa-2x text-muted mb-3"></i>
-                    <p class="text-muted">{{ _('No words studied yet. Start browsing the word list to begin learning!') }}</p>
+                    <p class="text-muted">Вы ещё не изучали слова. Начните просматривать список слов!</p>
                     <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">
-                        {{ _('Browse Words') }}
+                        Смотреть слова
                     </a>
                 </div>
                 {% endif %}
@@ -370,24 +370,24 @@
         <!-- Quick Actions -->
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-transparent border-0 pt-3">
-                <h5 class="fw-bold mb-0">{{ _('Quick Actions') }}</h5>
+                <h5 class="fw-bold mb-0">Быстрые действия</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <a href="/learn/" class="btn btn-primary">
-                        <i class="fas fa-graduation-cap me-2"></i>{{ _('Curriculum') }}
+                        <i class="fas fa-graduation-cap me-2"></i>Программа
                     </a>
                     <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-clone me-2"></i>{{ _('Flashcards') }}
+                        <i class="fas fa-clone me-2"></i>Карточки
                     </a>
                     <a href="{{ url_for('study.quiz', word_source='all') }}" class="btn btn-outline-success">
-                        <i class="fas fa-question-circle me-2"></i>{{ _('Take Quiz') }}
+                        <i class="fas fa-question-circle me-2"></i>Тест
                     </a>
                     <a href="{{ url_for('study.matching', word_source='all') }}" class="btn btn-outline-info">
-                        <i class="fas fa-th me-2"></i>{{ _('Matching Game') }}
+                        <i class="fas fa-th me-2"></i>Подбери пару
                     </a>
                     <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-book me-2"></i>{{ _('Find Books') }}
+                        <i class="fas fa-book me-2"></i>Найти книги
                     </a>
                 </div>
             </div>
@@ -396,13 +396,13 @@
         <!-- Study Stats -->
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-transparent border-0 pt-3">
-                <h5 class="fw-bold mb-0">{{ _('Your Stats') }}</h5>
+                <h5 class="fw-bold mb-0">Ваша статистика</h5>
             </div>
             <div class="card-body">
                 <!-- Reading Stats -->
                 <div class="stat-item mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted">{{ _('Books Reading') }}</span>
+                        <span class="text-muted">Книг читаю</span>
                         <span class="fw-bold">{{ current_user.get_reading_progress_count() }}</span>
                     </div>
                 </div>
@@ -410,7 +410,7 @@
                 <!-- Words Learning -->
                 <div class="stat-item mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted">{{ _('Words Learning') }}</span>
+                        <span class="text-muted">Слов изучаю</span>
                         <span class="fw-bold">{{ status_stats[1] + status_stats[2] }}</span>
                     </div>
                 </div>
@@ -418,16 +418,16 @@
                 <!-- Last Login -->
                 <div class="stat-item">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted">{{ _('Last Login') }}</span>
-                        <span class="fw-bold">{{ _('Today') }}</span>
+                        <span class="text-muted">Последний вход</span>
+                        <span class="fw-bold">Сегодня</span>
                     </div>
                 </div>
 
                 <hr>
-                
+
                 <div class="d-grid">
                     <a href="{{ url_for('api_anki.export_anki') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-download me-2"></i>{{ _('Export to Anki') }}
+                        <i class="fas fa-download me-2"></i>Экспорт в Anki
                     </a>
                 </div>
             </div>
@@ -436,7 +436,7 @@
         <!-- Game Achievements -->
         <div class="card shadow-sm border-0">
             <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
-                <h5 class="fw-bold mb-0">{{ _('Achievements') }}</h5>
+                <h5 class="fw-bold mb-0">Достижения</h5>
                 <a href="{{ url_for('study.leaderboard') }}" class="btn btn-sm btn-link text-decoration-none">
                     <i class="fas fa-trophy"></i>
                 </a>
@@ -447,14 +447,14 @@
                     <div class="d-flex align-items-center mb-2">
                         <i class="fas fa-th fa-lg text-primary me-3"></i>
                         <div class="flex-grow-1">
-                            <h6 class="mb-0">{{ _('Matching Game') }}</h6>
+                            <h6 class="mb-0">Подбери пару</h6>
                             {% if user_best_matching %}
                             <div class="d-flex align-items-center mt-1">
                                 <span class="badge bg-primary me-2">#{{ user_best_matching.get_rank() }}</span>
-                                <span class="fw-bold">{{ user_best_matching.score }} pts</span>
+                                <span class="fw-bold">{{ user_best_matching.score }} очков</span>
                             </div>
                             {% else %}
-                            <small class="text-muted">{{ _('Not played yet') }}</small>
+                            <small class="text-muted">Ещё не играли</small>
                             {% endif %}
                         </div>
                     </div>
@@ -465,14 +465,14 @@
                     <div class="d-flex align-items-center mb-2">
                         <i class="fas fa-question-circle fa-lg text-success me-3"></i>
                         <div class="flex-grow-1">
-                            <h6 class="mb-0">{{ _('Quiz') }}</h6>
+                            <h6 class="mb-0">Тест</h6>
                             {% if user_best_quiz %}
                             <div class="d-flex align-items-center mt-1">
                                 <span class="badge bg-success me-2">#{{ user_best_quiz.get_rank() }}</span>
                                 <span class="fw-bold">{{ user_best_quiz.score }}%</span>
                             </div>
                             {% else %}
-                            <small class="text-muted">{{ _('Not played yet') }}</small>
+                            <small class="text-muted">Ещё не играли</small>
                             {% endif %}
                         </div>
                     </div>

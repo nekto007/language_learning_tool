@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}Login - English Learning App{% endblock %}
+{% block title %}Вход - Изучение английского{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0">{{ _('Login') }}</h4>
+                <h4 class="mb-0">Вход</h4>
                 {% if request.args.get('next') %}
                     <small class="text-muted">После входа вы будете перенаправлены на: {{ request.args.get('next') }}</small>
                 {% endif %}
@@ -20,7 +20,7 @@
                     {% endif %}
                     <div class="mb-3">
                         {{ form.username_or_email.label(class="form-label") }}
-                        {{ form.username_or_email(class="form-control", placeholder=_("Enter username or email")) }}
+                        {{ form.username_or_email(class="form-control", placeholder="Введите имя пользователя или email") }}
                         {% for error in form.username_or_email.errors %}
                         <div class="text-danger">{{ error }}</div>
                         {% endfor %}
@@ -37,7 +37,7 @@
                         {{ form.remember_me.label(class="form-check-label") }}
                     </div>
                     <div class="mb-2 text-end">
-                        <a href="{{ url_for('auth.reset_request') }}">{{ _('Forgot password?') }}</a>
+                        <a href="{{ url_for('auth.reset_request') }}">Забыли пароль?</a>
                     </div>
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary") }}
@@ -45,7 +45,7 @@
                 </form>
             </div>
             <div class="card-footer text-center">
-                <p class="mb-0">{{ _("Don't have an account?") }} <a href="{{ url_for('auth.register') }}">{{ _('Register here') }}</a></p>
+                <p class="mb-0">Нет аккаунта? <a href="{{ url_for('auth.register') }}">Зарегистрируйтесь</a></p>
             </div>
         </div>
     </div>
