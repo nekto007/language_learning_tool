@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Flashcards') }}{% endblock %}
+{% block title %}Карточки{% endblock %}
 
 {% block content %}
 <div class="container mt-4" id="flashcard-app">
@@ -9,16 +9,16 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                    <h2 class="h5 fw-bold mb-1">{{ _('Study Progress') }}</h2>
-                    <p class="text-secondary mb-0 small" id="card-counter">{{ _('Card 1 of 20') }}</p>
+                    <h2 class="h5 fw-bold mb-1">Прогресс</h2>
+                    <p class="text-secondary mb-0 small" id="card-counter">Карточка 1 из 20</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <div class="d-flex gap-2">
-                        <span class="badge bg-info" id="new-cards-counter" title="{{ _('New cards') }}">{{ _('Новых') }}: 0</span>
-                        <span class="badge bg-success" id="studied-cards-counter" title="{{ _('Studied cards') }}">{{ _('Изучено') }}: 0</span>
-                        <span class="badge bg-warning" id="review-cards-counter" title="{{ _('Review cards') }}">{{ _('Повторить') }}: 0</span>
+                        <span class="badge bg-info" id="new-cards-counter" title="Новые карточки">Новых: 0</span>
+                        <span class="badge bg-success" id="studied-cards-counter" title="Изученные карточки">Изучено: 0</span>
+                        <span class="badge bg-warning" id="review-cards-counter" title="Карточки на повторение">Повторить: 0</span>
                     </div>
-                    <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">{{ _('End Session') }}</button>
+                    <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">Завершить</button>
                 </div>
             </div>
             <div class="progress progress-thin">
@@ -30,9 +30,9 @@
     <!-- Loading spinner -->
     <div id="loading-spinner" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">{{ _('Loading...') }}</span>
+            <span class="visually-hidden">Загрузка...</span>
         </div>
-        <p class="mt-2 text-muted">{{ _('Loading cards...') }}</p>
+        <p class="mt-2 text-muted">Загрузка карточек...</p>
     </div>
 
     <!-- Nothing to study message -->
@@ -119,12 +119,12 @@
                 <hr class="my-4 divider-centered">
 
                 <div class="mb-4">
-                    <div class="text-secondary mb-2 fw-semibold">{{ _('Translation') }}</div>
+                    <div class="text-secondary mb-2 fw-semibold">Перевод</div>
                     <div id="translation-text" class="fs-4 text-danger"></div>
                 </div>
 
                 <div id="examples-container" class="mb-4">
-                    <div class="text-secondary mb-2 fw-semibold">{{ _('Examples') }}</div>
+                    <div class="text-secondary mb-2 fw-semibold">Примеры</div>
                     <div id="example-text" class="mb-2"></div>
                     <div id="example-translation" class="text-secondary"></div>
                 </div>
@@ -133,17 +133,17 @@
                 <div class="d-flex justify-content-center gap-2 mt-4">
                     <button type="button" class="rating-btn btn-danger flex-fill rating-btn-sized" data-rating="1">
                         <span class="rating-icon">😕</span>
-                        {{ _('Не знаю') }}
+                        Не знаю
                         <small class="rating-hint">1-2 карточки</small>
                     </button>
                     <button type="button" class="rating-btn btn-warning flex-fill rating-btn-sized" data-rating="2">
                         <span class="rating-icon">🤔</span>
-                        {{ _('Сомневаюсь') }}
+                        Сомневаюсь
                         <small class="rating-hint">3-5 карточек</small>
                     </button>
                     <button type="button" class="rating-btn btn-success flex-fill rating-btn-sized" data-rating="3">
                         <span class="rating-icon">😊</span>
-                        {{ _('Знаю') }}
+                        Знаю
                         <small class="rating-hint">Готово</small>
                     </button>
                 </div>
@@ -153,44 +153,44 @@
         <div id="daily-limit-message" class="card-container text-center" style="display: none;">
             <h2 class="mb-4 text-success">
                 <i class="fas fa-check-circle text-success me-2"></i>
-                {{ _('Hooray! You\'re done for today.') }}
+                Ура! На сегодня всё!
             </h2>
 
-            <div class="mb-4">{{ _('Today\'s study limit has been reached. There are still new cards, but the daily limit is exhausted. You can increase the limit in the settings, but please keep in mind that the more new cards you see, the more you\'ll need to review in the near future.') }}</div>
+            <div class="mb-4">Дневной лимит изучения достигнут. Ещё есть новые карточки, но дневной лимит исчерпан. Вы можете увеличить лимит в настройках, но имейте в виду, что чем больше новых карточек вы изучите, тем больше придётся повторять в ближайшее время.</div>
             <div class="mt-4">
                 <div class="d-flex justify-content-center gap-3 mb-4">
                     <div class="text-center">
                         <h4 id="new-cards-stats" class="mb-2">0 / 0</h4>
-                        <p class="text-muted">{{ _('New cards') }}</p>
+                        <p class="text-muted">Новые карточки</p>
                     </div>
                     <div class="text-center">
                         <h4 id="reviews-stats" class="mb-2">0 / 0</h4>
-                        <p class="text-muted">{{ _('Reviews') }}</p>
+                        <p class="text-muted">Повторения</p>
                     </div>
                 </div>
             </div>
 
             <div class="mt-4">
                 <a href="{{ url_for('study.cards', word_source='new') }}?extra_study=true" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i> {{ _('Start Extra Study') }}
+                    <i class="fas fa-plus me-2"></i> Дополнительное занятие
                 </a>
 
                 <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
-                    {{ _('Return to Dashboard') }}
+                    На главную
                 </a>
 
                 <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary ms-2">
-                    <i class="fas fa-cog"></i> {{ _('Settings') }}
+                    <i class="fas fa-cog"></i> Настройки
                 </a>
             </div>
         </div>
 
         <!-- No cards message -->
         <div id="no-cards-message" class="alert alert-info text-center" style="display: none;">
-            <h4>{{ _('No Cards Available') }}</h4>
-            <p>{{ _('There are no words matching your study criteria.') }}</p>
+            <h4>Нет карточек</h4>
+            <p>Нет слов, соответствующих вашим критериям обучения.</p>
             <a href="{{ url_for('study.index') }}" class="btn btn-primary mt-2">
-                {{ _('Return to Study Dashboard') }}
+                Вернуться к обучению
             </a>
         </div>
 
@@ -198,7 +198,7 @@
         <div id="session-complete" class="card-container text-center" style="display: none;">
             <h2 class="mb-4">
                 <i class="fas fa-check-circle text-success me-2"></i>
-                {{ _('Session Complete!') }}
+                Сессия завершена!
             </h2>
 
             <!-- XP Earned Banner -->
@@ -215,24 +215,24 @@
             <div class="row mt-4">
                 <div class="col-md-4">
                     <h2 id="stats-words" class="text-primary">0</h2>
-                    <p class="text-muted">{{ _('Cards Studied') }}</p>
+                    <p class="text-muted">Карточек изучено</p>
                 </div>
                 <div class="col-md-4">
                     <h2 id="stats-correct" class="text-success">0</h2>
-                    <p class="text-muted">{{ _('Correct Answers') }}</p>
+                    <p class="text-muted">Правильных ответов</p>
                 </div>
                 <div class="col-md-4">
                     <h2 id="stats-score" class="text-warning">0%</h2>
-                    <p class="text-muted">{{ _('Score') }}</p>
+                    <p class="text-muted">Результат</p>
                 </div>
             </div>
 
             <div class="mt-5">
                 <a href="{{ url_for('study.index') }}" class="btn btn-primary">
-                    {{ _('Back to Study') }}
+                    Вернуться к обучению
                 </a>
                 <a href="{{ url_for('study.cards') }}" class="btn btn-outline-secondary ms-2">
-                    {{ _('Start New Session') }}
+                    Новая сессия
                 </a>
             </div>
         </div>
@@ -425,20 +425,20 @@
                 // Если элемент не найден, показываем сообщение в noCardsMessage
                 if (noCardsMessage) {
                     noCardsMessage.innerHTML = `
-                        <h4>{{ _('No Cards in This Section') }}</h4>
-                        <p>{{ _('There are no available words to study in the selected source.') }}</p>
+                        <h4>Нет карточек в этом разделе</h4>
+                        <p>В выбранном источнике нет доступных слов для изучения.</p>
                         <div class="alert alert-info my-3">
-                            <p>{{ _('You still have your daily limit available. Try selecting a different card source or start learning new words.') }}</p>
+                            <p>У вас ещё есть дневной лимит. Попробуйте выбрать другой источник карточек или начните изучать новые слова.</p>
                         </div>
                         <div class="mt-4">
                             <a href="{{ url_for('study.cards', word_source='new') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i> {{ _('Study New Words') }}
+                                <i class="fas fa-plus me-2"></i> Изучить новые слова
                             </a>
                             <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary ms-2">
-                                <i class="fas fa-random me-2"></i> {{ _('Mixed Mode') }}
+                                <i class="fas fa-random me-2"></i> Смешанный режим
                             </a>
                             <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
-                                {{ _('Back to Study') }}
+                                Вернуться к обучению
                             </a>
                         </div>
                     `;
@@ -462,45 +462,9 @@
                 return [];
             }
 
-            const alternatingCards = [];
-
-            // Process each original card
-            for (const card of originalCards) {
-                const isWordEnglish = /^[A-Za-z\s,]+$/.test(card.word);
-                if (isWordEnglish) {
-                    // Create eng-rus card
-                    alternatingCards.push({
-                        ...card,
-                        direction:  'eng-rus',
-                        word:       card.word,
-                        translation:card.translation
-                    });
-
-                    alternatingCards.push({
-                        ...card,
-                        direction:  'rus-eng',
-                        word:       card.translation,
-                        translation:card.word
-                    });
-                } else {
-                    alternatingCards.push({
-                        ...card,
-                        direction: 'rus-eng',
-                        word: card.word,
-                        translation: card.translation
-                    });
-
-                    alternatingCards.push({
-                        ...card,
-                        direction: 'eng-rus',
-                        word: card.translation,
-                        translation: card.word
-                    });
-                }
-            }
-
-            // Shuffle the cards while keeping pairs of the same word separated
-            return shuffleCards(alternatingCards);
+            // API already returns cards with correct directions - just pass them through
+            // No need to create additional directions, that would cause duplicates
+            return shuffleCards([...originalCards]);
         }
 
         // Shuffle cards while keeping same words apart from each other
@@ -553,6 +517,11 @@
             let targetWord = word;
             if (word.includes(',')) {
                 targetWord = word.split(',')[0].trim();
+            }
+
+            // Не показываем подсказку для очень коротких слов (1-2 буквы) - она бы раскрыла ответ
+            if (targetWord.length <= 2) {
+                return '';
             }
 
             const firstChar = targetWord.charAt(0).toLowerCase();
@@ -636,13 +605,13 @@
                 
                 // Update counters
                 if (newCardsCounter) {
-                    newCardsCounter.textContent = `{{ _('Новых') }}: ${newCount}`;
+                    newCardsCounter.textContent = `Новых: ${newCount}`;
                 }
                 if (studiedCardsCounter) {
-                    studiedCardsCounter.textContent = `{{ _('Изучено') }}: 0`;
+                    studiedCardsCounter.textContent = `Изучено: 0`;
                 }
                 if (reviewCardsCounter) {
-                    reviewCardsCounter.textContent = `{{ _('Повторить') }}: ${reviewCount}`;
+                    reviewCardsCounter.textContent = `Повторить: ${reviewCount}`;
                 }
 
                 // Update UI
@@ -676,7 +645,7 @@
             // Update progress
             const progress = ((index + 1) / cards.length) * 100;
             progressFill.style.width = `${progress}%`;
-            cardCounter.textContent = `{{ _('Card') }} ${index + 1} {{ _('of') }} ${cards.length}`;
+            cardCounter.textContent = `Карточка ${index + 1} из ${cards.length}`;
 
             // Reset card state
             cardFront.style.display = 'flex';
@@ -702,7 +671,10 @@
             translationText.textContent = card.translation;
 
             // подсказка
-            hintText.textContent = formatHint(card.translation);
+            const hint = formatHint(card.translation);
+            hintText.textContent = hint;
+            // Скрываем элемент если подсказка пустая
+            hintText.style.display = hint ? '' : 'none';
 
             if (hasAudio && playAudio) {
                 // Настраиваем аудио источник
@@ -733,10 +705,12 @@
                 backAudioBtn.hidden = true;
             }
 
-            // Show hint after 5 seconds
-            hintTimeout = setTimeout(() => {
-                hintText.classList.add('visible');
-            }, hintTime * 1000);
+            // Show hint after specified time (only if hint exists)
+            if (hint) {
+                hintTimeout = setTimeout(() => {
+                    hintText.classList.add('visible');
+                }, hintTime * 1000);
+            }
 
             // Set example if available
             if (showExamples && card.examples) {
@@ -863,7 +837,7 @@
 
                 // Check if daily limit was exceeded (race condition protection)
                 if (!data.success && data.error === 'daily_limit_exceeded') {
-                    alert('{{ _("Daily limit for new cards has been reached. This card was not counted.") }}');
+                    alert('Дневной лимит новых карточек достигнут. Эта карточка не засчитана.');
                     showCard(currentCardIndex + 1);
                     return;
                 }
@@ -902,18 +876,18 @@
                 if (card.is_new && !card.isRequeue) {
                     sessionStats.new_cards--;
                     if (newCardsCounter) {
-                        newCardsCounter.textContent = `{{ _('Новых') }}: ${Math.max(0, sessionStats.new_cards)}`;
+                        newCardsCounter.textContent = `Новых: ${Math.max(0, sessionStats.new_cards)}`;
                     }
                 } else if (!card.isRequeue) {
                     sessionStats.review_cards--;
                     if (reviewCardsCounter) {
-                        reviewCardsCounter.textContent = `{{ _('Повторить') }}: ${Math.max(0, sessionStats.review_cards)}`;
+                        reviewCardsCounter.textContent = `Повторить: ${Math.max(0, sessionStats.review_cards)}`;
                     }
                 }
 
                 // Update studied cards counter
                 if (studiedCardsCounter) {
-                    studiedCardsCounter.textContent = `{{ _('Изучено') }}: ${sessionStats.total}`;
+                    studiedCardsCounter.textContent = `Изучено: ${sessionStats.total}`;
                 }
 
                 // Move to next card
@@ -921,7 +895,7 @@
 
             } catch (error) {
                 console.error('Error rating card:', error);
-                alert('{{ _("Failed to save your rating. Please try again.") }}');
+                alert('Не удалось сохранить оценку. Попробуйте ещё раз.');
             }
         }
 
@@ -997,7 +971,7 @@
 
         // End session early
         endSessionBtn.addEventListener('click', function() {
-            if (confirm('{{ _("Are you sure you want to end the session?") }}')) {
+            if (confirm('Вы уверены, что хотите завершить сессию?')) {
                 try {
                     completeSession();
                 } catch(e) {
