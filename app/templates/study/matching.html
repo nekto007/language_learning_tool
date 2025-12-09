@@ -90,12 +90,12 @@
         </h2>
 
         <!-- XP Earned Banner -->
-        <div id="matching-xp-banner" class="mb-4 hero-gradient-card" style="padding: 20px; border-radius: 12px; box-shadow: var(--shadow-lg);">
-            <div style="font-size: 48px; margin-bottom: 8px;">⚡</div>
-            <div style="font-size: 32px; font-weight: 700; color: #ffd89b;">
+        <div id="matching-xp-banner" class="mb-4 hero-gradient-card matching-xp-banner">
+            <div class="matching-xp-icon">⚡</div>
+            <div class="matching-xp-value">
                 +<span id="matching-xp-amount">0</span> XP
             </div>
-            <div style="font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 8px;">
+            <div class="matching-xp-label">
                 Уровень <span id="matching-level">1</span> • <span id="matching-total-xp">0</span> XP
             </div>
         </div>
@@ -153,7 +153,7 @@
 </div>
 
 <!-- Audio element (hidden) -->
-<audio id="word-audio" style="display: none;"></audio>
+<audio id="word-audio" class="audio-hidden"></audio>
 
 <!-- Game sounds (hidden) -->
 <audio id="match-sound" src="{{ url_for('static', filename='audio/match.mp3') }}" preload="auto"></audio>

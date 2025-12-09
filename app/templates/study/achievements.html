@@ -17,8 +17,8 @@
                         <div class="fs-2 fw-bold">{{ earned_count }}/{{ total_achievements }}</div>
                         <div class="opacity-75">Получено</div>
                     </div>
-                    <div class="progress" style="height: 8px; background: rgba(255,255,255,0.2);">
-                        <div class="progress-bar" style="width: {{ (earned_count / total_achievements * 100) if total_achievements > 0 else 0 }}%; background: rgba(255,255,255,0.9);"></div>
+                    <div class="progress progress-slim-glass">
+                        <div class="progress-bar progress-bar-glass" style="width: {{ (earned_count / total_achievements * 100) if total_achievements > 0 else 0 }}%;"></div>
                     </div>
                 </div>
             </div>
@@ -31,7 +31,7 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="me-3" style="font-size: 48px;">⚡</div>
+                        <div class="me-3 icon-emoji-xl">⚡</div>
                         <div>
                             <div class="fs-4 fw-bold text-primary">{{ earned_xp }} XP</div>
                             <div class="text-muted">Заработано из {{ total_xp_available }} XP</div>
@@ -44,7 +44,7 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="me-3" style="font-size: 48px;">📊</div>
+                        <div class="me-3 icon-emoji-xl">📊</div>
                         <div>
                             <div class="fs-4 fw-bold text-success">{{ ((earned_count / total_achievements * 100)|int) if total_achievements > 0 else 0 }}%</div>
                             <div class="text-muted">Процент завершения</div>
@@ -93,11 +93,11 @@
                         {% endif %}
 
                         <!-- Icon -->
-                        <div style="font-size: 48px; margin-bottom: 12px;">{{ ach.icon }}</div>
+                        <div class="achievement-icon-lg">{{ ach.icon }}</div>
 
                         <!-- Title and description -->
-                        <h5 class="mb-2 fw-bold" style="{% if not earned %}color: #6c757d;{% endif %}">{{ ach.name }}</h5>
-                        <p class="mb-2 small" style="{% if not earned %}color: #6c757d;{% endif %}">{{ ach.description }}</p>
+                        <h5 class="mb-2 fw-bold {% if not earned %}achievement-text-locked{% endif %}">{{ ach.name }}</h5>
+                        <p class="mb-2 small {% if not earned %}achievement-text-locked{% endif %}">{{ ach.description }}</p>
 
                         <!-- XP reward -->
                         <div class="d-flex align-items-center justify-content-between mt-3">

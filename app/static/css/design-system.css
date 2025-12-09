@@ -9020,3 +9020,61 @@ textarea:focus-visible,
 .progress-tall {
     height: 25px;
 }
+
+/* ==========================================================================
+   Achievements Page Components
+   ========================================================================== */
+
+/* Progress Bar Slim with Glass Effect */
+.progress-slim-glass {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.progress-bar-glass {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+/* Icon Size Extra Large (48px) */
+.icon-emoji-xl {
+    font-size: 48px;
+}
+
+/* Achievement Icon */
+.achievement-icon-lg {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+/* Achievement Text Muted (for locked) */
+.achievement-text-locked {
+    color: #6c757d;
+}
+
+/* ==========================================================================
+   Matching Game Components
+   ========================================================================== */
+
+/* XP Banner Matching Game */
+.matching-xp-banner {
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+}
+
+.matching-xp-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.matching-xp-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffd89b;
+}
+
+.matching-xp-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 8px;
+}
