@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Откройте новые возможности с LLT English!</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px 10px 0 0;
+        }
+        .header-title {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: bold;
+            margin: 0 0 10px 0;
+        }
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            margin: 0;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .intro {
+            text-align: center;
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        .feature-card {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .feature-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 10px 0;
+        }
+        .feature-description {
+            font-size: 15px;
+            color: #666;
+            margin: 0 0 15px 0;
+            line-height: 1.5;
+        }
+        .feature-button {
+            display: inline-block;
+            background-color: #667eea;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .feature-button:hover {
+            background-color: #5a6fd6;
+        }
+        .feature-card.books {
+            border-left-color: #10b981;
+        }
+        .feature-card.books .feature-button {
+            background-color: #10b981;
+        }
+        .feature-card.study {
+            border-left-color: #f59e0b;
+        }
+        .feature-card.study .feature-button {
+            background-color: #f59e0b;
+        }
+        .stats-section {
+            background-color: #fff9e6;
+            border: 1px solid #ffe0a3;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .stats-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e6a100;
+            margin-bottom: 10px;
+        }
+        .stats-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .stats-text {
+            font-size: 15px;
+            color: #666;
+        }
+        .cta-section {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+        }
+        .footer a {
+            color: #777;
+        }
+        @media only screen and (max-width: 480px) {
+            .header-title {
+                font-size: 22px;
+            }
+            .feature-card {
+                padding: 20px;
+            }
+            .feature-title {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="header-title">{{ user.username }}, откройте новые возможности!</h1>
+            <p class="header-subtitle">Мы подготовили для вас три способа изучать английский</p>
+        </div>
+
+        <div class="content">
+            <p class="intro">
+                Каждый день — это шанс стать лучше. Выберите свой путь к свободному английскому!
+            </p>
+
+            <!-- Книжные курсы -->
+            <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h2 class="feature-title">Книжные курсы</h2>
+                <p class="feature-description">
+                    Изучайте английский через любимые книги! Структурированные курсы с упражнениями,
+                    встроенным словарём и тестами. Идеально для погружения в язык через увлекательные истории.
+                </p>
+                <a href="{{ url_for('book_courses.list_book_courses', _external=True) }}" class="feature-button">
+                    Начать курс
+                </a>
+            </div>
+
+            <!-- Библиотека книг -->
+            <div class="feature-card books">
+                <div class="feature-icon">📖</div>
+                <h2 class="feature-title">Библиотека книг</h2>
+                <p class="feature-description">
+                    Читайте адаптированные книги на английском с мгновенным переводом слов.
+                    Отслеживайте прогресс чтения и пополняйте словарный запас естественным путём.
+                </p>
+                <a href="{{ url_for('books.book_list', _external=True) }}" class="feature-button">
+                    Открыть библиотеку
+                </a>
+            </div>
+
+            <!-- Изучение слов -->
+            <div class="feature-card study">
+                <div class="feature-icon">🎯</div>
+                <h2 class="feature-title">Изучение слов</h2>
+                <p class="feature-description">
+                    Учите новые слова с помощью умных карточек, квизов и системы интервального повторения.
+                    Запоминайте слова надолго благодаря научно обоснованным методам.
+                </p>
+                <a href="{{ url_for('study.index', _external=True) }}" class="feature-button">
+                    Учить слова
+                </a>
+            </div>
+
+            <!-- Статистика -->
+            <div class="stats-section">
+                <div class="stats-icon">🏆</div>
+                <div class="stats-title">Ваш прогресс</div>
+                <div class="stats-text">
+                    {% set words_count = user.words|selectattr('status', 'eq', 2)|list|length %}
+                    {% if words_count > 0 %}
+                        Вы уже изучили <strong>{{ words_count }}</strong> слов!
+                        Продолжайте в том же духе — каждое слово приближает вас к цели.
+                    {% else %}
+                        Начните своё путешествие к свободному английскому прямо сейчас!
+                        Первые 100 слов — это уже большой шаг вперёд.
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Главный CTA -->
+            <div class="cta-section">
+                <a href="{{ url_for('words.dashboard', _external=True) }}" class="cta-button">
+                    Начать обучение
+                </a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© {{ now.year }} LLT English. Все права защищены.</p>
+            <p>Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
+            <p>
+                <a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> |
+                <a href="{{ url_for('study.settings', token=unsubscribe_token, _external=True) }}">Отписаться</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -9,8 +9,8 @@
 {% block content %}
 <div class="container py-4">
     <!-- Hero Section -->
-    <div class="card bg-primary text-white shadow-lg mb-4" style="border-radius: var(--radius-lg); overflow: hidden;">
-        <div class="card-body p-4" style="position: relative; z-index: 1;">
+    <div class="card bg-primary text-white shadow-lg mb-4 dashboard-hero-card">
+        <div class="card-body p-4 dashboard-hero-content">
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <h1 class="display-5 fw-bold mb-3">{{ _('Ваш словарь') }}</h1>
@@ -32,7 +32,7 @@
             <div class="card-body">
                 <div class="text-5xl fw-bold text-primary mb-2">{{ status_stats.new }}</div>
                 <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Новые слова') }}</div>
-                <div class="progress" style="height: 4px;">
+                <div class="progress progress-xs">
                     <div class="progress-bar bg-primary" style="width: {{ (status_stats.new / total_words * 100) if total_words > 0 else 0 }}%"></div>
                 </div>
             </div>
@@ -42,7 +42,7 @@
             <div class="card-body">
                 <div class="text-5xl fw-bold text-success mb-2">{{ status_stats.learning }}</div>
                 <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Изучаемые') }}</div>
-                <div class="progress" style="height: 4px;">
+                <div class="progress progress-xs">
                     <div class="progress-bar bg-success" style="width: {{ (status_stats.learning / total_words * 100) if total_words > 0 else 0 }}%"></div>
                 </div>
             </div>
@@ -52,7 +52,7 @@
             <div class="card-body">
                 <div class="text-5xl fw-bold text-info mb-2">{{ status_stats.review }}</div>
                 <div class="text-secondary text-sm fw-semibold mb-2">{{ _('На повторении') }}</div>
-                <div class="progress" style="height: 4px;">
+                <div class="progress progress-xs">
                     <div class="progress-bar bg-info" style="width: {{ (status_stats.review / total_words * 100) if total_words > 0 else 0 }}%"></div>
                 </div>
             </div>
@@ -62,7 +62,7 @@
             <div class="card-body">
                 <div class="text-5xl fw-bold text-warning mb-2">{{ status_stats.mastered }}</div>
                 <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Выученные') }}</div>
-                <div class="progress" style="height: 4px;">
+                <div class="progress progress-xs">
                     <div class="progress-bar bg-warning" style="width: {{ (status_stats.mastered / total_words * 100) if total_words > 0 else 0 }}%"></div>
                 </div>
             </div>
@@ -70,40 +70,36 @@
     </div>
 
     <!-- Achievements & XP Progress -->
-    <div class="card shadow-lg mb-4 hero-gradient-card" style="overflow: hidden;">
+    <div class="card shadow-lg mb-4 hero-gradient-card dashboard-hero-card">
         <div class="card-body p-4 position-relative">
             <!-- Decorative background pattern -->
-            <div style="position: absolute; top: 0; right: 0; opacity: 0.1; font-size: 200px; line-height: 1; pointer-events: none;">⚡</div>
+            <div class="decorative-bg-icon">⚡</div>
 
             <div class="row position-relative">
                 <!-- XP Progress Section -->
                 <div class="col-md-6 mb-4 mb-md-0">
                     <div class="d-flex align-items-center mb-2">
-                        <div class="me-2" style="font-size: 28px;">⚡</div>
+                        <div class="me-2 section-icon">⚡</div>
                         <h3 class="mb-0 fw-bold">Ваш прогресс</h3>
                     </div>
 
                     <div class="d-flex align-items-center mb-3 mt-3">
                         <!-- Level badge -->
-                        <div class="me-3 text-center dashboard-level-badge">
-                            <div style="font-size: 42px; font-weight: 700; line-height: 1;">{{ user_level or 1 }}</div>
-                            <div style="font-size: 11px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">уровень</div>
+                        <div class="me-3 text-center">
+                            <div class="dashboard-level-badge">{{ user_level or 1 }}</div>
+                            <div class="dashboard-level-label">уровень</div>
                         </div>
 
                         <!-- XP Progress -->
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between mb-2">
-                                <span style="font-size: 15px; font-weight: 600;">{{ user_xp or 0 }} XP</span>
-                                <span style="font-size: 13px; opacity: 0.85;">{{ xp_to_next_level or 100 }} до Ур.{{ (user_level or 1) + 1 }}</span>
+                                <span class="xp-current">{{ user_xp or 0 }} XP</span>
+                                <span class="xp-remaining">{{ xp_to_next_level or 100 }} до Ур.{{ (user_level or 1) + 1 }}</span>
                             </div>
                             <!-- Colorful progress bar -->
-                            <div class="progress" style="height: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">
-                                <div class="progress-bar" role="progressbar"
-                                     style="width: {{ xp_progress_percent or 0 }}%;
-                                            background: linear-gradient(90deg, #ffd89b 0%, #19547b 50%, #ffd89b 100%);
-                                            border-radius: 12px;
-                                            box-shadow: 0 2px 8px rgba(255,216,155,0.5);
-                                            transition: width 0.6s ease;"
+                            <div class="progress xp-progress-bar">
+                                <div class="progress-bar xp-progress-fill" role="progressbar"
+                                     style="width: {{ xp_progress_percent or 0 }}%;"
                                      aria-valuenow="{{ xp_progress_percent or 0 }}"
                                      aria-valuemin="0"
                                      aria-valuemax="100">
@@ -113,8 +109,8 @@
                     </div>
 
                     <div class="mt-3">
-                        <a href="{{ url_for('study.index') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: var(--shadow-md);">
-                            <i class="fas fa-graduation-cap me-1" style="color: var(--brand-color);"></i>Изучение
+                        <a href="{{ url_for('study.index') }}" class="btn btn-light btn-sm fw-semibold shadow">
+                            <i class="fas fa-graduation-cap me-1 text-primary"></i>Изучение
                         </a>
                     </div>
                 </div>
@@ -122,7 +118,7 @@
                 <!-- Achievements Section -->
                 <div class="col-md-6">
                     <div class="d-flex align-items-center mb-2">
-                        <div class="me-2" style="font-size: 28px;">🏆</div>
+                        <div class="me-2 section-icon">🏆</div>
                         <h3 class="mb-0 fw-bold">Достижения</h3>
                     </div>
 
@@ -130,35 +126,28 @@
                     <div class="d-flex flex-wrap gap-2 mb-3 mt-3">
                         {% for ach in user_achievements %}
                         <div class="badge dashboard-achievement-badge" title="{{ ach.description }}">
-                            <span style="font-size: 20px;">{{ ach.icon }}</span>
-                            <span style="font-weight: 600;">{{ ach.name }}</span>
+                            <span class="icon">{{ ach.icon }}</span>
+                            <span class="name">{{ ach.name }}</span>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div style="background: rgba(255,255,255,0.15);
-                                padding: 16px;
-                                border-radius: 12px;
-                                text-align: center;
-                                font-size: 13px;
-                                backdrop-filter: blur(10px);
-                                border: 1px solid rgba(255,255,255,0.2);
-                                margin-top: 16px;">
-                        <div style="font-size: 32px; margin-bottom: 8px; filter: grayscale(0.3);">🎯</div>
-                        <div style="font-weight: 500; line-height: 1.4;">Учитесь и получайте достижения!</div>
+                    <div class="empty-achievement-box">
+                        <div class="empty-achievement-icon">🎯</div>
+                        <div class="empty-achievement-text">Учитесь и получайте достижения!</div>
                     </div>
                     {% endif %}
 
                     <div class="mt-3">
                         {% if earned_count > 0 %}
-                        <div class="mb-2" style="background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 8px; backdrop-filter: blur(10px); display: inline-flex; align-items: center;">
-                            <i class="fas fa-trophy me-2" style="font-size: 14px;"></i>
-                            <span style="font-size: 13px; font-weight: 600;">Получено: {{ earned_count }}/{{ total_achievements }}</span>
+                        <div class="mb-2 achievement-count-badge">
+                            <i class="fas fa-trophy me-2"></i>
+                            <span>Получено: {{ earned_count }}/{{ total_achievements }}</span>
                         </div>
                         <br>
                         {% endif %}
-                        <a href="{{ url_for('study.achievements') }}" class="btn btn-light btn-sm fw-semibold" style="box-shadow: var(--shadow-md);">
-                            <i class="fas fa-trophy me-1" style="color: var(--brand-color);"></i>Все достижения
+                        <a href="{{ url_for('study.achievements') }}" class="btn btn-light btn-sm fw-semibold shadow">
+                            <i class="fas fa-trophy me-1 text-primary"></i>Все достижения
                         </a>
                     </div>
                 </div>
@@ -178,12 +167,12 @@
             <div class="row">
                 {% for word in recent_words[:8] %}
                 <div class="col-md-6 mb-2">
-                    <div class="d-flex align-items-center p-2 rounded hover-bg-light" style="transition: var(--transition-base);">
+                    <div class="d-flex align-items-center p-2 rounded recent-word-item">
                         <div class="flex-grow-1">
                             <div class="fw-semibold text-dark">{{ word.english_word }}</div>
                             <div class="text-secondary text-sm">{{ word.russian_word }}</div>
                         </div>
-                        <div class="rounded-circle ms-3" style="width: 8px; height: 8px; background-color: {% if word.user_status == 'mastered' %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %};"></div>
+                        <div class="status-dot-sm ms-3 status-dot-{{ word.user_status or 'new' }}"></div>
                     </div>
                 </div>
                 {% endfor %}
@@ -193,7 +182,7 @@
     {% else %}
     <div class="card shadow-sm">
         <div class="card-body text-center py-5">
-            <i class="fas fa-book-open text-muted mb-3" style="font-size: 3rem; opacity: 0.5;"></i>
+            <i class="fas fa-book-open text-muted mb-3 empty-icon-md"></i>
             <h4 class="text-secondary">{{ _('Начните изучение слов') }}</h4>
             <p class="text-muted">{{ _('Добавьте слова в свой словарь и начните изучение') }}</p>
             <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">{{ _('Перейти к словам') }}</a>

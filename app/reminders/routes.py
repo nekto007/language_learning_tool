@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import desc
 
@@ -88,13 +88,18 @@ def send_email(to_email, subject, html_content, from_email=DEFAULT_FROM_EMAIL):
 def get_inactive_users(days=7):
     """
     Получает список пользователей, которые не входили в систему более указанного количества дней.
+    Если days=0, возвращает всех активных пользователей.
 
     Args:
-        days (int): Количество дней неактивности
+        days (int): Количество дней неактивности (0 = все пользователи)
 
     Returns:
-        list: Список неактивных пользователей
+        list: Список пользователей
     """
+    if days == 0:
+        # Вернуть всех активных пользователей
+        return User.query.filter(User.active == True).all()
+
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     inactive_users = User.query.filter(
@@ -238,10 +243,24 @@ def preview_template(template_name):
         now = datetime.now(timezone.utc)
         unsubscribe_token = "sample_token"
 
-        return render_template(f'emails/reminders/{template_name}.html', user=current_user,
+        html = render_template(f'emails/reminders/{template_name}.html', user=current_user,
                                unsubscribe_token=unsubscribe_token, now=now)
+        response = make_response(html)
+        # Allow iframe embedding from same origin for preview
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
+        return response
     except Exception as e:
-        flash(f'Ошибка при загрузке шаблона: {str(e)}', 'danger')
-        return redirect(url_for('reminders.list_templates'))
+        # Return error directly in iframe instead of redirect
+        error_html = f'''
+        <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px; color: #721c24; background: #f8d7da;">
+            <h3>Ошибка при загрузке шаблона</h3>
+            <p>{str(e)}</p>
+        </body>
+        </html>
+        '''
+        response = make_response(error_html, 500)
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
+        return response
 
 

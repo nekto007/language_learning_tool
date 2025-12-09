@@ -1,0 +1,48 @@
+# Commit Guidelines
+
+## Important Rules
+
+1. **NO AI Attribution**: Do not include any mentions of AI, Claude, or AI-generated content in commit messages
+   - ❌ DO NOT use: "Generated with Claude Code", "Co-Authored-By: Claude", or similar
+   - ✅ USE: Standard commit messages without AI attribution
+
+2. **Commit Message Format**:
+   ```
+   Brief summary (50 chars or less)
+
+   Detailed description of the problem, root cause, and solution.
+   Include specific file paths and line numbers where relevant.
+
+   Impact: X tests fixed / Y feature added / Z bug resolved
+   ```
+
+3. **What to Include**:
+   - Clear problem statement
+   - Root cause analysis
+   - Solution description
+   - Impact assessment
+   - Modified files and line numbers
+
+4. **What NOT to Include**:
+   - AI/Claude mentions
+   - Emojis (unless explicitly requested)
+   - Unnecessary marketing language
+
+## Example Good Commit
+
+```
+Fix test isolation: add UUIDs to email addresses in admin security tests
+
+Problem: Three tests were failing with unique constraint violations
+on the users.email field when running multiple times or in parallel.
+
+Root Cause: Tests created users with hardcoded email addresses.
+
+Solution: Added UUID suffixes to all email addresses to ensure
+uniqueness across test runs.
+
+Impact: 3 tests fixed (30→27 FAILED)
+
+Files modified:
+- tests/test_admin_security.py:237-240, 362-365, 429-432
+```

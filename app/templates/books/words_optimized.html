@@ -60,7 +60,7 @@
             <div class="col-md-8 col-lg-6">
                 <label class="form-label fw-semibold">{{ _('Поиск слов') }}</label>
                 <div class="position-relative">
-                    <i class="fas fa-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #718096;"></i>
+                    <i class="fas fa-search position-absolute search-icon-positioned"></i>
                     <input type="text" 
                            class="form-control ps-5" 
                            id="wordSearch" 
@@ -125,16 +125,16 @@
         <table class="table table-hover mb-0" id="wordsTable">
             <thead>
                 <tr>
-                    <th style="width: 4%">
+                    <th class="book-words-col-select">
                         <input type="checkbox" id="selectAll" class="form-check-input" onchange="toggleSelectAll()">
                     </th>
-                    <th style="width: 4%">{{ _('Статус') }}</th>
-                    <th style="width: 18%">{{ _('Английское слово') }}</th>
-                    <th style="width: 18%">{{ _('Перевод') }}</th>
-                    <th style="width: 8%">{{ _('Уровень') }}</th>
-                    <th style="width: 12%">{{ _('Книга') }}</th>
-                    <th style="width: 8%">{{ _('Аудио') }}</th>
-                    <th style="width: 16%">{{ _('Действия') }}</th>
+                    <th class="book-words-col-status">{{ _('Статус') }}</th>
+                    <th class="book-words-col-english">{{ _('Английское слово') }}</th>
+                    <th class="book-words-col-russian">{{ _('Перевод') }}</th>
+                    <th class="book-words-col-level">{{ _('Уровень') }}</th>
+                    <th class="book-words-col-book">{{ _('Книга') }}</th>
+                    <th class="book-words-col-audio">{{ _('Аудио') }}</th>
+                    <th class="book-words-col-actions">{{ _('Действия') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -259,7 +259,7 @@
 </div>
 
 <!-- Audio Element -->
-<audio id="audioPlayer" style="display: none;"></audio>
+<audio id="audioPlayer" class="audio-hidden"></audio>
 
 {% endblock %}
 

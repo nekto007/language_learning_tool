@@ -22,6 +22,7 @@
                         <div class="form-group mb-2">
                             <label for="inactive_days" class="mr-2">Не активны более</label>
                             <select name="inactive_days" id="inactive_days" class="form-control mr-2">
+                                <option value="0" {% if inactive_days == 0 %}selected{% endif %}>Все пользователи</option>
                                 <option value="3" {% if inactive_days == 3 %}selected{% endif %}>3 дней</option>
                                 <option value="7" {% if inactive_days == 7 %}selected{% endif %}>7 дней</option>
                                 <option value="14" {% if inactive_days == 14 %}selected{% endif %}>14 дней</option>
@@ -45,6 +46,7 @@
                 <div class="card-body">
                     {% if inactive_users %}
                         <form method="POST" action="{{ url_for('reminders.send_reminders') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="mb-4">
                                 <div class="form-group">
                                     <label for="reminder_template">Выберите шаблон напоминания:</label>
@@ -52,6 +54,7 @@
                                         <option value="default">Стандартное напоминание</option>
                                         <option value="friendly">Дружелюбное сообщение от лисенка</option>
                                         <option value="achievement">Мотивационное (достижения)</option>
+                                        <option value="features">Обзор возможностей (книги, курсы, обучение)</option>
                                     </select>
                                     <small class="form-text text-muted">
                                         <a href="#" data-toggle="modal" data-target="#previewModal">Предварительный просмотр шаблонов</a>
@@ -220,6 +223,10 @@
                         <a class="nav-link" id="achievement-tab" data-toggle="tab" href="#achievement" role="tab"
                            aria-controls="achievement" aria-selected="false">Мотивационное</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="features-tab" data-toggle="tab" href="#features" role="tab"
+                           aria-controls="features" aria-selected="false">Обзор возможностей</a>
+                    </li>
                 </ul>
                 <div class="tab-content mt-3" id="previewTabsContent">
                     <div class="tab-pane fade show active" id="default" role="tabpanel" aria-labelledby="default-tab">
@@ -235,6 +242,11 @@
                     <div class="tab-pane fade" id="achievement" role="tabpanel" aria-labelledby="achievement-tab">
                         <div class="embed-responsive embed-responsive-1by1">
                             <iframe class="embed-responsive-item" src="{{ url_for('reminders.preview_template', template_name='achievement') }}"></iframe>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="features" role="tabpanel" aria-labelledby="features-tab">
+                        <div class="embed-responsive embed-responsive-1by1">
+                            <iframe class="embed-responsive-item" src="{{ url_for('reminders.preview_template', template_name='features') }}"></iframe>
                         </div>
                     </div>
                 </div>
@@ -284,7 +296,9 @@
 
         function updateSelectedCount() {
             const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
-            selectedCountSpan.textContent = `Выбрано: ${selectedCount} пользователей`;
+            if (selectedCountSpan) {
+                selectedCountSpan.textContent = `Выбрано: ${selectedCount} пользователей`;
+            }
 
             // Disable send button if no users selected
             if (sendRemindersButton) {
@@ -292,8 +306,10 @@
             }
         }
 
-        // Initialize selected count
-        updateSelectedCount();
+        // Initialize selected count only if elements exist
+        if (selectedCountSpan) {
+            updateSelectedCount();
+        }
 
         // Form submission confirmation
         const reminderForm = document.querySelector('form[action*="send_reminders"]');
