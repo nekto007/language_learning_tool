@@ -8839,3 +8839,29 @@ textarea:focus-visible,
 .audio-hidden {
     display: none;
 }
+
+/* ==========================================================================
+   Curriculum Text Lesson Components
+   ========================================================================== */
+
+/* Audio Player Rounded */
+.audio-player-rounded {
+    max-width: 500px;
+    border-radius: 50px;
+}
+
+/* Audio Controller Row */
+.audio-controller-row {
+    min-width: 0;
+}
+
+/* Listening Immersion Content */
+.listening-immersion-content {
+    max-width: 800px;
+}
+
+/* Placeholder Text */
+.placeholder-text-muted {
+    color: var(--gray-400);
+    font-style: italic;
+}
