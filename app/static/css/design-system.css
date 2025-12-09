@@ -9137,3 +9137,14 @@ textarea:focus-visible,
     max-height: 500px;
     overflow-y: auto;
 }
+
+/* Scrollable List Container (smaller) */
+.list-scroll-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Cursor Pointer for clickable icons */
+.cursor-pointer {
+    cursor: pointer;
+}
