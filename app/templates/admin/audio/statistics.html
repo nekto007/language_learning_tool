@@ -41,8 +41,8 @@
                                     <td class="h5 mb-0">{{ stat.count }}</td>
                                     <td>
                                         {% set percentage = (stat.count / total_download * 100) | round(1) if total_download > 0 else 0 %}
-                                        <div class="progress" style="height: 25px;">
-                                            <div class="progress-bar bg-{% if stat.status == 'Available' %}success{% elif stat.status == 'Not Available' %}warning{% else %}secondary{% endif %}" 
+                                        <div class="progress progress-tall">
+                                            <div class="progress-bar bg-{% if stat.status == 'Available' %}success{% elif stat.status == 'Not Available' %}warning{% else %}secondary{% endif %}"
                                                  role="progressbar" style="width: {{ percentage }}%">
                                                 {{ percentage }}%
                                             </div>
@@ -90,8 +90,8 @@
                                     <td class="h5 mb-0">{{ stat.count }}</td>
                                     <td>
                                         {% set percentage = (stat.count / total_listening * 100) | round(1) if total_listening > 0 else 0 %}
-                                        <div class="progress" style="height: 25px;">
-                                            <div class="progress-bar bg-{% if stat.format_type == 'Anki Format' %}success{% elif stat.format_type == 'HTTP URL' %}danger{% elif stat.format_type == 'Empty' %}warning{% else %}info{% endif %}" 
+                                        <div class="progress progress-tall">
+                                            <div class="progress-bar bg-{% if stat.format_type == 'Anki Format' %}success{% elif stat.format_type == 'HTTP URL' %}danger{% elif stat.format_type == 'Empty' %}warning{% else %}info{% endif %}"
                                                  role="progressbar" style="width: {{ percentage }}%">
                                                 {{ percentage }}%
                                             </div>
@@ -162,8 +162,8 @@
                                     <td>
                                         {% if stat.words_total > 0 %}
                                             {% set coverage = (stat.with_audio / stat.words_total * 100) | round(1) %}
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar bg-{% if coverage >= 80 %}success{% elif coverage >= 50 %}warning{% else %}danger{% endif %}" 
+                                            <div class="progress progress-medium">
+                                                <div class="progress-bar bg-{% if coverage >= 80 %}success{% elif coverage >= 50 %}warning{% else %}danger{% endif %}"
                                                      role="progressbar" style="width: {{ coverage }}%">
                                                     {{ coverage }}%
                                                 </div>

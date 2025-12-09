@@ -9078,3 +9078,8 @@ textarea:focus-visible,
     color: rgba(255, 255, 255, 0.9);
     margin-top: 8px;
 }
+
+/* Progress Bar Medium Height */
+.progress-medium {
+    height: 20px;
+}
