@@ -4718,6 +4718,191 @@ body.dark-theme #translationPopup {
     }
 }
 
+/* Admin Mobile - Small screens (< 576px) */
+@media (max-width: 576px) {
+    /* Larger touch targets for table buttons */
+    .admin-main .btn-group-sm .btn {
+        padding: 8px 10px;
+        font-size: 12px;
+        min-height: 40px;
+        min-width: 40px;
+    }
+
+    /* Compact table on mobile */
+    .admin-main .table thead th {
+        font-size: 10px;
+        padding: var(--space-2) var(--space-2);
+    }
+
+    .admin-main .table tbody td {
+        padding: var(--space-2) var(--space-2);
+        font-size: 12px;
+    }
+
+    /* Hide non-essential columns on mobile */
+    .col-hide-mobile {
+        display: none !important;
+    }
+
+    /* Stat cards smaller padding */
+    .stat-card {
+        padding: var(--space-4);
+    }
+
+    .stat-card .stat-value {
+        font-size: var(--text-xl);
+    }
+}
+
+/* Admin Mobile - Very narrow screens (< 480px) */
+@media (max-width: 480px) {
+    .admin-main {
+        padding: var(--space-4);
+    }
+
+    /* Full-width sidebar when open */
+    .admin-sidebar.show {
+        width: 100%;
+    }
+
+    /* Hide brand text, keep icon */
+    .header-brand span:not(.brand-icon) {
+        display: none;
+    }
+
+    /* Cards more compact */
+    .admin-main .card-body {
+        padding: var(--space-4);
+    }
+
+    .admin-main .card-header {
+        padding: var(--space-3) var(--space-4);
+    }
+
+    /* Page header compact */
+    .page-title {
+        font-size: var(--text-lg);
+    }
+}
+
+/* Table responsive fix */
+.admin-main .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ========================================
+   Study Module - Mobile Responsive
+   ======================================== */
+
+/* Charts responsive height */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        height: 200px;
+    }
+}
+
+/* Quiz progress header mobile */
+@media (max-width: 576px) {
+    .progress-header {
+        flex-direction: column;
+        gap: var(--space-3);
+        text-align: center;
+    }
+
+    .progress-header .progress {
+        width: 100%;
+    }
+
+    /* Quiz container padding on mobile */
+    .quiz-container {
+        padding: var(--space-4);
+    }
+
+    /* Session stats on mobile */
+    .session-stats {
+        flex-direction: column;
+        gap: var(--space-6);
+    }
+
+    /* Timer position on mobile */
+    .timer-container {
+        position: static;
+        margin-bottom: var(--space-4);
+        justify-content: center;
+    }
+
+    /* Quiz buttons on mobile - ensure touch targets */
+    .quiz-actions .btn {
+        min-height: 44px;
+        padding: var(--space-3) var(--space-6);
+    }
+}
+
+/* Matching cards very narrow screens */
+@media (max-width: 380px) {
+    .matching-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-2);
+    }
+
+    .flip-card {
+        height: 100px;
+    }
+
+    .flip-card-front {
+        font-size: var(--text-xl);
+    }
+
+    .flip-card-back {
+        font-size: var(--text-base);
+        padding: var(--space-2);
+    }
+
+    /* Game container padding on very narrow screens */
+    .game-container {
+        padding: var(--space-4);
+    }
+
+    /* Stats grid on narrow screens */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-4);
+    }
+
+    /* Difficulty selector wrap */
+    .difficulty-selector {
+        flex-wrap: wrap;
+        gap: var(--space-3);
+    }
+
+    .difficulty-btn {
+        padding: var(--space-3) var(--space-6);
+        font-size: var(--text-sm);
+    }
+}
+
+/* Game header mobile */
+@media (max-width: 576px) {
+    .game-header {
+        flex-direction: column;
+        gap: var(--space-4);
+        text-align: center;
+    }
+
+    .game-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--space-4);
+    }
+}
+
 /* Admin Page Header */
 .page-header {
     margin-bottom: var(--space-6);

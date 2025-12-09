@@ -11,7 +11,7 @@
 {{ page_header('Create Lesson', 'Add a new lesson to the curriculum') }}
 
 <div class="row">
-    <div class="col-lg-8">
+    <div class="col-12 col-lg-8">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">New Lesson</h5>
@@ -31,7 +31,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6 mb-3 mb-md-0">
                             <div class="mb-3">
                                 {{ form.number.label(class="form-label") }}
                                 {{ form.number(class="form-control" + (" is-invalid" if form.number.errors else ""), placeholder="e.g., 1, 2, 3...") }}
@@ -43,7 +43,7 @@
                                 <small class="form-text text-muted">Lesson number within the module</small>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <div class="mb-3">
                                 {{ form.type.label(class="form-label") }}
                                 {{ form.type(class="form-select" + (" is-invalid" if form.type.errors else ""), id="lessonType") }}
@@ -117,7 +117,7 @@
         </div>
     </div>
 
-    <div class="col-lg-4">
+    <div class="col-12 col-lg-4 mt-4 mt-lg-0">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">Lesson Types</h5>
