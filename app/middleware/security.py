@@ -2,7 +2,7 @@
 Security middleware for Flask application.
 Adds security headers to all responses.
 """
-from flask import Flask
+from flask import Flask, request
 
 
 def add_security_headers(app: Flask):
@@ -31,6 +31,12 @@ def add_security_headers(app: Flask):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
         
         # Content Security Policy - restrictive but functional
+        # Allow iframe embedding for email template preview routes
+        if request.path.startswith('/admin/reminders/preview/'):
+            frame_ancestors = "'self'"
+        else:
+            frame_ancestors = "'none'"
+
         csp_policy = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
@@ -39,7 +45,7 @@ def add_security_headers(app: Flask):
             "img-src 'self' data: https:; "
             "connect-src 'self'; "
             "form-action 'self'; "
-            "frame-ancestors 'none'; "
+            f"frame-ancestors {frame_ancestors}; "
             "base-uri 'self'"
         )
         response.headers['Content-Security-Policy'] = csp_policy

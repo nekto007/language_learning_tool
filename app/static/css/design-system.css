@@ -8918,3 +8918,25 @@ textarea:focus-visible,
 .footer-copyright {
     font-size: 14px;
 }
+
+/* ==========================================================================
+   Book Words Table Components
+   ========================================================================== */
+
+/* Search Icon Position */
+.search-icon-positioned {
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-500);
+}
+
+/* Table Column Widths - Book Words */
+.book-words-col-select { width: 4%; }
+.book-words-col-status { width: 4%; }
+.book-words-col-english { width: 18%; }
+.book-words-col-russian { width: 18%; }
+.book-words-col-level { width: 8%; }
+.book-words-col-book { width: 12%; }
+.book-words-col-audio { width: 8%; }
+.book-words-col-actions { width: 16%; }
