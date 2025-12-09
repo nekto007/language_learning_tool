@@ -11,14 +11,14 @@
 {{ page_header('Create Module', 'Add a new module to the curriculum') }}
 
 <div class="row">
-    <div class="col-lg-8">
+    <div class="col-12 col-lg-8">
         <div class="card">
             <div class="card-body">
                 <form method="POST">
                     {{ form.hidden_tag() }}
 
                     <div class="row mb-3">
-                        <div class="col-md-8">
+                        <div class="col-12 col-md-8 mb-3 mb-md-0">
                             <label class="form-label">{{ form.level_id.label }}</label>
                             {{ form.level_id(class="form-select") }}
                             {% if form.level_id.errors %}
@@ -26,7 +26,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-4">
                             <label class="form-label">{{ form.number.label }}</label>
                             {{ form.number(class="form-control", placeholder="1", min="1") }}
                             {% if form.number.errors %}
@@ -60,7 +60,7 @@
         </div>
     </div>
 
-    <div class="col-lg-4">
+    <div class="col-12 col-lg-4 mt-4 mt-lg-0">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">Module Tips</h5>

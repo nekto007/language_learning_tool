@@ -11,14 +11,14 @@
 {{ page_header('Create CEFR Level', 'Add a new language proficiency level') }}
 
 <div class="row">
-    <div class="col-lg-8">
+    <div class="col-12 col-lg-8">
         <div class="card">
             <div class="card-body">
                 <form method="POST">
                     {{ form.hidden_tag() }}
 
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-4 mb-3 mb-md-0">
                             <label class="form-label">{{ form.code.label }}</label>
                             {{ form.code(class="form-control text-uppercase", placeholder="A1", maxlength="2") }}
                             {% if form.code.errors %}
@@ -27,7 +27,7 @@
                             <div class="form-text">2 characters (e.g., A0, A1, B2)</div>
                         </div>
 
-                        <div class="col-md-8">
+                        <div class="col-12 col-md-8">
                             <label class="form-label">{{ form.name.label }}</label>
                             {{ form.name(class="form-control", placeholder="Beginner") }}
                             {% if form.name.errors %}
@@ -62,7 +62,7 @@
         </div>
     </div>
 
-    <div class="col-lg-4">
+    <div class="col-12 col-lg-4 mt-4 mt-lg-0">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">CEFR Level Guide</h5>

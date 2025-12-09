@@ -43,7 +43,7 @@
             
             <div class="row">
                 <!-- Basic Information -->
-                <div class="col-lg-6">
+                <div class="col-12 col-lg-6">
                     <div class="form-group mb-3">
                         {{ form.title.label(class="form-label") }}
                         {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
@@ -93,7 +93,7 @@
                 </div>
 
                 <!-- Cover Image -->
-                <div class="col-lg-6">
+                <div class="col-12 col-lg-6">
                     <div class="form-group mb-3">
                         <label class="form-label">Обложка книги</label>
                         
@@ -205,19 +205,19 @@
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="stat-item">
                     <div class="stat-label">Общее количество слов</div>
                     <div class="stat-value">{{ book.words_total or 0 }}</div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="stat-item">
                     <div class="stat-label">Уникальные слова</div>
                     <div class="stat-value">{{ book.unique_words or 0 }}</div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="stat-item">
                     <div class="stat-label">Дата добавления</div>
                     <div class="stat-value">
@@ -229,7 +229,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="stat-item">
                     <div class="stat-label">Статус обработки</div>
                     <div class="stat-value">
