@@ -235,10 +235,13 @@
 {% block scripts %}
 <script>
 // Select all checkbox
-document.getElementById('selectAll').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.user-checkbox');
-    checkboxes.forEach(cb => cb.checked = this.checked);
-});
+const selectAllEl = document.getElementById('selectAll');
+if (selectAllEl) {
+    selectAllEl.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+}
 
 // Send reminder
 function sendReminder(userId, username) {
