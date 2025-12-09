@@ -1,20 +1,22 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Управление базой данных{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('База данных', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Управление базой данных</h1>
-        <div>
-            <button id="test-connection-btn" class="btn btn-info btn-sm">
-                <i class="fas fa-network-wired"></i> Тест подключения
-            </button>
-            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#initDbModal">
-                <i class="fas fa-database"></i> Инициализация БД
-            </button>
-        </div>
-    </div>
+{% set actions %}
+<button id="test-connection-btn" class="btn btn-info btn-sm">
+    <i class="fas fa-network-wired"></i> Тест подключения
+</button>
+<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#initDbModal">
+    <i class="fas fa-database"></i> Инициализация БД
+</button>
+{% endset %}
+{{ page_header('Управление базой данных', 'Статистика, бэкапы и управление данными', actions=actions) }}
 
     <!-- Connection Status -->
     <div class="row mb-4">

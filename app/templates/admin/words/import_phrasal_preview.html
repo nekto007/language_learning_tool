@@ -1,15 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Предпросмотр импорта фразовых глаголов{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Words', url_for('word_admin.word_management')), ('Import Phrasal Verbs', url_for('word_admin.import_phrasal_verbs')), ('Preview', '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Предпросмотр импорта фразовых глаголов', 'Проверьте данные перед импортом') }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Предпросмотр импорта фразовых глаголов</h1>
-        <a href="{{ url_for('word_admin.import_phrasal_verbs') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Назад
-        </a>
-    </div>
 
     <!-- Summary -->
     <div class="row mb-4">

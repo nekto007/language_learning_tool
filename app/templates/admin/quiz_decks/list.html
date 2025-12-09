@@ -1,14 +1,19 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Колоды для квизов{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Quiz Decks', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-layer-group me-2"></i>Колоды для квизов</h1>
-    <a href="{{ url_for('admin.quiz_deck_create') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Создать колоду
-    </a>
-</div>
+{% set actions %}
+<a href="{{ url_for('admin.quiz_deck_create') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-2"></i>Создать колоду
+</a>
+{% endset %}
+{{ page_header('Колоды для квизов', 'Управление наборами слов для квизов', actions=actions) }}
 
 <!-- Search -->
 <div class="card mb-4">

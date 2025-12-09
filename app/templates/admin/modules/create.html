@@ -1,20 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Создать модуль{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Modules', url_for('admin.modules_list')), ('Create', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="page-title">Создать модуль</h1>
-            <p class="page-subtitle">Добавьте новый модуль в систему</p>
-        </div>
-        <a href="{{ url_for('admin.modules_list') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i> Назад к списку
-        </a>
-    </div>
-</div>
+{{ page_header('Создать модуль', 'Добавьте новый модуль в систему') }}
 
 <!-- Create Form -->
 <div class="row">

@@ -1,18 +1,19 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Управление модулями{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('JSON-модули', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Управление модулями</h1>
-        <p class="page-subtitle">Настройте доступные модули приложения</p>
-    </div>
-    <a href="{{ url_for('admin.modules_create') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i> Создать модуль
-    </a>
-</div>
+{% set actions %}
+<a href="{{ url_for('admin.modules_create') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-2"></i> Создать модуль
+</a>
+{% endset %}
+{{ page_header('Управление модулями', 'Настройте доступные модули приложения', actions=actions) }}
 
 <!-- Statistics Cards -->
 <div class="row mb-4">

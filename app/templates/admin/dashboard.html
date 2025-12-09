@@ -1,46 +1,24 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, stat_card, status_badge, action_btn, action_group, quick_stats %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Главная{% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1 class="page-title">Dashboard</h1>
-    <p class="page-subtitle">Welcome back! Here's what's happening with your platform.</p>
-</div>
+{{ page_header('Панель управления', 'Добро пожаловать! Вот что происходит на вашей платформе.', show_date=true, date_str=now().strftime('%d %B %Y')) }}
 
 <!-- Stats Cards -->
-<div class="row g-4 mb-4">
+<div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-label">Total Users</div>
-            <div class="stat-value">{{ total_users }}</div>
-            <i class="fas fa-users stat-icon"></i>
-        </div>
+        {{ stat_card('Всего пользователей', total_users, 'fa-users', 'primary') }}
     </div>
-
     <div class="col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-label">Active Users</div>
-            <div class="stat-value">{{ active_users }}</div>
-            <i class="fas fa-user-check stat-icon"></i>
-        </div>
+        {{ stat_card('Активных', active_users, 'fa-user-check', 'success') }}
     </div>
-
     <div class="col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-label">New Users (7 days)</div>
-            <div class="stat-value">{{ new_users }}</div>
-            <i class="fas fa-user-plus stat-icon"></i>
-        </div>
+        {{ stat_card('Новых (7 дней)', new_users, 'fa-user-plus', 'info') }}
     </div>
-
     <div class="col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-label">Active Recently</div>
-            <div class="stat-value">{{ active_recently }}</div>
-            <i class="fas fa-clock stat-icon"></i>
-        </div>
+        {{ stat_card('Недавно активных', active_recently, 'fa-clock', 'warning') }}
     </div>
 </div>
 
@@ -49,7 +27,7 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">User Activity</h5>
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-muted"></i>Активность пользователей</h5>
             </div>
             <div class="card-body">
                 <canvas id="activityChart" height="100"></canvas>
@@ -61,31 +39,16 @@
     <div class="col-lg-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Platform Statistics</h5>
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-muted"></i>Статистика платформы</h5>
             </div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="text-muted small">Total Books</div>
-                        <div class="h4 mb-0">{{ total_books }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Words Total</div>
-                        <div class="h4 mb-0">{{ "{:,}".format(words_total) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Words w/ Audio</div>
-                        <div class="h4 mb-0">{{ "{:,}".format(words_with_audio) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Total Lessons</div>
-                        <div class="h4 mb-0">{{ total_lessons }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Active Lessons</div>
-                        <div class="h4 mb-0">{{ active_lessons }}</div>
-                    </div>
-                </div>
+                {{ quick_stats([
+                    ('Всего книг', total_books, 'fa-book'),
+                    ('Всего слов', "{:,}".format(words_total), 'fa-spell-check'),
+                    ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
+                    ('Всего уроков', total_lessons, 'fa-file-alt'),
+                    ('Активных уроков', active_lessons, 'fa-check-circle')
+                ]) }}
 
                 <hr class="my-3">
 
@@ -98,8 +61,10 @@
 <!-- Recent Users Table -->
 <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Recent Users</h5>
-        <a href="{{ url_for('user_admin.users') }}" class="btn btn-sm btn-primary">View All</a>
+        <h5 class="mb-0"><i class="fas fa-users me-2 text-muted"></i>Последние пользователи</h5>
+        <a href="{{ url_for('user_admin.users') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-arrow-right me-1"></i>Все
+        </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -107,47 +72,45 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Username</th>
+                        <th>Имя</th>
                         <th>Email</th>
-                        <th>Registered</th>
-                        <th>Last Login</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>Регистрация</th>
+                        <th>Последний вход</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in recent_users[:5] %}
                     <tr>
-                        <td>{{ user.id }}</td>
-                        <td>{{ user.username }}</td>
+                        <td><span class="text-muted">#</span>{{ user.id }}</td>
+                        <td><strong>{{ user.username }}</strong></td>
                         <td>{{ user.email or '-' }}</td>
                         <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
                         <td>
                             {% if user.last_login %}
                                 {{ user.last_login.strftime('%d %b %Y') }}
                             {% else %}
-                                <span class="text-muted">Never</span>
+                                <span class="text-muted">Никогда</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if user.active %}
-                                <span class="badge bg-success">Active</span>
-                            {% else %}
-                                <span class="badge bg-danger">Inactive</span>
-                            {% endif %}
+                            {{ status_badge('Активен' if user.active else 'Неактивен', 'success' if user.active else 'danger') }}
                             {% if user.is_admin %}
-                                <span class="badge bg-info">Admin</span>
+                                {{ status_badge('Админ', 'info') }}
                             {% endif %}
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <form action="{{ url_for('user_admin.toggle_user_status', user_id=user.id) }}" method="POST" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if user.active else 'success' }}" title="{{ 'Deactivate' if user.active else 'Activate' }}">
-                                        <i class="fas fa-{{ 'ban' if user.active else 'check' }}"></i>
-                                    </button>
-                                </form>
-                            </div>
+                            {% call action_group() %}
+                                {{ action_btn(
+                                    'Деактивировать' if user.active else 'Активировать',
+                                    'fa-ban' if user.active else 'fa-check',
+                                    url_for('user_admin.toggle_user_status', user_id=user.id),
+                                    'outline-danger' if user.active else 'outline-success',
+                                    'sm',
+                                    'POST'
+                                ) }}
+                            {% endcall %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -160,23 +123,34 @@
 
 {% block scripts %}
 <script>
+// Get CSS variables for chart colors
+const styles = getComputedStyle(document.documentElement);
+const chartColors = {
+    primary: styles.getPropertyValue('--chart-primary').trim(),
+    primaryLight: styles.getPropertyValue('--chart-primary-light').trim(),
+    success: styles.getPropertyValue('--chart-success').trim(),
+    successLight: styles.getPropertyValue('--chart-success-light').trim(),
+    danger: styles.getPropertyValue('--chart-danger').trim(),
+    info: styles.getPropertyValue('--chart-info').trim()
+};
+
 // Activity Chart
 const activityCtx = document.getElementById('activityChart').getContext('2d');
 new Chart(activityCtx, {
     type: 'line',
     data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
         datasets: [{
-            label: 'New Users',
+            label: 'Новые пользователи',
             data: [12, 19, 3, 5, 2, 3, {{ new_users }}],
-            borderColor: '#4f46e5',
-            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            borderColor: chartColors.primary,
+            backgroundColor: chartColors.primaryLight,
             tension: 0.4
         }, {
-            label: 'Active Users',
+            label: 'Активные пользователи',
             data: [30, 45, 28, 40, 35, 48, {{ active_recently }}],
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderColor: chartColors.success,
+            backgroundColor: chartColors.successLight,
             tension: 0.4
         }]
     },
@@ -201,10 +175,10 @@ const progressCtx = document.getElementById('progressChart').getContext('2d');
 new Chart(progressCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Active', 'Inactive', 'New'],
+        labels: ['Активные', 'Неактивные', 'Новые'],
         datasets: [{
             data: [{{ active_users }}, {{ total_users - active_users - new_users }}, {{ new_users }}],
-            backgroundColor: ['#10b981', '#ef4444', '#3b82f6'],
+            backgroundColor: [chartColors.success, chartColors.danger, chartColors.info],
             borderWidth: 0
         }]
     },

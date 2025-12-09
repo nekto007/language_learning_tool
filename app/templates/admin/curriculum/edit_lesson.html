@@ -1,25 +1,19 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Edit Lesson - {{ lesson.title }}{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), (lesson.module.level.code, url_for('admin_curriculum.module_list', level_id=lesson.module.level.id)), ('Module ' ~ lesson.module.number, url_for('admin_curriculum.lesson_list', module_id=lesson.module.id)), ('Edit Lesson', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Edit Lesson: {{ lesson.title }}</h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('admin_curriculum.curriculum') }}">Curriculum</a></li>
-                <li class="breadcrumb-item active">Edit Lesson</li>
-            </ol>
-        </nav>
-    </div>
-    <div>
-        <a href="{{ url_for('admin.export_lesson', lesson_id=lesson.id) }}" class="btn btn-info">
-            <i class="fas fa-download me-2"></i>Export JSON
-        </a>
-    </div>
-</div>
+{% set actions %}
+<a href="{{ url_for('admin.export_lesson', lesson_id=lesson.id) }}" class="btn btn-info">
+    <i class="fas fa-download me-2"></i>Export JSON
+</a>
+{% endset %}
+{{ page_header('Edit Lesson: ' ~ lesson.title, lesson.module.level.code ~ ' - Module ' ~ lesson.module.number, actions=actions) }}
 
 <div class="row">
     <div class="col-lg-8">

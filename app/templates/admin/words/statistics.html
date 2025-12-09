@@ -1,15 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Статистика по словам{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Words', url_for('word_admin.word_management')), ('Statistics', '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Детальная статистика по словам', 'Аналитика изучения слов пользователями') }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Детальная статистика по словам</h1>
-        <a href="{{ url_for('word_admin.word_management') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Назад к управлению словами
-        </a>
-    </div>
 
     <!-- Status Statistics -->
     {% if status_stats %}

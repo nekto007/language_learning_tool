@@ -1,15 +1,16 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Массовое обновление статусов слов{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Words', url_for('word_admin.word_management')), ('Bulk Update', '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Массовое обновление статусов слов', 'Изменение статуса для группы слов') }}
+
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Массовое обновление статусов слов</h1>
-        <a href="{{ url_for('word_admin.word_management') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Назад к управлению словами
-        </a>
-    </div>
 
     <div class="row">
         <div class="col-lg-8">

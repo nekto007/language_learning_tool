@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Admin Panel{% endblock %} | LLT English</title>
+    <title>{% block title %}Панель управления{% endblock %} | LLT English
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -30,9 +33,23 @@
             <span>LLT Admin</span>
         </a>
 
+        <!-- Global Search -->
+        <div class="admin-search-container">
+            <div class="admin-search-input-wrapper">
+                <i class="fas fa-search admin-search-icon"></i>
+                <input type="text"
+                       id="admin-global-search"
+                       class="admin-search-input"
+                       placeholder="Поиск... (⌘K)"
+                       autocomplete="off">
+                <kbd class="admin-search-kbd">⌘K</kbd>
+            </div>
+            <div id="admin-search-results" class="admin-search-results"></div>
+        </div>
+
         <div class="header-actions">
             <a href="{{ url_for('words.dashboard') }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                <i class="fas fa-external-link-alt me-1"></i> View Site
+                <i class="fas fa-external-link-alt me-1"></i> На сайт
             </a>
 
             <div class="dropdown">
@@ -41,7 +58,7 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                        <i class="fas fa-sign-out-alt me-2"></i> Выход
                     </a></li>
                 </ul>
             </div>
@@ -51,96 +68,111 @@
     <!-- Sidebar -->
     <nav class="admin-sidebar" id="sidebar">
         <div class="sidebar-nav">
-            <div class="nav-section">
-                <div class="nav-section-title">Main</div>
-                <a href="{{ url_for('admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.dashboard' }}">
-                    <i class="fas fa-home"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="{{ url_for('user_admin.users') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}">
-                    <i class="fas fa-users"></i>
-                    <span>Users</span>
-                </a>
-                <a href="{{ url_for('user_admin.stats') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.stats' }}">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Statistics</span>
-                </a>
+            <div class="nav-section" data-section="main">
+                <div class="nav-section-title" onclick="toggleNavSection('main')">
+                    <span>Главное</span>
+                    <i class="fas fa-chevron-down nav-section-chevron"></i>
+                </div>
+                <div class="nav-section-content">
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.dashboard' }}">
+                        <i class="fas fa-home"></i>
+                        <span>Главная</span>
+                    </a>
+                    <a href="{{ url_for('user_admin.users') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}">
+                        <i class="fas fa-users"></i>
+                        <span>Пользователи</span>
+                    </a>
+                    <a href="{{ url_for('user_admin.stats') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.stats' }}">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Статистика</span>
+                    </a>
+                </div>
             </div>
 
-            <div class="nav-section">
-                <div class="nav-section-title">Content</div>
+            <div class="nav-section" data-section="content">
+                <div class="nav-section-title" onclick="toggleNavSection('content')">
+                    <span>Контент</span>
+                    <i class="fas fa-chevron-down nav-section-chevron"></i>
+                </div>
+                <div class="nav-section-content">
                 <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.curriculum' }}">
                     <i class="fas fa-graduation-cap"></i>
-                    <span>Curriculum</span>
+                    <span>Учебный план</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.level_list') }}"
                    class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin.level_list') }}">
                     <i class="fas fa-book-open"></i>
-                    <span>Levels</span>
+                    <span>Уровни</span>
                 </a>
                 <!-- Подразделы для Curriculum -->
                 <a href="{{ url_for('admin_curriculum.module_list') }}"
                    class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin.module_list') }}">
                     <i class="fas fa-book-open"></i>
-                    <span>Modules</span>
+                    <span>Модули</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.lesson_list') }}"
                    class="nav-link ps-5 {{ 'active' if request.endpoint == 'admin.lesson_list' }}">
                     <i class="fas fa-file-alt"></i>
-                    <span>Lessons</span>
+                    <span>Уроки</span>
                 </a>
                 <a href="{{ url_for('topic_admin.topic_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.topic_list' }}">
                     <i class="fas fa-tags"></i>
-                    <span>Topics</span>
+                    <span>Темы</span>
                 </a>
                 <a href="{{ url_for('collection_admin.collection_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.collection_list' }}">
                     <i class="fas fa-layer-group"></i>
-                    <span>Collections</span>
+                    <span>Коллекции</span>
                 </a>
                 <a href="{{ url_for('word_admin.word_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.word_') }}">
                     <i class="fas fa-spell-check"></i>
-                    <span>Words</span>
+                    <span>Слова</span>
                 </a>
                 <a href="{{ url_for('book_admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_') and not request.endpoint.startswith('admin.book_courses') }}">
                     <i class="fas fa-book"></i>
-                    <span>Books</span>
+                    <span>Книги</span>
                 </a>
                 <a href="{{ url_for('admin.book_courses') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_courses') }}">
                     <i class="fas fa-graduation-cap"></i>
-                    <span>Book Courses</span>
+                    <span>Книжные курсы</span>
                 </a>
                 <a href="{{ url_for('admin.quiz_decks_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.quiz_deck') }}">
                     <i class="fas fa-layer-group"></i>
-                    <span>Quiz Decks</span>
+                    <span>Quiz-колоды</span>
                 </a>
+                </div>
             </div>
 
-            <div class="nav-section">
-                <div class="nav-section-title">Tools</div>
-                <a href="{{ url_for('reminders.reminder_dashboard') }}" class="nav-link {{ 'active' if request.endpoint.startswith('reminders.') }}">
-                    <i class="fas fa-bell"></i>
-                    <span>Reminders</span>
-                </a>
-                <a href="{{ url_for('admin.modules_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.modules_') }}">
-                    <i class="fas fa-puzzle-piece"></i>
-                    <span>Modules</span>
-                </a>
-                <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.import_curriculum' }}">
-                    <i class="fas fa-upload"></i>
-                    <span>Import Curriculum</span>
-                </a>
-                <a href="{{ url_for('system_admin.system') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.system' }}">
-                    <i class="fas fa-cogs"></i>
-                    <span>System Info</span>
-                </a>
-                <a href="{{ url_for('system_admin.database_management') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.database_management' }}">
-                    <i class="fas fa-database"></i>
-                    <span>Database</span>
-                </a>
-                <a href="{{ url_for('audio_admin.audio_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.audio_') }}">
-                    <i class="fas fa-volume-up"></i>
-                    <span>Audio</span>
-                </a>
+            <div class="nav-section" data-section="tools">
+                <div class="nav-section-title" onclick="toggleNavSection('tools')">
+                    <span>Инструменты</span>
+                    <i class="fas fa-chevron-down nav-section-chevron"></i>
+                </div>
+                <div class="nav-section-content">
+                    <a href="{{ url_for('reminders.reminder_dashboard') }}" class="nav-link {{ 'active' if request.endpoint.startswith('reminders.') }}">
+                        <i class="fas fa-bell"></i>
+                        <span>Напоминания</span>
+                    </a>
+                    <a href="{{ url_for('admin.modules_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.modules_') }}">
+                        <i class="fas fa-puzzle-piece"></i>
+                        <span>JSON-модули</span>
+                    </a>
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.import_curriculum' }}">
+                        <i class="fas fa-upload"></i>
+                        <span>Импорт программы</span>
+                    </a>
+                    <a href="{{ url_for('system_admin.system') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.system' }}">
+                        <i class="fas fa-cogs"></i>
+                        <span>Система</span>
+                    </a>
+                    <a href="{{ url_for('system_admin.database_management') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.database_management' }}">
+                        <i class="fas fa-database"></i>
+                        <span>База данных</span>
+                    </a>
+                    <a href="{{ url_for('audio_admin.audio_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.audio_') }}">
+                        <i class="fas fa-volume-up"></i>
+                        <span>Аудио</span>
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
@@ -150,6 +182,9 @@
 
     <!-- Main Content -->
     <main class="admin-main">
+        <!-- Breadcrumb Navigation -->
+        {% block breadcrumb %}{% endblock %}
+
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -177,8 +212,128 @@
             overlay.classList.toggle('show');
         }
 
+        // Collapsible Nav Sections with localStorage
+        function toggleNavSection(sectionId) {
+            const section = document.querySelector(`.nav-section[data-section="${sectionId}"]`);
+            if (!section) return;
+
+            section.classList.toggle('collapsed');
+
+            // Save state to localStorage
+            const collapsedSections = JSON.parse(localStorage.getItem('adminNavCollapsed') || '[]');
+            const isCollapsed = section.classList.contains('collapsed');
+
+            if (isCollapsed && !collapsedSections.includes(sectionId)) {
+                collapsedSections.push(sectionId);
+            } else if (!isCollapsed) {
+                const index = collapsedSections.indexOf(sectionId);
+                if (index > -1) collapsedSections.splice(index, 1);
+            }
+
+            localStorage.setItem('adminNavCollapsed', JSON.stringify(collapsedSections));
+        }
+
+        // Restore collapsed state from localStorage
+        function restoreNavState() {
+            const collapsedSections = JSON.parse(localStorage.getItem('adminNavCollapsed') || '[]');
+            collapsedSections.forEach(sectionId => {
+                const section = document.querySelector(`.nav-section[data-section="${sectionId}"]`);
+                if (section) section.classList.add('collapsed');
+            });
+        }
+
+        // Global Search
+        const adminSearchData = [
+            { title: 'Dashboard', url: '{{ url_for("admin.dashboard") }}', icon: 'fa-home', section: 'Main' },
+            { title: 'Users', url: '{{ url_for("user_admin.users") }}', icon: 'fa-users', section: 'Main' },
+            { title: 'Statistics', url: '{{ url_for("user_admin.stats") }}', icon: 'fa-chart-bar', section: 'Main' },
+            { title: 'Curriculum', url: '{{ url_for("admin_curriculum.curriculum") }}', icon: 'fa-graduation-cap', section: 'Content' },
+            { title: 'Levels', url: '{{ url_for("admin_curriculum.level_list") }}', icon: 'fa-book-open', section: 'Content' },
+            { title: 'Modules', url: '{{ url_for("admin_curriculum.module_list") }}', icon: 'fa-book-open', section: 'Content' },
+            { title: 'Lessons', url: '{{ url_for("admin_curriculum.lesson_list") }}', icon: 'fa-file-alt', section: 'Content' },
+            { title: 'Topics', url: '{{ url_for("topic_admin.topic_list") }}', icon: 'fa-tags', section: 'Content' },
+            { title: 'Collections', url: '{{ url_for("collection_admin.collection_list") }}', icon: 'fa-layer-group', section: 'Content' },
+            { title: 'Words', url: '{{ url_for("word_admin.word_management") }}', icon: 'fa-spell-check', section: 'Content' },
+            { title: 'Books', url: '{{ url_for("book_admin.books") }}', icon: 'fa-book', section: 'Content' },
+            { title: 'Book Courses', url: '{{ url_for("admin.book_courses") }}', icon: 'fa-graduation-cap', section: 'Content' },
+            { title: 'Quiz Decks', url: '{{ url_for("admin.quiz_decks_list") }}', icon: 'fa-layer-group', section: 'Content' },
+            { title: 'Reminders', url: '{{ url_for("reminders.reminder_dashboard") }}', icon: 'fa-bell', section: 'Tools' },
+            { title: 'Modules (System)', url: '{{ url_for("admin.modules_list") }}', icon: 'fa-puzzle-piece', section: 'Tools' },
+            { title: 'Import Curriculum', url: '{{ url_for("admin_curriculum.import_curriculum") }}', icon: 'fa-upload', section: 'Tools' },
+            { title: 'System Info', url: '{{ url_for("system_admin.system") }}', icon: 'fa-cogs', section: 'Tools' },
+            { title: 'Database', url: '{{ url_for("system_admin.database_management") }}', icon: 'fa-database', section: 'Tools' },
+            { title: 'Audio', url: '{{ url_for("audio_admin.audio_management") }}', icon: 'fa-volume-up', section: 'Tools' }
+        ];
+
+        function initGlobalSearch() {
+            const searchInput = document.getElementById('admin-global-search');
+            const searchResults = document.getElementById('admin-search-results');
+
+            if (!searchInput || !searchResults) return;
+
+            // Keyboard shortcut (Cmd+K / Ctrl+K)
+            document.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+                if (e.key === 'Escape') {
+                    searchInput.blur();
+                    searchResults.classList.remove('show');
+                }
+            });
+
+            // Search functionality
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+
+                if (query.length < 1) {
+                    searchResults.classList.remove('show');
+                    return;
+                }
+
+                const results = adminSearchData.filter(item =>
+                    item.title.toLowerCase().includes(query) ||
+                    item.section.toLowerCase().includes(query)
+                );
+
+                if (results.length > 0) {
+                    searchResults.innerHTML = results.map(item => `
+                        <a href="${item.url}" class="admin-search-result-item">
+                            <i class="fas ${item.icon}"></i>
+                            <span>${item.title}</span>
+                            <small>${item.section}</small>
+                        </a>
+                    `).join('');
+                    searchResults.classList.add('show');
+                } else {
+                    searchResults.innerHTML = '<div class="admin-search-no-results">Ничего не найдено</div>';
+                    searchResults.classList.add('show');
+                }
+            });
+
+            // Hide results on blur (with delay for click)
+            searchInput.addEventListener('blur', () => {
+                setTimeout(() => searchResults.classList.remove('show'), 200);
+            });
+
+            // Show results on focus if has value
+            searchInput.addEventListener('focus', (e) => {
+                if (e.target.value.trim().length > 0) {
+                    e.target.dispatchEvent(new Event('input'));
+                }
+            });
+        }
+
         // Auto-hide alerts after 5 seconds
         document.addEventListener('DOMContentLoaded', function() {
+            // Restore nav state
+            restoreNavState();
+
+            // Initialize global search
+            initGlobalSearch();
+
+            // Auto-hide alerts
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
                 setTimeout(() => {

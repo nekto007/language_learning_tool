@@ -1,27 +1,15 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
 {% block title %}Создать курс-книгу{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), ('Create', '')]) }}
+{% endblock %}
 
 {% block extra_css %}
 <style>
 /* Create Course - Modern Design */
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.page-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
 .page-header h1 i {
     color: var(--primary-color);
 }
@@ -90,9 +78,9 @@
 }
 
 .book-card.selected {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.15);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+    border-color: var(--primary-500);
+    background: rgba(var(--primary-rgb), 0.15);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.25);
     transform: scale(1.02);
 }
 
@@ -103,7 +91,7 @@
     right: 10px;
     width: 24px;
     height: 24px;
-    background: #6366f1;
+    background: var(--primary-500);
     color: white;
     border-radius: 50%;
     display: flex;
@@ -243,9 +231,9 @@
 }
 
 .method-card.selected {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.15);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+    border-color: var(--primary-500);
+    background: rgba(var(--primary-rgb), 0.15);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.25);
     transform: scale(1.02);
 }
 
@@ -256,7 +244,7 @@
     right: 10px;
     width: 24px;
     height: 24px;
-    background: #6366f1;
+    background: var(--primary-500);
     color: white;
     border-radius: 50%;
     display: flex;
@@ -286,7 +274,7 @@
 }
 
 .method-card:nth-child(2) .method-icon {
-    background: #6366f1;
+    background: var(--primary-500);
 }
 
 .method-title {
@@ -335,9 +323,9 @@
     font-size: 1rem;
     font-weight: 600;
     border-radius: 12px;
-    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+    background: var(--gradient-primary) !important;
     border: none;
-    color: #ffffff !important;
+    color: white !important;
     cursor: pointer;
     transition: all 0.3s;
     display: inline-flex;
@@ -347,8 +335,8 @@
 
 .btn-submit:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
-    background: linear-gradient(135deg, #4338ca, #4f46e5) !important;
+    box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.4);
+    background: linear-gradient(135deg, var(--primary-700), var(--primary-600)) !important;
 }
 
 .btn-submit:disabled {
@@ -415,9 +403,7 @@
     margin: 0 auto 1.5rem;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
+/* spin animation moved to design-system.css */
 
 .progress-title {
     font-size: 1.125rem;
@@ -440,7 +426,7 @@
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary-color), #10b981);
+    background: linear-gradient(90deg, var(--primary-500), var(--success-500));
     border-radius: 4px;
     transition: width 0.3s;
 }
@@ -463,13 +449,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1><i class="fas fa-plus-circle"></i> Создать курс-книгу</h1>
-    <a href="{{ url_for('admin.book_courses') }}" class="back-link">
-        <i class="fas fa-arrow-left"></i> Назад к списку
-    </a>
-</div>
+{{ page_header('Создать курс-книгу', 'Создание нового курса на основе книги') }}
 
 {% if not available_books %}
 <!-- Empty State -->
@@ -551,7 +531,7 @@
         <div class="custom-checkbox">
             <input type="checkbox" id="isFeatured" name="is_featured">
             <label for="isFeatured">
-                <i class="fas fa-star" style="color: #f59e0b;"></i>
+                <i class="fas fa-star text-warning"></i>
                 Добавить в рекомендуемые курсы
             </label>
         </div>

@@ -1,18 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Create Module{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), ('Create Module', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">Create Module</h1>
-        <p class="page-subtitle">Add a new module to the curriculum</p>
-    </div>
-    <a href="{{ url_for('admin_curriculum.curriculum') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-2"></i> Back to Curriculum
-    </a>
-</div>
+{{ page_header('Create Module', 'Add a new module to the curriculum') }}
 
 <div class="row">
     <div class="col-lg-8">

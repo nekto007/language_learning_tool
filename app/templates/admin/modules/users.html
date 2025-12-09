@@ -1,32 +1,23 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb, status_badge %}
 
 {% block title %}Пользователи модуля{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Modules', url_for('admin.modules_list')), (module.name, url_for('admin.modules_edit', module_id=module.id)), ('Users', '')]) }}
+{% endblock %}
+
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="page-title">Пользователи модуля "{{ module.name }}"</h1>
-            <p class="page-subtitle">
-                <span class="badge bg-primary">{{ module.code }}</span>
-                {% if module.is_active %}
-                <span class="badge bg-success">Активен</span>
-                {% else %}
-                <span class="badge bg-danger">Отключен</span>
-                {% endif %}
-            </p>
-        </div>
-        <div>
-            <a href="{{ url_for('admin.modules_edit', module_id=module.id) }}" class="btn btn-outline-primary me-2">
-                <i class="fas fa-edit me-1"></i> Редактировать модуль
-            </a>
-            <a href="{{ url_for('admin.modules_list') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i> К списку модулей
-            </a>
-        </div>
-    </div>
-</div>
+{% set subtitle %}
+<span class="badge bg-primary">{{ module.code }}</span>
+{{ status_badge('Активен' if module.is_active else 'Отключен', 'success' if module.is_active else 'danger') }}
+{% endset %}
+{% set actions %}
+<a href="{{ url_for('admin.modules_edit', module_id=module.id) }}" class="btn btn-outline-primary me-2">
+    <i class="fas fa-edit me-1"></i> Редактировать модуль
+</a>
+{% endset %}
+{{ page_header('Пользователи модуля "' ~ module.name ~ '"', subtitle, actions=actions) }}
 
 <!-- Statistics Cards -->
 <div class="row mb-4">

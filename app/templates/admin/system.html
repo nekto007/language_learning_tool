@@ -1,13 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
-{% block title %}System Information{% endblock %}
+{% block title %}Система{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Система', '')]) }}
+{% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1 class="page-title">System Information</h1>
-    <p class="page-subtitle">Server and application status overview</p>
-</div>
+{{ page_header('Информация о системе', 'Статус сервера и приложения') }}
 
 <!-- System Resources -->
 <div class="row g-4 mb-4">
@@ -17,9 +18,9 @@
                 <div class="mb-3">
                     <i class="fas fa-microchip fa-3x text-primary"></i>
                 </div>
-                <h6 class="text-muted">CPU Usage</h6>
+                <h6 class="text-muted">Загрузка CPU</h6>
                 <h2 class="mb-0">{{ system_info.cpu_percent }}%</h2>
-                <small class="text-muted">{{ system_info.cpu_count }} cores</small>
+                <small class="text-muted">{{ system_info.cpu_count }} ядер</small>
             </div>
         </div>
     </div>
@@ -30,9 +31,9 @@
                 <div class="mb-3">
                     <i class="fas fa-memory fa-3x text-success"></i>
                 </div>
-                <h6 class="text-muted">Memory Usage</h6>
+                <h6 class="text-muted">Память</h6>
                 <h2 class="mb-0">{{ system_info.memory.percent }}%</h2>
-                <small class="text-muted">{{ system_info.memory.used }} / {{ system_info.memory.total }} MB</small>
+                <small class="text-muted">{{ system_info.memory.used }} / {{ system_info.memory.total }} МБ</small>
             </div>
         </div>
     </div>
@@ -43,9 +44,9 @@
                 <div class="mb-3">
                     <i class="fas fa-hdd fa-3x text-warning"></i>
                 </div>
-                <h6 class="text-muted">Disk Usage</h6>
+                <h6 class="text-muted">Диск</h6>
                 <h2 class="mb-0">{{ system_info.disk.percent }}%</h2>
-                <small class="text-muted">{{ system_info.disk.used }} / {{ system_info.disk.total }} GB</small>
+                <small class="text-muted">{{ system_info.disk.used }} / {{ system_info.disk.total }} ГБ</small>
             </div>
         </div>
     </div>
@@ -56,7 +57,7 @@
                 <div class="mb-3">
                     <i class="fab fa-python fa-3x text-info"></i>
                 </div>
-                <h6 class="text-muted">Python Version</h6>
+                <h6 class="text-muted">Python</h6>
                 <h2 class="mb-0">{{ system_info.python_version.split('.')[0] }}.{{ system_info.python_version.split('.')[1] }}</h2>
                 <small class="text-muted">{{ system_info.python_version }}</small>
             </div>
@@ -69,45 +70,45 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">System Details</h5>
+                <h5 class="mb-0">Информация о системе</h5>
             </div>
             <div class="card-body">
                 <table class="table table-sm">
                     <tbody>
                         <tr>
-                            <td class="text-muted">Platform</td>
+                            <td class="text-muted">Платформа</td>
                             <td>{{ system_info.platform }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Python Version</td>
+                            <td class="text-muted">Версия Python</td>
                             <td>{{ system_info.python_version }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Flask Version</td>
+                            <td class="text-muted">Версия Flask</td>
                             <td>{{ system_info.flask_version }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Environment</td>
+                            <td class="text-muted">Окружение</td>
                             <td>
                                 {% if app_info.environment == 'production' %}
-                                    <span class="badge bg-success">{{ app_info.environment }}</span>
+                                    <span class="badge bg-success">Продакшн</span>
                                 {% else %}
-                                    <span class="badge bg-warning">{{ app_info.environment }}</span>
+                                    <span class="badge bg-warning">Разработка</span>
                                 {% endif %}
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Debug Mode</td>
+                            <td class="text-muted">Режим отладки</td>
                             <td>
                                 {% if app_info.debug %}
-                                    <span class="badge bg-danger">Enabled</span>
+                                    <span class="badge bg-danger">Включён</span>
                                 {% else %}
-                                    <span class="badge bg-success">Disabled</span>
+                                    <span class="badge bg-success">Выключен</span>
                                 {% endif %}
                             </td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Database</td>
+                            <td class="text-muted">База данных</td>
                             <td>{{ app_info.database_url }}</td>
                         </tr>
                     </tbody>
@@ -120,7 +121,7 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Database Statistics</h5>
+                <h5 class="mb-0">Статистика базы данных</h5>
                 <form action="{{ url_for('system_admin.clear_cache') }}" method="POST" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Очистить кэш?')">
@@ -132,35 +133,35 @@
                 <table class="table table-sm">
                     <tbody>
                         <tr>
-                            <td class="text-muted">Users</td>
+                            <td class="text-muted">Пользователи</td>
                             <td>{{ db_stats.users }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Books</td>
+                            <td class="text-muted">Книги</td>
                             <td>{{ db_stats.books }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Words</td>
+                            <td class="text-muted">Слова</td>
                             <td>{{ db_stats.words }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Topics</td>
+                            <td class="text-muted">Темы</td>
                             <td>{{ db_stats.topics }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Collections</td>
+                            <td class="text-muted">Коллекции</td>
                             <td>{{ db_stats.collections }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">CEFR Levels</td>
+                            <td class="text-muted">Уровни CEFR</td>
                             <td>{{ db_stats.levels }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Modules</td>
+                            <td class="text-muted">Модули</td>
                             <td>{{ db_stats.modules }}</td>
                         </tr>
                         <tr>
-                            <td class="text-muted">Lessons</td>
+                            <td class="text-muted">Уроки</td>
                             <td>{{ db_stats.lessons }}</td>
                         </tr>
                     </tbody>
@@ -173,20 +174,20 @@
 <!-- Resource Usage Charts -->
 <div class="card mt-4">
     <div class="card-header">
-        <h5 class="mb-0">Resource Usage</h5>
+        <h5 class="mb-0">Использование ресурсов</h5>
     </div>
     <div class="card-body">
         <div class="row">
             <div class="col-md-4 mb-4">
-                <h6 class="text-center mb-3">CPU Usage</h6>
+                <h6 class="text-center mb-3">Загрузка CPU</h6>
                 <canvas id="cpuChart" height="200"></canvas>
             </div>
             <div class="col-md-4 mb-4">
-                <h6 class="text-center mb-3">Memory Usage</h6>
+                <h6 class="text-center mb-3">Использование памяти</h6>
                 <canvas id="memoryChart" height="200"></canvas>
             </div>
             <div class="col-md-4 mb-4">
-                <h6 class="text-center mb-3">Disk Usage</h6>
+                <h6 class="text-center mb-3">Использование диска</h6>
                 <canvas id="diskChart" height="200"></canvas>
             </div>
         </div>
@@ -201,7 +202,7 @@ const cpuCtx = document.getElementById('cpuChart').getContext('2d');
 new Chart(cpuCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Used', 'Free'],
+        labels: ['Использовано', 'Свободно'],
         datasets: [{
             data: [{{ system_info.cpu_percent }}, {{ 100 - system_info.cpu_percent }}],
             backgroundColor: ['#4f46e5', '#e5e7eb'],
@@ -224,7 +225,7 @@ const memoryCtx = document.getElementById('memoryChart').getContext('2d');
 new Chart(memoryCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Used', 'Free'],
+        labels: ['Использовано', 'Свободно'],
         datasets: [{
             data: [{{ system_info.memory.percent }}, {{ 100 - system_info.memory.percent }}],
             backgroundColor: ['#10b981', '#e5e7eb'],
@@ -247,7 +248,7 @@ const diskCtx = document.getElementById('diskChart').getContext('2d');
 new Chart(diskCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Used', 'Free'],
+        labels: ['Использовано', 'Свободно'],
         datasets: [{
             data: [{{ system_info.disk.percent }}, {{ 100 - system_info.disk.percent }}],
             backgroundColor: ['#f59e0b', '#e5e7eb'],

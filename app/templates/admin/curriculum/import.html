@@ -1,18 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Import Curriculum{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), ('Import', '')]) }}
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">Import Curriculum</h1>
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin_curriculum.curriculum') }}">Curriculum</a></li>
-            <li class="breadcrumb-item active">Import</li>
-        </ol>
-    </nav>
-</div>
+{{ page_header('Import Curriculum', 'Import modules and lessons from JSON files') }}
 
 <div class="row">
     <div class="col-lg-8">

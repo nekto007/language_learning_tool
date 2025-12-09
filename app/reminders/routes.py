@@ -190,6 +190,10 @@ def send_reminders():
     else:
         flash('Не удалось отправить напоминания. Проверьте настройки SMTP.', 'danger')
 
+    # Возвращаемся на исходную страницу, если она указана
+    next_url = request.form.get('next') or request.referrer
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for('reminders.reminder_dashboard'))
 
 

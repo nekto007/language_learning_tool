@@ -622,7 +622,7 @@
     border-radius: 10px;
     box-shadow: var(--shadow-xl);
     border-left: 4px solid var(--info-500);
-    animation: slideIn 0.3s ease;
+    animation: slideInRight 0.3s ease;
 }
 
 .alert-toast.info { border-left-color: var(--info-500); }
@@ -630,16 +630,7 @@
 .alert-toast.warning { border-left-color: var(--warning-500); }
 .alert-toast.error { border-left-color: var(--danger-600); }
 
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
+/* slideInRight animation moved to design-system.css */
 
 /* Responsive */
 @media (max-width: 1200px) {

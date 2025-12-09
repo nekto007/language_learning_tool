@@ -1,14 +1,20 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Edit Course Module{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(20), url_for('admin.view_book_course', course_id=course.id)), ('Edit Module ' ~ module.module_number, '')]) }}
+{% endblock %}
+
 {% block content %}
+{{ page_header('Edit Module ' ~ module.module_number, module.title) }}
+
 <div class="row">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Edit Module {{ module.module_number }}</h4>
-                <span class="badge bg-info">{{ course.title }}</span>
+            <div class="card-header">
+                <h5 class="mb-0">Module Information</h5>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('admin.edit_course_module', course_id=course.id, module_id=module.id) }}">

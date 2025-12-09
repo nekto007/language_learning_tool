@@ -1,27 +1,25 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Урок: {{ lesson.title }}{% endblock %}
 
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('admin.dashboard')),
+    ('Curriculum', url_for('admin_curriculum.curriculum')),
+    (lesson.module.level.code, url_for('admin_curriculum.module_list', level_id=lesson.module.level.id)),
+    ('Module ' ~ lesson.module.number, url_for('admin_curriculum.lesson_list', module_id=lesson.module.id)),
+    (lesson.title|truncate(25), '')
+]) }}
+{% endblock %}
+
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1 class="page-title">{{ lesson.title }}</h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Панель управления</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('curriculum_admin.admin_lessons') }}">Все уроки</a></li>
-                <li class="breadcrumb-item"><a href="{{ '/learn/' }}">{{ lesson.module.level.code }}</a></li>
-                <li class="breadcrumb-item"><a href="{{ '/learn/' }}">Модуль {{ lesson.module.number }}</a></li>
-                <li class="breadcrumb-item active">Урок {{ lesson.number }}</li>
-            </ol>
-        </nav>
-    </div>
-    <div>
-        <a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
-            <i class="fas fa-edit me-2"></i>Редактировать
-        </a>
-    </div>
-</div>
+{% set actions %}
+<a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
+    <i class="fas fa-edit me-2"></i>Редактировать
+</a>
+{% endset %}
+{{ page_header(lesson.title, 'Урок ' ~ lesson.number ~ ' - ' ~ lesson.type, actions=actions) }}
 
 <div class="row">
     <!-- Main content -->
