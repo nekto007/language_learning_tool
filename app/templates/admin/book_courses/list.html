@@ -494,14 +494,14 @@
             <span class="selected-count" id="selectedCount">0</span>
         </div>
 
-        <select class="form-select form-select-sm" name="operation" style="width: auto;" required>
+        <select class="form-select form-select-sm w-auto" name="operation" required>
             <option value="">Выберите действие</option>
             <option value="activate">Активировать</option>
             <option value="deactivate">Деактивировать</option>
             <option value="feature">В рекомендуемые</option>
             <option value="unfeature">Убрать из рекомендуемых</option>
             <option value="delete">Деактивировать (скрыть)</option>
-            <option value="delete_permanently" style="color: #dc3545;">Удалить навсегда</option>
+            <option value="delete_permanently" class="text-danger-option">Удалить навсегда</option>
         </select>
 
         <button type="submit" class="btn btn-warning btn-sm">
@@ -599,7 +599,7 @@
     {% endfor %}
 
     {% if not courses %}
-    <div class="empty-state" style="grid-column: 1 / -1;">
+    <div class="empty-state grid-full-span">
         <i class="fas fa-book-open"></i>
         <h3>Курсы не найдены</h3>
         <p>Создайте первый курс из доступных книг</p>
