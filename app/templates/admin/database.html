@@ -97,8 +97,8 @@
                                     <td>{{ stat.count }}</td>
                                     <td>{{ stat.users }}</td>
                                     <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-{% if stat.status == 'new' %}secondary{% elif stat.status == 'learning' %}warning{% elif stat.status == 'review' %}info{% else %}success{% endif %}" 
+                                        <div class="progress progress-sm">
+                                            <div class="progress-bar bg-{% if stat.status == 'new' %}secondary{% elif stat.status == 'learning' %}warning{% elif stat.status == 'review' %}info{% else %}success{% endif %}"
                                                  role="progressbar" style="width: {{ stat.percentage }}%">
                                                 {{ stat.percentage }}%
                                             </div>
@@ -241,7 +241,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <form method="POST" action="{{ url_for('system_admin.init_database') }}" style="display: inline;">
+                <form method="POST" action="{{ url_for('system_admin.init_database') }}" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-database"></i> Инициализировать
