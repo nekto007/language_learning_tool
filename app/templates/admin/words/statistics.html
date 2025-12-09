@@ -157,7 +157,7 @@
                                     <td>
                                         {% if book.words_total and book.unique_words %}
                                             {% set ratio = (book.unique_words / book.words_total * 100) | round(1) %}
-                                            <div class="progress" style="height: 20px;">
+                                            <div class="progress progress-sm">
                                                 <div class="progress-bar" role="progressbar" style="width: {{ ratio }}%">
                                                     {{ ratio }}%
                                                 </div>

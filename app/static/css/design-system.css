@@ -9122,6 +9122,8 @@ textarea:focus-visible,
 .user-modules-col-status-sm { width: 100px; }
 .user-modules-col-default { width: 120px; }
 .user-modules-col-actions-sm { width: 120px; }
+.col-id-sm { width: 50px; }
+.col-checkbox { width: 40px; }
 
 /* ==========================================================================
    Admin Topic Words Components
@@ -9148,3 +9150,18 @@ textarea:focus-visible,
 .cursor-pointer {
     cursor: pointer;
 }
+
+/* Flex grow utilities */
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+/* Table column widths */
+.col-index { width: 40px; }
+.col-source-sm { width: 100px; }
+.col-actions-md { width: 200px; }
+
+/* Progress bar heights */
+.progress-sm { height: 20px; }
+
+/* Display inline for forms */
+.d-inline { display: inline; }
