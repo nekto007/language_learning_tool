@@ -13,20 +13,20 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" action="{{ url_for('user_admin.users') }}" class="row g-3">
-            <div class="col-md-6">
+            <div class="col-12 col-md-6">
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                     <input type="text" class="form-control" name="search" placeholder="Поиск по имени или email" value="{{ search }}">
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-6 col-md-2">
                 <select class="form-select" name="per_page">
                     <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20 на странице</option>
                     <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 на странице</option>
                     <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100 на странице</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-6 col-md-4">
                 <button type="submit" class="btn btn-primary">Применить</button>
                 {% if search %}
                 <a href="{{ url_for('user_admin.users') }}" class="btn btn-outline-secondary">Сбросить</a>
@@ -214,12 +214,11 @@
 
                     <div class="mb-3">
                         <label class="form-label">Тема письма</label>
-                        <input type="text" name="custom_subject" class="form-control"
-                               value="Пора вернуться к изучению английского!">
+                        <input type="text" name="custom_subject" class="form-control" value="Пора вернуться к изучению английского!">
                     </div>
 
-                    <div class="alert alert-info">
-                        Напоминание будет отправлено: <strong id="reminderUsername"></strong>
+                    <div class="alert alert-info mb-0">
+                        <span>Напоминание будет отправлено: </span><span id="reminderUsername"></span>
                     </div>
                 </div>
                 <div class="modal-footer">
