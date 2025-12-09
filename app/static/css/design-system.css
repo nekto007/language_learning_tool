@@ -8763,3 +8763,79 @@ textarea:focus-visible,
 .delete-warning-text {
     opacity: 0.9;
 }
+
+/* ==========================================================================
+   Word Details Components
+   ========================================================================== */
+
+/* Word Details Hero Card */
+.word-details-hero {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.word-details-hero-body {
+    position: relative;
+    z-index: 1;
+}
+
+/* Word Title Large */
+.word-title-lg {
+    line-height: 1.1;
+}
+
+/* Glass Badge */
+.badge-glass {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+/* Glass Button */
+.btn-glass {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 0.75rem 1.5rem;
+}
+
+/* White Rounded Button */
+.btn-white-rounded {
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0.75rem 1.5rem;
+}
+
+/* Audio Play Button Circle */
+.btn-play-circle {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+}
+
+/* Quote Box */
+.quote-box {
+    border-left: 4px solid var(--primary-500);
+}
+
+/* Related Word Card */
+.related-word-card {
+    transition: var(--transition-base);
+}
+
+/* Status Card Gradient */
+.status-card-gradient {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+}
+
+/* Status Icon Circle */
+.status-icon-circle {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+}
+
+/* Audio Player Hidden */
+.audio-hidden {
+    display: none;
+}
