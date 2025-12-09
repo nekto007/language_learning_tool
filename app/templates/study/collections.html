@@ -1,29 +1,29 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ _('Word Collections') }} - English Learning App{% endblock %}
+{% block title %}Коллекции слов - Изучение английского{% endblock %}
 
 {% block content %}
   <div class="container mt-4">
-    <h1 class="mb-4">{{ _('Word Collections') }}</h1>
+    <h1 class="mb-4">Коллекции слов</h1>
 
     <div class="row mb-4">
       <div class="col-md-12">
         <div class="card">
           <div class="card-header bg-light">
-            <h5 class="mb-0">{{ _('Filter Collections') }}</h5>
+            <h5 class="mb-0">Фильтр коллекций</h5>
           </div>
           <div class="card-body">
             <form method="GET" action="{{ url_for('study.collections') }}" class="row g-3">
               <div class="col-md-5">
-                <label for="topic" class="form-label">{{ _('Topic') }}</label>
+                <label for="topic" class="form-label">Тема</label>
                 {{ form.topic(class="form-select") }}
               </div>
               <div class="col-md-5">
-                <label for="search" class="form-label">{{ _('Search') }}</label>
-                {{ form.search(class="form-control", placeholder=_('Search collections...')) }}
+                <label for="search" class="form-label">Поиск</label>
+                {{ form.search(class="form-control", placeholder="Поиск коллекций...") }}
               </div>
               <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">{{ _('Apply') }}</button>
+                <button type="submit" class="btn btn-primary w-100">Применить</button>
               </div>
             </form>
           </div>
@@ -37,7 +37,7 @@
           <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <h5 class="mb-0">{{ collection.name }}</h5>
-              <span class="badge bg-primary">{{ collection.word_count }} {{ _('words') }}</span>
+              <span class="badge bg-primary">{{ collection.word_count }} слов</span>
             </div>
             <div class="card-body">
               {% if collection.description %}
@@ -45,12 +45,12 @@
               {% endif %}
 
               <div class="mb-3">
-                <small class="text-muted">{{ _('Topics') }}:</small>
+                <small class="text-muted">Темы:</small>
                 <div class="mt-1">
                   {% for topic in collection.topic_list %}
                     <span class="badge bg-secondary me-1">{{ topic.name }}</span>
                   {% else %}
-                    <span class="text-muted fst-italic">{{ _('No topics assigned') }}</span>
+                    <span class="text-muted fst-italic">Темы не назначены</span>
                   {% endfor %}
                 </div>
               </div>
@@ -65,21 +65,21 @@
                   </div>
                 </div>
                 <p class="small text-muted mb-3">
-                  {{ _('You are studying') }} {{ collection.words_in_study }}/{{ collection.word_count }} {{ _('words') }}
+                  Вы изучаете {{ collection.words_in_study }}/{{ collection.word_count }} слов
                 </p>
               {% endif %}
             </div>
             <div class="card-footer bg-transparent d-flex justify-content-between">
               <a href="{{ url_for('study.collection_details', collection_id=collection.id) }}"
                  class="btn btn-outline-primary btn-sm">
-                {{ _('View Details') }}
+                Подробнее
               </a>
 
               <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}"
                     class="add-collection-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-success btn-sm add-collection-btn">
-                  <i class="fas fa-plus me-1"></i> {{ _('Add to Study') }}
+                  <i class="fas fa-plus me-1"></i> Добавить к изучению
                 </button>
               </form>
             </div>
@@ -88,7 +88,7 @@
       {% else %}
         <div class="col-12">
           <div class="alert alert-info">
-            {{ _('No collections found matching your criteria.') }}
+            Коллекций по вашим критериям не найдено.
           </div>
         </div>
       {% endfor %}
@@ -108,7 +108,7 @@
 
                   const submitBtn = this.querySelector('.add-collection-btn');
                   submitBtn.disabled = true;
-                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Adding...") }}';
+                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
 
                   fetch(this.action, {
                       method: 'POST',
@@ -126,7 +126,7 @@
                             <div class="toast-container position-fixed bottom-0 end-0 p-3">
                                 <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
                                     <div class="toast-header bg-success text-white">
-                                        <strong class="me-auto">{{ _('Success') }}</strong>
+                                        <strong class="me-auto">Успешно</strong>
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
                                     </div>
                                     <div class="toast-body">
@@ -150,11 +150,11 @@
                               if (data.added_count > 0) {
                                   submitBtn.classList.remove('btn-success');
                                   submitBtn.classList.add('btn-outline-success');
-                                  submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> {{ _("Added") }}';
+                                  submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> Добавлено';
                                   submitBtn.disabled = true;
                               } else {
                                   submitBtn.disabled = false;
-                                  submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add to Study") }}';
+                                  submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить к изучению';
                               }
 
                               // Перезагрузить страницу через 2 секунды для обновления прогресса
@@ -166,7 +166,7 @@
                       .catch(error => {
                           console.error('Error:', error);
                           submitBtn.disabled = false;
-                          submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> {{ _("Add to Study") }}';
+                          submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить к изучению';
                       });
               });
           });
