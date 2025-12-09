@@ -48,7 +48,7 @@ class EmailSender:
 
         try:
             # Проверяем настройки email
-            if not all([self.email_host, self.email_user, self.email_password, self.default_from_email]):
+            if not all([self.email_host, self.default_from_email]):
                 return False
 
             # Подключение к SMTP-серверу
@@ -56,7 +56,8 @@ class EmailSender:
                 server.set_debuglevel(1)  # Включаем отладку SMTP
                 if self.use_tls:
                     server.starttls()
-                server.login(self.email_user, self.email_password)
+                if self.email_user and self.email_password:
+                    server.login(self.email_user, self.email_password)
                 server.send_message(msg)
             return True
         except Exception as e:

@@ -74,7 +74,8 @@ def send_email(to_email, subject, html_content, from_email=DEFAULT_FROM_EMAIL):
             if EMAIL_USE_TLS:
                 server.starttls()
 
-            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+            if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+                server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
             server.send_message(msg)
 
         logger.info(f"Письмо успешно отправлено на {to_email}")
