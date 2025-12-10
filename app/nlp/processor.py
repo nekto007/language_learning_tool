@@ -492,7 +492,14 @@ def tokenize_and_filter(text: str, stop_words: Set[str]) -> List[str]:
     words = nltk.word_tokenize(text)
     # Filter only alphabetic characters and convert to lowercase
     words = [word.lower() for word in words if word.isalpha()]
-    stop_words = ["i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don", "https"]
+    # Common stop words + trash words that appear from hyphenated word splitting in books
+    stop_words = [
+        "i", "it", "am", "is", "are", "be", "a", "an", "the", "as", "of", "at", "by", "to", "s", "t", "don", "https",
+        # Trash words from book parsing (hyphenated word fragments, OCR errors, dialect spellings)
+        "ame", "barad", "bito", "breek", "buri", "chee", "doke", "forbathe", "ker", "louther",
+        "maney", "mem", "nathe", "pand", "peto", "plunther", "ras", "taur", "thatn", "theer",
+        "thetin", "torified", "unloathed"
+    ]
     # Remove stop words
     words = [word for word in words if word not in stop_words]
 
