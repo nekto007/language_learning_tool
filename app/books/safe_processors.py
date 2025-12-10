@@ -59,6 +59,7 @@ def safe_process_book_chapters_words(book_id: int) -> Dict:
     """
     Безопасная обертка для process_book_chapters_words
     """
+    print(f"[DEBUG SAFE] safe_process_book_chapters_words ВХОД: book_id={book_id}", flush=True)
     logger.info(f"[SAFE_PROCESSOR] Starting safe_process_book_chapters_words for book_id={book_id}")
 
     try:
