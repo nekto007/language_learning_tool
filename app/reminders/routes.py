@@ -3,10 +3,15 @@
 """
 import logging
 import os
+import re
 import smtplib
+import socket
+import uuid
 from datetime import datetime, timedelta, timezone
+from email import charset
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
 
 from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -48,6 +53,35 @@ def utility_processor():
     return dict(get_user_by_id=get_user_by_id)
 
 
+def html_to_text(html_content):
+    """
+    Конвертирует HTML в простой текст для text/plain части письма.
+    """
+    # Удаляем style и script теги с содержимым
+    text = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    # Заменяем <br> и </p> на переносы строк
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</p>', '\n\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</div>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</li>', '\n', text, flags=re.IGNORECASE)
+    # Сохраняем ссылки в формате "текст (URL)"
+    text = re.sub(r'<a[^>]*href=["\']([^"\']+)["\'][^>]*>([^<]+)</a>', r'\2 (\1)', text, flags=re.IGNORECASE)
+    # Удаляем все оставшиеся HTML теги
+    text = re.sub(r'<[^>]+>', '', text)
+    # Декодируем HTML entities
+    text = text.replace('&nbsp;', ' ')
+    text = text.replace('&amp;', '&')
+    text = text.replace('&lt;', '<')
+    text = text.replace('&gt;', '>')
+    text = text.replace('&quot;', '"')
+    # Убираем множественные пустые строки
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+    # Убираем пробелы в начале и конце
+    text = text.strip()
+    return text
+
+
 def send_email(to_email, subject, html_content, from_email=DEFAULT_FROM_EMAIL):
     """
     Отправляет электронное письмо пользователю.
@@ -62,13 +96,30 @@ def send_email(to_email, subject, html_content, from_email=DEFAULT_FROM_EMAIL):
         bool: True если отправка успешна, иначе False
     """
     try:
+        # Настраиваем quoted-printable вместо base64 для UTF-8
+        cs = charset.Charset('utf-8')
+        cs.body_encoding = charset.QP
+
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = from_email
         msg['To'] = to_email
+        msg['Date'] = formatdate(localtime=True)
 
-        part = MIMEText(html_content, 'html')
-        msg.attach(part)
+        # Генерируем Message-ID на основе домена отправителя
+        # Извлекаем домен из email (учитываем формат "Name <email@domain>")
+        email_match = re.search(r'[\w\.-]+@([\w\.-]+)', from_email)
+        from_domain = email_match.group(1) if email_match else socket.getfqdn()
+        msg['Message-ID'] = make_msgid(domain=from_domain)
+
+        # Генерируем text/plain версию из HTML
+        text_content = html_to_text(html_content)
+
+        # Используем quoted-printable кодирование вместо base64
+        part_text = MIMEText(text_content, 'plain', _charset=cs)
+        part_html = MIMEText(html_content, 'html', _charset=cs)
+        msg.attach(part_text)
+        msg.attach(part_html)
 
         with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
             if EMAIL_USE_TLS:
