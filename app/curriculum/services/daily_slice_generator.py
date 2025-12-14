@@ -109,9 +109,12 @@ class DailySliceGenerator:
     def generate_slices_for_module(self, module: BookCourseModule, block: Block,
                                     used_word_ids_in_course: set = None) -> List[DailyLesson]:
         """
-        Generate daily lesson pairs for a book course module (v3.1).
+        Generate daily lesson pairs for a book course module (v3.2).
 
-        NEW v3.1 Architecture:
+        NEW v3.2 Architecture:
+        - Processes each chapter separately instead of combining all chapters
+        - Each lesson is definitively assigned to its source chapter
+        - No need for chapter guessing/voting logic
         - Level-specific lesson schedules (A1-A2 vs B1+)
         - A1-A2: 8-day cycle, vocabulary sometimes BEFORE reading
         - B1+: 6-day cycle, reading always first
@@ -121,11 +124,12 @@ class DailySliceGenerator:
         Args:
             module: BookCourseModule instance
             block: Associated Block with chapters
+            used_word_ids_in_course: Set of word IDs already used in course (optional)
 
         Returns:
             List of created DailyLesson instances
         """
-        logger.info(f"Generating v3.1 daily lessons for module {module.id}")
+        logger.info(f"Generating v3.2 daily lessons for module {module.id}")
 
         # Determine CEFR level and get word limits
         level = self._determine_level(module)
@@ -144,62 +148,61 @@ class DailySliceGenerator:
             logger.error(f"No chapters found for block {block.id}")
             return []
 
-        # Combine all chapter text for this module
-        module_text = self._combine_chapter_texts(chapters)
-        total_words = len(module_text.split())
-        logger.info(f"Module has {total_words} words from {len(chapters)} chapters")
-
-        # Split module text into daily reading slices
-        reading_slices = self._split_text_into_slices(module_text, target_words, max_words, chapters)
-        num_slices = len(reading_slices)
-        logger.info(f"Created {num_slices} reading slices")
+        logger.info(f"Processing {len(chapters)} chapters separately")
 
         # Get vocabulary for the module
         module_vocabulary = self._get_block_vocabulary(block)
 
         # Track used words across all lessons to avoid repetition
-        # Use course-level tracking if provided, otherwise module-level only
         if used_word_ids_in_course is not None:
             used_word_ids_in_module = used_word_ids_in_course
         else:
             used_word_ids_in_module = set()
 
-        # Generate lesson pairs for each day
+        # NEW v3.2: Process each chapter separately
         daily_lessons = []
         day_number = 1
-        slice_index = 0
 
-        while slice_index < num_slices:
-            # Get schedule for this day (cycles through schedule)
-            day_schedule = schedule[(day_number - 1) % schedule_len]
-            lesson1_type = day_schedule['lesson1']
-            lesson2_type = day_schedule['lesson2']
+        for chapter in chapters:
+            logger.info(f"Processing Chapter {chapter.chap_num}: {chapter.title}")
 
-            # Get current slice data
-            slice_data = reading_slices[slice_index]
-
-            # Create Lesson 1
-            lesson1 = self._create_lesson_by_type(
-                module=module,
-                day_number=day_number,
-                lesson_type=lesson1_type,
-                slice_data=slice_data,
-                module_vocabulary=module_vocabulary,
-                lesson_order=1
+            # Split THIS chapter into slices
+            chapter_slices = self._split_chapter_into_slices(
+                chapter=chapter,
+                target_words=target_words,
+                max_words=max_words
             )
-            db.session.add(lesson1)
-            db.session.flush()
 
-            # Extract vocabulary if needed
-            if lesson1_type in ['vocabulary', 'vocabulary_review']:
-                self._extract_slice_vocabulary(
-                    lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module
+            logger.info(f"  Created {len(chapter_slices)} slices for Chapter {chapter.chap_num}")
+
+            # Generate lessons for each slice in this chapter
+            for slice_data in chapter_slices:
+                # Get schedule for this day
+                day_schedule = schedule[(day_number - 1) % schedule_len]
+                lesson1_type = day_schedule['lesson1']
+                lesson2_type = day_schedule['lesson2']
+
+                # Create Lesson 1
+                lesson1 = self._create_lesson_by_type(
+                    module=module,
+                    day_number=day_number,
+                    lesson_type=lesson1_type,
+                    slice_data=slice_data,
+                    module_vocabulary=module_vocabulary,
+                    lesson_order=1
                 )
+                db.session.add(lesson1)
+                db.session.flush()
 
-            daily_lessons.append(lesson1)
+                # Extract vocabulary if needed
+                if lesson1_type in ['vocabulary', 'vocabulary_review']:
+                    self._extract_slice_vocabulary(
+                        lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module
+                    )
 
-            # Create Lesson 2 (if exists)
-            if lesson2_type:
+                daily_lessons.append(lesson1)
+
+                # Create Lesson 2
                 lesson2 = self._create_lesson_by_type(
                     module=module,
                     day_number=day_number,
@@ -219,8 +222,7 @@ class DailySliceGenerator:
 
                 daily_lessons.append(lesson2)
 
-            day_number += 1
-            slice_index += 1
+                day_number += 1
 
         # Add Module Test as final lesson
         module_test = self._create_module_test_lesson(
@@ -233,18 +235,19 @@ class DailySliceGenerator:
         daily_lessons.append(module_test)
 
         # Update module metadata
-        num_days = day_number  # day_number was incremented after module_test was added
         module.total_slices = len(daily_lessons)
-        module.days_to_complete = num_days
+        module.days_to_complete = day_number
 
         db.session.commit()
-        logger.info(f"Generated {len(daily_lessons)} lessons ({num_slices} slices + test) for module {module.id}")
+        logger.info(f"Generated {len(daily_lessons)} lessons for module {module.id}")
 
         return daily_lessons
 
     def _split_text_into_slices(self, text: str, target_words: int, max_words: int,
                                  chapters: List[Chapter]) -> List[Dict[str, Any]]:
         """
+        DEPRECATED - Use _split_chapter_into_slices() instead.
+
         Split text into slices of approximately target_words words.
         Splits at sentence boundaries, respecting max_words limit.
 
@@ -262,10 +265,6 @@ class DailySliceGenerator:
         current_word_count = 0
         current_position = 0
 
-        # Track which chapter we're in
-        chapter_boundaries = self._calculate_chapter_boundaries(chapters)
-        current_chapter_idx = 0
-
         for sentence in sentences:
             sentence_words = len(sentence.split())
 
@@ -273,7 +272,9 @@ class DailySliceGenerator:
             if current_word_count > 0 and current_word_count + sentence_words > max_words:
                 # Save current slice
                 slice_text = ' '.join(current_slice)
-                chapter_id = chapters[min(current_chapter_idx, len(chapters) - 1)].id
+
+                # Find which chapter this slice belongs to by searching in chapter texts
+                chapter_id = self._find_chapter_for_slice(slice_text, chapters)
 
                 slices.append({
                     'text': slice_text,
@@ -292,15 +293,10 @@ class DailySliceGenerator:
 
             current_position += len(sentence) + 1
 
-            # Update chapter index based on position
-            while (current_chapter_idx < len(chapter_boundaries) - 1 and
-                   current_position >= chapter_boundaries[current_chapter_idx + 1]):
-                current_chapter_idx += 1
-
         # Don't forget the last slice
         if current_slice:
             slice_text = ' '.join(current_slice)
-            chapter_id = chapters[min(current_chapter_idx, len(chapters) - 1)].id
+            chapter_id = self._find_chapter_for_slice(slice_text, chapters)
 
             slices.append({
                 'text': slice_text,
@@ -312,14 +308,159 @@ class DailySliceGenerator:
 
         return slices
 
+    def _split_chapter_into_slices(
+        self,
+        chapter: Chapter,
+        target_words: int,
+        max_words: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Split a single chapter into reading slices.
+
+        Args:
+            chapter: Chapter object with text_raw
+            target_words: Target words per slice (middle of range)
+            max_words: Maximum words per slice (upper limit)
+
+        Returns:
+            List of slice dicts with text, word_count, chapter_id
+        """
+        if not chapter.text_raw:
+            logger.warning(f"Chapter {chapter.chap_num} has no text_raw")
+            return []
+
+        # Normalize chapter text
+        chapter_text = chapter.text_raw.replace('\\n', '\n')
+
+        # Split into sentences
+        sentences = self._split_into_sentences(chapter_text)
+
+        slices = []
+        current_slice = []
+        current_word_count = 0
+        current_position = 0
+
+        for sentence in sentences:
+            sentence_words = len(sentence.split())
+
+            # Check if adding this sentence would exceed max_words
+            if current_word_count > 0 and current_word_count + sentence_words > max_words:
+                # Save current slice
+                slice_text = ' '.join(current_slice)
+
+                slices.append({
+                    'text': slice_text,
+                    'word_count': current_word_count,
+                    'start_position': current_position - len(slice_text),
+                    'end_position': current_position,
+                    'chapter_id': chapter.id  # ← ТОЧНО ЗНАЕМ главу!
+                })
+
+                # Start new slice
+                current_slice = [sentence]
+                current_word_count = sentence_words
+            else:
+                current_slice.append(sentence)
+                current_word_count += sentence_words
+
+            current_position += len(sentence) + 1
+
+        # Don't forget the last slice
+        if current_slice:
+            slice_text = ' '.join(current_slice)
+            slices.append({
+                'text': slice_text,
+                'word_count': current_word_count,
+                'start_position': current_position - len(slice_text),
+                'end_position': current_position,
+                'chapter_id': chapter.id  # ← ТОЧНО ЗНАЕМ главу!
+            })
+
+        return slices
+
+    def _find_chapter_for_slice(self, slice_text: str, chapters: List[Chapter]) -> int:
+        """
+        DEPRECATED - No longer needed. Chapter ID is set directly when splitting chapters separately.
+
+        Find which chapter contains the MAJORITY of this slice text.
+        Checks beginning, middle, and end to handle slices that span chapters.
+        """
+        slice_norm = self._normalize_for_search(slice_text)
+        slice_words = slice_norm.split()
+
+        if not slice_words:
+            return chapters[0].id if chapters else None
+
+        # Get signatures from beginning (20%), middle (20%), and end (20%)
+        total_words = len(slice_words)
+        signatures = []
+
+        # Beginning (first 20 words or 20% of text)
+        sig_len = min(20, max(10, total_words // 5))
+        signatures.append(' '.join(slice_words[:sig_len]))
+
+        # Middle (around 50% position)
+        if total_words > 40:
+            mid_start = total_words // 2 - sig_len // 2
+            signatures.append(' '.join(slice_words[mid_start:mid_start + sig_len]))
+
+        # End (last 20 words or 20% of text)
+        if total_words > 20:
+            signatures.append(' '.join(slice_words[-sig_len:]))
+
+        # Count votes for each chapter
+        chapter_votes = {}
+
+        for chapter in chapters:
+            if not chapter.text_raw:
+                continue
+
+            chapter_norm = self._normalize_for_search(chapter.text_raw)
+            votes = sum(1 for sig in signatures if sig in chapter_norm)
+
+            if votes > 0:
+                chapter_votes[chapter.id] = votes
+
+        # Return chapter with most votes
+        if chapter_votes:
+            best_chapter_id = max(chapter_votes, key=chapter_votes.get)
+            max_votes = chapter_votes[best_chapter_id]
+
+            # If it's a tie or close call, log it
+            if max_votes < len(signatures) // 2:
+                logger.warning(f"Uncertain chapter assignment for slice: {slice_text[:100]}... (votes: {chapter_votes})")
+
+            return best_chapter_id
+
+        # Fallback: return first chapter if not found
+        logger.warning(f"Could not find chapter for slice: {slice_text[:100]}...")
+        return chapters[0].id if chapters else None
+
+    def _normalize_for_search(self, text: str) -> str:
+        """
+        DEPRECATED - Only used by deprecated _find_chapter_for_slice() method.
+
+        Normalize text for searching (lowercase, remove punctuation)
+        """
+        text = text.lower()
+        text = re.sub(r"[^\w\s']", " ", text)
+        text = " ".join(text.split())
+        return text
+
     def _calculate_chapter_boundaries(self, chapters: List[Chapter]) -> List[int]:
-        """Calculate cumulative text positions where each chapter starts."""
+        """
+        DEPRECATED - Not needed when processing chapters separately.
+
+        Calculate cumulative text positions where each chapter starts.
+        """
         boundaries = [0]
         cumulative = 0
 
         for chapter in chapters:
             if chapter.text_raw:
-                cumulative += len(chapter.text_raw) + 2  # +2 for \n\n separator
+                # Apply same transformation as in _combine_chapter_texts
+                text = chapter.text_raw.replace('\\n', '\n')
+                cumulative += len(text) + 2  # +2 for \n\n separator
             boundaries.append(cumulative)
 
         return boundaries
@@ -387,7 +528,7 @@ class DailySliceGenerator:
             day_number=day_number,
             lesson_type=practice_type,
             chapter_id=slice_data['chapter_id'],
-            slice_text=slice_data['text'][:500] + "..." if len(slice_data['text']) > 500 else slice_data['text'],
+            slice_text=slice_data['text'],  # Use full text for audio matching (was truncated to 500 chars)
             word_count=0,  # Practice lessons don't have word count
             start_position=slice_data['start_position'],
             end_position=slice_data['end_position'],
@@ -496,7 +637,11 @@ class DailySliceGenerator:
         ).astimezone(pytz.UTC)
 
     def _combine_chapter_texts(self, chapters: List[Chapter]) -> str:
-        """Combine all chapter texts into one module text."""
+        """
+        DEPRECATED - No longer needed. Chapters are processed separately.
+
+        Combine all chapter texts into one module text.
+        """
         texts = []
         for chapter in chapters:
             if chapter.text_raw:
