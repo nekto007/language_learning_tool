@@ -15,6 +15,54 @@
     <span class="stat">⏱️ ~<span id="read-time">2</span> мин.</span>
   </div>
 
+  <!-- Audio Player Section -->
+  <div class="audio-player-section" id="audio-player-section" style="display: none;">
+    <div class="audio-player-container">
+      <div class="audio-player-header">
+        <span class="audio-icon">🎧</span>
+        <span class="audio-title">Аудиокнига</span>
+      </div>
+
+      <audio id="lesson-audio-player" controls preload="metadata" class="audio-player">
+        <source id="audio-source" src="" type="audio/mpeg">
+        Ваш браузер не поддерживает аудио.
+      </audio>
+
+      <div class="audio-controls">
+        <button id="audio-rewind" class="audio-btn" title="Назад 10с">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 4v6h6M23 20v-6h-6"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+          </svg>
+          <span class="rewind-text">-10s</span>
+        </button>
+
+        <button id="audio-speed" class="audio-btn audio-speed-btn" title="Скорость">
+          <span class="speed-text">1x</span>
+        </button>
+
+        <button id="audio-forward" class="audio-btn" title="Вперед 10с">
+          <span class="forward-text">+10s</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="audio-progress-bar" id="audio-progress-bar">
+        <div class="audio-progress-fill" id="audio-progress-fill"></div>
+        <div class="audio-progress-handle" id="audio-progress-handle"></div>
+      </div>
+
+      <div class="audio-time-display">
+        <span id="audio-current-time">0:00</span>
+        <span class="audio-time-separator">/</span>
+        <span id="audio-duration">0:00</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Scrollable Reading Content -->
   <div class="reading-scroll-container" id="reading-scroll-container">
     <div class="reading-content" id="reading-content">
@@ -125,6 +173,11 @@ async function loadContent() {
       if (data.word_count) {
         document.getElementById('word-count').textContent = data.word_count;
         document.getElementById('read-time').textContent = Math.ceil(data.word_count / 150);
+      }
+
+      // Initialize audio player if audio available
+      if (data.audio_url) {
+        initAudioPlayer(data.audio_url);
       }
 
       makeWordsClickable();
@@ -394,7 +447,7 @@ function initComprehensionQuestions() {
 
 const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
 const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
-const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}";
+const moduleUrl = "{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}";
 
 async function completeReadingLesson() {
   const btn = document.getElementById('complete-btn');
@@ -441,6 +494,97 @@ function showCompletionSuccess() {
       </a>
     `;
   }
+}
+
+// ==================== Audio Player ====================
+
+let currentSpeed = 1.0;
+const speeds = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+let speedIndex = 1;
+
+function initAudioPlayer(audioUrl) {
+  const audioSection = document.getElementById('audio-player-section');
+  const audioPlayer = document.getElementById('lesson-audio-player');
+  const audioSource = document.getElementById('audio-source');
+
+  if (!audioUrl || !audioPlayer) return;
+
+  // Prepend /static/ if not already present
+  const fullAudioUrl = audioUrl.startsWith('/') ? audioUrl : '/static/' + audioUrl;
+  audioSource.src = fullAudioUrl;
+  audioPlayer.load();
+  audioSection.style.display = 'block';
+
+  audioPlayer.addEventListener('loadedmetadata', updateAudioDuration);
+  audioPlayer.addEventListener('timeupdate', updateAudioProgress);
+
+  document.getElementById('audio-rewind').addEventListener('click', () => rewindAudio(10));
+  document.getElementById('audio-forward').addEventListener('click', () => forwardAudio(10));
+  document.getElementById('audio-speed').addEventListener('click', cycleSpeed);
+  document.getElementById('audio-progress-bar').addEventListener('click', seekAudio);
+}
+
+function updateAudioDuration() {
+  const player = document.getElementById('lesson-audio-player');
+  const durationEl = document.getElementById('audio-duration');
+  if (player && player.duration) {
+    durationEl.textContent = formatTime(player.duration);
+  }
+}
+
+function updateAudioProgress() {
+  const player = document.getElementById('lesson-audio-player');
+  const currentTimeEl = document.getElementById('audio-current-time');
+  const progressFill = document.getElementById('audio-progress-fill');
+  const progressHandle = document.getElementById('audio-progress-handle');
+
+  if (!player || !player.duration) return;
+
+  const percent = (player.currentTime / player.duration) * 100;
+  currentTimeEl.textContent = formatTime(player.currentTime);
+  progressFill.style.width = percent + '%';
+  progressHandle.style.left = percent + '%';
+}
+
+function rewindAudio(seconds) {
+  const player = document.getElementById('lesson-audio-player');
+  if (player) player.currentTime = Math.max(0, player.currentTime - seconds);
+}
+
+function forwardAudio(seconds) {
+  const player = document.getElementById('lesson-audio-player');
+  if (player && player.duration) {
+    player.currentTime = Math.min(player.duration, player.currentTime + seconds);
+  }
+}
+
+function cycleSpeed() {
+  const player = document.getElementById('lesson-audio-player');
+  const speedText = document.querySelector('.speed-text');
+
+  speedIndex = (speedIndex + 1) % speeds.length;
+  currentSpeed = speeds[speedIndex];
+
+  if (player) player.playbackRate = currentSpeed;
+  speedText.textContent = currentSpeed + 'x';
+}
+
+function seekAudio(e) {
+  const progressBar = document.getElementById('audio-progress-bar');
+  const player = document.getElementById('lesson-audio-player');
+
+  if (!player || !player.duration) return;
+
+  const rect = progressBar.getBoundingClientRect();
+  const percent = (e.clientX - rect.left) / rect.width;
+  player.currentTime = percent * player.duration;
+}
+
+function formatTime(seconds) {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 </script>
 
@@ -829,6 +973,136 @@ function showCompletionSuccess() {
   }
   .passage-text {
     font-size: 1rem;
+  }
+}
+
+/* ==================== Audio Player ==================== */
+
+.audio-player-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.audio-player-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.audio-player-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audio-icon {
+  font-size: 1.25rem;
+}
+
+.audio-player {
+  width: 100%;
+  height: 48px;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+}
+
+.audio-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.audio-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.audio-btn:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-300);
+  color: var(--text-primary);
+}
+
+.audio-btn:active {
+  transform: scale(0.95);
+}
+
+.audio-speed-btn {
+  min-width: 60px;
+  justify-content: center;
+}
+
+.audio-progress-bar {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+}
+
+.audio-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
+  border-radius: 10px;
+  transition: width 0.1s linear;
+}
+
+.audio-progress-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  background: var(--primary-600);
+  border: 2px solid var(--bg-primary);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: left 0.1s linear;
+}
+
+.audio-time-display {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .audio-controls {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .audio-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .audio-btn svg {
+    width: 16px;
+    height: 16px;
   }
 }
 </style>
