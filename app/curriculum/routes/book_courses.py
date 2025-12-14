@@ -452,12 +452,21 @@ def view_lesson(course_id, module_id, lesson_number):
                 if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
                     next_daily_lesson = all_lessons[i + 1]
                     has_next_lesson = True
-                    next_lesson_url = url_for(
-                        'book_courses.view_lesson_by_id',
-                        course_id=course_id,
-                        module_id=module_id,
-                        lesson_id=next_daily_lesson.id
-                    )
+                    # Use pretty URL if course has slug
+                    if course.slug:
+                        next_lesson_url = url_for(
+                            'book_courses.view_lesson_by_slug',
+                            course_slug=course.slug,
+                            module_number=module.module_number,
+                            lesson_number=next_daily_lesson.day_number
+                        )
+                    else:
+                        next_lesson_url = url_for(
+                            'book_courses.view_lesson_by_id',
+                            course_id=course_id,
+                            module_id=module_id,
+                            lesson_id=next_daily_lesson.id
+                        )
                     break
 
         # Route to appropriate lesson type handler
@@ -885,12 +894,21 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
             if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
                 next_daily_lesson = all_lessons[i + 1]
                 has_next_lesson = True
-                next_lesson_url = url_for(
-                    'book_courses.view_lesson_by_id',
-                    course_id=course_id,
-                    module_id=module_id,
-                    lesson_id=next_daily_lesson.id
-                )
+                # Use pretty URL if course has slug
+                if course.slug:
+                    next_lesson_url = url_for(
+                        'book_courses.view_lesson_by_slug',
+                        course_slug=course.slug,
+                        module_number=module.module_number,
+                        lesson_number=next_daily_lesson.day_number
+                    )
+                else:
+                    next_lesson_url = url_for(
+                        'book_courses.view_lesson_by_id',
+                        course_id=course_id,
+                        module_id=module_id,
+                        lesson_id=next_daily_lesson.id
+                    )
                 break
 
         # Route to appropriate lesson type handler
@@ -1355,7 +1373,8 @@ def get_lesson_api(lesson_id):
                 'html': final_html,
                 'tooltip_map': tooltip_map,
                 'word_count': daily_lesson.word_count,
-                'title': f'Чтение — День {daily_lesson.day_number}'
+                'title': f'Чтение — День {daily_lesson.day_number}',
+                'audio_url': daily_lesson.audio_url
             })
 
         else:
@@ -1735,7 +1754,7 @@ def view_module_by_slug(course_slug, module_number):
 @book_courses_bp.route('/courses/<course_slug>/modules/<int:module_number>/lessons/<int:lesson_number>')
 @login_required
 def view_lesson_by_slug(course_slug, module_number, lesson_number):
-    """Display lesson by course slug, module number and lesson number"""
+    """Display lesson by course slug, module number and lesson number (position in list, not day_number!)"""
     course = get_course_by_slug_or_id(course_slug)
 
     # Get module by number
@@ -1744,18 +1763,18 @@ def view_lesson_by_slug(course_slug, module_number, lesson_number):
         module_number=module_number
     ).first_or_404()
 
-    # Get lesson by number within module
-    daily_lesson = DailyLesson.query.filter_by(
+    # Get all lessons ordered by day_number
+    all_lessons = DailyLesson.query.filter_by(
         book_course_module_id=module.id
     ).order_by(DailyLesson.day_number, DailyLesson.id).all()
 
-    # Find lesson by index (lesson_number is 1-based)
-    if lesson_number < 1 or lesson_number > len(daily_lesson):
+    # Get lesson by position (lesson_number is 1-indexed)
+    if lesson_number < 1 or lesson_number > len(all_lessons):
         abort(404)
 
-    lesson = daily_lesson[lesson_number - 1]
+    daily_lesson = all_lessons[lesson_number - 1]
 
-    return view_lesson_by_id(course.id, module.id, lesson.id)
+    return view_lesson_by_id(course.id, module.id, daily_lesson.id)
 
 
 # Helper to generate URL for lessons with pretty format
