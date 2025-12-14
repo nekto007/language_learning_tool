@@ -187,8 +187,8 @@ class BookSRSIntegration:
 
         # 2. Если не хватает — берём слова из всей книги через word_book_link
         module = daily_lesson.module
-        if module and module.book_course:
-            book_id = module.book_course.book_id
+        if module and module.course:
+            book_id = module.course.book_id
             if book_id:
                 book_words = self._get_words_from_book(
                     book_id, user_id, filter_learned, seen_word_ids,
