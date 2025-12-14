@@ -38,7 +38,7 @@ class DailyLesson(db.Model):
     # Relationships
     module = relationship('BookCourseModule', backref='daily_lessons')
     chapter = relationship('Chapter')
-    task = relationship('Task')
+    task = relationship('Task', back_populates='daily_lesson', cascade='all, delete', single_parent=True)
     vocabulary = relationship('SliceVocabulary', back_populates='daily_lesson', cascade='all, delete-orphan')
     progress_records = relationship('UserLessonProgress', back_populates='daily_lesson', cascade='all, delete-orphan')
     completion_events = relationship('LessonCompletionEvent', back_populates='daily_lesson', cascade='all, delete-orphan')
