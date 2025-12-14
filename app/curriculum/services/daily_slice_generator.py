@@ -376,6 +376,49 @@ class DailySliceGenerator:
                 'chapter_id': chapter.id  # ← ТОЧНО ЗНАЕМ главу!
             })
 
+        # NEW: Merge short slices with previous slice to avoid tiny lessons
+        MIN_SLICE_CHARS = 1000  # Minimum 1000 characters per slice
+        MIN_SLICE_WORDS = 150   # Or minimum 150 words
+
+        i = 0
+        while i < len(slices):
+            slice_data = slices[i]
+            is_too_short = (
+                len(slice_data['text']) < MIN_SLICE_CHARS or
+                slice_data['word_count'] < MIN_SLICE_WORDS
+            )
+
+            # If slice is too short and it's not the first slice, merge with previous
+            if is_too_short and i > 0:
+                prev_slice = slices[i - 1]
+
+                # Merge text
+                merged_text = prev_slice['text'] + ' ' + slice_data['text']
+                merged_word_count = prev_slice['word_count'] + slice_data['word_count']
+
+                # Update previous slice
+                slices[i - 1] = {
+                    'text': merged_text,
+                    'word_count': merged_word_count,
+                    'start_position': prev_slice['start_position'],
+                    'end_position': slice_data['end_position'],
+                    'chapter_id': prev_slice['chapter_id']
+                }
+
+                # Remove current slice
+                slices.pop(i)
+
+                logger.info(
+                    f"  Merged short slice ({len(slice_data['text'])} chars, "
+                    f"{slice_data['word_count']} words) with previous slice. "
+                    f"New length: {len(merged_text)} chars, {merged_word_count} words"
+                )
+
+                # Don't increment i, check merged slice again
+                continue
+
+            i += 1
+
         return slices
 
     def _find_chapter_for_slice(self, slice_text: str, chapters: List[Chapter]) -> int:
