@@ -861,7 +861,15 @@ def register_book_course_routes(admin_bp):
         """Perform bulk operations on courses"""
 
         operation = request.form.get('operation')
-        course_ids = request.form.getlist('course_ids', type=int)
+
+        # Handle both formats: comma-separated string or list
+        course_ids_raw = request.form.get('course_ids', '')
+        if course_ids_raw:
+            # Parse comma-separated string
+            course_ids = [int(id.strip()) for id in course_ids_raw.split(',') if id.strip()]
+        else:
+            # Fallback to getlist (multiple form fields)
+            course_ids = request.form.getlist('course_ids', type=int)
 
         if not course_ids:
             return jsonify({'success': False, 'error': 'Выберите курсы'}), 400
