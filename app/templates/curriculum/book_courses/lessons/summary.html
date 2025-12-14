@@ -1,87 +1,87 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}Summary Writing{% endblock %}
+{% block lesson_type %}Написание резюме{% endblock %}
 
 {% block lesson_content %}
 <div class="summary-lesson">
     <div class="lesson-intro">
-        <h1>Write a Summary</h1>
-        <p>Summarize what you've read in this module in your own words.</p>
+        <h1>Напишите резюме</h1>
+        <p>Кратко изложите прочитанное в модуле своими словами.</p>
     </div>
 
     <div class="lesson-instructions">
-        <strong>Instructions:</strong>
+        <strong>Инструкция:</strong>
         <ul>
-            <li>Write 100-200 words summarizing the main points</li>
-            <li>Use your own words - don't copy directly from the text</li>
-            <li>Include the main characters, events, and themes</li>
-            <li>Check the checklist below to make sure you covered everything</li>
+            <li>Напишите 100-200 слов, резюмируя основные моменты</li>
+            <li>Используйте свои слова - не копируйте текст напрямую</li>
+            <li>Укажите главных персонажей, события и темы</li>
+            <li>Проверьте чек-лист ниже, чтобы убедиться что всё включили</li>
         </ul>
     </div>
 
     <!-- Summary Writing Area -->
     <div class="summary-container">
         <div class="summary-header">
-            <span class="word-count">Words: <span id="word-count">0</span> / 200</span>
+            <span class="word-count">Слов: <span id="word-count">0</span> / 200</span>
         </div>
         <textarea
             id="summary-textarea"
             class="summary-textarea"
-            placeholder="Write your summary here..."
+            placeholder="Напишите резюме здесь..."
             oninput="updateWordCount()"
         ></textarea>
     </div>
 
     <!-- Key Points Checklist -->
     <div class="checklist-container">
-        <h3>Did you include?</h3>
+        <h3>Вы включили?</h3>
         <div class="checklist-items" id="checklist">
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Main characters mentioned</span>
+                <span>Упомянуты главные персонажи</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Key events described</span>
+                <span>Описаны ключевые события</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Setting/location mentioned</span>
+                <span>Указано место действия</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Theme or message identified</span>
+                <span>Определена тема или главная мысль</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Used vocabulary from the module</span>
+                <span>Использована лексика из модуля</span>
             </label>
         </div>
         <div class="checklist-progress">
-            <span id="checklist-count">0</span>/5 points covered
+            <span id="checklist-count">0</span>/5 пунктов отмечено
         </div>
     </div>
 
     <!-- Self-Assessment -->
     <div class="self-assessment">
-        <h3>Self-Assessment</h3>
-        <p>How confident do you feel about your summary?</p>
+        <h3>Самооценка</h3>
+        <p>Насколько уверенно вы чувствуете себя в резюме?</p>
         <div class="assessment-options">
             <button class="assessment-btn" data-value="1" onclick="selectAssessment(1)">
                 <span class="emoji">😕</span>
-                <span>Need more practice</span>
+                <span>Нужно больше практики</span>
             </button>
             <button class="assessment-btn" data-value="2" onclick="selectAssessment(2)">
                 <span class="emoji">🤔</span>
-                <span>Getting there</span>
+                <span>Получается</span>
             </button>
             <button class="assessment-btn" data-value="3" onclick="selectAssessment(3)">
                 <span class="emoji">😊</span>
-                <span>Confident</span>
+                <span>Уверенно</span>
             </button>
             <button class="assessment-btn" data-value="4" onclick="selectAssessment(4)">
                 <span class="emoji">🌟</span>
-                <span>Very confident</span>
+                <span>Очень уверенно</span>
             </button>
         </div>
     </div>

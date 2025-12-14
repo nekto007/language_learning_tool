@@ -176,16 +176,19 @@
                                     {% set type_name %}
                                         {% if lesson.type == 'vocabulary' %}Словарь
                                         {% elif lesson.type in ['reading_passage', 'reading'] %}Чтение
-                                        {% elif lesson.type in ['reading_mcq', 'mcq'] %}Тест
+                                        {% elif lesson.type in ['reading_mcq', 'mcq', 'comprehension_mcq'] %}Тест
                                         {% elif lesson.type == 'match_headings' %}Заголовки
-                                        {% elif lesson.type in ['open_cloze', 'cloze'] %}Пропуски
+                                        {% elif lesson.type in ['open_cloze', 'cloze', 'cloze_practice'] %}Пропуски
                                         {% elif lesson.type == 'word_formation' %}Словообразование
                                         {% elif lesson.type == 'keyword_transform' %}Трансформации
                                         {% elif lesson.type in ['grammar_sheet', 'grammar_focus', 'grammar'] %}Грамматика
                                         {% elif lesson.type == 'final_test' %}Финальный тест
-                                        {% elif lesson.type == 'summary' %}Резюме
+                                        {% elif lesson.type in ['summary', 'summary_writing'] %}Резюме
+                                        {% elif lesson.type == 'vocabulary_review' %}Повторение слов
                                         {% elif lesson.type == 'discussion' %}Обсуждение
-                                        {% else %}Урок
+                                        {% elif lesson.type == 'writing' %}Письмо
+                                        {% elif lesson.type == 'listening' %}Аудирование
+                                        {% else %}Практика
                                         {% endif %}
                                     {% endset %}
                                     Урок {{ loop.index }}: {{ type_name|trim }}

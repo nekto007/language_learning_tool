@@ -7,7 +7,7 @@
   <!-- Lesson Header -->
   <div class="lesson-header-bar">
     <div class="lesson-nav">
-      <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="back-btn">
+      <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="back-btn">
         ← К модулю
       </a>
     </div>
@@ -491,7 +491,7 @@ function showResults(score) {
       <div class="results-score">${score}%</div>
       <div class="results-message">${message}</div>
       <div class="results-actions">
-        <a href="${document.referrer || '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}'}" class="btn btn-primary">
+        <a href="${document.referrer || '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}'}" class="btn btn-primary">
           Продолжить
         </a>
       </div>
