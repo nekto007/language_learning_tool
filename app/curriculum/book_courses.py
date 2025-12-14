@@ -99,7 +99,7 @@ class BookCourseModule(db.Model):
 
     id = Column(Integer, primary_key=True)
     course_id = Column(Integer, ForeignKey('book_courses.id', ondelete='CASCADE'), nullable=False)
-    block_id = Column(Integer, ForeignKey('block.id', ondelete='CASCADE'), nullable=True)  # Reference to Block
+    block_id = Column(Integer, ForeignKey('block.id', ondelete='SET NULL'), nullable=True)  # Reference to Block (legacy)
     module_number = Column(Integer, nullable=False)
     title = Column(String(200), nullable=False)
     description = Column(Text)
