@@ -27,6 +27,9 @@ class DailyLesson(db.Model):
     lesson_type = Column(String(50), nullable=False)  # vocabulary, reading_mcq, match_headings, etc.
     task_id = Column(Integer, ForeignKey('task.id', ondelete='SET NULL'), nullable=True)
     available_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Audio
+    audio_url = Column(Text, nullable=True)  # Path to lesson audio file
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
