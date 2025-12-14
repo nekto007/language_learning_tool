@@ -4424,7 +4424,6 @@ body.dark-theme #translationPopup {
     left: 0;
     right: 0;
     height: var(--admin-header-height);
-    background: var(--bg-primary);
     border-bottom: 1px solid var(--border-light);
     z-index: 1000;
     display: flex;
@@ -9433,6 +9432,44 @@ textarea:focus-visible,
     margin-right: 8px;
 }
 
+/* Navbar Mobile Responsive */
+@media (max-width: 576px) {
+    .navbar-logo {
+        height: 24px;
+        margin-right: 6px;
+    }
+
+    .navbar-brand-custom {
+        font-size: 16px;
+    }
+
+    .xp-badge-gradient {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    .xp-badge-icon {
+        font-size: 12px;
+    }
+
+    .navbar .nav-link {
+        font-size: 14px;
+        padding: 8px 12px !important;
+    }
+}
+
+@media (max-width: 380px) {
+    /* Hide brand text on very narrow screens */
+    .navbar-brand-custom span:not(.navbar-logo-wrapper) {
+        display: none;
+    }
+
+    .xp-badge-gradient .xp-badge-separator,
+    .xp-badge-gradient span:last-child {
+        display: none;
+    }
+}
+
 /* XP Badge Icon */
 .xp-badge-icon {
     font-size: 16px;
@@ -9462,6 +9499,39 @@ textarea:focus-visible,
 /* Footer Copyright */
 .footer-copyright {
     font-size: 14px;
+}
+
+/* Footer Layout - Centering */
+footer .container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+footer .row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+}
+
+footer .col-md-4 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* Footer Mobile Responsive */
+@media (max-width: 767.98px) {
+    footer .row {
+        flex-direction: column;
+    }
+
+    footer .col-md-4 {
+        margin-bottom: 1.5rem;
+    }
 }
 
 /* ==========================================================================
