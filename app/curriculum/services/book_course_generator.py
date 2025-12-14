@@ -82,12 +82,14 @@ class BookCourseGenerator:
                 print(f"[BOOK COURSE] Шаг 3: Словарь извлечён ({vocab_count} слов)", flush=True)
 
             # Step 4: Generate tasks for blocks
-            print(f"[BOOK COURSE] Шаг 4: Генерация заданий...", flush=True)
-            if generate_tasks and not self._generate_tasks():
-                print(f"[BOOK COURSE] Предупреждение: генерация заданий не удалась", flush=True)
-                logger.warning("Task generation failed, but continuing...")
-            else:
-                print(f"[BOOK COURSE] Шаг 4: Задания сгенерированы", flush=True)
+            # DISABLED: Tasks are now generated within DailySliceGenerator for each lesson
+            # Block-level tasks are legacy and no longer needed
+            print(f"[BOOK COURSE] Шаг 4: Генерация заданий (пропущено - задания создаются для уроков)...", flush=True)
+            # if generate_tasks and not self._generate_tasks():
+            #     print(f"[BOOK COURSE] Предупреждение: генерация заданий не удалась", flush=True)
+            #     logger.warning("Task generation failed, but continuing...")
+            # else:
+            #     print(f"[BOOK COURSE] Шаг 4: Задания сгенерированы", flush=True)
 
             # Step 5: Create course modules from blocks
             print(f"[BOOK COURSE] Шаг 5: Создание модулей курса...", flush=True)
