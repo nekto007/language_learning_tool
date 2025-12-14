@@ -640,11 +640,25 @@ class DailySliceGenerator:
     def _create_module_test_lesson(self, module: BookCourseModule, day_number: int,
                                     chapters: List[Chapter], block: Block) -> DailyLesson:
         """Create the module test lesson."""
-        # Try to find existing final test task
-        final_test_task = Task.query.filter_by(
+        # Try to find existing final test task from Block
+        block_final_test_task = Task.query.filter_by(
             block_id=block.id,
             task_type=TaskType.final_test
         ).first()
+
+        # Create a NEW task for module_test WITHOUT block_id
+        # This prevents cascade deletion when Block is deleted
+        if block_final_test_task:
+            # Copy task payload from Block's final_test
+            module_test_task = Task(
+                block_id=None,  # IMPORTANT: No block_id! Owned by DailyLesson
+                task_type=TaskType.final_test,
+                payload=block_final_test_task.payload.copy() if block_final_test_task.payload else {}
+            )
+            db.session.add(module_test_task)
+            db.session.flush()  # Get task.id
+        else:
+            module_test_task = None
 
         lesson = DailyLesson(
             book_course_module_id=module.id,
@@ -656,7 +670,7 @@ class DailySliceGenerator:
             word_count=0,
             start_position=0,
             end_position=0,
-            task_id=final_test_task.id if final_test_task else None
+            task_id=module_test_task.id if module_test_task else None
         )
 
         lesson.available_at = self._calculate_available_at(day_number, lesson_order=1)

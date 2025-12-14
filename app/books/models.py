@@ -142,6 +142,7 @@ class Task(db.Model):
 
     # Relationships
     block = relationship("Block", back_populates="tasks")
+    daily_lesson = relationship("DailyLesson", back_populates="task", uselist=False)
     answers = relationship("UserTaskAnswer", back_populates="task", cascade="all, delete-orphan")
 
     __table_args__ = (
