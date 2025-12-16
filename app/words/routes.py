@@ -12,7 +12,7 @@ from app.modules.decorators import module_required
 words = Blueprint('words', __name__)
 
 
-@words.route('/')
+@words.route('/dashboard')
 @login_required
 @module_required('words')
 def dashboard():

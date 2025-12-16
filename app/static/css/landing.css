@@ -1,0 +1,441 @@
+/* Landing Page - Minimal Design */
+
+.landing-page {
+    background: #fafbfc;
+}
+
+.landing-page .navbar {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.landing-page .navbar-nav,
+.landing-page .navbar-toggler {
+    display: none !important;
+}
+
+.landing-page footer:not(.landing-footer) {
+    display: none;
+}
+
+.landing-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 2rem 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.landing-content {
+    text-align: center;
+    width: 100%;
+}
+
+.landing-main {
+    margin-bottom: 4rem;
+}
+
+.landing-title {
+    font-size: 2.75rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    line-height: 1.2;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+.landing-description {
+    font-size: 1.125rem;
+    color: #64748b;
+    margin-bottom: 2.5rem;
+    max-width: 580px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.7;
+}
+
+.landing-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-start {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.875rem 2rem;
+    background: #4f46e5;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.btn-start:hover {
+    background: #4338ca;
+    color: white;
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.btn-login {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.875rem 2rem;
+    background: transparent;
+    color: #4f46e5;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.btn-login:hover {
+    border-color: #4f46e5;
+    background: #f8fafc;
+    color: #4f46e5;
+    text-decoration: none;
+}
+
+/* Features */
+.landing-features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+.feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    text-align: left;
+    padding: 1.25rem;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+}
+
+.feature-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4f46e5;
+    background: #f0f0ff;
+    border-radius: 10px;
+}
+
+.feature-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.feature-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.feature-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.feature-desc {
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* Section Title */
+.landing-section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+/* How It Works */
+.landing-how {
+    margin-top: 3rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.how-steps {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.how-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #f1f5f9;
+}
+
+.step-num {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    background: #4f46e5;
+    color: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.step-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.step-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a1a2e;
+}
+
+.step-desc {
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* Levels */
+.landing-levels {
+    margin-top: 2.5rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.landing-levels-desc {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.95rem;
+    max-width: 550px;
+    margin: 0 auto 1.5rem;
+    line-height: 1.6;
+}
+
+.levels-grid {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.level-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #f1f5f9;
+    min-width: 80px;
+}
+
+.level-code {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #4f46e5;
+}
+
+.level-name {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.125rem;
+}
+
+/* Stats */
+.landing-stats {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: auto;
+    padding-top: 3rem;
+}
+
+.stat {
+    font-size: 0.9rem;
+    color: #94a3b8;
+}
+
+.stat-dot {
+    width: 4px;
+    height: 4px;
+    background: #cbd5e1;
+    border-radius: 50%;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .landing-wrapper {
+        padding: 2rem 1.5rem;
+    }
+
+    .landing-title {
+        font-size: 2rem;
+    }
+
+    .landing-description {
+        font-size: 1rem;
+    }
+
+    .landing-features {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .landing-actions {
+        flex-direction: column;
+    }
+
+    .btn-start,
+    .btn-login {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .how-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-section-title {
+        font-size: 1.25rem;
+    }
+
+    .levels-grid {
+        gap: 0.5rem;
+    }
+
+    .level-item {
+        min-width: 70px;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .landing-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .stat-dot {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-wrapper {
+        padding: 1.5rem 1rem;
+    }
+
+    .landing-main {
+        margin-bottom: 2rem;
+    }
+
+    .landing-title {
+        font-size: 1.5rem;
+    }
+
+    .landing-description {
+        font-size: 0.95rem;
+    }
+
+    .feature {
+        padding: 0.875rem;
+    }
+
+    .feature-icon {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+    }
+
+    .feature-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .feature-title {
+        font-size: 0.875rem;
+    }
+
+    .feature-desc {
+        font-size: 0.8rem;
+    }
+
+    .landing-how,
+    .landing-levels {
+        margin-top: 2rem;
+        padding-top: 2rem;
+    }
+
+    .landing-section-title {
+        font-size: 1.1rem;
+    }
+
+    .how-step {
+        padding: 0.875rem;
+    }
+
+    .step-num {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        font-size: 0.8rem;
+    }
+
+    .step-title {
+        font-size: 0.875rem;
+    }
+
+    .step-desc {
+        font-size: 0.8rem;
+    }
+
+    .landing-levels-desc {
+        font-size: 0.85rem;
+    }
+
+    .level-item {
+        min-width: 60px;
+        padding: 0.5rem;
+    }
+
+    .level-code {
+        font-size: 0.95rem;
+    }
+
+    .level-name {
+        font-size: 0.7rem;
+    }
+
+    .landing-stats {
+        padding-top: 2rem;
+        margin-top: 2rem;
+    }
+
+    .stat {
+        font-size: 0.8rem;
+    }
+}

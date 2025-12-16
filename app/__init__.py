@@ -73,6 +73,10 @@ def create_app(config_class=Config):
     os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)
 
     # Register blueprints
+    # Landing page (public, must be first for root route)
+    from app.landing import landing_bp
+    app.register_blueprint(landing_bp)
+
     from app.auth.routes import auth as auth_blueprint
     app.register_blueprint(auth_blueprint)
 
