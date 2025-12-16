@@ -56,11 +56,11 @@ class TestInit:
     """Test __init__ method"""
 
     def test_initialization(self, generator):
-        """Test generator initialization for v3.0"""
-        # Test CEFR-based words per level (target, max)
+        """Test generator initialization for v3.2"""
+        # Test CEFR-based words per level (target, max) - Updated for A1-A2 plan
         assert generator.WORDS_PER_LEVEL == {
-            'A1': (100, 150),    # Range: 50-150 words
-            'A2': (125, 200),    # Range: 50-200 words
+            'A1': (110, 150),    # Усреднённый диапазон для плана A1-A2 (было 100, 150)
+            'A2': (120, 160),    # Усреднённый диапазон для плана A1-A2 (было 125, 200)
             'B1': (400, 600),    # Range: 200-600 words
             'B2': (700, 800),    # Range: 600-800 words
             'C1': (900, 1000),   # Range: 800-1000 words
@@ -71,11 +71,21 @@ class TestInit:
         assert generator.VOCABULARY_WORDS_PER_LESSON == 20
         assert generator.timezone.zone == 'Europe/Amsterdam'
 
-        # v3.1: Level-specific schedules
-        assert len(generator.LESSON_SCHEDULE_BEGINNER) == 7  # 7-day cycle for A1-A2
+        # v3.2: Level-specific schedules
+        assert len(generator.LESSON_SCHEDULE_BEGINNER) == 7  # 7-day cycle (legacy)
+        assert len(generator.LESSON_SCHEDULE_A1_A2) == 9  # NEW: 10-day cycle (9 days + module_test)
         assert len(generator.LESSON_SCHEDULE_INTERMEDIATE) == 6  # 6-day cycle for B1+
 
-        # Check beginner schedule structure
+        # Check A1-A2 schedule structure (NEW v3.2)
+        day1_a1a2 = generator.LESSON_SCHEDULE_A1_A2[0]
+        assert day1_a1a2['lesson1'] == 'vocabulary'  # vocabulary BEFORE reading on day 1
+        assert day1_a1a2['lesson2'] == 'reading'
+
+        day6_a1a2 = generator.LESSON_SCHEDULE_A1_A2[5]
+        assert day6_a1a2['lesson1'] == 'reading'
+        assert day6_a1a2['lesson2'] == 'grammar_focus'  # grammar_focus on day 6 (summary_writing removed 2025-12-15)
+
+        # Check beginner schedule structure (legacy)
         day1 = generator.LESSON_SCHEDULE_BEGINNER[0]
         assert day1['lesson1'] == 'vocabulary'  # vocabulary BEFORE reading on day 1
         assert day1['lesson2'] == 'reading'
