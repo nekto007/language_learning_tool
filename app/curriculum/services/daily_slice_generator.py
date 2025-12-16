@@ -49,8 +49,8 @@ class DailySliceGenerator:
     # (target, max) - target is middle of range, max is upper limit
     # Algorithm cuts at sentence boundaries, respecting max
     WORDS_PER_LEVEL = {
-        'A1': (100, 150),    # Range: 50-150 words
-        'A2': (125, 200),    # Range: 50-200 words
+        'A1': (110, 150),    # Усреднённый диапазон для плана A1-A2 (было 100, 150)
+        'A2': (120, 160),    # Усреднённый диапазон для плана A1-A2 (было 125, 200)
         'B1': (400, 600),    # Range: 200-600 words
         'B2': (700, 800),    # Range: 600-800 words
         'C1': (900, 1000),   # Range: 800-1000 words
@@ -98,6 +98,29 @@ class DailySliceGenerator:
         {'lesson1': 'reading', 'lesson2': 'summary_writing'},
     ]
 
+    # NEW v3.2: Fixed 10-day cycle for A1-A2 (according to plan_A1-A2.md)
+    LESSON_SCHEDULE_A1_A2 = [
+        # День 1: vocabulary → reading (6-7 новых слов, ~120-150 слов текста)
+        {'lesson1': 'vocabulary', 'lesson2': 'reading'},
+        # День 2: reading → grammar_focus (~150-180 слов, можно мини-упр.)
+        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        # День 3: reading → comprehension_mcq (~150-180 слов, ✅ MCQ)
+        {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
+        # День 4: reading → cloze_practice (~120-150 слов, ✅ cloze)
+        {'lesson1': 'reading', 'lesson2': 'cloze_practice'},
+        # День 5: vocabulary_review → reading (8-10 слов SRS, ~100-130 слов)
+        {'lesson1': 'vocabulary_review', 'lesson2': 'reading'},
+        # День 6: reading → grammar_focus (~150-180 слов, грамматика из текста)
+        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        # День 7: vocabulary → reading (6-7 новых слов, ~120-150 слов)
+        {'lesson1': 'vocabulary', 'lesson2': 'reading'},
+        # День 8: reading → comprehension_mcq (~150-180 слов, ✅ MCQ)
+        {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
+        # День 9: vocabulary_review → reading (8-10 слов SRS, ~100-130 слов)
+        {'lesson1': 'vocabulary_review', 'lesson2': 'reading'},
+    ]
+    # День 10: module_test (добавляется отдельно)
+
 
     # Vocabulary limits
     VOCABULARY_WORDS_PER_LESSON = 20  # Max words per vocabulary lesson (reserve pool)
@@ -136,11 +159,19 @@ class DailySliceGenerator:
         target_words, max_words = self.WORDS_PER_LEVEL.get(level, self.WORDS_PER_LEVEL_DEFAULT)
         logger.info(f"Level: {level}, target: {target_words}, max: {max_words} words per day")
 
-        # Select lesson schedule based on level
-        is_beginner = level in ['A1', 'A2']
-        schedule = self.LESSON_SCHEDULE_BEGINNER if is_beginner else self.LESSON_SCHEDULE_INTERMEDIATE
+        # Select lesson schedule based on level (NEW v3.2: A1-A2 uses 10-day cycle)
+        if level in ['A1', 'A2']:
+            schedule = self.LESSON_SCHEDULE_A1_A2  # NEW: 10-day cycle
+            schedule_name = 'A1-A2 (10-day fixed)'
+        elif level in ['B1', 'B2']:
+            schedule = self.LESSON_SCHEDULE_INTERMEDIATE  # 6-day cycle
+            schedule_name = 'intermediate (6-day)'
+        else:  # C1, C2
+            schedule = self.LESSON_SCHEDULE_INTERMEDIATE
+            schedule_name = 'advanced (6-day)'
+
         schedule_len = len(schedule)
-        logger.info(f"Using {'beginner (8-day)' if is_beginner else 'intermediate (6-day)'} schedule")
+        logger.info(f"Using {schedule_name} schedule for level {level}")
 
         # Get all chapters for this module
         chapters = sorted(block.chapters, key=lambda c: c.chap_num)
@@ -159,33 +190,38 @@ class DailySliceGenerator:
         else:
             used_word_ids_in_module = set()
 
-        # NEW v3.2: Process each chapter separately
         daily_lessons = []
         day_number = 1
 
-        for chapter in chapters:
-            logger.info(f"Processing Chapter {chapter.chap_num}: {chapter.title}")
+        # NEW v3.3: For A1-A2, use fixed 9-day schedule
+        if level in ['A1', 'A2']:
+            logger.info("Using FIXED 9-day schedule for A1-A2")
 
-            # Split THIS chapter into slices
-            chapter_slices = self._split_chapter_into_slices(
-                chapter=chapter,
-                target_words=target_words,
-                max_words=max_words
+            # Combine all chapter texts
+            combined_text = '\n\n'.join(ch.text_raw.replace('\\n', '\n') for ch in chapters)
+            total_words = sum(ch.words for ch in chapters)
+            logger.info(f"Combined text: {total_words} words from {len(chapters)} chapters")
+
+            # Split into EXACTLY 9 slices
+            all_slices = self._split_text_into_fixed_slices(
+                text=combined_text,
+                num_slices=9,
+                chapters=chapters
             )
 
-            logger.info(f"  Created {len(chapter_slices)} slices for Chapter {chapter.chap_num}")
-
-            # Generate lessons for each slice in this chapter
-            for slice_data in chapter_slices:
-                # Get schedule for this day
-                day_schedule = schedule[(day_number - 1) % schedule_len]
+            # Create 9 days of lesson pairs
+            for day_idx in range(9):
+                slice_data = all_slices[day_idx]
+                day_schedule = schedule[day_idx]  # No modulo - we have exactly 9 days
                 lesson1_type = day_schedule['lesson1']
                 lesson2_type = day_schedule['lesson2']
+
+                logger.info(f"Day {day_idx + 1}: {lesson1_type} → {lesson2_type} ({slice_data['word_count']} words)")
 
                 # Create Lesson 1
                 lesson1 = self._create_lesson_by_type(
                     module=module,
-                    day_number=day_number,
+                    day_number=day_idx + 1,
                     lesson_type=lesson1_type,
                     slice_data=slice_data,
                     module_vocabulary=module_vocabulary,
@@ -197,7 +233,7 @@ class DailySliceGenerator:
                 # Extract vocabulary if needed
                 if lesson1_type in ['vocabulary', 'vocabulary_review']:
                     self._extract_slice_vocabulary(
-                        lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module
+                        lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
                     )
 
                 daily_lessons.append(lesson1)
@@ -205,7 +241,7 @@ class DailySliceGenerator:
                 # Create Lesson 2
                 lesson2 = self._create_lesson_by_type(
                     module=module,
-                    day_number=day_number,
+                    day_number=day_idx + 1,
                     lesson_type=lesson2_type,
                     slice_data=slice_data,
                     module_vocabulary=module_vocabulary,
@@ -217,12 +253,77 @@ class DailySliceGenerator:
                 # Extract vocabulary if needed
                 if lesson2_type in ['vocabulary', 'vocabulary_review']:
                     self._extract_slice_vocabulary(
-                        lesson2, slice_data['text'], module_vocabulary, used_word_ids_in_module
+                        lesson2, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
                     )
 
                 daily_lessons.append(lesson2)
 
-                day_number += 1
+            day_number = 10  # Module test will be day 10
+
+        else:
+            # B1+ levels: Process each chapter separately (old logic)
+            logger.info("Using dynamic schedule for B1+ levels")
+
+            for chapter in chapters:
+                logger.info(f"Processing Chapter {chapter.chap_num}: {chapter.title}")
+
+                # Split THIS chapter into slices
+                chapter_slices = self._split_chapter_into_slices(
+                    chapter=chapter,
+                    target_words=target_words,
+                    max_words=max_words
+                )
+
+                logger.info(f"  Created {len(chapter_slices)} slices for Chapter {chapter.chap_num}")
+
+                # Generate lessons for each slice in this chapter
+                for slice_data in chapter_slices:
+                    # Get schedule for this day
+                    day_schedule = schedule[(day_number - 1) % schedule_len]
+                    lesson1_type = day_schedule['lesson1']
+                    lesson2_type = day_schedule['lesson2']
+
+                    # Create Lesson 1
+                    lesson1 = self._create_lesson_by_type(
+                        module=module,
+                        day_number=day_number,
+                        lesson_type=lesson1_type,
+                        slice_data=slice_data,
+                        module_vocabulary=module_vocabulary,
+                        lesson_order=1
+                    )
+                    db.session.add(lesson1)
+                    db.session.flush()
+
+                    # Extract vocabulary if needed
+                    if lesson1_type in ['vocabulary', 'vocabulary_review']:
+                        self._extract_slice_vocabulary(
+                            lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
+                        )
+
+                    daily_lessons.append(lesson1)
+
+                    # Create Lesson 2
+                    lesson2 = self._create_lesson_by_type(
+                        module=module,
+                        day_number=day_number,
+                        lesson_type=lesson2_type,
+                        slice_data=slice_data,
+                        module_vocabulary=module_vocabulary,
+                        lesson_order=2
+                    )
+                    db.session.add(lesson2)
+                    db.session.flush()
+
+                    # Extract vocabulary if needed
+                    if lesson2_type in ['vocabulary', 'vocabulary_review']:
+                        self._extract_slice_vocabulary(
+                            lesson2, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
+                        )
+
+                    daily_lessons.append(lesson2)
+
+                    day_number += 1
 
         # Add Module Test as final lesson
         module_test = self._create_module_test_lesson(
@@ -305,6 +406,90 @@ class DailySliceGenerator:
                 'end_position': current_position,
                 'chapter_id': chapter_id
             })
+
+        return slices
+
+    def _split_text_into_fixed_slices(
+        self,
+        text: str,
+        num_slices: int,
+        chapters: List[Chapter]
+    ) -> List[Dict[str, Any]]:
+        """
+        Split combined text into EXACTLY num_slices parts (for A1-A2 fixed schedule).
+
+        Args:
+            text: Combined text from all chapters
+            num_slices: Exact number of slices to create (9 for A1-A2)
+            chapters: List of chapters for tracking chapter_id
+
+        Returns:
+            List of exactly num_slices slice dicts with text, word_count, chapter_id
+        """
+        # Split into sentences
+        sentences = self._split_into_sentences(text)
+        total_words = sum(len(s.split()) for s in sentences)
+
+        # Calculate target words per slice
+        target_words_per_slice = total_words // num_slices
+
+        slices = []
+        current_slice = []
+        current_word_count = 0
+        current_position = 0
+
+        for sentence_idx, sentence in enumerate(sentences):
+            sentence_words = len(sentence.split())
+
+            # Add sentence to current slice
+            current_slice.append(sentence)
+            current_word_count += sentence_words
+            current_position += len(sentence) + 1
+
+            # Check if we should finish this slice
+            # Finish if: we have enough slices remaining AND current slice is close to target
+            slices_remaining = num_slices - len(slices)
+            sentences_remaining = len(sentences) - (sentence_idx + 1)
+
+            should_finish_slice = (
+                len(slices) < num_slices - 1 and  # Not the last slice
+                current_word_count >= target_words_per_slice * 0.8 and  # At least 80% of target
+                sentences_remaining > slices_remaining  # Enough sentences left for remaining slices
+            )
+
+            if should_finish_slice:
+                # Save current slice
+                slice_text = ' '.join(current_slice)
+                chapter_id = self._find_chapter_for_slice(slice_text, chapters)
+
+                slices.append({
+                    'text': slice_text,
+                    'word_count': current_word_count,
+                    'start_position': current_position - len(slice_text),
+                    'end_position': current_position,
+                    'chapter_id': chapter_id
+                })
+
+                # Reset for next slice
+                current_slice = []
+                current_word_count = 0
+
+        # Add remaining sentences as the last slice
+        if current_slice:
+            slice_text = ' '.join(current_slice)
+            chapter_id = self._find_chapter_for_slice(slice_text, chapters)
+
+            slices.append({
+                'text': slice_text,
+                'word_count': current_word_count,
+                'start_position': current_position - len(slice_text),
+                'end_position': current_position,
+                'chapter_id': chapter_id
+            })
+
+        logger.info(f"Split text into {len(slices)} slices (target: {num_slices})")
+        for i, s in enumerate(slices):
+            logger.info(f"  Slice {i+1}: {s['word_count']} words")
 
         return slices
 
@@ -715,13 +900,13 @@ class DailySliceGenerator:
 
     def _extract_slice_vocabulary(self, daily_lesson: DailyLesson, text: str,
                                    module_vocabulary: Dict[int, Dict],
-                                   used_word_ids_in_module: set):
+                                   used_word_ids_in_module: set, level: str = 'B1'):
         """
         Extract vocabulary words that appear in this slice.
 
         First tries to find words from module_vocabulary (BlockVocab).
         If not enough words found, falls back to word_book_link (all book words).
-        Target: 8 words per vocabulary lesson.
+        Target: 7 words for A1-A2, 8 words for other levels.
 
         Args:
             daily_lesson: The lesson to add vocabulary to
@@ -729,8 +914,10 @@ class DailySliceGenerator:
             module_vocabulary: Vocabulary for the module
             used_word_ids_in_module: Set of word IDs already used in this module
                                      (will be updated with new words)
+            level: CEFR level (A1, A2, B1, etc.)
         """
-        TARGET_WORDS = 8  # was 10
+        # Target vocabulary words per lesson (varies by level)
+        TARGET_WORDS = 7 if level in ['A1', 'A2'] else 8
         text_lower = text.lower()
         words_in_slice = []
         used_word_ids = set(used_word_ids_in_module)  # Copy to track local usage
