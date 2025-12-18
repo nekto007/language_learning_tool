@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика - Grammar Lab{% endblock %}
+
+{% block content %}
+<div class="container container-xl">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
+            <li class="breadcrumb-item active">Статистика</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h2 fw-bold mb-2">Ваша статистика</h1>
+        <p class="text-muted">Прогресс изучения грамматики</p>
+    </div>
+
+    {% if stats.topics_started > 0 %}
+    <!-- Overview Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-book text-primary fs-3"></i>
+                    </div>
+                    <h2 class="mb-0">{{ stats.topics_started }}</h2>
+                    <p class="text-muted mb-0">Тем начато</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-trophy text-success fs-3"></i>
+                    </div>
+                    <h2 class="mb-0">{{ stats.topics_mastered }}</h2>
+                    <p class="text-muted mb-0">Тем освоено</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-bolt text-warning fs-3"></i>
+                    </div>
+                    <h2 class="mb-0">{{ stats.total_xp }}</h2>
+                    <p class="text-muted mb-0">XP заработано</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-info bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-bullseye text-info fs-3"></i>
+                    </div>
+                    <h2 class="mb-0">{{ stats.overall_accuracy }}%</h2>
+                    <p class="text-muted mb-0">Точность</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overall Progress -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-chart-line text-primary me-2"></i>Общий прогресс</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Темы освоены</span>
+                            <span>{{ stats.topics_mastered }} / {{ stats.total_topics }}</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            {% set mastery_pct = (stats.topics_mastered / stats.total_topics * 100) if stats.total_topics > 0 else 0 %}
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ mastery_pct }}%;">
+                                {{ mastery_pct|round(1) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Темы начаты</span>
+                            <span>{{ stats.topics_started }} / {{ stats.total_topics }}</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            {% set started_pct = (stats.topics_started / stats.total_topics * 100) if stats.total_topics > 0 else 0 %}
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ started_pct }}%;">
+                                {{ started_pct|round(1) }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="h1 text-primary mb-0">{{ stats.total_attempts }}</div>
+                    <p class="text-muted">Всего попыток</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress by Level -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-layer-group text-success me-2"></i>Прогресс по уровням</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                {% for level_code, level_data in stats.by_level.items() %}
+                {% if level_data.total > 0 %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 bg-light">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-{{ 'primary' if level_code in ['A1', 'A2'] else 'success' if level_code in ['B1', 'B2'] else 'warning' }} fs-6">{{ level_code }}</span>
+                                <span class="text-muted">{{ level_data.total }} тем</span>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>Освоено</span>
+                                    <span>{{ level_data.mastered }} / {{ level_data.total }}</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ level_data.progress_pct }}%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="row text-center mt-3">
+                                <div class="col-6">
+                                    <div class="fw-bold text-info">{{ level_data.started }}</div>
+                                    <small class="text-muted">Начато</small>
+                                </div>
+                                <div class="col-6">
+                                    <div class="fw-bold text-success">{{ level_data.mastered }}</div>
+                                    <small class="text-muted">Освоено</small>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <a href="{{ url_for('grammar_lab.topics', level=level_code) }}" class="btn btn-outline-primary btn-sm w-100">
+                                    Изучать {{ level_code }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Progress Chart -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-chart-bar text-warning me-2"></i>Сравнение уровней</h5>
+        </div>
+        <div class="card-body">
+            {% for level_code in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+            {% set level_data = stats.by_level.get(level_code, {}) %}
+            {% if level_data.total|default(0) > 0 %}
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="badge bg-{{ 'primary' if level_code in ['A1', 'A2'] else 'success' if level_code in ['B1', 'B2'] else 'warning' }}">{{ level_code }}</span>
+                    <span>{{ level_data.progress_pct }}%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ level_data.progress_pct }}%;">
+                        {{ level_data.mastered }} / {{ level_data.total }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No stats yet -->
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-chart-bar text-muted" style="font-size: 4rem;"></i>
+            </div>
+            <h3>Статистика пока недоступна</h3>
+            <p class="text-muted">Начните изучать грамматику, чтобы видеть свой прогресс.</p>
+            <a href="{{ url_for('grammar_lab.topics') }}" class="btn btn-primary">
+                <i class="fas fa-book me-2"></i>Начать изучение
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

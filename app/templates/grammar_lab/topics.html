@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Темы грамматики{% if current_level %} - {{ current_level }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container container-xl">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
+            <li class="breadcrumb-item active">{% if current_level %}{{ current_level }}{% else %}Все темы{% endif %}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 fw-bold mb-2">
+                {% if current_level %}
+                    Темы уровня {{ current_level }}
+                {% else %}
+                    Все темы грамматики
+                {% endif %}
+            </h1>
+            <p class="text-muted mb-0">{{ topics|length }} тем</p>
+        </div>
+        <a href="{{ url_for('grammar_lab.practice') }}" class="btn btn-primary">
+            <i class="fas fa-play me-1"></i>Практика
+        </a>
+    </div>
+
+    <!-- Level Filter -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-muted me-2">Уровень:</span>
+                <a href="{{ url_for('grammar_lab.topics') }}" class="btn btn-sm {% if not current_level %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    Все
+                </a>
+                {% for level in levels %}
+                <a href="{{ url_for('grammar_lab.topics', level=level.level) }}"
+                   class="btn btn-sm {% if current_level == level.level %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ level.level }}
+                    {% if level.topic_count > 0 %}
+                    <span class="badge bg-light text-dark ms-1">{{ level.topic_count }}</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Topics Grid -->
+    {% if topics %}
+    <div class="row g-3">
+        {% for topic in topics %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' if topic.level in ['B1', 'B2'] else 'warning' }}">{{ topic.level }}</span>
+
+                        {% if topic.progress %}
+                            {% set mastery = topic.progress.mastery_level %}
+                            {% if mastery >= 5 %}
+                                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Освоено</span>
+                            {% elif mastery >= 3 %}
+                                <span class="badge bg-info">Уверенно</span>
+                            {% elif mastery >= 1 %}
+                                <span class="badge bg-warning text-dark">Изучаю</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Начато</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-light text-dark">Новая</span>
+                        {% endif %}
+                    </div>
+
+                    <h5 class="card-title fw-bold mb-1">{{ topic.title }}</h5>
+                    <p class="text-muted mb-3">{{ topic.title_ru }}</p>
+
+                    <!-- Progress Bar -->
+                    {% if topic.progress %}
+                    <div class="progress mb-2" style="height: 6px;">
+                        {% set progress_pct = (topic.progress.mastery_level / 5 * 100) %}
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_pct }}%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mb-3">
+                        <span>Уровень: {{ topic.progress.mastery_level }}/5</span>
+                        <span>{{ topic.progress.correct_attempts }}/{{ topic.progress.total_attempts }} верно</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
+                            <i class="fas fa-book me-1"></i>Изучить
+                        </a>
+                        {% if topic.progress and topic.progress.theory_completed %}
+                        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}#practice" class="btn btn-primary btn-sm flex-grow-1">
+                            <i class="fas fa-play me-1"></i>Практика
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if topic.estimated_time %}
+                <div class="card-footer bg-transparent py-2">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>{{ topic.estimated_time }} мин
+                        {% if topic.difficulty %}
+                        <span class="ms-2">
+                            <i class="fas fa-signal me-1"></i>
+                            {% for i in range(topic.difficulty) %}*{% endfor %}
+                        </span>
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        {% if current_level %}
+        Темы для уровня {{ current_level }} пока не добавлены.
+        {% else %}
+        Темы грамматики пока не добавлены.
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

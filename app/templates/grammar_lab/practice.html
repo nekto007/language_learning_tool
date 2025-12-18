@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}Практика - Grammar Lab{% endblock %}
+
+{% block content %}
+<div class="container container-xl">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
+            <li class="breadcrumb-item active">Практика</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 fw-bold mb-2">SRS Практика</h1>
+            <p class="text-muted mb-0">Интервальное повторение грамматики</p>
+        </div>
+    </div>
+
+    {% if session.exercises %}
+    <!-- Practice Session -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-brain text-primary me-2"></i>Сессия практики
+            </h5>
+            <span class="badge bg-primary">{{ session.total_exercises }} упражнений</span>
+        </div>
+        <div class="card-body">
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between mb-1">
+                    <span>Прогресс</span>
+                    <span id="progress-text">0 / {{ session.total_exercises }}</span>
+                </div>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar bg-success" role="progressbar" id="progress-bar" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- Exercise Area -->
+            <div id="exercise-area">
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-play-circle text-primary" style="font-size: 4rem;"></i>
+                    </div>
+                    <h4>Готовы к практике?</h4>
+                    <p class="text-muted">{{ session.total_exercises }} упражнений из разных тем</p>
+                    <button type="button" class="btn btn-primary btn-lg" id="start-session-btn">
+                        <i class="fas fa-play me-2"></i>Начать
+                    </button>
+                </div>
+            </div>
+
+            <!-- Exercise Content (hidden initially) -->
+            <div id="exercise-content" style="display: none;">
+                <div class="mb-3">
+                    <span class="badge bg-secondary" id="topic-badge"></span>
+                </div>
+                <div id="question-area" class="mb-4"></div>
+                <div id="feedback-area" class="mb-3" style="display: none;"></div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary flex-grow-1" id="check-btn">
+                        <i class="fas fa-check me-2"></i>Проверить
+                    </button>
+                    <button type="button" class="btn btn-success flex-grow-1" id="next-btn" style="display: none;">
+                        <i class="fas fa-arrow-right me-2"></i>Далее
+                    </button>
+                </div>
+            </div>
+
+            <!-- Session Complete (hidden initially) -->
+            <div id="session-complete" style="display: none;">
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-trophy text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    <h3>Отлично!</h3>
+                    <p class="text-muted">Вы завершили сессию практики</p>
+                    <div class="row justify-content-center mb-4">
+                        <div class="col-auto">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <div class="h2 mb-0" id="correct-count">0</div>
+                                    <small>Верно</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <div class="h2 mb-0" id="wrong-count">0</div>
+                                    <small>Ошибок</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <div class="h2 mb-0" id="xp-earned">0</div>
+                                    <small>XP</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="{{ url_for('grammar_lab.practice') }}" class="btn btn-primary">
+                            <i class="fas fa-redo me-2"></i>Еще практика
+                        </a>
+                        <a href="{{ url_for('grammar_lab.index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>На главную
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Due Topics -->
+    {% if session.due_topics %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-clock text-warning me-2"></i>Темы для повторения
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for topic in session.due_topics %}
+                <div class="col-md-6 col-lg-4">
+                    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="card h-100 hover-card text-decoration-none">
+                        <div class="card-body">
+                            <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' }}">{{ topic.level }}</span>
+                            <h6 class="fw-bold text-dark mt-2 mb-1">{{ topic.title }}</h6>
+                            <p class="text-muted small mb-0">{{ topic.title_ru }}</p>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- No exercises available -->
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+            </div>
+            <h3>Все повторено!</h3>
+            <p class="text-muted">Нет упражнений для практики. Изучите новые темы или дождитесь времени повторения.</p>
+            <div class="d-flex gap-2 justify-content-center">
+                <a href="{{ url_for('grammar_lab.topics') }}" class="btn btn-primary">
+                    <i class="fas fa-book me-2"></i>Изучить новые темы
+                </a>
+                <a href="{{ url_for('grammar_lab.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>На главную
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if session.exercises %}
+<script>
+const sessionId = '{{ session.session_id }}';
+const exercises = {{ session.exercises|tojson|safe }};
+let currentIndex = 0;
+let correctCount = 0;
+let wrongCount = 0;
+let totalXP = 0;
+
+document.getElementById('start-session-btn').addEventListener('click', function() {
+    document.getElementById('exercise-area').style.display = 'none';
+    document.getElementById('exercise-content').style.display = 'block';
+    showExercise(0);
+});
+
+function showExercise(index) {
+    const exercise = exercises[index];
+    if (!exercise) return;
+
+    // Update progress
+    document.getElementById('progress-text').textContent = `${index} / ${exercises.length}`;
+    document.getElementById('progress-bar').style.width = `${(index / exercises.length) * 100}%`;
+
+    // Set topic badge
+    document.getElementById('topic-badge').textContent = exercise.topic_title || 'Grammar';
+
+    // Render question
+    const questionArea = document.getElementById('question-area');
+    questionArea.innerHTML = renderExercise(exercise);
+
+    // Reset UI
+    document.getElementById('feedback-area').style.display = 'none';
+    document.getElementById('check-btn').style.display = 'inline-block';
+    document.getElementById('next-btn').style.display = 'none';
+
+    // Setup event handlers after render
+    setupExerciseHandlers(exercise);
+}
+
+function renderExercise(exercise) {
+    switch (exercise.exercise_type) {
+        case 'fill_blank':
+            return `
+                <div class="mb-3">
+                    <label class="form-label fs-5">${exercise.content.question || 'Заполните пропуск:'}</label>
+                    <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Введите ответ" autocomplete="off">
+                </div>
+            `;
+        case 'multiple_choice':
+            let html = `<p class="fs-5">${exercise.content.question || 'Выберите правильный ответ:'}</p>`;
+            exercise.content.options.forEach((option, i) => {
+                html += `
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="answer" id="option-${i}" value="${i}">
+                        <label class="form-check-label fs-5" for="option-${i}">${option}</label>
+                    </div>
+                `;
+            });
+            return html;
+        case 'true_false':
+            return `
+                <p class="fs-5">${exercise.content.statement || exercise.content.question}</p>
+                <div class="d-flex gap-3">
+                    <button type="button" class="btn btn-outline-success btn-lg flex-grow-1 tf-btn" data-value="true">Верно</button>
+                    <button type="button" class="btn btn-outline-danger btn-lg flex-grow-1 tf-btn" data-value="false">Неверно</button>
+                </div>
+                <input type="hidden" id="user-answer" value="">
+            `;
+        case 'translation':
+            return `
+                <label class="form-label">Переведите на английский:</label>
+                <p class="fs-5 fw-bold">${exercise.content.sentence}</p>
+                <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
+            `;
+        default:
+            return `
+                <label class="form-label fs-5">${exercise.content.question || 'Введите ответ:'}</label>
+                <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Введите ответ" autocomplete="off">
+            `;
+    }
+}
+
+function setupExerciseHandlers(exercise) {
+    // True/False buttons
+    document.querySelectorAll('.tf-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tf-btn').forEach(b => {
+                b.classList.remove('btn-success', 'btn-danger');
+                b.classList.add('btn-outline-success', 'btn-outline-danger');
+            });
+            this.classList.remove('btn-outline-success', 'btn-outline-danger');
+            this.classList.add(this.dataset.value === 'true' ? 'btn-success' : 'btn-danger');
+            document.getElementById('user-answer').value = this.dataset.value;
+        });
+    });
+}
+
+document.getElementById('check-btn').addEventListener('click', async function() {
+    const exercise = exercises[currentIndex];
+    let answer;
+
+    if (exercise.exercise_type === 'multiple_choice') {
+        const selected = document.querySelector('input[name="answer"]:checked');
+        if (!selected) {
+            alert('Выберите ответ');
+            return;
+        }
+        answer = selected.value;
+    } else {
+        answer = document.getElementById('user-answer').value;
+        if (!answer) {
+            alert('Введите ответ');
+            return;
+        }
+    }
+
+    try {
+        const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                answer: answer,
+                session_id: sessionId,
+                source: 'srs_review'
+            })
+        });
+        const data = await response.json();
+
+        const feedback = document.getElementById('feedback-area');
+        if (data.is_correct) {
+            correctCount++;
+            totalXP += data.xp_earned || 0;
+            feedback.className = 'alert alert-success';
+            feedback.innerHTML = `<i class="fas fa-check-circle me-2"></i>Правильно!${data.xp_earned ? ` +${data.xp_earned} XP` : ''}`;
+        } else {
+            wrongCount++;
+            feedback.className = 'alert alert-danger';
+            feedback.innerHTML = `<i class="fas fa-times-circle me-2"></i>Неверно. Правильный ответ: <strong>${data.correct_answer}</strong>`;
+        }
+        feedback.style.display = 'block';
+
+        this.style.display = 'none';
+        document.getElementById('next-btn').style.display = 'inline-block';
+
+        // Disable inputs
+        document.querySelectorAll('#question-area input, #question-area button').forEach(el => el.disabled = true);
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+});
+
+document.getElementById('next-btn').addEventListener('click', function() {
+    currentIndex++;
+    if (currentIndex < exercises.length) {
+        showExercise(currentIndex);
+    } else {
+        // Session complete
+        document.getElementById('exercise-content').style.display = 'none';
+        document.getElementById('session-complete').style.display = 'block';
+        document.getElementById('correct-count').textContent = correctCount;
+        document.getElementById('wrong-count').textContent = wrongCount;
+        document.getElementById('xp-earned').textContent = totalXP;
+        document.getElementById('progress-bar').style.width = '100%';
+        document.getElementById('progress-text').textContent = `${exercises.length} / ${exercises.length}`;
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
