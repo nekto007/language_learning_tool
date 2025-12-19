@@ -124,6 +124,10 @@ def create_app(config_class=Config):
     from app.modules import modules_bp
     app.register_blueprint(modules_bp)
 
+    # Register Grammar Lab blueprint
+    from app.grammar_lab import grammar_lab_bp
+    app.register_blueprint(grammar_lab_bp)
+
     # Register uploads blueprint for secure file serving
     from app.uploads.routes import uploads as uploads_blueprint
     app.register_blueprint(uploads_blueprint, url_prefix='/uploads')

@@ -25,12 +25,17 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
-  Проверить ответы
-</button>
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
-  Завершить урок
-</button>
+<div class="lesson-footer-actions">
+  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
+    <i class="fas fa-arrow-left"></i> К урокам
+  </a>
+  <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
+    Проверить
+  </button>
+  <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
+    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
@@ -48,22 +53,59 @@ Reading fiction, (4) ______ particular, helps us develop empathy by allowing us 
 
 Furthermore, reading is one of the (6) ______ effective ways to reduce stress. Studies have found that just six minutes of reading can reduce stress levels (7) ______ up to 68 percent. This makes it even more beneficial (8) ______ watching television or listening to music.`,
   gaps: [
-    { id: 1, answer: 'be', hint: 'auxiliary verb' },
-    { id: 2, answer: 'but', hint: 'conjunction' },
-    { id: 3, answer: 'to', hint: 'preposition' },
-    { id: 4, answer: 'in', hint: 'preposition (phrase)' },
-    { id: 5, answer: 'been', hint: 'past participle' },
-    { id: 6, answer: 'most', hint: 'superlative' },
-    { id: 7, answer: 'by', hint: 'preposition' },
-    { id: 8, answer: 'than', hint: 'comparison word' }
+    { id: 1, answer: 'be', hint: 'вспомогательный глагол' },
+    { id: 2, answer: 'but', hint: 'союз' },
+    { id: 3, answer: 'to', hint: 'предлог' },
+    { id: 4, answer: 'in', hint: 'предлог (фраза)' },
+    { id: 5, answer: 'been', hint: 'причастие прошедшего времени' },
+    { id: 6, answer: 'most', hint: 'превосходная степень' },
+    { id: 7, answer: 'by', hint: 'предлог' },
+    { id: 8, answer: 'than', hint: 'слово сравнения' }
   ]
 };
 
 let userAnswers = {};
 let isChecked = false;
 
+// localStorage key для сохранения прогресса
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const storageKey = `cloze_progress_${lessonId}`;
+
 function init() {
+  loadProgress();
   renderClozeText();
+}
+
+function saveProgress() {
+  if (lessonId && !isChecked) {
+    localStorage.setItem(storageKey, JSON.stringify({
+      userAnswers: userAnswers,
+      timestamp: Date.now()
+    }));
+  }
+}
+
+function loadProgress() {
+  if (!lessonId) return;
+
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const data = JSON.parse(saved);
+      // Проверяем, что данные не старше 24 часов
+      if (data.timestamp && (Date.now() - data.timestamp) < 24 * 60 * 60 * 1000) {
+        userAnswers = data.userAnswers || {};
+      } else {
+        clearProgress();
+      }
+    }
+  } catch (e) {
+    console.error('Error loading progress:', e);
+  }
+}
+
+function clearProgress() {
+  localStorage.removeItem(storageKey);
 }
 
 function renderClozeText() {
@@ -87,11 +129,20 @@ function renderClozeText() {
   });
 
   container.innerHTML = `<div class="cloze-text">${html}</div>`;
+
+  // Восстанавливаем сохранённые ответы
+  Object.keys(userAnswers).forEach(gapId => {
+    const input = document.getElementById(`gap-${gapId}`);
+    if (input && userAnswers[gapId]) {
+      input.value = userAnswers[gapId];
+    }
+  });
 }
 
 function onInputChange(gapId) {
   const input = document.getElementById(`gap-${gapId}`);
   userAnswers[gapId] = input.value.trim().toLowerCase();
+  saveProgress();
 }
 
 function checkAnswers() {
@@ -134,33 +185,46 @@ function checkAnswers() {
   window.finalScore = score;
 }
 
-function completeLesson() {
+const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}";
+
+async function finishLesson() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.textContent = 'Сохраняем...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
 
-  // Use the parent's completeLesson but pass the score
-  const score = window.finalScore || 0;
+  try {
+    {% if daily_lesson %}
+    const response = await fetch(`/curriculum/api/v1/lesson/{{ daily_lesson.id }}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
 
-  fetch(`/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lesson_number: lessonNumber, score: score })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      showResults(score);
+    if (response.status === 201 || response.ok) {
+      clearProgress();
+      if (hasNextLesson && nextLessonUrl) {
+        window.location.href = nextLessonUrl;
+      } else {
+        window.location.href = moduleUrl;
+      }
     } else {
-      throw new Error(data.error);
+      throw new Error('Failed to save');
     }
-  })
-  .catch(error => {
+    {% else %}
+    clearProgress();
+    if (hasNextLesson && nextLessonUrl) {
+      window.location.href = nextLessonUrl;
+    } else {
+      window.location.href = moduleUrl;
+    }
+    {% endif %}
+  } catch (error) {
     console.error('Error:', error);
-    alert('Ошибка при сохранении');
     btn.disabled = false;
-    btn.textContent = 'Завершить урок';
-  });
+    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
+    alert('Ошибка сохранения. Попробуйте ещё раз.');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

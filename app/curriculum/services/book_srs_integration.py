@@ -160,7 +160,7 @@ class BookSRSIntegration:
     def _get_vocabulary_words_for_lesson(self, daily_lesson: DailyLesson,
                                           user_id: int = None,
                                           filter_learned: bool = True,
-                                          target_count: int = 10) -> List[Dict[str, Any]]:
+                                          target_count: int = 7) -> List[Dict[str, Any]]:
         """
         Получает vocabulary words для изучения.
 

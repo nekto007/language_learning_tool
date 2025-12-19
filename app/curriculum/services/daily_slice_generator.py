@@ -123,8 +123,8 @@ class DailySliceGenerator:
 
 
     # Vocabulary limits
-    VOCABULARY_WORDS_PER_LESSON = 20  # Max words per vocabulary lesson (reserve pool)
-    VOCABULARY_WORDS_PER_MODULE = 40  # Max words tracked per module (was 50)
+    VOCABULARY_WORDS_PER_LESSON = 30  # Max words per vocabulary lesson (large reserve, filtered at display)
+    VOCABULARY_WORDS_PER_MODULE = 60  # Max words tracked per module (increased for reserves)
 
     def __init__(self):
         self.timezone = pytz.timezone('Europe/Amsterdam')
@@ -916,8 +916,8 @@ class DailySliceGenerator:
                                      (will be updated with new words)
             level: CEFR level (A1, A2, B1, etc.)
         """
-        # Target vocabulary words per lesson (varies by level)
-        TARGET_WORDS = 7 if level in ['A1', 'A2'] else 8
+        # Target vocabulary words per lesson - create large reserve, filtering happens at display
+        TARGET_WORDS = 30  # Large reserve, actual display limited to 7 words per student
         text_lower = text.lower()
         words_in_slice = []
         used_word_ids = set(used_word_ids_in_module)  # Copy to track local usage
@@ -977,6 +977,9 @@ class DailySliceGenerator:
             db.session.add(slice_vocab)
             # Mark word as used in module
             used_word_ids_in_module.add(word_data['word_id'])
+
+        # Update lesson's word_count
+        daily_lesson.word_count = len(words_in_slice)
 
         logger.info(f"Extracted {len(words_in_slice)} vocabulary words for lesson {daily_lesson.id}")
 

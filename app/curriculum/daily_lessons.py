@@ -16,11 +16,11 @@ class DailyLesson(db.Model):
     slice_number = Column(Integer, nullable=False)  # Sequential number within module
     day_number = Column(Integer, nullable=False)  # Day 1, 2, 3... of the module
     
-    # Text content
-    slice_text = Column(Text, nullable=False)  # The actual 800-word slice
-    word_count = Column(Integer, nullable=False)
-    start_position = Column(Integer, nullable=False)  # Character position in original chapter
-    end_position = Column(Integer, nullable=False)
+    # Text content (optional for vocabulary lessons)
+    slice_text = Column(Text, nullable=True)  # The actual 800-word slice (None for vocabulary)
+    word_count = Column(Integer, nullable=True, default=0)
+    start_position = Column(Integer, nullable=True, default=0)  # Character position in original chapter
+    end_position = Column(Integer, nullable=True, default=0)
     chapter_id = Column(Integer, ForeignKey('chapter.id', ondelete='CASCADE'), nullable=False)
     
     # Lesson configuration
@@ -65,6 +65,39 @@ class DailyLesson(db.Model):
                 .order_by(SliceVocabulary.frequency_in_slice.desc())
                 .limit(limit)
                 .all())
+
+    def get_reading_texts_for_vocabulary(self):
+        """
+        For vocabulary lessons: get reading texts from current vocabulary
+        until next vocabulary lesson (for example sentences).
+        Returns list of (day_number, lesson_type, slice_text) tuples.
+        """
+        if self.lesson_type not in ('vocabulary', 'vocabulary_review'):
+            return []
+
+        # Get all lessons in this module after current day
+        lessons = (DailyLesson.query
+                   .filter(DailyLesson.book_course_module_id == self.book_course_module_id)
+                   .filter(DailyLesson.day_number >= self.day_number)
+                   .filter(DailyLesson.id != self.id)
+                   .order_by(DailyLesson.day_number, DailyLesson.slice_number)
+                   .all())
+
+        reading_texts = []
+        for lesson in lessons:
+            # Stop at next vocabulary lesson
+            if lesson.lesson_type in ('vocabulary', 'vocabulary_review') and lesson.day_number > self.day_number:
+                break
+            # Collect reading texts
+            if lesson.lesson_type == 'reading' and lesson.slice_text:
+                reading_texts.append({
+                    'day_number': lesson.day_number,
+                    'lesson_type': lesson.lesson_type,
+                    'text': lesson.slice_text,
+                    'word_count': lesson.word_count or 0
+                })
+
+        return reading_texts
     
     def calculate_available_time(self, previous_lesson_completed_at=None, timezone_str='Europe/Amsterdam'):
         """Calculate when this lesson should become available"""
@@ -87,24 +120,52 @@ class DailyLesson(db.Model):
 class SliceVocabulary(db.Model):
     """Vocabulary words appearing in a specific daily lesson slice"""
     __tablename__ = 'slice_vocabulary'
-    
+
     id = Column(Integer, primary_key=True)
     daily_lesson_id = Column(Integer, ForeignKey('daily_lessons.id', ondelete='CASCADE'), nullable=False)
     word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
     frequency_in_slice = Column(Integer, nullable=False)
     is_new = Column(Boolean, default=True)  # First appearance in course
     context_sentence = Column(Text)  # Example sentence from the slice
-    
+
+    # New fields for admin editing
+    custom_translation = Column(Text, nullable=True)  # Local translation for this course (null = use global)
+    priority = Column(Integer, default=0)  # Display order (higher = first)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     daily_lesson = relationship('DailyLesson', back_populates='vocabulary')
     word = relationship('CollectionWords')
-    
+
     __table_args__ = (
         UniqueConstraint('daily_lesson_id', 'word_id', name='uq_slice_word'),
         Index('idx_slice_vocabulary_lesson', 'daily_lesson_id'),
     )
+
+    @property
+    def translation(self):
+        """Get translation - custom if set, otherwise from global word"""
+        if self.custom_translation:
+            return self.custom_translation
+        return self.word.russian_word if self.word else ''
+
+    @property
+    def english(self):
+        """Get English word"""
+        return self.word.english_word if self.word else ''
+
+    @property
+    def level(self):
+        """Get word level"""
+        return self.word.level if self.word else ''
+
+    @property
+    def db_examples(self):
+        """Get examples from database (CollectionWords.sentences)"""
+        if self.word and self.word.sentences:
+            return self.word.sentences
+        return ''
 
 
 class UserLessonProgress(db.Model):

@@ -5,8 +5,21 @@
 {% block lesson_content %}
 <div class="lesson-intro">
   <h1>Тест на понимание текста</h1>
-  <p>Ответьте на 10 вопросов по прочитанному тексту</p>
+  <p>Ответьте на вопросы по тексту. Нажмите на текст, чтобы развернуть/свернуть его.</p>
 </div>
+
+<!-- Passage Text (collapsible) -->
+{% if daily_lesson and daily_lesson.slice_text %}
+<div class="passage-container">
+  <div class="passage-header" onclick="togglePassage()">
+    <span class="passage-title">📖 Текст для чтения</span>
+    <span class="passage-toggle" id="passage-toggle">▼ Показать</span>
+  </div>
+  <div class="passage-content" id="passage-content" style="display: none;">
+    <div class="passage-text">{{ daily_lesson.slice_text }}</div>
+  </div>
+</div>
+{% endif %}
 
 <div class="quiz-container">
   <!-- Progress -->
@@ -34,7 +47,6 @@
 
   <!-- Navigation -->
   <div class="quiz-nav">
-    <button class="nav-btn" id="prev-btn" onclick="prevQuestion()" disabled>← Назад</button>
     <button class="nav-btn primary" id="next-btn" onclick="nextQuestion()" disabled>Далее →</button>
   </div>
 </div>
@@ -51,9 +63,18 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishQuiz()" style="display: none;">
-  Завершить тест
-</button>
+<div class="lesson-footer-actions" id="footer-buttons">
+  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
+    <i class="fas fa-arrow-left"></i> К урокам
+  </a>
+  <button id="complete-btn" class="btn-footer btn-primary" onclick="finishQuiz()" style="display: none;">
+    {% if has_next_lesson %}
+    Далее <i class="fas fa-arrow-right"></i>
+    {% else %}
+    Завершить <i class="fas fa-check"></i>
+    {% endif %}
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
@@ -68,6 +89,38 @@ let questions = [];
 let currentQuestion = 0;
 let answers = {};
 let score = 0;
+
+// localStorage for progress persistence
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const storageKey = `quiz_progress_${lessonId}`;
+
+function saveProgress() {
+  localStorage.setItem(storageKey, JSON.stringify({
+    currentQuestion,
+    answers,
+    timestamp: Date.now()
+  }));
+}
+
+function loadProgress() {
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const data = JSON.parse(saved);
+      // Only restore if less than 1 hour old
+      if (Date.now() - data.timestamp < 3600000) {
+        currentQuestion = data.currentQuestion || 0;
+        answers = data.answers || {};
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+function clearProgress() {
+  localStorage.removeItem(storageKey);
+}
 
 function loadQuestions() {
   // Try to load from server data first
@@ -90,7 +143,9 @@ function loadQuestions() {
     }
   });
 
-  showQuestion(0);
+  // Restore progress if available
+  loadProgress();
+  showQuestion(currentQuestion);
 }
 
 function generatePlaceholderQuestions() {
@@ -160,32 +215,52 @@ function generatePlaceholderQuestions() {
 }
 
 function showQuestion(index) {
+  if (!questions || questions.length === 0) {
+    console.error('No questions loaded');
+    return;
+  }
+
   const q = questions[index];
+  if (!q) {
+    console.error('Question not found at index', index);
+    return;
+  }
+
   currentQuestion = index;
 
-  document.getElementById('q-number').textContent = index + 1;
-  document.getElementById('current-q').textContent = index + 1;
-  document.getElementById('question-text').textContent = q.text;
+  const qNumber = document.getElementById('q-number');
+  const currentQ = document.getElementById('current-q');
+  const questionText = document.getElementById('question-text');
+
+  if (qNumber) qNumber.textContent = index + 1;
+  if (currentQ) currentQ.textContent = index + 1;
+  if (questionText) questionText.textContent = q.text;
 
   // Update progress
-  document.getElementById('quiz-progress').style.width = ((index + 1) / questions.length * 100) + '%';
+  const progressBar = document.getElementById('quiz-progress');
+  if (progressBar) progressBar.style.width = ((index + 1) / questions.length * 100) + '%';
 
   // Render options
   const optionsList = document.getElementById('options-list');
-  optionsList.innerHTML = q.options.map((opt, i) => `
-    <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
-      <span class="option-letter">${String.fromCharCode(65 + i)}</span>
-      <span class="option-text">${opt}</span>
-    </div>
-  `).join('');
+  if (optionsList) {
+    optionsList.innerHTML = q.options.map((opt, i) => `
+      <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
+        <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+        <span class="option-text">${opt}</span>
+      </div>
+    `).join('');
+  }
 
-  // Update nav
-  document.getElementById('prev-btn').disabled = index === 0;
-  document.getElementById('next-btn').disabled = answers[index] === undefined;
-  document.getElementById('next-btn').textContent = index === questions.length - 1 ? 'Завершить' : 'Далее →';
+  // Update nav button
+  const nextBtn = document.getElementById('next-btn');
+  if (nextBtn) {
+    nextBtn.disabled = answers[index] === undefined;
+    nextBtn.textContent = index === questions.length - 1 ? 'Завершить ✓' : 'Далее →';
+  }
 
   // Hide feedback
-  document.getElementById('feedback').style.display = 'none';
+  const feedback = document.getElementById('feedback');
+  if (feedback) feedback.style.display = 'none';
 }
 
 function selectOption(optionIndex) {
@@ -220,17 +295,16 @@ function selectOption(optionIndex) {
 
   // Enable next
   document.getElementById('next-btn').disabled = false;
-}
 
-function prevQuestion() {
-  if (currentQuestion > 0) {
-    showQuestion(currentQuestion - 1);
-  }
+  // Save progress
+  saveProgress();
 }
 
 function nextQuestion() {
   if (currentQuestion < questions.length - 1) {
-    showQuestion(currentQuestion + 1);
+    currentQuestion++;
+    showQuestion(currentQuestion);
+    saveProgress();
   } else {
     showResults();
   }
@@ -263,8 +337,60 @@ function showResults() {
   document.getElementById('complete-btn').style.display = 'inline-block';
 }
 
-function finishQuiz() {
-  completeLesson(score);
+const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}";
+
+async function finishQuiz() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+
+  try {
+    {% if daily_lesson %}
+    const response = await fetch(`/curriculum/api/v1/lesson/{{ daily_lesson.id }}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (response.status === 201 || response.ok) {
+      clearProgress();
+      // Redirect immediately
+      if (hasNextLesson && nextLessonUrl) {
+        window.location.href = nextLessonUrl;
+      } else {
+        window.location.href = moduleUrl;
+      }
+    } else {
+      throw new Error('Failed to save');
+    }
+    {% else %}
+    if (hasNextLesson && nextLessonUrl) {
+      window.location.href = nextLessonUrl;
+    } else {
+      window.location.href = moduleUrl;
+    }
+    {% endif %}
+  } catch (error) {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
+    alert('Ошибка сохранения. Попробуйте ещё раз.');
+  }
+}
+
+// Toggle passage visibility
+function togglePassage() {
+  const content = document.getElementById('passage-content');
+  const toggle = document.getElementById('passage-toggle');
+
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    toggle.textContent = '▲ Скрыть';
+  } else {
+    content.style.display = 'none';
+    toggle.textContent = '▼ Показать';
+  }
 }
 
 // Initialize
@@ -272,6 +398,52 @@ document.addEventListener('DOMContentLoaded', loadQuestions);
 </script>
 
 <style>
+/* Passage Container */
+.passage-container {
+  max-width: 700px;
+  margin: 0 auto 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.passage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.passage-header:hover {
+  background: var(--bg-tertiary);
+}
+
+.passage-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.passage-toggle {
+  font-size: 0.875rem;
+  color: var(--accent-color);
+}
+
+.passage-content {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.passage-text {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
 /* Quiz Specific Styles */
 .quiz-container {
   max-width: 700px;
@@ -436,36 +608,36 @@ document.addEventListener('DOMContentLoaded', loadQuestions);
 /* Navigation */
 .quiz-nav {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
 }
 
 .nav-btn {
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 2.5rem;
   background: var(--bg-secondary);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 1.1rem;
   transition: all 0.2s;
 }
 
-.nav-btn:hover:not(:disabled) {
-  background: var(--bg-tertiary);
-}
-
 .nav-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .nav-btn.primary {
-  background: var(--accent-color);
+  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .nav-btn.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, #5a6fd6, #6a42a0);
 }
 
 /* Results */
@@ -503,6 +675,69 @@ document.addEventListener('DOMContentLoaded', loadQuestions);
 .results-message {
   font-size: 1rem;
   color: var(--text-primary);
+}
+
+/* Footer Actions */
+.lesson-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-footer.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-footer.btn-secondary:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.btn-footer.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-footer.btn-primary:disabled {
+  background: #d1d5db;
+  box-shadow: none;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.btn-footer.btn-primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a6fd6, #6a42a0);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .lesson-footer-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .btn-footer {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>
 {% endblock %}

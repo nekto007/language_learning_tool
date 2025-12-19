@@ -733,6 +733,23 @@
                    class="action-btn primary" target="_blank">
                     <i class="fas fa-play"></i> Открыть как студент
                 </a>
+                <a href="{{ url_for('admin.edit_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}"
+                   class="action-btn">
+                    <i class="fas fa-edit"></i> Редактировать урок
+                </a>
+                {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}
+                <a href="{{ url_for('admin.edit_vocabulary_words', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}"
+                   class="action-btn primary">
+                    <i class="fas fa-book-open"></i> Редактировать слова
+                </a>
+                {% endif %}
+                <a href="{{ url_for('admin.edit_lesson_task', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}"
+                   class="action-btn">
+                    <i class="fas fa-tasks"></i> Редактировать задание
+                </a>
+                <button class="action-btn" style="color: #dc2626; border-color: #fca5a5;" onclick="deleteLesson()">
+                    <i class="fas fa-trash"></i> Удалить урок
+                </button>
                 <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}"
                    class="action-btn">
                     <i class="fas fa-arrow-left"></i> Назад к модулю
@@ -741,4 +758,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteLesson() {
+    if (!confirm('Удалить этот урок? Это действие нельзя отменить.')) {
+        return;
+    }
+
+    fetch('{{ url_for("admin.delete_daily_lesson", course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при удалении урока');
+    });
+}
+</script>
 {% endblock %}

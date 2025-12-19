@@ -56,5 +56,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.system_routes import system_bp
     flask_app.register_blueprint(system_bp, url_prefix='/admin')
 
+    # Import and register Grammar Lab admin routes blueprint
+    from app.admin.routes.grammar_lab_routes import grammar_lab_bp
+    flask_app.register_blueprint(grammar_lab_bp, url_prefix='/admin')
+
     # Now register the complete blueprint with all routes
     flask_app.register_blueprint(admin)
