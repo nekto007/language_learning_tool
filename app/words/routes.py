@@ -16,90 +16,85 @@ words = Blueprint('words', __name__)
 @login_required
 @module_required('words')
 def dashboard():
-    # Получение статистики по словам пользователя на основе новых моделей
+    """Main dashboard with all modules overview"""
     from app.study.models import UserWord, Achievement, UserAchievement
-    from app.words.forms import AnkiExportForm
+    from app.grammar_lab.models import GrammarTopic, UserGrammarProgress
+    from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 
-    # Получаем количество слов в каждом статусе
+    # === WORDS STATS ===
     status_counts = db.session.query(
         UserWord.status,
         func.count(UserWord.id).label('count')
     ).filter(
         UserWord.user_id == current_user.id
-    ).group_by(
-        UserWord.status
-    ).all()
+    ).group_by(UserWord.status).all()
 
-    # Преобразуем в словарь для более удобного доступа
-    status_stats = {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0}
-
+    words_stats = {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0}
     for status, count in status_counts:
-        status_stats[status] = count
+        words_stats[status] = count
+    words_total = sum(words_stats.values())
+    words_in_progress = words_stats['learning'] + words_stats['review']
 
-    # Общее количество слов в коллекции
-    total_words = CollectionWords.query.count()
+    # === BOOKS STATS ===
+    books_reading = current_user.get_reading_progress_count() if hasattr(current_user, 'get_reading_progress_count') else 0
+    recent_book = None
+    if hasattr(current_user, 'get_recent_reading_progress'):
+        recent_books = current_user.get_recent_reading_progress(1)
+        recent_book = recent_books[0] if recent_books else None
 
-    # Получаем недавно изученные слова с их статусами
-    recent_words_query = db.session.query(
-        CollectionWords,
-        UserWord.status.label('user_status')
-    ).outerjoin(
-        UserWord,
-        (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
-    ).order_by(
-        UserWord.updated_at.desc().nullslast(),
-        CollectionWords.id.desc()
-    ).limit(10).all()
+    # === GRAMMAR LAB STATS ===
+    grammar_total = GrammarTopic.query.count()
+    grammar_studied = UserGrammarProgress.query.filter(
+        UserGrammarProgress.user_id == current_user.id,
+        UserGrammarProgress.theory_completed == True
+    ).count()
+    grammar_mastered = UserGrammarProgress.query.filter(
+        UserGrammarProgress.user_id == current_user.id,
+        UserGrammarProgress.mastery_level >= 4
+    ).count()
 
-    # Преобразуем результат в список объектов с атрибутом user_status
-    recent_words = []
-    for word, user_status in recent_words_query:
-        word.user_status = user_status or 'new'
-        recent_words.append(word)
+    # === BOOK COURSES STATS ===
+    courses_enrolled = BookCourseEnrollment.query.filter_by(
+        user_id=current_user.id, status='active'
+    ).count()
+    active_course = BookCourseEnrollment.query.filter_by(
+        user_id=current_user.id, status='active'
+    ).order_by(BookCourseEnrollment.last_activity.desc()).first()
 
-    # Форма для экспорта
-    export_form = AnkiExportForm()
-
-    # Get user achievements (top 3 most recent)
-    user_achievements = db.session.query(Achievement).join(
-        UserAchievement, Achievement.id == UserAchievement.achievement_id
-    ).filter(
-        UserAchievement.user_id == current_user.id
-    ).order_by(
-        UserAchievement.earned_at.desc()
-    ).limit(3).all()
-
-    # Get total achievements count
+    # === ACHIEVEMENTS ===
     total_achievements = Achievement.query.count()
-    earned_count = UserAchievement.query.filter_by(user_id=current_user.id).count()
+    earned_achievements = UserAchievement.query.filter_by(user_id=current_user.id).count()
 
-    # Calculate user level and XP progress
-    user_xp = current_user.xp.total_xp if hasattr(current_user, 'xp') and current_user.xp is not None else 0
-    user_level = current_user.xp.level if hasattr(current_user, 'xp') and current_user.xp is not None else 1
+    # === GAME SCORES ===
+    best_matching = GameScore.query.filter_by(
+        user_id=current_user.id, game_type='matching'
+    ).order_by(GameScore.score.desc()).first()
+    best_quiz = GameScore.query.filter_by(
+        user_id=current_user.id, game_type='quiz'
+    ).order_by(GameScore.score.desc()).first()
 
-    # XP required for next level (simple formula: level * 100)
-    xp_for_current_level = (user_level - 1) * 100
-    xp_for_next_level = user_level * 100
-    xp_to_next_level = xp_for_next_level - user_xp
-
-    # Progress percentage
-    if xp_for_next_level > xp_for_current_level:
-        xp_progress_percent = ((user_xp - xp_for_current_level) / (xp_for_next_level - xp_for_current_level)) * 100
-    else:
-        xp_progress_percent = 0
-
-    return render_template('words/dashboard.html',
-                         status_stats=status_stats,
-                         total_words=total_words,
-                         recent_words=recent_words,
-                         export_form=export_form,
-                         user_achievements=user_achievements,
-                         total_achievements=total_achievements,
-                         earned_count=earned_count,
-                         user_xp=user_xp,
-                         user_level=user_level,
-                         xp_to_next_level=xp_to_next_level,
-                         xp_progress_percent=xp_progress_percent)
+    return render_template('dashboard.html',
+        # Words
+        words_stats=words_stats,
+        words_total=words_total,
+        words_in_progress=words_in_progress,
+        # Books
+        books_reading=books_reading,
+        recent_book=recent_book,
+        # Grammar
+        grammar_total=grammar_total,
+        grammar_studied=grammar_studied,
+        grammar_mastered=grammar_mastered,
+        # Courses
+        courses_enrolled=courses_enrolled,
+        active_course=active_course,
+        # Achievements
+        total_achievements=total_achievements,
+        earned_achievements=earned_achievements,
+        # Games
+        best_matching=best_matching,
+        best_quiz=best_quiz,
+    )
 
 
 @words.route('/words')

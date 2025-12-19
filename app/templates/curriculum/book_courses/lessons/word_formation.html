@@ -4,7 +4,7 @@
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Word Formation</h1>
+  <h1>Словообразование</h1>
   <p>Преобразуйте слова в скобках в правильную форму</p>
 </div>
 
@@ -25,12 +25,17 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
-  Проверить ответы
-</button>
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" style="display: none;">
-  Завершить урок
-</button>
+<div class="lesson-footer-actions">
+  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
+    <i class="fas fa-arrow-left"></i> К урокам
+  </a>
+  <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
+    Проверить
+  </button>
+  <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
+    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
@@ -42,64 +47,100 @@ const wordFormationData = [
     sentence: "The ______ of the new shopping center has created many jobs.",
     baseWord: "DEVELOP",
     answer: "development",
-    hint: "noun form"
+    hint: "существительное"
   },
   {
     id: 2,
     sentence: "She gave a very ______ performance in the school play.",
     baseWord: "IMPRESS",
     answer: "impressive",
-    hint: "adjective form"
+    hint: "прилагательное"
   },
   {
     id: 3,
     sentence: "The weather forecast was quite ______ as it didn't rain at all.",
     baseWord: "ACCURATE",
     answer: "inaccurate",
-    hint: "negative adjective"
+    hint: "отрицательное прилагательное"
   },
   {
     id: 4,
     sentence: "His ______ to the project was invaluable.",
     baseWord: "CONTRIBUTE",
     answer: "contribution",
-    hint: "noun form"
+    hint: "существительное"
   },
   {
     id: 5,
     sentence: "The children behaved ______ during the ceremony.",
     baseWord: "BEAUTY",
     answer: "beautifully",
-    hint: "adverb form"
+    hint: "наречие"
   },
   {
     id: 6,
     sentence: "There has been a significant ______ in air quality.",
     baseWord: "IMPROVE",
     answer: "improvement",
-    hint: "noun form"
+    hint: "существительное"
   },
   {
     id: 7,
     sentence: "It's ______ to think that money can buy happiness.",
     baseWord: "FOOL",
     answer: "foolish",
-    hint: "adjective form"
+    hint: "прилагательное"
   },
   {
     id: 8,
     sentence: "The ______ of the internet has changed our lives dramatically.",
     baseWord: "INVENT",
     answer: "invention",
-    hint: "noun form"
+    hint: "существительное"
   }
 ];
 
 let userAnswers = {};
 let isChecked = false;
 
+// localStorage key для сохранения прогресса
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const storageKey = `wf_progress_${lessonId}`;
+
 function init() {
+  loadProgress();
   renderItems();
+}
+
+function saveProgress() {
+  if (lessonId && !isChecked) {
+    localStorage.setItem(storageKey, JSON.stringify({
+      userAnswers: userAnswers,
+      timestamp: Date.now()
+    }));
+  }
+}
+
+function loadProgress() {
+  if (!lessonId) return;
+
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.timestamp && (Date.now() - data.timestamp) < 24 * 60 * 60 * 1000) {
+        userAnswers = data.userAnswers || {};
+      } else {
+        clearProgress();
+      }
+    }
+  } catch (e) {
+    console.error('Error loading progress:', e);
+  }
+}
+
+function clearProgress() {
+  localStorage.removeItem(storageKey);
 }
 
 function renderItems() {
@@ -123,11 +164,20 @@ function renderItems() {
       </div>
     `;
   }).join('');
+
+  // Восстанавливаем сохранённые ответы
+  Object.keys(userAnswers).forEach(itemId => {
+    const input = document.getElementById(`input-${itemId}`);
+    if (input && userAnswers[itemId]) {
+      input.value = userAnswers[itemId];
+    }
+  });
 }
 
 function onInputChange(itemId) {
   const input = document.getElementById(`input-${itemId}`);
   userAnswers[itemId] = input.value.trim().toLowerCase();
+  saveProgress();
 }
 
 function checkAnswers() {
@@ -170,8 +220,46 @@ function checkAnswers() {
   document.getElementById('complete-btn').style.display = 'inline-block';
 }
 
-function finishLesson() {
-  completeLesson(window.finalScore || 0);
+const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}";
+
+async function finishLesson() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+
+  try {
+    {% if daily_lesson %}
+    const response = await fetch(`/curriculum/api/v1/lesson/{{ daily_lesson.id }}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (response.status === 201 || response.ok) {
+      clearProgress();
+      if (hasNextLesson && nextLessonUrl) {
+        window.location.href = nextLessonUrl;
+      } else {
+        window.location.href = moduleUrl;
+      }
+    } else {
+      throw new Error('Failed to save');
+    }
+    {% else %}
+    clearProgress();
+    if (hasNextLesson && nextLessonUrl) {
+      window.location.href = nextLessonUrl;
+    } else {
+      window.location.href = moduleUrl;
+    }
+    {% endif %}
+  } catch (error) {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
+    alert('Ошибка сохранения. Попробуйте ещё раз.');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

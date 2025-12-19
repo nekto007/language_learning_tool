@@ -418,6 +418,69 @@
   color: #2e7d32;
   font-weight: 500;
 }
+
+/* Common Footer Button Styles */
+.lesson-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-footer.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-footer.btn-secondary:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.btn-footer.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-footer.btn-primary:disabled {
+  background: #d1d5db;
+  box-shadow: none;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.btn-footer.btn-primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a6fd6, #6a42a0);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .lesson-footer-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .btn-footer {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>
 
 <script>

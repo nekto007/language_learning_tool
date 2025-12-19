@@ -69,11 +69,11 @@
                     </li>
                     {% endif %}
 
-                    <!-- Изучение (Dashboard) -->
+                    <!-- Карточки (Study) -->
                     {% if has_module('study') %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'study.index' %}active{% endif %}" href="{{ url_for('study.index') }}">
-                            <i class="fas fa-graduation-cap me-1"></i>Изучение
+                            <i class="fas fa-clone me-1"></i>Карточки
                         </a>
                     </li>
                     {% endif %}
@@ -114,21 +114,24 @@
                     </li>
                     {% endif %}
 
+                    <!-- Grammar Lab -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('grammar_lab.') %}active{% endif %}" href="#" id="grammarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-flask me-1"></i>Грамматика
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="grammarDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('grammar_lab.index') }}"><i class="fas fa-home me-2"></i>Grammar Lab</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('grammar_lab.topics') }}"><i class="fas fa-list me-2"></i>Все темы</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('grammar_lab.practice') }}"><i class="fas fa-dumbbell me-2"></i>Практика</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('grammar_lab.stats') }}"><i class="fas fa-chart-bar me-2"></i>Статистика</a></li>
+                        </ul>
+                    </li>
+
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
-                    <!-- XP Badge -->
-                    {% if user_level %}
-                    <li class="nav-item d-flex align-items-center me-3">
-                        <div class="xp-badge-gradient" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ xp_to_next_level }} XP до уровня {{ user_level + 1 }}">
-                            <span class="xp-badge-icon">⚡</span>
-                            <span>Ур. {{ user_level }}</span>
-                            <span class="xp-badge-separator">•</span>
-                            <span>{{ user_xp }} XP</span>
-                        </div>
-                    </li>
-                    {% endif %}
                     <!-- User Menu -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
@@ -157,25 +160,23 @@
                     </li>
                     {% endif %}
                 </ul>
-                <!-- Переключатель языка -->
-                <ul class="navbar-nav ms-2">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {% if g.locale == 'ru' %}
-                                <i class="fas fa-globe"></i> RU
-                            {% else %}
-                                <i class="fas fa-globe"></i> EN
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
-                            <li><a class="dropdown-item {% if g.locale == 'en' %}active{% endif %}" href="?lang=en">English</a></li>
-                            <li><a class="dropdown-item {% if g.locale == 'ru' %}active{% endif %}" href="?lang=ru">Русский</a></li>
-                        </ul>
-                    </li>
-                </ul>
             </div>
         </div>
     </nav>
+
+    {% if current_user.is_authenticated and user_level %}
+    <!-- XP Progress Bar -->
+    {% set progress_pct = ((user_xp % 1000) / 1000 * 100) | int %}
+    <div class="container">
+        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 0 0 8px 8px; padding: 8px 20px; font-size: 0.85rem; color: white; display: flex; align-items: center; justify-content: center; gap: 20px;">
+            <span style="font-weight: 600;">⚡ Уровень {{ user_level }}</span>
+            <div style="width: 150px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: {{ progress_pct }}%; background: white; border-radius: 4px;"></div>
+            </div>
+            <span style="opacity: 0.9;">{{ user_xp }} XP · {{ xp_to_next_level }} до уровня {{ user_level + 1 }}</span>
+        </div>
+    </div>
+    {% endif %}
 
     <main id="main-content" class="container py-4 main-content-flex">
         {% with messages = get_flashed_messages(with_categories=true) %}

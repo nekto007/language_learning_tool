@@ -143,9 +143,16 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<div class="lesson-footer-buttons" id="footer-buttons">
-  <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeReadingLesson()" disabled>
-    Завершить чтение
+<div class="lesson-footer-actions" id="footer-buttons">
+  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
+    <i class="fas fa-arrow-left"></i> К урокам
+  </a>
+  <button id="complete-btn" class="btn-footer btn-primary" onclick="completeAndNext()" disabled>
+    {% if has_next_lesson %}
+    Далее <i class="fas fa-arrow-right"></i>
+    {% else %}
+    Завершить <i class="fas fa-check"></i>
+    {% endif %}
   </button>
 </div>
 {% endblock %}
@@ -449,10 +456,10 @@ const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else
 const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
 const moduleUrl = "{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}";
 
-async function completeReadingLesson() {
+async function completeAndNext() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.textContent = 'Сохраняем...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
 
   try {
     {% if daily_lesson %}
@@ -462,37 +469,27 @@ async function completeReadingLesson() {
     });
 
     if (response.status === 201 || response.ok) {
-      showCompletionSuccess();
+      // Redirect immediately
+      if (hasNextLesson && nextLessonUrl) {
+        window.location.href = nextLessonUrl;
+      } else {
+        window.location.href = moduleUrl;
+      }
     } else {
       throw new Error('Failed to save');
     }
     {% else %}
-    showCompletionSuccess();
+    if (hasNextLesson && nextLessonUrl) {
+      window.location.href = nextLessonUrl;
+    } else {
+      window.location.href = moduleUrl;
+    }
     {% endif %}
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.textContent = 'Завершить чтение';
-    alert('Ошибка сохранения');
-  }
-}
-
-function showCompletionSuccess() {
-  const footerButtons = document.getElementById('footer-buttons');
-
-  if (hasNextLesson && nextLessonUrl) {
-    footerButtons.innerHTML = `
-      <a href="${nextLessonUrl}" class="btn btn-primary btn-lg next-lesson-btn">
-        Следующий урок →
-      </a>
-    `;
-  } else {
-    footerButtons.innerHTML = `
-      <span class="completion-message">✓ Чтение завершено!</span>
-      <a href="${moduleUrl}" class="btn btn-primary btn-lg">
-        Вернуться к модулю
-      </a>
-    `;
+    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
+    alert('Ошибка сохранения. Попробуйте ещё раз.');
   }
 }
 
@@ -825,59 +822,56 @@ function formatTime(seconds) {
   color: var(--danger-500);
 }
 
-.lesson-footer-buttons {
+/* Footer Actions */
+.lesson-footer-actions {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
 }
 
-.lesson-footer-buttons .btn {
-  min-width: 200px;
-}
-
-/* Explicit button styling */
-#complete-btn {
-  background: var(--primary-500);
-  color: var(--text-inverse);
-  border: none;
-  padding: 1rem 2rem;
+.btn-footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
   border-radius: 12px;
+  border: none;
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.2s;
 }
 
-#complete-btn:disabled {
-  background: var(--gray-400);
+.btn-footer.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-footer.btn-secondary:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.btn-footer.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-footer.btn-primary:disabled {
+  background: #d1d5db;
+  box-shadow: none;
   cursor: not-allowed;
-  opacity: 0.7;
+  color: #9ca3af;
 }
 
-#complete-btn:not(:disabled):hover {
-  background: var(--primary-600);
-  transform: translateY(-1px);
-}
-
-.lesson-footer-buttons .btn-primary {
-  background: var(--primary-500);
-  color: var(--text-inverse);
-}
-
-.completion-message {
-  display: block;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--success-500);
-  margin-bottom: 1rem;
-}
-
-.next-lesson-btn {
-  background: var(--success-500);
-}
-
-.next-lesson-btn:hover {
-  background: var(--success-600);
+.btn-footer.btn-primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a6fd6, #6a42a0);
+  color: white;
 }
 
 /* Comprehension Section */
@@ -973,6 +967,14 @@ function formatTime(seconds) {
   }
   .passage-text {
     font-size: 1rem;
+  }
+  .lesson-footer-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .btn-footer {
+    width: 100%;
+    justify-content: center;
   }
 }
 

@@ -506,14 +506,25 @@ def view_lesson(course_id, module_id, lesson_number):
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary according to new architecture
             vocabulary_data = []
+            TARGET_WORDS_FOR_STUDENT = 7  # 6-7 unique words = 12-14 cards (eng-rus + rus-eng)
 
             if daily_lesson:
-                # Use new DailyLesson vocabulary with proper eager loading
+                from app.curriculum.services.book_srs_integration import is_word_learned
+
+                # Use new DailyLesson vocabulary with proper eager loading and sorting
                 slice_vocab = SliceVocabulary.query.filter_by(
                     daily_lesson_id=daily_lesson.id
-                ).options(joinedload(SliceVocabulary.word)).all()
+                ).options(joinedload(SliceVocabulary.word)).order_by(
+                    SliceVocabulary.priority.desc(),
+                    SliceVocabulary.frequency_in_slice.desc()
+                ).all()
 
                 for sv in slice_vocab:
+                    # Skip learned words for authenticated users
+                    if current_user.is_authenticated:
+                        if is_word_learned(current_user.id, sv.word_id):
+                            continue
+
                     word = sv.word
                     # Context sentence from book (relevant to current reading) - max 1 sentences
                     context = truncate_context(sv.context_sentence or '', max_sentences=1)
@@ -536,6 +547,10 @@ def view_lesson(course_id, module_id, lesson_number):
                         'transcription': getattr(word, 'transcription', None)
                     }
                     vocabulary_data.append(vocab_item)
+
+                    # Limit to target words for student
+                    if len(vocabulary_data) >= TARGET_WORDS_FOR_STUDENT:
+                        break
             else:
                 # Fallback to old task-based vocabulary
                 task_id = lesson.get('task_id')
@@ -555,9 +570,8 @@ def view_lesson(course_id, module_id, lesson_number):
                                 'frequency': card.get('back', {}).get('frequency', 0)
                             }
                             vocabulary_data.append(vocab_item)
-
-            # Limit to 10 words as per specification
-            vocabulary_data = vocabulary_data[:10]
+                            if len(vocabulary_data) >= TARGET_WORDS_FOR_STUDENT:
+                                break
 
             # Create deck for this book course (if not exists) and add words
             from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
@@ -603,20 +617,65 @@ def view_lesson(course_id, module_id, lesson_number):
                 book_deck=book_deck
             )
         elif lesson_type in ['grammar', 'grammar_focus']:
-            # Get grammar content from GrammarFocusGenerator
-            course_level = course.level or 'B1'
+            # Grammar Bridge: show Grammar Lab topic content directly
+            from app.grammar_lab.models import GrammarTopic, GrammarExercise
+
+            course_level = course.level or 'A1'
             day_number = daily_lesson.day_number if daily_lesson else lesson_number
-            grammar_data = GrammarFocusGenerator.get_grammar_for_day(course_level, day_number)
+
+            # Calculate which grammar topic to show based on day number
+            grammar_lesson_index = (day_number - 1) // 6  # Cycle through topics
+
+            # Get Grammar Lab topics for this level
+            grammar_topics = GrammarTopic.query.filter_by(
+                level=course_level
+            ).order_by(GrammarTopic.order).all()
+
+            # If no topics for this level, try fallback levels
+            if not grammar_topics:
+                for fallback in ['A1', 'A2', 'B1']:
+                    grammar_topics = GrammarTopic.query.filter_by(
+                        level=fallback
+                    ).order_by(GrammarTopic.order).all()
+                    if grammar_topics:
+                        break
+
+            # Select topic by index (cycles through available)
+            topic = None
+            exercises = []
+            if grammar_topics:
+                topic_index = grammar_lesson_index % len(grammar_topics)
+                topic = grammar_topics[topic_index]
+
+                # Get exercises for this topic (multiple_choice and fill_blank)
+                topic_exercises = GrammarExercise.query.filter_by(
+                    topic_id=topic.id
+                ).filter(
+                    GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
+                ).order_by(GrammarExercise.order).limit(5).all()
+
+                # Convert to JSON-serializable format
+                for ex in topic_exercises:
+                    exercises.append({
+                        'id': ex.id,
+                        'exercise_type': ex.exercise_type,
+                        'content': ex.content,
+                        'question': ex.content.get('question', ''),
+                        'options': ex.content.get('options', []),
+                        'correct': ex.content.get('correct_answer', 0),
+                        'explanation': ex.content.get('explanation', '')
+                    })
 
             return render_template(
-                'curriculum/book_courses/lessons/grammar.html',
+                'curriculum/book_courses/lessons/grammar_bridge.html',
                 course=course,
                 module=module,
                 lesson=lesson,
                 lesson_number=lesson_number,
                 module_progress=module_progress,
                 review_cards=review_cards,
-                grammar_data=grammar_data,
+                topic=topic,
+                exercises=exercises,
                 daily_lesson=daily_lesson,
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson
@@ -689,15 +748,9 @@ def view_lesson(course_id, module_id, lesson_number):
             )
         elif lesson_type in ['comprehension_mcq']:
             # Comprehension MCQ - use reading_mcq template
+            # Always generate fresh questions in Russian from slice text
             mcq_data = None
-            if daily_lesson and daily_lesson.task_id:
-                from app.books.models import Task
-                task = Task.query.get(daily_lesson.task_id)
-                if task and task.payload:
-                    mcq_data = task.payload
-
-            # Generate MCQ from slice text if no task data
-            if not mcq_data and daily_lesson and daily_lesson.slice_text:
+            if daily_lesson and daily_lesson.slice_text:
                 mcq_data = ComprehensionMCQGenerator.generate_questions(
                     daily_lesson.slice_text, num_questions=10
                 )
@@ -948,12 +1001,24 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary
             vocabulary_data = []
+            TARGET_WORDS_FOR_STUDENT = 7  # 6-7 unique words = 12-14 cards (eng-rus + rus-eng)
 
+            from app.curriculum.services.book_srs_integration import is_word_learned
+
+            # Load vocabulary sorted by priority and frequency
             slice_vocab = SliceVocabulary.query.filter_by(
                 daily_lesson_id=daily_lesson.id
-            ).options(joinedload(SliceVocabulary.word)).all()
+            ).options(joinedload(SliceVocabulary.word)).order_by(
+                SliceVocabulary.priority.desc(),
+                SliceVocabulary.frequency_in_slice.desc()
+            ).all()
 
             for sv in slice_vocab:
+                # Skip learned words for authenticated users
+                if current_user.is_authenticated:
+                    if is_word_learned(current_user.id, sv.word_id):
+                        continue
+
                 word = sv.word
                 # Context sentence from book (relevant to current reading) - max 1 sentences
                 context = truncate_context(sv.context_sentence or '', max_sentences=1)
@@ -974,7 +1039,9 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 }
                 vocabulary_data.append(vocab_item)
 
-            vocabulary_data = vocabulary_data[:10]
+                # Limit to target words for student
+                if len(vocabulary_data) >= TARGET_WORDS_FOR_STUDENT:
+                    break
 
             # Create deck for this book course (if not exists) and add words
             from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
@@ -1020,20 +1087,65 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 book_deck=book_deck
             )
         elif lesson_type in ['grammar', 'grammar_focus']:
-            # Get grammar content from GrammarFocusGenerator
-            course_level = course.level or 'B1'
+            # Grammar Bridge: show Grammar Lab topic content directly
+            from app.grammar_lab.models import GrammarTopic, GrammarExercise
+
+            course_level = course.level or 'A1'
             day_number = daily_lesson.day_number if daily_lesson else lesson_number
-            grammar_data = GrammarFocusGenerator.get_grammar_for_day(course_level, day_number)
+
+            # Calculate which grammar topic to show based on day number
+            grammar_lesson_index = (day_number - 1) // 6  # Cycle through topics
+
+            # Get Grammar Lab topics for this level
+            grammar_topics = GrammarTopic.query.filter_by(
+                level=course_level
+            ).order_by(GrammarTopic.order).all()
+
+            # If no topics for this level, try fallback levels
+            if not grammar_topics:
+                for fallback in ['A1', 'A2', 'B1']:
+                    grammar_topics = GrammarTopic.query.filter_by(
+                        level=fallback
+                    ).order_by(GrammarTopic.order).all()
+                    if grammar_topics:
+                        break
+
+            # Select topic by index (cycles through available)
+            topic = None
+            exercises = []
+            if grammar_topics:
+                topic_index = grammar_lesson_index % len(grammar_topics)
+                topic = grammar_topics[topic_index]
+
+                # Get exercises for this topic (multiple_choice and fill_blank)
+                topic_exercises = GrammarExercise.query.filter_by(
+                    topic_id=topic.id
+                ).filter(
+                    GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
+                ).order_by(GrammarExercise.order).limit(5).all()
+
+                # Convert to JSON-serializable format
+                for ex in topic_exercises:
+                    exercises.append({
+                        'id': ex.id,
+                        'exercise_type': ex.exercise_type,
+                        'content': ex.content,
+                        'question': ex.content.get('question', ''),
+                        'options': ex.content.get('options', []),
+                        'correct': ex.content.get('correct_answer', 0),
+                        'explanation': ex.content.get('explanation', '')
+                    })
 
             return render_template(
-                'curriculum/book_courses/lessons/grammar.html',
+                'curriculum/book_courses/lessons/grammar_bridge.html',
                 course=course,
                 module=module,
                 lesson=lesson,
                 lesson_number=lesson_number,
                 module_progress=module_progress,
                 review_cards=review_cards,
-                grammar_data=grammar_data,
+                topic=topic,
+                exercises=exercises,
                 daily_lesson=daily_lesson,
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson
@@ -1104,15 +1216,9 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
             )
         elif lesson_type in ['comprehension_mcq']:
             # Comprehension MCQ - use reading_mcq template
+            # Always generate fresh questions in Russian from slice text
             mcq_data = None
-            if daily_lesson and daily_lesson.task_id:
-                from app.books.models import Task
-                task = Task.query.get(daily_lesson.task_id)
-                if task and task.payload:
-                    mcq_data = task.payload
-
-            # Generate MCQ from slice text if no task data
-            if not mcq_data and daily_lesson and daily_lesson.slice_text:
+            if daily_lesson and daily_lesson.slice_text:
                 mcq_data = ComprehensionMCQGenerator.generate_questions(
                     daily_lesson.slice_text, num_questions=10
                 )
@@ -1239,12 +1345,14 @@ def get_lesson_api(lesson_id):
 
         daily_lesson = DailyLesson.query.get_or_404(lesson_id)
 
-        # Check user access
-        enrollment = BookCourseEnrollment.query.join(
-            BookCourseModule
-        ).filter(
-            BookCourseModule.id == daily_lesson.book_course_module_id,
-            BookCourseEnrollment.user_id == current_user.id
+        # Check user access - get module first to find course_id
+        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
+        if not module:
+            return jsonify({'error': 'Module not found'}), 404
+
+        enrollment = BookCourseEnrollment.query.filter_by(
+            course_id=module.course_id,
+            user_id=current_user.id
         ).first()
 
         if not enrollment:
@@ -1386,6 +1494,7 @@ def get_lesson_api(lesson_id):
 
 
 @book_courses_bp.route('/api/v1/lesson/<int:lesson_id>/complete', methods=['POST'])
+@csrf.exempt
 @login_required
 def complete_lesson_api_v1(lesson_id):
     """Complete lesson according to specification"""
@@ -1395,12 +1504,14 @@ def complete_lesson_api_v1(lesson_id):
 
         daily_lesson = DailyLesson.query.get_or_404(lesson_id)
 
-        # Check user access
-        enrollment = BookCourseEnrollment.query.join(
-            BookCourseModule
-        ).filter(
-            BookCourseModule.id == daily_lesson.book_course_module_id,
-            BookCourseEnrollment.user_id == current_user.id
+        # Check user access - get module first to find course_id
+        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
+        if not module:
+            return jsonify({'error': 'Module not found'}), 404
+
+        enrollment = BookCourseEnrollment.query.filter_by(
+            course_id=module.course_id,
+            user_id=current_user.id
         ).first()
 
         if not enrollment:

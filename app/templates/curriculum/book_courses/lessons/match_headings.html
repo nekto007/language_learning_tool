@@ -4,7 +4,7 @@
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Match Headings</h1>
+  <h1>Сопоставление заголовков</h1>
   <p>Сопоставьте заголовки с параграфами текста</p>
 </div>
 
@@ -31,12 +31,17 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="check-btn" class="btn btn-secondary btn-lg" onclick="checkAnswers()">
-  Проверить ответы
-</button>
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" style="display: none;">
-  Завершить урок
-</button>
+<div class="lesson-footer-actions">
+  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
+    <i class="fas fa-arrow-left"></i> К урокам
+  </a>
+  <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
+    Проверить
+  </button>
+  <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
+    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
@@ -67,9 +72,61 @@ let selectedHeading = null;
 let answers = {};
 let isChecked = false;
 
+// localStorage key для сохранения прогресса
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const storageKey = `match_progress_${lessonId}`;
+
 function init() {
+  loadProgress();
   renderHeadings();
   renderParagraphs();
+  restoreAnswers();
+}
+
+function saveProgress() {
+  if (lessonId && !isChecked) {
+    localStorage.setItem(storageKey, JSON.stringify({
+      answers: answers,
+      timestamp: Date.now()
+    }));
+  }
+}
+
+function loadProgress() {
+  if (!lessonId) return;
+
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data.timestamp && (Date.now() - data.timestamp) < 24 * 60 * 60 * 1000) {
+        answers = data.answers || {};
+      } else {
+        clearProgress();
+      }
+    }
+  } catch (e) {
+    console.error('Error loading progress:', e);
+  }
+}
+
+function clearProgress() {
+  localStorage.removeItem(storageKey);
+}
+
+function restoreAnswers() {
+  // Восстанавливаем сохранённые ответы в UI
+  Object.entries(answers).forEach(([paragraphId, headingId]) => {
+    const heading = matchingData.headings.find(h => h.id === headingId);
+    if (heading) {
+      const slot = document.getElementById(`slot-${paragraphId}`);
+      if (slot) {
+        slot.innerHTML = `<span class="slot-answer">${heading.id}. ${heading.text}</span>`;
+        slot.classList.add('filled');
+        document.getElementById(`heading-${headingId}`).classList.add('used');
+      }
+    }
+  });
 }
 
 function renderHeadings() {
@@ -148,6 +205,9 @@ function selectSlot(paragraphId) {
   // Clear selection
   document.getElementById(`heading-${selectedHeading}`).classList.remove('selected');
   selectedHeading = null;
+
+  // Сохраняем прогресс
+  saveProgress();
 }
 
 function checkAnswers() {
@@ -185,8 +245,46 @@ function checkAnswers() {
   document.getElementById('complete-btn').style.display = 'inline-block';
 }
 
-function finishLesson() {
-  completeLesson(window.finalScore || 0);
+const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
+const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
+const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}";
+
+async function finishLesson() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+
+  try {
+    {% if daily_lesson %}
+    const response = await fetch(`/curriculum/api/v1/lesson/{{ daily_lesson.id }}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (response.status === 201 || response.ok) {
+      clearProgress();
+      if (hasNextLesson && nextLessonUrl) {
+        window.location.href = nextLessonUrl;
+      } else {
+        window.location.href = moduleUrl;
+      }
+    } else {
+      throw new Error('Failed to save');
+    }
+    {% else %}
+    clearProgress();
+    if (hasNextLesson && nextLessonUrl) {
+      window.location.href = nextLessonUrl;
+    } else {
+      window.location.href = moduleUrl;
+    }
+    {% endif %}
+  } catch (error) {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
+    alert('Ошибка сохранения. Попробуйте ещё раз.');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

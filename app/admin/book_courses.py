@@ -17,9 +17,14 @@ from werkzeug.utils import secure_filename
 
 from app.utils.db import db
 from app.utils.decorators import admin_required
-from app.books.models import Book, Chapter
+from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
+from app.admin.form import (
+    DailyLessonForm, VocabularyTaskForm, ReadingMCQTaskForm,
+    MatchHeadingsTaskForm, OpenClozeTaskForm, WordFormationTaskForm,
+    KeywordTransformTaskForm, GrammarSheetTaskForm, FinalTestTaskForm
+)
 
 logger = logging.getLogger(__name__)
 
@@ -954,6 +959,581 @@ def register_book_course_routes(admin_bp):
             return jsonify({
                 'success': False,
                 'error': f'Ошибка при выполнении операции: {str(e)}'
+            }), 500
+
+    # ====================
+    # DAILY LESSON EDITING
+    # ====================
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/edit')
+    @admin_required
+    @handle_admin_errors(return_json=False)
+    def edit_daily_lesson(course_id, module_id, lesson_id):
+        """Edit daily lesson form"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        form = DailyLessonForm(obj=lesson)
+
+        # Get reading texts for vocabulary lessons (for example sentences)
+        reading_texts = lesson.get_reading_texts_for_vocabulary()
+
+        # Get vocabulary for vocabulary lessons
+        vocabulary = []
+        if lesson.lesson_type in ['vocabulary', 'vocabulary_review']:
+            from sqlalchemy.orm import joinedload
+            from app.curriculum.daily_lessons import SliceVocabulary
+            vocabulary = SliceVocabulary.query.filter_by(
+                daily_lesson_id=lesson_id
+            ).options(
+                joinedload(SliceVocabulary.word)
+            ).order_by(SliceVocabulary.priority.desc(), SliceVocabulary.frequency_in_slice.desc()).all()
+
+        return render_template(
+            'admin/book_courses/edit_lesson.html',
+            course=course,
+            module=module,
+            lesson=lesson,
+            form=form,
+            reading_texts=reading_texts,
+            vocabulary=vocabulary
+        )
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/edit', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def edit_daily_lesson_post(course_id, module_id, lesson_id):
+        """Save daily lesson changes"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        form = DailyLessonForm()
+
+        if form.validate_on_submit():
+            try:
+                lesson.lesson_type = form.lesson_type.data
+                lesson.audio_url = form.audio_url.data or None
+                lesson.available_at = form.available_at.data
+
+                # For vocabulary lessons, slice_text is optional
+                vocabulary_types = ['vocabulary', 'vocabulary_review']
+                if lesson.lesson_type in vocabulary_types:
+                    lesson.slice_text = None
+                    lesson.word_count = 0
+                else:
+                    lesson.slice_text = form.slice_text.data
+                    lesson.word_count = len((form.slice_text.data or '').split())
+
+                lesson.updated_at = datetime.now(UTC).replace(tzinfo=None)
+
+                db.session.commit()
+
+                flash(f'Урок День {lesson.day_number} успешно обновлен!', 'success')
+                return jsonify({
+                    'success': True,
+                    'message': 'Урок успешно обновлен!',
+                    'redirect_url': url_for('admin.view_daily_lesson',
+                                           course_id=course_id,
+                                           module_id=module_id,
+                                           lesson_id=lesson_id)
+                })
+            except Exception as e:
+                logger.error(f"Error updating lesson {lesson_id}: {str(e)}", exc_info=True)
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': f'Ошибка при сохранении: {str(e)}'
+                }), 500
+        else:
+            errors = {field: errors for field, errors in form.errors.items()}
+            return jsonify({
+                'success': False,
+                'error': 'Ошибка валидации формы',
+                'errors': errors
+            }), 400
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/add', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def add_daily_lesson(course_id, module_id):
+        """Add new daily lesson to module"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+
+        try:
+            # Get next day number
+            max_day = db.session.query(func.max(DailyLesson.day_number)).filter_by(
+                book_course_module_id=module_id
+            ).scalar() or 0
+
+            # Get chapter for the module (use first chapter if available)
+            chapter = Chapter.query.join(Book).filter(Book.id == course.book_id).first()
+            if not chapter:
+                return jsonify({
+                    'success': False,
+                    'error': 'Не найдена глава книги для создания урока'
+                }), 400
+
+            # Create new lesson
+            lesson = DailyLesson(
+                book_course_module_id=module_id,
+                slice_number=max_day + 1,
+                day_number=max_day + 1,
+                slice_text='Текст нового урока...',
+                word_count=4,
+                start_position=0,
+                end_position=0,
+                chapter_id=chapter.id,
+                lesson_type='reading'
+            )
+
+            db.session.add(lesson)
+            db.session.commit()
+
+            flash(f'Добавлен новый урок День {lesson.day_number}', 'success')
+            return jsonify({
+                'success': True,
+                'message': f'Урок День {lesson.day_number} создан!',
+                'lesson_id': lesson.id,
+                'redirect_url': url_for('admin.edit_daily_lesson',
+                                       course_id=course_id,
+                                       module_id=module_id,
+                                       lesson_id=lesson.id)
+            })
+
+        except Exception as e:
+            logger.error(f"Error adding lesson to module {module_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка при создании урока: {str(e)}'
+            }), 500
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/delete', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def delete_daily_lesson(course_id, module_id, lesson_id):
+        """Delete daily lesson"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        try:
+            day_number = lesson.day_number
+
+            # Delete associated task if exists
+            if lesson.task:
+                db.session.delete(lesson.task)
+
+            # Delete vocabulary
+            SliceVocabulary.query.filter_by(daily_lesson_id=lesson_id).delete()
+
+            # Delete user progress
+            UserLessonProgress.query.filter_by(daily_lesson_id=lesson_id).delete()
+
+            # Delete the lesson
+            db.session.delete(lesson)
+            db.session.commit()
+
+            flash(f'Урок День {day_number} удален!', 'success')
+            return jsonify({
+                'success': True,
+                'message': f'Урок День {day_number} удален!',
+                'redirect_url': url_for('admin.view_course_module',
+                                       course_id=course_id,
+                                       module_id=module_id)
+            })
+
+        except Exception as e:
+            logger.error(f"Error deleting lesson {lesson_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка при удалении урока: {str(e)}'
+            }), 500
+
+    # ====================
+    # TASK EDITING
+    # ====================
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/task/edit')
+    @admin_required
+    @handle_admin_errors(return_json=False)
+    def edit_lesson_task(course_id, module_id, lesson_id):
+        """Edit task for daily lesson"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        task = lesson.task
+        task_type = lesson.lesson_type
+        payload = task.payload if task else {}
+
+        # Select form based on task type
+        form_classes = {
+            'vocabulary': VocabularyTaskForm,
+            'reading_mcq': ReadingMCQTaskForm,
+            'match_headings': MatchHeadingsTaskForm,
+            'open_cloze': OpenClozeTaskForm,
+            'word_formation': WordFormationTaskForm,
+            'keyword_transform': KeywordTransformTaskForm,
+            'grammar_sheet': GrammarSheetTaskForm,
+            'final_test': FinalTestTaskForm,
+        }
+
+        FormClass = form_classes.get(task_type, ReadingMCQTaskForm)
+        form = FormClass()
+
+        # Pre-populate form with existing payload data
+        if payload:
+            for field_name in form._fields:
+                if field_name in payload and hasattr(form, field_name):
+                    getattr(form, field_name).data = payload.get(field_name)
+
+        # Get reading texts for vocabulary lessons (for example sentences)
+        reading_texts = lesson.get_reading_texts_for_vocabulary()
+
+        # Get vocabulary words from SliceVocabulary for vocabulary lessons
+        slice_vocabulary = []
+        if task_type in ['vocabulary', 'vocabulary_review']:
+            from app.curriculum.daily_lessons import SliceVocabulary
+            vocab_entries = SliceVocabulary.query.filter_by(daily_lesson_id=lesson_id).all()
+            for v in vocab_entries:
+                if v.word:
+                    slice_vocabulary.append({
+                        'id': v.id,
+                        'word_id': v.word_id,
+                        'english': v.word.english_word,
+                        'russian': v.word.russian_word,
+                        'level': v.word.level,
+                        'context_sentence': v.context_sentence,
+                        'frequency': v.frequency_in_slice,
+                        'is_new': v.is_new
+                    })
+
+        return render_template(
+            'admin/book_courses/edit_task.html',
+            course=course,
+            module=module,
+            lesson=lesson,
+            task=task,
+            task_type=task_type,
+            payload=payload,
+            form=form,
+            reading_texts=reading_texts,
+            slice_vocabulary=slice_vocabulary
+        )
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/task/edit', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def edit_lesson_task_post(course_id, module_id, lesson_id):
+        """Save task changes"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        try:
+            # Get payload from request (JSON format)
+            payload = request.json.get('payload', {})
+            task_type_str = lesson.lesson_type
+
+            # Map lesson type to TaskType enum
+            type_mapping = {
+                'vocabulary': TaskType.vocabulary,
+                'reading_mcq': TaskType.reading_mcq,
+                'reading': TaskType.reading_passage,
+                'match_headings': TaskType.match_headings,
+                'open_cloze': TaskType.open_cloze,
+                'word_formation': TaskType.word_formation,
+                'keyword_transform': TaskType.keyword_transform,
+                'grammar_sheet': TaskType.grammar_sheet,
+                'final_test': TaskType.final_test,
+            }
+
+            task_type = type_mapping.get(task_type_str, TaskType.reading_mcq)
+
+            if lesson.task:
+                # Update existing task
+                lesson.task.payload = payload
+                lesson.task.task_type = task_type
+            else:
+                # Create new task
+                task = Task(
+                    task_type=task_type,
+                    payload=payload
+                )
+                db.session.add(task)
+                db.session.flush()
+                lesson.task_id = task.id
+
+            lesson.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            db.session.commit()
+
+            flash('Задание успешно обновлено!', 'success')
+            return jsonify({
+                'success': True,
+                'message': 'Задание успешно обновлено!',
+                'redirect_url': url_for('admin.view_daily_lesson',
+                                       course_id=course_id,
+                                       module_id=module_id,
+                                       lesson_id=lesson_id)
+            })
+
+        except Exception as e:
+            logger.error(f"Error updating task for lesson {lesson_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка при сохранении задания: {str(e)}'
+            }), 500
+
+    # ====================
+    # VOCABULARY WORDS EDITOR
+    # ====================
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/vocabulary')
+    @admin_required
+    @handle_admin_errors(return_json=False)
+    def edit_vocabulary_words(course_id, module_id, lesson_id):
+        """Simple vocabulary words editor for vocabulary lessons"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        # Get vocabulary words with eager loading
+        from sqlalchemy.orm import joinedload
+        from app.curriculum.daily_lessons import SliceVocabulary
+        vocabulary = SliceVocabulary.query.filter_by(
+            daily_lesson_id=lesson_id
+        ).options(
+            joinedload(SliceVocabulary.word)
+        ).order_by(SliceVocabulary.priority.desc(), SliceVocabulary.frequency_in_slice.desc()).all()
+
+        return render_template(
+            'admin/book_courses/edit_vocabulary.html',
+            course=course,
+            module=module,
+            lesson=lesson,
+            vocabulary=vocabulary
+        )
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/vocabulary', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def save_vocabulary_words(course_id, module_id, lesson_id):
+        """Save vocabulary words changes"""
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        try:
+            data = request.json
+            words_data = data.get('words', [])
+
+            from app.curriculum.daily_lessons import SliceVocabulary
+
+            for word_data in words_data:
+                vocab_id = word_data.get('id')
+                if vocab_id:
+                    vocab = SliceVocabulary.query.get(vocab_id)
+                    if vocab and vocab.daily_lesson_id == lesson_id:
+                        vocab.custom_translation = word_data.get('translation') or None
+                        vocab.context_sentence = word_data.get('context_sentence') or None
+                        vocab.priority = word_data.get('priority', 0)
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Слова успешно сохранены!'
+            })
+
+        except Exception as e:
+            logger.error(f"Error saving vocabulary for lesson {lesson_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка при сохранении: {str(e)}'
+            }), 500
+
+    @admin_bp.route('/api/words/search')
+    @admin_required
+    def search_words_api():
+        """Search words in CollectionWords for adding to lesson - filtered by book"""
+        from app.words.models import CollectionWords
+        from app.utils.db import word_book_link
+
+        query = request.args.get('q', '').strip()
+        book_id = request.args.get('book_id', type=int)
+
+        if len(query) < 2:
+            return jsonify([])
+
+        # Base query
+        words_query = db.session.query(
+            CollectionWords,
+            word_book_link.c.frequency
+        ).join(
+            word_book_link,
+            CollectionWords.id == word_book_link.c.word_id
+        ).filter(
+            CollectionWords.english_word.ilike(f'%{query}%')
+        )
+
+        # Filter by book if provided
+        if book_id:
+            words_query = words_query.filter(word_book_link.c.book_id == book_id)
+
+        # Order by frequency (most common words first)
+        words_query = words_query.order_by(word_book_link.c.frequency.desc()).limit(15)
+
+        results = words_query.all()
+
+        return jsonify([{
+            'id': w.id,
+            'english': w.english_word,
+            'russian': w.russian_word,
+            'level': w.level,
+            'frequency': freq
+        } for w, freq in results])
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/vocabulary/add', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def add_word_to_lesson(course_id, module_id, lesson_id):
+        """Add a word to vocabulary lesson"""
+        lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
+
+        try:
+            data = request.json
+            word_id = data.get('word_id')
+
+            if not word_id:
+                return jsonify({'success': False, 'error': 'word_id required'}), 400
+
+            from app.curriculum.daily_lessons import SliceVocabulary
+
+            # Check if already exists
+            existing = SliceVocabulary.query.filter_by(
+                daily_lesson_id=lesson_id,
+                word_id=word_id
+            ).first()
+
+            if existing:
+                return jsonify({'success': False, 'error': 'Слово уже добавлено'}), 400
+
+            # Get max priority
+            max_priority = db.session.query(db.func.max(SliceVocabulary.priority)).filter_by(
+                daily_lesson_id=lesson_id
+            ).scalar() or 0
+
+            # Create new SliceVocabulary
+            vocab = SliceVocabulary(
+                daily_lesson_id=lesson_id,
+                word_id=word_id,
+                frequency_in_slice=1,
+                is_new=True,
+                priority=max_priority + 1
+            )
+            db.session.add(vocab)
+            db.session.commit()
+
+            # Return the new word data
+            return jsonify({
+                'success': True,
+                'word': {
+                    'id': vocab.id,
+                    'english': vocab.english,
+                    'russian': vocab.translation,
+                    'level': vocab.level,
+                    'context_sentence': vocab.context_sentence or '',
+                    'db_examples': vocab.db_examples or '',
+                    'priority': vocab.priority
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Error adding word to lesson {lesson_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_id>/vocabulary/<int:vocab_id>', methods=['DELETE'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def remove_word_from_lesson(course_id, module_id, lesson_id, vocab_id):
+        """Remove a word from vocabulary lesson"""
+        from app.curriculum.daily_lessons import SliceVocabulary
+
+        vocab = SliceVocabulary.query.filter_by(
+            id=vocab_id,
+            daily_lesson_id=lesson_id
+        ).first_or_404()
+
+        try:
+            db.session.delete(vocab)
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            logger.error(f"Error removing word {vocab_id} from lesson {lesson_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    # ====================
+    # MODULE LESSONS_DATA EDITING
+    # ====================
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons-data')
+    @admin_required
+    @handle_admin_errors(return_json=False)
+    def edit_module_lessons_data(course_id, module_id):
+        """Edit module lessons_data JSON structure"""
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+
+        lessons_data = module.lessons_data or {'lessons': []}
+
+        return render_template(
+            'admin/book_courses/edit_lessons_data.html',
+            course=course,
+            module=module,
+            lessons_data=lessons_data
+        )
+
+    @admin_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons-data', methods=['POST'])
+    @admin_required
+    @handle_admin_errors(return_json=True)
+    def edit_module_lessons_data_post(course_id, module_id):
+        """Save module lessons_data changes"""
+        from sqlalchemy.orm.attributes import flag_modified
+
+        course = BookCourse.query.get_or_404(course_id)
+        module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
+
+        try:
+            lessons_data = request.json.get('lessons_data', {})
+
+            module.lessons_data = lessons_data
+            flag_modified(module, 'lessons_data')
+            module.updated_at = datetime.now(UTC).replace(tzinfo=None)
+
+            db.session.commit()
+
+            flash('Структура уроков модуля обновлена!', 'success')
+            return jsonify({
+                'success': True,
+                'message': 'Структура уроков обновлена!',
+                'redirect_url': url_for('admin.view_course_module',
+                                       course_id=course_id,
+                                       module_id=module_id)
+            })
+
+        except Exception as e:
+            logger.error(f"Error updating lessons_data for module {module_id}: {str(e)}", exc_info=True)
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Ошибка при сохранении: {str(e)}'
             }), 500
 
     # Mark routes as registered

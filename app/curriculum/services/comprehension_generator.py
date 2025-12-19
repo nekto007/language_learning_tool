@@ -22,30 +22,30 @@ class ComprehensionMCQGenerator:
     - Inference questions
     """
 
-    # Question templates for different question types
+    # Question templates for different question types (Russian)
     QUESTION_TEMPLATES = {
         'main_idea': [
-            'What is the main topic of this passage?',
-            'What is the passage primarily about?',
-            'Which statement best summarizes the passage?',
+            'О чём этот текст?',
+            'Какова главная тема отрывка?',
+            'Какое утверждение лучше всего описывает текст?',
         ],
         'detail': [
-            'According to the passage, what happens?',
-            'Based on the text, which statement is true?',
-            'What does the passage mention about the events?',
+            'Согласно тексту, что происходит?',
+            'Какое утверждение соответствует тексту?',
+            'Что упоминается в тексте?',
         ],
         'vocabulary': [
-            'In context, what does the word "{word}" most likely mean?',
-            'The word "{word}" in the passage is closest in meaning to:',
+            'Что означает слово "{word}" в данном контексте?',
+            'Какое значение имеет слово "{word}" в тексте?',
         ],
         'inference': [
-            'What can we infer from the passage?',
-            'Based on the passage, what is most likely true?',
-            'The author implies that:',
+            'Что можно понять из текста?',
+            'Какой вывод можно сделать на основе текста?',
+            'Автор подразумевает, что:',
         ],
         'purpose': [
-            'What is the purpose of this passage?',
-            'Why did the author write this passage?',
+            'Какова цель этого текста?',
+            'Зачем автор написал этот текст?',
         ],
     }
 
@@ -66,28 +66,14 @@ class ComprehensionMCQGenerator:
 
         questions = []
         sentences = cls._split_into_sentences(text)
-        words = cls._extract_key_words(text)
 
-        # Generate different types of questions
-        questions.append(cls._generate_main_idea_question(text, sentences))
-
-        # Add detail questions (3-4)
-        for i in range(min(4, len(sentences) // 2)):
-            q = cls._generate_detail_question(sentences, i)
+        # Generate True/False style questions from sentences
+        for i, sentence in enumerate(sentences[:num_questions]):
+            q = cls._generate_true_false_question(sentence, sentences, i)
             if q:
                 questions.append(q)
 
-        # Add vocabulary questions (2-3)
-        for word in words[:3]:
-            q = cls._generate_vocabulary_question(word, text)
-            if q:
-                questions.append(q)
-
-        # Add inference questions (2)
-        for i in range(2):
-            questions.append(cls._generate_inference_question(text, sentences))
-
-        # Shuffle and limit
+        # Shuffle
         random.shuffle(questions)
         questions = questions[:num_questions]
 
@@ -101,7 +87,98 @@ class ComprehensionMCQGenerator:
     def _split_into_sentences(cls, text: str) -> List[str]:
         """Split text into sentences."""
         sentences = re.split(r'[.!?]+', text)
-        return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+        return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 15]
+
+    @classmethod
+    def _truncate_sentence(cls, sentence: str, max_len: int = 100) -> str:
+        """Truncate sentence at word boundary."""
+        if len(sentence) <= max_len:
+            return sentence
+        # Find last space before max_len
+        truncated = sentence[:max_len]
+        last_space = truncated.rfind(' ')
+        if last_space > max_len // 2:
+            truncated = truncated[:last_space]
+        return truncated.rstrip('.,;:') + '...'
+
+    # Adjectives and their opposites for creating false statements
+    OPPOSITE_ADJECTIVES = {
+        'good': 'bad', 'bad': 'good', 'happy': 'sad', 'sad': 'happy',
+        'big': 'small', 'small': 'big', 'old': 'young', 'young': 'old',
+        'beautiful': 'ugly', 'kind': 'cruel', 'cruel': 'kind',
+        'rich': 'poor', 'poor': 'rich', 'fast': 'slow', 'slow': 'fast',
+        'hot': 'cold', 'cold': 'hot', 'light': 'dark', 'dark': 'light',
+    }
+
+    @classmethod
+    def _make_false_statement(cls, sentence: str) -> Optional[str]:
+        """Try to create a false version of a sentence by replacing adjectives."""
+        words = sentence.split()
+        if len(words) < 3:
+            return None
+
+        # Only use adjective replacement - it's safer and more reliable
+        for i, word in enumerate(words):
+            word_lower = word.lower().rstrip('.,!?')
+            if word_lower in cls.OPPOSITE_ADJECTIVES:
+                opposite = cls.OPPOSITE_ADJECTIVES[word_lower]
+                # Preserve capitalization
+                if word[0].isupper():
+                    opposite = opposite.capitalize()
+                # Preserve punctuation
+                punct = word[len(word_lower):]
+                words[i] = opposite + punct
+                return ' '.join(words)
+
+        # No safe transformation found
+        return None
+
+    @classmethod
+    def _generate_true_false_question(cls, sentence: str, all_sentences: List[str], index: int) -> Optional[Dict]:
+        """Generate a question asking if statement is true according to text."""
+        if len(sentence) < 20:
+            return None
+
+        # Randomly decide if this will be a TRUE or FALSE question
+        make_false = random.random() < 0.4  # 40% false questions
+
+        if make_false:
+            false_sentence = cls._make_false_statement(sentence)
+            if false_sentence:
+                clean_sentence = cls._truncate_sentence(false_sentence.strip('"\''), 120)
+                correct_option = 'Нет, в тексте сказано другое'
+                explanation = 'Это утверждение не соответствует тексту.'
+            else:
+                # Couldn't make false, use original
+                clean_sentence = cls._truncate_sentence(sentence.strip('"\''), 120)
+                correct_option = 'Да, это соответствует тексту'
+                explanation = 'Это утверждение взято из текста.'
+        else:
+            clean_sentence = cls._truncate_sentence(sentence.strip('"\''), 120)
+            correct_option = 'Да, это соответствует тексту'
+            explanation = 'Это утверждение взято из текста.'
+
+        # Question templates
+        question_templates = [
+            'Согласно тексту, верно ли следующее утверждение?',
+            'Это утверждение соответствует тексту?',
+            'Правда ли, что в тексте говорится следующее?',
+        ]
+
+        question = random.choice(question_templates) + f'\n\n«{clean_sentence}»'
+
+        options = [
+            'Да, это соответствует тексту',
+            'Нет, в тексте сказано другое',
+        ]
+        random.shuffle(options)
+
+        return {
+            'question': question,
+            'options': options,
+            'correct': options.index(correct_option),
+            'explanation': explanation
+        }
 
     @classmethod
     def _extract_key_words(cls, text: str) -> List[str]:
@@ -123,10 +200,10 @@ class ComprehensionMCQGenerator:
         # Generate distractors from other parts
         distractors = []
         if len(sentences) > 2:
-            distractors.append("A minor detail about " + sentences[-1][:30])
+            distractors.append("Второстепенная деталь: " + sentences[-1][:30])
         distractors.extend([
-            "An unrelated topic not mentioned in the text",
-            "The opposite of what the passage describes",
+            "Тема, не упомянутая в тексте",
+            "Противоположность тому, о чём говорится в отрывке",
         ])
 
         options = [correct_option] + distractors[:3]
@@ -136,7 +213,7 @@ class ComprehensionMCQGenerator:
             'question': template,
             'options': options,
             'correct': options.index(correct_option),
-            'explanation': 'This captures the main idea presented in the passage.'
+            'explanation': 'Этот вариант отражает главную мысль отрывка.'
         }
 
     @classmethod
@@ -151,9 +228,9 @@ class ComprehensionMCQGenerator:
         correct_option = sentence[:80] + "..." if len(sentence) > 80 else sentence
 
         distractors = [
-            "This detail is not mentioned in the passage",
-            "The opposite is stated in the text",
-            "This is a different event from the story",
+            "Эта деталь не упоминается в тексте",
+            "В тексте сказано противоположное",
+            "Это другое событие, не из текста",
         ]
 
         options = [correct_option] + distractors[:3]
@@ -163,7 +240,7 @@ class ComprehensionMCQGenerator:
             'question': template,
             'options': options,
             'correct': options.index(correct_option),
-            'explanation': f'This detail is mentioned in the passage.'
+            'explanation': 'Эта деталь упоминается в тексте.'
         }
 
     @classmethod
@@ -172,12 +249,12 @@ class ComprehensionMCQGenerator:
         template = random.choice(cls.QUESTION_TEMPLATES['vocabulary']).format(word=word)
 
         # Simple synonyms/definitions (placeholder - would need dictionary in production)
-        correct_option = f"A word related to '{word}'"
+        correct_option = f"Слово, связанное с '{word}'"
 
         distractors = [
-            "The opposite meaning",
-            "An unrelated word",
-            "A word that sounds similar but means different",
+            "Противоположное значение",
+            "Не связанное по смыслу слово",
+            "Похожее по звучанию, но другое по значению слово",
         ]
 
         options = [correct_option] + distractors
@@ -187,7 +264,7 @@ class ComprehensionMCQGenerator:
             'question': template,
             'options': options,
             'correct': options.index(correct_option),
-            'explanation': f'In this context, "{word}" relates to the meaning described.'
+            'explanation': f'В данном контексте слово "{word}" имеет указанное значение.'
         }
 
     @classmethod
@@ -196,12 +273,12 @@ class ComprehensionMCQGenerator:
         template = random.choice(cls.QUESTION_TEMPLATES['inference'])
 
         # Create inference based on text content
-        correct_option = "Based on the events described, we can conclude..."
+        correct_option = "На основе описанных событий можно сделать вывод..."
 
         distractors = [
-            "The text contradicts this interpretation",
-            "There is no evidence for this in the passage",
-            "This goes against what the author implies",
+            "Текст противоречит этому утверждению",
+            "В тексте нет доказательств этого",
+            "Это противоречит тому, что подразумевает автор",
         ]
 
         options = [correct_option] + distractors
@@ -211,22 +288,26 @@ class ComprehensionMCQGenerator:
             'question': template,
             'options': options,
             'correct': options.index(correct_option),
-            'explanation': 'This inference is supported by the passage content.'
+            'explanation': 'Этот вывод подтверждается содержанием текста.'
         }
 
     @classmethod
     def _generate_generic_question(cls, num: int) -> Dict:
         """Generate a generic question as fallback."""
+        correct_option = 'Главную мысль отрывка'
+        options = [
+            correct_option,
+            'Второстепенную деталь',
+            'Тему, которая не упоминается',
+            'Противоположность главной идеи'
+        ]
+        random.shuffle(options)
+
         return {
-            'question': f'Question {num}: What does the passage suggest?',
-            'options': [
-                'The main point of the passage',
-                'A secondary detail',
-                'An unmentioned topic',
-                'The opposite of the main idea'
-            ],
-            'correct': 0,
-            'explanation': 'This relates to the content of the passage.'
+            'question': f'Вопрос {num}: Что можно понять из текста?',
+            'options': options,
+            'correct': options.index(correct_option),
+            'explanation': 'Это связано с содержанием текста.'
         }
 
     @classmethod
@@ -235,10 +316,10 @@ class ComprehensionMCQGenerator:
         return {
             'questions': [
                 {
-                    'question': 'What is the main topic of the passage?',
-                    'options': ['The main theme', 'A minor detail', 'Unrelated topic', 'Opposite meaning'],
+                    'question': 'Какова главная тема отрывка?',
+                    'options': ['Главная тема', 'Второстепенная деталь', 'Не связанная тема', 'Противоположное значение'],
                     'correct': 0,
-                    'explanation': 'This question tests understanding of the main idea.'
+                    'explanation': 'Этот вопрос проверяет понимание главной мысли.'
                 }
             ] * 10
         }
@@ -350,25 +431,25 @@ class ClozePracticeGenerator:
         word_lower = word.lower()
 
         if word_lower in ['have', 'has', 'had']:
-            return 'auxiliary verb (have)'
+            return 'вспомогательный глагол (have)'
         elif word_lower in ['is', 'are', 'was', 'were', 'been', 'being']:
-            return 'verb to be'
+            return 'глагол to be'
         elif word_lower in ['will', 'would', 'could', 'should', 'might', 'must', 'can', 'may']:
-            return 'modal verb'
+            return 'модальный глагол'
         elif word_lower in ['the', 'a', 'an']:
-            return 'article'
+            return 'артикль'
         elif word_lower in ['in', 'on', 'at', 'by', 'for', 'with', 'to', 'from', 'of']:
-            return 'preposition'
+            return 'предлог'
         elif word_lower in ['and', 'but', 'or', 'so', 'because', 'although', 'however']:
-            return 'conjunction'
+            return 'союз'
         elif word_lower in ['very', 'quite', 'really', 'just', 'only', 'even', 'also']:
-            return 'adverb'
+            return 'наречие'
         elif word_lower in ['this', 'that', 'these', 'those']:
-            return 'demonstrative'
+            return 'указательное местоимение'
         elif word_lower in ['who', 'which', 'what', 'where', 'when', 'how', 'why']:
-            return 'question word'
+            return 'вопросительное слово'
         else:
-            return 'word'
+            return 'слово'
 
     @classmethod
     def _get_fallback_cloze(cls) -> Dict[str, Any]:
@@ -380,13 +461,13 @@ Reading fiction, (4) ______ particular, helps us develop empathy by allowing us 
 
 Furthermore, reading is one of the (6) ______ effective ways to reduce stress. Studies have found that just six minutes of reading can reduce stress levels (7) ______ up to 68 percent. This makes it even more beneficial (8) ______ watching television.""",
             'gaps': [
-                {'id': 1, 'answer': 'be', 'hint': 'auxiliary verb'},
-                {'id': 2, 'answer': 'but', 'hint': 'conjunction'},
-                {'id': 3, 'answer': 'to', 'hint': 'preposition'},
-                {'id': 4, 'answer': 'in', 'hint': 'preposition (phrase)'},
-                {'id': 5, 'answer': 'been', 'hint': 'past participle'},
-                {'id': 6, 'answer': 'most', 'hint': 'superlative'},
-                {'id': 7, 'answer': 'by', 'hint': 'preposition'},
-                {'id': 8, 'answer': 'than', 'hint': 'comparison word'}
+                {'id': 1, 'answer': 'be', 'hint': 'вспомогательный глагол'},
+                {'id': 2, 'answer': 'but', 'hint': 'союз'},
+                {'id': 3, 'answer': 'to', 'hint': 'предлог'},
+                {'id': 4, 'answer': 'in', 'hint': 'предлог (в выражении)'},
+                {'id': 5, 'answer': 'been', 'hint': 'причастие прошедшего времени'},
+                {'id': 6, 'answer': 'most', 'hint': 'превосходная степень'},
+                {'id': 7, 'answer': 'by', 'hint': 'предлог'},
+                {'id': 8, 'answer': 'than', 'hint': 'слово сравнения'}
             ]
         }

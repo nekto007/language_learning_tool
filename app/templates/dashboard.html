@@ -1,484 +1,561 @@
 {% extends 'base.html' %}
 
-{% block title %}Главная - Изучение английского{% endblock %}
+{% block title %}Dashboard - LLT English{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
-/* Mobile-Friendly Dashboard Styles */
-
-@media (max-width: 768px) {
-    /* Hero section - center on mobile */
-    .hero-section .col-md-8,
-    .hero-section .col-md-4 {
-        text-align: center !important;
-    }
-
-    .hero-section h1 {
-        font-size: 1.75rem;
-    }
-
-    .hero-section .lead {
-        font-size: 1rem;
-    }
-
-    /* Priority curriculum card - stack content */
-    .bg-gradient-primary .col-md-8,
-    .bg-gradient-primary .col-md-4 {
-        text-align: center !important;
-        margin-bottom: 1rem;
-    }
-
-    .bg-gradient-primary .btn-lg {
-        width: 100%;
-    }
-
-    /* Stats cards - full width on small screens */
-    .col-md-6.col-lg-3 {
-        margin-bottom: 1rem;
-    }
-
-    /* Reading progress and activity cards */
-    .col-lg-8,
-    .col-lg-4 {
-        margin-bottom: 1.5rem;
-    }
-
-    /* Reading item - adjust padding */
-    .reading-item {
-        padding: 1rem !important;
-    }
-
-    .reading-item .d-flex {
-        flex-direction: column;
-    }
-
-    .reading-item h6 {
-        font-size: 1rem;
-    }
-
-    /* Activity items - smaller font */
-    .activity-item {
-        font-size: 0.875rem;
-    }
-
-    .activity-item .badge {
-        font-size: 0.7rem;
-    }
-
-    /* Books section - adjust grid */
-    .books-grid {
-        grid-template-columns: 1fr !important;
-    }
-
-    /* Card actions - stack buttons */
-    .card-body .btn {
-        width: 100%;
-        margin-bottom: 0.5rem;
-    }
+:root {
+    --dash-bg: #f8fafc;
+    --dash-card: #ffffff;
+    --dash-card-hover: #ffffff;
+    --dash-border: #e2e8f0;
+    --dash-text: #1e293b;
+    --dash-muted: #64748b;
+    --dash-accent: #7c3aed;
+    --dash-accent-soft: rgba(124, 58, 237, 0.1);
+    --dash-green: #16a34a;
+    --dash-green-soft: rgba(22, 163, 74, 0.1);
+    --dash-blue: #2563eb;
+    --dash-blue-soft: rgba(37, 99, 235, 0.1);
+    --dash-orange: #ea580c;
+    --dash-orange-soft: rgba(234, 88, 12, 0.1);
+    --dash-pink: #db2777;
+    --dash-pink-soft: rgba(219, 39, 119, 0.1);
 }
 
-/* Tablet adjustments */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .hero-section h1 {
-        font-size: 2rem;
-    }
-
-    .books-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
+.dashboard-page {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--dash-bg);
+    min-height: 100vh;
+    padding: 2rem 0;
 }
 
-/* Icon circles responsive sizing */
-@media (max-width: 768px) {
-    .icon-circle {
-        width: 60px;
-        height: 60px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-    }
+.dashboard-page h1, .dashboard-page h2, .dashboard-page h3, .dashboard-page .stat-number {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
 
-    .icon-circle i {
-        font-size: 1.5rem !important;
-    }
+.dash-header {
+    margin-bottom: 2.5rem;
+}
+
+.dash-greeting {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.dash-subtitle {
+    color: var(--dash-muted);
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+}
+
+/* Bento Grid */
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.25rem;
+}
+
+.bento-card {
+    background: var(--dash-card);
+    border: 1px solid var(--dash-border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.bento-card:hover {
+    background: var(--dash-card-hover);
+    border-color: var(--card-accent, var(--dash-accent));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+}
+
+.bento-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--card-accent, var(--dash-accent)), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.bento-card:hover::before {
+    opacity: 1;
+}
+
+/* Card Sizes */
+.card-wide { grid-column: span 8; }
+.card-medium { grid-column: span 6; }
+.card-small { grid-column: span 4; }
+.card-full { grid-column: span 12; }
+.card-third { grid-column: span 4; }
+
+/* Card Header */
+.card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--dash-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.card-heading {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0;
+}
+
+/* Stats */
+.stat-number {
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--dash-text);
+}
+
+.stat-label {
+    color: var(--dash-muted);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.stat-row {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1.5rem;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item .num {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dash-text);
+}
+
+.stat-item .label {
+    font-size: 0.75rem;
+    color: var(--dash-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Progress Bar */
+.progress-track {
+    height: 8px;
+    background: var(--dash-border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+/* Action Button */
+.card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-top: 1.25rem;
+}
+
+.card-action:hover {
+    transform: scale(1.02);
+}
+
+.card-action i {
+    font-size: 0.8rem;
+}
+
+/* Accent Colors */
+.accent-purple { --card-accent: var(--dash-accent); }
+.accent-green { --card-accent: var(--dash-green); }
+.accent-blue { --card-accent: var(--dash-blue); }
+.accent-orange { --card-accent: var(--dash-orange); }
+.accent-pink { --card-accent: var(--dash-pink); }
+
+.bg-accent-purple { background: var(--dash-accent-soft); color: var(--dash-accent); }
+.bg-accent-green { background: var(--dash-green-soft); color: var(--dash-green); }
+.bg-accent-blue { background: var(--dash-blue-soft); color: var(--dash-blue); }
+.bg-accent-orange { background: var(--dash-orange-soft); color: var(--dash-orange); }
+.bg-accent-pink { background: var(--dash-pink-soft); color: var(--dash-pink); }
+
+.btn-accent-purple { background: var(--dash-accent); color: white; }
+.btn-accent-green { background: var(--dash-green); color: white; }
+.btn-accent-blue { background: var(--dash-blue); color: white; }
+.btn-accent-orange { background: var(--dash-orange); color: white; }
+.btn-accent-pink { background: var(--dash-pink); color: white; }
+
+/* Mini Stats Row */
+.mini-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.mini-stat {
+    flex: 1;
+    background: var(--dash-bg);
+    border-radius: 10px;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.mini-stat .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--dash-text);
+}
+
+.mini-stat .label {
+    font-size: 0.7rem;
+    color: var(--dash-muted);
+    text-transform: uppercase;
+}
+
+/* Book Continue Card */
+.book-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--dash-bg);
+    border-radius: 12px;
+}
+
+.book-cover {
+    width: 48px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--dash-blue), var(--dash-accent));
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.book-details h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--dash-text);
+}
+
+.book-details p {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--dash-muted);
+}
+
+/* Quick Links */
+.quick-links {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.quick-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--dash-bg);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--dash-text);
+    transition: all 0.2s;
+    border: 1px solid var(--dash-border);
+}
+
+.quick-link:hover {
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
+    border-color: var(--dash-accent);
+}
+
+.quick-link i {
+    font-size: 1.1rem;
+    opacity: 0.7;
+}
+
+.quick-link span {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .card-wide { grid-column: span 12; }
+    .card-medium { grid-column: span 6; }
+    .card-small { grid-column: span 6; }
+    .card-third { grid-column: span 6; }
+}
+
+@media (max-width: 768px) {
+    .bento-grid { gap: 1rem; }
+    .card-wide, .card-medium, .card-small, .card-third { grid-column: span 12; }
+    .dash-greeting { font-size: 1.75rem; }
+    .stat-number { font-size: 2.5rem; }
+    .stat-row { flex-wrap: wrap; gap: 1rem; }
+    .quick-links { grid-template-columns: 1fr; }
+}
+
+/* Override base styles for dark theme */
+.dashboard-page .container {
+    max-width: 1200px;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="hero-section mb-4">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <h1 class="display-6 fw-bold mb-3">Привет, {{ current_user.username }}! 👋</h1>
-            <p class="lead text-muted">Улучшайте свой английский словарный запас</p>
+<div class="dashboard-page">
+    <div class="container">
+        <!-- Header -->
+        <div class="dash-header">
+            <h1 class="dash-greeting">Привет, {{ current_user.username }} <span style="font-size: 0.7em;">👋</span></h1>
+            <p class="dash-subtitle">Выбери, чем хочешь заняться сегодня</p>
         </div>
-        <div class="col-md-4 text-md-end">
-            <div class="d-inline-block">
-                <div class="text-center">
-                    <div class="h2 mb-0 fw-bold text-primary">{{ progress }}%</div>
-                    <small class="text-muted">Прогресс</small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Priority 1: Curriculum (if available) -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm border-0 bg-gradient-primary text-white">
-            <div class="card-body p-4">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h3 class="fw-bold mb-2">
-                            <i class="fas fa-graduation-cap me-2"></i>Структурированное обучение
-                        </h3>
-                        <p class="mb-3 opacity-90">Следуйте нашей программе от уровня A0 до C2 по стандарту CEFR</p>
-                        <a href="/learn/" class="btn btn-light btn-lg shadow-sm">
-                            <i class="fas fa-book-open me-2"></i>Начать обучение
-                        </a>
+        <!-- Bento Grid -->
+        <div class="bento-grid">
+
+            <!-- КАРТОЧКИ (Words) - Large Card -->
+            <div class="bento-card card-wide accent-purple">
+                <div class="card-icon bg-accent-purple">
+                    <i class="fas fa-clone"></i>
+                </div>
+                <div class="card-title">Карточки</div>
+                <div class="d-flex justify-content-between align-items-end">
+                    <div>
+                        <div class="stat-number">{{ words_total }}</div>
+                        <div class="stat-label">слов в коллекции</div>
                     </div>
-                    <div class="col-md-4 text-center d-none d-md-block">
-                        <i class="fas fa-route fa-5x opacity-25"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Priority 2: Quick Actions & Stats -->
-<div class="row g-3 mb-4">
-    <!-- Study Stats Card -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100 shadow-sm border-0 hover-lift">
-            <div class="card-body text-center">
-                <div class="icon-circle bg-primary-soft text-primary mb-3">
-                    <i class="fas fa-book fa-2x"></i>
-                </div>
-                <h3 class="h2 fw-bold mb-1">{{ status_stats[1] }}</h3>
-                <p class="text-muted mb-0">Изучаю</p>
-                <div class="mt-3">
-                    <a href="{{ url_for('study.index') }}" class="btn btn-sm btn-primary">
-                        Учить
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Review Stats Card -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100 shadow-sm border-0 hover-lift">
-            <div class="card-body text-center">
-                <div class="icon-circle bg-warning-soft text-warning mb-3">
-                    <i class="fas fa-redo fa-2x"></i>
-                </div>
-                <h3 class="h2 fw-bold mb-1">{{ status_stats[2] }}</h3>
-                <p class="text-muted mb-0">Повторение</p>
-                <div class="mt-3">
-                    <a href="{{ url_for('study.cards', word_source='review') }}" class="btn btn-sm btn-warning">
-                        Повторить
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mastered Stats Card -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100 shadow-sm border-0 hover-lift">
-            <div class="card-body text-center">
-                <div class="icon-circle bg-success-soft text-success mb-3">
-                    <i class="fas fa-check-circle fa-2x"></i>
-                </div>
-                <h3 class="h2 fw-bold mb-1">{{ status_stats[3] }}</h3>
-                <p class="text-muted mb-0">Выучено</p>
-                <div class="mt-3">
-                    <span class="badge bg-success">Отлично!</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Total Words Card -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card h-100 shadow-sm border-0 hover-lift">
-            <div class="card-body text-center">
-                <div class="icon-circle bg-info-soft text-info mb-3">
-                    <i class="fas fa-language fa-2x"></i>
-                </div>
-                <h3 class="h2 fw-bold mb-1">{{ total_words }}</h3>
-                <p class="text-muted mb-0">Всего</p>
-                <div class="mt-3">
-                    <a href="{{ url_for('words.word_list') }}" class="btn btn-sm btn-info text-white">
-                        Смотреть
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Priority 3: Active Learning Content -->
-<div class="row g-4">
-    <!-- Left Column -->
-    <div class="col-lg-8">
-        <!-- Reading Progress -->
-        {% if current_user.get_reading_progress_count() > 0 %}
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
-                <h5 class="fw-bold mb-0">
-                    <i class="fas fa-book-reader me-2 text-primary"></i>Продолжить чтение
-                </h5>
-                <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-primary">
-                    Все книги
-                </a>
-            </div>
-            <div class="card-body">
-                {% for progress in current_user.get_recent_reading_progress(2) %}
-                <div class="reading-item p-3 rounded-3 mb-3 hover-bg-light">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="flex-grow-1">
-                            <h6 class="fw-bold mb-1">{{ progress.book.title }}</h6>
-                            <p class="text-muted small mb-2">{{ progress.book.author or 'Неизвестный автор' }}</p>
+                    <div class="stat-row" style="margin: 0;">
+                        <div class="stat-item">
+                            <div class="num" style="color: var(--dash-orange);">{{ words_stats.learning }}</div>
+                            <div class="label">Учу</div>
                         </div>
-                        <small class="text-muted">{{ progress.last_read.strftime('%d %b') }}</small>
-                    </div>
-                    
-                    {% set percent_read = ((progress.position or 0) / 100 * 100)|int %}
-                    <div class="progress mb-2" style="height: 6px;">
-                        <div class="progress-bar bg-gradient" role="progressbar" 
-                             style="width: {{ percent_read }}%"></div>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">{{ percent_read }}% прочитано</small>
-                        <a href="{{ url_for('books.read_book', book_id=progress.book_id) }}"
-                           class="btn btn-sm btn-primary">
-                            <i class="fas fa-book-open me-1"></i>Продолжить
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Word Topics -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
-                <h5 class="fw-bold mb-0">
-                    <i class="fas fa-layer-group me-2 text-primary"></i>Темы слов
-                </h5>
-                <a href="{{ url_for('study.topics') }}" class="btn btn-sm btn-outline-primary">
-                    Все темы
-                </a>
-            </div>
-            <div class="card-body">
-                {% if recent_topics %}
-                <div class="row g-3">
-                    {% for topic in recent_topics[:6] %}
-                    <div class="col-md-6">
-                        <div class="topic-card p-3 rounded-3 border hover-shadow h-100">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="fw-bold mb-0">{{ topic.name }}</h6>
-                                <span class="badge bg-light text-dark">{{ topic.word_count }} слов</span>
-                            </div>
-
-                            {% if topic.words_in_study > 0 %}
-                            <div class="progress mb-2" style="height: 4px;">
-                                <div class="progress-bar" role="progressbar"
-                                     style="width: {{ (topic.words_in_study / topic.word_count * 100)|int }}%"></div>
-                            </div>
-                            <small class="text-muted d-block mb-2">
-                                {{ topic.words_in_study }}/{{ topic.word_count }} изучается
-                            </small>
-                            {% endif %}
-
-                            <div class="d-flex gap-2">
-                                <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}"
-                                   class="btn btn-sm btn-outline-primary flex-fill">
-                                    Открыть
-                                </a>
-                                {% if topic.words_in_study < topic.word_count %}
-                                <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" class="flex-fill">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-success w-100">
-                                        <i class="fas fa-plus"></i> Добавить
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
+                        <div class="stat-item">
+                            <div class="num" style="color: var(--dash-blue);">{{ words_stats.review }}</div>
+                            <div class="label">Повтор</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="num" style="color: var(--dash-green);">{{ words_stats.mastered }}</div>
+                            <div class="label">Выучено</div>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">Изучайте темы слов для расширения словарного запаса!</p>
-                    <a href="{{ url_for('study.topics') }}" class="btn btn-primary">
-                        Смотреть темы
-                    </a>
+                {% if words_total > 0 %}
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {{ (words_stats.mastered / words_total * 100) | int }}%; background: var(--dash-green);"></div>
                 </div>
                 {% endif %}
+                <a href="{{ url_for('study.index') }}" class="card-action btn-accent-purple">
+                    Учить слова <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
-        </div>
 
-        <!-- Recent Words -->
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-transparent border-0 pt-3">
-                <h5 class="fw-bold mb-0">
-                    <i class="fas fa-history me-2 text-primary"></i>Недавно изученные слова
-                </h5>
+            <!-- GRAMMAR LAB - Medium Card -->
+            <div class="bento-card card-small accent-pink">
+                <div class="card-icon bg-accent-pink">
+                    <i class="fas fa-flask"></i>
+                </div>
+                <div class="card-title">Грамматика</div>
+                <div class="stat-number">{{ grammar_studied }}<span style="font-size: 0.4em; color: var(--dash-muted);">/{{ grammar_total }}</span></div>
+                <div class="stat-label">тем изучено</div>
+                <div class="mini-stats">
+                    <div class="mini-stat">
+                        <div class="value">{{ grammar_mastered }}</div>
+                        <div class="label">Освоено</div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="value">{{ grammar_total - grammar_studied }}</div>
+                        <div class="label">Осталось</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('grammar_lab.index') }}" class="card-action btn-accent-pink">
+                    Grammar Lab <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
-            <div class="card-body">
-                {% if recent_words %}
-                <div class="list-group list-group-flush">
-                    {% for word in recent_words %}
-                    <a href="{{ url_for('words.word_detail', word_id=word.id) }}" 
-                       class="list-group-item list-group-item-action border-0 px-0 py-3 hover-bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1 fw-bold">{{ word.english_word }}</h6>
-                                <p class="mb-0 text-muted">{{ word.russian_word }}</p>
-                            </div>
-                            <span class="badge bg-light text-dark">{{ word.level or 'A1' }}</span>
-                        </div>
-                    </a>
-                    {% endfor %}
+
+            <!-- КУРСЫ - Medium Card -->
+            <div class="bento-card card-medium accent-blue">
+                <div class="card-icon bg-accent-blue">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="card-title">Курсы</div>
+                {% if active_course %}
+                <div class="card-heading">{{ active_course.course.title }}</div>
+                <p style="color: var(--dash-muted); margin: 0.5rem 0;">{{ active_course.course.book.title if active_course.course.book else 'Активный курс' }}</p>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {{ active_course.progress_percentage | int }}%; background: var(--dash-blue);"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                    <span style="color: var(--dash-muted); font-size: 0.85rem;">Прогресс: {{ active_course.progress_percentage | int }}%</span>
+                    <span style="color: var(--dash-text); font-size: 0.85rem; font-weight: 600;">{{ active_course.course.level or 'A1' }}</span>
                 </div>
                 {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-history fa-2x text-muted mb-3"></i>
-                    <p class="text-muted">Вы ещё не изучали слова. Начните просматривать список слов!</p>
-                    <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">
-                        Смотреть слова
-                    </a>
-                </div>
+                <div class="stat-number">{{ courses_enrolled }}</div>
+                <div class="stat-label">активных курсов</div>
+                <p style="color: var(--dash-muted); margin-top: 1rem; font-size: 0.9rem;">Выберите курс и начните обучение по структурированной программе</p>
                 {% endif %}
+                <a href="{{ url_for('book_courses.list_book_courses') }}" class="card-action btn-accent-blue">
+                    {% if active_course %}Продолжить{% else %}Выбрать курс{% endif %} <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
-        </div>
-    </div>
 
-    <!-- Right Column -->
-    <div class="col-lg-4">
-        <!-- Quick Actions -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-transparent border-0 pt-3">
-                <h5 class="fw-bold mb-0">Быстрые действия</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="/learn/" class="btn btn-primary">
-                        <i class="fas fa-graduation-cap me-2"></i>Программа
-                    </a>
-                    <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-clone me-2"></i>Карточки
-                    </a>
-                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="btn btn-outline-success">
-                        <i class="fas fa-question-circle me-2"></i>Тест
-                    </a>
-                    <a href="{{ url_for('study.matching', word_source='all') }}" class="btn btn-outline-info">
-                        <i class="fas fa-th me-2"></i>Подбери пару
-                    </a>
-                    <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-book me-2"></i>Найти книги
-                    </a>
+            <!-- КНИГИ - Medium Card -->
+            <div class="bento-card card-medium accent-green">
+                <div class="card-icon bg-accent-green">
+                    <i class="fas fa-book-open"></i>
                 </div>
-            </div>
-        </div>
-
-        <!-- Study Stats -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-transparent border-0 pt-3">
-                <h5 class="fw-bold mb-0">Ваша статистика</h5>
-            </div>
-            <div class="card-body">
-                <!-- Reading Stats -->
-                <div class="stat-item mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted">Книг читаю</span>
-                        <span class="fw-bold">{{ current_user.get_reading_progress_count() }}</span>
+                <div class="card-title">Книги</div>
+                {% if recent_book %}
+                <div class="card-heading">Продолжить чтение</div>
+                <div class="book-info">
+                    <div class="book-cover">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="book-details">
+                        <h4>{{ recent_book.book.title }}</h4>
+                        <p>{{ recent_book.book.author or 'Автор неизвестен' }}</p>
                     </div>
                 </div>
+                {% else %}
+                <div class="stat-number">{{ books_reading }}</div>
+                <div class="stat-label">книг читаете</div>
+                <p style="color: var(--dash-muted); margin-top: 1rem; font-size: 0.9rem;">Читайте книги на английском и расширяйте словарный запас</p>
+                {% endif %}
+                <a href="{{ url_for('books.book_list') }}" class="card-action btn-accent-green">
+                    {% if recent_book %}Читать{% else %}Найти книгу{% endif %} <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
 
-                <!-- Words Learning -->
-                <div class="stat-item mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted">Слов изучаю</span>
-                        <span class="fw-bold">{{ status_stats[1] + status_stats[2] }}</span>
-                    </div>
-                </div>
-
-                <!-- Last Login -->
-                <div class="stat-item">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-muted">Последний вход</span>
-                        <span class="fw-bold">Сегодня</span>
-                    </div>
-                </div>
-
-                <hr>
-
-                <div class="d-grid">
-                    <a href="{{ url_for('api_anki.export_anki') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-download me-2"></i>Экспорт в Anki
+            <!-- QUICK ACTIONS - Full Width -->
+            <div class="bento-card card-full accent-orange">
+                <div class="card-title">Быстрые действия</div>
+                <div class="quick-links">
+                    <a href="{{ url_for('study.cards', word_source='all') }}" class="quick-link">
+                        <i class="fas fa-clone"></i>
+                        <span>Карточки</span>
+                    </a>
+                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="quick-link">
+                        <i class="fas fa-question-circle"></i>
+                        <span>Тест</span>
+                    </a>
+                    <a href="{{ url_for('study.matching', word_source='all') }}" class="quick-link">
+                        <i class="fas fa-th"></i>
+                        <span>Подбери пару</span>
+                    </a>
+                    <a href="{{ url_for('grammar_lab.practice') }}" class="quick-link">
+                        <i class="fas fa-dumbbell"></i>
+                        <span>Практика грамматики</span>
+                    </a>
+                    <a href="{{ url_for('words.word_list') }}" class="quick-link">
+                        <i class="fas fa-list"></i>
+                        <span>Все слова</span>
+                    </a>
+                    <a href="{{ url_for('study.topics') }}" class="quick-link">
+                        <i class="fas fa-layer-group"></i>
+                        <span>Темы слов</span>
+                    </a>
+                    <a href="{{ url_for('study.stats') }}" class="quick-link">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Статистика</span>
+                    </a>
+                    <a href="{{ url_for('study.leaderboard') }}" class="quick-link">
+                        <i class="fas fa-trophy"></i>
+                        <span>Лидеры</span>
                     </a>
                 </div>
             </div>
-        </div>
 
-        <!-- Game Achievements -->
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3">
-                <h5 class="fw-bold mb-0">Достижения</h5>
-                <a href="{{ url_for('study.leaderboard') }}" class="btn btn-sm btn-link text-decoration-none">
+            <!-- ACHIEVEMENTS - Third -->
+            <div class="bento-card card-third">
+                <div class="card-icon bg-accent-orange">
                     <i class="fas fa-trophy"></i>
+                </div>
+                <div class="card-title">Достижения</div>
+                <div class="stat-number">{{ earned_achievements }}<span style="font-size: 0.4em; color: var(--dash-muted);">/{{ total_achievements }}</span></div>
+                <div class="stat-label">получено</div>
+                <a href="{{ url_for('study.stats') }}" class="card-action" style="background: var(--dash-orange-soft); color: var(--dash-orange);">
+                    Смотреть <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
-            <div class="card-body">
-                <!-- Matching Game -->
-                <div class="achievement-item mb-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-th fa-lg text-primary me-3"></i>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">Подбери пару</h6>
-                            {% if user_best_matching %}
-                            <div class="d-flex align-items-center mt-1">
-                                <span class="badge bg-primary me-2">#{{ user_best_matching.get_rank() }}</span>
-                                <span class="fw-bold">{{ user_best_matching.score }} очков</span>
-                            </div>
-                            {% else %}
-                            <small class="text-muted">Ещё не играли</small>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Quiz -->
-                <div class="achievement-item">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-question-circle fa-lg text-success me-3"></i>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">Тест</h6>
-                            {% if user_best_quiz %}
-                            <div class="d-flex align-items-center mt-1">
-                                <span class="badge bg-success me-2">#{{ user_best_quiz.get_rank() }}</span>
-                                <span class="fw-bold">{{ user_best_quiz.score }}%</span>
-                            </div>
-                            {% else %}
-                            <small class="text-muted">Ещё не играли</small>
-                            {% endif %}
-                        </div>
-                    </div>
+            <!-- MATCHING GAME - Third -->
+            <div class="bento-card card-third">
+                <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">
+                    <i class="fas fa-th"></i>
                 </div>
+                <div class="card-title">Подбери пару</div>
+                {% if best_matching %}
+                <div class="stat-number">{{ best_matching.score }}</div>
+                <div class="stat-label">лучший результат</div>
+                {% else %}
+                <div style="color: var(--dash-muted); margin-top: 0.5rem;">Ещё не играли</div>
+                {% endif %}
+                <a href="{{ url_for('study.matching', word_source='all') }}" class="card-action" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">
+                    Играть <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
+
+            <!-- QUIZ - Third -->
+            <div class="bento-card card-third">
+                <div class="card-icon" style="background: rgba(20, 184, 166, 0.15); color: #14b8a6;">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <div class="card-title">Тест</div>
+                {% if best_quiz %}
+                <div class="stat-number">{{ best_quiz.score }}%</div>
+                <div class="stat-label">лучший результат</div>
+                {% else %}
+                <div style="color: var(--dash-muted); margin-top: 0.5rem;">Ещё не играли</div>
+                {% endif %}
+                <a href="{{ url_for('study.quiz', word_source='all') }}" class="card-action" style="background: rgba(20, 184, 166, 0.15); color: #14b8a6;">
+                    Играть <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
         </div>
     </div>
 </div>
-
+{% endblock %}

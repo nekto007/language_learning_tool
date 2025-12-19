@@ -55,9 +55,14 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<button id="complete-btn" class="btn btn-primary btn-lg" onclick="finishLesson()" disabled>
-  Завершить урок
-</button>
+<div class="lesson-footer-actions">
+  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
+    <i class="fas fa-arrow-left"></i> К урокам
+  </a>
+  <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" disabled>
+    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+  </button>
+</div>
 {% endblock %}
 
 {% block lesson_scripts %}
