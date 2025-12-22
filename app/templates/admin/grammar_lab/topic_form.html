@@ -1,0 +1,229 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}{% if topic %}Edit{% else %}Create{% endif %} Topic - Admin{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('admin.dashboard')),
+    ('Grammar Lab', url_for('grammar_lab_admin.grammar_lab_index')),
+    ('Topics', url_for('grammar_lab_admin.topic_list')),
+    (topic.title if topic else 'Create', '')
+]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Edit Topic' if topic else 'Create Topic', topic.title if topic else 'Create a new grammar topic') }}
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Topic Form -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Topic Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="topic-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Slug <span class="text-danger">*</span></label>
+                            <input type="text" name="slug" class="form-control" value="{{ topic.slug if topic else '' }}" required pattern="[a-z0-9-]+" placeholder="present-perfect">
+                            <small class="text-muted">URL-friendly identifier (lowercase, hyphens only)</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Level <span class="text-danger">*</span></label>
+                            <select name="level" class="form-select" required>
+                                {% for lvl in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+                                <option value="{{ lvl }}" {% if topic and topic.level == lvl %}selected{% endif %}>{{ lvl }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Order</label>
+                            <input type="number" name="order" class="form-control" value="{{ topic.order if topic else 0 }}" min="0">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Title (English) <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" value="{{ topic.title if topic else '' }}" required placeholder="Present Perfect">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Title (Russian) <span class="text-danger">*</span></label>
+                            <input type="text" name="title_ru" class="form-control" value="{{ topic.title_ru if topic else '' }}" required placeholder="Настоящее совершённое время">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Estimated Time (min)</label>
+                            <input type="number" name="estimated_time" class="form-control" value="{{ topic.estimated_time if topic else 15 }}" min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Difficulty (1-5)</label>
+                            <input type="number" name="difficulty" class="form-control" value="{{ topic.difficulty if topic else 1 }}" min="1" max="5">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Content (JSON)</label>
+                        <textarea name="content" class="form-control font-monospace" rows="15" id="content-json">{{ topic.content | tojson(indent=2) if topic and topic.content else '{\n  "introduction": "",\n  "sections": [],\n  "important_notes": [],\n  "common_mistakes": [],\n  "summary_table": {}\n}' }}</textarea>
+                        <small class="text-muted">JSON structure with introduction, sections, important_notes, common_mistakes, summary_table</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Save Topic
+                        </button>
+                        <a href="{{ url_for('grammar_lab_admin.topic_list') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if topic %}
+        <!-- Exercises Section -->
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Exercises ({{ exercises|length if exercises else 0 }})</h5>
+                <a href="{{ url_for('grammar_lab_admin.create_exercise', topic_id=topic.id) }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i> Add Exercise
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">Order</th>
+                                <th>Type</th>
+                                <th>Question/Content</th>
+                                <th style="width: 80px;">Difficulty</th>
+                                <th class="text-end" style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exercise in exercises %}
+                            <tr>
+                                <td>{{ exercise.order }}</td>
+                                <td><span class="badge bg-info">{{ exercise.exercise_type }}</span></td>
+                                <td>
+                                    {% if exercise.content.question %}
+                                        {{ exercise.content.question[:80] }}{% if exercise.content.question|length > 80 %}...{% endif %}
+                                    {% elif exercise.content.sentence %}
+                                        {{ exercise.content.sentence[:80] }}{% if exercise.content.sentence|length > 80 %}...{% endif %}
+                                    {% else %}
+                                        <em class="text-muted">No preview</em>
+                                    {% endif %}
+                                </td>
+                                <td>{% for i in range(exercise.difficulty) %}*{% endfor %}</td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('grammar_lab_admin.edit_exercise', exercise_id=exercise.id) }}" class="btn btn-sm btn-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteExercise{{ exercise.id }}" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Delete Modal -->
+                                    <div class="modal fade" id="deleteExercise{{ exercise.id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Delete Exercise</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body text-start">
+                                                    Are you sure you want to delete this exercise?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <form method="POST" action="{{ url_for('grammar_lab_admin.delete_exercise', exercise_id=exercise.id) }}" class="d-inline">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button type="submit" class="btn btn-danger">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <p>No exercises yet.</p>
+                                        <a href="{{ url_for('grammar_lab_admin.create_exercise', topic_id=topic.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-plus me-1"></i> Add First Exercise
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Help Card -->
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i> Content Structure</h6>
+            </div>
+            <div class="card-body small">
+                <p><strong>JSON Content Fields:</strong></p>
+                <ul class="mb-3">
+                    <li><code>introduction</code> - Brief intro text</li>
+                    <li><code>sections</code> - Array of section objects</li>
+                    <li><code>important_notes</code> - Array of notes</li>
+                    <li><code>common_mistakes</code> - Array of mistake objects</li>
+                    <li><code>summary_table</code> - Summary with +/-/? forms</li>
+                </ul>
+
+                <p><strong>Section Structure:</strong></p>
+<pre class="bg-light p-2 small">{
+  "subtitle": "Formation",
+  "description": "How to form",
+  "table": [
+    {"pronoun": "I", "form": "have done"}
+  ],
+  "rules": [
+    {"rule": "Rule text", "examples": ["..."]}
+  ]
+}</pre>
+
+                <p><strong>Common Mistakes:</strong></p>
+<pre class="bg-light p-2 small">{
+  "wrong": "I have went",
+  "correct": "I have gone",
+  "explanation": "Use V3"
+}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Format JSON on blur
+document.getElementById('content-json')?.addEventListener('blur', function() {
+    try {
+        const parsed = JSON.parse(this.value);
+        this.value = JSON.stringify(parsed, null, 2);
+        this.classList.remove('is-invalid');
+    } catch (e) {
+        this.classList.add('is-invalid');
+    }
+});
+</script>
+{% endblock %}

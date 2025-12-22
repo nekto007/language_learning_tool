@@ -1,0 +1,129 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Grammar Topics - Admin{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Grammar Lab', url_for('grammar_lab_admin.grammar_lab_index')), ('Topics', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Grammar Topics', 'Manage all grammar topics') }}
+
+<!-- Level Filter -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-muted me-2">Filter by Level:</span>
+            <a href="{{ url_for('grammar_lab_admin.topic_list') }}" class="btn btn-sm {% if not current_level %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                All
+            </a>
+            {% for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+            <a href="{{ url_for('grammar_lab_admin.topic_list', level=level) }}"
+               class="btn btn-sm {% if current_level == level %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                {{ level }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="mb-3">
+    <a href="{{ url_for('grammar_lab_admin.create_topic') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> Create Topic
+    </a>
+</div>
+
+<!-- Topics Table -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Topics ({{ topics|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">Order</th>
+                        <th style="width: 80px;">Level</th>
+                        <th>Slug</th>
+                        <th>Title</th>
+                        <th>Title (RU)</th>
+                        <th style="width: 100px;">Exercises</th>
+                        <th style="width: 80px;">Time</th>
+                        <th class="text-end" style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for topic in topics %}
+                    <tr>
+                        <td>{{ topic.order }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' if topic.level in ['B1', 'B2'] else 'warning' }}">
+                                {{ topic.level }}
+                            </span>
+                        </td>
+                        <td><code>{{ topic.slug }}</code></td>
+                        <td><strong>{{ topic.title }}</strong></td>
+                        <td>{{ topic.title_ru }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ topic.exercise_count }}</span>
+                        </td>
+                        <td>{{ topic.estimated_time }} min</td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <a href="{{ url_for('grammar_lab_admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ topic.id }}" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+
+                            <!-- Delete Modal -->
+                            <div class="modal fade" id="deleteModal{{ topic.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Confirm Delete</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <p>Are you sure you want to delete <strong>{{ topic.title }}</strong>?</p>
+                                            <p class="text-danger mb-0">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                This will also delete all {{ topic.exercise_count }} exercises and user progress.
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <form method="POST" action="{{ url_for('grammar_lab_admin.delete_topic', topic_id=topic.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-danger">Delete</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-folder-open fa-2x mb-2"></i>
+                                <p>No topics found{% if current_level %} for level {{ current_level }}{% endif %}.</p>
+                                <a href="{{ url_for('grammar_lab_admin.create_topic') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Create Topic
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
