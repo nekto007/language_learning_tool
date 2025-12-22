@@ -624,3 +624,87 @@ def delete_lesson(lesson_id):
         logger.error(f"Error deleting lesson: {str(e)}")
         flash('Ошибка при удалении урока', 'error')
         return redirect(url_for('curriculum_admin.admin_lessons'))
+
+
+@admin_bp.route('/admin/audio-stats')
+@login_required
+@admin_required
+def audio_stats():
+    """Show audio file statistics per module"""
+    import os
+    import re
+    import glob
+    from flask import current_app
+
+    # Audio files directory
+    audio_dir = os.path.join(current_app.static_folder, 'audio')
+
+    # Get existing audio files
+    existing_files = set()
+    if os.path.exists(audio_dir):
+        for f in os.listdir(audio_dir):
+            if f.endswith('.mp3'):
+                existing_files.add(f)
+
+    # Also scan module_completed JSON files
+    module_stats = []
+    module_completed_dir = os.path.join(current_app.root_path, '..', 'module_completed')
+
+    if os.path.exists(module_completed_dir):
+        json_files = sorted(glob.glob(os.path.join(module_completed_dir, 'module_*.json')))
+
+        for json_path in json_files:
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                module_data = data.get('module', {})
+                module_id = module_data.get('id', 0)
+                module_title = module_data.get('title', 'Unknown')
+                level = module_data.get('level', 'A0')
+
+                # Extract audio references
+                audio_refs = []
+                missing_files = []
+
+                for lesson in module_data.get('lessons', []):
+                    content = lesson.get('content', {})
+                    vocabulary = content.get('vocabulary', [])
+
+                    for word in vocabulary:
+                        audio = word.get('audio', '')
+                        # Parse [sound:filename.mp3] format
+                        match = re.search(r'\[sound:([^\]]+)\]', audio)
+                        if match:
+                            filename = match.group(1)
+                            audio_refs.append({
+                                'word': word.get('english', ''),
+                                'file': filename
+                            })
+                            if filename not in existing_files:
+                                missing_files.append({
+                                    'word': word.get('english', ''),
+                                    'file': filename
+                                })
+
+                module_stats.append({
+                    'id': module_id,
+                    'title': module_title,
+                    'level': level,
+                    'total_audio': len(audio_refs),
+                    'missing_count': len(missing_files),
+                    'missing_files': missing_files,
+                    'completion_percent': round((len(audio_refs) - len(missing_files)) / len(audio_refs) * 100) if audio_refs else 100
+                })
+
+            except Exception as e:
+                logger.error(f"Error processing {json_path}: {e}")
+
+    # Sort by module id
+    module_stats.sort(key=lambda x: x['id'])
+
+    return render_template(
+        'admin/curriculum/audio_stats.html',
+        module_stats=module_stats,
+        total_existing=len(existing_files)
+    )
