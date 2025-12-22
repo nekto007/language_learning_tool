@@ -1,0 +1,1373 @@
+{% extends "admin/base.html" %}
+{% block title %}Редактировать задание - День {{ lesson.day_number }} - Админка{% endblock %}
+
+{% block extra_css %}
+<style>
+.edit-form-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    color: var(--text-secondary, #6b7280);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.breadcrumb-link:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+}
+
+.breadcrumb-sep {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.75rem;
+}
+
+.form-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.form-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-header h2 i {
+    color: var(--accent-color, #3b82f6);
+}
+
+.task-type-badge {
+    padding: 0.375rem 0.75rem;
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.form-body {
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.form-group .help-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 0.25rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+textarea.form-control {
+    min-height: 120px;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--accent-color, #3b82f6);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-secondary, #6b7280);
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #1f2937);
+}
+
+.btn-success {
+    background: #10b981;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+}
+
+/* Dynamic Items */
+.items-container {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.item-card {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    background: white;
+}
+
+.item-card:last-child {
+    border-bottom: none;
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.item-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+}
+
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    background: white;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.btn-icon.delete:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.option-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.option-row input[type="radio"] {
+    margin: 0;
+}
+
+.option-row input[type="text"] {
+    flex: 1;
+}
+
+.add-item-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    border: 2px dashed var(--border-color, #d1d5db);
+    border-radius: 8px;
+    color: var(--text-secondary, #6b7280);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 1rem;
+}
+
+.add-item-btn:hover {
+    border-color: var(--accent-color, #3b82f6);
+    color: var(--accent-color, #3b82f6);
+    background: #f0f7ff;
+}
+
+/* Section styles */
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-title i {
+    color: var(--accent-color, #3b82f6);
+}
+
+/* Reading Texts Accordion */
+.reading-context-section {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.reading-texts-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reading-text-item {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    overflow: hidden;
+    background: white;
+}
+
+.accordion-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-primary, #1f2937);
+    transition: background 0.2s;
+}
+
+.accordion-toggle:hover {
+    background: #e5e7eb;
+}
+
+.accordion-icon {
+    transition: transform 0.2s;
+}
+
+.accordion-toggle.active .accordion-icon {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    display: none;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.accordion-content.show {
+    display: block;
+}
+
+.reading-text-content {
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--text-secondary, #4b5563);
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+/* Database Vocabulary Section */
+.db-vocabulary-section {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.db-words-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.db-word-card {
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.db-word-card:hover {
+    border-color: #22c55e;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+}
+
+.db-word-card.added {
+    background: #dcfce7;
+    border-color: #22c55e;
+    opacity: 0.7;
+}
+
+.db-word-english {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary, #1f2937);
+}
+
+.db-word-russian {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 0.25rem;
+}
+
+.db-word-meta {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.level-badge {
+    font-size: 0.625rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.level-badge.level-a1 { background: #dbeafe; color: #1d4ed8; }
+.level-badge.level-a2 { background: #dcfce7; color: #15803d; }
+.level-badge.level-b1 { background: #fef3c7; color: #b45309; }
+.level-badge.level-b2 { background: #fee2e2; color: #b91c1c; }
+
+.new-badge {
+    font-size: 0.625rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    font-weight: 600;
+    background: #c084fc;
+    color: white;
+}
+
+.db-word-context {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 0.5rem;
+    font-style: italic;
+    line-height: 1.4;
+    max-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .options-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-form-container">
+    <!-- Navigation -->
+    <div class="nav-breadcrumb">
+        <a href="{{ url_for('admin.book_courses') }}" class="breadcrumb-link">
+            <i class="fas fa-graduation-cap"></i> Курсы
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="breadcrumb-link">
+            {{ course.title[:20] }}...
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}" class="breadcrumb-link">
+            Модуль {{ module.module_number }}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="breadcrumb-link">
+            День {{ lesson.day_number }}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <span class="breadcrumb-link" style="background: var(--accent-color, #3b82f6); color: white;">
+            <i class="fas fa-tasks"></i> Задание
+        </span>
+    </div>
+
+    <!-- Task Form -->
+    <div class="form-card">
+        <div class="form-header">
+            <h2><i class="fas fa-tasks"></i> Редактировать задание</h2>
+            <span class="task-type-badge">{{ task_type }}</span>
+        </div>
+
+        <div class="form-body">
+            <!-- Basic Settings -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="estimated_time">Время выполнения (мин)</label>
+                    <input type="number" id="estimated_time" class="form-control" min="1" max="60"
+                           value="{{ payload.get('estimated_time', 15) }}">
+                </div>
+                <div class="form-group">
+                    <label for="pass_score">Проходной балл (%)</label>
+                    <input type="number" id="pass_score" class="form-control" min="0" max="100"
+                           value="{{ payload.get('pass_score', 70) }}">
+                </div>
+                <div class="form-group">
+                    <label for="instructions">Инструкции</label>
+                    <input type="text" id="instructions" class="form-control"
+                           value="{{ payload.get('instructions', '') }}" placeholder="Инструкции для студента">
+                </div>
+            </div>
+
+            <!-- Dynamic content based on task type -->
+            <div id="taskContent">
+                {% if task_type in ['vocabulary', 'vocabulary_review'] %}
+                <!-- Reading Texts for Examples (Vocabulary) -->
+                {% if reading_texts %}
+                <div class="reading-context-section">
+                    <h3 class="section-title"><i class="fas fa-book-open"></i> Тексты для примеров</h3>
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        Эти тексты из reading уроков используются для примеров слов в карточках.
+                        Выделите текст и нажмите "Добавить как пример" при редактировании карточки.
+                    </p>
+                    <div class="reading-texts-accordion">
+                        {% for rt in reading_texts %}
+                        <div class="reading-text-item">
+                            <button type="button" class="accordion-toggle">
+                                <span><i class="fas fa-calendar-day"></i> День {{ rt.day_number }} ({{ rt.word_count }} слов)</span>
+                                <i class="fas fa-chevron-down accordion-icon"></i>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="reading-text-content" id="readingText{{ loop.index }}">{{ rt.text }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <p style="margin: 0; color: #92400e;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Внимание:</strong> Нет reading уроков для примеров. Добавьте reading уроки после этого vocabulary урока.
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Words from Database (SliceVocabulary) -->
+                {% if slice_vocabulary %}
+                <div class="db-vocabulary-section">
+                    <h3 class="section-title"><i class="fas fa-database"></i> Слова из базы данных ({{ slice_vocabulary|length }})</h3>
+                    <p class="help-text" style="margin-bottom: 1rem;">
+                        Эти слова связаны с уроком в базе данных. Нажмите на слово чтобы добавить его в карточки.
+                    </p>
+                    <div class="db-words-grid">
+                        {% for word in slice_vocabulary %}
+                        <div class="db-word-card" data-word-id="{{ word.word_id }}" onclick="addWordToCards(this)">
+                            <div class="db-word-english">{{ word.english }}</div>
+                            <div class="db-word-russian">{{ word.russian }}</div>
+                            <div class="db-word-meta">
+                                <span class="level-badge level-{{ word.level|lower }}">{{ word.level }}</span>
+                                {% if word.is_new %}<span class="new-badge">NEW</span>{% endif %}
+                            </div>
+                            {% if word.context_sentence %}
+                            <div class="db-word-context">{{ word.context_sentence }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div style="background: #fee2e2; border: 1px solid #f87171; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <p style="margin: 0; color: #b91c1c;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <strong>Нет слов в базе данных.</strong> Добавьте слова через SliceVocabulary.
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Vocabulary Cards -->
+                <h3 class="section-title"><i class="fas fa-layer-group"></i> Карточки словаря</h3>
+                <div class="items-container" id="cardsContainer">
+                    {% for card in payload.get('cards', []) %}
+                    <div class="item-card" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ loop.index }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Слово (English)</label>
+                                <input type="text" class="form-control card-front" value="{{ card.front }}">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Перевод</label>
+                                <input type="text" class="form-control card-translation" value="{{ card.back.translation if card.back else '' }}">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                            <label>Примеры (по одному на строку)</label>
+                            <textarea class="form-control card-examples" style="min-height: 60px;">{{ '\n'.join(card.back.examples) if card.back and card.back.examples else '' }}</textarea>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addVocabularyCard()">
+                    <i class="fas fa-plus"></i> Добавить карточку
+                </button>
+
+                {% elif task_type == 'reading_mcq' %}
+                <!-- Reading MCQ Questions -->
+                <h3 class="section-title"><i class="fas fa-question-circle"></i> Вопросы</h3>
+                <div class="items-container" id="questionsContainer">
+                    {% for q in payload.get('questions', []) %}
+                    <div class="item-card question-item" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ loop.index }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Вопрос</label>
+                            <input type="text" class="form-control q-text" value="{{ q.text }}">
+                        </div>
+                        <div class="options-grid">
+                            {% for i in range(4) %}
+                            <div class="option-row">
+                                <input type="radio" name="correct_{{ loop.index0 }}" value="{{ i }}" {% if q.correct == i %}checked{% endif %}>
+                                <input type="text" class="form-control q-option" value="{{ q.options[i] if q.options|length > i else '' }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                            <label>Объяснение</label>
+                            <input type="text" class="form-control q-explanation" value="{{ q.explanation or '' }}">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addMCQQuestion()">
+                    <i class="fas fa-plus"></i> Добавить вопрос
+                </button>
+
+                {% elif task_type == 'match_headings' %}
+                <!-- Match Headings -->
+                <h3 class="section-title"><i class="fas fa-align-left"></i> Параграфы</h3>
+                <div class="items-container" id="paragraphsContainer">
+                    {% for p in payload.get('paragraphs', []) %}
+                    <div class="item-card paragraph-item" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ p.id }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <input type="hidden" class="p-id" value="{{ p.id }}">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Текст параграфа</label>
+                            <textarea class="form-control p-text" style="min-height: 80px;">{{ p.text }}</textarea>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addParagraph()">
+                    <i class="fas fa-plus"></i> Добавить параграф
+                </button>
+
+                <h3 class="section-title" style="margin-top: 1.5rem;"><i class="fas fa-tags"></i> Заголовки</h3>
+                <div class="items-container" id="headingsContainer">
+                    {% for h in payload.get('headings', []) %}
+                    <div class="item-card heading-item" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ h.id }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-row" style="grid-template-columns: auto 1fr auto;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>ID</label>
+                                <input type="text" class="form-control h-id" value="{{ h.id }}" style="width: 60px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Заголовок</label>
+                                <input type="text" class="form-control h-text" value="{{ h.text }}">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Для параграфа</label>
+                                <input type="number" class="form-control h-correct" value="{{ h.correct_for or '' }}" style="width: 80px;" placeholder="null">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addHeading()">
+                    <i class="fas fa-plus"></i> Добавить заголовок
+                </button>
+
+                {% elif task_type == 'open_cloze' %}
+                <!-- Open Cloze -->
+                <div class="form-group">
+                    <label>Текст с пропусками</label>
+                    <textarea id="clozeText" class="form-control" style="min-height: 200px;">{{ payload.get('text', '') }}</textarea>
+                    <p class="help-text">Используйте (1) ______ для пропусков</p>
+                </div>
+
+                <h3 class="section-title"><i class="fas fa-puzzle-piece"></i> Ответы</h3>
+                <div class="items-container" id="gapsContainer">
+                    {% for gap in payload.get('gaps', []) %}
+                    <div class="item-card gap-item" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ gap.id }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-row" style="grid-template-columns: auto 1fr 1fr;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>ID</label>
+                                <input type="number" class="form-control gap-id" value="{{ gap.id }}" style="width: 60px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Ответ</label>
+                                <input type="text" class="form-control gap-answer" value="{{ gap.answer }}">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Подсказка</label>
+                                <input type="text" class="form-control gap-hint" value="{{ gap.hint or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addGap()">
+                    <i class="fas fa-plus"></i> Добавить ответ
+                </button>
+
+                {% elif task_type == 'word_formation' %}
+                <!-- Word Formation -->
+                <h3 class="section-title"><i class="fas fa-spell-check"></i> Предложения</h3>
+                <div class="items-container" id="itemsContainer">
+                    {% for item in payload.get('items', []) %}
+                    <div class="item-card wf-item" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ loop.index }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Предложение (с пропуском)</label>
+                            <input type="text" class="form-control wf-sentence" value="{{ item.sentence }}">
+                        </div>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Базовое слово</label>
+                                <input type="text" class="form-control wf-base" value="{{ item.base_word }}">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Ответ</label>
+                                <input type="text" class="form-control wf-answer" value="{{ item.answer }}">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Подсказка</label>
+                                <input type="text" class="form-control wf-hint" value="{{ item.hint or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addWordFormation()">
+                    <i class="fas fa-plus"></i> Добавить предложение
+                </button>
+
+                {% elif task_type == 'grammar_sheet' %}
+                <!-- Grammar Sheet -->
+                <div class="form-group">
+                    <label for="grammarTopic">Тема грамматики</label>
+                    <input type="text" id="grammarTopic" class="form-control" value="{{ payload.get('topic', '') }}">
+                </div>
+                <div class="form-group">
+                    <label for="grammarExplanation">Объяснение</label>
+                    <textarea id="grammarExplanation" class="form-control" style="min-height: 150px;">{{ payload.get('explanation', '') }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="grammarExamples">Примеры (по одному на строку)</label>
+                    <textarea id="grammarExamples" class="form-control" style="min-height: 100px;">{{ '\n'.join(payload.get('examples', [])) }}</textarea>
+                </div>
+
+                <h3 class="section-title"><i class="fas fa-tasks"></i> Упражнения</h3>
+                <div class="items-container" id="exercisesContainer">
+                    {% for ex in payload.get('exercises', []) %}
+                    <div class="item-card exercise-item" data-index="{{ loop.index0 }}">
+                        <div class="item-header">
+                            <span class="item-number">{{ loop.index }}</span>
+                            <div class="item-actions">
+                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Вопрос</label>
+                            <input type="text" class="form-control ex-question" value="{{ ex.question }}">
+                        </div>
+                        <div class="options-grid">
+                            {% for i in range(4) %}
+                            <div class="option-row">
+                                <input type="radio" name="ex_correct_{{ loop.index0 }}" value="{{ i }}" {% if ex.correct == i %}checked{% endif %}>
+                                <input type="text" class="form-control ex-option" value="{{ ex.options[i] if ex.options|length > i else '' }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                            <label>Объяснение</label>
+                            <input type="text" class="form-control ex-explanation" value="{{ ex.explanation or '' }}">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="add-item-btn" onclick="addGrammarExercise()">
+                    <i class="fas fa-plus"></i> Добавить упражнение
+                </button>
+
+                {% else %}
+                <!-- Generic JSON Editor for other types -->
+                <div class="form-group">
+                    <label for="jsonPayload">Payload (JSON)</label>
+                    <textarea id="jsonPayload" class="form-control" style="min-height: 400px; font-family: monospace;">{{ payload|tojson(indent=2) }}</textarea>
+                    <p class="help-text">Редактируйте JSON напрямую для этого типа задания</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('admin.view_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}"
+               class="btn btn-secondary">
+                <i class="fas fa-times"></i> Отмена
+            </a>
+            <button type="button" class="btn btn-primary" onclick="saveTask()">
+                <i class="fas fa-save"></i> Сохранить задание
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const taskType = '{{ task_type }}';
+let questionIndex = {{ payload.get('questions', [])|length }};
+let cardIndex = {{ payload.get('cards', [])|length }};
+let paragraphIndex = {{ payload.get('paragraphs', [])|length }};
+let headingIndex = {{ payload.get('headings', [])|length }};
+let gapIndex = {{ payload.get('gaps', [])|length }};
+let itemIndex = {{ payload.get('items', [])|length }};
+let exerciseIndex = {{ payload.get('exercises', [])|length }};
+
+function removeItem(btn) {
+    const card = btn.closest('.item-card');
+    card.remove();
+    renumberItems();
+}
+
+function renumberItems() {
+    document.querySelectorAll('.items-container').forEach(container => {
+        container.querySelectorAll('.item-card').forEach((card, idx) => {
+            card.querySelector('.item-number').textContent = idx + 1;
+        });
+    });
+}
+
+// Accordion toggle for reading texts - using event delegation
+document.addEventListener('click', function(e) {
+    const toggle = e.target.closest('.accordion-toggle');
+    if (toggle) {
+        toggle.classList.toggle('active');
+        const content = toggle.nextElementSibling;
+        content.classList.toggle('show');
+    }
+});
+
+// Add word from database to cards
+function addWordToCards(element) {
+    const english = element.querySelector('.db-word-english').textContent;
+    const russian = element.querySelector('.db-word-russian').textContent;
+    const contextEl = element.querySelector('.db-word-context');
+    const context = contextEl ? contextEl.textContent : '';
+
+    // Check if word already added
+    if (element.classList.contains('added')) {
+        return;
+    }
+
+    // Add card with this word
+    const container = document.getElementById('cardsContainer');
+    const html = `
+        <div class="item-card" data-index="${cardIndex}">
+            <div class="item-header">
+                <span class="item-number">${cardIndex + 1}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Слово (English)</label>
+                    <input type="text" class="form-control card-front" value="${english}">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Перевод</label>
+                    <input type="text" class="form-control card-translation" value="${russian}">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                <label>Примеры (по одному на строку)</label>
+                <textarea class="form-control card-examples" style="min-height: 60px;">${context}</textarea>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    cardIndex++;
+
+    // Mark as added
+    element.classList.add('added');
+
+    // Renumber
+    renumberItems();
+}
+
+function addVocabularyCard() {
+    const container = document.getElementById('cardsContainer');
+    const html = `
+        <div class="item-card" data-index="${cardIndex}">
+            <div class="item-header">
+                <span class="item-number">${cardIndex + 1}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Слово (English)</label>
+                    <input type="text" class="form-control card-front" value="">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Перевод</label>
+                    <input type="text" class="form-control card-translation" value="">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                <label>Примеры (по одному на строку)</label>
+                <textarea class="form-control card-examples" style="min-height: 60px;"></textarea>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    cardIndex++;
+    renumberItems();
+}
+
+function addMCQQuestion() {
+    const container = document.getElementById('questionsContainer');
+    const html = `
+        <div class="item-card question-item" data-index="${questionIndex}">
+            <div class="item-header">
+                <span class="item-number">${questionIndex + 1}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Вопрос</label>
+                <input type="text" class="form-control q-text" value="">
+            </div>
+            <div class="options-grid">
+                <div class="option-row">
+                    <input type="radio" name="correct_${questionIndex}" value="0" checked>
+                    <input type="text" class="form-control q-option" value="">
+                </div>
+                <div class="option-row">
+                    <input type="radio" name="correct_${questionIndex}" value="1">
+                    <input type="text" class="form-control q-option" value="">
+                </div>
+                <div class="option-row">
+                    <input type="radio" name="correct_${questionIndex}" value="2">
+                    <input type="text" class="form-control q-option" value="">
+                </div>
+                <div class="option-row">
+                    <input type="radio" name="correct_${questionIndex}" value="3">
+                    <input type="text" class="form-control q-option" value="">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                <label>Объяснение</label>
+                <input type="text" class="form-control q-explanation" value="">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    questionIndex++;
+    renumberItems();
+}
+
+function addParagraph() {
+    const container = document.getElementById('paragraphsContainer');
+    paragraphIndex++;
+    const html = `
+        <div class="item-card paragraph-item" data-index="${paragraphIndex - 1}">
+            <div class="item-header">
+                <span class="item-number">${paragraphIndex}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <input type="hidden" class="p-id" value="${paragraphIndex}">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Текст параграфа</label>
+                <textarea class="form-control p-text" style="min-height: 80px;"></textarea>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+function addHeading() {
+    const container = document.getElementById('headingsContainer');
+    const nextLetter = String.fromCharCode(65 + headingIndex);
+    headingIndex++;
+    const html = `
+        <div class="item-card heading-item" data-index="${headingIndex - 1}">
+            <div class="item-header">
+                <span class="item-number">${nextLetter}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-row" style="grid-template-columns: auto 1fr auto;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>ID</label>
+                    <input type="text" class="form-control h-id" value="${nextLetter}" style="width: 60px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Заголовок</label>
+                    <input type="text" class="form-control h-text" value="">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Для параграфа</label>
+                    <input type="number" class="form-control h-correct" value="" style="width: 80px;" placeholder="null">
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+function addGap() {
+    const container = document.getElementById('gapsContainer');
+    gapIndex++;
+    const html = `
+        <div class="item-card gap-item" data-index="${gapIndex - 1}">
+            <div class="item-header">
+                <span class="item-number">${gapIndex}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-row" style="grid-template-columns: auto 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>ID</label>
+                    <input type="number" class="form-control gap-id" value="${gapIndex}" style="width: 60px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Ответ</label>
+                    <input type="text" class="form-control gap-answer" value="">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Подсказка</label>
+                    <input type="text" class="form-control gap-hint" value="">
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+function addWordFormation() {
+    const container = document.getElementById('itemsContainer');
+    itemIndex++;
+    const html = `
+        <div class="item-card wf-item" data-index="${itemIndex - 1}">
+            <div class="item-header">
+                <span class="item-number">${itemIndex}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Предложение (с пропуском)</label>
+                <input type="text" class="form-control wf-sentence" value="">
+            </div>
+            <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Базовое слово</label>
+                    <input type="text" class="form-control wf-base" value="">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Ответ</label>
+                    <input type="text" class="form-control wf-answer" value="">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Подсказка</label>
+                    <input type="text" class="form-control wf-hint" value="">
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+function addGrammarExercise() {
+    const container = document.getElementById('exercisesContainer');
+    const html = `
+        <div class="item-card exercise-item" data-index="${exerciseIndex}">
+            <div class="item-header">
+                <span class="item-number">${exerciseIndex + 1}</span>
+                <div class="item-actions">
+                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Вопрос</label>
+                <input type="text" class="form-control ex-question" value="">
+            </div>
+            <div class="options-grid">
+                <div class="option-row">
+                    <input type="radio" name="ex_correct_${exerciseIndex}" value="0" checked>
+                    <input type="text" class="form-control ex-option" value="">
+                </div>
+                <div class="option-row">
+                    <input type="radio" name="ex_correct_${exerciseIndex}" value="1">
+                    <input type="text" class="form-control ex-option" value="">
+                </div>
+                <div class="option-row">
+                    <input type="radio" name="ex_correct_${exerciseIndex}" value="2">
+                    <input type="text" class="form-control ex-option" value="">
+                </div>
+                <div class="option-row">
+                    <input type="radio" name="ex_correct_${exerciseIndex}" value="3">
+                    <input type="text" class="form-control ex-option" value="">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
+                <label>Объяснение</label>
+                <input type="text" class="form-control ex-explanation" value="">
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    exerciseIndex++;
+    renumberItems();
+}
+
+function collectPayload() {
+    const payload = {
+        estimated_time: parseInt(document.getElementById('estimated_time').value) || 15,
+        pass_score: parseInt(document.getElementById('pass_score').value) || 70
+    };
+
+    const instructions = document.getElementById('instructions').value;
+    if (instructions) {
+        payload.instructions = instructions;
+    }
+
+    if (taskType === 'vocabulary') {
+        payload.cards = [];
+        document.querySelectorAll('#cardsContainer .item-card').forEach(card => {
+            const front = card.querySelector('.card-front').value;
+            const translation = card.querySelector('.card-translation').value;
+            const examples = card.querySelector('.card-examples').value.split('\n').filter(e => e.trim());
+
+            payload.cards.push({
+                front: front,
+                back: {
+                    translation: translation,
+                    examples: examples
+                }
+            });
+        });
+        payload.total_cards = payload.cards.length;
+
+    } else if (taskType === 'reading_mcq') {
+        payload.questions = [];
+        document.querySelectorAll('#questionsContainer .question-item').forEach((q, idx) => {
+            const text = q.querySelector('.q-text').value;
+            const options = Array.from(q.querySelectorAll('.q-option')).map(o => o.value);
+            const correct = parseInt(q.querySelector(`input[name="correct_${idx}"]:checked`)?.value || 0);
+            const explanation = q.querySelector('.q-explanation').value;
+
+            payload.questions.push({ text, options, correct, explanation });
+        });
+        payload.total_questions = payload.questions.length;
+
+    } else if (taskType === 'match_headings') {
+        payload.paragraphs = [];
+        document.querySelectorAll('#paragraphsContainer .paragraph-item').forEach(p => {
+            payload.paragraphs.push({
+                id: parseInt(p.querySelector('.p-id').value),
+                text: p.querySelector('.p-text').value
+            });
+        });
+
+        payload.headings = [];
+        document.querySelectorAll('#headingsContainer .heading-item').forEach(h => {
+            const correctFor = h.querySelector('.h-correct').value;
+            payload.headings.push({
+                id: h.querySelector('.h-id').value,
+                text: h.querySelector('.h-text').value,
+                correct_for: correctFor ? parseInt(correctFor) : null
+            });
+        });
+
+        payload.total_paragraphs = payload.paragraphs.length;
+        payload.total_headings = payload.headings.length;
+
+    } else if (taskType === 'open_cloze') {
+        payload.text = document.getElementById('clozeText').value;
+        payload.gaps = [];
+        document.querySelectorAll('#gapsContainer .gap-item').forEach(g => {
+            payload.gaps.push({
+                id: parseInt(g.querySelector('.gap-id').value),
+                answer: g.querySelector('.gap-answer').value,
+                hint: g.querySelector('.gap-hint').value
+            });
+        });
+        payload.total_gaps = payload.gaps.length;
+
+    } else if (taskType === 'word_formation') {
+        payload.items = [];
+        document.querySelectorAll('#itemsContainer .wf-item').forEach(item => {
+            payload.items.push({
+                sentence: item.querySelector('.wf-sentence').value,
+                base_word: item.querySelector('.wf-base').value,
+                answer: item.querySelector('.wf-answer').value,
+                hint: item.querySelector('.wf-hint').value
+            });
+        });
+        payload.total_items = payload.items.length;
+
+    } else if (taskType === 'grammar_sheet') {
+        payload.topic = document.getElementById('grammarTopic').value;
+        payload.explanation = document.getElementById('grammarExplanation').value;
+        payload.examples = document.getElementById('grammarExamples').value.split('\n').filter(e => e.trim());
+
+        payload.exercises = [];
+        document.querySelectorAll('#exercisesContainer .exercise-item').forEach((ex, idx) => {
+            const question = ex.querySelector('.ex-question').value;
+            const options = Array.from(ex.querySelectorAll('.ex-option')).map(o => o.value);
+            const correct = parseInt(ex.querySelector(`input[name="ex_correct_${idx}"]:checked`)?.value || 0);
+            const explanation = ex.querySelector('.ex-explanation').value;
+
+            payload.exercises.push({ question, options, correct, explanation });
+        });
+
+    } else {
+        // Generic JSON
+        const jsonEl = document.getElementById('jsonPayload');
+        if (jsonEl) {
+            try {
+                return JSON.parse(jsonEl.value);
+            } catch (e) {
+                alert('Некорректный JSON: ' + e.message);
+                return null;
+            }
+        }
+    }
+
+    return payload;
+}
+
+function saveTask() {
+    const payload = collectPayload();
+    if (!payload) return;
+
+    const saveBtn = document.querySelector('button[onclick="saveTask()"]');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ payload: payload })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+</script>
+{% endblock %}
