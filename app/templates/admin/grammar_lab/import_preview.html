@@ -26,6 +26,7 @@
                                 <th style="width: 80px;">Модуль</th>
                                 <th style="width: 80px;">Уровень</th>
                                 <th>Грамматическая тема</th>
+                                <th style="width: 100px;">Упражнений</th>
                                 <th style="width: 120px;">Статус</th>
                             </tr>
                         </thead>
@@ -38,6 +39,13 @@
                                 </td>
                                 <td><span class="badge bg-primary">{{ item.level }}</span></td>
                                 <td>{{ item.grammar_title }}</td>
+                                <td>
+                                    {% if item.exercise_count %}
+                                    <span class="badge bg-info">{{ item.exercise_count }}</span>
+                                    {% else %}
+                                    <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if item.exists %}
                                     <span class="badge bg-secondary">Уже есть</span>

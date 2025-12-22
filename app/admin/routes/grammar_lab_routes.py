@@ -341,7 +341,76 @@ def import_from_modules():
                     imported += 1
 
             db.session.commit()
-            flash(f'Импортировано: {imported} тем, пропущено: {skipped} (уже существуют)', 'success')
+
+            # Now import exercises from quiz lessons
+            exercises_imported = 0
+            for module in modules:
+                level_code = module.level.code if module.level else 'A1'
+
+                # Find the grammar topic for this module
+                topic = GrammarTopic.query.filter(
+                    GrammarTopic.slug.like(f'module-{module.number}-%')
+                ).first()
+
+                if not topic:
+                    continue
+
+                # Find quiz lessons (usually lesson 4)
+                quiz_lessons = Lessons.query.filter_by(
+                    module_id=module.id,
+                    type='quiz'
+                ).all()
+
+                for quiz_lesson in quiz_lessons:
+                    content = quiz_lesson.content or {}
+                    exercises = content.get('exercises', [])
+
+                    for i, ex in enumerate(exercises):
+                        ex_type = ex.get('type', 'fill_blank')
+
+                        # Map exercise types
+                        type_mapping = {
+                            'fill_blank': 'fill_blank',
+                            'multiple_choice': 'multiple_choice',
+                            'true_false': 'true_false',
+                            'matching': 'matching',
+                            'transformation': 'transformation',
+                            'ordering': 'reorder',
+                            'translation': 'translation'
+                        }
+                        mapped_type = type_mapping.get(ex_type, 'fill_blank')
+
+                        # Build exercise content
+                        exercise_content = {
+                            'question': ex.get('question') or ex.get('prompt', ''),
+                            'correct_answer': ex.get('correct_answer') or ex.get('answer', ''),
+                            'explanation': ex.get('explanation', ''),
+                        }
+
+                        # Add type-specific fields
+                        if mapped_type == 'multiple_choice':
+                            exercise_content['options'] = ex.get('options', [])
+                            exercise_content['correct_answer'] = ex.get('correct_index', 0)
+                        elif mapped_type == 'matching':
+                            exercise_content['pairs'] = ex.get('pairs', [])
+                        elif mapped_type == 'reorder':
+                            exercise_content['words'] = ex.get('words', [])
+                        elif mapped_type == 'true_false':
+                            exercise_content['statement'] = ex.get('question', '')
+                            exercise_content['correct_answer'] = ex.get('correct_answer', True)
+
+                        exercise = GrammarExercise(
+                            topic_id=topic.id,
+                            exercise_type=mapped_type,
+                            content=exercise_content,
+                            difficulty=1,
+                            order=i
+                        )
+                        db.session.add(exercise)
+                        exercises_imported += 1
+
+            db.session.commit()
+            flash(f'Импортировано: {imported} тем, {exercises_imported} упражнений. Пропущено: {skipped} тем', 'success')
 
         except Exception as e:
             db.session.rollback()
@@ -369,12 +438,20 @@ def import_from_modules():
                 slug = f"module-{module.number}-{slug}"[:100]
                 exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
 
+                # Count quiz exercises
+                quiz_lessons = Lessons.query.filter_by(module_id=module.id, type='quiz').all()
+                exercise_count = 0
+                for ql in quiz_lessons:
+                    qc = ql.content or {}
+                    exercise_count += len(qc.get('exercises', []))
+
                 modules_with_grammar.append({
                     'module_id': module.number,
                     'module_title': module.title,
                     'level': level_code,
                     'grammar_title': title,
-                    'exists': exists
+                    'exists': exists,
+                    'exercise_count': exercise_count
                 })
 
     return render_template(
