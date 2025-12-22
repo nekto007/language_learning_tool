@@ -1,0 +1,754 @@
+{% extends "admin/base.html" %}
+{% block title %}Структура уроков модуля {{ module.module_number }} - Админка{% endblock %}
+
+{% block extra_css %}
+<style>
+.edit-form-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    color: var(--text-secondary, #6b7280);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.breadcrumb-link:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+}
+
+.breadcrumb-sep {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.75rem;
+}
+
+.form-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.form-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-header h2 i {
+    color: var(--accent-color, #3b82f6);
+}
+
+.form-body {
+    padding: 1.5rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--accent-color, #3b82f6);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-secondary, #6b7280);
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #1f2937);
+}
+
+/* Lessons List */
+.lessons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.lesson-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    cursor: grab;
+    transition: all 0.2s;
+}
+
+.lesson-item:hover {
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.lesson-item.dragging {
+    opacity: 0.5;
+    border-style: dashed;
+}
+
+.lesson-item.expanded {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.lesson-item.expanded .lesson-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+.drag-handle {
+    color: var(--text-secondary, #9ca3af);
+    cursor: grab;
+}
+
+.lesson-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.lesson-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.lesson-title {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 0.25rem;
+}
+
+.lesson-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.lesson-type-badge {
+    padding: 0.25rem 0.625rem;
+    background: #f0f7ff;
+    color: var(--accent-color, #3b82f6);
+    border-radius: 20px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.lesson-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    background: white;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.btn-icon.delete:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
+.btn-icon.expand:hover {
+    background: #f0f7ff;
+    border-color: var(--accent-color, #3b82f6);
+    color: var(--accent-color, #3b82f6);
+}
+
+/* Expanded Lesson Form */
+.lesson-details {
+    display: none;
+    width: 100%;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.lesson-item.expanded .lesson-details {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 0.375rem;
+    font-size: 0.8125rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+/* Add Lesson Button */
+.add-lesson-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    border: 2px dashed var(--border-color, #d1d5db);
+    border-radius: 10px;
+    color: var(--text-secondary, #6b7280);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 1rem;
+}
+
+.add-lesson-btn:hover {
+    border-color: var(--accent-color, #3b82f6);
+    color: var(--accent-color, #3b82f6);
+    background: #f0f7ff;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    opacity: 0.3;
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem;
+    color: var(--text-primary, #1f2937);
+    font-size: 1.125rem;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Info Banner */
+.info-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.info-banner i {
+    color: var(--accent-color, #3b82f6);
+    font-size: 1.125rem;
+    margin-top: 0.125rem;
+}
+
+.info-banner-content {
+    flex: 1;
+}
+
+.info-banner-content p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-primary, #1f2937);
+}
+
+.info-banner-content p + p {
+    margin-top: 0.5rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8125rem;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .lesson-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .lesson-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-form-container">
+    <!-- Navigation -->
+    <div class="nav-breadcrumb">
+        <a href="{{ url_for('admin.book_courses') }}" class="breadcrumb-link">
+            <i class="fas fa-graduation-cap"></i> Курсы
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="breadcrumb-link">
+            {{ course.title[:25] }}{% if course.title|length > 25 %}...{% endif %}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}" class="breadcrumb-link">
+            Модуль {{ module.module_number }}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <span class="breadcrumb-link" style="background: var(--accent-color, #3b82f6); color: white;">
+            <i class="fas fa-list-ol"></i> Структура уроков
+        </span>
+    </div>
+
+    <div class="form-card">
+        <div class="form-header">
+            <h2><i class="fas fa-list-ol"></i> Структура уроков модуля {{ module.module_number }}</h2>
+            <span style="font-size: 0.875rem; color: var(--text-secondary);">{{ module.title }}</span>
+        </div>
+
+        <div class="form-body">
+            <!-- Info Banner -->
+            <div class="info-banner">
+                <i class="fas fa-info-circle"></i>
+                <div class="info-banner-content">
+                    <p><strong>Редактирование структуры уроков</strong></p>
+                    <p>Здесь вы можете определить последовательность уроков в модуле. Каждый урок имеет тип (словарь, грамматика, текст и т.д.) и описание. Перетаскивайте уроки для изменения порядка.</p>
+                </div>
+            </div>
+
+            <!-- Lessons List -->
+            <div class="lessons-list" id="lessonsList">
+                {% for lesson in lessons_data.get('lessons', []) %}
+                <div class="lesson-item" data-index="{{ loop.index0 }}">
+                    <div class="lesson-main">
+                        <span class="drag-handle"><i class="fas fa-grip-vertical"></i></span>
+                        <span class="lesson-number">{{ lesson.lesson_number }}</span>
+                        <div class="lesson-info">
+                            <div class="lesson-title">{{ lesson.title or 'Урок ' ~ lesson.lesson_number }}</div>
+                            <div class="lesson-meta">{{ lesson.description or 'Нет описания' }}</div>
+                        </div>
+                        <span class="lesson-type-badge">{{ lesson.lesson_type }}</span>
+                        <div class="lesson-actions">
+                            <button type="button" class="btn-icon expand" onclick="toggleLesson(this)">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <button type="button" class="btn-icon delete" onclick="removeLesson(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lesson-details">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Номер урока</label>
+                                <input type="number" class="form-control lesson-number-input" value="{{ lesson.lesson_number }}" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label>Тип урока</label>
+                                <select class="form-control lesson-type-input">
+                                    <option value="vocabulary" {% if lesson.lesson_type == 'vocabulary' %}selected{% endif %}>Словарь</option>
+                                    <option value="grammar" {% if lesson.lesson_type == 'grammar' %}selected{% endif %}>Грамматика</option>
+                                    <option value="quiz" {% if lesson.lesson_type == 'quiz' %}selected{% endif %}>Викторина</option>
+                                    <option value="matching" {% if lesson.lesson_type == 'matching' %}selected{% endif %}>Сопоставление</option>
+                                    <option value="text" {% if lesson.lesson_type == 'text' %}selected{% endif %}>Текст</option>
+                                    <option value="reading" {% if lesson.lesson_type == 'reading' %}selected{% endif %}>Чтение</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Название</label>
+                            <input type="text" class="form-control lesson-title-input" value="{{ lesson.title or '' }}" placeholder="Название урока">
+                        </div>
+                        <div class="form-group">
+                            <label>Описание</label>
+                            <input type="text" class="form-control lesson-desc-input" value="{{ lesson.description or '' }}" placeholder="Краткое описание урока">
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-folder-open"></i>
+                    <h3>Нет уроков</h3>
+                    <p>Добавьте первый урок, нажав кнопку ниже</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" class="add-lesson-btn" onclick="addLesson()">
+                <i class="fas fa-plus"></i> Добавить урок
+            </button>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}"
+               class="btn btn-secondary">
+                <i class="fas fa-times"></i> Отмена
+            </a>
+            <button type="button" class="btn btn-primary" onclick="saveLessonsData()">
+                <i class="fas fa-save"></i> Сохранить структуру
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let lessonIndex = {{ lessons_data.get('lessons', [])|length }};
+
+function toggleLesson(btn) {
+    const item = btn.closest('.lesson-item');
+    item.classList.toggle('expanded');
+    const icon = btn.querySelector('i');
+    icon.classList.toggle('fa-chevron-down');
+    icon.classList.toggle('fa-chevron-up');
+}
+
+function removeLesson(btn) {
+    if (!confirm('Удалить этот урок из структуры?')) return;
+
+    const item = btn.closest('.lesson-item');
+    item.remove();
+
+    // Check if empty
+    const list = document.getElementById('lessonsList');
+    if (list.querySelectorAll('.lesson-item').length === 0) {
+        list.innerHTML = `
+            <div class="empty-state" id="emptyState">
+                <i class="fas fa-folder-open"></i>
+                <h3>Нет уроков</h3>
+                <p>Добавьте первый урок, нажав кнопку ниже</p>
+            </div>
+        `;
+    }
+
+    renumberLessons();
+}
+
+function addLesson() {
+    const list = document.getElementById('lessonsList');
+
+    // Remove empty state if present
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    lessonIndex++;
+    const html = `
+        <div class="lesson-item expanded" data-index="${lessonIndex - 1}">
+            <div class="lesson-main">
+                <span class="drag-handle"><i class="fas fa-grip-vertical"></i></span>
+                <span class="lesson-number">${lessonIndex}</span>
+                <div class="lesson-info">
+                    <div class="lesson-title">Новый урок</div>
+                    <div class="lesson-meta">Нет описания</div>
+                </div>
+                <span class="lesson-type-badge">vocabulary</span>
+                <div class="lesson-actions">
+                    <button type="button" class="btn-icon expand" onclick="toggleLesson(this)">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                    <button type="button" class="btn-icon delete" onclick="removeLesson(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="lesson-details">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Номер урока</label>
+                        <input type="number" class="form-control lesson-number-input" value="${lessonIndex}" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Тип урока</label>
+                        <select class="form-control lesson-type-input">
+                            <option value="vocabulary" selected>Словарь</option>
+                            <option value="grammar">Грамматика</option>
+                            <option value="quiz">Викторина</option>
+                            <option value="matching">Сопоставление</option>
+                            <option value="text">Текст</option>
+                            <option value="reading">Чтение</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" class="form-control lesson-title-input" value="" placeholder="Название урока">
+                </div>
+                <div class="form-group">
+                    <label>Описание</label>
+                    <input type="text" class="form-control lesson-desc-input" value="" placeholder="Краткое описание урока">
+                </div>
+            </div>
+        </div>
+    `;
+
+    list.insertAdjacentHTML('beforeend', html);
+
+    // Add change listeners to update preview
+    const newItem = list.lastElementChild;
+    addChangeListeners(newItem);
+}
+
+function addChangeListeners(item) {
+    const titleInput = item.querySelector('.lesson-title-input');
+    const descInput = item.querySelector('.lesson-desc-input');
+    const typeInput = item.querySelector('.lesson-type-input');
+    const numInput = item.querySelector('.lesson-number-input');
+
+    titleInput.addEventListener('input', () => {
+        item.querySelector('.lesson-title').textContent = titleInput.value || 'Урок ' + numInput.value;
+    });
+
+    descInput.addEventListener('input', () => {
+        item.querySelector('.lesson-meta').textContent = descInput.value || 'Нет описания';
+    });
+
+    typeInput.addEventListener('change', () => {
+        item.querySelector('.lesson-type-badge').textContent = typeInput.value;
+    });
+
+    numInput.addEventListener('input', () => {
+        item.querySelector('.lesson-number').textContent = numInput.value;
+    });
+}
+
+function renumberLessons() {
+    const items = document.querySelectorAll('#lessonsList .lesson-item');
+    items.forEach((item, idx) => {
+        item.querySelector('.lesson-number').textContent = idx + 1;
+        item.querySelector('.lesson-number-input').value = idx + 1;
+    });
+}
+
+function collectLessonsData() {
+    const lessons = [];
+
+    document.querySelectorAll('#lessonsList .lesson-item').forEach((item, idx) => {
+        const lessonNumber = parseInt(item.querySelector('.lesson-number-input').value) || (idx + 1);
+        const lessonType = item.querySelector('.lesson-type-input').value;
+        const title = item.querySelector('.lesson-title-input').value;
+        const description = item.querySelector('.lesson-desc-input').value;
+
+        lessons.push({
+            lesson_number: lessonNumber,
+            lesson_type: lessonType,
+            title: title || `Урок ${lessonNumber}`,
+            description: description || ''
+        });
+    });
+
+    return { lessons: lessons };
+}
+
+function saveLessonsData() {
+    const data = collectLessonsData();
+
+    const saveBtn = document.querySelector('button[onclick="saveLessonsData()"]');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ lessons_data: data })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка при сохранении');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+// Initialize change listeners for existing items
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#lessonsList .lesson-item').forEach(item => {
+        addChangeListeners(item);
+    });
+
+    // Simple drag and drop
+    const list = document.getElementById('lessonsList');
+    let dragged = null;
+
+    list.addEventListener('dragstart', function(e) {
+        if (e.target.classList.contains('lesson-item')) {
+            dragged = e.target;
+            e.target.classList.add('dragging');
+        }
+    });
+
+    list.addEventListener('dragend', function(e) {
+        if (e.target.classList.contains('lesson-item')) {
+            e.target.classList.remove('dragging');
+            renumberLessons();
+        }
+    });
+
+    list.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(list, e.clientY);
+        if (dragged && afterElement) {
+            list.insertBefore(dragged, afterElement);
+        } else if (dragged) {
+            list.appendChild(dragged);
+        }
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.lesson-item:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Make items draggable
+    list.querySelectorAll('.lesson-item').forEach(item => {
+        item.setAttribute('draggable', 'true');
+    });
+});
+</script>
+{% endblock %}

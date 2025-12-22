@@ -1,0 +1,899 @@
+{% extends "admin/base.html" %}
+{% block title %}Редактировать День {{ lesson.day_number }} - Админка{% endblock %}
+
+{% block extra_css %}
+<style>
+.edit-form-container {
+    max-width: {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}1200px{% else %}900px{% endif %};
+    margin: 0 auto;
+}
+
+.nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    color: var(--text-secondary, #6b7280);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.breadcrumb-link:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+}
+
+.breadcrumb-sep {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.75rem;
+}
+
+.form-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.form-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-header h2 i {
+    color: var(--accent-color, #3b82f6);
+}
+
+.form-body {
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.form-group .help-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 0.25rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+textarea.form-control {
+    min-height: 300px;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--accent-color, #3b82f6);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-primary:disabled {
+    background: #93c5fd;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-secondary, #6b7280);
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #1f2937);
+}
+
+.meta-info {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem 1.5rem;
+    background: #f0f7ff;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.meta-item i {
+    color: var(--accent-color, #3b82f6);
+}
+
+.meta-item strong {
+    color: var(--text-primary, #1f2937);
+}
+
+/* Vocabulary Editor Styles */
+.add-word-section {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.add-word-section h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #166534;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.search-container {
+    position: relative;
+}
+
+#wordSearch {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    padding-left: 2.25rem;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+#wordSearch:focus {
+    outline: none;
+    border-color: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #22c55e;
+    font-size: 0.875rem;
+}
+
+#searchResults {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    margin-top: 0.25rem;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.search-result-item {
+    padding: 0.625rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.search-result-item:hover {
+    background: #f9fafb;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-word-english {
+    font-weight: 600;
+}
+
+.search-word-russian {
+    color: #6b7280;
+    margin-left: 0.5rem;
+}
+
+.search-word-level {
+    padding: 0.125rem 0.375rem;
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+
+/* Vocabulary Table */
+.vocab-table-container {
+    overflow-x: auto;
+    margin: -1.5rem;
+    margin-top: 0;
+}
+
+#vocabularyTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+#vocabularyTable th {
+    background: var(--bg-secondary, #f9fafb);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+#vocabularyTable td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+}
+
+#vocabularyTable tr:hover {
+    background: #fafafa;
+}
+
+.word-english {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+}
+
+.word-level {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    background: #dbeafe;
+    color: #1d4ed8;
+    margin-top: 0.25rem;
+}
+
+.input-small {
+    width: 50px;
+    padding: 0.375rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.8125rem;
+}
+
+.input-translation {
+    width: 130px;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+}
+
+.input-context {
+    width: 100%;
+    min-width: 180px;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    resize: vertical;
+    min-height: 50px;
+}
+
+.input-small:focus,
+.input-translation:focus,
+.input-context:focus {
+    outline: none;
+    border-color: var(--accent-color, #3b82f6);
+}
+
+.db-example {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    max-width: 200px;
+    line-height: 1.4;
+}
+
+.btn-remove {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+}
+
+.btn-remove:hover {
+    background: #fecaca;
+}
+
+.vocab-count {
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.empty-state i {
+    font-size: 2rem;
+    opacity: 0.3;
+    margin-bottom: 0.5rem;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast-success { background: #10b981; color: white; }
+.toast-error { background: #ef4444; color: white; }
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .meta-info {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-form-container">
+    <!-- Navigation -->
+    <div class="nav-breadcrumb">
+        <a href="{{ url_for('admin.book_courses') }}" class="breadcrumb-link">
+            <i class="fas fa-graduation-cap"></i> Курсы
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="breadcrumb-link">
+            {{ course.title[:25] }}{% if course.title|length > 25 %}...{% endif %}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}" class="breadcrumb-link">
+            Модуль {{ module.module_number }}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <span class="breadcrumb-link" style="background: var(--accent-color, #3b82f6); color: white;">
+            <i class="fas fa-edit"></i> День {{ lesson.day_number }}
+        </span>
+    </div>
+
+    <!-- Lesson Settings Card -->
+    <div class="form-card">
+        <div class="form-header">
+            <h2><i class="fas fa-cog"></i> Настройки урока</h2>
+        </div>
+
+        <form id="editLessonForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-body">
+                <!-- Meta Info -->
+                <div class="meta-info">
+                    <div class="meta-item">
+                        <i class="fas fa-calendar-day"></i>
+                        День: <strong>{{ lesson.day_number }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-file-word"></i>
+                        Слов: <strong id="wordCount">{{ lesson.word_count }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-bookmark"></i>
+                        Глава: <strong>{{ lesson.chapter.title if lesson.chapter else 'N/A' }}</strong>
+                    </div>
+                </div>
+
+                <!-- Lesson Type -->
+                <div class="form-group">
+                    <label for="lesson_type">Тип урока</label>
+                    <select name="lesson_type" id="lesson_type" class="form-control" required>
+                        {% for value, label in form.lesson_type.choices %}
+                        <option value="{{ value }}" {% if lesson.lesson_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Slice Text (hidden for vocabulary lessons) -->
+                <div class="form-group" id="sliceTextGroup" {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}style="display: none;"{% endif %}>
+                    <label for="slice_text">Текст урока</label>
+                    <textarea name="slice_text" id="slice_text" class="form-control">{{ lesson.slice_text or '' }}</textarea>
+                    <p class="help-text">Основной текст урока (около 800 слов)</p>
+                </div>
+
+                <!-- Audio and Availability -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="audio_url">URL аудио</label>
+                        <input type="text" name="audio_url" id="audio_url" class="form-control"
+                               value="{{ lesson.audio_url or '' }}" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label for="available_at">Доступен с</label>
+                        <input type="datetime-local" name="available_at" id="available_at" class="form-control"
+                               value="{{ lesson.available_at.strftime('%Y-%m-%dT%H:%M') if lesson.available_at else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}"
+                   class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </a>
+                <button type="submit" class="btn btn-primary" id="saveLessonBtn">
+                    <i class="fas fa-save"></i> Сохранить настройки
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}
+    <!-- Vocabulary Editor Card -->
+    <div class="form-card">
+        <div class="form-header">
+            <h2><i class="fas fa-book-open"></i> Слова урока</h2>
+            <span class="vocab-count" id="wordCountBadge">{{ vocabulary|length }}</span>
+        </div>
+
+        <div class="form-body">
+            <!-- Add word section -->
+            <div class="add-word-section">
+                <h4><i class="fas fa-plus-circle"></i> Добавить слово</h4>
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="wordSearch" placeholder="Введите слово для поиска..." autocomplete="off">
+                    <div id="searchResults"></div>
+                </div>
+            </div>
+
+            <!-- Vocabulary Table -->
+            <div class="vocab-table-container">
+                <table id="vocabularyTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 55px;">Приор.</th>
+                            <th style="width: 120px;">Слово</th>
+                            <th style="width: 140px;">Перевод</th>
+                            <th>Пример из книги</th>
+                            <th style="width: 200px;">Пример из БД</th>
+                            <th style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="vocabularyBody">
+                        {% if vocabulary %}
+                            {% for v in vocabulary %}
+                            <tr data-id="{{ v.id }}">
+                                <td>
+                                    <input type="number" class="input-small" name="priority" value="{{ v.priority }}" min="0">
+                                </td>
+                                <td>
+                                    <div class="word-english">{{ v.english }}</div>
+                                    <span class="word-level">{{ v.level }}</span>
+                                </td>
+                                <td>
+                                    <input type="text" class="input-translation" name="translation"
+                                           value="{{ v.translation }}" placeholder="Перевод...">
+                                </td>
+                                <td>
+                                    <textarea class="input-context" name="context_sentence"
+                                              placeholder="Пример...">{{ v.context_sentence or '' }}</textarea>
+                                </td>
+                                <td class="db-example">{{ v.db_examples[:120] }}{% if v.db_examples and v.db_examples|length > 120 %}...{% endif %}</td>
+                                <td>
+                                    <button type="button" class="btn-remove" onclick="removeWord({{ v.id }})" title="Удалить">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr id="emptyRow">
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>Нет слов. Используйте поиск выше.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <div></div>
+            <button type="button" class="btn btn-primary" id="saveVocabBtn" onclick="saveVocabulary()">
+                <i class="fas fa-save"></i> Сохранить слова
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('editLessonForm');
+    const textArea = document.getElementById('slice_text');
+    const wordCountEl = document.getElementById('wordCount');
+    const lessonTypeSelect = document.getElementById('lesson_type');
+    const sliceTextGroup = document.getElementById('sliceTextGroup');
+
+    const vocabularyTypes = ['vocabulary', 'vocabulary_review'];
+
+    // Toggle text field visibility based on lesson type
+    function toggleTextFieldVisibility() {
+        const isVocabulary = vocabularyTypes.includes(lessonTypeSelect.value);
+        sliceTextGroup.style.display = isVocabulary ? 'none' : 'block';
+    }
+
+    lessonTypeSelect.addEventListener('change', toggleTextFieldVisibility);
+
+    // Update word count on text change
+    if (textArea) {
+        textArea.addEventListener('input', function() {
+            const words = this.value.trim().split(/\s+/).filter(w => w.length > 0);
+            wordCountEl.textContent = words.length;
+        });
+    }
+
+    // Handle lesson form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const submitBtn = document.getElementById('saveLessonBtn');
+        const originalText = submitBtn.innerHTML;
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Настройки сохранены!', 'success');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            } else {
+                showToast('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Ошибка при сохранении', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+
+    // Word search functionality
+    const searchInput = document.getElementById('wordSearch');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout = null;
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`{{ url_for('admin.search_words_api') }}?q=${encodeURIComponent(query)}&book_id={{ course.book_id }}`)
+                    .then(response => response.json())
+                    .then(words => {
+                        if (words.length === 0) {
+                            searchResults.innerHTML = '<div class="search-result-item"><span style="color: #9ca3af;">Ничего не найдено</span></div>';
+                        } else {
+                            searchResults.innerHTML = words.map(w => `
+                                <div class="search-result-item" onclick="addWord(${w.id})">
+                                    <div>
+                                        <span class="search-word-english">${w.english}</span>
+                                        <span class="search-word-russian">${w.russian || ''}</span>
+                                        ${w.frequency ? `<span style="color: #9ca3af; font-size: 0.75rem; margin-left: 0.5rem;">(${w.frequency}x)</span>` : ''}
+                                    </div>
+                                    <span class="search-word-level">${w.level || ''}</span>
+                                </div>
+                            `).join('');
+                        }
+                        searchResults.style.display = 'block';
+                    })
+                    .catch(error => console.error('Search error:', error));
+            }, 300);
+        });
+
+        // Hide search results on click outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+    }
+});
+
+function addWord(wordId) {
+    const searchInput = document.getElementById('wordSearch');
+    const searchResults = document.getElementById('searchResults');
+
+    fetch(`{{ url_for('admin.add_word_to_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ word_id: wordId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const emptyRow = document.getElementById('emptyRow');
+            if (emptyRow) emptyRow.remove();
+
+            const word = data.word;
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-id', word.id);
+            newRow.innerHTML = `
+                <td><input type="number" class="input-small" name="priority" value="${word.priority}" min="0"></td>
+                <td>
+                    <div class="word-english">${word.english}</div>
+                    <span class="word-level">${word.level || ''}</span>
+                </td>
+                <td><input type="text" class="input-translation" name="translation" value="${word.russian || ''}" placeholder="Перевод..."></td>
+                <td><textarea class="input-context" name="context_sentence" placeholder="Пример...">${word.context_sentence || ''}</textarea></td>
+                <td class="db-example">${(word.db_examples || '').substring(0, 120)}${word.db_examples && word.db_examples.length > 120 ? '...' : ''}</td>
+                <td><button type="button" class="btn-remove" onclick="removeWord(${word.id})" title="Удалить"><i class="fas fa-times"></i></button></td>
+            `;
+
+            document.getElementById('vocabularyBody').insertBefore(newRow, document.getElementById('vocabularyBody').firstChild);
+            updateWordCount();
+
+            searchInput.value = '';
+            searchResults.style.display = 'none';
+            showToast('Слово добавлено', 'success');
+        } else {
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Add word error:', error);
+        showToast('Ошибка при добавлении', 'error');
+    });
+}
+
+function removeWord(vocabId) {
+    if (!confirm('Удалить слово?')) return;
+
+    fetch(`/admin/book-courses/{{ course.id }}/modules/{{ module.id }}/lessons/{{ lesson.id }}/vocabulary/${vocabId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector(`tr[data-id="${vocabId}"]`)?.remove();
+            updateWordCount();
+
+            const tbody = document.getElementById('vocabularyBody');
+            if (tbody && tbody.children.length === 0) {
+                tbody.innerHTML = `<tr id="emptyRow"><td colspan="6"><div class="empty-state"><i class="fas fa-inbox"></i><p>Нет слов. Используйте поиск выше.</p></div></td></tr>`;
+            }
+            showToast('Слово удалено', 'success');
+        } else {
+            showToast(data.error || 'Ошибка', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Remove error:', error);
+        showToast('Ошибка при удалении', 'error');
+    });
+}
+
+function saveVocabulary() {
+    const saveBtn = document.getElementById('saveVocabBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+
+    const words = [];
+    document.querySelectorAll('#vocabularyBody tr[data-id]').forEach(row => {
+        words.push({
+            id: parseInt(row.getAttribute('data-id')),
+            priority: parseInt(row.querySelector('input[name="priority"]').value) || 0,
+            translation: row.querySelector('input[name="translation"]').value,
+            context_sentence: row.querySelector('textarea[name="context_sentence"]').value
+        });
+    });
+
+    fetch(`{{ url_for('admin.save_vocabulary_words', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ words })
+    })
+    .then(response => response.json())
+    .then(data => {
+        showToast(data.success ? 'Слова сохранены!' : (data.error || 'Ошибка'), data.success ? 'success' : 'error');
+    })
+    .catch(error => {
+        console.error('Save error:', error);
+        showToast('Ошибка при сохранении', 'error');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+function updateWordCount() {
+    const badge = document.getElementById('wordCountBadge');
+    if (badge) {
+        badge.textContent = document.querySelectorAll('#vocabularyBody tr[data-id]').length;
+    }
+}
+
+function showToast(message, type) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+</script>
+{% endblock %}

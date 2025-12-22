@@ -1,0 +1,1164 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}📚 Грамматика{% endblock %}
+
+{% block lesson_content %}
+<div class="grammar-lesson-container">
+  {% if topic and topic.content %}
+
+  <!-- Theory Section -->
+  <div class="grammar-theory" id="theory-section">
+    <div class="grammar-header">
+      <span class="grammar-level-badge">{{ topic.level }}</span>
+      <h1>{{ topic.title }}</h1>
+      <p class="grammar-subtitle">{{ topic.title_ru }}</p>
+    </div>
+
+    {% if topic.content.introduction %}
+    <div class="grammar-intro">
+      <p>{{ topic.content.introduction }}</p>
+    </div>
+    {% endif %}
+
+    {% for section in topic.content.sections or [] %}
+    <div class="grammar-section">
+      <h3>{{ section.subtitle }}</h3>
+      {% if section.description %}
+      <p class="section-desc">{{ section.description }}</p>
+      {% endif %}
+
+      {% if section.table %}
+      <div class="grammar-table">
+        {% for row in section.table %}
+        <div class="grammar-row">
+          {% if row.pronoun %}
+          <span class="row-pronoun">{{ row.pronoun }}</span>
+          {% endif %}
+          {% if row.verb or row.form %}
+          <span class="row-verb">{{ row.verb or row.form }}</span>
+          {% endif %}
+          <div class="row-example">
+            <span class="example-text">{{ row.example }}</span>
+            {% if row.translation %}
+            <span class="example-translation">{{ row.translation }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if topic.content.important_notes %}
+    <div class="grammar-notes">
+      <h3><i class="fas fa-lightbulb"></i> Важно запомнить</h3>
+      <ul>
+        {% for note in topic.content.important_notes %}
+        <li>{{ note }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Button to Practice -->
+    <div class="theory-actions">
+      <button class="btn-start-practice" onclick="startPractice()">
+        Перейти к упражнениям <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Practice Section (hidden initially) -->
+  <div class="grammar-practice" id="practice-section" style="display: none;">
+    <div class="practice-header">
+      <h2><i class="fas fa-dumbbell"></i> Практика</h2>
+      <div class="practice-progress">
+        <span id="current-q">1</span> / <span id="total-q">{{ exercises|length }}</span>
+      </div>
+    </div>
+
+    <div class="question-card" id="question-card">
+      <div class="question-text" id="question-text"></div>
+      <div class="options-list" id="options-list"></div>
+      <div class="fill-blank-input" id="fill-blank-input" style="display: none;">
+        <input type="text" id="fill-answer" class="fill-input" placeholder="Введите ответ..." autocomplete="off" spellcheck="false">
+        <button type="button" class="btn-check-answer" onclick="checkFillAnswer()">Проверить</button>
+      </div>
+      <div class="feedback" id="feedback" style="display: none;"></div>
+    </div>
+
+    <div class="practice-nav">
+      <button class="btn-nav btn-secondary" onclick="showTheory()">
+        <i class="fas fa-arrow-left"></i> К теории
+      </button>
+      <button class="btn-nav btn-primary" id="next-btn" onclick="nextQuestion()" disabled>
+        Далее <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Results Section (hidden) -->
+  <div class="grammar-results" id="results-section" style="display: none;">
+    <div class="results-card">
+      <div class="results-icon" id="results-icon">🎉</div>
+      <div class="results-score" id="results-score">0%</div>
+      <div class="results-message" id="results-message"></div>
+      <div class="results-actions" id="results-actions">
+        <span class="saving-indicator"><i class="fas fa-spinner fa-spin"></i> Сохраняем...</span>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- No topic fallback -->
+  <div class="grammar-empty">
+    <div class="empty-icon"><i class="fas fa-book-open"></i></div>
+    <h2>Грамматика</h2>
+    <p>Грамматическая тема для этого урока не найдена</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="lesson-footer-buttons" id="footer-buttons">
+  <!-- Buttons appear after lesson completion via showResults() -->
+</div>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+// Exercises data from Grammar Lab
+const exercises = {{ exercises | tojson | safe if exercises else '[]' }};
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const storageKey = `grammar_progress_${lessonId}`;
+
+// Load saved progress or initialize
+let savedProgress = JSON.parse(localStorage.getItem(storageKey) || '{}');
+let currentQuestion = savedProgress.currentQuestion || 0;
+let answers = savedProgress.answers || {};
+let score = savedProgress.score || 0;
+let practiceStarted = savedProgress.practiceStarted || false;
+
+function saveProgress() {
+  localStorage.setItem(storageKey, JSON.stringify({
+    currentQuestion,
+    answers,
+    score,
+    practiceStarted
+  }));
+}
+
+function clearProgress() {
+  localStorage.removeItem(storageKey);
+}
+
+// Enter key support for fill_blank
+document.addEventListener('DOMContentLoaded', function() {
+  const fillInput = document.getElementById('fill-answer');
+  if (fillInput) {
+    fillInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && !this.disabled) {
+        checkFillAnswer();
+      }
+    });
+  }
+
+  // Restore state on page load
+  if (practiceStarted && exercises.length > 0) {
+    document.getElementById('theory-section').style.display = 'none';
+    document.getElementById('practice-section').style.display = 'block';
+    showQuestion(currentQuestion);
+  }
+});
+
+function showTheory() {
+  document.getElementById('theory-section').style.display = 'block';
+  document.getElementById('practice-section').style.display = 'none';
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('complete-btn').style.display = 'none';
+}
+
+function startPractice() {
+  document.getElementById('theory-section').style.display = 'none';
+  document.getElementById('practice-section').style.display = 'block';
+  document.getElementById('results-section').style.display = 'none';
+
+  practiceStarted = true;
+  saveProgress();
+
+  if (exercises.length > 0) {
+    showQuestion(currentQuestion);
+  } else {
+    // No exercises - go straight to results
+    showFinalResults();
+  }
+}
+
+function showQuestion(index) {
+  if (index >= exercises.length) {
+    showFinalResults();
+    return;
+  }
+
+  const ex = exercises[index];
+  currentQuestion = index;
+
+  document.getElementById('current-q').textContent = index + 1;
+  document.getElementById('total-q').textContent = exercises.length;
+
+  // Get question text
+  const questionText = ex.content?.question || ex.question || 'Вопрос';
+  document.getElementById('question-text').innerHTML = questionText.replace(/_+/g, '<span class="blank-space">______</span>');
+
+  const exerciseType = ex.exercise_type || ex.content?.exercise_type || 'multiple_choice';
+  const optionsList = document.getElementById('options-list');
+  const fillBlankInput = document.getElementById('fill-blank-input');
+
+  if (exerciseType === 'fill_blank') {
+    // Fill in the blank
+    optionsList.style.display = 'none';
+    fillBlankInput.style.display = 'flex';
+    document.getElementById('fill-answer').value = answers[index] || '';
+    document.getElementById('fill-answer').focus();
+  } else {
+    // Multiple choice
+    optionsList.style.display = 'flex';
+    fillBlankInput.style.display = 'none';
+
+    const options = ex.content?.options || ex.options || [];
+    optionsList.innerHTML = options.map((opt, i) => `
+      <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
+        <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+        <span class="option-text">${opt}</span>
+      </div>
+    `).join('');
+  }
+
+  // Update nav
+  document.getElementById('next-btn').disabled = answers[index] === undefined;
+  document.getElementById('next-btn').innerHTML =
+    index === exercises.length - 1 ? 'Завершить <i class="fas fa-check"></i>' : 'Далее <i class="fas fa-arrow-right"></i>';
+
+  // Hide feedback
+  document.getElementById('feedback').style.display = 'none';
+}
+
+function selectOption(optionIndex) {
+  const ex = exercises[currentQuestion];
+  answers[currentQuestion] = optionIndex;
+
+  const correctIndex = ex.content?.correct_answer ?? ex.correct ?? 0;
+  const options = document.querySelectorAll('.option');
+
+  options.forEach((opt, i) => {
+    opt.classList.remove('selected', 'correct', 'incorrect');
+    if (i === optionIndex) opt.classList.add('selected');
+  });
+
+  // Show feedback
+  const isCorrect = optionIndex === correctIndex;
+  const explanation = ex.content?.explanation || ex.explanation || '';
+  const feedback = document.getElementById('feedback');
+
+  feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  feedback.innerHTML = `
+    <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
+    <div class="feedback-text">${explanation || (isCorrect ? 'Правильно!' : 'Неправильно')}</div>
+  `;
+  feedback.style.display = 'flex';
+
+  // Highlight correct/incorrect
+  options.forEach((opt, i) => {
+    if (i === correctIndex) {
+      opt.classList.add('correct');
+    } else if (i === optionIndex && !isCorrect) {
+      opt.classList.add('incorrect');
+    }
+  });
+
+  document.getElementById('next-btn').disabled = false;
+  saveProgress();
+}
+
+function checkFillAnswer() {
+  const ex = exercises[currentQuestion];
+  const userAnswer = document.getElementById('fill-answer').value.trim().toLowerCase();
+  const correctAnswer = (ex.content?.correct_answer || '').toLowerCase();
+  const alternatives = (ex.content?.alternatives || []).map(a => a.toLowerCase());
+
+  const isCorrect = userAnswer === correctAnswer || alternatives.includes(userAnswer);
+  answers[currentQuestion] = { answer: userAnswer, isCorrect };
+
+  const explanation = ex.content?.explanation || ex.explanation || '';
+  const feedback = document.getElementById('feedback');
+
+  feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  feedback.innerHTML = `
+    <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
+    <div class="feedback-text">
+      ${isCorrect ? 'Правильно!' : `Неправильно. Правильный ответ: <strong>${ex.content?.correct_answer || correctAnswer}</strong>`}
+      ${explanation ? `<br><small>${explanation}</small>` : ''}
+    </div>
+  `;
+  feedback.style.display = 'flex';
+
+  // Disable input and button
+  document.getElementById('fill-answer').disabled = true;
+  document.querySelector('.btn-check-answer').disabled = true;
+
+  document.getElementById('next-btn').disabled = false;
+  saveProgress();
+}
+
+function nextQuestion() {
+  // Re-enable input for next question
+  document.getElementById('fill-answer').disabled = false;
+  document.querySelector('.btn-check-answer').disabled = false;
+
+  if (currentQuestion < exercises.length - 1) {
+    currentQuestion++;
+    saveProgress();
+    showQuestion(currentQuestion);
+  } else {
+    showFinalResults();
+  }
+}
+
+function showFinalResults() {
+  // Calculate score
+  let correct = 0;
+  if (exercises.length > 0) {
+    exercises.forEach((ex, i) => {
+      const exerciseType = ex.exercise_type || ex.content?.exercise_type || 'multiple_choice';
+      if (exerciseType === 'fill_blank') {
+        // Fill blank stores {answer, isCorrect}
+        if (answers[i]?.isCorrect) correct++;
+      } else {
+        // Multiple choice stores index
+        const correctIndex = ex.content?.correct_answer ?? ex.correct ?? 0;
+        if (answers[i] === correctIndex) correct++;
+      }
+    });
+    score = Math.round((correct / exercises.length) * 100);
+  } else {
+    score = 100;
+  }
+
+  document.getElementById('theory-section').style.display = 'none';
+  document.getElementById('practice-section').style.display = 'none';
+  document.getElementById('results-section').style.display = 'block';
+
+  document.getElementById('results-score').textContent = score + '%';
+
+  const icon = score >= 80 ? '🎉' : score >= 60 ? '👍' : '📚';
+  const message = score >= 80 ? 'Отлично! Материал усвоен!'
+    : score >= 60 ? 'Хорошо! Рекомендуем повторить.'
+    : 'Стоит вернуться к теории.';
+
+  document.getElementById('results-icon').textContent = icon;
+  document.getElementById('results-message').textContent = message;
+
+  window.finalScore = score;
+
+  // Auto-complete lesson
+  completeLesson();
+}
+
+function retryPractice() {
+  // Reset answers and start over
+  answers = {};
+  currentQuestion = 0;
+  score = 0;
+  practiceStarted = true;
+  saveProgress();
+
+  // Re-enable inputs
+  document.getElementById('fill-answer').disabled = false;
+  const checkBtn = document.querySelector('.btn-check-answer');
+  if (checkBtn) checkBtn.disabled = false;
+
+  document.getElementById('theory-section').style.display = 'none';
+  document.getElementById('practice-section').style.display = 'block';
+  document.getElementById('results-section').style.display = 'none';
+  showQuestion(0);
+}
+
+// Auto-complete lesson after exercises
+function completeLesson() {
+  const endpoint = `/curriculum/api/v1/lesson/${lessonId}/complete`;
+
+  fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  })
+  .then(response => {
+    if (response.status === 201 || response.ok) {
+      return response.json();
+    }
+    throw new Error('Failed to complete lesson');
+  })
+  .then(data => {
+    console.log('Lesson completed:', data);
+    clearProgress();
+    showCompletionButtons();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showCompletionButtons(true);
+  });
+}
+
+function showCompletionButtons(hasError = false) {
+  const hasNext = {{ 'true' if has_next_lesson else 'false' }};
+  const nextUrl = '{{ next_lesson_url or "" }}';
+  const moduleUrl = '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}';
+
+  const resultsActions = document.getElementById('results-actions');
+  if (!resultsActions) return;
+
+  if (hasError) {
+    resultsActions.innerHTML = `
+      <button class="btn-action btn-retry" onclick="retryPractice()">
+        <i class="fas fa-redo"></i> Повторить
+      </button>
+      <button class="btn-action btn-complete" onclick="completeLesson()">
+        <i class="fas fa-check"></i> Попробовать сохранить
+      </button>
+    `;
+    return;
+  }
+
+  if (hasNext && nextUrl) {
+    resultsActions.innerHTML = `
+      <button class="btn-action btn-retry" onclick="retryPractice()">
+        <i class="fas fa-redo"></i> Повторить
+      </button>
+      <a href="${nextUrl}" class="btn-action btn-next-lesson">
+        Следующий урок <i class="fas fa-arrow-right"></i>
+      </a>
+    `;
+  } else {
+    resultsActions.innerHTML = `
+      <button class="btn-action btn-retry" onclick="retryPractice()">
+        <i class="fas fa-redo"></i> Повторить
+      </button>
+      <a href="${moduleUrl}" class="btn-action btn-back-module">
+        К списку уроков
+      </a>
+    `;
+  }
+}
+</script>
+
+<style>
+.grammar-lesson-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Theory Section */
+.grammar-theory {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.grammar-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.grammar-level-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.grammar-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #1f2937;
+}
+
+.grammar-subtitle {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.grammar-intro {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  border-left: 4px solid #667eea;
+}
+
+.grammar-intro p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.grammar-section {
+  margin-bottom: 2rem;
+}
+
+.grammar-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #667eea;
+  margin: 0 0 1rem;
+}
+
+.section-desc {
+  color: #6b7280;
+  margin: 0 0 1rem;
+}
+
+.grammar-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.grammar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 10px;
+  border-left: 3px solid #667eea;
+}
+
+.row-pronoun {
+  font-weight: 600;
+  color: #667eea;
+  min-width: 100px;
+}
+
+.row-verb {
+  font-weight: 500;
+  font-family: 'SF Mono', Monaco, monospace;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  min-width: 100px;
+}
+
+.row-example {
+  flex: 1;
+}
+
+.example-text {
+  display: block;
+  color: #1f2937;
+}
+
+.example-translation {
+  display: block;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+
+.grammar-notes {
+  background: #fef9c3;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 2rem;
+  border-left: 4px solid #eab308;
+}
+
+.grammar-notes h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #a16207;
+  margin: 0 0 0.75rem;
+}
+
+.grammar-notes ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.grammar-notes li {
+  color: #713f12;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Theory Actions */
+.theory-actions {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f0f0f0;
+  text-align: center;
+}
+
+.btn-start-practice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-start-practice:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Practice Section */
+.grammar-practice {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.practice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.practice-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+  color: #1f2937;
+}
+
+.practice-progress {
+  background: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.question-card {
+  margin-bottom: 1.5rem;
+}
+
+.question-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: #667eea;
+  background: #f5f3ff;
+}
+
+.option.selected {
+  border-color: #667eea;
+  background: #ede9fe;
+}
+
+.option.correct {
+  border-color: #22c55e;
+  background: #dcfce7;
+}
+
+.option.incorrect {
+  border-color: #ef4444;
+  background: #fee2e2;
+}
+
+.option-letter {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.option.selected .option-letter {
+  background: #667eea;
+  color: white;
+}
+
+.option.correct .option-letter {
+  background: #22c55e;
+  color: white;
+}
+
+.option.incorrect .option-letter {
+  background: #ef4444;
+  color: white;
+}
+
+.feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.feedback.correct {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+.feedback.incorrect {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+}
+
+.feedback-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.feedback.correct .feedback-icon {
+  background: #22c55e;
+  color: white;
+}
+
+.feedback.incorrect .feedback-icon {
+  background: #ef4444;
+  color: white;
+}
+
+.feedback-text {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+/* Fill Blank Input */
+.fill-blank-input {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  justify-content: center;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.fill-input {
+  flex: 1;
+  padding: 1rem 1.25rem;
+  font-size: 1.1rem;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  outline: none !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.fill-input:focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+}
+
+.fill-input:disabled {
+  background: #f9fafb !important;
+  color: #6b7280;
+}
+
+.btn-check-answer {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-check-answer:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-check-answer:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.blank-space {
+  background: rgba(102, 126, 234, 0.15);
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.practice-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f0f0f0;
+}
+
+/* Unified Button Styles */
+.btn-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-nav.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-nav.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-nav.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+}
+
+.btn-nav.btn-primary:disabled {
+  background: #d1d5db;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-nav.btn-primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+  background: linear-gradient(135deg, #5a6fd6, #6a42a0);
+  color: white;
+}
+
+/* Results */
+.grammar-results {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.results-card {
+  background: #fff;
+  padding: 3rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.results-score {
+  font-size: 3.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.results-message {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.results-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.75rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-retry {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-retry:hover {
+  background: #e5e7eb;
+}
+
+.btn-complete {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-complete:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.btn-action.btn-next-lesson {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-action.btn-next-lesson:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  color: white;
+}
+
+.btn-action.btn-back-module {
+  background: #f3f4f6;
+  color: #374151;
+  text-decoration: none;
+}
+
+.btn-action.btn-back-module:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.completion-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.saving-indicator {
+  color: #667eea;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Footer Buttons */
+.lesson-footer-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-complete-lesson {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-complete-lesson:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.completion-check {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-next-lesson {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-next-lesson:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  color: white;
+}
+
+.btn-back-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: #f3f4f6;
+  color: #374151;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-back-module:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+/* Empty State */
+.grammar-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: #fff;
+  border-radius: 16px;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  color: #667eea;
+  margin-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .grammar-theory, .grammar-practice {
+    padding: 1.25rem;
+  }
+
+  .grammar-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .row-pronoun, .row-verb {
+    min-width: auto;
+  }
+
+  .practice-nav {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .btn-nav {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .fill-blank-input {
+    flex-direction: column;
+  }
+
+  .fill-blank-input input,
+  .btn-check-answer {
+    width: 100%;
+  }
+
+  .results-actions {
+    flex-direction: column;
+  }
+
+  .btn-action {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
+{% endblock %}

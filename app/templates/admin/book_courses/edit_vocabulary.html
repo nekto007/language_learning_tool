@@ -1,0 +1,740 @@
+{% extends "admin/base.html" %}
+{% block title %}Редактор слов - День {{ lesson.day_number }} - Админка{% endblock %}
+
+{% block extra_css %}
+<style>
+.vocab-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.nav-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    color: var(--text-secondary, #6b7280);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.breadcrumb-link:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #1f2937);
+}
+
+.breadcrumb-sep {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.75rem;
+}
+
+/* Add word section */
+.add-word-section {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.add-word-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.search-container {
+    position: relative;
+}
+
+#wordSearch {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    padding-left: 2.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+}
+
+#wordSearch:focus {
+    outline: none;
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary, #9ca3af);
+}
+
+#searchResults {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    margin-top: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.search-result-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color, #f3f4f6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-result-item:hover {
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-word-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.search-word-english {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+}
+
+.search-word-russian {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.search-word-level {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+/* Vocabulary table */
+.vocab-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.vocab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.vocab-header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.vocab-count {
+    background: var(--accent-color, #3b82f6);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.vocab-table-container {
+    overflow-x: auto;
+}
+
+#vocabularyTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#vocabularyTable th {
+    background: var(--bg-secondary, #f9fafb);
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+#vocabularyTable td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color, #f3f4f6);
+    vertical-align: top;
+}
+
+#vocabularyTable tr:hover {
+    background: var(--bg-secondary, #f9fafb);
+}
+
+#vocabularyTable tr:last-child td {
+    border-bottom: none;
+}
+
+.word-english {
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    font-size: 1rem;
+}
+
+.word-level {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #dbeafe;
+    color: #1d4ed8;
+    margin-top: 0.25rem;
+}
+
+.input-small {
+    width: 60px;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.input-translation {
+    width: 160px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.input-context {
+    width: 100%;
+    min-width: 200px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 60px;
+}
+
+.input-small:focus,
+.input-translation:focus,
+.input-context:focus {
+    outline: none;
+    border-color: var(--accent-color, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.db-example {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6b7280);
+    max-width: 250px;
+    line-height: 1.5;
+}
+
+.btn-remove {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-remove:hover {
+    background: #fecaca;
+}
+
+/* Actions footer */
+.vocab-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: var(--accent-color, #3b82f6);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-primary:disabled {
+    background: #93c5fd;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-secondary, #6b7280);
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #1f2937);
+}
+
+/* Toast notification */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast-success {
+    background: #10b981;
+    color: white;
+}
+
+.toast-error {
+    background: #ef4444;
+    color: white;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 0.9375rem;
+}
+
+@media (max-width: 768px) {
+    .vocab-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    #vocabularyTable th:nth-child(5),
+    #vocabularyTable td:nth-child(5) {
+        display: none;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vocab-container">
+    <!-- Navigation -->
+    <div class="nav-breadcrumb">
+        <a href="{{ url_for('admin.book_courses') }}" class="breadcrumb-link">
+            <i class="fas fa-graduation-cap"></i> Курсы
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_book_course', course_id=course.id) }}" class="breadcrumb-link">
+            {{ course.title[:25] }}{% if course.title|length > 25 %}...{% endif %}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_course_module', course_id=course.id, module_id=module.id) }}" class="breadcrumb-link">
+            Модуль {{ module.module_number }}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <a href="{{ url_for('admin.view_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}" class="breadcrumb-link">
+            День {{ lesson.day_number }}
+        </a>
+        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+        <span class="breadcrumb-link" style="background: var(--accent-color, #3b82f6); color: white;">
+            <i class="fas fa-book-open"></i> Слова
+        </span>
+    </div>
+
+    <!-- Add word section -->
+    <div class="add-word-section">
+        <h3><i class="fas fa-plus-circle" style="color: #10b981;"></i> Добавить слово</h3>
+        <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="wordSearch" placeholder="Введите слово для поиска..." autocomplete="off">
+            <div id="searchResults"></div>
+        </div>
+    </div>
+
+    <!-- Vocabulary table -->
+    <div class="vocab-card">
+        <div class="vocab-header">
+            <h2><i class="fas fa-book-open" style="color: var(--accent-color, #3b82f6);"></i> Слова урока</h2>
+            <span class="vocab-count" id="wordCountBadge">{{ vocabulary|length }}</span>
+        </div>
+
+        <div class="vocab-table-container">
+            <table id="vocabularyTable">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">Приор.</th>
+                        <th style="width: 140px;">Слово</th>
+                        <th style="width: 180px;">Перевод</th>
+                        <th>Пример из книги</th>
+                        <th style="width: 250px;">Пример из БД</th>
+                        <th style="width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="vocabularyBody">
+                    {% if vocabulary %}
+                        {% for v in vocabulary %}
+                        <tr data-id="{{ v.id }}">
+                            <td>
+                                <input type="number" class="input-small" name="priority" value="{{ v.priority }}" min="0">
+                            </td>
+                            <td>
+                                <div class="word-english">{{ v.english }}</div>
+                                <span class="word-level">{{ v.level }}</span>
+                            </td>
+                            <td>
+                                <input type="text" class="input-translation" name="translation"
+                                       value="{{ v.translation }}" placeholder="Перевод...">
+                            </td>
+                            <td>
+                                <textarea class="input-context" name="context_sentence"
+                                          placeholder="Пример из книги...">{{ v.context_sentence or '' }}</textarea>
+                            </td>
+                            <td class="db-example">{{ v.db_examples[:150] }}{% if v.db_examples and v.db_examples|length > 150 %}...{% endif %}</td>
+                            <td>
+                                <button class="btn-remove" onclick="removeWord({{ v.id }})" title="Удалить">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr id="emptyRow">
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Нет слов. Используйте поиск выше чтобы добавить.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="vocab-actions">
+            <a href="{{ url_for('admin.view_daily_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}"
+               class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Назад к уроку
+            </a>
+            <button type="button" class="btn btn-primary" id="saveBtn" onclick="saveVocabulary()">
+                <i class="fas fa-save"></i> Сохранить изменения
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('wordSearch');
+    const searchResults = document.getElementById('searchResults');
+    const vocabularyBody = document.getElementById('vocabularyBody');
+    const wordCountBadge = document.getElementById('wordCountBadge');
+    let searchTimeout = null;
+
+    // Search functionality
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+
+        if (query.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`{{ url_for('admin.search_words_api') }}?q=${encodeURIComponent(query)}&book_id={{ course.book_id }}`)
+                .then(response => response.json())
+                .then(words => {
+                    if (words.length === 0) {
+                        searchResults.innerHTML = '<div class="search-result-item"><span style="color: #9ca3af;">Ничего не найдено</span></div>';
+                    } else {
+                        searchResults.innerHTML = words.map(w => `
+                            <div class="search-result-item" onclick="addWord(${w.id})">
+                                <div class="search-word-info">
+                                    <span class="search-word-english">${w.english}</span>
+                                    <span class="search-word-russian">${w.russian || ''}</span>
+                                    ${w.frequency ? `<span style="color: #9ca3af; font-size: 0.75rem; margin-left: 0.5rem;">(${w.frequency}x)</span>` : ''}
+                                </div>
+                                <span class="search-word-level">${w.level || ''}</span>
+                            </div>
+                        `).join('');
+                    }
+                    searchResults.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                });
+        }, 300);
+    });
+
+    // Hide search results on click outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+});
+
+function addWord(wordId) {
+    const searchInput = document.getElementById('wordSearch');
+    const searchResults = document.getElementById('searchResults');
+
+    fetch(`{{ url_for('admin.add_word_to_lesson', course_id=course.id, module_id=module.id, lesson_id=lesson.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ word_id: wordId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove empty row if exists
+            const emptyRow = document.getElementById('emptyRow');
+            if (emptyRow) emptyRow.remove();
+
+            // Add new row
+            const word = data.word;
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-id', word.id);
+            newRow.innerHTML = `
+                <td>
+                    <input type="number" class="input-small" name="priority" value="${word.priority}" min="0">
+                </td>
+                <td>
+                    <div class="word-english">${word.english}</div>
+                    <span class="word-level">${word.level || ''}</span>
+                </td>
+                <td>
+                    <input type="text" class="input-translation" name="translation"
+                           value="${word.russian || ''}" placeholder="Перевод...">
+                </td>
+                <td>
+                    <textarea class="input-context" name="context_sentence"
+                              placeholder="Пример из книги...">${word.context_sentence || ''}</textarea>
+                </td>
+                <td class="db-example">${(word.db_examples || '').substring(0, 150)}${word.db_examples && word.db_examples.length > 150 ? '...' : ''}</td>
+                <td>
+                    <button class="btn-remove" onclick="removeWord(${word.id})" title="Удалить">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+            `;
+
+            // Add at the beginning of the table
+            const tbody = document.getElementById('vocabularyBody');
+            tbody.insertBefore(newRow, tbody.firstChild);
+
+            // Update count
+            updateWordCount();
+
+            // Clear search
+            searchInput.value = '';
+            searchResults.style.display = 'none';
+
+            showToast('Слово добавлено', 'success');
+        } else {
+            showToast(data.error || 'Ошибка при добавлении', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Add word error:', error);
+        showToast('Ошибка при добавлении слова', 'error');
+    });
+}
+
+function removeWord(vocabId) {
+    if (!confirm('Удалить слово из урока?')) return;
+
+    fetch(`/admin/book-courses/{{ course.id }}/modules/{{ module.id }}/lessons/{{ lesson.id }}/vocabulary/${vocabId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const row = document.querySelector(`tr[data-id="${vocabId}"]`);
+            if (row) row.remove();
+
+            updateWordCount();
+
+            // Show empty state if no words left
+            const tbody = document.getElementById('vocabularyBody');
+            if (tbody.children.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="emptyRow">
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>Нет слов. Используйте поиск выше чтобы добавить.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            showToast('Слово удалено', 'success');
+        } else {
+            showToast(data.error || 'Ошибка при удалении', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Remove word error:', error);
+        showToast('Ошибка при удалении слова', 'error');
+    });
+}
+
+function saveVocabulary() {
+    const saveBtn = document.getElementById('saveBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+
+    // Collect all word data
+    const words = [];
+    document.querySelectorAll('#vocabularyBody tr[data-id]').forEach(row => {
+        const id = parseInt(row.getAttribute('data-id'));
+        const priority = parseInt(row.querySelector('input[name="priority"]').value) || 0;
+        const translation = row.querySelector('input[name="translation"]').value;
+        const context_sentence = row.querySelector('textarea[name="context_sentence"]').value;
+
+        words.push({ id, priority, translation, context_sentence });
+    });
+
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ words })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'Сохранено!', 'success');
+        } else {
+            showToast(data.error || 'Ошибка при сохранении', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Save error:', error);
+        showToast('Ошибка при сохранении', 'error');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+function updateWordCount() {
+    const count = document.querySelectorAll('#vocabularyBody tr[data-id]').length;
+    document.getElementById('wordCountBadge').textContent = count;
+}
+
+function showToast(message, type) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+</script>
+{% endblock %}
