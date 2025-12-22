@@ -1,0 +1,107 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Статистика аудио{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Статистика аудио файлов</h1>
+            <p class="text-muted mb-0">Всего аудио файлов на сервере: {{ total_existing }}</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 60px;">ID</th>
+                        <th>Модуль</th>
+                        <th style="width: 80px;">Уровень</th>
+                        <th style="width: 100px;">Всего</th>
+                        <th style="width: 100px;">Нет</th>
+                        <th style="width: 150px;">Прогресс</th>
+                        <th>Отсутствующие файлы</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module in module_stats %}
+                    <tr class="{{ 'table-success' if module.missing_count == 0 else ('table-warning' if module.missing_count < 5 else 'table-danger') }}">
+                        <td>{{ module.id }}</td>
+                        <td><strong>{{ module.title }}</strong></td>
+                        <td><span class="badge bg-primary">{{ module.level }}</span></td>
+                        <td>{{ module.total_audio }}</td>
+                        <td>
+                            {% if module.missing_count > 0 %}
+                            <span class="badge bg-danger">{{ module.missing_count }}</span>
+                            {% else %}
+                            <span class="badge bg-success">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar {{ 'bg-success' if module.completion_percent == 100 else ('bg-warning' if module.completion_percent > 50 else 'bg-danger') }}"
+                                     role="progressbar"
+                                     style="width: {{ module.completion_percent }}%">
+                                    {{ module.completion_percent }}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if module.missing_files %}
+                            <button class="btn btn-sm btn-outline-secondary" type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#missing-{{ module.id }}">
+                                Показать ({{ module.missing_count }})
+                            </button>
+                            <div class="collapse mt-2" id="missing-{{ module.id }}">
+                                <div class="small">
+                                    {% for item in module.missing_files %}
+                                    <div class="mb-1">
+                                        <code>{{ item.file }}</code>
+                                        <span class="text-muted">({{ item.word }})</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-success">Все файлы есть</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h2 class="mb-0">{{ module_stats|length }}</h2>
+                    <p class="mb-0">Модулей</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h2 class="mb-0">{{ module_stats|selectattr('missing_count', 'eq', 0)|list|length }}</h2>
+                    <p class="mb-0">Полных модулей</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h2 class="mb-0">{{ module_stats|sum(attribute='missing_count') }}</h2>
+                    <p class="mb-0">Отсутствует файлов</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
