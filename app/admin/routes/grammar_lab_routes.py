@@ -270,6 +270,119 @@ def delete_exercise(exercise_id):
     return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic_id))
 
 
+# ============ Import from Modules ============
+
+@grammar_lab_bp.route('/grammar-lab/import-from-modules', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def import_from_modules():
+    """Import grammar topics from curriculum modules"""
+    import re
+    from app.curriculum.models import Module, Lessons, CEFRLevel
+
+    if request.method == 'POST':
+        imported = 0
+        skipped = 0
+        errors = []
+
+        try:
+            # Get all modules with their levels
+            modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
+
+            for module in modules:
+                level_code = module.level.code if module.level else 'A1'
+
+                # Find grammar lessons in this module
+                grammar_lessons = Lessons.query.filter_by(
+                    module_id=module.id,
+                    type='grammar'
+                ).all()
+
+                for lesson in grammar_lessons:
+                    content = lesson.content or {}
+                    grammar_data = content.get('grammar_explanation', {})
+
+                    if not grammar_data:
+                        continue
+
+                    title = grammar_data.get('title', '')
+                    if not title:
+                        continue
+
+                    # Generate slug
+                    slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+                    slug = f"module-{module.number}-{slug}"[:100]
+
+                    # Check if already exists
+                    existing = GrammarTopic.query.filter_by(slug=slug).first()
+                    if existing:
+                        skipped += 1
+                        continue
+
+                    # Create new topic
+                    topic = GrammarTopic(
+                        slug=slug,
+                        title=title,
+                        title_ru=title,  # Russian title from module
+                        level=level_code,
+                        order=module.number,
+                        content={
+                            'introduction': grammar_data.get('introduction', ''),
+                            'sections': grammar_data.get('sections', []),
+                            'important_notes': grammar_data.get('important_notes', []),
+                            'summary': grammar_data.get('summary', {}),
+                            'source_module': module.number,
+                            'source_lesson': lesson.number
+                        },
+                        estimated_time=15,
+                        difficulty=1
+                    )
+                    db.session.add(topic)
+                    imported += 1
+
+            db.session.commit()
+            flash(f'Импортировано: {imported} тем, пропущено: {skipped} (уже существуют)', 'success')
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error importing grammar: {e}")
+            flash(f'Ошибка импорта: {str(e)}', 'danger')
+
+        return redirect(url_for('grammar_lab_admin.grammar_lab_index'))
+
+    # GET - show preview
+    modules_with_grammar = []
+    modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
+
+    for module in modules:
+        level_code = module.level.code if module.level else 'A1'
+        grammar_lessons = Lessons.query.filter_by(module_id=module.id, type='grammar').all()
+
+        for lesson in grammar_lessons:
+            content = lesson.content or {}
+            grammar_data = content.get('grammar_explanation', {})
+            title = grammar_data.get('title', '')
+
+            if title:
+                # Check if exists
+                slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+                slug = f"module-{module.number}-{slug}"[:100]
+                exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
+
+                modules_with_grammar.append({
+                    'module_id': module.number,
+                    'module_title': module.title,
+                    'level': level_code,
+                    'grammar_title': title,
+                    'exists': exists
+                })
+
+    return render_template(
+        'admin/grammar_lab/import_preview.html',
+        modules_with_grammar=modules_with_grammar
+    )
+
+
 # ============ API Endpoints ============
 
 @grammar_lab_bp.route('/grammar-lab/api/topics', methods=['GET'])
