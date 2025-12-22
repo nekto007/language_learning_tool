@@ -633,7 +633,6 @@ def audio_stats():
     """Show audio file statistics per module"""
     import os
     import re
-    import glob
     from flask import current_app
 
     # Audio files directory
@@ -646,61 +645,65 @@ def audio_stats():
             if f.endswith('.mp3'):
                 existing_files.add(f)
 
-    # Also scan module_completed JSON files
+    # Get modules from database
     module_stats = []
-    module_completed_dir = os.path.join(current_app.root_path, '..', 'module_completed')
+    modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
 
-    if os.path.exists(module_completed_dir):
-        json_files = sorted(glob.glob(os.path.join(module_completed_dir, 'module_*.json')))
+    for module in modules:
+        level_code = module.level.code if module.level else 'A0'
 
-        for json_path in json_files:
-            try:
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
+        # Extract audio references from lessons
+        audio_refs = []
+        missing_files = []
 
-                module_data = data.get('module', {})
-                module_id = module_data.get('id', 0)
-                module_title = module_data.get('title', 'Unknown')
-                level = module_data.get('level', 'A0')
+        lessons = Lessons.query.filter_by(module_id=module.id).all()
+        for lesson in lessons:
+            content = lesson.content or {}
 
-                # Extract audio references
-                audio_refs = []
-                missing_files = []
+            # Check different content structures
+            vocabulary = []
+            if isinstance(content, dict):
+                vocabulary = content.get('vocabulary', [])
+                # Also check 'words' key
+                if not vocabulary:
+                    vocabulary = content.get('words', [])
 
-                for lesson in module_data.get('lessons', []):
-                    content = lesson.get('content', {})
-                    vocabulary = content.get('vocabulary', [])
+            if isinstance(vocabulary, list):
+                for word in vocabulary:
+                    if not isinstance(word, dict):
+                        continue
 
-                    for word in vocabulary:
-                        audio = word.get('audio', '')
-                        # Parse [sound:filename.mp3] format
-                        match = re.search(r'\[sound:([^\]]+)\]', audio)
-                        if match:
-                            filename = match.group(1)
-                            audio_refs.append({
-                                'word': word.get('english', ''),
+                    # Get audio field
+                    audio = word.get('audio', '')
+
+                    # Parse [sound:filename.mp3] format
+                    match = re.search(r'\[sound:([^\]]+)\]', str(audio))
+                    if match:
+                        filename = match.group(1)
+                        word_text = word.get('english') or word.get('word') or word.get('front', '')
+                        audio_refs.append({
+                            'word': word_text,
+                            'file': filename
+                        })
+                        if filename not in existing_files:
+                            missing_files.append({
+                                'word': word_text,
                                 'file': filename
                             })
-                            if filename not in existing_files:
-                                missing_files.append({
-                                    'word': word.get('english', ''),
-                                    'file': filename
-                                })
 
-                module_stats.append({
-                    'id': module_id,
-                    'title': module_title,
-                    'level': level,
-                    'total_audio': len(audio_refs),
-                    'missing_count': len(missing_files),
-                    'missing_files': missing_files,
-                    'completion_percent': round((len(audio_refs) - len(missing_files)) / len(audio_refs) * 100) if audio_refs else 100
-                })
+        # Only add modules that have audio references
+        if audio_refs:
+            module_stats.append({
+                'id': module.number,
+                'title': module.title,
+                'level': level_code,
+                'total_audio': len(audio_refs),
+                'missing_count': len(missing_files),
+                'missing_files': missing_files,
+                'completion_percent': round((len(audio_refs) - len(missing_files)) / len(audio_refs) * 100) if audio_refs else 100
+            })
 
-            except Exception as e:
-                logger.error(f"Error processing {json_path}: {e}")
-
-    # Sort by module id
+    # Sort by module number
     module_stats.sort(key=lambda x: x['id'])
 
     return render_template(
