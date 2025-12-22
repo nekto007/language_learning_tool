@@ -70,23 +70,19 @@ def import_curriculum():
                 module_data = data['module']
                 logger.info(f"Detected new format with module: {module_data.get('title')}")
 
-                # Получаем дефолтный уровень A0 (все модули)
-                default_level = CEFRLevel.query.filter_by(code='A0').first()
-                if not default_level:
-                    logger.error("Level A0 not found in database")
-                    flash('Ошибка: уровень A0 не найден. Создайте уровень через интерфейс.', 'error')
-                    return redirect(request.url)
+                # Используем уровень из JSON, если указан, иначе A0
+                level_code = module_data.get('level', 'A0')
+                logger.info(f"Using level from JSON: {level_code}")
 
-                logger.info(f"Found level A0 with ID: {default_level.id}")
-
-                # Преобразуем в старый формат
+                # Преобразуем в старый формат с правильным уровнем
                 cleaned_data = {
                     'levels': [{
-                        'code': 'A0',
+                        'code': level_code,
+                        'name': level_code,
                         'modules': [module_data]
                     }]
                 }
-                logger.info(f"Converted to old format, modules count: {len(cleaned_data['levels'][0]['modules'])}")
+                logger.info(f"Converted to old format with level {level_code}, modules count: {len(cleaned_data['levels'][0]['modules'])}")
             else:
                 # Старый формат - валидируем как обычно
                 is_valid, error_msg, cleaned_data = validate_request_data(
