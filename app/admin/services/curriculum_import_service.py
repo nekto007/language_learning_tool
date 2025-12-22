@@ -55,7 +55,7 @@ class CurriculumImportService:
     @staticmethod
     def process_vocabulary(vocabulary_data, collection, level_code):
         """
-        Обрабатывает словарь без тегов
+        Обрабатывает словарь без тегов (поддержка двух форматов)
 
         Args:
             vocabulary_data: Список слов с переводами
@@ -63,8 +63,9 @@ class CurriculumImportService:
             level_code: Код уровня CEFR
         """
         for word_data in vocabulary_data:
-            english_word = word_data['word'].lower()
-            translation = word_data['translation']
+            # Поддержка обоих форматов: {word, translation} и {english, russian}
+            english_word = (word_data.get('word') or word_data.get('english', '')).lower()
+            translation = word_data.get('translation') or word_data.get('russian', '')
 
             # Find or create the word
             word = CollectionWords.query.filter_by(english_word=english_word).first()
@@ -160,6 +161,20 @@ class CurriculumImportService:
         """
         logger.info("Начинаем импорт данных курса из JSON")
 
+        # Нормализация формата JSON (поддержка двух форматов)
+        # Формат 1 (старый): {"level": "A1", "module": 6, "lessons": [...]}
+        # Формат 2 (новый): {"module": {"id": 6, "level": "A1", "lessons": [...]}}
+        if 'module' in data and isinstance(data['module'], dict):
+            module_data = data['module']
+            data = {
+                'level': module_data.get('level'),
+                'module': module_data.get('id') or module_data.get('number'),
+                'title': module_data.get('title'),
+                'description': module_data.get('description', ''),
+                'lessons': module_data.get('lessons', [])
+            }
+            logger.info("Обнаружен новый формат JSON, выполнена нормализация")
+
         # Проверяем наличие обязательных полей
         if 'level' not in data or 'module' not in data:
             raise ValueError("В JSON отсутствуют обязательные поля 'level' и 'module'")
@@ -209,8 +224,9 @@ class CurriculumImportService:
 
         # 3. Создаём уроки из списка data['lessons']
         for lesson_data in data.get('lessons', []):
-            number = lesson_data['lesson_number']
-            lesson_type = lesson_data['lesson_type']
+            # Нормализация формата урока (поддержка двух форматов)
+            number = lesson_data.get('lesson_number') or lesson_data.get('order') or lesson_data.get('id')
+            lesson_type = lesson_data.get('lesson_type') or lesson_data.get('type')
             title = lesson_data.get('title', '')
             lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
 
@@ -229,16 +245,22 @@ class CurriculumImportService:
             # Обрабатываем контент по типу урока
             if lesson_type == 'grammar':
                 theory = lesson_data.get('theory', {})
+                content = lesson_data.get('content', {})
+                grammar_explanation = content.get('grammar_explanation', {})
+
                 grammar_input = {
-                    'rule': theory.get('rule', ''),
-                    'description': theory.get('description', ''),
-                    'examples': theory.get('examples', []),
-                    'exercises': lesson_data.get('exercises', [])
+                    'rule': theory.get('rule', '') or grammar_explanation.get('rule', ''),
+                    'description': theory.get('description', '') or grammar_explanation.get('introduction', ''),
+                    'examples': theory.get('examples', []) or grammar_explanation.get('examples', []),
+                    'exercises': lesson_data.get('exercises', []) or content.get('exercises', [])
                 }
                 lesson.content = CurriculumImportService.process_grammar(grammar_input)
 
             elif lesson_type == 'vocabulary':
+                # Поддержка обоих форматов: words или content.vocabulary
                 vocab_list = lesson_data.get('words', [])
+                if not vocab_list and lesson_data.get('content'):
+                    vocab_list = lesson_data['content'].get('vocabulary', [])
                 # Создаем или получаем коллекцию
                 collection_name = f"{module.title} - {level_code} Module {module_number} Vocabulary"
                 collection = Collection.query.filter_by(name=collection_name).first()
