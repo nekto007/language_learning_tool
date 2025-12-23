@@ -2,10 +2,14 @@
 
 {% block title %}Темы грамматики{% if current_level %} - {{ current_level }}{% endif %}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar-lab.css') }}?v={{ range(1000, 9999) | random }}">
+{% endblock %}
+
 {% block content %}
 <div class="container container-xl">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
+    <nav class="gl-breadcrumb" aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
             <li class="breadcrumb-item active">{% if current_level %}{{ current_level }}{% else %}Все темы{% endif %}</li>
@@ -50,74 +54,63 @@
         </div>
     </div>
 
-    <!-- Topics Grid -->
+    <!-- Topics List -->
     {% if topics %}
-    <div class="row g-3">
+    <div class="gl-topics-list">
         {% for topic in topics %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' if topic.level in ['B1', 'B2'] else 'warning' }}">{{ topic.level }}</span>
+        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="gl-topic-row">
+            <!-- Level Badge -->
+            <div class="gl-topic-level {{ 'beginner' if topic.level in ['A1', 'A2'] else 'intermediate' if topic.level in ['B1', 'B2'] else 'advanced' }}">
+                {{ topic.level }}
+            </div>
 
-                        {% if topic.progress %}
-                            {% set mastery = topic.progress.mastery_level %}
-                            {% if mastery >= 5 %}
-                                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Освоено</span>
-                            {% elif mastery >= 3 %}
-                                <span class="badge bg-info">Уверенно</span>
-                            {% elif mastery >= 1 %}
-                                <span class="badge bg-warning text-dark">Изучаю</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Начато</span>
-                            {% endif %}
-                        {% else %}
-                            <span class="badge bg-light text-dark">Новая</span>
-                        {% endif %}
+            <!-- Main Content -->
+            <div class="gl-topic-content">
+                <div class="gl-topic-title">{{ topic.title }}</div>
+                <div class="gl-topic-subtitle">{{ topic.title_ru }}</div>
+            </div>
+
+            <!-- Progress -->
+            <div class="gl-topic-progress">
+                {% if topic.progress %}
+                    {% set mastery = topic.progress.mastery_level %}
+                    <div class="gl-topic-progress-bar">
+                        <div class="gl-topic-progress-fill" style="width: {{ (mastery / 5 * 100)|int }}%;"></div>
                     </div>
-
-                    <h5 class="card-title fw-bold mb-1">{{ topic.title }}</h5>
-                    <p class="text-muted mb-3">{{ topic.title_ru }}</p>
-
-                    <!-- Progress Bar -->
-                    {% if topic.progress %}
-                    <div class="progress mb-2" style="height: 6px;">
-                        {% set progress_pct = (topic.progress.mastery_level / 5 * 100) %}
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_pct }}%;"></div>
-                    </div>
-                    <div class="d-flex justify-content-between small text-muted mb-3">
-                        <span>Уровень: {{ topic.progress.mastery_level }}/5</span>
-                        <span>{{ topic.progress.correct_attempts }}/{{ topic.progress.total_attempts }} верно</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
-                            <i class="fas fa-book me-1"></i>Изучить
-                        </a>
-                        {% if topic.progress and topic.progress.theory_completed %}
-                        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}#practice" class="btn btn-primary btn-sm flex-grow-1">
-                            <i class="fas fa-play me-1"></i>Практика
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-
-                {% if topic.estimated_time %}
-                <div class="card-footer bg-transparent py-2">
-                    <small class="text-muted">
-                        <i class="fas fa-clock me-1"></i>{{ topic.estimated_time }} мин
-                        {% if topic.difficulty %}
-                        <span class="ms-2">
-                            <i class="fas fa-signal me-1"></i>
-                            {% for i in range(topic.difficulty) %}*{% endfor %}
-                        </span>
-                        {% endif %}
-                    </small>
-                </div>
+                    <span class="gl-topic-progress-text">{{ mastery }}/5</span>
                 {% endif %}
             </div>
-        </div>
+
+            <!-- Status Badge -->
+            <div class="gl-topic-status">
+                {% if topic.progress %}
+                    {% set mastery = topic.progress.mastery_level %}
+                    {% if mastery >= 5 %}
+                        <span class="gl-status-badge mastered"><i class="fas fa-check"></i> Освоено</span>
+                    {% elif mastery >= 3 %}
+                        <span class="gl-status-badge confident">Уверенно</span>
+                    {% elif mastery >= 1 %}
+                        <span class="gl-status-badge learning">Изучаю</span>
+                    {% else %}
+                        <span class="gl-status-badge started">Начато</span>
+                    {% endif %}
+                {% else %}
+                    <span class="gl-status-badge new">Новая</span>
+                {% endif %}
+            </div>
+
+            <!-- Meta -->
+            <div class="gl-topic-meta">
+                {% if topic.estimated_time %}
+                <span><i class="fas fa-clock"></i> {{ topic.estimated_time }} мин</span>
+                {% endif %}
+            </div>
+
+            <!-- Arrow -->
+            <div class="gl-topic-arrow">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </a>
         {% endfor %}
     </div>
     {% else %}

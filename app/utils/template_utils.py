@@ -272,3 +272,16 @@ def init_template_utils(app):
         if listening.startswith('[sound:') and listening.endswith(']'):
             return listening[7:-1]
         return listening
+
+    @app.template_filter('unescape')
+    def unescape_filter(text):
+        """
+        Jinja filter to decode HTML entities.
+        Converts &#39; to ', &amp; to &, etc.
+
+        Usage: {{ note|unescape }}
+        """
+        import html
+        if not text:
+            return ''
+        return html.unescape(str(text))

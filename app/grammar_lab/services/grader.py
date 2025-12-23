@@ -52,6 +52,8 @@ class GrammarExerciseGrader:
         # Lowercase, strip, remove extra spaces
         normalized = answer.lower().strip()
         normalized = re.sub(r'\s+', ' ', normalized)
+        # Remove spaces before punctuation (for reorder exercises)
+        normalized = re.sub(r'\s+([.!?,;:])', r'\1', normalized)
         # Remove punctuation at the end
         normalized = re.sub(r'[.!?]+$', '', normalized)
         return normalized

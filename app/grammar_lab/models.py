@@ -157,11 +157,11 @@ class GrammarExercise(db.Model):
 
         # For error_correction type
         if self.exercise_type == 'error_correction':
-            data['sentence'] = self.content.get('sentence', '')
+            data['sentence'] = self.content.get('sentence') or self.content.get('question', '')
 
         # For transformation type
         if self.exercise_type == 'transformation':
-            data['original'] = self.content.get('original', '')
+            data['original'] = self.content.get('original') or self.content.get('question', '')
 
         # For translation type
         if self.exercise_type == 'translation':
