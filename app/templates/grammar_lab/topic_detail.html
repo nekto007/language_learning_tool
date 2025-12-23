@@ -523,10 +523,11 @@ function renderTrueFalse(exercise) {
 }
 
 function renderTranslation(exercise) {
+    const sentence = exercise.content?.sentence || exercise.content?.question || exercise.sentence || '';
     return `
         <div class="mb-3">
             <label class="form-label">Переведите на английский:</label>
-            <p class="fs-5 fw-bold">${exercise.sentence}</p>
+            <p class="fs-5 fw-bold">${sentence}</p>
             <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
         </div>
     `;

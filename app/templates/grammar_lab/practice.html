@@ -238,9 +238,10 @@ function renderExercise(exercise) {
                 <input type="hidden" id="user-answer" value="">
             `;
         case 'translation':
+            const translationText = exercise.content.sentence || exercise.content.question || '';
             return `
                 <label class="form-label">Переведите на английский:</label>
-                <p class="fs-5 fw-bold">${exercise.content.sentence}</p>
+                <p class="fs-5 fw-bold">${translationText}</p>
                 <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
             `;
         default:
