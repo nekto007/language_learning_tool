@@ -523,7 +523,8 @@ function renderTrueFalse(exercise) {
 }
 
 function renderTranslation(exercise) {
-    const sentence = exercise.content?.sentence || exercise.content?.question || exercise.sentence || '';
+    // API returns data directly (exercise.sentence), not nested in content
+    const sentence = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
     return `
         <div class="mb-3">
             <label class="form-label">Переведите на английский:</label>
