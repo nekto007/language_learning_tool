@@ -238,8 +238,8 @@ function renderExercise(exercise) {
                 <input type="hidden" id="user-answer" value="">
             `;
         case 'translation': {
-            const c = exercise.content || {};
-            const translationText = c.sentence || c.question || '';
+            // API returns data directly (exercise.sentence), not nested in content
+            const translationText = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
             return `
                 <label class="form-label">Переведите на английский:</label>
                 <p class="fs-5 fw-bold">${translationText}</p>
