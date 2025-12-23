@@ -2,10 +2,16 @@
 
 {% block title %}{{ topic.title }} - Grammar Lab{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar-lab.css') }}?v={{ range(1000, 9999) | random }}">
+{% endblock %}
+
+{% block body_class %}grammar-lab-page{% endblock %}
+
 {% block content %}
-<div class="container container-xl">
+<div class="container">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
+    <nav class="gl-breadcrumb" aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.topics', level=topic.level) }}">{{ topic.level }}</a></li>
@@ -13,55 +19,71 @@
         </ol>
     </nav>
 
-    <!-- Header -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' if topic.level in ['B1', 'B2'] else 'warning' }} mb-2">{{ topic.level }}</span>
-                    <h1 class="h2 fw-bold mb-1">{{ topic.title }}</h1>
-                    <p class="text-muted mb-0">{{ topic.title_ru }}</p>
-                </div>
-                <div class="text-end">
-                    {% if topic.progress %}
-                        <div class="mb-2">
-                            {% if topic.progress.mastery_level >= 5 %}
-                                <span class="badge bg-success fs-6"><i class="fas fa-trophy"></i> Освоено</span>
-                            {% else %}
-                                <span class="badge bg-info fs-6">Уровень {{ topic.progress.mastery_level }}/5</span>
-                            {% endif %}
-                        </div>
-                        <small class="text-muted d-block">{{ topic.progress.xp_earned }} XP</small>
-                    {% endif %}
-                </div>
+    <!-- Hero Header -->
+    <div class="gl-hero">
+        <div class="gl-hero-content">
+            <div class="gl-level-badge">
+                <i class="fas fa-layer-group"></i>
+                {{ topic.level }}
             </div>
+            <h1>{{ topic.title }}</h1>
+            <p class="gl-hero-subtitle">{{ topic.title_ru }}</p>
 
             {% if topic.progress %}
-            <div class="progress mt-3" style="height: 8px;">
+            <div class="gl-hero-progress">
                 {% set progress_pct = (topic.progress.mastery_level / 5 * 100) %}
-                <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_pct }}%;"></div>
+                <div class="gl-hero-progress-bar" style="width: {{ progress_pct }}%;"></div>
+            </div>
+            <div class="gl-hero-stats">
+                <div class="gl-hero-stat">
+                    <span class="gl-hero-stat-value">{{ topic.progress.mastery_level }}/5</span>
+                    <span class="gl-hero-stat-label">Уровень</span>
+                </div>
+                <div class="gl-hero-stat">
+                    <span class="gl-hero-stat-value">{{ topic.progress.correct_attempts }}</span>
+                    <span class="gl-hero-stat-label">Верно</span>
+                </div>
+                <div class="gl-hero-stat">
+                    <span class="gl-hero-stat-value">{{ topic.progress.total_attempts }}</span>
+                    <span class="gl-hero-stat-label">Всего</span>
+                </div>
             </div>
             {% endif %}
         </div>
+
+        {% if topic.progress %}
+        <div class="gl-xp-badge">
+            <i class="fas fa-star"></i>
+            <span>{{ topic.progress.xp_earned }} XP</span>
+        </div>
+        {% endif %}
     </div>
 
-    <div class="row">
-        <!-- Theory Section -->
-        <div class="col-lg-8">
-            <div class="card mb-4 shadow-sm" id="theory">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">
-                        <i class="fas fa-book-open text-primary me-2"></i>Теория
-                    </h4>
+    <!-- Content Grid -->
+    <div class="gl-content-grid">
+        <!-- Main Content -->
+        <div class="gl-main">
+            <!-- Theory Card -->
+            <div class="gl-card" id="theory">
+                <div class="gl-card-header">
+                    <h3>
+                        <span class="gl-card-header-icon theory">
+                            <i class="fas fa-book-open"></i>
+                        </span>
+                        Теория
+                    </h3>
                     {% if topic.progress and topic.progress.theory_completed %}
-                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Изучено</span>
+                    <span class="gl-completed-badge">
+                        <i class="fas fa-check"></i>
+                        Изучено
+                    </span>
                     {% endif %}
                 </div>
-                <div class="card-body">
+                <div class="gl-card-body">
                     {% if topic.content %}
                         <!-- Introduction -->
                         {% if topic.content.introduction %}
-                        <div class="alert alert-info mb-4">
+                        <div class="gl-theory-intro">
                             {{ topic.content.introduction }}
                         </div>
                         {% endif %}
@@ -69,45 +91,43 @@
                         <!-- Sections -->
                         {% if topic.content.sections %}
                         {% for section in topic.content.sections %}
-                        <div class="mb-4">
-                            <h5 class="fw-bold">{{ section.subtitle }}</h5>
+                        <div class="gl-theory-section">
+                            <h5>{{ section.subtitle }}</h5>
                             {% if section.description %}
                             <p>{{ section.description }}</p>
                             {% endif %}
 
                             <!-- Table -->
                             {% if section.table %}
-                            <div class="table-responsive mb-3">
-                                <table class="table table-bordered table-striped">
-                                    <tbody>
-                                    {% for row in section.table %}
-                                    <tr>
-                                        {% if row.pronoun %}<td class="fw-bold">{{ row.pronoun }}</td>{% endif %}
-                                        {% if row.form %}<td><code>{{ row.form }}</code></td>{% endif %}
-                                        {% if row.example %}<td>{{ row.example }}</td>{% endif %}
-                                        {% if row.translation %}<td class="text-muted">{{ row.translation }}</td>{% endif %}
-                                    </tr>
-                                    {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <table class="gl-grammar-table">
+                                <tbody>
+                                {% for row in section.table %}
+                                <tr>
+                                    {% if row.pronoun %}<td class="pronoun">{{ row.pronoun }}</td>{% endif %}
+                                    {% if row.form %}<td><span class="form">{{ row.form }}</span></td>{% endif %}
+                                    {% if row.example %}<td>{{ row.example }}</td>{% endif %}
+                                    {% if row.translation %}<td class="translation">{{ row.translation }}</td>{% endif %}
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
                             {% endif %}
 
                             <!-- Rules -->
                             {% if section.rules %}
-                            <ul class="list-group mb-3">
+                            <ul class="gl-rules-list">
                                 {% for rule in section.rules %}
-                                <li class="list-group-item">
+                                <li class="gl-rule-item">
                                     <strong>{{ rule.rule }}</strong>
                                     {% if rule.examples %}
-                                    <ul class="mt-2 mb-0">
+                                    <ul>
                                         {% for example in rule.examples %}
-                                        <li><em>{{ example }}</em></li>
+                                        <li>{{ example }}</li>
                                         {% endfor %}
                                     </ul>
                                     {% endif %}
                                     {% if rule.note %}
-                                    <small class="text-muted d-block mt-1">{{ rule.note }}</small>
+                                    <div class="gl-rule-note">{{ rule.note }}</div>
                                     {% endif %}
                                 </li>
                                 {% endfor %}
@@ -116,20 +136,20 @@
 
                             <!-- Usage -->
                             {% if section.usage %}
-                            <div class="list-group">
+                            <ul class="gl-rules-list">
                                 {% for usage in section.usage %}
-                                <div class="list-group-item">
-                                    <h6 class="mb-1">{{ usage.case }}</h6>
+                                <li class="gl-rule-item">
+                                    <strong>{{ usage.case }}</strong>
                                     {% if usage.examples %}
-                                    <ul class="mb-0 small">
+                                    <ul>
                                         {% for example in usage.examples %}
-                                        <li><em>{{ example }}</em></li>
+                                        <li>{{ example }}</li>
                                         {% endfor %}
                                     </ul>
                                     {% endif %}
-                                </div>
+                                </li>
                                 {% endfor %}
-                            </div>
+                            </ul>
                             {% endif %}
                         </div>
                         {% endfor %}
@@ -137,9 +157,12 @@
 
                         <!-- Important Notes -->
                         {% if topic.content.important_notes %}
-                        <div class="alert alert-warning">
-                            <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-1"></i>Важно:</h6>
-                            <ul class="mb-0">
+                        <div class="gl-important">
+                            <div class="gl-important-header">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Важно
+                            </div>
+                            <ul>
                                 {% for note in topic.content.important_notes %}
                                 <li>{{ note }}</li>
                                 {% endfor %}
@@ -149,75 +172,84 @@
 
                         <!-- Common Mistakes -->
                         {% if topic.content.common_mistakes %}
-                        <div class="card bg-light mb-3">
-                            <div class="card-header"><i class="fas fa-times-circle text-danger me-1"></i>Типичные ошибки</div>
-                            <div class="card-body">
-                                {% for mistake in topic.content.common_mistakes %}
-                                <div class="mb-2">
-                                    <span class="text-danger"><del>{{ mistake.wrong }}</del></span>
-                                    <i class="fas fa-arrow-right mx-2"></i>
-                                    <span class="text-success">{{ mistake.correct }}</span>
-                                    {% if mistake.explanation %}
-                                    <small class="text-muted d-block">{{ mistake.explanation }}</small>
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
+                        <div class="gl-mistakes">
+                            <div class="gl-mistakes-header">
+                                <i class="fas fa-times-circle"></i>
+                                Типичные ошибки
                             </div>
+                            {% for mistake in topic.content.common_mistakes %}
+                            <div class="gl-mistake-item">
+                                <span class="gl-mistake-wrong">{{ mistake.wrong }}</span>
+                                <i class="fas fa-arrow-right gl-mistake-arrow"></i>
+                                <span class="gl-mistake-correct">{{ mistake.correct }}</span>
+                            </div>
+                            {% if mistake.explanation %}
+                            <span class="gl-mistake-explain">{{ mistake.explanation }}</span>
+                            {% endif %}
+                            {% endfor %}
                         </div>
                         {% endif %}
 
                         <!-- Summary Table -->
                         {% if topic.content.summary_table %}
-                        <div class="card bg-primary bg-opacity-10">
-                            <div class="card-header bg-primary text-white"><i class="fas fa-table me-1"></i>Сводная таблица</div>
-                            <div class="card-body">
-                                <table class="table table-sm mb-0">
-                                    <tbody>
-                                    {% if topic.content.summary_table.affirmative %}
-                                    <tr><td class="fw-bold">+</td><td>{{ topic.content.summary_table.affirmative }}</td></tr>
-                                    {% endif %}
-                                    {% if topic.content.summary_table.negative %}
-                                    <tr><td class="fw-bold">-</td><td>{{ topic.content.summary_table.negative }}</td></tr>
-                                    {% endif %}
-                                    {% if topic.content.summary_table.question %}
-                                    <tr><td class="fw-bold">?</td><td>{{ topic.content.summary_table.question }}</td></tr>
-                                    {% endif %}
-                                    </tbody>
-                                </table>
+                        <div class="gl-summary">
+                            <div class="gl-summary-header">
+                                <i class="fas fa-table"></i>
+                                Сводная таблица
                             </div>
+                            <table>
+                                <tbody>
+                                {% if topic.content.summary_table.affirmative %}
+                                <tr><td>+</td><td>{{ topic.content.summary_table.affirmative }}</td></tr>
+                                {% endif %}
+                                {% if topic.content.summary_table.negative %}
+                                <tr><td>-</td><td>{{ topic.content.summary_table.negative }}</td></tr>
+                                {% endif %}
+                                {% if topic.content.summary_table.question %}
+                                <tr><td>?</td><td>{{ topic.content.summary_table.question }}</td></tr>
+                                {% endif %}
+                                </tbody>
+                            </table>
                         </div>
                         {% endif %}
                     {% else %}
-                        <p class="text-muted">Теоретический материал скоро будет добавлен.</p>
+                        <p class="text-muted text-center">Теоретический материал скоро будет добавлен.</p>
                     {% endif %}
 
                     {% if not topic.progress or not topic.progress.theory_completed %}
                     <div class="text-center mt-4">
-                        <button type="button" class="btn btn-success btn-lg" id="complete-theory-btn">
-                            <i class="fas fa-check me-2"></i>Теория изучена (+20 XP)
+                        <button type="button" class="gl-theory-complete-btn" id="complete-theory-btn">
+                            <i class="fas fa-check"></i>
+                            Теория изучена (+20 XP)
                         </button>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Practice Section -->
-            <div class="card mb-4 shadow-sm" id="practice">
-                <div class="card-header bg-white">
-                    <h4 class="mb-0">
-                        <i class="fas fa-dumbbell text-success me-2"></i>Практика
-                        <span class="badge bg-secondary ms-2">{{ topic.exercise_count }} упражнений</span>
-                    </h4>
+            <!-- Practice Card -->
+            <div class="gl-card" id="practice">
+                <div class="gl-card-header">
+                    <h3>
+                        <span class="gl-card-header-icon practice">
+                            <i class="fas fa-dumbbell"></i>
+                        </span>
+                        Практика
+                    </h3>
+                    <span class="gl-exercise-count">{{ topic.exercise_count }} упражнений</span>
                 </div>
-                <div class="card-body">
+                <div class="gl-card-body">
                     {% if topic.exercises %}
-                    <div id="exercises-container">
-                        <!-- Exercises will be loaded dynamically -->
-                        <div class="text-center py-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="start-practice-btn">
-                                <i class="fas fa-play me-2"></i>Начать практику
-                            </button>
+                    <div class="gl-practice-start">
+                        <div class="gl-practice-icon">
+                            <i class="fas fa-play"></i>
                         </div>
+                        <h4>Готовы к практике?</h4>
+                        <p>Проверьте свои знания в {{ topic.exercise_count }} упражнениях</p>
+                        <button type="button" class="gl-start-btn" id="start-practice-btn">
+                            <i class="fas fa-rocket"></i>
+                            Начать практику
+                        </button>
                     </div>
                     {% else %}
                     <p class="text-muted text-center mb-0">Упражнения скоро будут добавлены.</p>
@@ -227,84 +259,112 @@
         </div>
 
         <!-- Sidebar -->
-        <div class="col-lg-4">
+        <div class="gl-sidebar">
             <!-- Progress Card -->
             {% if topic.progress %}
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="fas fa-chart-line text-primary me-2"></i>Ваш прогресс</h5>
+            <div class="gl-sidebar-card gl-progress-card">
+                <div class="gl-card-header">
+                    <h4>
+                        <span class="gl-card-header-icon progress">
+                            <i class="fas fa-chart-line"></i>
+                        </span>
+                        Ваш прогресс
+                    </h4>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
+                <div class="gl-card-body">
+                    <div class="gl-mastery-section">
+                        <div class="gl-mastery-label">
                             <span>Мастерство</span>
                             <strong>{{ topic.progress.mastery_level }}/5</strong>
                         </div>
-                        <div class="progress" style="height: 10px;">
+                        <div class="gl-mastery-bar">
                             {% set mastery_pct = (topic.progress.mastery_level / 5 * 100) %}
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ mastery_pct }}%;"></div>
+                            <div class="gl-mastery-fill" style="width: {{ mastery_pct }}%;"></div>
                         </div>
                     </div>
 
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="h4 mb-0 text-success">{{ topic.progress.correct_attempts }}</div>
-                            <small class="text-muted">Верно</small>
+                    <div class="gl-stats-grid">
+                        <div class="gl-stat-box">
+                            <span class="gl-stat-value success">{{ topic.progress.correct_attempts }}</span>
+                            <span class="gl-stat-label">Верно</span>
                         </div>
-                        <div class="col-6">
-                            <div class="h4 mb-0 text-primary">{{ topic.progress.total_attempts }}</div>
-                            <small class="text-muted">Всего</small>
+                        <div class="gl-stat-box">
+                            <span class="gl-stat-value primary">{{ topic.progress.total_attempts }}</span>
+                            <span class="gl-stat-label">Всего</span>
                         </div>
                     </div>
 
                     {% if topic.progress.total_attempts > 0 %}
-                    <hr>
-                    <div class="text-center">
+                    <div class="gl-accuracy">
                         {% set accuracy = (topic.progress.correct_attempts / topic.progress.total_attempts * 100)|round(1) %}
-                        <div class="h3 mb-0 {% if accuracy >= 80 %}text-success{% elif accuracy >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                        <div class="gl-accuracy-value {% if accuracy >= 80 %}high{% elif accuracy >= 60 %}medium{% else %}low{% endif %}">
                             {{ accuracy }}%
                         </div>
-                        <small class="text-muted">Точность</small>
+                        <span class="gl-accuracy-label">Точность</span>
                     </div>
                     {% endif %}
 
                     {% if topic.progress.next_review %}
-                    <hr>
-                    <div class="text-center">
-                        <small class="text-muted">Следующее повторение:</small>
-                        <div>{{ topic.progress.next_review[:10] }}</div>
+                    <div class="gl-next-review">
+                        <div class="gl-next-review-label">Следующее повторение</div>
+                        <div class="gl-next-review-date">{{ topic.progress.next_review[:10] }}</div>
                     </div>
                     {% endif %}
                 </div>
             </div>
             {% endif %}
 
-            <!-- Topic Info -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="fas fa-info-circle text-info me-2"></i>О теме</h5>
+            <!-- Topic Info Card -->
+            <div class="gl-sidebar-card">
+                <div class="gl-card-header">
+                    <h4>
+                        <span class="gl-card-header-icon info">
+                            <i class="fas fa-info-circle"></i>
+                        </span>
+                        О теме
+                    </h4>
                 </div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2">
-                            <i class="fas fa-layer-group text-primary me-2"></i>
-                            Уровень: <strong>{{ topic.level }}</strong>
+                <div class="gl-card-body">
+                    <ul class="gl-info-list">
+                        <li class="gl-info-item">
+                            <span class="gl-info-icon level">
+                                <i class="fas fa-layer-group"></i>
+                            </span>
+                            <div class="gl-info-text">
+                                <span>Уровень</span>
+                                <strong>{{ topic.level }}</strong>
+                            </div>
                         </li>
                         {% if topic.estimated_time %}
-                        <li class="mb-2">
-                            <i class="fas fa-clock text-warning me-2"></i>
-                            Время: <strong>{{ topic.estimated_time }} мин</strong>
+                        <li class="gl-info-item">
+                            <span class="gl-info-icon time">
+                                <i class="fas fa-clock"></i>
+                            </span>
+                            <div class="gl-info-text">
+                                <span>Время изучения</span>
+                                <strong>{{ topic.estimated_time }} мин</strong>
+                            </div>
                         </li>
                         {% endif %}
                         {% if topic.difficulty %}
-                        <li class="mb-2">
-                            <i class="fas fa-signal text-danger me-2"></i>
-                            Сложность: <strong>{% for i in range(topic.difficulty) %}*{% endfor %}</strong>
+                        <li class="gl-info-item">
+                            <span class="gl-info-icon difficulty">
+                                <i class="fas fa-signal"></i>
+                            </span>
+                            <div class="gl-info-text">
+                                <span>Сложность</span>
+                                <strong>{% for i in range(topic.difficulty) %}<i class="fas fa-star" style="color: #f59e0b;"></i>{% endfor %}{% for i in range(5 - topic.difficulty) %}<i class="far fa-star" style="color: #e2e8f0;"></i>{% endfor %}</strong>
+                            </div>
                         </li>
                         {% endif %}
-                        <li>
-                            <i class="fas fa-dumbbell text-success me-2"></i>
-                            Упражнений: <strong>{{ topic.exercise_count }}</strong>
+                        <li class="gl-info-item">
+                            <span class="gl-info-icon exercises">
+                                <i class="fas fa-dumbbell"></i>
+                            </span>
+                            <div class="gl-info-text">
+                                <span>Упражнений</span>
+                                <strong>{{ topic.exercise_count }}</strong>
+                            </div>
                         </li>
                     </ul>
                 </div>
@@ -314,21 +374,30 @@
 </div>
 
 <!-- Exercise Modal -->
-<div class="modal fade" id="exerciseModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg">
+<div class="modal fade gl-modal" id="exerciseModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Упражнение <span id="exercise-number">1</span> из <span id="exercise-total">{{ topic.exercise_count }}</span></h5>
+                <h5 class="modal-title">
+                    <i class="fas fa-pencil-alt me-2"></i>
+                    Упражнение <span id="exercise-number">1</span> из <span id="exercise-total">{{ topic.exercise_count }}</span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="exercise-content">
                 <!-- Exercise content loaded dynamically -->
             </div>
             <div class="modal-footer">
-                <div id="exercise-feedback" class="w-100 mb-3" style="display: none;"></div>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                <button type="button" class="btn btn-primary" id="submit-answer-btn">Проверить</button>
-                <button type="button" class="btn btn-success" id="next-exercise-btn" style="display: none;">Далее</button>
+                <div id="exercise-feedback" class="w-100" style="display: none;"></div>
+                <button type="button" class="gl-modal-btn secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="gl-modal-btn primary" id="submit-answer-btn">
+                    <i class="fas fa-check"></i>
+                    Проверить
+                </button>
+                <button type="button" class="gl-modal-btn success" id="next-exercise-btn" style="display: none;">
+                    Далее
+                    <i class="fas fa-arrow-right"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -355,16 +424,14 @@ document.getElementById('complete-theory-btn')?.addEventListener('click', async 
         const data = await response.json();
 
         if (data.xp_earned > 0) {
-            this.innerHTML = '<i class="fas fa-check me-2"></i>Изучено!';
-            this.classList.remove('btn-success');
-            this.classList.add('btn-secondary');
+            this.innerHTML = '<i class="fas fa-check"></i> Изучено!';
             this.disabled = true;
+            this.style.background = 'var(--gl-text-light)';
 
             // Show XP notification
             const notification = document.createElement('div');
-            notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
-            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999;';
-            notification.innerHTML = `+${data.xp_earned} XP! <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            notification.className = 'gl-xp-notification';
+            notification.innerHTML = `<i class="fas fa-star"></i><span>+${data.xp_earned} XP</span>`;
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 3000);
         }
@@ -430,50 +497,59 @@ function showExercise(index) {
         case 'transformation':
             html = renderTransformation(exercise);
             break;
+        case 'matching':
+            html = renderMatching(exercise);
+            break;
         default:
-            html = `<p>Тип упражнения: ${exercise.exercise_type}</p><pre>${JSON.stringify(exercise.content, null, 2)}</pre>`;
+            html = `<p>Тип упражнения: ${exercise.exercise_type}</p>`;
     }
 
     content.innerHTML = html;
 
     // Reset buttons
-    document.getElementById('submit-answer-btn').style.display = 'inline-block';
+    document.getElementById('submit-answer-btn').style.display = 'inline-flex';
     document.getElementById('next-exercise-btn').style.display = 'none';
     document.getElementById('exercise-feedback').style.display = 'none';
 }
 
 function renderFillBlank(exercise) {
     return `
-        <div class="mb-3">
-            <label class="form-label fs-5">${exercise.question || 'Заполните пропуск:'}</label>
-            <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Введите ответ" autocomplete="off">
-        </div>
+        <div class="gl-exercise-question">${exercise.question || 'Заполните пропуск:'}</div>
+        <input type="text" class="gl-input" id="user-answer" placeholder="Введите ответ" autocomplete="off">
     `;
 }
 
 function renderMultipleChoice(exercise) {
-    let html = `<div class="mb-3"><p class="fs-5">${exercise.question || 'Выберите правильный ответ:'}</p>`;
+    let html = `<div class="gl-exercise-question">${exercise.question || 'Выберите правильный ответ:'}</div>`;
+    html += '<div class="gl-options">';
     (exercise.options || []).forEach((option, i) => {
         html += `
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="radio" name="answer" id="option-${i}" value="${i}">
-                <label class="form-check-label fs-5" for="option-${i}">${option}</label>
-            </div>
+            <label class="gl-option" onclick="selectOption(this, ${i})">
+                <input type="radio" name="answer" value="${i}">
+                <span class="gl-option-radio"></span>
+                <span class="gl-option-text">${option}</span>
+            </label>
         `;
     });
     html += '</div>';
     return html;
 }
 
+function selectOption(el, value) {
+    document.querySelectorAll('.gl-option').forEach(opt => opt.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input').checked = true;
+}
+
 function renderReorder(exercise) {
     const words = exercise.words || [];
-    let html = `<p class="mb-3 fs-5">${exercise.instruction || 'Составьте предложение из слов:'}</p>`;
-    html += '<div class="d-flex flex-wrap gap-2 mb-3" id="word-bank">';
+    let html = `<div class="gl-exercise-question">${exercise.instruction || 'Составьте предложение из слов:'}</div>`;
+    html += '<div class="gl-word-bank" id="word-bank">';
     words.forEach((word, i) => {
-        html += `<button type="button" class="btn btn-outline-primary word-btn" data-index="${i}" data-word="${word}">${word}</button>`;
+        html += `<button type="button" class="gl-word-btn" data-index="${i}" data-word="${word}">${word}</button>`;
     });
     html += '</div>';
-    html += '<div class="border rounded p-3 min-height-50" id="answer-area"><span class="text-muted">Нажмите на слова выше</span></div>';
+    html += '<div class="gl-answer-area empty" id="answer-area">Нажмите на слова выше</div>';
     html += '<input type="hidden" id="user-answer" value="">';
 
     setTimeout(() => {
@@ -482,21 +558,23 @@ function renderReorder(exercise) {
         const hiddenInput = document.getElementById('user-answer');
         let selectedWords = [];
 
-        wordBank.querySelectorAll('.word-btn').forEach(btn => {
+        wordBank.querySelectorAll('.gl-word-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                if (this.classList.contains('btn-primary')) {
-                    // Remove from answer
+                if (this.classList.contains('selected')) {
                     const idx = selectedWords.indexOf(this.dataset.word);
                     if (idx > -1) selectedWords.splice(idx, 1);
-                    this.classList.remove('btn-primary');
-                    this.classList.add('btn-outline-primary');
+                    this.classList.remove('selected');
                 } else {
-                    // Add to answer
                     selectedWords.push(this.dataset.word);
-                    this.classList.add('btn-primary');
-                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('selected');
                 }
-                answerArea.innerHTML = selectedWords.length > 0 ? selectedWords.join(' ') : '<span class="text-muted">Нажмите на слова выше</span>';
+                if (selectedWords.length > 0) {
+                    answerArea.textContent = selectedWords.join(' ');
+                    answerArea.classList.remove('empty');
+                } else {
+                    answerArea.textContent = 'Нажмите на слова выше';
+                    answerArea.classList.add('empty');
+                }
                 hiddenInput.value = selectedWords.join(' ');
             });
         });
@@ -507,67 +585,65 @@ function renderReorder(exercise) {
 
 function renderTrueFalse(exercise) {
     return `
-        <div class="mb-3">
-            <p class="fs-5">${exercise.statement || exercise.question}</p>
-            <div class="d-flex gap-3">
-                <button type="button" class="btn btn-outline-success btn-lg flex-grow-1 tf-btn" data-value="true">
-                    <i class="fas fa-check me-2"></i>Верно
-                </button>
-                <button type="button" class="btn btn-outline-danger btn-lg flex-grow-1 tf-btn" data-value="false">
-                    <i class="fas fa-times me-2"></i>Неверно
-                </button>
-            </div>
-            <input type="hidden" id="user-answer" value="">
+        <div class="gl-exercise-question">${exercise.statement || exercise.question}</div>
+        <div class="gl-tf-buttons">
+            <button type="button" class="gl-tf-btn true-btn" onclick="selectTF(this, 'true')">
+                <i class="fas fa-check"></i>
+                <span>Верно</span>
+            </button>
+            <button type="button" class="gl-tf-btn false-btn" onclick="selectTF(this, 'false')">
+                <i class="fas fa-times"></i>
+                <span>Неверно</span>
+            </button>
         </div>
+        <input type="hidden" id="user-answer" value="">
     `;
 }
 
+function selectTF(el, value) {
+    document.querySelectorAll('.gl-tf-btn').forEach(btn => btn.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('user-answer').value = value;
+}
+
 function renderTranslation(exercise) {
-    // API returns data directly (exercise.sentence), not nested in content
     let sentence = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
-    // Remove "Переведите на английский:" prefix if present
     sentence = sentence.replace(/^Переведите на английский:\s*/i, '');
     return `
-        <div class="mb-3">
-            <label class="form-label">Переведите на английский:</label>
-            <p class="fs-5 fw-bold">${sentence}</p>
-            <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
-        </div>
+        <div class="gl-exercise-question">Переведите на английский:</div>
+        <div class="gl-exercise-highlight">${sentence}</div>
+        <input type="text" class="gl-input" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
     `;
 }
 
 function renderErrorCorrection(exercise) {
     return `
-        <div class="mb-3">
-            <label class="form-label">Найдите и исправьте ошибку:</label>
-            <p class="fs-5 text-danger">${exercise.sentence}</p>
-            <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
-        </div>
+        <div class="gl-exercise-question">Найдите и исправьте ошибку:</div>
+        <div class="gl-exercise-highlight" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #991b1b;">${exercise.sentence}</div>
+        <input type="text" class="gl-input" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
     `;
 }
 
 function renderTransformation(exercise) {
     return `
-        <div class="mb-3">
-            <label class="form-label">${exercise.instruction || 'Преобразуйте предложение'}:</label>
-            <p class="fs-5 fw-bold">${exercise.original}</p>
-            <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Введите преобразованное предложение" autocomplete="off">
-        </div>
+        <div class="gl-exercise-question">${exercise.instruction || 'Преобразуйте предложение'}:</div>
+        <div class="gl-exercise-highlight">${exercise.original}</div>
+        <input type="text" class="gl-input" id="user-answer" placeholder="Введите преобразованное предложение" autocomplete="off">
     `;
 }
 
-// Handle True/False buttons
-document.getElementById('exercise-content').addEventListener('click', function(e) {
-    if (e.target.classList.contains('tf-btn')) {
-        document.querySelectorAll('.tf-btn').forEach(btn => {
-            btn.classList.remove('btn-success', 'btn-danger');
-            btn.classList.add('btn-outline-success', 'btn-outline-danger');
-        });
-        e.target.classList.remove('btn-outline-success', 'btn-outline-danger');
-        e.target.classList.add(e.target.dataset.value === 'true' ? 'btn-success' : 'btn-danger');
-        document.getElementById('user-answer').value = e.target.dataset.value;
-    }
-});
+function renderMatching(exercise) {
+    const pairs = exercise.pairs || [];
+    let html = `<div class="gl-exercise-question">${exercise.instruction || 'Соотнесите пары:'}</div>`;
+    html += '<div class="gl-matching-grid">';
+    // Simple implementation - can be enhanced
+    pairs.forEach((pair, i) => {
+        html += `<div class="gl-matching-item">${pair.english || pair.left} - ${pair.russian || pair.right}</div>`;
+    });
+    html += '</div>';
+    html += '<input type="hidden" id="user-answer" value="matched">';
+    return html;
+}
 
 // Submit answer
 document.getElementById('submit-answer-btn').addEventListener('click', async function() {
@@ -607,20 +683,29 @@ document.getElementById('submit-answer-btn').addEventListener('click', async fun
         // Show feedback
         const feedback = document.getElementById('exercise-feedback');
         if (data.is_correct) {
-            feedback.className = 'alert alert-success w-100 mb-3';
-            feedback.innerHTML = `<i class="fas fa-check-circle me-2"></i>Правильно!${data.xp_earned ? ` +${data.xp_earned} XP` : ''}`;
+            feedback.className = 'gl-feedback success';
+            feedback.innerHTML = `
+                <div class="gl-feedback-header">
+                    <i class="fas fa-check-circle"></i>
+                    Правильно!${data.xp_earned ? ` <span>+${data.xp_earned} XP</span>` : ''}
+                </div>
+            `;
         } else {
-            feedback.className = 'alert alert-danger w-100 mb-3';
-            feedback.innerHTML = `<i class="fas fa-times-circle me-2"></i>Неверно. Правильный ответ: <strong>${data.correct_answer}</strong>`;
-            if (data.explanation) {
-                feedback.innerHTML += `<br><small>${data.explanation}</small>`;
-            }
+            feedback.className = 'gl-feedback error';
+            feedback.innerHTML = `
+                <div class="gl-feedback-header">
+                    <i class="fas fa-times-circle"></i>
+                    Неверно
+                </div>
+                <div>Правильный ответ: <span class="gl-feedback-answer">${data.correct_answer}</span></div>
+                ${data.explanation ? `<div class="gl-feedback-explain">${data.explanation}</div>` : ''}
+            `;
         }
         feedback.style.display = 'block';
 
         // Toggle buttons
         this.style.display = 'none';
-        document.getElementById('next-exercise-btn').style.display = 'inline-block';
+        document.getElementById('next-exercise-btn').style.display = 'inline-flex';
 
         // Disable inputs
         document.querySelectorAll('#exercise-content input, #exercise-content button').forEach(el => el.disabled = true);
@@ -639,7 +724,7 @@ document.getElementById('next-exercise-btn').addEventListener('click', function(
         // Practice complete
         const modal = bootstrap.Modal.getInstance(document.getElementById('exerciseModal'));
         modal.hide();
-        location.reload(); // Reload to update progress
+        location.reload();
     }
 });
 </script>
