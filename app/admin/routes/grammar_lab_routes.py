@@ -339,16 +339,21 @@ def import_from_modules():
                 db.session.flush()  # Get topic.id
                 imported += 1
 
-                # Find quiz lesson (usually lesson 4) and import exercises
-                quiz_lesson = Lessons.query.filter_by(
+                # Find ALL quiz lessons and import exercises from each
+                quiz_lessons = Lessons.query.filter_by(
                     module_id=module.id,
                     type='quiz'
-                ).first()
+                ).all()
 
-                if quiz_lesson:
+                all_exercises = []
+                for quiz_lesson in quiz_lessons:
                     quiz_content = quiz_lesson.content or {}
                     # В БД упражнения могут быть в 'questions' или 'exercises'
-                    exercises = quiz_content.get('questions') or quiz_content.get('exercises', [])
+                    lesson_exercises = quiz_content.get('questions') or quiz_content.get('exercises', [])
+                    all_exercises.extend(lesson_exercises)
+
+                exercises = all_exercises
+                if exercises:
 
                     for i, ex in enumerate(exercises):
                         ex_type = ex.get('type', 'fill_blank')
@@ -452,18 +457,18 @@ def import_from_modules():
         slug = f"module-{module.number}-{slug}"[:100]
         exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
 
-        # Count quiz exercises from DB
-        quiz_lesson = Lessons.query.filter_by(
+        # Count quiz exercises from ALL quiz lessons
+        quiz_lessons = Lessons.query.filter_by(
             module_id=module.id,
             type='quiz'
-        ).first()
+        ).all()
 
         exercise_count = 0
-        if quiz_lesson:
+        for quiz_lesson in quiz_lessons:
             quiz_content = quiz_lesson.content or {}
             # В БД упражнения могут быть в 'questions' или 'exercises'
             questions = quiz_content.get('questions') or quiz_content.get('exercises', [])
-            exercise_count = len(questions)
+            exercise_count += len(questions)
 
         modules_with_grammar.append({
             'module_id': module.number,
