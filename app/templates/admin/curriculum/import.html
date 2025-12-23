@@ -207,9 +207,15 @@
 
 <script>
 function toggleImportMethod() {
-    const isFile = document.getElementById('fileUpload').checked;
-    document.getElementById('fileUploadSection').style.display = isFile ? 'block' : 'none';
-    document.getElementById('textPasteSection').style.display = isFile ? 'none' : 'block';
+    const fileUploadRadio = document.getElementById('fileUpload');
+    const fileSection = document.getElementById('fileUploadSection');
+    const textSection = document.getElementById('textPasteSection');
+
+    if (!fileUploadRadio || !fileSection || !textSection) return;
+
+    const isFile = fileUploadRadio.checked;
+    fileSection.style.display = isFile ? 'block' : 'none';
+    textSection.style.display = isFile ? 'none' : 'block';
 }
 
 // Wait for DOM to be fully loaded
@@ -220,9 +226,13 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
-                document.getElementById('fileInfo').classList.remove('d-none');
+                const fileNameEl = document.getElementById('fileName');
+                const fileSizeEl = document.getElementById('fileSize');
+                const fileInfoEl = document.getElementById('fileInfo');
+
+                if (fileNameEl) fileNameEl.textContent = file.name;
+                if (fileSizeEl) fileSizeEl.textContent = (file.size / 1024).toFixed(2) + ' KB';
+                if (fileInfoEl) fileInfoEl.classList.remove('d-none');
 
                 // Read and validate file
                 const reader = new FileReader();
@@ -241,7 +251,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function validateJSON() {
-    const jsonText = document.getElementById('json_text').value;
+    const jsonTextArea = document.getElementById('json_text');
+    if (!jsonTextArea) return;
+
+    const jsonText = jsonTextArea.value;
 
     if (!jsonText.trim()) {
         showValidation(false, 'Please enter JSON content');
@@ -264,11 +277,14 @@ function validateJSON() {
 }
 
 function formatJSON() {
-    const jsonText = document.getElementById('json_text').value;
+    const jsonTextArea = document.getElementById('json_text');
+    if (!jsonTextArea) return;
+
+    const jsonText = jsonTextArea.value;
 
     try {
         const data = JSON.parse(jsonText);
-        document.getElementById('json_text').value = JSON.stringify(data, null, 2);
+        jsonTextArea.value = JSON.stringify(data, null, 2);
         showValidation(true, 'JSON formatted successfully');
     } catch (error) {
         showValidation(false, 'Cannot format invalid JSON: ' + error.message);
@@ -277,7 +293,8 @@ function formatJSON() {
 
 function showValidation(isValid, message) {
     // Определяем, какой контейнер использовать
-    const isFileMode = document.getElementById('fileUpload').checked;
+    const fileUploadRadio = document.getElementById('fileUpload');
+    const isFileMode = fileUploadRadio ? fileUploadRadio.checked : true;
     const resultId = isFileMode ? 'fileValidationResult' : 'validationResult';
     const result = document.getElementById(resultId);
 
