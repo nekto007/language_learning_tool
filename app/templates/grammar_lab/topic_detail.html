@@ -84,7 +84,7 @@
                         <!-- Introduction -->
                         {% if topic.content.introduction %}
                         <div class="gl-theory-intro">
-                            {{ topic.content.introduction }}
+                            {{ topic.content.introduction|unescape }}
                         </div>
                         {% endif %}
 
@@ -92,9 +92,9 @@
                         {% if topic.content.sections %}
                         {% for section in topic.content.sections %}
                         <div class="gl-theory-section">
-                            <h5>{{ section.subtitle }}</h5>
+                            <h5>{{ section.subtitle|unescape }}</h5>
                             {% if section.description %}
-                            <p>{{ section.description }}</p>
+                            <p>{{ section.description|unescape }}</p>
                             {% endif %}
 
                             <!-- Table -->
@@ -103,10 +103,10 @@
                                 <tbody>
                                 {% for row in section.table %}
                                 <tr>
-                                    {% if row.pronoun %}<td class="pronoun">{{ row.pronoun }}</td>{% endif %}
-                                    {% if row.form %}<td><span class="form">{{ row.form }}</span></td>{% endif %}
-                                    {% if row.example %}<td>{{ row.example }}</td>{% endif %}
-                                    {% if row.translation %}<td class="translation">{{ row.translation }}</td>{% endif %}
+                                    {% if row.pronoun %}<td class="pronoun">{{ row.pronoun|unescape }}</td>{% endif %}
+                                    {% if row.form %}<td><span class="form">{{ row.form|unescape }}</span></td>{% endif %}
+                                    {% if row.example %}<td>{{ row.example|unescape }}</td>{% endif %}
+                                    {% if row.translation %}<td class="translation">{{ row.translation|unescape }}</td>{% endif %}
                                 </tr>
                                 {% endfor %}
                                 </tbody>
@@ -118,16 +118,16 @@
                             <ul class="gl-rules-list">
                                 {% for rule in section.rules %}
                                 <li class="gl-rule-item">
-                                    <strong>{{ rule.rule }}</strong>
+                                    <strong>{{ rule.rule|unescape }}</strong>
                                     {% if rule.examples %}
                                     <ul>
                                         {% for example in rule.examples %}
-                                        <li>{{ example }}</li>
+                                        <li>{{ example|unescape }}</li>
                                         {% endfor %}
                                     </ul>
                                     {% endif %}
                                     {% if rule.note %}
-                                    <div class="gl-rule-note">{{ rule.note }}</div>
+                                    <div class="gl-rule-note">{{ rule.note|unescape }}</div>
                                     {% endif %}
                                 </li>
                                 {% endfor %}
@@ -139,11 +139,11 @@
                             <ul class="gl-rules-list">
                                 {% for usage in section.usage %}
                                 <li class="gl-rule-item">
-                                    <strong>{{ usage.case }}</strong>
+                                    <strong>{{ usage.case|unescape }}</strong>
                                     {% if usage.examples %}
                                     <ul>
                                         {% for example in usage.examples %}
-                                        <li>{{ example }}</li>
+                                        <li>{{ example|unescape }}</li>
                                         {% endfor %}
                                     </ul>
                                     {% endif %}
@@ -164,7 +164,7 @@
                             </div>
                             <ul>
                                 {% for note in topic.content.important_notes %}
-                                <li>{{ note }}</li>
+                                <li>{{ note|unescape }}</li>
                                 {% endfor %}
                             </ul>
                         </div>
@@ -179,12 +179,12 @@
                             </div>
                             {% for mistake in topic.content.common_mistakes %}
                             <div class="gl-mistake-item">
-                                <span class="gl-mistake-wrong">{{ mistake.wrong }}</span>
+                                <span class="gl-mistake-wrong">{{ mistake.wrong|unescape }}</span>
                                 <i class="fas fa-arrow-right gl-mistake-arrow"></i>
-                                <span class="gl-mistake-correct">{{ mistake.correct }}</span>
+                                <span class="gl-mistake-correct">{{ mistake.correct|unescape }}</span>
                             </div>
                             {% if mistake.explanation %}
-                            <span class="gl-mistake-explain">{{ mistake.explanation }}</span>
+                            <span class="gl-mistake-explain">{{ mistake.explanation|unescape }}</span>
                             {% endif %}
                             {% endfor %}
                         </div>
@@ -200,13 +200,13 @@
                             <table>
                                 <tbody>
                                 {% if topic.content.summary_table.affirmative %}
-                                <tr><td>+</td><td>{{ topic.content.summary_table.affirmative }}</td></tr>
+                                <tr><td>+</td><td>{{ topic.content.summary_table.affirmative|unescape }}</td></tr>
                                 {% endif %}
                                 {% if topic.content.summary_table.negative %}
-                                <tr><td>-</td><td>{{ topic.content.summary_table.negative }}</td></tr>
+                                <tr><td>-</td><td>{{ topic.content.summary_table.negative|unescape }}</td></tr>
                                 {% endif %}
                                 {% if topic.content.summary_table.question %}
-                                <tr><td>?</td><td>{{ topic.content.summary_table.question }}</td></tr>
+                                <tr><td>?</td><td>{{ topic.content.summary_table.question|unescape }}</td></tr>
                                 {% endif %}
                                 </tbody>
                             </table>
@@ -410,6 +410,9 @@ const topicId = {{ topic.id }};
 let exercises = {{ topic.exercises|tojson|safe }};
 let currentExerciseIndex = 0;
 let sessionId = null;
+let correctCount = 0;
+let wrongCount = 0;
+let totalXP = 0;
 
 // Complete theory
 document.getElementById('complete-theory-btn')?.addEventListener('click', async function() {
@@ -617,32 +620,151 @@ function renderTranslation(exercise) {
 }
 
 function renderErrorCorrection(exercise) {
+    const sentence = exercise.sentence || exercise.content?.sentence || exercise.question || '';
     return `
         <div class="gl-exercise-question">Найдите и исправьте ошибку:</div>
-        <div class="gl-exercise-highlight" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #991b1b;">${exercise.sentence}</div>
+        <div class="gl-exercise-highlight" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #991b1b;">${sentence}</div>
         <input type="text" class="gl-input" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
     `;
 }
 
 function renderTransformation(exercise) {
+    // Original sentence can be in: original, sentence, or question fields
+    const original = exercise.original || exercise.sentence || exercise.question ||
+                     exercise.content?.original || exercise.content?.sentence || exercise.content?.question || '';
+    const instruction = exercise.instruction || exercise.content?.instruction || 'Преобразуйте предложение';
     return `
-        <div class="gl-exercise-question">${exercise.instruction || 'Преобразуйте предложение'}:</div>
-        <div class="gl-exercise-highlight">${exercise.original}</div>
+        <div class="gl-exercise-question">${instruction}:</div>
+        <div class="gl-exercise-highlight">${original}</div>
         <input type="text" class="gl-input" id="user-answer" placeholder="Введите преобразованное предложение" autocomplete="off">
     `;
 }
 
 function renderMatching(exercise) {
     const pairs = exercise.pairs || [];
+    if (pairs.length === 0) {
+        return `<div class="gl-exercise-question">Нет пар для сопоставления</div>`;
+    }
+
+    // Create shuffled right column
+    const rightItems = pairs.map((pair, i) => ({
+        text: pair.russian || pair.right,
+        correctIndex: i
+    }));
+    // Shuffle right items
+    for (let i = rightItems.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rightItems[i], rightItems[j]] = [rightItems[j], rightItems[i]];
+    }
+
     let html = `<div class="gl-exercise-question">${exercise.instruction || 'Соотнесите пары:'}</div>`;
-    html += '<div class="gl-matching-grid">';
-    // Simple implementation - can be enhanced
+    html += '<div class="gl-matching-container">';
+
+    // Left column (source items)
+    html += '<div class="gl-matching-column" id="matching-left">';
+    html += '<div class="gl-matching-column-header">English</div>';
     pairs.forEach((pair, i) => {
-        html += `<div class="gl-matching-item">${pair.english || pair.left} - ${pair.russian || pair.right}</div>`;
+        html += `<div class="gl-matching-item" data-index="${i}" data-side="left">${pair.english || pair.left}</div>`;
     });
     html += '</div>';
-    html += '<input type="hidden" id="user-answer" value="matched">';
+
+    // Right column (shuffled target items)
+    html += '<div class="gl-matching-column" id="matching-right">';
+    html += '<div class="gl-matching-column-header">Русский</div>';
+    rightItems.forEach((item, i) => {
+        html += `<div class="gl-matching-item" data-index="${i}" data-correct="${item.correctIndex}" data-side="right">${item.text}</div>`;
+    });
+    html += '</div>';
+
+    html += '</div>';
+
+    // Progress indicator
+    html += `<div class="gl-matching-progress">
+        <span class="gl-matching-progress-text">Совпадений: <strong id="match-count">0</strong> из <strong>${pairs.length}</strong></span>
+    </div>`;
+
+    html += '<input type="hidden" id="user-answer" value="">';
+
+    // Setup matching logic after render
+    setTimeout(() => setupMatchingHandlers(pairs.length), 100);
+
     return html;
+}
+
+function setupMatchingHandlers(totalPairs) {
+    let selectedLeft = null;
+    let selectedRight = null;
+    let matches = {};
+    let matchCount = 0;
+
+    const leftItems = document.querySelectorAll('#matching-left .gl-matching-item');
+    const rightItems = document.querySelectorAll('#matching-right .gl-matching-item');
+
+    function updateAnswer() {
+        document.getElementById('user-answer').value = JSON.stringify(matches);
+        document.getElementById('match-count').textContent = matchCount;
+
+        // Auto-submit when all matched
+        if (matchCount === totalPairs) {
+            document.getElementById('user-answer').value = JSON.stringify(matches);
+        }
+    }
+
+    function checkMatch() {
+        if (selectedLeft !== null && selectedRight !== null) {
+            const leftIdx = parseInt(selectedLeft.dataset.index);
+            const rightCorrect = parseInt(selectedRight.dataset.correct);
+
+            if (leftIdx === rightCorrect) {
+                // Correct match
+                selectedLeft.classList.remove('selected');
+                selectedLeft.classList.add('matched');
+                selectedRight.classList.remove('selected');
+                selectedRight.classList.add('matched');
+
+                matches[leftIdx] = leftIdx;
+                matchCount++;
+                updateAnswer();
+            } else {
+                // Wrong match - shake and reset
+                selectedLeft.classList.add('wrong');
+                selectedRight.classList.add('wrong');
+
+                setTimeout(() => {
+                    selectedLeft.classList.remove('selected', 'wrong');
+                    selectedRight.classList.remove('selected', 'wrong');
+                    selectedLeft = null;
+                    selectedRight = null;
+                }, 500);
+                return;
+            }
+
+            selectedLeft = null;
+            selectedRight = null;
+        }
+    }
+
+    leftItems.forEach(item => {
+        item.addEventListener('click', function() {
+            if (this.classList.contains('matched')) return;
+
+            leftItems.forEach(i => i.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedLeft = this;
+            checkMatch();
+        });
+    });
+
+    rightItems.forEach(item => {
+        item.addEventListener('click', function() {
+            if (this.classList.contains('matched')) return;
+
+            rightItems.forEach(i => i.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedRight = this;
+            checkMatch();
+        });
+    });
 }
 
 // Submit answer
@@ -657,6 +779,24 @@ document.getElementById('submit-answer-btn').addEventListener('click', async fun
             return;
         }
         answer = selected.value;
+    } else if (exercise.exercise_type === 'matching') {
+        const answerStr = document.getElementById('user-answer').value;
+        if (!answerStr) {
+            alert('Соотнесите все пары');
+            return;
+        }
+        try {
+            const matches = JSON.parse(answerStr);
+            const pairsCount = (exercise.pairs || []).length;
+            if (Object.keys(matches).length < pairsCount) {
+                alert(`Соотнесите все пары (${Object.keys(matches).length}/${pairsCount})`);
+                return;
+            }
+            answer = matches;
+        } catch (e) {
+            alert('Соотнесите все пары');
+            return;
+        }
     } else {
         answer = document.getElementById('user-answer').value;
         if (!answer) {
@@ -680,9 +820,11 @@ document.getElementById('submit-answer-btn').addEventListener('click', async fun
         });
         const data = await response.json();
 
-        // Show feedback
+        // Show feedback and track results
         const feedback = document.getElementById('exercise-feedback');
         if (data.is_correct) {
+            correctCount++;
+            totalXP += data.xp_earned || 0;
             feedback.className = 'gl-feedback success';
             feedback.innerHTML = `
                 <div class="gl-feedback-header">
@@ -691,6 +833,7 @@ document.getElementById('submit-answer-btn').addEventListener('click', async fun
                 </div>
             `;
         } else {
+            wrongCount++;
             feedback.className = 'gl-feedback error';
             feedback.innerHTML = `
                 <div class="gl-feedback-header">
@@ -721,11 +864,53 @@ document.getElementById('next-exercise-btn').addEventListener('click', function(
     if (currentExerciseIndex < exercises.length) {
         showExercise(currentExerciseIndex);
     } else {
-        // Practice complete
-        const modal = bootstrap.Modal.getInstance(document.getElementById('exerciseModal'));
-        modal.hide();
-        location.reload();
+        // Practice complete - show completion screen
+        showCompletionScreen();
     }
 });
+
+function showCompletionScreen() {
+    const accuracy = exercises.length > 0 ? Math.round((correctCount / exercises.length) * 100) : 0;
+    const emoji = accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪';
+    const message = accuracy >= 80 ? 'Отлично!' : accuracy >= 60 ? 'Хорошая работа!' : 'Продолжайте практиковаться!';
+
+    document.getElementById('exercise-content').innerHTML = `
+        <div class="gl-completion">
+            <div class="gl-completion-emoji">${emoji}</div>
+            <h3 class="gl-completion-title">${message}</h3>
+            <p class="gl-completion-subtitle">Вы завершили практику по теме</p>
+
+            <div class="gl-completion-stats">
+                <div class="gl-completion-stat correct">
+                    <div class="gl-completion-stat-value">${correctCount}</div>
+                    <div class="gl-completion-stat-label">Верно</div>
+                </div>
+                <div class="gl-completion-stat wrong">
+                    <div class="gl-completion-stat-value">${wrongCount}</div>
+                    <div class="gl-completion-stat-label">Ошибок</div>
+                </div>
+                <div class="gl-completion-stat xp">
+                    <div class="gl-completion-stat-value">${totalXP}</div>
+                    <div class="gl-completion-stat-label">XP</div>
+                </div>
+            </div>
+
+            <div class="gl-completion-accuracy">
+                <div class="gl-completion-accuracy-bar">
+                    <div class="gl-completion-accuracy-fill" style="width: ${accuracy}%;"></div>
+                </div>
+                <span class="gl-completion-accuracy-text">${accuracy}% точность</span>
+            </div>
+        </div>
+    `;
+
+    // Update modal footer
+    document.getElementById('exercise-feedback').style.display = 'none';
+    document.getElementById('submit-answer-btn').style.display = 'none';
+    document.getElementById('next-exercise-btn').style.display = 'none';
+
+    // Change title
+    document.querySelector('#exerciseModal .modal-title').innerHTML = '<i class="fas fa-trophy text-warning me-2"></i>Практика завершена';
+}
 </script>
 {% endblock %}
