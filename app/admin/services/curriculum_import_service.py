@@ -241,6 +241,13 @@ class CurriculumImportService:
                 )
                 db.session.add(lesson)
                 db.session.flush()
+            else:
+                # Update existing lesson metadata
+                if title:
+                    lesson.title = title
+                    lesson.description = title
+                if lesson_type:
+                    lesson.type = lesson_type if lesson_type != 'text' else 'text'
 
             # Обрабатываем контент по типу урока
             if lesson_type == 'grammar':

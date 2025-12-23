@@ -315,29 +315,42 @@ def import_from_modules():
                 # Check if already exists
                 existing = GrammarTopic.query.filter_by(slug=slug).first()
                 if existing:
-                    skipped += 1
-                    continue
-
-                # Create new topic
-                topic = GrammarTopic(
-                    slug=slug,
-                    title=title,
-                    title_ru=title,
-                    level=level_code,
-                    order=module.number,
-                    content={
+                    # Update existing topic
+                    topic = existing
+                    topic.title = title
+                    topic.title_ru = title
+                    topic.level = level_code
+                    topic.content = {
                         'introduction': grammar_data.get('introduction', ''),
                         'sections': grammar_data.get('sections', []),
                         'important_notes': grammar_data.get('important_notes', []),
                         'summary': grammar_data.get('summary', {}),
                         'source_module': module.number
-                    },
-                    estimated_time=15,
-                    difficulty=1
-                )
-                db.session.add(topic)
-                db.session.flush()  # Get topic.id
-                imported += 1
+                    }
+                    # Delete old exercises to reimport
+                    GrammarExercise.query.filter_by(topic_id=topic.id).delete()
+                    skipped += 1  # Count as updated (using skipped for "updated" count)
+                else:
+                    # Create new topic
+                    topic = GrammarTopic(
+                        slug=slug,
+                        title=title,
+                        title_ru=title,
+                        level=level_code,
+                        order=module.number,
+                        content={
+                            'introduction': grammar_data.get('introduction', ''),
+                            'sections': grammar_data.get('sections', []),
+                            'important_notes': grammar_data.get('important_notes', []),
+                            'summary': grammar_data.get('summary', {}),
+                            'source_module': module.number
+                        },
+                        estimated_time=15,
+                        difficulty=1
+                    )
+                    db.session.add(topic)
+                    db.session.flush()  # Get topic.id
+                    imported += 1
 
                 # Find ALL quiz lessons and import exercises from each
                 quiz_lessons = Lessons.query.filter_by(
@@ -420,7 +433,7 @@ def import_from_modules():
                         exercises_imported += 1
 
             db.session.commit()
-            flash(f'Импортировано: {imported} тем, {exercises_imported} упражнений. Пропущено: {skipped} тем', 'success')
+            flash(f'Создано: {imported} тем, обновлено: {skipped} тем, упражнений: {exercises_imported}', 'success')
 
         except Exception as e:
             db.session.rollback()
