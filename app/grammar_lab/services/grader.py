@@ -195,7 +195,9 @@ class GrammarExerciseGrader:
         """Grade translation exercise"""
         content = exercise.content
         correct = self._normalize_answer(content.get('correct_answer', ''))
-        alternatives = [self._normalize_answer(a) for a in content.get('alternatives', [])]
+        # Check both 'alternatives' and 'acceptable_answers' fields
+        alt_list = content.get('alternatives', []) or content.get('acceptable_answers', [])
+        alternatives = [self._normalize_answer(a) for a in alt_list]
         user = self._normalize_answer(answer)
 
         is_correct = user == correct or user in alternatives
