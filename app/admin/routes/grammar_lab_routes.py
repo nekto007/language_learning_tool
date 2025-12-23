@@ -376,7 +376,16 @@ def import_from_modules():
                         if mapped_type == 'fill_blank':
                             exercise_content['options'] = ex.get('options', [])
                         elif mapped_type == 'multiple_choice':
-                            exercise_content['options'] = ex.get('options', [])
+                            options = ex.get('options', [])
+                            exercise_content['options'] = options
+                            # Grader expects correct_answer as index, not string
+                            correct_value = ex.get('correct') or ex.get('correct_answer', '')
+                            if isinstance(correct_value, str) and correct_value in options:
+                                exercise_content['correct_answer'] = options.index(correct_value)
+                            elif isinstance(correct_value, int):
+                                exercise_content['correct_answer'] = correct_value
+                            else:
+                                exercise_content['correct_answer'] = 0
                         elif mapped_type == 'matching':
                             exercise_content['pairs'] = ex.get('pairs', [])
                         elif mapped_type == 'reorder':
