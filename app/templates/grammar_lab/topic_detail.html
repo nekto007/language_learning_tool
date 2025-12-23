@@ -524,7 +524,9 @@ function renderTrueFalse(exercise) {
 
 function renderTranslation(exercise) {
     // API returns data directly (exercise.sentence), not nested in content
-    const sentence = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
+    let sentence = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
+    // Remove "Переведите на английский:" prefix if present
+    sentence = sentence.replace(/^Переведите на английский:\s*/i, '');
     return `
         <div class="mb-3">
             <label class="form-label">Переведите на английский:</label>
