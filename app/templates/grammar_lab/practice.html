@@ -239,7 +239,9 @@ function renderExercise(exercise) {
             `;
         case 'translation': {
             // API returns data directly (exercise.sentence), not nested in content
-            const translationText = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
+            let translationText = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
+            // Remove "Переведите на английский:" prefix if present
+            translationText = translationText.replace(/^Переведите на английский:\s*/i, '');
             return `
                 <label class="form-label">Переведите на английский:</label>
                 <p class="fs-5 fw-bold">${translationText}</p>
