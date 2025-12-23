@@ -75,24 +75,44 @@ class GrammarExerciseGrader:
     def _grade_multiple_choice(self, exercise: GrammarExercise, answer: Any) -> Dict:
         """Grade multiple choice exercise"""
         content = exercise.content
-        correct_index = content.get('correct_answer')
+        correct_value = content.get('correct_answer')
         options = content.get('options', [])
 
-        # Handle both string and int answer
+        # correct_value can be index (int) or string (actual answer)
+        if isinstance(correct_value, int):
+            correct_index = correct_value
+            correct_answer_text = options[correct_index] if 0 <= correct_index < len(options) else str(correct_value)
+        elif isinstance(correct_value, str) and correct_value in options:
+            correct_index = options.index(correct_value)
+            correct_answer_text = correct_value
+        else:
+            # Fallback: treat as string answer
+            correct_index = None
+            correct_answer_text = str(correct_value) if correct_value else ''
+
+        # Handle both string and int answer from user
         try:
             user_index = int(answer)
         except (ValueError, TypeError):
+            # User sent string answer - compare directly
+            user_answer_text = str(answer) if answer else ''
+            is_correct = self._normalize_answer(user_answer_text) == self._normalize_answer(correct_answer_text)
             return {
-                'is_correct': False,
-                'correct_answer': options[correct_index] if options and correct_index < len(options) else '',
+                'is_correct': is_correct,
+                'correct_answer': correct_answer_text,
                 'explanation': content.get('explanation', ''),
-                'user_answer': answer,
-                'error': 'Invalid answer format'
+                'user_answer': user_answer_text
             }
 
-        is_correct = user_index == correct_index
+        # User sent index
+        if correct_index is not None:
+            is_correct = user_index == correct_index
+        else:
+            # Compare by text
+            user_answer_text = options[user_index] if 0 <= user_index < len(options) else ''
+            is_correct = self._normalize_answer(user_answer_text) == self._normalize_answer(correct_answer_text)
+
         user_answer_text = options[user_index] if 0 <= user_index < len(options) else str(answer)
-        correct_answer_text = options[correct_index] if 0 <= correct_index < len(options) else ''
 
         return {
             'is_correct': is_correct,
