@@ -276,14 +276,14 @@ def delete_exercise(exercise_id):
 @login_required
 @admin_required
 def import_from_modules():
-    """Import grammar topics from curriculum modules"""
+    """Import grammar topics from curriculum modules (from database)"""
     import re
     from app.curriculum.models import Module, Lessons, CEFRLevel
 
     if request.method == 'POST':
         imported = 0
         skipped = 0
-        errors = []
+        exercises_imported = 0
 
         try:
             # Get all modules with their levels
@@ -292,78 +292,63 @@ def import_from_modules():
             for module in modules:
                 level_code = module.level.code if module.level else 'A1'
 
-                # Find grammar lessons in this module
-                grammar_lessons = Lessons.query.filter_by(
+                # Find grammar lesson
+                grammar_lesson = Lessons.query.filter_by(
                     module_id=module.id,
                     type='grammar'
-                ).all()
-
-                for lesson in grammar_lessons:
-                    content = lesson.content or {}
-                    grammar_data = content.get('grammar_explanation', {})
-
-                    if not grammar_data:
-                        continue
-
-                    title = grammar_data.get('title', '')
-                    if not title:
-                        continue
-
-                    # Generate slug
-                    slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-                    slug = f"module-{module.number}-{slug}"[:100]
-
-                    # Check if already exists
-                    existing = GrammarTopic.query.filter_by(slug=slug).first()
-                    if existing:
-                        skipped += 1
-                        continue
-
-                    # Create new topic
-                    topic = GrammarTopic(
-                        slug=slug,
-                        title=title,
-                        title_ru=title,  # Russian title from module
-                        level=level_code,
-                        order=module.number,
-                        content={
-                            'introduction': grammar_data.get('introduction', ''),
-                            'sections': grammar_data.get('sections', []),
-                            'important_notes': grammar_data.get('important_notes', []),
-                            'summary': grammar_data.get('summary', {}),
-                            'source_module': module.number,
-                            'source_lesson': lesson.number
-                        },
-                        estimated_time=15,
-                        difficulty=1
-                    )
-                    db.session.add(topic)
-                    imported += 1
-
-            db.session.commit()
-
-            # Now import exercises from quiz lessons
-            exercises_imported = 0
-            for module in modules:
-                level_code = module.level.code if module.level else 'A1'
-
-                # Find the grammar topic for this module
-                topic = GrammarTopic.query.filter(
-                    GrammarTopic.slug.like(f'module-{module.number}-%')
                 ).first()
 
-                if not topic:
+                if not grammar_lesson:
                     continue
 
-                # Find quiz lessons (usually lesson 4)
-                quiz_lessons = Lessons.query.filter_by(
+                content = grammar_lesson.content or {}
+                grammar_data = content.get('grammar_explanation', {})
+                title = grammar_data.get('title', '')
+
+                if not title:
+                    continue
+
+                # Generate slug
+                slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+                slug = f"module-{module.number}-{slug}"[:100]
+
+                # Check if already exists
+                existing = GrammarTopic.query.filter_by(slug=slug).first()
+                if existing:
+                    skipped += 1
+                    continue
+
+                # Create new topic
+                topic = GrammarTopic(
+                    slug=slug,
+                    title=title,
+                    title_ru=title,
+                    level=level_code,
+                    order=module.number,
+                    content={
+                        'introduction': grammar_data.get('introduction', ''),
+                        'sections': grammar_data.get('sections', []),
+                        'important_notes': grammar_data.get('important_notes', []),
+                        'summary': grammar_data.get('summary', {}),
+                        'source_module': module.number
+                    },
+                    estimated_time=15,
+                    difficulty=1
+                )
+                db.session.add(topic)
+                db.session.flush()  # Get topic.id
+                imported += 1
+
+                # Find quiz lesson (usually lesson 4) and import exercises
+                quiz_lesson = Lessons.query.filter_by(
                     module_id=module.id,
                     type='quiz'
-                ).all()
+                ).first()
 
-                for quiz_lesson in quiz_lessons:
-                    content = quiz_lesson.content or {}
-                    exercises = content.get('exercises', [])
+                if quiz_lesson:
+                    quiz_content = quiz_lesson.content or {}
+                    # В БД упражнения могут быть в 'questions' или 'exercises'
+                    exercises = quiz_content.get('questions') or quiz_content.get('exercises', [])
 
                     for i, ex in enumerate(exercises):
                         ex_type = ex.get('type', 'fill_blank')
@@ -382,22 +367,26 @@ def import_from_modules():
 
                         # Build exercise content
                         exercise_content = {
-                            'question': ex.get('question') or ex.get('prompt', ''),
-                            'correct_answer': ex.get('correct_answer') or ex.get('answer', ''),
+                            'question': ex.get('question') or ex.get('instruction', ''),
+                            'correct_answer': ex.get('correct') or ex.get('correct_answer', ''),
                             'explanation': ex.get('explanation', ''),
                         }
 
                         # Add type-specific fields
-                        if mapped_type == 'multiple_choice':
+                        if mapped_type == 'fill_blank':
                             exercise_content['options'] = ex.get('options', [])
-                            exercise_content['correct_answer'] = ex.get('correct_index', 0)
+                        elif mapped_type == 'multiple_choice':
+                            exercise_content['options'] = ex.get('options', [])
                         elif mapped_type == 'matching':
                             exercise_content['pairs'] = ex.get('pairs', [])
                         elif mapped_type == 'reorder':
                             exercise_content['words'] = ex.get('words', [])
+                            exercise_content['correct_answer'] = ex.get('correct', '')
                         elif mapped_type == 'true_false':
                             exercise_content['statement'] = ex.get('question', '')
-                            exercise_content['correct_answer'] = ex.get('correct_answer', True)
+                            exercise_content['correct_answer'] = ex.get('correct', True)
+                        elif mapped_type == 'translation':
+                            exercise_content['acceptable_answers'] = ex.get('acceptable_answers', [])
 
                         exercise = GrammarExercise(
                             topic_id=topic.id,
@@ -425,34 +414,49 @@ def import_from_modules():
 
     for module in modules:
         level_code = module.level.code if module.level else 'A1'
-        grammar_lessons = Lessons.query.filter_by(module_id=module.id, type='grammar').all()
 
-        for lesson in grammar_lessons:
-            content = lesson.content or {}
-            grammar_data = content.get('grammar_explanation', {})
-            title = grammar_data.get('title', '')
+        # Find grammar lesson
+        grammar_lesson = Lessons.query.filter_by(
+            module_id=module.id,
+            type='grammar'
+        ).first()
 
-            if title:
-                # Check if exists
-                slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-                slug = f"module-{module.number}-{slug}"[:100]
-                exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
+        if not grammar_lesson:
+            continue
 
-                # Count quiz exercises
-                quiz_lessons = Lessons.query.filter_by(module_id=module.id, type='quiz').all()
-                exercise_count = 0
-                for ql in quiz_lessons:
-                    qc = ql.content or {}
-                    exercise_count += len(qc.get('exercises', []))
+        content = grammar_lesson.content or {}
+        grammar_data = content.get('grammar_explanation', {})
+        title = grammar_data.get('title', '')
 
-                modules_with_grammar.append({
-                    'module_id': module.number,
-                    'module_title': module.title,
-                    'level': level_code,
-                    'grammar_title': title,
-                    'exists': exists,
-                    'exercise_count': exercise_count
-                })
+        if not title:
+            continue
+
+        # Check if exists
+        slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+        slug = f"module-{module.number}-{slug}"[:100]
+        exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
+
+        # Count quiz exercises from DB
+        quiz_lesson = Lessons.query.filter_by(
+            module_id=module.id,
+            type='quiz'
+        ).first()
+
+        exercise_count = 0
+        if quiz_lesson:
+            quiz_content = quiz_lesson.content or {}
+            # В БД упражнения могут быть в 'questions' или 'exercises'
+            questions = quiz_content.get('questions') or quiz_content.get('exercises', [])
+            exercise_count = len(questions)
+
+        modules_with_grammar.append({
+            'module_id': module.number,
+            'module_title': module.title,
+            'level': level_code,
+            'grammar_title': title,
+            'exists': exists,
+            'exercise_count': exercise_count
+        })
 
     return render_template(
         'admin/grammar_lab/import_preview.html',
