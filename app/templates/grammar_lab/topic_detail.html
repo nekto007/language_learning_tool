@@ -547,9 +547,17 @@ function selectOption(el, value) {
 
 function renderReorder(exercise) {
     const words = exercise.words || [];
+
+    // Shuffle words for display
+    const shuffledWords = [...words];
+    for (let i = shuffledWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledWords[i], shuffledWords[j]] = [shuffledWords[j], shuffledWords[i]];
+    }
+
     let html = `<div class="gl-exercise-question">${exercise.instruction || 'Составьте предложение из слов:'}</div>`;
     html += '<div class="gl-word-bank" id="word-bank">';
-    words.forEach((word, i) => {
+    shuffledWords.forEach((word, i) => {
         html += `<button type="button" class="gl-word-btn" data-index="${i}" data-word="${word}">${word}</button>`;
     });
     html += '</div>';
@@ -663,7 +671,6 @@ function renderMatching(exercise) {
 
     // Left column (source items)
     html += '<div class="gl-matching-column" id="matching-left">';
-    html += '<div class="gl-matching-column-header">English</div>';
     pairs.forEach((pair, i) => {
         html += `<div class="gl-matching-item" data-index="${i}" data-side="left">${pair.english || pair.left}</div>`;
     });
@@ -671,7 +678,6 @@ function renderMatching(exercise) {
 
     // Right column (shuffled target items)
     html += '<div class="gl-matching-column" id="matching-right">';
-    html += '<div class="gl-matching-column-header">Русский</div>';
     rightItems.forEach((item, i) => {
         html += `<div class="gl-matching-item" data-index="${i}" data-correct="${item.correctIndex}" data-side="right">${item.text}</div>`;
     });
