@@ -166,17 +166,21 @@ class GrammarLabService:
 
         return data
 
-    def start_topic_practice(self, topic_id: int, user_id: int) -> Dict:
+    def start_topic_practice(self, topic_id: int, user_id: int, max_exercises: int = 12) -> Dict:
         """
-        Start practice session for a topic.
+        Start practice session for a topic with smart exercise selection.
 
         Args:
             topic_id: Topic ID
             user_id: User ID
+            max_exercises: Maximum exercises per session (default 12)
 
         Returns:
-            Dict with session_id and first exercise
+            Dict with session_id and selected exercises
         """
+        import random
+        from sqlalchemy import func
+
         topic = GrammarTopic.query.get(topic_id)
         if not topic:
             return {'error': 'Topic not found'}
@@ -187,24 +191,104 @@ class GrammarLabService:
         # Generate session ID
         session_id = f"grammar_{topic_id}_{user_id}_{uuid.uuid4().hex[:8]}"
 
-        # Get exercises ordered by difficulty
-        exercises = GrammarExercise.query.filter_by(topic_id=topic_id).order_by(
-            GrammarExercise.order,
-            GrammarExercise.difficulty
-        ).all()
+        # Get all exercises for this topic
+        all_exercises = GrammarExercise.query.filter_by(topic_id=topic_id).all()
 
-        if not exercises:
+        if not all_exercises:
             return {
                 'error': 'No exercises for this topic',
                 'session_id': session_id,
                 'topic': topic.to_dict()
             }
 
+        # Get user's attempt stats for each exercise
+        exercise_ids = [e.id for e in all_exercises]
+        attempt_stats = db.session.query(
+            GrammarAttempt.exercise_id,
+            func.count(GrammarAttempt.id).label('total'),
+            func.sum(func.cast(GrammarAttempt.is_correct, db.Integer)).label('correct')
+        ).filter(
+            GrammarAttempt.user_id == user_id,
+            GrammarAttempt.exercise_id.in_(exercise_ids)
+        ).group_by(GrammarAttempt.exercise_id).all()
+
+        # Build stats dict
+        stats = {s.exercise_id: {'total': s.total, 'correct': s.correct or 0} for s in attempt_stats}
+
+        # Categorize exercises
+        never_attempted = []
+        weak_exercises = []  # < 70% correct
+        strong_exercises = []  # >= 70% correct
+
+        for ex in all_exercises:
+            if ex.id not in stats:
+                never_attempted.append(ex)
+            else:
+                s = stats[ex.id]
+                accuracy = s['correct'] / s['total'] if s['total'] > 0 else 0
+                if accuracy < 0.7:
+                    weak_exercises.append(ex)
+                else:
+                    strong_exercises.append(ex)
+
+        # Shuffle each category
+        random.shuffle(never_attempted)
+        random.shuffle(weak_exercises)
+        random.shuffle(strong_exercises)
+
+        # Select exercises based on mastery level
+        selected = []
+        mastery = progress.mastery_level
+
+        if mastery < 2:
+            # Early learning: prioritize new exercises
+            # 8 new + 4 weak (or fill with new)
+            selected.extend(never_attempted[:8])
+            selected.extend(weak_exercises[:4])
+            remaining = max_exercises - len(selected)
+            if remaining > 0:
+                selected.extend(never_attempted[8:8+remaining])
+        elif mastery < 4:
+            # Mid learning: mix of weak and new
+            # 4 weak + 6 new + 2 strong for review
+            selected.extend(weak_exercises[:4])
+            selected.extend(never_attempted[:6])
+            selected.extend(strong_exercises[:2])
+            remaining = max_exercises - len(selected)
+            if remaining > 0:
+                # Fill with whatever is available
+                pool = [e for e in never_attempted[6:] + weak_exercises[4:] if e not in selected]
+                selected.extend(pool[:remaining])
+        else:
+            # Advanced: review weak + reinforce strong
+            # 5 weak + 3 new + 4 strong
+            selected.extend(weak_exercises[:5])
+            selected.extend(never_attempted[:3])
+            selected.extend(strong_exercises[:4])
+            remaining = max_exercises - len(selected)
+            if remaining > 0:
+                pool = [e for e in all_exercises if e not in selected]
+                random.shuffle(pool)
+                selected.extend(pool[:remaining])
+
+        # Ensure we don't exceed max and have at least some exercises
+        selected = selected[:max_exercises]
+
+        # If we still have too few, fill from any available
+        if len(selected) < min(max_exercises, len(all_exercises)):
+            remaining_pool = [e for e in all_exercises if e not in selected]
+            random.shuffle(remaining_pool)
+            selected.extend(remaining_pool[:max_exercises - len(selected)])
+
+        # Shuffle final selection for variety
+        random.shuffle(selected)
+
         return {
             'session_id': session_id,
             'topic': topic.to_dict(),
-            'total_exercises': len(exercises),
-            'exercises': [e.to_dict(hide_answer=True) for e in exercises],
+            'total_exercises': len(selected),
+            'all_exercises_count': len(all_exercises),
+            'exercises': [e.to_dict(hide_answer=True) for e in selected],
             'progress': progress.to_dict()
         }
 
