@@ -396,6 +396,13 @@ def import_from_modules():
                             exercise_content['correct_answer'] = ex.get('correct', True)
                         elif mapped_type == 'translation':
                             exercise_content['acceptable_answers'] = ex.get('acceptable_answers', [])
+                            # Extract sentence from question (remove "Переведите на английский: ")
+                            question_text = ex.get('question', '')
+                            if 'Переведите на английский:' in question_text:
+                                sentence = question_text.replace('Переведите на английский:', '').strip()
+                            else:
+                                sentence = question_text
+                            exercise_content['sentence'] = sentence
 
                         exercise = GrammarExercise(
                             topic_id=topic.id,
