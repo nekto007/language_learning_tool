@@ -1094,7 +1094,8 @@ def create_true_false_question(word, all_words, direction):
     # Create hint based on the actual correct translation, not "true"/"false"
     first_word = hint_word.split(',')[0].strip()
     letter_form = "букв"
-    hint = f"Правильный ответ: {first_word[0]}{"_" * (len(first_word) - 1)} ({len(first_word)} {letter_form})"
+    masked_letters = "_" * (len(first_word) - 1)
+    hint = f"Правильный ответ: {first_word[0]}{masked_letters} ({len(first_word)} {letter_form})"
 
     return {
         'id': f'tf_{word.id}_{direction}',

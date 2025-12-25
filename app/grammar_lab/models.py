@@ -12,8 +12,8 @@ Models:
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
 from app.utils.db import db
+from app.utils.types import JSONBCompat
 
 
 class GrammarTopic(db.Model):
@@ -32,7 +32,7 @@ class GrammarTopic(db.Model):
     order = Column(Integer, default=0)          # Order within level
 
     # Content (JSONB)
-    content = Column(JSONB, nullable=False, default={})
+    content = Column(JSONBCompat, nullable=False, default={})
     # {
     #   "introduction": "Brief introduction",
     #   "sections": [
@@ -106,7 +106,7 @@ class GrammarExercise(db.Model):
     #        error_correction, transformation, matching
 
     # Content (JSONB)
-    content = Column(JSONB, nullable=False)
+    content = Column(JSONBCompat, nullable=False)
     # {
     #   "question": "I ___ (to be) a student.",
     #   "correct_answer": "am",
@@ -202,7 +202,7 @@ class UserGrammarProgress(db.Model):
     last_reviewed = Column(DateTime)
 
     # Error stats by exercise type
-    error_stats = Column(JSONB, default={})
+    error_stats = Column(JSONBCompat, default={})
     # {"fill_blank": {"attempts": 10, "correct": 7}, ...}
 
     # XP and time
