@@ -209,6 +209,10 @@ def create_app(config_class=Config):
             # Seed initial achievements
             from app.achievements.seed import seed_achievements
             seed_achievements()
+    else:
+        # Ensure tables exist when running in testing mode (SQLite, etc.)
+        with app.app_context():
+            db.create_all()
 
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
