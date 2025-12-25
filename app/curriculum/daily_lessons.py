@@ -1,10 +1,10 @@
 # app/curriculum/models/daily_lessons.py
 
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, Boolean, UniqueConstraint
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
 from app.utils.db import db
+from app.utils.types import JSONBCompat
 
 
 class DailyLesson(db.Model):
@@ -189,9 +189,9 @@ class UserLessonProgress(db.Model):
 
     # Extended metrics for analytics and adaptive learning
     errors_count = Column(Integer, default=0)  # Total number of errors in this lesson
-    error_types = Column(JSONB)  # {'vocabulary': 2, 'grammar': 1, 'comprehension': 3}
+    error_types = Column(JSONBCompat)  # {'vocabulary': 2, 'grammar': 1, 'comprehension': 3}
     last_attempt_at = Column(DateTime(timezone=True))  # When last attempt was made
-    review_intervals = Column(JSONB)  # [1, 3, 7, 14] - days between review attempts
+    review_intervals = Column(JSONBCompat)  # [1, 3, 7, 14] - days between review attempts
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
@@ -286,7 +286,7 @@ class LessonCompletionEvent(db.Model):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     daily_lesson_id = Column(Integer, ForeignKey('daily_lessons.id', ondelete='CASCADE'), nullable=False)
     event_type = Column(String(50), nullable=False)  # lesson_completed, quiz_submitted, vocabulary_studied
-    event_data = Column(JSONB)  # Additional event-specific data
+    event_data = Column(JSONBCompat)  # Additional event-specific data
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
