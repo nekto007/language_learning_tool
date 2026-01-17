@@ -5,9 +5,11 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+from sqlalchemy.pool import NullPool
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
+IS_TESTING = os.environ.get("TESTING", "").lower() == "true"
 
 # Custom exception for configuration errors
 class EnvironmentConfigurationError(Exception):
@@ -103,7 +105,7 @@ try:
     validate_environment()
 except EnvironmentConfigurationError as e:
     # Re-raise for Flask to handle, but allow imports to work in tests
-    if os.environ.get('TESTING') != 'true':
+    if not IS_TESTING:
         raise
 
 # Database settings - now guaranteed to exist
@@ -123,7 +125,45 @@ DB_CONFIG = {
 }
 
 # SQLAlchemy database URI for Flask
-SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+TEST_DATABASE_URL = os.environ.get("DATABASE_URL")
+if IS_TESTING and TEST_DATABASE_URL:
+    SQLALCHEMY_DATABASE_URI = TEST_DATABASE_URL
+else:
+    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+DEFAULT_SQLALCHEMY_ENGINE_OPTIONS = {
+    # Pool size settings
+    'pool_size': 10,              # Number of connections to maintain
+    'max_overflow': 20,           # Maximum additional connections when pool is full
+    'pool_timeout': 30,           # Seconds to wait before giving up on getting a connection
+    'pool_recycle': 300,          # Recycle connections after 5 minutes (prevent stale connections)
+
+    # Connection health checks
+    'pool_pre_ping': True,        # Test connection before using it
+
+    # Performance
+    'echo': False,                # Set to True for SQL query debugging
+    'echo_pool': False,           # Set to True for connection pool debugging
+
+    # Additional PostgreSQL optimizations
+    'connect_args': {
+        'connect_timeout': 10,    # Connection timeout in seconds
+        'options': '-c statement_timeout=0',  # No query timeout (needed for long book processing)
+        'keepalives': 1,          # Enable TCP keepalive
+        'keepalives_idle': 30,    # Seconds before sending keepalive
+        'keepalives_interval': 10,  # Seconds between keepalive probes
+        'keepalives_count': 5     # Number of failed probes before giving up
+    }
+}
+
+if SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
+    DEFAULT_SQLALCHEMY_ENGINE_OPTIONS = {
+        'echo': False,
+        'poolclass': NullPool,
+        'connect_args': {
+            'check_same_thread': False
+        }
+    }
 
 # Media folder for audio files
 MEDIA_FOLDER = os.path.join(BASE_DIR, "app", "static", "audio")
@@ -163,6 +203,7 @@ SYNC_PROCESSING_TIMEOUT = 30
 # Flask Config class
 class Config:
     """Flask application configuration."""
+    TESTING = IS_TESTING
     SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -182,30 +223,7 @@ class Config:
     WTF_CSRF_TIME_LIMIT = 3600  # 1 hour
 
     # Database Connection Pooling
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        # Pool size settings
-        'pool_size': 10,              # Number of connections to maintain
-        'max_overflow': 20,           # Maximum additional connections when pool is full
-        'pool_timeout': 30,           # Seconds to wait before giving up on getting a connection
-        'pool_recycle': 300,          # Recycle connections after 5 minutes (prevent stale connections)
-
-        # Connection health checks
-        'pool_pre_ping': True,        # Test connection before using it
-
-        # Performance
-        'echo': False,                # Set to True for SQL query debugging
-        'echo_pool': False,           # Set to True for connection pool debugging
-
-        # Additional PostgreSQL optimizations
-        'connect_args': {
-            'connect_timeout': 10,    # Connection timeout in seconds
-            'options': '-c statement_timeout=0',  # No query timeout (needed for long book processing)
-            'keepalives': 1,          # Enable TCP keepalive
-            'keepalives_idle': 30,    # Seconds before sending keepalive
-            'keepalives_interval': 10,  # Seconds between keepalive probes
-            'keepalives_count': 5     # Number of failed probes before giving up
-        }
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
 
 
 

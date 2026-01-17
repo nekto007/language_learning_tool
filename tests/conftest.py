@@ -8,6 +8,30 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load test environment variables before importing the application
+test_env_path = Path(__file__).parent.parent / '.env.test'
+if test_env_path.exists():
+    load_dotenv(test_env_path, override=True)
+
+# Ensure required environment variables are populated for config validation
+DEFAULT_ENV_VARS = {
+    'POSTGRES_USER': 'test_user',
+    'POSTGRES_PASSWORD': 'test_password',
+    'POSTGRES_DB': 'test_db',
+    'SECRET_KEY': 'test-secret-key',
+    'FLASK_ENV': 'testing',
+    'FLASK_APP': 'app',
+    'DATABASE_URL': os.environ.get('DATABASE_URL', 'sqlite:///test.db')
+}
+for key, value in DEFAULT_ENV_VARS.items():
+    os.environ.setdefault(key, value)
+
+# Flag testing mode early so config can relax requirements
+os.environ.setdefault('TESTING', 'true')
+os.environ.setdefault('SQLALCHEMY_DATABASE_URI', os.environ['DATABASE_URL'])
+
 from app import create_app
 from app.utils.db import db
 from app.auth.models import User
@@ -57,13 +81,18 @@ def app():
     # VERIFY we're using test database, not production!
     db_uri = test_app.config.get('SQLALCHEMY_DATABASE_URI', '')
 
-    # CRITICAL CHECK: Database name MUST contain '_test' suffix
-    if '_test' not in db_uri:
+    # CRITICAL CHECK: Database name MUST be safe for testing
+    def _is_safe_test_db(uri: str) -> bool:
+        if uri.startswith('sqlite:'):
+            return True
+        return '_test' in uri
+
+    if not _is_safe_test_db(db_uri):
         raise RuntimeError(
-            f"CRITICAL: Test database must have '_test' suffix!\n"
+            "CRITICAL: Test database must be isolated from production!\n"
             f"Database URI: {db_uri}\n"
-            f"Expected: learn_db_test\n"
-            f"This protection prevented potential data loss!"
+            "Expected URI to use SQLite or include '_test' suffix.\n"
+            "This protection prevented potential data loss!"
         )
 
     with test_app.app_context():

@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Float, CheckConstraint, Enum as SQLAEnum, text
-from sqlalchemy.dialects.postgresql import TSVECTOR, JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
+from app.utils.types import JSONBCompat, TSVectorCompat
 
 
 class TaskType(Enum):
@@ -57,7 +58,7 @@ class Chapter(db.Model):
     words = Column(Integer, nullable=False)
     text_raw = Column(Text, nullable=False)  # Full chapter text
     audio_url = Column(Text)  # Optional S3 URL for audio
-    ts_idx = Column(TSVECTOR)  # Full-text search index
+    ts_idx = Column(TSVectorCompat)  # Full-text search index
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -137,7 +138,7 @@ class Task(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     block_id = Column(Integer, ForeignKey('block.id', ondelete='CASCADE'), nullable=True)  # Nullable for daily lesson tasks
     task_type = Column(SQLAEnum(TaskType, name='task_enum'), nullable=False)  # TaskType enum values
-    payload = Column(JSONB, nullable=False)  # Structure depends on task_type
+    payload = Column(JSONBCompat, nullable=False)  # Structure depends on task_type
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -206,7 +207,7 @@ class UserTaskAnswer(db.Model):
 
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
     task_id = Column(Integer, ForeignKey('task.id', ondelete='CASCADE'), primary_key=True)
-    answer = Column(JSONB)  # Arbitrary format
+    answer = Column(JSONBCompat)  # Arbitrary format
     score = Column(Float)  # 0-100
     answered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
