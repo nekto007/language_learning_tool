@@ -455,8 +455,8 @@
                         <i class="fas fa-book"></i>
                     </div>
                     <div class="book-details">
-                        <h4>{{ recent_book.book.title }}</h4>
-                        <p>{{ recent_book.book.author or 'Автор неизвестен' }}</p>
+                        <h4>{{ recent_book.chapter.book.title }}</h4>
+                        <p>{{ recent_book.chapter.book.author or 'Автор неизвестен' }}</p>
                     </div>
                 </div>
                 {% else %}
