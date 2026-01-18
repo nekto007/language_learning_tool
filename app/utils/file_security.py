@@ -283,8 +283,22 @@ def validate_text_file_upload(
         sample = file.read(1024)  # Читаем первый КБ
         file.seek(0)
 
+        if not sample:
+            return False, "Файл пуст"
+
         # Проверяем, что это текст (UTF-8)
-        sample.decode('utf-8')
+        # Выборка может обрезать многобайтовый символ UTF-8 (кириллица = 2 байта)
+        # Декодируем с errors='surrogateescape' чтобы обработать неполные символы на границе
+        decoded = sample.decode('utf-8', errors='surrogateescape')
+
+        # Проверяем что большинство символов - валидный текст (не суррогаты)
+        # Суррогаты будут в диапазоне \udc80-\udcff для невалидных байт
+        surrogate_count = sum(1 for c in decoded if '\udc80' <= c <= '\udcff')
+        # Допускаем до 1% суррогатов (обычно это 1-4 байта на границе обрезки)
+        # Бинарные файлы и неправильные кодировки (CP1251) имеют 50-90% суррогатов
+        max_surrogates = max(5, len(sample) // 100)  # минимум 5 или 1%
+        if surrogate_count > max_surrogates:
+            raise UnicodeDecodeError('utf-8', sample, 0, 1, 'too many invalid bytes')
     except UnicodeDecodeError:
         return False, "Файл не является текстовым (UTF-8)"
     except Exception as e:
