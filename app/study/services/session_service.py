@@ -65,38 +65,29 @@ class SessionService:
         return session
 
     @staticmethod
-    def award_xp(user_id: int, amount: int, source: str, source_id: int = None) -> UserXP:
+    def award_xp(user_id: int, amount: int, source: str = None, source_id: int = None) -> UserXP:
         """
         Award XP to user
 
         Args:
             user_id: User ID
             amount: XP amount to award
-            source: XP source ('lesson', 'quiz', 'cards', 'achievement')
-            source_id: Optional ID of the source (lesson_id, quiz_id, etc.)
+            source: XP source (not stored, kept for API compatibility)
+            source_id: Optional ID of the source (not stored, kept for API compatibility)
 
         Returns:
-            Created UserXP record
+            Updated UserXP record
         """
-        xp_record = UserXP(
-            user_id=user_id,
-            xp_amount=amount,
-            source=source,
-            source_id=source_id,
-            earned_at=datetime.now(timezone.utc)
-        )
-        db.session.add(xp_record)
+        xp_record = UserXP.get_or_create(user_id)
+        xp_record.add_xp(amount)
         db.session.commit()
         return xp_record
 
     @staticmethod
     def get_user_total_xp(user_id: int) -> int:
         """Get total XP for user"""
-        from sqlalchemy import func
-        total = db.session.query(func.sum(UserXP.xp_amount)).filter(
-            UserXP.user_id == user_id
-        ).scalar()
-        return total or 0
+        xp_record = UserXP.query.filter_by(user_id=user_id).first()
+        return xp_record.total_xp if xp_record else 0
 
     @staticmethod
     def get_session_stats(user_id: int, days: int = 7) -> Dict:
