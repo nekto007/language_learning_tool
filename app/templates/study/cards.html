@@ -847,26 +847,21 @@
                 let requeuePosition = null;
 
                 if (data.requeue_position !== null && data.requeue_position !== undefined) {
-                    // Check session limit before requeuing
+                    // Check session limit before requeuing (client-side tracking per session)
                     if (sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
                         shouldRequeue = true;
                         requeuePosition = data.requeue_position;
                     }
-                } else if (rating === 1 && sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
-                    // Fallback: if server doesn't return requeue_position, handle locally
-                    shouldRequeue = true;
-                    requeuePosition = Math.floor(Math.random() * 2) + 1; // 1-2 cards
-                } else if (rating === 2 && sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
-                    shouldRequeue = true;
-                    requeuePosition = Math.floor(Math.random() * 3) + 3; // 3-5 cards
                 }
+                // Removed fallback logic - server always provides requeue_position
 
                 // Requeue the card if needed
                 if (shouldRequeue && requeuePosition !== null) {
                     const cardCopy = { ...card, isRequeue: true };
-                    const insertAt = Math.min(currentCardIndex + requeuePosition + 1, cards.length);
+                    // Fixed: removed +1 that caused cards to appear sooner than intended
+                    const insertAt = Math.min(currentCardIndex + requeuePosition, cards.length);
                     cards.splice(insertAt, 0, cardCopy);
-                    console.log(`Card requeued at position +${requeuePosition} (attempt ${sessionAttempts[cardKey]})`);
+                    console.log(`Card requeued at position +${requeuePosition} (session attempt ${sessionAttempts[cardKey]})`);
                 }
 
                 // Update session stats
