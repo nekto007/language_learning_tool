@@ -19,7 +19,8 @@ def inject_xp_data():
         return {
             'user_xp': 0,
             'user_level': 1,
-            'xp_to_next_level': 100
+            'xp_to_next_level': 100,
+            'xp_progress_percent': 0
         }
 
     # Calculate XP progress to next level

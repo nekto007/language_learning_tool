@@ -135,14 +135,18 @@ def index():
             for word_id in deck_word_ids:
                 if word_id in user_words_dict:
                     uw = user_words_dict[word_id]
-                    if uw.status == 'learning':
+                    if uw.status == 'new':
+                        learning_count += 1  # 'new' в UserWord = начал изучать
+                    elif uw.status == 'learning':
                         learning_count += 1
+                    elif uw.status == 'review':
+                        learning_count += 1  # 'review' тоже в процессе изучения
                     elif uw.status == 'mastered':
                         mastered_count_deck += 1
 
-                    # Подсчет слов к повторению
-                    if word_id in review_counts:
-                        review_count += review_counts[word_id]
+                    # Подсчет слов к повторению (due for review)
+                    if word_id in review_counts and review_counts[word_id] > 0:
+                        review_count += 1  # Считаем слова, а не направления
                 else:
                     new_count += 1
 
@@ -255,6 +259,10 @@ def cards_deck(deck_id):
     # Get card counts for this deck
     settings = StudySettings.get_settings(current_user.id)
     counts = SRSService.get_card_counts(current_user.id, deck_word_ids)
+
+    # Increment times played
+    deck.times_played += 1
+    db.session.commit()
 
     # Create new study session
     session = SessionService.start_session(current_user.id, 'cards')
@@ -658,10 +666,10 @@ def update_study_item():
     db.session.commit()
 
     # Calculate requeue position for client-side queue management (unified 1-2-3 scale)
-    # Map legacy 0-5 to unified 1-2-3 for requeue calculation
-    if quality <= 1:
+    # Client sends 1, 2, or 3 directly
+    if quality == 1:
         rating = 1  # Не знаю
-    elif quality <= 3:
+    elif quality == 2:
         rating = 2  # Сомневаюсь
     else:
         rating = 3  # Знаю

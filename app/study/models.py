@@ -287,13 +287,15 @@ class UserCardDirection(db.Model):
             2-3 → mapped to 2 (Doubt)
             4-5 → mapped to 3 (Know)
         """
-        # Map legacy 0-5 scale to unified 1-2-3 scale
-        if quality <= 1:
-            rating = 1  # Не знаю
-        elif quality <= 3:
-            rating = 2  # Сомневаюсь
+        # Map to unified 1-2-3 scale
+        # Unified scale (current): 1=Не знаю, 2=Сомневаюсь, 3=Знаю
+        # Legacy 0-5 scale: 0→1, 4-5→3
+        if quality in (1, 2, 3):
+            rating = quality  # Unified scale - use directly
+        elif quality == 0:
+            rating = 1  # Legacy: 0 → Не знаю
         else:
-            rating = 3  # Знаю
+            rating = 3  # Legacy: 4-5 → Знаю
 
         # Update correct/incorrect count
         if rating >= 2:
@@ -652,8 +654,9 @@ class UserXP(db.Model):
 
     @hybrid_property
     def level(self):
-        """Calculate level based on total XP (every 100 XP = 1 level)"""
-        return max(1, self.total_xp // 100)
+        """Calculate level based on total XP (every 100 XP = next level)"""
+        # Level 1: 0-99 XP, Level 2: 100-199 XP, Level 3: 200-299 XP, etc.
+        return (self.total_xp // 100) + 1
 
     @classmethod
     def get_or_create(cls, user_id):
