@@ -71,27 +71,28 @@ class SRSService:
         settings = StudySettings.get_settings(user_id)
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Count new cards studied today (cards with first_seen today)
+        # Count new cards studied today (cards with repetitions=1 and last_reviewed today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
             ),
-            UserCardDirection.first_seen >= today_start
+            UserCardDirection.last_reviewed >= today_start,
+            UserCardDirection.repetitions == 1
         ).scalar() or 0
 
-        # Count reviews done today
+        # Count reviews done today (cards with repetitions > 1)
         reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
             ),
             UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.first_seen < today_start  # Exclude new cards
+            UserCardDirection.repetitions > 1
         ).scalar() or 0
 
         return (
             new_cards_today,
             reviews_today,
-            settings.new_cards_per_day,
+            settings.new_words_per_day,
             settings.reviews_per_day
         )
 
@@ -197,13 +198,13 @@ class SRSService:
         # Forward direction (English -> Russian)
         forward = UserCardDirection.query.filter_by(
             user_word_id=user_word_id,
-            direction='forward'
+            direction='eng-rus'
         ).first()
 
         if not forward:
             forward = UserCardDirection(
                 user_word_id=user_word_id,
-                direction='forward',
+                direction='eng-rus',
                 next_review=datetime.now(timezone.utc)
             )
             db.session.add(forward)
@@ -211,13 +212,13 @@ class SRSService:
         # Backward direction (Russian -> English)
         backward = UserCardDirection.query.filter_by(
             user_word_id=user_word_id,
-            direction='backward'
+            direction='rus-eng'
         ).first()
 
         if not backward:
             backward = UserCardDirection(
                 user_word_id=user_word_id,
-                direction='backward',
+                direction='rus-eng',
                 next_review=datetime.now(timezone.utc)
             )
             db.session.add(backward)
@@ -238,19 +239,16 @@ class SRSService:
         """
         now = datetime.now(timezone.utc)
 
-        # First review of the card
-        if card.first_seen is None:
-            card.first_seen = now
-
         card.last_reviewed = now
-        card.review_count += 1
+        card.session_attempts = (card.session_attempts or 0) + 1
 
         if quality < 3:
             # Failed - reset card
             card.interval = 1
             card.repetitions = 0
-            card.easiness_factor = max(1.3, card.easiness_factor - 0.2)
+            card.ease_factor = max(1.3, card.ease_factor - 0.2)
             card.next_review = now + timedelta(days=1)
+            card.incorrect_count = (card.incorrect_count or 0) + 1
         else:
             # Success - advance card using SM-2
             if card.repetitions == 0:
@@ -258,16 +256,17 @@ class SRSService:
             elif card.repetitions == 1:
                 card.interval = 6
             else:
-                card.interval = int(card.interval * card.easiness_factor)
+                card.interval = int(card.interval * card.ease_factor)
 
             card.repetitions += 1
 
             # Update easiness factor
-            new_ef = card.easiness_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-            card.easiness_factor = max(1.3, new_ef)
+            new_ef = card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+            card.ease_factor = max(1.3, new_ef)
 
             # Schedule next review
             card.next_review = now + timedelta(days=card.interval)
+            card.correct_count = (card.correct_count or 0) + 1
 
         db.session.flush()
 
@@ -283,12 +282,12 @@ class SRSService:
         # Get both card directions
         forward = UserCardDirection.query.filter_by(
             user_word_id=user_word.id,
-            direction='forward'
+            direction='eng-rus'
         ).first()
 
         backward = UserCardDirection.query.filter_by(
             user_word_id=user_word.id,
-            direction='backward'
+            direction='rus-eng'
         ).first()
 
         if not forward or not backward:
