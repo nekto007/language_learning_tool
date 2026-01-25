@@ -953,7 +953,7 @@ def api_test():
     return jsonify({'status': 'ok', 'message': 'API is working'})
 
 
-@books.route('/books/word-translation/<word>', methods=['GET'])
+@books.route('/books/api/word-translation/<word>', methods=['GET'])
 @login_required
 def get_word_translation(word):
     """
