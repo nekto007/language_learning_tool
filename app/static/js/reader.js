@@ -275,8 +275,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         tooltip.appendChild(variantsContainer);
                     }
 
-                    // Добавляем кнопку "Learn" для новых слов
-                    if (data.status === 0) {
+                    // Добавляем кнопку "Learn" если слово не в колоде "Слова из чтения"
+                    if (!data.in_reading_deck) {
                         const addButton = document.createElement('span');
                         addButton.className = 'add-to-learning';
                         addButton.innerHTML = '<i class="fas fa-plus"></i> Learn';

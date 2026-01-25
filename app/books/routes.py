@@ -1148,6 +1148,19 @@ def get_word_translation(word):
                 audio_filename = audio_filename[6:-4]  # Убираем 'audio/' и '.mp3'
                 audio_url = url_for('static', filename=f'audio/{audio_filename}.mp3')
 
+        # Проверяем, есть ли слово в колоде "Слова из чтения"
+        from app.study.models import QuizDeck, QuizDeckWord
+        in_reading_deck = False
+        reading_deck = QuizDeck.query.filter_by(
+            user_id=current_user.id,
+            title="Слова из чтения"
+        ).first()
+        if reading_deck:
+            in_reading_deck = QuizDeckWord.query.filter_by(
+                deck_id=reading_deck.id,
+                word_id=word_entry.id
+            ).first() is not None
+
         # Формируем JSON-ответ
         response = {
             'word': original_word,
@@ -1160,6 +1173,7 @@ def get_word_translation(word):
             'base_form': word_form_info['base_form'] if word_form_info else None,
             'has_audio': has_audio,
             'audio_url': audio_url,
+            'in_reading_deck': in_reading_deck,
         }
 
         # Добавляем варианты перевода, если они есть
