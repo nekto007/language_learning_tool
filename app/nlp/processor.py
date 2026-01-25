@@ -456,9 +456,17 @@ def expand_contractions(text: str) -> str:
     }
     text_lower = text
     for contraction, expansion in contractions.items():
-        text_lower = text_lower.replace(contraction, expansion)
-        text_lower = text_lower.replace(contraction.capitalize(), expansion)
-        text_lower = text_lower.replace(contraction.upper(), expansion.upper())
+        # For contractions starting with apostrophe (like 'd, 're), use simple replace
+        # For dialect words (like "roun", "wiv"), only replace whole words
+        if contraction.startswith("'") or contraction.endswith("'"):
+            text_lower = text_lower.replace(contraction, expansion)
+            text_lower = text_lower.replace(contraction.capitalize(), expansion)
+            text_lower = text_lower.replace(contraction.upper(), expansion.upper())
+        else:
+            # Use word boundary matching for dialect words to avoid partial replacements
+            # e.g., don't replace "roun" in "around"
+            pattern = r'\b' + re.escape(contraction) + r'\b'
+            text_lower = re.sub(pattern, expansion, text_lower, flags=re.IGNORECASE)
     return text_lower
 
 
