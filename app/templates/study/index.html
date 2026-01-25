@@ -197,7 +197,7 @@
                                     </div>
                                     {% endif %}
 
-                                    <!-- Редактировать и Удалить - горизонтально под первым рядом -->
+                                    <!-- Кнопки управления колодой -->
                                     {% set is_auto_deck = (
                                         deck.title == 'Все мои слова' or
                                         deck.title == 'Выученные слова' or
@@ -205,16 +205,21 @@
                                         deck.title.startswith('Топик:') or
                                         deck.title.startswith('Коллекция:')
                                     ) %}
-                                    {% if not is_auto_deck %}
                                     <div class="btn-group btn-group-sm" role="group">
+                                        <!-- Настройки лимитов - для всех колод -->
+                                        <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Настройки лимитов">
+                                            <i class="fas fa-cog"></i>
+                                        </a>
+                                        {% if not is_auto_deck %}
+                                        <!-- Редактировать и Удалить - только для обычных колод -->
                                         <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <button type="button" class="btn btn-outline-danger" onclick="confirmDelete({{ deck.id }}, '{{ deck.title }}')" title="Удалить">
                                             <i class="fas fa-trash"></i>
                                         </button>
+                                        {% endif %}
                                     </div>
-                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

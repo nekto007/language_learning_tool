@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки: {{ deck.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="mb-3">
+        <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Назад
+        </a>
+    </div>
+
+    <h2 class="mb-4">
+        <i class="fas fa-cog me-2"></i>Настройки: {{ deck.title }}
+    </h2>
+
+    {% if is_auto %}
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        Это автоматическая колода. Вы можете настроить дневные лимиты, но не можете изменять её содержимое.
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Дневные лимиты</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <p class="text-muted mb-4">
+                    Установите индивидуальные лимиты для этой колоды.
+                    Оставьте поля пустыми, чтобы использовать глобальные настройки
+                    {% if user_settings %}
+                    (новых: {{ user_settings.new_words_per_day }}, повторений: {{ user_settings.reviews_per_day }})
+                    {% endif %}.
+                </p>
+
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label for="new_words_per_day" class="form-label">
+                            <i class="fas fa-plus-circle me-1 text-success"></i>Новых слов в день
+                        </label>
+                        <input type="number" class="form-control" id="new_words_per_day" name="new_words_per_day"
+                               min="0" max="100"
+                               value="{{ deck.new_words_per_day if deck.new_words_per_day is not none else '' }}"
+                               placeholder="Глобальные настройки{% if user_settings %} ({{ user_settings.new_words_per_day }}){% endif %}">
+                        <small class="text-muted">Максимум новых карточек для изучения в день</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="reviews_per_day" class="form-label">
+                            <i class="fas fa-redo me-1 text-primary"></i>Повторений в день
+                        </label>
+                        <input type="number" class="form-control" id="reviews_per_day" name="reviews_per_day"
+                               min="0" max="500"
+                               value="{{ deck.reviews_per_day if deck.reviews_per_day is not none else '' }}"
+                               placeholder="Глобальные настройки{% if user_settings %} ({{ user_settings.reviews_per_day }}){% endif %}">
+                        <small class="text-muted">Максимум карточек для повторения в день</small>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Отмена
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Deck Info -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Информация о колоде</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Название</dt>
+                <dd class="col-sm-8">{{ deck.title }}</dd>
+
+                {% if deck.description %}
+                <dt class="col-sm-4">Описание</dt>
+                <dd class="col-sm-8">{{ deck.description }}</dd>
+                {% endif %}
+
+                <dt class="col-sm-4">Слов в колоде</dt>
+                <dd class="col-sm-8">{{ deck.words.count() }}</dd>
+
+                <dt class="col-sm-4">Текущие лимиты</dt>
+                <dd class="col-sm-8">
+                    {% if deck.new_words_per_day is not none or deck.reviews_per_day is not none %}
+                        Новых: {{ deck.new_words_per_day if deck.new_words_per_day is not none else 'глобальные' }},
+                        Повторений: {{ deck.reviews_per_day if deck.reviews_per_day is not none else 'глобальные' }}
+                    {% else %}
+                        Используются глобальные настройки
+                    {% endif %}
+                </dd>
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %}
