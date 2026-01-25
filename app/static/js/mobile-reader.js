@@ -397,8 +397,8 @@ class MobileReader {
             this.playAudioBtn.style.display = 'none';
         }
         
-        // Show add to learning button if word is new
-        if (data.status === 0) {
+        // Show add to learning button if word is not in reading deck
+        if (!data.in_reading_deck) {
             this.addToLearningBtn.style.display = 'block';
             this.addToLearningBtn.setAttribute('data-word-id', data.id);
         } else {

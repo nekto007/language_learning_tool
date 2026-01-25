@@ -389,7 +389,7 @@ function handleWordClick(e) {
                     `;
                 }
                 
-                if (!data.status || data.status === 'new') {
+                if (!data.in_reading_deck) {
                     actionsHTML += `
                         <button class="btn btn-sm btn-success" onclick="addToLearning(${data.id}, '${word}')">
                             <i class="fas fa-plus"></i> {{ _('Add') }}
@@ -397,7 +397,7 @@ function handleWordClick(e) {
                     `;
                 } else {
                     actionsHTML += `
-                        <span class="badge bg-secondary">{{ _('Already learning') }}</span>
+                        <span class="badge bg-secondary">{{ _('In reading deck') }}</span>
                     `;
                 }
                 

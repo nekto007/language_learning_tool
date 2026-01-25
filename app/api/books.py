@@ -13,6 +13,7 @@ from app.books.models import Book, Chapter, UserChapterProgress, Task, Block
 from app.curriculum.cache import cached
 from app.utils.db import db
 from app.words.models import CollectionWords
+from app.study.models import QuizDeck, QuizDeckWord
 
 logger = logging.getLogger(__name__)
 
@@ -452,9 +453,6 @@ def get_word_translation(word):
                 has_audio = True
                 audio_url = url_for('static', filename=f'audio/{audio_filename}')
 
-        print(
-            f"DEBUG: Audio processing - listening: {word_entry.listening}, get_download: {word_entry.get_download}, has_audio: {has_audio}, audio_url: {audio_url}")
-
         # Определяем текст для отображения информации о форме
         form_text = None
         if word_form_info:
@@ -466,6 +464,18 @@ def get_word_translation(word):
             elif form_type == 'plural':
                 form_text = 'множественное число от'
 
+        # Проверяем, есть ли слово в колоде "Слова из чтения"
+        in_reading_deck = False
+        reading_deck = QuizDeck.query.filter_by(
+            user_id=current_user.id,
+            title="Слова из чтения"
+        ).first()
+        if reading_deck:
+            in_reading_deck = QuizDeckWord.query.filter_by(
+                deck_id=reading_deck.id,
+                word_id=word_entry.id
+            ).first() is not None
+
         response = {
             'word': original_word,
             'translation': word_entry.russian_word,
@@ -476,7 +486,8 @@ def get_word_translation(word):
             'audio_url': audio_url,
             'is_form': word_form_info is not None,
             'form_text': form_text,
-            'base_form': word_form_info['base_form'] if word_form_info else None
+            'base_form': word_form_info['base_form'] if word_form_info else None,
+            'in_reading_deck': in_reading_deck
         }
 
         return jsonify(response)
