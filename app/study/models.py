@@ -238,12 +238,27 @@ class UserCardDirection(db.Model):
     """
     Represents a specific direction (eng→rus or rus→eng) for a user's word.
     Tracks spaced repetition parameters for each direction separately.
+
+    Anki-like state machine:
+        NEW → LEARNING → REVIEW ⟷ RELEARNING
     """
     __tablename__ = 'user_card_directions'
 
     id = db.Column(db.Integer, primary_key=True)
     user_word_id = db.Column(db.Integer, db.ForeignKey('user_words.id', ondelete='CASCADE'), nullable=False)
     direction = db.Column(db.String(10), nullable=False)  # 'eng-rus' or 'rus-eng'
+
+    # Anki-like card state: 'new', 'learning', 'review', 'relearning'
+    state = db.Column(db.String(15), default='new', nullable=False)
+
+    # Learning step index (0-based, for LEARNING and RELEARNING states)
+    step_index = db.Column(db.Integer, default=0, nullable=False)
+
+    # Lapse count (number of times card went from REVIEW to RELEARNING)
+    lapses = db.Column(db.Integer, default=0, nullable=False)
+
+    # Bury until - card won't be shown until this timestamp (for session-level bury)
+    buried_until = db.Column(db.DateTime, nullable=True)
 
     # Spaced repetition parameters
     repetitions = db.Column(db.Integer, default=0)
@@ -261,102 +276,277 @@ class UserCardDirection(db.Model):
         db.UniqueConstraint('user_word_id', 'direction', name='uix_user_word_direction'),
         Index('idx_card_direction_user_word_id', 'user_word_id'),
         Index('idx_card_direction_next_review', 'next_review'),
+        Index('idx_card_direction_state', 'state'),
+        Index('idx_card_direction_buried_until', 'buried_until'),
     )
 
     def __init__(self, user_word_id, direction):
         self.user_word_id = user_word_id
         self.direction = direction
+        self.state = 'new'
+        self.step_index = 0
+        self.lapses = 0
         self.repetitions = 0
         self.ease_factor = 2.5
         self.interval = 0
         self.correct_count = 0
         self.incorrect_count = 0
         self.next_review = datetime.now(timezone.utc)
+        self.buried_until = None
+
+    def bury(self, hours: int = 24):
+        """
+        Bury this card - it won't be shown until the specified time.
+
+        Args:
+            hours: Number of hours to bury the card (default 24 = until tomorrow)
+        """
+        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=hours)
+
+    def bury_for_session(self, session_duration_hours: int = 4):
+        """
+        Bury card for the rest of the study session.
+        Default assumes a session is about 4 hours max.
+        """
+        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=session_duration_hours)
+
+    def unbury(self):
+        """Remove bury status from this card."""
+        self.buried_until = None
+
+    @property
+    def is_buried(self) -> bool:
+        """Check if this card is currently buried."""
+        if not self.buried_until:
+            return False
+        if self.buried_until.tzinfo is None:
+            buried_aware = self.buried_until.replace(tzinfo=timezone.utc)
+        else:
+            buried_aware = self.buried_until
+        return datetime.now(timezone.utc) < buried_aware
 
     def update_after_review(self, quality):
         """
-        Update SRS parameters after review using unified 1-2-3 rating scale.
+        Update SRS parameters after review using Anki-like state machine.
 
         Unified Rating Scale (1-2-3):
-            1 - Не знаю (Don't know): Reset progress, show again soon
-            2 - Сомневаюсь (Doubt): Moderate progress, shorter interval
-            3 - Знаю (Know): Good progress, longer interval with bonus
+            1 - Не знаю (Again): Fail - reset to step 0 or trigger lapse
+            2 - Сомневаюсь (Hard): Stay at step or slight progress
+            3 - Знаю (Good/Easy): Advance step or graduate
 
-        Legacy compatibility (0-5 scale):
-            0-1 → mapped to 1 (Don't know)
-            2-3 → mapped to 2 (Doubt)
-            4-5 → mapped to 3 (Know)
+        State Transitions:
+            NEW → LEARNING (first answer)
+            LEARNING → REVIEW (graduate after all steps)
+            REVIEW → RELEARNING (on fail)
+            RELEARNING → REVIEW (after relearning steps)
+
+        Returns:
+            Tuple of (interval_days, requeue_minutes) for scheduling
         """
-        # Map to unified 1-2-3 scale
-        # Unified scale (current): 1=Не знаю, 2=Сомневаюсь, 3=Знаю
-        # Legacy 0-5 scale: 0→1, 4-5→3
+        from app.srs.constants import (
+            RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW,
+            LEARNING_STEPS, RELEARNING_STEPS,
+            GRADUATING_INTERVAL, EASY_INTERVAL,
+            MIN_EASE_FACTOR, MAX_EASE_FACTOR,
+            EF_DECREASE_LAPSE, EF_DECREASE_HARD, EF_INCREASE_EASY,
+            INTERVAL_MULTIPLIER_HARD, INTERVAL_MULTIPLIER_EASY,
+            LAPSE_MINIMUM_INTERVAL,
+            CardState
+        )
+        import random
+
+        # Map to unified 1-2-3 scale for legacy compatibility
         if quality in (1, 2, 3):
-            rating = quality  # Unified scale - use directly
+            rating = quality
         elif quality == 0:
-            rating = 1  # Legacy: 0 → Не знаю
+            rating = 1  # Legacy: 0 → Again
         else:
-            rating = 3  # Legacy: 4-5 → Знаю
+            rating = 3  # Legacy: 4-5 → Good
 
         # Update correct/incorrect count
         if rating >= 2:
-            self.correct_count += 1
+            self.correct_count = (self.correct_count or 0) + 1
         else:
-            self.incorrect_count += 1
-
-        # Update SM-2 algorithm parameters
-        old_ease_factor = self.ease_factor
-        old_interval = self.interval
-
-        if rating == 1:
-            # "Не знаю" - Reset progress
-            self.repetitions = 0
-            self.interval = 0
-            self.ease_factor = max(1.3, old_ease_factor - 0.20)
-
-        elif rating == 2:
-            # "Сомневаюсь" - Moderate progress
-            self.repetitions += 1
-            # EF stays the same
-            self.ease_factor = old_ease_factor
-
-            if self.repetitions == 1:
-                self.interval = 1
-            elif self.repetitions == 2:
-                self.interval = 3  # Shorter than "Know"
-            else:
-                # 80% of normal interval
-                self.interval = max(1, round(old_interval * old_ease_factor * 0.8))
-
-        elif rating == 3:
-            # "Знаю" - Good progress with bonus
-            self.repetitions += 1
-            self.ease_factor = min(2.5, old_ease_factor + 0.15)
-
-            if self.repetitions == 1:
-                self.interval = 1
-            elif self.repetitions == 2:
-                self.interval = 6
-            else:
-                # 120% bonus to interval
-                self.interval = max(1, round(old_interval * old_ease_factor * 1.2))
-
-        # Update review dates
-        self.last_reviewed = datetime.now(timezone.utc)
-
-        # Add ±10% variance to prevent review cliffs (all cards reviewing at once)
-        import random
-        variance = random.uniform(0.9, 1.1)
-        adjusted_interval = max(0, round(self.interval * variance)) if self.interval > 0 else 0
-
-        self.next_review = datetime.now(timezone.utc) + timedelta(days=adjusted_interval)
+            self.incorrect_count = (self.incorrect_count or 0) + 1
 
         # Increment session_attempts
         self.session_attempts = (self.session_attempts or 0) + 1
+
+        now = datetime.now(timezone.utc)
+        self.last_reviewed = now
+
+        # Initialize state if needed (for existing cards without state)
+        if not self.state or self.state == 'new':
+            self.state = CardState.NEW.value
+
+        # Get current state
+        current_state = self.state
+
+        # =========================================================================
+        # STATE MACHINE: Handle rating based on current state
+        # =========================================================================
+
+        requeue_minutes = None  # For intra-session scheduling
+
+        if current_state == CardState.NEW.value:
+            # NEW → LEARNING (first interaction)
+            self._handle_new_card(rating, LEARNING_STEPS, EASY_INTERVAL)
+            if self.state == CardState.LEARNING.value:
+                requeue_minutes = LEARNING_STEPS[self.step_index] if self.step_index < len(LEARNING_STEPS) else None
+
+        elif current_state == CardState.LEARNING.value:
+            # LEARNING: progress through steps or graduate
+            requeue_minutes = self._handle_learning_card(
+                rating, LEARNING_STEPS, GRADUATING_INTERVAL, EASY_INTERVAL
+            )
+
+        elif current_state == CardState.REVIEW.value:
+            # REVIEW: standard spaced repetition
+            self._handle_review_card(
+                rating,
+                MIN_EASE_FACTOR, MAX_EASE_FACTOR,
+                EF_DECREASE_LAPSE, EF_DECREASE_HARD, EF_INCREASE_EASY,
+                INTERVAL_MULTIPLIER_HARD, INTERVAL_MULTIPLIER_EASY,
+                RELEARNING_STEPS, LAPSE_MINIMUM_INTERVAL
+            )
+            if self.state == CardState.RELEARNING.value:
+                requeue_minutes = RELEARNING_STEPS[0] if RELEARNING_STEPS else 10
+
+        elif current_state == CardState.RELEARNING.value:
+            # RELEARNING: similar to LEARNING but returns to REVIEW
+            requeue_minutes = self._handle_relearning_card(
+                rating, RELEARNING_STEPS, LAPSE_MINIMUM_INTERVAL
+            )
+
+        # Update repetitions counter
+        if rating >= RATING_DOUBT:
+            self.repetitions = (self.repetitions or 0) + 1
+        elif rating == RATING_DONT_KNOW and current_state in (CardState.REVIEW.value, CardState.RELEARNING.value):
+            # Don't reset repetitions on lapse, just increment lapses
+            pass
+        elif rating == RATING_DONT_KNOW:
+            self.repetitions = 0
+
+        # Calculate next_review based on interval (for REVIEW state)
+        if self.state == CardState.REVIEW.value and self.interval > 0:
+            # Add ±10% variance to prevent review cliffs
+            variance = random.uniform(0.9, 1.1)
+            adjusted_interval = max(1, round(self.interval * variance))
+            self.next_review = now + timedelta(days=adjusted_interval)
+        elif self.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
+            # For learning/relearning, set next_review based on step time
+            if requeue_minutes:
+                self.next_review = now + timedelta(minutes=requeue_minutes)
+            else:
+                self.next_review = now
+        else:
+            self.next_review = now
 
         # Update the parent UserWord status if needed
         self.update_user_word_status()
 
         return self.interval
+
+    def _handle_new_card(self, rating, learning_steps, easy_interval):
+        """Handle rating for a NEW card."""
+        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+
+        if rating == RATING_KNOW:
+            # Easy: skip learning, go straight to review
+            self.state = CardState.REVIEW.value
+            self.interval = easy_interval
+            self.step_index = 0
+        else:
+            # Start learning process
+            self.state = CardState.LEARNING.value
+            self.step_index = 0 if rating == RATING_DONT_KNOW else 1
+            self.interval = 0
+
+    def _handle_learning_card(self, rating, learning_steps, graduating_interval, easy_interval):
+        """Handle rating for a LEARNING card. Returns requeue_minutes or None."""
+        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+
+        if rating == RATING_DONT_KNOW:
+            # Again: reset to step 0
+            self.step_index = 0
+            return learning_steps[0] if learning_steps else 1
+
+        elif rating == RATING_DOUBT:
+            # Hard: repeat current step
+            return learning_steps[self.step_index] if self.step_index < len(learning_steps) else 10
+
+        elif rating == RATING_KNOW:
+            # Good: advance to next step or graduate
+            self.step_index += 1
+
+            if self.step_index >= len(learning_steps):
+                # Graduate to REVIEW
+                self.state = CardState.REVIEW.value
+                self.interval = graduating_interval
+                self.step_index = 0
+                return None  # No requeue, scheduled for tomorrow
+            else:
+                # Continue learning
+                return learning_steps[self.step_index]
+
+        return None
+
+    def _handle_review_card(self, rating, min_ef, max_ef, ef_lapse, ef_hard, ef_easy,
+                            mult_hard, mult_easy, relearning_steps, min_interval):
+        """Handle rating for a REVIEW card."""
+        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+
+        old_interval = max(1, self.interval or 1)
+        old_ef = self.ease_factor or 2.5
+
+        if rating == RATING_DONT_KNOW:
+            # Lapse: go to RELEARNING
+            self.state = CardState.RELEARNING.value
+            self.lapses = (self.lapses or 0) + 1
+            self.step_index = 0
+            self.ease_factor = max(min_ef, old_ef - ef_lapse)
+            # New interval will be set after relearning
+            self.interval = min_interval
+
+        elif rating == RATING_DOUBT:
+            # Hard: small interval increase, ease decrease
+            self.ease_factor = max(min_ef, old_ef - 0.05)
+            new_interval = max(old_interval + 1, round(old_interval * mult_hard))
+            self.interval = new_interval
+
+        elif rating == RATING_KNOW:
+            # Good: normal interval increase with ease bonus
+            self.ease_factor = min(max_ef, old_ef + ef_easy)
+            new_interval = round(old_interval * old_ef * mult_easy)
+            self.interval = max(old_interval + 1, new_interval)
+
+    def _handle_relearning_card(self, rating, relearning_steps, min_interval):
+        """Handle rating for a RELEARNING card. Returns requeue_minutes or None."""
+        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+
+        if rating == RATING_DONT_KNOW:
+            # Again: reset to step 0
+            self.step_index = 0
+            return relearning_steps[0] if relearning_steps else 10
+
+        elif rating == RATING_DOUBT:
+            # Hard: repeat current step
+            return relearning_steps[self.step_index] if self.step_index < len(relearning_steps) else 10
+
+        elif rating == RATING_KNOW:
+            # Good: advance or return to REVIEW
+            self.step_index += 1
+
+            if self.step_index >= len(relearning_steps):
+                # Return to REVIEW with minimum interval
+                self.state = CardState.REVIEW.value
+                self.interval = max(min_interval, 1)
+                self.step_index = 0
+                return None
+            else:
+                return relearning_steps[self.step_index]
+
+        return None
 
     def update_user_word_status(self):
         """Update the parent UserWord status based on direction progress"""
@@ -437,6 +627,10 @@ class QuizDeck(db.Model):
     parent_deck_id = db.Column(db.Integer, db.ForeignKey('quiz_decks.id'), nullable=True, index=True)
     last_synced_at = db.Column(db.DateTime, nullable=True)
 
+    # Per-deck limits (NULL = fallback to StudySettings)
+    new_words_per_day = db.Column(db.Integer, nullable=True)
+    reviews_per_day = db.Column(db.Integer, nullable=True)
+
     # Stats
     times_played = db.Column(db.Integer, default=0)
     average_score = db.Column(db.Float, default=0.0)
@@ -450,6 +644,14 @@ class QuizDeck(db.Model):
     words = db.relationship('QuizDeckWord', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
     results = db.relationship('QuizResult', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
     parent_deck = db.relationship('QuizDeck', remote_side=[id], backref='forks')
+
+    def get_new_words_limit(self, user_settings):
+        """Get effective new words limit with fallback to user settings."""
+        return self.new_words_per_day if self.new_words_per_day is not None else user_settings.new_words_per_day
+
+    def get_reviews_limit(self, user_settings):
+        """Get effective reviews limit with fallback to user settings."""
+        return self.reviews_per_day if self.reviews_per_day is not None else user_settings.reviews_per_day
 
     def generate_share_code(self):
         """Generate unique share code for this deck"""
