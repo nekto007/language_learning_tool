@@ -1181,9 +1181,11 @@ def get_word_translation(word):
 @books.route('/api/add-to-learning', methods=['POST'])
 @login_required
 def add_to_learning():
-    """
-    API for adding a word to the learning queue
-    """
+    """API для добавления слова в очередь изучения и колоду 'Слова из чтения'"""
+    from app.study.models import QuizDeck, QuizDeckWord
+    from app.study.services.deck_service import DeckService
+    from sqlalchemy import func
+
     data = request.get_json()
     word_id = data.get('word_id')
 
@@ -1195,19 +1197,57 @@ def add_to_learning():
     if not word_entry:
         return jsonify({'success': False, 'error': 'Word not found in dictionary'}), 404
 
-    # Get current word status
     current_status = current_user.get_word_status(word_id)
 
-    # If the word is not yet queued for learning (status 0), add it (status 2)
     if current_status == 0:
         current_user.set_word_status(word_id, 1)  # 1 = queued for learning
+
+        # Добавление в колоду "Слова из чтения"
+        deck_title = "Слова из чтения"
+        reading_deck = QuizDeck.query.filter_by(
+            user_id=current_user.id,
+            title=deck_title
+        ).first()
+
+        if not reading_deck:
+            reading_deck = QuizDeck(
+                title=deck_title,
+                description="Слова, добавленные во время чтения книг и уроков",
+                user_id=current_user.id,
+                is_public=False
+            )
+            db.session.add(reading_deck)
+            db.session.flush()
+
+        # Проверяем, нет ли уже слова в колоде
+        existing = QuizDeckWord.query.filter_by(
+            deck_id=reading_deck.id,
+            word_id=word_id
+        ).first()
+
+        if not existing:
+            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+                QuizDeckWord.deck_id == reading_deck.id
+            ).scalar() or 0
+
+            deck_word = QuizDeckWord(
+                deck_id=reading_deck.id,
+                word_id=word_id,
+                order_index=max_order + 1
+            )
+            db.session.add(deck_word)
+
+        db.session.commit()
+
+        # Синхронизация мастер-колод
+        DeckService.sync_master_decks(current_user.id)
+
         return jsonify({
             'success': True,
             'message': 'Word added to learning queue',
             'new_status': 1
         })
     else:
-        # Word already has a status
         return jsonify({
             'success': True,
             'message': 'Word is already in your list',

@@ -488,46 +488,6 @@ def get_word_translation(word):
         })
 
 
-# CSRF protection REQUIRED
-@api_books.route('/add-to-learning', methods=['POST'])
-@api_login_required
-def add_to_learning():
-    """
-    API для добавления слова в очередь изучения
-    """
-    from flask import request
-
-    data = request.get_json()
-    word_id = data.get('word_id')
-
-    if not word_id:
-        return jsonify({'success': False, 'error': 'Word ID is required'}), 400
-
-    word_entry = CollectionWords.query.get(word_id)
-
-    if not word_entry:
-        return jsonify({'success': False, 'error': 'Word not found in dictionary'}), 404
-
-    # Получаем текущий статус слова
-    current_status = current_user.get_word_status(word_id)
-
-    # Если слово ещё не в изучении (статус 0), добавляем его (статус 1)
-    if current_status == 0:
-        current_user.set_word_status(word_id, 1)  # 1 = queued for learning
-        return jsonify({
-            'success': True,
-            'message': 'Word added to learning queue',
-            'new_status': 1
-        })
-    else:
-        # Слово уже имеет статус
-        return jsonify({
-            'success': True,
-            'message': 'Word is already in your list',
-            'status': current_status
-        })
-
-
 @api_books.route('/book/<int:book_id>/content', methods=['GET'])
 @api_login_required
 def get_book_content(book_id):
