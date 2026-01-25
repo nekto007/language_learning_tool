@@ -1198,54 +1198,67 @@ def add_to_learning():
         return jsonify({'success': False, 'error': 'Word not found in dictionary'}), 404
 
     current_status = current_user.get_word_status(word_id)
+    was_new = current_status == 0
 
-    if current_status == 0:
+    # Если слово ещё не в изучении, добавляем
+    if was_new:
         current_user.set_word_status(word_id, 1)  # 1 = queued for learning
 
-        # Добавление в колоду "Слова из чтения"
-        deck_title = "Слова из чтения"
-        reading_deck = QuizDeck.query.filter_by(
+    # Всегда добавляем в колоду "Слова из чтения" (даже если слово уже изучается)
+    deck_title = "Слова из чтения"
+    reading_deck = QuizDeck.query.filter_by(
+        user_id=current_user.id,
+        title=deck_title
+    ).first()
+
+    if not reading_deck:
+        reading_deck = QuizDeck(
+            title=deck_title,
+            description="Слова, добавленные во время чтения книг и уроков",
             user_id=current_user.id,
-            title=deck_title
-        ).first()
+            is_public=False
+        )
+        db.session.add(reading_deck)
+        db.session.flush()
 
-        if not reading_deck:
-            reading_deck = QuizDeck(
-                title=deck_title,
-                description="Слова, добавленные во время чтения книг и уроков",
-                user_id=current_user.id,
-                is_public=False
-            )
-            db.session.add(reading_deck)
-            db.session.flush()
+    # Проверяем, нет ли уже слова в колоде
+    existing = QuizDeckWord.query.filter_by(
+        deck_id=reading_deck.id,
+        word_id=word_id
+    ).first()
 
-        # Проверяем, нет ли уже слова в колоде
-        existing = QuizDeckWord.query.filter_by(
+    added_to_deck = False
+    if not existing:
+        max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+            QuizDeckWord.deck_id == reading_deck.id
+        ).scalar() or 0
+
+        deck_word = QuizDeckWord(
             deck_id=reading_deck.id,
-            word_id=word_id
-        ).first()
+            word_id=word_id,
+            order_index=max_order + 1
+        )
+        db.session.add(deck_word)
+        added_to_deck = True
 
-        if not existing:
-            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
-                QuizDeckWord.deck_id == reading_deck.id
-            ).scalar() or 0
+    db.session.commit()
 
-            deck_word = QuizDeckWord(
-                deck_id=reading_deck.id,
-                word_id=word_id,
-                order_index=max_order + 1
-            )
-            db.session.add(deck_word)
-
-        db.session.commit()
-
-        # Синхронизация мастер-колод
+    # Синхронизация мастер-колод (только если было изменение)
+    if was_new:
         DeckService.sync_master_decks(current_user.id)
 
+    # Формируем ответ
+    if was_new:
         return jsonify({
             'success': True,
             'message': 'Word added to learning queue',
             'new_status': 1
+        })
+    elif added_to_deck:
+        return jsonify({
+            'success': True,
+            'message': 'Word added to reading deck',
+            'status': current_status
         })
     else:
         return jsonify({
