@@ -1,46 +1,92 @@
 """
-SRS Service - Spaced Repetition System logic
+SRS Service - Anki-like Spaced Repetition System logic
 
 Responsibilities:
-- Card scheduling (SM-2 algorithm)
+- Card scheduling with priority queues (RELEARNING > LEARNING > REVIEW > NEW)
 - Review queue management
 - Card updates after reviews
 - Daily limits tracking
 """
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_, case
 
 from app.utils.db import db
 from app.study.models import (
     UserWord, UserCardDirection, StudySettings, StudySession
 )
 from app.words.models import CollectionWords
+from app.srs.constants import CardState
 
 
 class SRSService:
-    """Service for Spaced Repetition System logic"""
+    """Service for Anki-like Spaced Repetition System logic"""
 
     @staticmethod
-    def get_due_cards(user_id: int, deck_word_ids: List[int], limit: int = None) -> List[UserCardDirection]:
+    def get_due_cards(
+        user_id: int,
+        deck_word_ids: List[int],
+        limit: int = None,
+        exclude_card_ids: List[int] = None
+    ) -> List[UserCardDirection]:
         """
-        Get cards that are due for review
+        Get cards that are due for review with Anki-like priority queue.
+
+        Priority order:
+        1. RELEARNING cards (due now)
+        2. LEARNING cards (due now)
+        3. REVIEW cards (due now)
 
         Args:
             user_id: User ID
             deck_word_ids: List of word IDs to include
             limit: Maximum number of cards to return
+            exclude_card_ids: Card IDs to exclude (for anti-repeat)
 
         Returns:
-            List of UserCardDirection objects due for review
+            List of UserCardDirection objects due for review, ordered by priority
         """
+        now = datetime.now(timezone.utc)
+
+        # Create a priority column for ordering
+        # RELEARNING = 1, LEARNING = 2, REVIEW = 3, other = 4
+        priority_order = case(
+            (UserCardDirection.state == CardState.RELEARNING.value, 1),
+            (UserCardDirection.state == CardState.LEARNING.value, 2),
+            (UserCardDirection.state == CardState.REVIEW.value, 3),
+            else_=4
+        )
+
         query = db.session.query(UserCardDirection).join(
             UserWord, UserCardDirection.user_word_id == UserWord.id
         ).filter(
             UserWord.user_id == user_id,
             UserWord.word_id.in_(deck_word_ids),
-            UserCardDirection.next_review <= datetime.now(timezone.utc)
-        ).order_by(
+            UserCardDirection.next_review <= now,
+            # Filter out buried cards
+            or_(
+                UserCardDirection.buried_until.is_(None),
+                UserCardDirection.buried_until <= now
+            ),
+            # Exclude NEW cards - they are handled separately
+            or_(
+                UserCardDirection.state == CardState.RELEARNING.value,
+                UserCardDirection.state == CardState.LEARNING.value,
+                UserCardDirection.state == CardState.REVIEW.value,
+                # Legacy cards with repetitions > 0 are treated as REVIEW
+                and_(
+                    UserCardDirection.state.is_(None),
+                    UserCardDirection.repetitions > 0
+                )
+            )
+        )
+
+        # Anti-repeat: exclude specified card IDs
+        if exclude_card_ids:
+            query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
+
+        query = query.order_by(
+            priority_order,
             UserCardDirection.next_review
         )
 
@@ -308,40 +354,147 @@ class SRSService:
         db.session.flush()
 
     @classmethod
-    def get_study_items(cls, user_id: int, deck_word_ids: List[int], limit: int) -> List[Dict]:
+    def get_study_items(
+        cls,
+        user_id: int,
+        deck_word_ids: List[int],
+        limit: int,
+        exclude_card_ids: List[int] = None
+    ) -> List[Dict]:
         """
-        Get items to study (mix of due reviews and new words)
+        Get items to study with Anki-like priority queue.
+
+        Priority order:
+        1. RELEARNING cards (due now) - failed reviews need immediate attention
+        2. LEARNING cards (due now) - cards in learning steps
+        3. REVIEW cards (due now) - regular spaced repetition
+        4. NEW cards - fresh cards (with daily limit)
 
         Args:
             user_id: User ID
             deck_word_ids: List of word IDs in the deck
             limit: Maximum items to return
+            exclude_card_ids: Card IDs to exclude (for anti-repeat)
 
         Returns:
-            List of dictionaries with word and card data
+            List of dictionaries with word, card, and state data
         """
         items = []
+        now = datetime.now(timezone.utc)
 
         # Check daily limits
         can_new = cls.can_study_new_cards(user_id)
         can_review = cls.can_do_reviews(user_id)
 
-        # Get due cards if reviews allowed
-        if can_review:
-            due_cards = cls.get_due_cards(user_id, deck_word_ids, limit=limit)
-            for card in due_cards:
+        remaining = limit
+
+        # Base filter for buried cards and anti-repeat
+        def apply_filters(query):
+            # Filter out buried cards
+            query = query.filter(
+                or_(
+                    UserCardDirection.buried_until.is_(None),
+                    UserCardDirection.buried_until <= now
+                )
+            )
+            # Anti-repeat: exclude specified card IDs
+            if exclude_card_ids:
+                query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
+            return query
+
+        # PRIORITY 1: RELEARNING cards (always show first)
+        if can_review and remaining > 0:
+            relearning_query = db.session.query(UserCardDirection).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(deck_word_ids),
+                UserCardDirection.state == CardState.RELEARNING.value,
+                UserCardDirection.next_review <= now
+            )
+            relearning_query = apply_filters(relearning_query)
+            relearning_cards = relearning_query.order_by(
+                UserCardDirection.next_review
+            ).limit(remaining).all()
+
+            for card in relearning_cards:
+                user_word = card.user_word
+                word = CollectionWords.query.get(user_word.word_id)
+                if word:
+                    items.append({
+                        'type': 'relearning',
+                        'state': CardState.RELEARNING.value,
+                        'card': card,
+                        'user_word': user_word,
+                        'word': word
+                    })
+            remaining -= len(relearning_cards)
+
+        # PRIORITY 2: LEARNING cards (in learning steps)
+        if can_review and remaining > 0:
+            learning_query = db.session.query(UserCardDirection).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(deck_word_ids),
+                UserCardDirection.state == CardState.LEARNING.value,
+                UserCardDirection.next_review <= now
+            )
+            learning_query = apply_filters(learning_query)
+            learning_cards = learning_query.order_by(
+                UserCardDirection.next_review
+            ).limit(remaining).all()
+
+            for card in learning_cards:
+                user_word = card.user_word
+                word = CollectionWords.query.get(user_word.word_id)
+                if word:
+                    items.append({
+                        'type': 'learning',
+                        'state': CardState.LEARNING.value,
+                        'card': card,
+                        'user_word': user_word,
+                        'word': word
+                    })
+            remaining -= len(learning_cards)
+
+        # PRIORITY 3: REVIEW cards (due for review)
+        if can_review and remaining > 0:
+            review_query = db.session.query(UserCardDirection).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(deck_word_ids),
+                or_(
+                    UserCardDirection.state == CardState.REVIEW.value,
+                    # Legacy cards with repetitions > 0 are treated as REVIEW
+                    and_(
+                        UserCardDirection.state.is_(None),
+                        UserCardDirection.repetitions > 0
+                    )
+                ),
+                UserCardDirection.next_review <= now
+            )
+            review_query = apply_filters(review_query)
+            review_cards = review_query.order_by(
+                UserCardDirection.next_review
+            ).limit(remaining).all()
+
+            for card in review_cards:
                 user_word = card.user_word
                 word = CollectionWords.query.get(user_word.word_id)
                 if word:
                     items.append({
                         'type': 'review',
+                        'state': CardState.REVIEW.value,
                         'card': card,
                         'user_word': user_word,
                         'word': word
                     })
+            remaining -= len(review_cards)
 
-        # Add new words if allowed and we haven't hit limit
-        if can_new and len(items) < limit:
+        # PRIORITY 4: NEW cards (with daily limit)
+        if can_new and remaining > 0:
             # Get words not yet in UserWord
             existing_word_ids = {
                 row[0] for row in db.session.query(UserWord.word_id).filter(
@@ -351,7 +504,7 @@ class SRSService:
             }
 
             new_word_ids = [wid for wid in deck_word_ids if wid not in existing_word_ids]
-            needed = min(limit - len(items), len(new_word_ids))
+            needed = min(remaining, len(new_word_ids))
 
             for word_id in new_word_ids[:needed]:
                 word = CollectionWords.query.get(word_id)
@@ -365,11 +518,19 @@ class SRSService:
                     db.session.add(user_word)
                     db.session.flush()
 
-                    # Create cards
+                    # Create cards with NEW state
                     forward, backward = cls.get_or_create_card_directions(user_word.id)
+
+                    # Ensure state is set to NEW
+                    for card in [forward, backward]:
+                        if not card.state:
+                            card.state = CardState.NEW.value
+                            card.step_index = 0
+                            card.lapses = 0
 
                     items.append({
                         'type': 'new',
+                        'state': CardState.NEW.value,
                         'card': forward,
                         'user_word': user_word,
                         'word': word

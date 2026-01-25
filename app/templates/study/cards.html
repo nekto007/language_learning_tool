@@ -93,6 +93,11 @@
         <!-- Front side (question) -->
         <div id="card-front" class="card shadow-sm mb-4 text-center flashcard">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <!-- State badge -->
+                <div id="front-state-badge" class="mb-2">
+                    <span id="state-badge" class="badge"></span>
+                    <span id="lapses-badge" class="badge bg-secondary ms-1" style="display: none;"></span>
+                </div>
                 <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
                 <button id="front-audio-btn" class="btn btn-outline-secondary mb-4">
@@ -278,6 +283,131 @@
         };
         let hintTimeout = null;
 
+        // Anti-repeat: track recently shown card IDs
+        const recentCardIds = [];
+        const RECENT_CARDS_LIMIT = 5;  // Keep last 5 card IDs to exclude
+
+        // State configuration for display
+        const STATE_CONFIG = {
+            'new': { label: 'НОВАЯ', class: 'bg-info', color: '#17a2b8' },
+            'learning': { label: 'ИЗУЧЕНИЕ', class: 'bg-warning text-dark', color: '#ffc107' },
+            'review': { label: 'ПОВТОР', class: 'bg-success', color: '#28a745' },
+            'relearning': { label: 'ПЕРЕУЧИВАНИЕ', class: 'bg-danger', color: '#dc3545' }
+        };
+
+        // Learning steps in minutes (must match backend constants.py)
+        const LEARNING_STEPS = [1, 10];      // NEW/LEARNING: [1min, 10min]
+        const RELEARNING_STEPS = [10];       // RELEARNING: [10min]
+        const GRADUATING_INTERVAL = 1;       // LEARNING → REVIEW: 1 day
+        const EASY_INTERVAL = 4;             // NEW + "Знаю" → skip to REVIEW: 4 days
+        const LAPSE_MINIMUM_INTERVAL = 1;    // RELEARNING → REVIEW: 1 day
+
+        // Update state badge and button hints based on card state
+        function updateStateDisplay(card) {
+            const state = card.state || 'new';
+            const stepIndex = card.step_index || 0;
+            const lapses = card.lapses || 0;
+
+            // Update state badge
+            if (stateBadge) {
+                const config = STATE_CONFIG[state] || STATE_CONFIG['new'];
+                stateBadge.textContent = config.label;
+                stateBadge.className = 'badge ' + config.class;
+            }
+
+            // Update lapses badge (show only for relearning or if lapses > 0)
+            if (lapsesBadge) {
+                if (lapses > 0) {
+                    lapsesBadge.textContent = `Провалов: ${lapses}`;
+                    lapsesBadge.style.display = 'inline-block';
+                } else {
+                    lapsesBadge.style.display = 'none';
+                }
+            }
+
+            // Update button hints based on state
+            updateButtonHints(state, stepIndex);
+        }
+
+        // Update button hints dynamically based on card state
+        function updateButtonHints(state, stepIndex) {
+            const hints = getHintsForState(state, stepIndex);
+
+            ratingButtons.forEach(btn => {
+                const rating = parseInt(btn.getAttribute('data-rating'));
+                const hintEl = btn.querySelector('.rating-hint');
+                if (hintEl && hints[rating]) {
+                    hintEl.textContent = hints[rating];
+                }
+            });
+        }
+
+        // Get button hints for each state - matches backend logic exactly
+        function getHintsForState(state, stepIndex) {
+            switch (state) {
+                case 'new':
+                    // NEW: первое взаимодействие с карточкой
+                    // 1 (Не знаю): → LEARNING step 0 (1 мин)
+                    // 2 (Сомневаюсь): → LEARNING step 1 (10 мин)
+                    // 3 (Знаю): → REVIEW (4 дня, пропуск обучения)
+                    return {
+                        1: `→ Изучение (${LEARNING_STEPS[0]}мин)`,
+                        2: `→ Шаг 2 (${LEARNING_STEPS[1]}мин)`,
+                        3: `→ Повтор (${EASY_INTERVAL} дня)`
+                    };
+
+                case 'learning':
+                    // LEARNING: проходим шаги обучения
+                    // 1 (Не знаю): → reset to step 0 (1 мин)
+                    // 2 (Сомневаюсь): → repeat current step
+                    // 3 (Знаю): → advance step, if last step → graduate to REVIEW (1 день)
+                    const currentStepTime = LEARNING_STEPS[stepIndex] || LEARNING_STEPS[0];
+                    const isLastStep = stepIndex >= LEARNING_STEPS.length - 1;
+                    const nextStepIndex = Math.min(stepIndex + 1, LEARNING_STEPS.length - 1);
+                    const nextStepTime = LEARNING_STEPS[nextStepIndex];
+
+                    return {
+                        1: `→ Шаг 1 (${LEARNING_STEPS[0]}мин)`,
+                        2: `Шаг ${stepIndex + 1} (${currentStepTime}мин)`,
+                        3: isLastStep
+                            ? `→ Повтор (${GRADUATING_INTERVAL} день)`
+                            : `→ Шаг ${nextStepIndex + 1} (${nextStepTime}мин)`
+                    };
+
+                case 'review':
+                    // REVIEW: стандартное интервальное повторение
+                    // 1 (Не знаю): → RELEARNING, lapses++, ease -= 0.20
+                    // 2 (Сомневаюсь): интервал × 1.2, ease -= 0.05
+                    // 3 (Знаю): интервал × ease × 1.3, ease += 0.15
+                    return {
+                        1: '→ Переучивание',
+                        2: 'Интервал ×1.2',
+                        3: 'Интервал ×ease×1.3'
+                    };
+
+                case 'relearning':
+                    // RELEARNING: повторное обучение после провала
+                    // 1 (Не знаю): → reset to step 0 (10 мин)
+                    // 2 (Сомневаюсь): → repeat current step (10 мин)
+                    // 3 (Знаю): → REVIEW (1 день)
+                    const relearningStep = RELEARNING_STEPS[stepIndex] || RELEARNING_STEPS[0];
+                    const isLastRelearningStep = stepIndex >= RELEARNING_STEPS.length - 1;
+
+                    return {
+                        1: `→ Шаг 1 (${RELEARNING_STEPS[0]}мин)`,
+                        2: `Шаг ${stepIndex + 1} (${relearningStep}мин)`,
+                        3: `→ Повтор (${LAPSE_MINIMUM_INTERVAL} день)`
+                    };
+
+                default:
+                    return {
+                        1: '→ Изучение',
+                        2: '→ Шаг 2',
+                        3: '→ Повтор'
+                    };
+            }
+        }
+
         // DOM elements
         const flashcardView = document.getElementById('flashcard-view');
         const cardFront = document.getElementById('card-front');
@@ -307,6 +437,9 @@
         const endSessionBtn = document.getElementById('end-session-btn');
         const newCardsStats = document.getElementById('new-cards-stats');
         const reviewsStats = document.getElementById('reviews-stats');
+        const stateBadge = document.getElementById('state-badge');
+        const lapsesBadge = document.getElementById('lapses-badge');
+        const ratingButtons = document.querySelectorAll('.rating-btn');
 
         // Stats elements
         const statsWords = document.getElementById('stats-words');
@@ -325,6 +458,11 @@
                 // Добавляем deck_id если есть
                 if (deckId) {
                     url += `&deck_id=${deckId}`;
+                }
+
+                // Anti-repeat: исключаем недавно показанные карточки
+                if (recentCardIds.length > 0) {
+                    url += `&exclude_card_ids=${recentCardIds.join(',')}`;
                 }
 
                 const response = await fetch(url);
@@ -642,6 +780,10 @@
 
             const card = cards[index];
             currentCardIndex = index;
+
+            // Update state badge and button hints
+            updateStateDisplay(card);
+
             // Update progress
             const progress = ((index + 1) / cards.length) * 100;
             progressFill.style.width = `${progress}%`;
@@ -829,11 +971,21 @@
                         direction: card.direction,
                         quality: rating,  // Unified 1-2-3 scale (backward compatible)
                         session_id: sessionId,
-                        is_new: card.is_new
+                        is_new: card.is_new,
+                        deck_id: deckId  // For per-deck limit checking
                     }),
                 });
 
                 const data = await response.json();
+
+                // Anti-repeat: добавляем card_id в список недавно показанных
+                if (data.card_id) {
+                    recentCardIds.push(data.card_id);
+                    // Ограничиваем размер массива
+                    while (recentCardIds.length > RECENT_CARDS_LIMIT) {
+                        recentCardIds.shift();
+                    }
+                }
 
                 // Check if daily limit was exceeded (race condition protection)
                 if (!data.success && data.error === 'daily_limit_exceeded') {
@@ -842,11 +994,17 @@
                     return;
                 }
 
+                // Handle buried cards - card won't be shown until burial expires
+                if (data.is_buried) {
+                    console.log(`Card ${data.card_id} buried after ${MAX_SESSION_ATTEMPTS} attempts`);
+                }
+
                 // Handle requeue based on rating and server response
                 let shouldRequeue = false;
                 let requeuePosition = null;
 
-                if (data.requeue_position !== null && data.requeue_position !== undefined) {
+                // If card is buried, don't requeue (session limit reached on server)
+                if (data.requeue_position !== null && data.requeue_position !== undefined && !data.is_buried) {
                     // Check session limit before requeuing (client-side tracking per session)
                     if (sessionAttempts[cardKey] < MAX_SESSION_ATTEMPTS) {
                         shouldRequeue = true;
@@ -857,11 +1015,18 @@
 
                 // Requeue the card if needed
                 if (shouldRequeue && requeuePosition !== null) {
-                    const cardCopy = { ...card, isRequeue: true };
+                    // Update card with new state from server
+                    const cardCopy = {
+                        ...card,
+                        isRequeue: true,
+                        state: data.state || card.state,
+                        step_index: data.step_index !== undefined ? data.step_index : card.step_index,
+                        lapses: data.lapses !== undefined ? data.lapses : card.lapses
+                    };
                     // Fixed: removed +1 that caused cards to appear sooner than intended
                     const insertAt = Math.min(currentCardIndex + requeuePosition, cards.length);
                     cards.splice(insertAt, 0, cardCopy);
-                    console.log(`Card requeued at position +${requeuePosition} (session attempt ${sessionAttempts[cardKey]})`);
+                    console.log(`Card requeued at position +${requeuePosition}, state: ${data.state} (session attempt ${sessionAttempts[cardKey]})`);
                 }
 
                 // Update session stats

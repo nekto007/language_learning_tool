@@ -46,6 +46,30 @@
                     <textarea class="form-control" id="description" name="description" rows="2">{{ deck.description or '' }}</textarea>
                 </div>
 
+                <!-- Per-deck limits -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="new_words_per_day" class="form-label">
+                            <i class="fas fa-plus-circle me-1 text-success"></i>Новых слов в день
+                        </label>
+                        <input type="number" class="form-control" id="new_words_per_day" name="new_words_per_day"
+                               min="0" max="100"
+                               value="{{ deck.new_words_per_day if deck.new_words_per_day is not none else '' }}"
+                               placeholder="Глобальные настройки">
+                        <small class="text-muted">Оставьте пустым для глобальных настроек</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="reviews_per_day" class="form-label">
+                            <i class="fas fa-redo me-1 text-primary"></i>Повторений в день
+                        </label>
+                        <input type="number" class="form-control" id="reviews_per_day" name="reviews_per_day"
+                               min="0" max="500"
+                               value="{{ deck.reviews_per_day if deck.reviews_per_day is not none else '' }}"
+                               placeholder="Глобальные настройки">
+                        <small class="text-muted">Оставьте пустым для глобальных настроек</small>
+                    </div>
+                </div>
+
                 {% if deck.is_public and deck.share_code %}
                 <div class="alert alert-success">
                     <i class="fas fa-share-alt me-2"></i>

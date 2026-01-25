@@ -196,8 +196,9 @@ class DeckService:
 
     @classmethod
     def update_deck(cls, deck_id: int, user_id: int, title: str = None, description: str = None,
-                   is_public: bool = None, generate_share: bool = False) -> Tuple[Optional[QuizDeck], Optional[str]]:
-        """Update deck details"""
+                   is_public: bool = None, generate_share: bool = False,
+                   new_words_per_day: int = None, reviews_per_day: int = None) -> Tuple[Optional[QuizDeck], Optional[str]]:
+        """Update deck details including per-deck limits"""
         from datetime import datetime, timezone
 
         deck = QuizDeck.query.get(deck_id)
@@ -219,6 +220,19 @@ class DeckService:
             deck.description = description
         if is_public is not None:
             deck.is_public = is_public
+
+        # Update per-deck limits (None means use global settings)
+        # We accept 'unchanged' sentinel to distinguish from None (use global)
+        if new_words_per_day is not None:
+            if new_words_per_day == 0:
+                deck.new_words_per_day = None  # 0 means use global
+            else:
+                deck.new_words_per_day = new_words_per_day
+        if reviews_per_day is not None:
+            if reviews_per_day == 0:
+                deck.reviews_per_day = None  # 0 means use global
+            else:
+                deck.reviews_per_day = reviews_per_day
 
         # Generate share code if making public
         if generate_share and deck.is_public and not was_public and not deck.share_code:
