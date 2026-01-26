@@ -933,8 +933,11 @@
 
             // Автовоспроизведение аудио при показе ответа для rus-eng карточек
             const card = cards[currentCardIndex];
-            if (card.direction === 'rus-eng' && card.audio_url && playAudio) {
+            if (card.audio_url && playAudio) {
                 setTimeout(() => {
+                    wordAudio.play().catch(error => {
+                        console.log('Audio playback failed:', error);
+                    });
                 }, 300);
             }
         }
