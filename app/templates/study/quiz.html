@@ -383,9 +383,27 @@
                 const savedState = forceFresh ? null : loadQuizState();
 
                 if (savedState && savedState.questions && savedState.questions.length > 0) {
+                    // Check if quiz was already completed (currentQuestionIndex >= questions.length)
+                    const savedIndex = savedState.currentQuestionIndex || 0;
+                    if (savedIndex >= savedState.questions.length) {
+                        // Quiz was completed, start fresh
+                        clearQuizState();
+                        questions = await fetchQuestions();
+
+                        if (!questions || questions.length === 0) {
+                            showNoQuestionsMessage();
+                            return;
+                        }
+
+                        loadingSpinner.style.display = 'none';
+                        quizView.style.display = 'block';
+                        showQuestion(0);
+                        return;
+                    }
+
                     // Restore from saved state
                     questions = savedState.questions;
-                    currentQuestionIndex = savedState.currentQuestionIndex || 0;
+                    currentQuestionIndex = savedIndex;
                     sessionStats = savedState.sessionStats || {total: 0, correct: 0, incorrect: 0, timeSpent: 0};
                     sessionStartTime = savedState.sessionStartTime || Date.now();
 
