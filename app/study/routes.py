@@ -5,6 +5,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
+from sqlalchemy.orm import joinedload
 
 from app import csrf
 from app.study.forms import StudySessionForm, StudySettingsForm
@@ -25,46 +26,6 @@ study = Blueprint('study', __name__, template_folder='templates')
 # Use DeckService methods directly
 is_auto_deck = DeckService.is_auto_deck
 sync_master_decks = DeckService.sync_master_decks
-
-
-def get_deck_stats_today(user_id, deck_id):
-    """
-    Count new cards and reviews done TODAY for a specific deck.
-
-    Returns:
-        tuple: (new_cards_today, reviews_today)
-    """
-    from app.study.models import QuizDeckWord
-
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Get word IDs for this deck
-    deck_word_ids = [dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck_id).all() if dw.word_id]
-
-    if not deck_word_ids:
-        return 0, 0
-
-    # Count new cards (first review) for this deck today
-    new_cards_today = db.session.query(func.count(UserCardDirection.id)).join(
-        UserWord, UserCardDirection.user_word_id == UserWord.id
-    ).filter(
-        UserWord.user_id == user_id,
-        UserWord.word_id.in_(deck_word_ids),
-        UserCardDirection.last_reviewed >= today_start,
-        UserCardDirection.repetitions == 1
-    ).scalar() or 0
-
-    # Count reviews (not first) for this deck today
-    reviews_today = db.session.query(func.count(UserCardDirection.id)).join(
-        UserWord, UserCardDirection.user_word_id == UserWord.id
-    ).filter(
-        UserWord.user_id == user_id,
-        UserWord.word_id.in_(deck_word_ids),
-        UserCardDirection.last_reviewed >= today_start,
-        UserCardDirection.repetitions > 1
-    ).scalar() or 0
-
-    return new_cards_today, reviews_today
 
 
 def get_audio_url_for_word(word):
@@ -414,28 +375,6 @@ def quiz_deck_shared(code):
     return redirect(url_for('study.quiz_deck', deck_id=deck.id))
 
 
-@study.route('/start-session', methods=['POST'])
-@login_required
-def start_session():
-    """Start a new study session"""
-    form = StudySessionForm()
-
-    if form.validate_on_submit():
-        session_type = form.session_type.data
-        word_source = form.word_source.data
-
-        if session_type == 'cards':
-            return redirect(url_for('study.cards', word_source=word_source))
-        elif session_type == 'quiz':
-            return redirect(url_for('study.quiz', word_source=word_source))
-        else:
-            return redirect(url_for('study.matching', word_source=word_source))
-            # return redirect(url_for('study.index'))
-
-    flash(_('Invalid form data.'), 'danger')
-    return redirect(url_for('study.index'))
-
-
 # API routes for AJAX calls from study interfaces
 
 # Modified function with Anki-like priority queues and anti-repeat
@@ -493,25 +432,28 @@ def get_study_items():
     # Per-deck or global stats and limits
     if deck_id and deck:
         # Per-deck mode: count stats for this deck only
-        new_cards_today, reviews_today = get_deck_stats_today(current_user.id, deck_id)
+        new_cards_today, reviews_today = SRSService.get_deck_stats_today(current_user.id, deck_id)
         new_cards_limit = deck.get_new_words_limit(settings)
         reviews_limit = deck.get_reviews_limit(settings)
     else:
         # Global mode: count all stats, use global settings
+        # New cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter_by(user_id=current_user.id)
             ),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.repetitions == 1  # First review
+            UserCardDirection.first_reviewed >= today_start,
+            UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
+        # Reviews: last_reviewed is today BUT first_reviewed was before today
         reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter_by(user_id=current_user.id)
             ),
             UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.repetitions > 1  # Not first review
+            UserCardDirection.first_reviewed < today_start,
+            UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
         new_cards_limit = settings.new_words_per_day
@@ -582,10 +524,13 @@ def get_study_items():
                 'lapses': direction.lapses or 0
             }
 
-    # Base query for due cards with buried filter and anti-repeat
+    # Base query for due cards with buried filter, anti-repeat, and eager loading
     def base_due_query():
         query = UserCardDirection.query \
             .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+            .options(
+                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
+            ) \
             .filter(
                 UserWord.user_id == current_user.id,
                 UserWord.status.in_(['learning', 'review']),
@@ -612,8 +557,7 @@ def get_study_items():
         ).limit(remaining).all()
 
         for direction in relearning_cards:
-            user_word = UserWord.query.get(direction.user_word_id)
-            word = user_word.word
+            word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'relearning'))
         remaining -= len(relearning_cards)
@@ -627,8 +571,7 @@ def get_study_items():
         ).limit(remaining).all()
 
         for direction in learning_cards:
-            user_word = UserWord.query.get(direction.user_word_id)
-            word = user_word.word
+            word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'learning'))
         remaining -= len(learning_cards)
@@ -643,8 +586,7 @@ def get_study_items():
         ).limit(remaining).all()
 
         for direction in new_state_cards:
-            user_word = UserWord.query.get(direction.user_word_id)
-            word = user_word.word
+            word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'new'))
         remaining -= len(new_state_cards)
@@ -662,8 +604,7 @@ def get_study_items():
         ).limit(remaining).all()
 
         for direction in review_cards:
-            user_word = UserWord.query.get(direction.user_word_id)
-            word = user_word.word
+            word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'review'))
 
@@ -777,28 +718,30 @@ def update_study_item():
             if deck_id:
                 deck = QuizDeck.query.get(deck_id)
                 if deck and (deck.user_id == current_user.id or deck.is_public):
-                    new_cards_today, _ = get_deck_stats_today(current_user.id, deck_id)
+                    new_cards_today, _ = SRSService.get_deck_stats_today(current_user.id, deck_id)
                     new_cards_limit = deck.get_new_words_limit(settings)
                 else:
                     # Fall back to global if deck not found
                     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    # New cards: first_reviewed is today (card was studied for the first time today)
                     new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
                         UserCardDirection.user_word_id.in_(
                             db.session.query(UserWord.id).filter_by(user_id=current_user.id)
                         ),
-                        UserCardDirection.last_reviewed >= today_start,
-                        UserCardDirection.repetitions == 1
+                        UserCardDirection.first_reviewed >= today_start,
+                        UserCardDirection.first_reviewed.isnot(None)
                     ).scalar() or 0
                     new_cards_limit = settings.new_words_per_day
             else:
                 # Global mode
                 today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                # New cards: first_reviewed is today (card was studied for the first time today)
                 new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
                     UserCardDirection.user_word_id.in_(
                         db.session.query(UserWord.id).filter_by(user_id=current_user.id)
                     ),
-                    UserCardDirection.last_reviewed >= today_start,
-                    UserCardDirection.repetitions == 1
+                    UserCardDirection.first_reviewed >= today_start,
+                    UserCardDirection.first_reviewed.isnot(None)
                 ).scalar() or 0
                 new_cards_limit = settings.new_words_per_day
 
@@ -1109,256 +1052,13 @@ def get_quiz_questions():
             'questions': []
         })
 
-    # Generate questions from the words
-    questions = generate_quiz_questions(words, question_count)
+    # Generate questions from the words using QuizService
+    questions = QuizService.generate_quiz_questions(words, question_count, get_audio_url_for_word)
 
     return jsonify({
         'status': 'success',
         'questions': questions
     })
-
-
-def generate_quiz_questions(words, count):
-    """
-    Generate quiz questions from words
-
-    Question types:
-    - multiple_choice: Multiple choice questions
-    - true_false: True/False questions
-    - fill_blank: Fill in the blank
-    """
-    questions = []
-
-    # Ensure we don't try to create more questions than words
-    count = min(count, len(words) * 2)
-
-    # Create a list of all the words for creating distractors (limit to avoid loading thousands)
-    all_words = CollectionWords.query.filter(
-        CollectionWords.russian_word != None,
-        CollectionWords.russian_word != ''
-    ).limit(500).all()
-
-    # Create two questions per word (eng->rus and rus->eng)
-    for word in words:
-        if len(questions) >= count:
-            break
-
-        # Skip words without translations
-        if not word.russian_word or word.russian_word.strip() == '':
-            continue
-
-        # Generate English to Russian question
-        if len(questions) < count:
-            question_type = random.choice(['multiple_choice', 'fill_blank'])
-
-            if question_type == 'multiple_choice':
-                # Create multiple choice question (eng->rus)
-                question = create_multiple_choice_question(word, all_words, 'eng_to_rus')
-                questions.append(question)
-
-            elif question_type == 'fill_blank':
-                # Create fill-in-the-blank question (eng->rus)
-                question = create_fill_blank_question(word, 'eng_to_rus')
-                questions.append(question)
-
-        # Generate Russian to English question
-        if len(questions) < count:
-            question_type = random.choice(['multiple_choice', 'fill_blank'])
-
-            if question_type == 'multiple_choice':
-                # Create multiple choice question (rus->eng)
-                question = create_multiple_choice_question(word, all_words, 'rus_to_eng')
-                questions.append(question)
-
-            elif question_type == 'fill_blank':
-                # Create fill-in-the-blank question (rus->eng)
-                question = create_fill_blank_question(word, 'rus_to_eng')
-                questions.append(question)
-
-    # Shuffle the questions
-    random.shuffle(questions)
-
-    # Limit to requested count
-    return questions[:count]
-
-
-def create_multiple_choice_question(word, all_words, direction):
-    """Create a multiple choice question"""
-    if direction == 'eng_to_rus':
-        question_template = 'Переведите на русский:'
-        question_text = word.english_word
-        correct_answer = word.russian_word
-
-        # Find distractors (other Russian words)
-        distractors = []
-        for distractor_word in random.sample(all_words, min(10, len(all_words))):
-            if (distractor_word.id != word.id and
-                    distractor_word.russian_word and
-                    distractor_word.russian_word != correct_answer):
-                distractors.append(distractor_word.russian_word)
-                if len(distractors) >= 3:
-                    break
-    else:
-        question_template = 'Переведите на английский:'
-        question_text = word.russian_word
-        correct_answer = word.english_word
-
-        # Find distractors (other English words)
-        distractors = []
-        for distractor_word in random.sample(all_words, min(10, len(all_words))):
-            if (distractor_word.id != word.id and
-                    distractor_word.english_word and
-                    distractor_word.english_word != correct_answer):
-                distractors.append(distractor_word.english_word)
-                if len(distractors) >= 3:
-                    break
-
-    # Ensure we have at least 3 distractors
-    while len(distractors) < 3:
-        if direction == 'eng_to_rus':
-            distractors.append(f"[вариант {len(distractors) + 1}]")
-        else:
-            distractors.append(f"[option {len(distractors) + 1}]")
-
-    # Create options and shuffle
-    options = [correct_answer] + distractors[:3]  # Ensure exactly 4 options
-    random.shuffle(options)
-
-    # Audio for English word
-    audio_url = None
-    if direction == 'eng_to_rus':
-        audio_url = get_audio_url_for_word(word)
-
-    first_word = correct_answer.split(',')[0].strip()
-    letter_form = "букв"
-
-    hint = f"Начинается с: {first_word[0]}... ({len(first_word)} {letter_form})"
-
-    return {
-        'id': f'mc_{word.id}_{direction}',
-        'word_id': word.id,
-        'type': 'multiple_choice',
-        'text': question_text,
-        'question_label': question_template,
-        'options': options,
-        'answer': correct_answer,
-        'hint': hint,
-        'audio_url': audio_url,
-        'direction': direction
-    }
-
-
-def create_true_false_question(word, all_words, direction):
-    """Create a true/false question"""
-    # Decide if question will be true or false
-    is_true = random.choice([True, False])
-
-    if direction == 'eng_to_rus':
-        english_word = word.english_word
-
-        if is_true:
-            russian_word = word.russian_word
-            answer = 'true'
-        else:
-            # Find a different Russian word
-            other_words = [w for w in all_words if w.id != word.id and w.russian_word]
-            if other_words:
-                other_word = random.choice(other_words)
-                russian_word = other_word.russian_word
-            else:
-                # If no other words available, make up a fake translation
-                russian_word = word.russian_word + 'ский'
-            answer = 'false'
-
-        question_template = 'Это правильный перевод?'
-        question_text = f"{english_word} = {russian_word}"
-        hint_word = word.russian_word
-
-    else:
-        russian_word = word.russian_word
-
-        if is_true:
-            english_word = word.english_word
-            answer = 'true'
-        else:
-            # Find a different English word
-            other_words = [w for w in all_words if w.id != word.id and w.english_word]
-            if other_words:
-                other_word = random.choice(other_words)
-                english_word = other_word.english_word
-            else:
-                # If no other words available, make up a fake translation
-                english_word = 'un' + word.english_word
-            answer = 'false'
-
-        question_template = 'Это правильный перевод?'
-        question_text = f"{russian_word} = {english_word}"
-        hint_word = word.english_word
-
-    # Audio for English word
-    audio_url = None
-    # if word.get_download == 1:
-    #     audio_url = url_for('static', filename=f'audio/{word.listening[7:-1]}')
-
-    # Create hint based on the actual correct translation, not "true"/"false"
-    first_word = hint_word.split(',')[0].strip()
-    letter_form = "букв"
-    masked_letters = "_" * (len(first_word) - 1)
-    hint = f"Правильный ответ: {first_word[0]}{masked_letters} ({len(first_word)} {letter_form})"
-
-    return {
-        'id': f'tf_{word.id}_{direction}',
-        'word_id': word.id,
-        'type': 'true_false',
-        'text': question_text,
-        'question_label': question_template,
-        'answer': answer,
-        'hint': hint,
-        'audio_url': audio_url
-    }
-
-
-def create_fill_blank_question(word, direction):
-    """Create a fill-in-the-blank question"""
-    if direction == 'eng_to_rus':
-        question_template = 'Введите перевод на русский:'
-        question_text = word.english_word
-        answer = word.russian_word
-    else:
-        question_template = 'Введите перевод на английский:'
-        question_text = word.russian_word
-        answer = word.english_word
-
-    # Get acceptable alternative answers
-    acceptable_answers = [answer]
-
-    # If the answer contains commas, each part is an acceptable answer
-    if ',' in answer:
-        alternative_answers = [a.strip() for a in answer.split(',')]
-        acceptable_answers.extend(alternative_answers)
-
-    # Audio for English word
-    audio_url = None
-    if direction == 'eng_to_rus':
-        audio_url = get_audio_url_for_word(word)
-
-    first_word = answer.split(',')[0].strip()
-    letter_form = "букв"
-
-    hint = f"Начинается с: {first_word[0]}... ({len(first_word)} {letter_form})"
-
-    return {
-        'id': f'fb_{word.id}_{direction}',
-        'word_id': word.id,
-        'type': 'fill_blank',
-        'text': question_text,
-        'question_label': question_template,
-        'answer': answer,
-        'acceptable_answers': acceptable_answers,
-        'hint': hint,
-        'audio_url': audio_url,
-        'direction': direction
-    }
 
 
 @study.route('/api/submit-quiz-answer', methods=['POST'])

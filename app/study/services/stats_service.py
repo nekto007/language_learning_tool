@@ -127,7 +127,7 @@ class StatsService:
                 GameScore, User.id == GameScore.user_id
             ).filter(
                 GameScore.game_type == 'matching',
-                GameScore.created_at >= start_date
+                GameScore.date_achieved >= start_date
             ).group_by(
                 User.id, User.username
             ).order_by(
