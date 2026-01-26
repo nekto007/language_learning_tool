@@ -2,11 +2,11 @@
 Quiz Service - quiz generation and management
 
 Responsibilities:
-- Question generation (multiple choice, true/false, fill-in-blank)
+- Question generation (multiple choice, fill-in-blank)
 - Quiz scoring
 - Quiz result tracking
 """
-from typing import List, Dict
+from typing import List, Dict, Optional, Callable
 import random
 
 from app.utils.db import db
@@ -16,135 +16,214 @@ from app.words.models import CollectionWords
 class QuizService:
     """Service for quiz operations"""
 
-    QUESTION_TYPES = ['multiple_choice', 'true_false', 'fill_blank']
+    QUESTION_TYPES = ['multiple_choice', 'fill_blank']
 
     @classmethod
-    def generate_quiz_questions(cls, words: List[CollectionWords], count: int,
-                                question_types: List[str] = None) -> List[Dict]:
+    def generate_quiz_questions(
+        cls,
+        words: List[CollectionWords],
+        count: int,
+        get_audio_url: Optional[Callable] = None
+    ) -> List[Dict]:
         """
-        Generate quiz questions from words
+        Generate quiz questions from words.
+
+        Creates two questions per word (eng->rus and rus->eng) with
+        a mix of multiple choice and fill-in-the-blank questions.
 
         Args:
             words: List of CollectionWords to generate questions from
             count: Number of questions to generate
-            question_types: Types of questions to generate (default: all types)
+            get_audio_url: Optional function to get audio URL for a word
 
         Returns:
             List of question dictionaries
         """
-        if not question_types:
-            question_types = cls.QUESTION_TYPES
-
         if not words or count <= 0:
             return []
 
         questions = []
-        available_words = words.copy()
 
-        for i in range(min(count, len(available_words))):
-            # Select random word and question type
-            word = random.choice(available_words)
-            available_words.remove(word)
-            q_type = random.choice(question_types)
+        # Ensure we don't try to create more questions than words
+        count = min(count, len(words) * 2)
 
-            # Generate question based on type
-            if q_type == 'multiple_choice':
-                question = cls._generate_multiple_choice(word, words)
-            elif q_type == 'true_false':
-                question = cls._generate_true_false(word, words)
-            else:  # fill_blank
-                question = cls._generate_fill_blank(word)
+        # Create a list of all words for distractors (limit to avoid loading thousands)
+        all_words = CollectionWords.query.filter(
+            CollectionWords.russian_word != None,
+            CollectionWords.russian_word != ''
+        ).limit(500).all()
 
-            if question:
+        # Create two questions per word (eng->rus and rus->eng)
+        for word in words:
+            if len(questions) >= count:
+                break
+
+            # Skip words without translations
+            if not word.russian_word or word.russian_word.strip() == '':
+                continue
+
+            # Generate English to Russian question
+            if len(questions) < count:
+                question_type = random.choice(['multiple_choice', 'fill_blank'])
+
+                if question_type == 'multiple_choice':
+                    question = cls.create_multiple_choice_question(
+                        word, all_words, 'eng_to_rus', get_audio_url
+                    )
+                else:
+                    question = cls.create_fill_blank_question(
+                        word, 'eng_to_rus', get_audio_url
+                    )
                 questions.append(question)
 
-        return questions
+            # Generate Russian to English question - ALWAYS fill_blank
+            # This guarantees the user must type the English word at least once
+            if len(questions) < count:
+                question = cls.create_fill_blank_question(
+                    word, 'rus_to_eng', get_audio_url
+                )
+                questions.append(question)
+
+        # Shuffle the questions
+        random.shuffle(questions)
+
+        # Limit to requested count
+        return questions[:count]
 
     @staticmethod
-    def _generate_multiple_choice(word: CollectionWords, all_words: List[CollectionWords],
-                                  direction: str = 'forward') -> Dict:
-        """Generate multiple choice question"""
-        # This is a simplified version - full implementation in routes.py
-        if direction == 'forward':
+    def create_multiple_choice_question(
+        word: CollectionWords,
+        all_words: List[CollectionWords],
+        direction: str,
+        get_audio_url: Optional[Callable] = None
+    ) -> Dict:
+        """
+        Create a multiple choice question.
+
+        Args:
+            word: The word to create question for
+            all_words: List of all words for creating distractors
+            direction: 'eng_to_rus' or 'rus_to_eng'
+            get_audio_url: Optional function to get audio URL
+
+        Returns:
+            Question dictionary
+        """
+        if direction == 'eng_to_rus':
+            question_template = 'Переведите на русский:'
             question_text = word.english_word
             correct_answer = word.russian_word
+
+            # Find distractors (other Russian words)
+            distractors = []
+            for distractor_word in random.sample(all_words, min(10, len(all_words))):
+                if (distractor_word.id != word.id and
+                        distractor_word.russian_word and
+                        distractor_word.russian_word != correct_answer):
+                    distractors.append(distractor_word.russian_word)
+                    if len(distractors) >= 3:
+                        break
         else:
+            question_template = 'Переведите на английский:'
             question_text = word.russian_word
             correct_answer = word.english_word
 
-        # Get wrong answers
-        wrong_words = [w for w in all_words if w.id != word.id]
-        wrong_answers = []
-        for w in random.sample(wrong_words, min(3, len(wrong_words))):
-            wrong_answers.append(w.russian_word if direction == 'forward' else w.english_word)
+            # Find distractors (other English words)
+            distractors = []
+            for distractor_word in random.sample(all_words, min(10, len(all_words))):
+                if (distractor_word.id != word.id and
+                        distractor_word.english_word and
+                        distractor_word.english_word != correct_answer):
+                    distractors.append(distractor_word.english_word)
+                    if len(distractors) >= 3:
+                        break
 
-        # Combine and shuffle options
-        options = [correct_answer] + wrong_answers
+        # Ensure we have at least 3 distractors
+        while len(distractors) < 3:
+            if direction == 'eng_to_rus':
+                distractors.append(f"[вариант {len(distractors) + 1}]")
+            else:
+                distractors.append(f"[option {len(distractors) + 1}]")
+
+        # Create options and shuffle
+        options = [correct_answer] + distractors[:3]  # Ensure exactly 4 options
         random.shuffle(options)
 
+        # Audio for English word
+        audio_url = None
+        if direction == 'eng_to_rus' and get_audio_url:
+            audio_url = get_audio_url(word)
+
+        # Create hint
+        first_word = correct_answer.split(',')[0].strip()
+        hint = f"Начинается с: {first_word[0]}... ({len(first_word)} букв)"
+
         return {
+            'id': f'mc_{word.id}_{direction}',
+            'word_id': word.id,
             'type': 'multiple_choice',
-            'word_id': word.id,
-            'question': question_text,
+            'text': question_text,
+            'question_label': question_template,
             'options': options,
-            'correct_answer': correct_answer,
+            'answer': correct_answer,
+            'hint': hint,
+            'audio_url': audio_url,
             'direction': direction
         }
 
     @staticmethod
-    def _generate_true_false(word: CollectionWords, all_words: List[CollectionWords],
-                            direction: str = 'forward') -> Dict:
-        """Generate true/false question"""
-        is_true = random.choice([True, False])
+    def create_fill_blank_question(
+        word: CollectionWords,
+        direction: str,
+        get_audio_url: Optional[Callable] = None
+    ) -> Dict:
+        """
+        Create a fill-in-the-blank question.
 
-        if direction == 'forward':
-            question_word = word.english_word
-            if is_true:
-                translation = word.russian_word
-            else:
-                # Pick random wrong translation
-                wrong_words = [w for w in all_words if w.id != word.id]
-                if wrong_words:
-                    translation = random.choice(wrong_words).russian_word
-                else:
-                    translation = word.russian_word
-                    is_true = True
-        else:
-            question_word = word.russian_word
-            if is_true:
-                translation = word.english_word
-            else:
-                wrong_words = [w for w in all_words if w.id != word.id]
-                if wrong_words:
-                    translation = random.choice(wrong_words).english_word
-                else:
-                    translation = word.english_word
-                    is_true = True
+        Args:
+            word: The word to create question for
+            direction: 'eng_to_rus' or 'rus_to_eng'
+            get_audio_url: Optional function to get audio URL
 
-        return {
-            'type': 'true_false',
-            'word_id': word.id,
-            'question': question_word,
-            'translation': translation,
-            'correct_answer': is_true,
-            'direction': direction
-        }
-
-    @staticmethod
-    def _generate_fill_blank(word: CollectionWords, direction: str = 'forward') -> Dict:
-        """Generate fill-in-the-blank question"""
-        if direction == 'forward':
-            question = word.english_word
+        Returns:
+            Question dictionary
+        """
+        if direction == 'eng_to_rus':
+            question_template = 'Введите перевод на русский:'
+            question_text = word.english_word
             answer = word.russian_word
         else:
-            question = word.russian_word
+            question_template = 'Введите перевод на английский:'
+            question_text = word.russian_word
             answer = word.english_word
 
+        # Get acceptable alternative answers
+        acceptable_answers = [answer]
+
+        # If the answer contains commas, each part is an acceptable answer
+        if ',' in answer:
+            alternative_answers = [a.strip() for a in answer.split(',')]
+            acceptable_answers.extend(alternative_answers)
+
+        # Audio for English word
+        audio_url = None
+        if direction == 'eng_to_rus' and get_audio_url:
+            audio_url = get_audio_url(word)
+
+        # Create hint
+        first_word = answer.split(',')[0].strip()
+        hint = f"Начинается с: {first_word[0]}... ({len(first_word)} букв)"
+
         return {
-            'type': 'fill_blank',
+            'id': f'fb_{word.id}_{direction}',
             'word_id': word.id,
-            'question': f"Переведите: {question}",
-            'correct_answer': answer,
+            'type': 'fill_blank',
+            'text': question_text,
+            'question_label': question_template,
+            'answer': answer,
+            'acceptable_answers': acceptable_answers,
+            'hint': hint,
+            'audio_url': audio_url,
             'direction': direction
         }
 

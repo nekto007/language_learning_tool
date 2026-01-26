@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from app.utils.db import db
 from app.study.models import StudySession, UserXP
+from app.study.xp_service import XPService
 
 
 class SessionService:
@@ -67,7 +68,7 @@ class SessionService:
     @staticmethod
     def award_xp(user_id: int, amount: int, source: str = None, source_id: int = None) -> UserXP:
         """
-        Award XP to user
+        Award XP to user. Delegates to XPService.award_xp().
 
         Args:
             user_id: User ID
@@ -78,10 +79,7 @@ class SessionService:
         Returns:
             Updated UserXP record
         """
-        xp_record = UserXP.get_or_create(user_id)
-        xp_record.add_xp(amount)
-        db.session.commit()
-        return xp_record
+        return XPService.award_xp(user_id, amount)
 
     @staticmethod
     def get_user_total_xp(user_id: int) -> int:

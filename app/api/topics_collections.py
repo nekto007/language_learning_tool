@@ -5,6 +5,7 @@ from sqlalchemy import func, or_
 from app import csrf
 from app.api.auth import api_login_required
 from app.study.models import UserWord
+from app.study.services.srs_service import get_user_word_ids
 from app.utils.db import db
 from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
 
@@ -50,14 +51,10 @@ def get_topics():
         # Количество слов в теме
         word_count = db.session.query(func.count(TopicWord.id)).filter_by(topic_id=topic.id).scalar()
 
-        # Количество слов в изучении
-        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-        user_word_ids = [id[0] for id in user_word_ids]
-
         # Проверка, сколько слов из темы уже изучается пользователем
-        topic_word_ids = db.session.query(TopicWord.word_id).filter_by(topic_id=topic.id).all()
-        topic_word_ids = [id[0] for id in topic_word_ids]
-        words_in_study = len(set(topic_word_ids).intersection(set(user_word_ids)))
+        topic_word_ids = [id[0] for id in db.session.query(TopicWord.word_id).filter_by(topic_id=topic.id).all()]
+        user_word_ids = get_user_word_ids(current_user.id, topic_word_ids) if topic_word_ids else set()
+        words_in_study = len(user_word_ids)
 
         topics_list.append({
             'id': topic.id,
@@ -210,15 +207,11 @@ def add_topic_to_study(topic_id):
     topic = Topic.query.get_or_404(topic_id)
 
     # Получение слов темы
-    topic_word_ids = db.session.query(TopicWord.word_id).filter_by(topic_id=topic_id).all()
-    topic_word_ids = [id[0] for id in topic_word_ids]
+    topic_word_ids = [id[0] for id in db.session.query(TopicWord.word_id).filter_by(topic_id=topic_id).all()]
 
-    # Получение слов, которые уже изучаются
-    user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-    user_word_ids = [id[0] for id in user_word_ids]
-
-    # Определение слов для добавления
-    words_to_add = set(topic_word_ids) - set(user_word_ids)
+    # Получение слов, которые уже изучаются, и определение слов для добавления
+    user_word_ids = get_user_word_ids(current_user.id, topic_word_ids) if topic_word_ids else set()
+    words_to_add = set(topic_word_ids) - user_word_ids
 
     # Добавление слов в изучение
     added_count = 0
@@ -343,14 +336,10 @@ def get_collections():
         # Количество слов в коллекции
         word_count = db.session.query(func.count(CollectionWordLink.id)).filter_by(collection_id=collection.id).scalar()
 
-        # Получение слов, которые уже изучаются
-        user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-        user_word_ids = [id[0] for id in user_word_ids]
-
         # Определение слов коллекции, которые уже изучаются
-        collection_word_ids = db.session.query(CollectionWordLink.word_id).filter_by(collection_id=collection.id).all()
-        collection_word_ids = [id[0] for id in collection_word_ids]
-        words_in_study = len(set(collection_word_ids).intersection(set(user_word_ids)))
+        collection_word_ids = [id[0] for id in db.session.query(CollectionWordLink.word_id).filter_by(collection_id=collection.id).all()]
+        user_word_ids = get_user_word_ids(current_user.id, collection_word_ids) if collection_word_ids else set()
+        words_in_study = len(user_word_ids)
 
         # Получение связанных тем
         # Находим все темы слов, входящих в коллекцию
@@ -535,15 +524,11 @@ def add_collection_to_study(collection_id):
     collection = Collection.query.get_or_404(collection_id)
 
     # Получение слов коллекции
-    collection_word_ids = db.session.query(CollectionWordLink.word_id).filter_by(collection_id=collection_id).all()
-    collection_word_ids = [id[0] for id in collection_word_ids]
+    collection_word_ids = [id[0] for id in db.session.query(CollectionWordLink.word_id).filter_by(collection_id=collection_id).all()]
 
-    # Получение слов, которые уже изучаются
-    user_word_ids = db.session.query(UserWord.word_id).filter_by(user_id=current_user.id).all()
-    user_word_ids = [id[0] for id in user_word_ids]
-
-    # Определение слов для добавления
-    words_to_add = set(collection_word_ids) - set(user_word_ids)
+    # Получение слов, которые уже изучаются, и определение слов для добавления
+    user_word_ids = get_user_word_ids(current_user.id, collection_word_ids) if collection_word_ids else set()
+    words_to_add = set(collection_word_ids) - user_word_ids
 
     # Добавление слов в изучение
     added_count = 0
