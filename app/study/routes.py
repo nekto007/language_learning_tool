@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 
 from app import csrf
 from app.study.forms import StudySessionForm, StudySettingsForm
-from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
+from app.study.models import GameScore, QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.forms import CollectionFilterForm
 from app.words.models import Collection, CollectionWords, Topic
