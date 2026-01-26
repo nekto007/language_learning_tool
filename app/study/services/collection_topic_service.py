@@ -13,6 +13,7 @@ from sqlalchemy import func, or_
 from app.utils.db import db
 from app.study.models import UserWord
 from app.words.models import CollectionWords, Collection, Topic
+from app.study.services.srs_service import get_user_word_ids
 
 
 class CollectionTopicService:
@@ -62,11 +63,7 @@ class CollectionTopicService:
         collections = query.order_by(Collection.name).all()
 
         # Bulk load user word statuses
-        user_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter_by(
-                user_id=user_id
-            ).all()
-        }
+        user_word_ids = get_user_word_ids(user_id)
 
         # Add stats to each collection
         result = []
@@ -98,12 +95,7 @@ class CollectionTopicService:
 
         # Bulk load user word statuses
         word_ids = [w.id for w in words]
-        user_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter(
-                UserWord.user_id == user_id,
-                UserWord.word_id.in_(word_ids)
-            ).all()
-        }
+        user_word_ids = get_user_word_ids(user_id, word_ids)
 
         # Add status to each word
         result = []
@@ -131,12 +123,7 @@ class CollectionTopicService:
 
         # Bulk check existing words
         word_ids = [w.id for w in words]
-        existing_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter(
-                UserWord.user_id == user_id,
-                UserWord.word_id.in_(word_ids)
-            ).all()
-        }
+        existing_word_ids = get_user_word_ids(user_id, word_ids)
 
         # Add new words
         added_count = 0
@@ -162,11 +149,7 @@ class CollectionTopicService:
         topics = Topic.query.order_by(Topic.name).all()
 
         # Bulk load user word statuses
-        user_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter_by(
-                user_id=user_id
-            ).all()
-        }
+        user_word_ids = get_user_word_ids(user_id)
 
         # Add stats to each topic
         result = []
@@ -198,12 +181,7 @@ class CollectionTopicService:
 
         # Bulk load user word statuses
         word_ids = [w.id for w in words]
-        user_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter(
-                UserWord.user_id == user_id,
-                UserWord.word_id.in_(word_ids)
-            ).all()
-        }
+        user_word_ids = get_user_word_ids(user_id, word_ids)
 
         # Add status to each word
         words_with_status = []
@@ -249,12 +227,7 @@ class CollectionTopicService:
 
         # Bulk check existing words
         word_ids = [w.id for w in words]
-        existing_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter(
-                UserWord.user_id == user_id,
-                UserWord.word_id.in_(word_ids)
-            ).all()
-        }
+        existing_word_ids = get_user_word_ids(user_id, word_ids)
 
         # Add new words
         added_count = 0
