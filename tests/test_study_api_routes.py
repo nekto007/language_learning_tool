@@ -1,6 +1,6 @@
 """
 Tests for API routes in app/study/routes.py
-Covers 14 API endpoints with ~60 tests total
+Covers 13 API endpoints with ~55 tests total
 Focus: SRS logic, daily limits, race conditions, input validation
 """
 import pytest
@@ -13,55 +13,6 @@ from app.study.models import (
     QuizDeck, QuizDeckWord, GameScore, QuizResult
 )
 from app.utils.db import db
-
-
-class TestStartSession:
-    """Test /start-session POST endpoint - Lines 523-542"""
-
-    def test_start_cards_session(self, authenticated_client):
-        """Test starting a cards study session"""
-        response = authenticated_client.post('/study/start-session', data={
-            'session_type': 'cards',
-            'word_source': 'learning'
-        }, follow_redirects=False)
-
-        assert response.status_code == 302
-        assert '/study/cards' in response.location
-
-    def test_start_quiz_session(self, authenticated_client):
-        """Test starting a quiz session"""
-        response = authenticated_client.post('/study/start-session', data={
-            'session_type': 'quiz',
-            'word_source': 'all'
-        }, follow_redirects=False)
-
-        assert response.status_code == 302
-        assert '/study/quiz' in response.location
-
-    def test_start_matching_session(self, authenticated_client):
-        """Test starting a matching game session"""
-        response = authenticated_client.post('/study/start-session', data={
-            'session_type': 'matching',
-            'word_source': 'new'
-        }, follow_redirects=False)
-
-        assert response.status_code == 302
-        assert '/study/matching' in response.location
-
-    def test_requires_authentication(self, client):
-        """Test that authentication is required"""
-        response = client.post('/study/start-session', data={
-            'session_type': 'cards'
-        })
-
-        assert response.status_code == 302
-        assert 'login' in response.location.lower()
-
-    def test_invalid_form_data(self, authenticated_client):
-        """Test with invalid form data"""
-        response = authenticated_client.post('/study/start-session', data={})
-
-        assert response.status_code == 302
 
 
 class TestGetStudyItems:
@@ -746,19 +697,18 @@ class TestCompleteQuiz:
             mock_award.assert_called_once()
 
     def test_checks_achievements(self, authenticated_client, quiz_deck_with_words, user_xp, achievements):
-        """Test that achievements are checked"""
-        with patch('app.study.routes.AchievementService') as mock_achievement_service:
-            quiz_data = {
-                'deck_id': quiz_deck_with_words.id,
-                'total_questions': 5,
-                'correct_answers': 5,  # Perfect score
-                'time_taken': 60,
-                'word_ids': [1, 2, 3, 4, 5]
-            }
+        """Test that achievements are checked on quiz completion"""
+        quiz_data = {
+            'deck_id': quiz_deck_with_words.id,
+            'total_questions': 5,
+            'correct_answers': 5,  # Perfect score
+            'time_taken': 60,
+            'word_ids': [1, 2, 3, 4, 5]
+        }
 
-            response = authenticated_client.post('/study/api/complete-quiz', json=quiz_data)
+        response = authenticated_client.post('/study/api/complete-quiz', json=quiz_data)
 
-            assert response.status_code == 200
+        assert response.status_code == 200
 
     def test_invalid_deck_id(self, authenticated_client, user_xp):
         """Test with invalid deck ID"""

@@ -203,12 +203,6 @@ class UserWord(db.Model):
         self.updated_at = datetime.now(timezone.utc)
         db.session.commit()
 
-    def set_next_review(self, days=1):
-        """Set next review date"""
-        self.updated_at = datetime.now(timezone.utc)
-        # This is a simplified implementation
-        # In practice, you might want to implement spaced repetition logic
-
     @hybrid_property
     def performance_percentage(self):
         """Calculate percentage of correct answers across all directions"""
@@ -265,6 +259,7 @@ class UserCardDirection(db.Model):
     ease_factor = db.Column(db.Float, default=2.5)
     interval = db.Column(db.Integer, default=0)
     last_reviewed = db.Column(db.DateTime, nullable=True)
+    first_reviewed = db.Column(db.DateTime, nullable=True)  # When card was first studied (for new card limit tracking)
     next_review = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     session_attempts = db.Column(db.Integer, default=0)
 
@@ -374,6 +369,10 @@ class UserCardDirection(db.Model):
 
         now = datetime.now(timezone.utc)
         self.last_reviewed = now
+
+        # Set first_reviewed only on the first review (for new card limit tracking)
+        if self.first_reviewed is None:
+            self.first_reviewed = now
 
         # Initialize state if needed (for existing cards without state)
         if not self.state or self.state == 'new':
