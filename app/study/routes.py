@@ -1064,37 +1064,16 @@ def get_quiz_questions():
 @study.route('/api/submit-quiz-answer', methods=['POST'])
 @login_required
 def submit_quiz_answer():
-    """Process a submitted quiz answer"""
+    """Process a submitted quiz answer.
+
+    Quiz is PRACTICE MODE only - it does NOT affect SRS scheduling.
+    Only session statistics are updated. Use flashcards for SRS learning.
+    """
     data = request.json
     session_id = data.get('session_id')
-    word_id = data.get('word_id')
-    direction = data.get('direction', 'eng_to_rus')  # Получаем направление из запроса
     is_correct = data.get('is_correct', False)
 
-    # Преобразуем direction из формата квиза в формат для UserCardDirection
-    direction_str = 'eng-rus' if direction.startswith('eng') else 'rus-eng'
-
-    # Получаем или создаем UserWord
-    user_word = UserWord.get_or_create(current_user.id, word_id)
-
-    # Получаем или создаем UserCardDirection
-    dir_obj = UserCardDirection.query.filter_by(
-        user_word_id=user_word.id,
-        direction=direction_str
-    ).first()
-
-    if not dir_obj:
-        # Создаем направление, если оно еще не существует
-        dir_obj = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
-        db.session.add(dir_obj)
-
-    # Преобразуем boolean в качество ответа (0-5)
-    quality = 4 if is_correct else 1
-
-    # Обновляем SRS параметры для направления
-    interval = dir_obj.update_after_review(quality)
-
-    # Обновляем статистику сессии
+    # Обновляем только статистику сессии (без влияния на SRS)
     if session_id:
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
@@ -1103,13 +1082,10 @@ def submit_quiz_answer():
                 session.correct_answers += 1
             else:
                 session.incorrect_answers += 1
-
-    db.session.commit()
+            db.session.commit()
 
     return jsonify({
-        'success': True,
-        'interval': interval,
-        'next_review': dir_obj.next_review.strftime('%Y-%m-%d') if dir_obj.next_review else None
+        'success': True
     })
 
 
