@@ -246,6 +246,11 @@
             timeSpent: 0
         };
 
+        // Track incorrect questions for retry at the end
+        let incorrectQuestions = [];
+        let isRetryPhase = false;
+        const MAX_RETRY_ATTEMPTS = 2; // Maximum times a question can be retried
+
         // DOM elements
         const loadingSpinner = document.getElementById('loading-spinner');
         const quizView = document.getElementById('quiz-view');
@@ -329,6 +334,8 @@
                 currentQuestionIndex: currentQuestionIndex,
                 sessionStats: sessionStats,
                 sessionStartTime: sessionStartTime,
+                incorrectQuestions: incorrectQuestions,
+                isRetryPhase: isRetryPhase,
                 timestamp: Date.now()
             };
             localStorage.setItem(getQuizStateKey(), JSON.stringify(state));
@@ -406,6 +413,8 @@
                     currentQuestionIndex = savedIndex;
                     sessionStats = savedState.sessionStats || {total: 0, correct: 0, incorrect: 0, timeSpent: 0};
                     sessionStartTime = savedState.sessionStartTime || Date.now();
+                    incorrectQuestions = savedState.incorrectQuestions || [];
+                    isRetryPhase = savedState.isRetryPhase || false;
 
                     // Update counters
                     correctCounter.textContent = sessionStats.correct;
@@ -445,8 +454,17 @@
         // Show a question
         function showQuestion(index) {
             if (index >= questions.length) {
-                completeQuiz();
-                return;
+                // Check if there are incorrect questions to retry
+                if (incorrectQuestions.length > 0) {
+                    // Add incorrect questions to the end for retry
+                    questions.push(...incorrectQuestions);
+                    incorrectQuestions = []; // Clear the retry queue
+                    isRetryPhase = true;
+                    // Continue showing the next question (which is the first retry)
+                } else {
+                    completeQuiz();
+                    return;
+                }
             }
 
             const question = questions[index];
@@ -466,7 +484,15 @@
             // Update progress
             const progress = ((index + 1) / questions.length) * 100;
             progressFill.style.width = `${progress}%`;
-            questionCounter.textContent = `Вопрос ${index + 1} из ${questions.length}`;
+
+            // Show retry indicator if this is a retry question
+            if (question.retryCount) {
+                questionCounter.textContent = `Повтор ${question.retryCount}/${MAX_RETRY_ATTEMPTS}: Вопрос ${index + 1} из ${questions.length}`;
+                questionCounter.style.color = 'var(--warning-color, #f0ad4e)';
+            } else {
+                questionCounter.textContent = `Вопрос ${index + 1} из ${questions.length}`;
+                questionCounter.style.color = '';
+            }
 
             // Set question details
             questionText.textContent = question.text || '';
@@ -723,6 +749,15 @@
             } else {
                 sessionStats.incorrect++;
                 incorrectCounter.textContent = sessionStats.incorrect;
+
+                // Track for retry (limit attempts to prevent infinite loops)
+                const retryCount = question.retryCount || 0;
+                if (retryCount < MAX_RETRY_ATTEMPTS) {
+                    incorrectQuestions.push({
+                        ...question,
+                        retryCount: retryCount + 1
+                    });
+                }
             }
 
             // Send result to server
