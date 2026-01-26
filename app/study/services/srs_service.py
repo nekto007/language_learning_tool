@@ -7,16 +7,37 @@ Responsibilities:
 - Card updates after reviews
 - Daily limits tracking
 """
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Set
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func, and_, or_, case
+from sqlalchemy.orm import joinedload
 
 from app.utils.db import db
 from app.study.models import (
-    UserWord, UserCardDirection, StudySettings, StudySession
+    UserWord, UserCardDirection, StudySettings, StudySession, QuizDeckWord
 )
 from app.words.models import CollectionWords
 from app.srs.constants import CardState
+
+
+def get_user_word_ids(user_id: int, word_ids: List[int] = None) -> Set[int]:
+    """
+    Get set of word_ids that user has already started learning.
+    Replaces multiple duplicate implementations across the codebase.
+
+    Args:
+        user_id: User ID
+        word_ids: Optional list of word IDs to filter by
+
+    Returns:
+        Set of word_ids that the user has already started learning
+    """
+    query = db.session.query(UserWord.word_id).filter(
+        UserWord.user_id == user_id
+    )
+    if word_ids:
+        query = query.filter(UserWord.word_id.in_(word_ids))
+    return {row[0] for row in query.all()}
 
 
 class SRSService:
@@ -98,12 +119,7 @@ class SRSService:
     @staticmethod
     def get_new_words_count(user_id: int, deck_word_ids: List[int]) -> int:
         """Count words in deck that user hasn't started learning"""
-        existing_word_ids = {
-            row[0] for row in db.session.query(UserWord.word_id).filter(
-                UserWord.user_id == user_id,
-                UserWord.word_id.in_(deck_word_ids)
-            ).all()
-        }
+        existing_word_ids = get_user_word_ids(user_id, deck_word_ids)
         return len([wid for wid in deck_word_ids if wid not in existing_word_ids])
 
     @staticmethod
@@ -111,28 +127,32 @@ class SRSService:
         """
         Check daily study limits
 
+        New cards = cards where first_reviewed is today (first time ever studied)
+        Reviews = cards reviewed today but first_reviewed was before today
+
         Returns:
             Tuple of (new_cards_studied_today, reviews_done_today, new_limit, review_limit)
         """
         settings = StudySettings.get_settings(user_id)
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Count new cards studied today (cards with repetitions=1 and last_reviewed today)
+        # Count new cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
             ),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.repetitions == 1
+            UserCardDirection.first_reviewed >= today_start,
+            UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
-        # Count reviews done today (cards with repetitions > 1)
+        # Count reviews: last_reviewed is today BUT first_reviewed was before today
         reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
             ),
             UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.repetitions > 1
+            UserCardDirection.first_reviewed < today_start,
+            UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
         return (
@@ -183,12 +203,7 @@ class SRSService:
             ).scalar() or 0
 
             # Get existing user words for this deck
-            existing_word_ids = {
-                row[0] for row in db.session.query(UserWord.word_id).filter(
-                    UserWord.user_id == user_id,
-                    UserWord.word_id.in_(deck_word_ids)
-                ).all()
-            }
+            existing_word_ids = get_user_word_ids(user_id, deck_word_ids)
             new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
         else:
             # Auto mode - all cards
@@ -210,13 +225,13 @@ class SRSService:
                 CollectionWords.russian_word != ''
             ).count()
 
-        # New cards studied today
+        # New cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter_by(user_id=user_id)
             ),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.repetitions == 1
+            UserCardDirection.first_reviewed >= today_start,
+            UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
         can_study_new = new_cards_today < settings.new_words_per_day
@@ -406,6 +421,8 @@ class SRSService:
         if can_review and remaining > 0:
             relearning_query = db.session.query(UserCardDirection).join(
                 UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).options(
+                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ).filter(
                 UserWord.user_id == user_id,
                 UserWord.word_id.in_(deck_word_ids),
@@ -418,14 +435,13 @@ class SRSService:
             ).limit(remaining).all()
 
             for card in relearning_cards:
-                user_word = card.user_word
-                word = CollectionWords.query.get(user_word.word_id)
+                word = card.user_word.word  # Already loaded via joinedload
                 if word:
                     items.append({
                         'type': 'relearning',
                         'state': CardState.RELEARNING.value,
                         'card': card,
-                        'user_word': user_word,
+                        'user_word': card.user_word,
                         'word': word
                     })
             remaining -= len(relearning_cards)
@@ -434,6 +450,8 @@ class SRSService:
         if can_review and remaining > 0:
             learning_query = db.session.query(UserCardDirection).join(
                 UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).options(
+                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ).filter(
                 UserWord.user_id == user_id,
                 UserWord.word_id.in_(deck_word_ids),
@@ -446,14 +464,13 @@ class SRSService:
             ).limit(remaining).all()
 
             for card in learning_cards:
-                user_word = card.user_word
-                word = CollectionWords.query.get(user_word.word_id)
+                word = card.user_word.word  # Already loaded via joinedload
                 if word:
                     items.append({
                         'type': 'learning',
                         'state': CardState.LEARNING.value,
                         'card': card,
-                        'user_word': user_word,
+                        'user_word': card.user_word,
                         'word': word
                     })
             remaining -= len(learning_cards)
@@ -462,6 +479,8 @@ class SRSService:
         if can_review and remaining > 0:
             review_query = db.session.query(UserCardDirection).join(
                 UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).options(
+                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ).filter(
                 UserWord.user_id == user_id,
                 UserWord.word_id.in_(deck_word_ids),
@@ -481,33 +500,33 @@ class SRSService:
             ).limit(remaining).all()
 
             for card in review_cards:
-                user_word = card.user_word
-                word = CollectionWords.query.get(user_word.word_id)
+                word = card.user_word.word  # Already loaded via joinedload
                 if word:
                     items.append({
                         'type': 'review',
                         'state': CardState.REVIEW.value,
                         'card': card,
-                        'user_word': user_word,
+                        'user_word': card.user_word,
                         'word': word
                     })
             remaining -= len(review_cards)
 
         # PRIORITY 4: NEW cards (with daily limit)
         if can_new and remaining > 0:
-            # Get words not yet in UserWord
-            existing_word_ids = {
-                row[0] for row in db.session.query(UserWord.word_id).filter(
-                    UserWord.user_id == user_id,
-                    UserWord.word_id.in_(deck_word_ids)
-                ).all()
-            }
+            # Get words not yet in UserWord using the helper function
+            existing_word_ids = get_user_word_ids(user_id, deck_word_ids)
 
             new_word_ids = [wid for wid in deck_word_ids if wid not in existing_word_ids]
             needed = min(remaining, len(new_word_ids))
 
-            for word_id in new_word_ids[:needed]:
-                word = CollectionWords.query.get(word_id)
+            # Batch fetch all needed words to avoid N+1
+            words_to_fetch = new_word_ids[:needed]
+            words_by_id = {w.id: w for w in CollectionWords.query.filter(
+                CollectionWords.id.in_(words_to_fetch)
+            ).all()} if words_to_fetch else {}
+
+            for word_id in words_to_fetch:
+                word = words_by_id.get(word_id)
                 if word:
                     # Create UserWord
                     user_word = UserWord(
@@ -538,3 +557,49 @@ class SRSService:
 
         db.session.commit()
         return items
+
+    @staticmethod
+    def get_deck_stats_today(user_id: int, deck_id: int) -> Tuple[int, int]:
+        """
+        Count new cards and reviews done TODAY for a specific deck.
+
+        New cards = cards where first_reviewed is today (first time ever studied)
+        Reviews = cards reviewed today but first_reviewed was before today
+
+        Args:
+            user_id: User ID
+            deck_id: Deck ID
+
+        Returns:
+            tuple: (new_cards_today, reviews_today)
+        """
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Get word IDs for this deck
+        deck_word_ids = [dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck_id).all() if dw.word_id]
+
+        if not deck_word_ids:
+            return 0, 0
+
+        # Count new cards: first_reviewed is today (card was studied for the first time today)
+        new_cards_today = db.session.query(func.count(UserCardDirection.id)).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == user_id,
+            UserWord.word_id.in_(deck_word_ids),
+            UserCardDirection.first_reviewed >= today_start,
+            UserCardDirection.first_reviewed.isnot(None)
+        ).scalar() or 0
+
+        # Count reviews: last_reviewed is today BUT first_reviewed was before today
+        reviews_today = db.session.query(func.count(UserCardDirection.id)).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == user_id,
+            UserWord.word_id.in_(deck_word_ids),
+            UserCardDirection.last_reviewed >= today_start,
+            UserCardDirection.first_reviewed < today_start,
+            UserCardDirection.first_reviewed.isnot(None)
+        ).scalar() or 0
+
+        return new_cards_today, reviews_today
