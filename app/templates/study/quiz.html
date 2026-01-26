@@ -336,6 +336,14 @@
 
         // Load quiz state from localStorage
         function loadQuizState() {
+            // Check for completion flag - if quiz was completed, start fresh
+            const completedKey = getQuizStateKey() + '_completed';
+            if (localStorage.getItem(completedKey)) {
+                localStorage.removeItem(completedKey);
+                clearQuizState();
+                return null;
+            }
+
             const savedState = localStorage.getItem(getQuizStateKey());
             if (savedState) {
                 try {
@@ -367,8 +375,12 @@
         // Initialize quiz
         async function initQuiz() {
             try {
-                // Try to load saved state first
-                const savedState = loadQuizState();
+                // Check for fresh parameter to force new quiz
+                const urlParams = new URLSearchParams(window.location.search);
+                const forceFresh = urlParams.get('fresh') === 'true';
+
+                // Try to load saved state first (unless fresh is requested)
+                const savedState = forceFresh ? null : loadQuizState();
 
                 if (savedState && savedState.questions && savedState.questions.length > 0) {
                     // Restore from saved state
@@ -737,6 +749,8 @@
         // Complete the quiz
         async function completeQuiz() {
             try {
+                // Set completion flag before clearing state
+                localStorage.setItem(getQuizStateKey() + '_completed', Date.now().toString());
                 // Clear saved state when quiz is completed
                 clearQuizState();
 
@@ -829,16 +843,16 @@
                     achievementsContainer.style.display = 'block';
                 }
 
-                // Set retry button URL with limit parameter if present
+                // Set retry button URL with fresh=true and optional limit parameter
                 const retryBtn = document.getElementById('retry-quiz-btn');
                 if (retryBtn && deckId) {
-                    let retryUrl = `/study/quiz/deck/${deckId}`;
+                    let retryUrl = `/study/quiz/deck/${deckId}?fresh=true`;
                     if (wordLimit && wordLimit > 0) {
-                        retryUrl += `?limit=${wordLimit}`;
+                        retryUrl += `&limit=${wordLimit}`;
                     }
                     retryBtn.href = retryUrl;
                 } else if (retryBtn) {
-                    retryBtn.href = '{{ url_for("study.quiz") }}';
+                    retryBtn.href = '{{ url_for("study.quiz") }}?fresh=true';
                 }
 
             } catch (error) {
