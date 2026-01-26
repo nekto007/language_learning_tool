@@ -12,7 +12,7 @@ Architecture:
 """
 
 from .deck_service import DeckService
-from .srs_service import SRSService
+from .srs_service import SRSService, get_user_word_ids
 from .quiz_service import QuizService
 from .game_service import GameService
 from .stats_service import StatsService
@@ -27,4 +27,5 @@ __all__ = [
     'StatsService',
     'SessionService',
     'CollectionTopicService',
+    'get_user_word_ids',
 ]
