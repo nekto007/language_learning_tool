@@ -18,10 +18,13 @@ words = Blueprint('words', __name__)
 def dashboard():
     """Main dashboard with all modules overview"""
     from app.study.models import UserWord, Achievement, UserAchievement
-    from app.grammar_lab.models import GrammarTopic, UserGrammarProgress
+    from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
     from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 
     # === WORDS STATS ===
+    # Count words by status, but 'mastered' is now a computed value (review + interval >= 180)
+    from app.study.models import UserCardDirection
+
     status_counts = db.session.query(
         UserWord.status,
         func.count(UserWord.id).label('count')
@@ -31,7 +34,23 @@ def dashboard():
 
     words_stats = {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0}
     for status, count in status_counts:
-        words_stats[status] = count
+        if status in words_stats:
+            words_stats[status] = count
+
+    # Calculate mastered count: review status + min_interval >= 180 days
+    mastered_count = db.session.query(func.count(func.distinct(UserWord.id))).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status == 'review'
+    ).join(
+        UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+    ).group_by(UserWord.id).having(
+        func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
+    ).count()
+
+    # Adjust counts: mastered words should not be counted as review
+    words_stats['mastered'] = mastered_count
+    words_stats['review'] = max(0, words_stats['review'] - mastered_count)
+
     words_total = sum(words_stats.values())
     words_in_progress = words_stats['learning'] + words_stats['review']
 
@@ -44,14 +63,12 @@ def dashboard():
 
     # === GRAMMAR LAB STATS ===
     grammar_total = GrammarTopic.query.count()
-    grammar_studied = UserGrammarProgress.query.filter(
-        UserGrammarProgress.user_id == current_user.id,
-        UserGrammarProgress.theory_completed == True
+    grammar_studied = UserGrammarTopicStatus.query.filter(
+        UserGrammarTopicStatus.user_id == current_user.id,
+        UserGrammarTopicStatus.theory_completed == True
     ).count()
-    grammar_mastered = UserGrammarProgress.query.filter(
-        UserGrammarProgress.user_id == current_user.id,
-        UserGrammarProgress.mastery_level >= 4
-    ).count()
+    # Mastery is now tracked at exercise level, simplified to count studied topics
+    grammar_mastered = grammar_studied
 
     # === BOOK COURSES STATS ===
     courses_enrolled = BookCourseEnrollment.query.filter_by(
@@ -118,13 +135,31 @@ def word_list():
     search_form = WordSearchForm(request.args)
     filter_form = WordFilterForm(request.args)
 
-    # Формирование базового запроса с JOIN для получения статусов пользователя
+    # Формирование базового запроса с JOIN для получения статусов пользователя и информации о колоде
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    # Subquery to get deck info for each word (first deck only)
+    deck_subquery = db.session.query(
+        QuizDeckWord.word_id,
+        QuizDeck.id.label('deck_id'),
+        QuizDeck.title.label('deck_title')
+    ).join(
+        QuizDeck, QuizDeckWord.deck_id == QuizDeck.id
+    ).filter(
+        QuizDeck.user_id == current_user.id
+    ).distinct(QuizDeckWord.word_id).subquery()
+
     query = db.session.query(
         CollectionWords,
-        UserWord.status.label('user_status')
+        UserWord.status.label('user_status'),
+        deck_subquery.c.deck_id.label('deck_id'),
+        deck_subquery.c.deck_title.label('deck_title')
     ).outerjoin(
         UserWord,
         (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
+    ).outerjoin(
+        deck_subquery,
+        CollectionWords.id == deck_subquery.c.word_id
     )
 
     # Применяем фильтр по типу (word/phrasal_verb)
@@ -153,6 +188,19 @@ def word_list():
                     UserWord.status == 'new'
                 )
             )
+        elif status == 'mastered':
+            # Mastered = review status + min_interval >= 180 days
+            # Используем подзапрос для фильтрации
+            from app.study.models import UserCardDirection
+            mastered_subquery = db.session.query(UserWord.word_id).filter(
+                UserWord.user_id == current_user.id,
+                UserWord.status == 'review'
+            ).join(
+                UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+            ).group_by(UserWord.word_id).having(
+                func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
+            ).subquery()
+            query = query.filter(CollectionWords.id.in_(mastered_subquery))
         else:
             query = query.filter(UserWord.status == status)
 
@@ -162,7 +210,7 @@ def word_list():
 
     # Применяем фильтр по книге
     if book_id:
-        from app.utils.db import word_book_link
+        from app.words.models import word_book_link
         query = query.join(
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
@@ -202,8 +250,10 @@ def word_list():
 
     # Преобразуем результат для шаблона
     word_list = []
-    for word_obj, user_status in words.items:
+    for word_obj, user_status, deck_id, deck_title in words.items:
         word_obj.user_status = user_status or 'new'
+        word_obj.deck_id = deck_id
+        word_obj.deck_title = deck_title
         word_list.append(word_obj)
 
     # Обновляем words.items
@@ -245,16 +295,23 @@ def word_list():
 @module_required('words')
 def word_detail(word_id):
     from app.study.models import UserWord
-    
+
     word = CollectionWords.query.get_or_404(word_id)
-    
+
     # Получаем статус пользователя для этого слова
     user_word = UserWord.query.filter_by(
         user_id=current_user.id,
         word_id=word_id
     ).first()
-    
-    word.user_status = user_word.status if user_word else 'new'
+
+    # Status и is_mastered для шаблона
+    # Note: 'mastered' больше не статус, а порог внутри 'review'
+    if user_word:
+        word.user_status = user_word.status
+        word.is_mastered = user_word.is_mastered
+    else:
+        word.user_status = 'new'
+        word.is_mastered = False
 
     # Получаем книги, содержащие это слово
     books = []
