@@ -48,6 +48,15 @@ class XPService:
                 'total_xp': int
             }
         """
+        # No XP for empty quiz
+        if total_questions == 0:
+            return {
+                'base_xp': 0,
+                'streak_bonus': 0,
+                'completion_bonus': 0,
+                'total_xp': 0
+            }
+
         # Base XP from correct answers
         base_xp = correct_answers * XPService.XP_PER_CORRECT_ANSWER
 
@@ -56,7 +65,7 @@ class XPService:
         if has_streak:
             streak_bonus = XPService.XP_STREAK_BONUS * correct_answers
 
-        # Completion bonus (always awarded)
+        # Completion bonus (only for quizzes with at least 1 question)
         completion_bonus = XPService.XP_QUIZ_COMPLETION
 
         total_xp = base_xp + streak_bonus + completion_bonus
