@@ -61,6 +61,47 @@ def create_app(config_class=Config):
     init_babel(app)
     init_cache(app)
 
+    # Import all models in dependency order - MUST happen before any blueprint that uses models
+    from app.auth import models as auth_models
+    from app.books import models as books_models
+    from app.words import models as words_models  # Also defines word_book_link table
+    from app.study import models as study_models
+    from app.curriculum import models as curriculum_models
+    from app.curriculum import book_courses as book_courses_models
+    from app.curriculum import daily_lessons as daily_lessons_models
+    from app.modules import models as modules_models
+    from app.grammar_lab import models as grammar_models
+    from app.reminders import models as reminders_models
+    from app.telegram import models as telegram_models
+    from app.achievements import models as achievements_models
+
+    # Database initialization and seeding - MUST happen before any module that queries DB
+    # Skip in testing mode - tests will handle their own data setup
+    if not app.config.get('TESTING', False):
+        with app.app_context():
+            # Check if tables exist, create if not
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+
+            if 'users' not in existing_tables:
+                # Database is empty - create all tables
+                print('🔧 Creating database tables...')
+                db.create_all()
+                print('✅ Database tables created successfully!')
+
+            # Seed initial data for modules system
+            from app.modules.migrations import seed_initial_modules
+            seed_initial_modules()
+
+            # Seed initial achievements
+            from app.achievements.seed import seed_achievements
+            seed_achievements()
+    else:
+        # Ensure tables exist when running in testing mode (SQLite, etc.)
+        with app.app_context():
+            db.create_all()
+
     # Initialize template utilities
     from app.utils.template_utils import init_template_utils
     init_template_utils(app)
@@ -194,25 +235,6 @@ def create_app(config_class=Config):
 
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
-
-    # Database migrations now handled by Flask-Migrate/Alembic
-    # Run: flask db upgrade
-    #
-    # Seed initial data (only if needed - safe to run multiple times)
-    # Skip seeding in testing mode - tests will handle their own data setup
-    if not app.config.get('TESTING', False):
-        with app.app_context():
-            # Seed initial data for modules system
-            from app.modules.migrations import seed_initial_modules
-            seed_initial_modules()
-
-            # Seed initial achievements
-            from app.achievements.seed import seed_achievements
-            seed_achievements()
-    else:
-        # Ensure tables exist when running in testing mode (SQLite, etc.)
-        with app.app_context():
-            db.create_all()
 
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine

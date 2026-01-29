@@ -1,18 +1,38 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 
 db = SQLAlchemy()
 
-# Word-Book relationship table
-word_book_link = db.Table(
-    'word_book_link',
-    Column('id', Integer, primary_key=True, autoincrement=True),
-    Column('word_id', Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False),
-    Column('book_id', Integer, ForeignKey('book.id', ondelete='CASCADE'), nullable=False),
-    Column('frequency', Integer, default=1),
-    UniqueConstraint('word_id', 'book_id', name='uq_word_book'),
-    extend_existing=True
-)
+# word_book_link is now defined in app/words/models.py (after models are loaded)
+# Re-export here for backward compatibility
+def get_word_book_link():
+    """Lazy getter for word_book_link table to avoid circular imports"""
+    from app.words.models import word_book_link
+    return word_book_link
+
+# For backward compatibility with existing imports
+# This will be resolved lazily when accessed
+class _WordBookLinkProxy:
+    """Proxy object that lazily loads word_book_link table"""
+    _table = None
+
+    def _get_table(self):
+        if self._table is None:
+            from app.words.models import word_book_link
+            self._table = word_book_link
+        return self._table
+
+    def __getattr__(self, name):
+        return getattr(self._get_table(), name)
+
+    @property
+    def c(self):
+        return self._get_table().c
+
+    # SQLAlchemy 2.0 compatibility - used in select_from(), join(), etc.
+    def __clause_element__(self):
+        return self._get_table()
+
+word_book_link = _WordBookLinkProxy()
 
 
 # Удаляем определение user_word_status
