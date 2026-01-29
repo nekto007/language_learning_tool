@@ -331,6 +331,95 @@ class GrammarLabService:
         """Get comprehensive stats for a user."""
         return self.srs.get_user_stats(user_id)
 
+    def get_practice_session(self, user_id: int, topic_ids: List[int] = None,
+                               count: int = 10, include_new: bool = True) -> Dict:
+        """
+        Get practice session with exercises from multiple topics (SRS mixed practice).
+
+        Priority: RELEARNING > LEARNING > REVIEW > NEW
+        """
+        import random
+
+        session_id = f"grammar_practice_{user_id}_{uuid.uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc)
+
+        # Build exercise query
+        query = GrammarExercise.query
+        if topic_ids:
+            query = query.filter(GrammarExercise.topic_id.in_(topic_ids))
+
+        all_exercises = query.all()
+
+        if not all_exercises:
+            return {
+                'session_id': session_id,
+                'exercises': [],
+                'total_exercises': 0,
+                'message': 'No exercises found'
+            }
+
+        # Ensure progress records exist
+        exercise_ids = [e.id for e in all_exercises]
+        _get_unified_srs_service().get_or_create_grammar_exercise_progress(user_id, exercise_ids)
+
+        # Categorize by state
+        relearning, learning, review, new = [], [], [], []
+
+        for ex in all_exercises:
+            progress = UserGrammarExercise.query.filter_by(
+                user_id=user_id, exercise_id=ex.id
+            ).first()
+
+            if not progress or progress.state == CardState.NEW.value:
+                if include_new:
+                    new.append(ex)
+            elif progress.state == CardState.RELEARNING.value:
+                if progress.next_review <= now:
+                    relearning.append(ex)
+            elif progress.state == CardState.LEARNING.value:
+                if progress.next_review <= now:
+                    learning.append(ex)
+            elif progress.state == CardState.REVIEW.value:
+                if progress.next_review <= now:
+                    review.append(ex)
+
+        # Build priority queue
+        selected = []
+        remaining = count
+
+        for pool in [relearning, learning, review, new]:
+            if remaining <= 0:
+                break
+            random.shuffle(pool)
+            selected.extend(pool[:remaining])
+            remaining = count - len(selected)
+
+        # Prepare exercise data
+        exercises_data = []
+        for ex in selected:
+            ex_data = ex.to_dict(hide_answer=True)
+            progress = UserGrammarExercise.query.filter_by(
+                user_id=user_id, exercise_id=ex.id
+            ).first()
+
+            ex_data['srs_state'] = progress.state if progress else 'new'
+            ex_data['srs_interval'] = progress.interval if progress else 0
+            ex_data['srs_lapses'] = progress.lapses if progress else 0
+            ex_data['topic_title'] = ex.topic.title if ex.topic else None
+            exercises_data.append(ex_data)
+
+        return {
+            'session_id': session_id,
+            'exercises': exercises_data,
+            'total_exercises': len(selected),
+            'stats': {
+                'relearning_count': len(relearning),
+                'learning_count': len(learning),
+                'review_count': len(review),
+                'new_count': len(new)
+            }
+        }
+
     def get_recommendations(self, user_id: int, limit: int = 5) -> List[Dict]:
         """Get recommended topics based on exercise states."""
         recommendations = []

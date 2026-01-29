@@ -166,6 +166,28 @@ class GrammarSRS:
         total_xp = sum(s.xp_earned or 0 for s in statuses)
         theory_completed_count = sum(1 for s in statuses if s.theory_completed)
 
+        # Count topics started (user has at least one exercise progress for the topic)
+        topics_with_progress = set(p.exercise.topic_id for p in all_progress if p.exercise)
+        topics_started = len(topics_with_progress)
+
+        # Count topics mastered (all exercises in topic are mastered)
+        # Build dict: topic_id -> list of exercise progress
+        mastered_exercises_by_topic = {}
+        for p in all_progress:
+            if p.exercise and p.state == CardState.REVIEW.value and p.interval >= 180:
+                topic_id = p.exercise.topic_id
+                mastered_exercises_by_topic.setdefault(topic_id, set()).add(p.exercise_id)
+
+        # Get exercise counts per topic
+        all_topics = GrammarTopic.query.all()
+        topics_mastered = 0
+        for topic in all_topics:
+            topic_exercise_ids = {e.id for e in topic.exercises}
+            if topic_exercise_ids and topic.id in mastered_exercises_by_topic:
+                mastered_in_topic = mastered_exercises_by_topic[topic.id]
+                if mastered_in_topic >= topic_exercise_ids:  # All exercises mastered
+                    topics_mastered += 1
+
         # Count by state
         new_count = sum(1 for p in all_progress if p.state == CardState.NEW.value)
         learning_count = sum(1 for p in all_progress if p.state in (CardState.LEARNING.value, CardState.RELEARNING.value))
@@ -209,6 +231,8 @@ class GrammarSRS:
 
         return {
             'total_topics': total_topics,
+            'topics_started': topics_started,
+            'topics_mastered': topics_mastered,
             'theory_completed': theory_completed_count,
             'total_xp': total_xp,
             'total_exercises': len(all_progress),
@@ -218,5 +242,6 @@ class GrammarSRS:
             'mastered_count': mastered_count,
             'total_attempts': total_attempts,
             'accuracy': accuracy,
+            'overall_accuracy': accuracy,
             'by_level': by_level
         }
