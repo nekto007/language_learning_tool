@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson, LessonCompletionEvent, SliceVocabulary
 from app.study.models import QuizDeck, QuizDeckWord, UserCardDirection, UserWord
-from app.utils.db import db, word_book_link
-from app.words.models import CollectionWords
+from app.utils.db import db
+from app.words.models import CollectionWords, word_book_link
 
 # Константа для определения "выученного" слова
 LEARNED_INTERVAL_THRESHOLD = 35  # дней
