@@ -178,6 +178,115 @@
         display: none; /* Hide book column on tablets */
     }
 }
+
+/* ====== Split Button Styles ====== */
+.add-word-split {
+    position: relative;
+}
+
+.add-word-split .dropdown-toggle-split {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+    border-left: 1px solid rgba(255,255,255,0.3);
+}
+
+.add-word-split .dropdown-toggle-split::after {
+    margin-left: 0;
+}
+
+.add-word-dropdown {
+    min-width: 220px;
+    padding: 0.5rem 0;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+.add-word-dropdown .dropdown-item {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+}
+
+.add-word-dropdown .dropdown-item:hover {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+}
+
+.add-word-dropdown .dropdown-item i {
+    width: 20px;
+}
+
+.add-word-dropdown .dropdown-divider {
+    margin: 0.3rem 0;
+}
+
+/* ====== Toast Notifications ====== */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #1e293b;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast-notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast-notification.toast-success {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+.toast-notification.toast-error {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+}
+
+/* ====== Word Status Badges ====== */
+.word-in-deck-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #4338ca;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 20px;
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.word-in-deck-badge i {
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+.word-mastered-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.word-mastered-badge i {
+    font-size: 0.7rem;
+}
 </style>
 {% endblock %}
 
@@ -353,7 +462,7 @@
                     </td>
                     <td>
                         <div class="status-dot status-dot-{{ word.user_status or 'new' }}"
-                             title="{{ _('Выучено') if word.user_status == 'mastered' else _('Изучается') if word.user_status == 'learning' else _('Повторение') if word.user_status == 'review' else _('Новое') }}"></div>
+                             title="{{ _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое') }}"></div>
                     </td>
                     <td>
                         <div class="word-english">{{ word.english_word }}</div>
@@ -391,25 +500,37 @@
                             <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="btn btn-sm btn-outline-secondary" title="{{ _('Подробно') }}">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            {% if word.user_status == 'new' %}
-                            <button class="btn btn-sm btn-primary" onclick="changeWordStatus({{ word.id }}, 'learning')" title="{{ _('Изучать') }}">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                            {% elif word.user_status == 'learning' %}
-                            <button class="btn btn-sm btn-info" onclick="changeWordStatus({{ word.id }}, 'review')" title="{{ _('На повторение') }}">
-                                <i class="fas fa-redo"></i>
-                            </button>
-                            {% elif word.user_status == 'review' %}
-                            <button class="btn btn-sm btn-success" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            {% else %}
-                            <span class="btn btn-sm btn-success disabled" title="{{ _('Изучено') }}">
-                                <i class="fas fa-check"></i>
+                            {% if word.user_status == 'mastered' %}
+                            <!-- Word is mastered -->
+                            <span class="word-mastered-badge" title="{{ _('Изучено') }}">
+                                <i class="fas fa-check-circle me-1"></i>{{ _('Изучено') }}
                             </span>
-                            {% endif %}
-                            {% if word.user_status != 'mastered' %}
-                            <button class="btn btn-sm btn-warning" onclick="changeWordStatus({{ word.id }}, 'mastered')" title="{{ _('Знаю') }}">
+                            {% elif word.deck_id or word.user_status in ['learning', 'review'] %}
+                            <!-- Word is in study/deck - show deck badge -->
+                            <span class="word-in-deck-badge" title="{{ _('В изучении') }}{% if word.deck_title %}: {{ word.deck_title }}{% endif %}">
+                                {% if word.deck_title %}
+                                <i class="fas fa-layer-group me-1"></i>{{ word.deck_title[:15] }}{% if word.deck_title|length > 15 %}…{% endif %}
+                                {% else %}
+                                <i class="fas fa-graduation-cap me-1"></i>{{ _('В изучении') }}
+                                {% endif %}
+                            </span>
+                            {% else %}
+                            <!-- New word - show add buttons -->
+                            <div class="btn-group btn-group-sm add-word-split">
+                                <button class="btn btn-primary" onclick="addToStudyDefault({{ word.id }})" title="{{ _('Добавить в изучение') }}">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('Выбрать колоду') }}">
+                                    <span class="visually-hidden">{{ _('Выбрать') }}</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
+                                    <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="addToStudyOnly({{ word.id }}); return false;"><i class="fas fa-graduation-cap me-2 text-success"></i>{{ _('Только в изучение') }}</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-muted small" href="#" onclick="openDefaultDeckSettings(); return false;"><i class="fas fa-cog me-2"></i>{{ _('Настроить по умолчанию') }}</a></li>
+                                </ul>
+                            </div>
+                            <button class="btn btn-sm btn-warning" onclick="markAsKnown({{ word.id }})" title="{{ _('Уже знаю') }}">
                                 <i class="fas fa-star"></i>
                             </button>
                             {% endif %}
@@ -458,21 +579,36 @@
                 <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="btn btn-sm btn-outline-secondary">
                     <i class="fas fa-eye me-1"></i>{{ _('Подробно') }}
                 </a>
-                {% if word.user_status == 'new' %}
-                <button class="btn btn-sm btn-primary" onclick="changeWordStatus({{ word.id }}, 'learning')">
-                    <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
-                </button>
-                {% elif word.user_status == 'learning' %}
-                <button class="btn btn-sm btn-info" onclick="changeWordStatus({{ word.id }}, 'review')">
-                    <i class="fas fa-redo me-1"></i>{{ _('Повторение') }}
-                </button>
-                {% elif word.user_status == 'review' %}
-                <button class="btn btn-sm btn-success" onclick="changeWordStatus({{ word.id }}, 'mastered')">
-                    <i class="fas fa-check me-1"></i>{{ _('Знаю') }}
-                </button>
+                {% if word.user_status == 'mastered' %}
+                <!-- Word is mastered (mobile) -->
+                <span class="word-mastered-badge">
+                    <i class="fas fa-check-circle me-1"></i>{{ _('Изучено') }}
+                </span>
+                {% elif word.deck_id or word.user_status in ['learning', 'review'] %}
+                <!-- Word is in study - show deck badge (mobile) -->
+                <span class="word-in-deck-badge" title="{{ _('В изучении') }}{% if word.deck_title %}: {{ word.deck_title }}{% endif %}">
+                    {% if word.deck_title %}
+                    <i class="fas fa-layer-group me-1"></i>{{ word.deck_title[:12] }}{% if word.deck_title|length > 12 %}…{% endif %}
+                    {% else %}
+                    <i class="fas fa-graduation-cap me-1"></i>{{ _('В изучении') }}
+                    {% endif %}
+                </span>
                 {% else %}
-                <button class="btn btn-sm btn-success disabled">
-                    <i class="fas fa-check me-1"></i>{{ _('Изучено') }}
+                <!-- New word - show add buttons (mobile) -->
+                <div class="btn-group btn-group-sm add-word-split">
+                    <button class="btn btn-primary" onclick="addToStudyDefault({{ word.id }})">
+                        <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
+                    </button>
+                    <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="visually-hidden">{{ _('Выбрать') }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
+                        <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="addToStudyOnly({{ word.id }}); return false;"><i class="fas fa-graduation-cap me-2 text-success"></i>{{ _('Только в изучение') }}</a></li>
+                    </ul>
+                </div>
+                <button class="btn btn-sm btn-warning" onclick="markAsKnown({{ word.id }})" title="{{ _('Уже знаю') }}">
+                    <i class="fas fa-star me-1"></i>{{ _('Знаю') }}
                 </button>
                 {% endif %}
             </div>
@@ -538,6 +674,11 @@
 
 <!-- Audio Element -->
 <audio id="audioPlayer" style="display: none;"></audio>
+{% endblock %}
+
+{% block scripts %}
+<!-- Deck Select Modal JS -->
+<script src="{{ url_for('static', filename='js/deck-select-modal.js') }}"></script>
 
 <script>
 function playAudio(audioUrl) {
@@ -554,26 +695,186 @@ function playAudio(audioUrl) {
     }
 }
 
-function changeWordStatus(wordId, status) {
+// ====== Split-button: Add to Study Functions ======
+
+// Cache for default deck
+let defaultDeckCache = null;
+let defaultDeckLoaded = false;
+
+// Load default deck setting on page load
+async function loadDefaultDeck() {
+    if (defaultDeckLoaded) return defaultDeckCache;
+
+    try {
+        const response = await fetch('/study/api/default-deck');
+        const data = await response.json();
+        if (data.success) {
+            defaultDeckCache = {
+                id: data.default_deck_id,
+                name: data.default_deck_name
+            };
+            defaultDeckLoaded = true;
+        }
+    } catch (error) {
+        console.error('Error loading default deck:', error);
+    }
+    return defaultDeckCache;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', loadDefaultDeck);
+
+/**
+ * Add word to study using default deck (main button action)
+ */
+async function addToStudyDefault(wordId) {
+    // Ensure default deck is loaded
+    const defaultDeck = await loadDefaultDeck();
+
+    // If no default set yet and user has decks, show one-time prompt
+    if (!defaultDeckLoaded || (defaultDeck && defaultDeck.id === undefined)) {
+        // Check if user has any decks
+        const decksResponse = await fetch('/study/api/my-decks');
+        const decksData = await decksResponse.json();
+
+        if (decksData.decks && decksData.decks.length > 0 && defaultDeck?.id === undefined) {
+            // User has decks but no default set - show modal to set default
+            showSetDefaultDeckModal(wordId);
+            return;
+        }
+    }
+
+    // Add using default deck (or null for "только в изучение")
+    updateWordStatusApi(wordId, 'learning', defaultDeckCache?.id || null);
+}
+
+/**
+ * Show deck selection modal and add to chosen deck
+ */
+function addToStudyChooseDeck(wordId) {
+    deckSelectModal.show(wordId, function(result) {
+        updateWordStatusApi(wordId, 'learning', result.deckId);
+    });
+}
+
+/**
+ * Add to study only (no deck)
+ */
+function addToStudyOnly(wordId) {
+    updateWordStatusApi(wordId, 'learning', null);
+}
+
+/**
+ * Mark word as known (mastered) and add to default deck
+ */
+async function markAsKnown(wordId) {
+    // Load default deck
+    const defaultDeck = await loadDefaultDeck();
+
+    // Mark as mastered with default deck
+    updateWordStatusApi(wordId, 'mastered', defaultDeckCache?.id || null);
+}
+
+/**
+ * Open settings modal for default deck
+ */
+function openDefaultDeckSettings() {
+    showSetDefaultDeckModal(null);
+}
+
+/**
+ * Show modal to set default deck (one-time prompt or from settings)
+ */
+function showSetDefaultDeckModal(wordIdToAddAfter) {
+    deckSelectModal.showWithCallback(wordIdToAddAfter, async function(result) {
+        // Save as default
+        const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+
+        try {
+            const response = await fetch('/study/api/default-deck', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken || ''
+                },
+                body: JSON.stringify({ deck_id: result.deckId })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                defaultDeckCache = {
+                    id: data.default_deck_id,
+                    name: data.default_deck_name
+                };
+
+                // Show confirmation
+                showToast(result.deckId
+                    ? `По умолчанию: ${data.default_deck_name}`
+                    : 'По умолчанию: только в изучение', 'success');
+            }
+        } catch (error) {
+            console.error('Error saving default deck:', error);
+        }
+
+        // Add the word if this was triggered by adding a word
+        if (wordIdToAddAfter) {
+            updateWordStatusApi(wordIdToAddAfter, 'learning', result.deckId);
+        }
+    }, true); // true = show "сохранить как по умолчанию" option
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function changeWordStatus(wordId, status, currentStatus) {
     // Валидация входных данных
     if (!wordId || !status) {
         alert('{{ _("Ошибка: некорректные данные") }}');
         return;
     }
-    
+
     const validStatuses = ['new', 'learning', 'review', 'mastered'];
     if (!validStatuses.includes(status)) {
         alert('{{ _("Ошибка: некорректный статус") }}');
         return;
     }
-    
+
+    // For non-learning transitions, just update directly
+    if (!(currentStatus === 'new' && status === 'learning')) {
+        updateWordStatusApi(wordId, status, null);
+        return;
+    }
+
+    // For adding to study, use the default deck flow
+    addToStudyDefault(wordId)
+}
+
+function updateWordStatusApi(wordId, status, deckId) {
     // Проверка CSRF токена
     const csrfToken = document.querySelector('meta[name=csrf-token]');
     if (!csrfToken) {
         alert('{{ _("Ошибка: отсутствует токен безопасности") }}');
         return;
     }
-    
+
+    const payload = { status: status };
+    if (deckId) {
+        payload.deck_id = deckId;
+    }
+
     // AJAX запрос для изменения статуса
     fetch(`/api/words/${wordId}/status`, {
         method: 'POST',
@@ -581,7 +882,7 @@ function changeWordStatus(wordId, status) {
             'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken.getAttribute('content')
         },
-        body: JSON.stringify({ status: status })
+        body: JSON.stringify(payload)
     })
     .then(response => {
         if (!response.ok) {
@@ -591,7 +892,26 @@ function changeWordStatus(wordId, status) {
     })
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Показываем toast с информацией
+            let message = '';
+            const deckName = defaultDeckCache?.name;
+
+            if (status === 'mastered') {
+                message = deckName
+                    ? `✓ Отмечено как известное → ${deckName}`
+                    : '✓ Отмечено как известное';
+            } else if (status === 'learning') {
+                message = deckName
+                    ? `+ Добавлено в изучение → ${deckName}`
+                    : '+ Добавлено в изучение';
+            } else {
+                message = '✓ Статус обновлён';
+            }
+
+            showToast(message, 'success');
+
+            // Перезагружаем страницу через небольшую задержку, чтобы toast был виден
+            setTimeout(() => location.reload(), 800);
         } else {
             console.error('API Error:', data.error);
             alert(`{{ _("Ошибка при обновлении статуса") }}: ${data.error || 'Unknown error'}`);
@@ -646,26 +966,19 @@ function clearSelection() {
 
 function bulkUpdateStatus(status) {
     const checkedBoxes = document.querySelectorAll('.word-checkbox:checked');
-    
+
     if (checkedBoxes.length === 0) {
         alert('{{ _("Выберите слова для обновления") }}');
         return;
     }
-    
+
     // Валидация статуса
     const validStatuses = ['new', 'learning', 'review', 'mastered'];
     if (!validStatuses.includes(status)) {
         alert('{{ _("Ошибка: некорректный статус") }}');
         return;
     }
-    
-    // Проверка CSRF токена
-    const csrfToken = document.querySelector('meta[name=csrf-token]');
-    if (!csrfToken) {
-        alert('{{ _("Ошибка: отсутствует токен безопасности") }}');
-        return;
-    }
-    
+
     const wordIds = Array.from(checkedBoxes).map(checkbox => {
         const id = parseInt(checkbox.value);
         if (isNaN(id)) {
@@ -673,25 +986,48 @@ function bulkUpdateStatus(status) {
         }
         return id;
     });
-    
+
+    // If bulk adding to study (learning), show deck selection modal
+    if (status === 'learning') {
+        deckSelectModal.showBulk(wordIds, function(result) {
+            executeBulkUpdate(wordIds, status, result.deckId);
+        });
+    } else {
+        executeBulkUpdate(wordIds, status, null);
+    }
+}
+
+function executeBulkUpdate(wordIds, status, deckId) {
+    // Проверка CSRF токена
+    const csrfToken = document.querySelector('meta[name=csrf-token]');
+    if (!csrfToken) {
+        alert('{{ _("Ошибка: отсутствует токен безопасности") }}');
+        return;
+    }
+
     // Показываем индикатор загрузки
-    const buttons = document.querySelectorAll('.bulk-action-buttons .btn');
+    const buttons = document.querySelectorAll('#bulkActionsPanel .btn');
     const originalTexts = Array.from(buttons).map(btn => btn.innerHTML);
     buttons.forEach(btn => {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{{ _("Обновление...") }}';
     });
-    
+
+    const payload = {
+        word_ids: wordIds,
+        status: status
+    };
+    if (deckId) {
+        payload.deck_id = deckId;
+    }
+
     fetch('/api/batch-update-status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': csrfToken.getAttribute('content')
         },
-        body: JSON.stringify({ 
-            word_ids: wordIds,
-            status: status 
-        })
+        body: JSON.stringify(payload)
     })
     .then(response => {
         if (!response.ok) {
@@ -701,7 +1037,11 @@ function bulkUpdateStatus(status) {
     })
     .then(data => {
         if (data.success) {
-            alert(`{{ _("Успешно обновлено") }} ${data.updated_count} {{ _("слов") }}`);
+            let message = `{{ _("Успешно обновлено") }} ${data.updated_count} {{ _("слов") }}`;
+            if (data.deck_added_count) {
+                message += ` (${data.deck_added_count} {{ _("добавлено в колоду") }})`;
+            }
+            alert(message);
             location.reload();
         } else {
             console.error('API Error:', data.error);

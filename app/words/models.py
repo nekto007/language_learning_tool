@@ -131,3 +131,17 @@ class CollectionWordLink(db.Model):
 # PhrasalVerb model has been deprecated.
 # Phrasal verbs are now stored in CollectionWords with item_type='phrasal_verb'
 # The old phrasal_verb table is kept for backwards compatibility but not used.
+
+
+# Word-Book relationship table (defined here after both Book and CollectionWords models)
+from sqlalchemy import UniqueConstraint
+
+word_book_link = db.Table(
+    'word_book_link',
+    Column('id', Integer, primary_key=True, autoincrement=True),
+    Column('word_id', Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False),
+    Column('book_id', Integer, ForeignKey('book.id', ondelete='CASCADE'), nullable=False),
+    Column('frequency', Integer, default=1),
+    UniqueConstraint('word_id', 'book_id', name='uq_word_book'),
+    extend_existing=True
+)

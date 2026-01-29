@@ -41,7 +41,7 @@ def get_words():
         query = query.filter(CollectionWords.id.in_(new_system_words))
 
     if book_id is not None:
-        from app.utils.db import word_book_link
+        from app.words.models import word_book_link
         query = query.join(
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
@@ -115,7 +115,7 @@ def get_word(word_id):
     word = CollectionWords.query.get_or_404(word_id)
 
     # Get books containing this word
-    from app.utils.db import word_book_link
+    from app.words.models import word_book_link
     from app.books.models import Book
 
     books_query = db.select(Book, word_book_link.c.frequency) \
@@ -232,6 +232,14 @@ def update_word_status():
 # CSRF protection REQUIRED - called from web interface with CSRF token
 @api_login_required
 def batch_update_status():
+    """
+    Batch update status for multiple words.
+
+    Body:
+        - word_ids: list of word IDs
+        - status: 'new', 'learning', 'review', 'mastered'
+        - deck_id (optional): ID of deck to add all words to
+    """
     if not request.is_json:
         return jsonify({
             'success': False,
@@ -242,6 +250,7 @@ def batch_update_status():
     data = request.get_json()
     word_ids = data.get('word_ids', [])
     status = data.get('status')
+    deck_id = data.get('deck_id')  # Optional: deck to add words to
 
     if not word_ids or status is None:
         return jsonify({
@@ -254,6 +263,7 @@ def batch_update_status():
         # Verify all words exist
         words = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
         existing_ids = [word.id for word in words]
+        words_dict = {w.id: w for w in words}
 
         if len(existing_ids) != len(word_ids):
             missing_ids = set(word_ids) - set(existing_ids)
@@ -270,32 +280,54 @@ def batch_update_status():
             'review': 2,
             'mastered': 3
         }
-        
+
         if status not in status_mapping:
             return jsonify({
                 'success': False,
                 'error': f'Invalid status: {status}',
                 'status_code': 400
             }), 400
-            
+
         numeric_status = status_mapping[status]
 
         # Update statuses
         for word_id in word_ids:
             current_user.set_word_status(word_id, numeric_status)
 
-        return jsonify({
+        # If deck_id provided, also add words to that deck
+        deck_added_count = 0
+        if deck_id:
+            from app.study.services import DeckService
+            for word_id in word_ids:
+                word = words_dict.get(word_id)
+                if word:
+                    deck_word, error = DeckService.add_word_to_deck(
+                        deck_id=deck_id,
+                        user_id=current_user.id,
+                        word_id=word_id,
+                        custom_english=word.english_word,
+                        custom_russian=word.russian_word,
+                        custom_sentences=word.sentences
+                    )
+                    if not error:
+                        deck_added_count += 1
+
+        response = {
             'success': True,
             'updated_count': len(word_ids),
             'total_count': len(word_ids)
-        })
+        }
+
+        if deck_id:
+            response['deck_added_count'] = deck_added_count
+
+        return jsonify(response)
 
     except Exception as e:
         db.session.rollback()
         import traceback
         error_msg = str(e)
-        stack_trace = traceback.format_exc()
-        
+
         return jsonify({
             'success': False,
             'error': f'Database error: {error_msg}',
@@ -343,7 +375,13 @@ def search_words():
 # CSRF protection REQUIRED - called from web interface with CSRF token
 @api_login_required
 def update_single_word_status(word_id):
-    """Update status for a single word - endpoint used by templates"""
+    """
+    Update status for a single word - endpoint used by templates.
+
+    Body:
+        - status: 'new', 'learning', 'review', 'mastered'
+        - deck_id (optional): ID of deck to add word to
+    """
     if not request.is_json:
         return jsonify({
             'success': False,
@@ -352,6 +390,7 @@ def update_single_word_status(word_id):
 
     data = request.get_json()
     status = data.get('status')
+    deck_id = data.get('deck_id')  # Optional: deck to add word to
 
     if not status:
         return jsonify({
@@ -360,7 +399,7 @@ def update_single_word_status(word_id):
         }), 400
 
     word = CollectionWords.query.get_or_404(word_id)
-    
+
     try:
         # Преобразуем строковый статус в числовой
         status_mapping = {
@@ -369,28 +408,53 @@ def update_single_word_status(word_id):
             'review': 2,
             'mastered': 3
         }
-        
+
         if status not in status_mapping:
             return jsonify({
                 'success': False,
                 'error': f'Invalid status: {status}'
             }), 400
-            
+
         numeric_status = status_mapping[status]
-        
+
         # Use the updated method User.set_word_status
         current_user.set_word_status(word_id, numeric_status)
-        
-        return jsonify({
+
+        # If deck_id provided, also add word to that deck
+        deck_added = False
+        deck_error = None
+        if deck_id:
+            from app.study.services import DeckService
+            deck_word, error = DeckService.add_word_to_deck(
+                deck_id=deck_id,
+                user_id=current_user.id,
+                word_id=word_id,
+                custom_english=word.english_word,
+                custom_russian=word.russian_word,
+                custom_sentences=word.sentences
+            )
+            if error:
+                # Not a critical error - word status was updated
+                deck_error = error
+            else:
+                deck_added = True
+
+        response = {
             'success': True,
             'status': status
-        })
+        }
+
+        if deck_id:
+            response['deck_added'] = deck_added
+            if deck_error:
+                response['deck_message'] = deck_error
+
+        return jsonify(response)
     except Exception as e:
         db.session.rollback()
         import traceback
         error_msg = str(e)
-        stack_trace = traceback.format_exc()
-        
+
         return jsonify({
             'success': False,
             'error': f'Database error: {error_msg}'
