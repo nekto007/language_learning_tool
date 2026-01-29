@@ -157,14 +157,27 @@ class GameScore(db.Model):
 class UserWord(db.Model):
     """
     Links a user to a word with overall learning status.
+
+    Status is derived from UserCardDirection states:
+    - 'new': word added but no cards answered yet (all directions have repetitions=0)
+    - 'learning': at least one direction is in learning/relearning state
+    - 'review': all directions graduated to review state
+
+    Mature/mastered are thresholds within review, not separate statuses:
+    - is_mature: min(interval) >= 21 days
+    - is_mastered: min(interval) >= 180 days
     """
     __tablename__ = 'user_words'
+
+    # Thresholds for mature/mastered (in days)
+    MATURE_THRESHOLD_DAYS = 21
+    MASTERED_THRESHOLD_DAYS = 180
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     word_id = db.Column(db.Integer, db.ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
 
-    # Status: new, learning, review, mastered
+    # Status: new, learning, review (mastered removed - it's now a threshold)
     status = db.Column(db.String(20), default='new')
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -197,8 +210,68 @@ class UserWord(db.Model):
             db.session.commit()
         return user_word
 
+    def recalculate_status(self):
+        """
+        Derive status from UserCardDirection states.
+
+        Priority:
+        1. If ANY direction is in 'learning' or 'relearning' → status = 'learning'
+        2. Else if ANY direction is in 'new' → status = 'new'
+        3. Else (all directions in 'review') → status = 'review'
+        """
+        directions_list = self.directions.all()
+
+        if not directions_list:
+            # No directions yet - keep as 'new'
+            return
+
+        has_learning = False
+        has_new = False
+        all_review = True
+
+        for d in directions_list:
+            if d.state in ('learning', 'relearning'):
+                has_learning = True
+                all_review = False
+            elif d.state == 'new':
+                has_new = True
+                all_review = False
+            # 'review' state doesn't change all_review
+
+        if has_learning:
+            new_status = 'learning'
+        elif has_new:
+            new_status = 'new'
+        elif all_review:
+            new_status = 'review'
+        else:
+            new_status = 'new'  # fallback
+
+        if self.status != new_status:
+            self.status = new_status
+            self.updated_at = datetime.now(timezone.utc)
+
+    @property
+    def min_interval(self):
+        """Get minimum interval across all directions (in days)."""
+        directions_list = self.directions.all()
+        if not directions_list:
+            return 0
+        intervals = [d.interval for d in directions_list if d.interval is not None]
+        return min(intervals) if intervals else 0
+
+    @property
+    def is_mature(self):
+        """Word is mature if min interval >= 21 days."""
+        return self.status == 'review' and self.min_interval >= self.MATURE_THRESHOLD_DAYS
+
+    @property
+    def is_mastered(self):
+        """Word is mastered if min interval >= 180 days."""
+        return self.status == 'review' and self.min_interval >= self.MASTERED_THRESHOLD_DAYS
+
     def update_status(self, new_status):
-        """Update the status of the user word"""
+        """Update the status of the user word (legacy method, prefer recalculate_status)"""
         self.status = new_status
         self.updated_at = datetime.now(timezone.utc)
         db.session.commit()
@@ -319,6 +392,15 @@ class UserCardDirection(db.Model):
         else:
             buried_aware = self.buried_until
         return datetime.now(timezone.utc) < buried_aware
+
+    @property
+    def is_leech(self) -> bool:
+        """
+        Check if this card is a 'leech' (stuck card with many lapses).
+        Leech cards should show hints/examples to help the user.
+        """
+        from app.srs.constants import LEECH_THRESHOLD
+        return (self.lapses or 0) >= LEECH_THRESHOLD
 
     def update_after_review(self, quality):
         """
@@ -548,32 +630,13 @@ class UserCardDirection(db.Model):
         return None
 
     def update_user_word_status(self):
-        """Update the parent UserWord status based on direction progress"""
+        """Update the parent UserWord status based on card states using recalculate_status()"""
+        # Flush first so that direction.all() query sees the updated state
+        db.session.flush()
         user_word = UserWord.query.get(self.user_word_id)
-
-        # If this is the first review, update status to 'learning'
-        if user_word.status == 'new':
-            user_word.status = 'learning'
-            db.session.commit()
-            return
-
-        # Check if both directions have been reviewed
-        other_direction = 'rus-eng' if self.direction == 'eng-rus' else 'eng-rus'
-        other_card = UserCardDirection.query.filter_by(
-            user_word_id=self.user_word_id,
-            direction=other_direction
-        ).first()
-
-        # If both directions have been reviewed at least once, set to 'review'
-        if other_card and other_card.repetitions > 0 and self.repetitions > 0:
-            if user_word.status == 'learning':
-                user_word.status = 'review'
-                db.session.commit()
-
-            # If both directions have long intervals, set to 'mastered'
-            if other_card.interval >= 30 and self.interval >= 30 and user_word.status == 'review':
-                user_word.status = 'mastered'
-                db.session.commit()
+        if user_word:
+            user_word.recalculate_status()
+            db.session.flush()  # Flush the status change
 
     @property
     def due_for_review(self):
@@ -639,7 +702,7 @@ class QuizDeck(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    user = db.relationship('User', backref=db.backref('quiz_decks', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('quiz_decks', lazy='dynamic', cascade='all, delete-orphan'))
     words = db.relationship('QuizDeckWord', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
     results = db.relationship('QuizResult', back_populates='deck', cascade='all, delete-orphan', lazy='dynamic')
     parent_deck = db.relationship('QuizDeck', remote_side=[id], backref='forks')
@@ -686,9 +749,13 @@ class QuizDeck(db.Model):
 
             # Add only new words (not already in this deck)
             if parent_word.word_id not in current_word_ids:
+                # Get or create UserWord for the deck owner
+                user_word = UserWord.get_or_create(self.user_id, parent_word.word_id)
+
                 new_word = QuizDeckWord(
                     deck_id=self.id,
                     word_id=parent_word.word_id,
+                    user_word_id=user_word.id,  # Link to owner's UserWord
                     custom_english=parent_word.custom_english,
                     custom_russian=parent_word.custom_russian,
                     custom_sentences=parent_word.custom_sentences,
@@ -739,6 +806,14 @@ class QuizDeckWord(db.Model):
     # Reference to existing word (optional)
     word_id = db.Column(db.Integer, db.ForeignKey('collection_words.id', ondelete='SET NULL'), nullable=True)
 
+    # Direct link to user's word learning status (for efficient statistics)
+    user_word_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user_words.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True
+    )
+
     # Custom word fields (used if word_id is NULL)
     custom_english = db.Column(db.String(200), nullable=True)
     custom_russian = db.Column(db.String(200), nullable=True)
@@ -754,10 +829,13 @@ class QuizDeckWord(db.Model):
     # Relationships
     deck = db.relationship('QuizDeck', back_populates='words')
     word = db.relationship('CollectionWords', foreign_keys=[word_id])
+    user_word = db.relationship('UserWord', backref='deck_words')
 
     __table_args__ = (
+        db.UniqueConstraint('deck_id', 'word_id', name='uix_deck_word'),
         Index('idx_deck_word_deck_id', 'deck_id'),
         Index('idx_deck_word_word_id', 'word_id'),
+        Index('idx_deck_word_user_word_id', 'user_word_id'),
     )
 
     @property

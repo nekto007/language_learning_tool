@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, desc
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text, desc
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -21,6 +21,9 @@ class User(db.Model, UserMixin):
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+
+    # Default deck for adding words to study (null = "только в изучение")
+    default_study_deck_id = Column(Integer, ForeignKey('quiz_decks.id', ondelete='SET NULL'), nullable=True)
 
     # # Связь со словами теперь через UserWord
     # words = relationship("CollectionWords",
@@ -62,30 +65,27 @@ class User(db.Model, UserMixin):
 
     def set_word_status(self, word_id, status):
         """
-        Устанавливает статус слова для пользователя.
+        Добавляет или удаляет слово из изучения.
 
-        status: целое число (0 = новое, 1 = изучаемое, 2 = на повторении, 3 = изучено)
+        status:
+            0 = удалить из изучения (удаляет UserWord и направления)
+            1 = добавить к изучению (статус 'new')
+            2 = на повторении ('review')
+            3 = уже знаю ('review' с высоким интервалом 180+ дней)
         """
+        from datetime import datetime, timezone, timedelta
         from app.study.models import UserWord, UserCardDirection
-        from app.utils.db import status_to_string, db
+        from app.utils.db import db
 
-        status_string = status_to_string(status)
+        # Маппинг числовых статусов в строковые
+        # status=3 теперь ставит 'review' вместо 'mastered'
+        status_map = {
+            1: 'new',
+            2: 'review',
+            3: 'review'  # "Уже знаю" = review с высоким интервалом
+        }
 
         user_word = UserWord.query.filter_by(user_id=self.id, word_id=word_id).first()
-
-        if not user_word and status > 0:  # Создаем запись только если статус не "новое"
-            user_word = UserWord(user_id=self.id, word_id=word_id)
-            db.session.add(user_word)
-            db.session.flush()  # Чтобы получить ID
-
-            # Создаем направления для слова, если статус требует их наличия
-            if status_string != 'mastered':  # Для 'mastered' не создаем направления
-                for direction_str in ['eng-rus', 'rus-eng']:
-                    direction = UserCardDirection(
-                        user_word_id=user_word.id,
-                        direction=direction_str
-                    )
-                    db.session.add(direction)
 
         # Если статус 0 и запись существует, удаляем её
         if status == 0 and user_word:
@@ -93,23 +93,60 @@ class User(db.Model, UserMixin):
             UserCardDirection.query.filter_by(user_word_id=user_word.id).delete()
             # Удаляем запись UserWord
             db.session.delete(user_word)
-        elif user_word:
-            # Устанавливаем статус
-            old_status = user_word.status
-            user_word.status = status_string
+            db.session.commit()
+            return None
 
-            # Если статус изменился с 'mastered' на другой, создаем направления
-            if old_status == 'mastered' and status_string != 'mastered':
-                # Проверяем, есть ли у слова направления
-                directions_count = UserCardDirection.query.filter_by(user_word_id=user_word.id).count()
-                if directions_count == 0:
-                    # Создаем направления, если их нет
-                    for direction_str in ['eng-rus', 'rus-eng']:
-                        direction = UserCardDirection(
-                            user_word_id=user_word.id,
-                            direction=direction_str
-                        )
-                        db.session.add(direction)
+        # Определяем строковый статус
+        str_status = status_map.get(status, 'new')
+
+        # Определяем, нужно ли ставить высокий интервал (для "Уже знаю")
+        is_already_known = (status == 3)
+        now = datetime.now(timezone.utc)
+
+        # Создаём новую запись, если её нет
+        if not user_word and status > 0:
+            user_word = UserWord(user_id=self.id, word_id=word_id)
+            user_word.status = str_status
+            db.session.add(user_word)
+            db.session.flush()  # Чтобы получить ID
+
+            # Создаём направления для слова
+            for direction_str in ['eng-rus', 'rus-eng']:
+                direction = UserCardDirection(
+                    user_word_id=user_word.id,
+                    direction=direction_str
+                )
+                # Для "Уже знаю" - ставим высокий интервал и статус review
+                if is_already_known:
+                    direction.state = 'review'
+                    direction.interval = UserWord.MASTERED_THRESHOLD_DAYS  # 180 дней
+                    direction.ease_factor = 2.5
+                    direction.repetitions = 10  # Имитируем много успешных повторов
+                    direction.next_review = now + timedelta(days=UserWord.MASTERED_THRESHOLD_DAYS)
+                    direction.first_reviewed = now
+                    direction.last_reviewed = now
+                db.session.add(direction)
+        elif user_word and status > 0:
+            # Обновляем статус существующей записи
+            user_word.status = str_status
+
+            # Для "Уже знаю" - обновляем интервалы на карточках
+            if is_already_known:
+                directions = UserCardDirection.query.filter_by(user_word_id=user_word.id).all()
+                for direction in directions:
+                    direction.state = 'review'
+                    direction.interval = UserWord.MASTERED_THRESHOLD_DAYS
+                    direction.ease_factor = max(direction.ease_factor, 2.5)
+                    direction.repetitions = max(direction.repetitions, 10)
+                    direction.next_review = now + timedelta(days=UserWord.MASTERED_THRESHOLD_DAYS)
+                    if not direction.first_reviewed:
+                        direction.first_reviewed = now
+                    direction.last_reviewed = now
+
+        # Пересчитываем статус UserWord на основе состояний карточек
+        if user_word:
+            db.session.flush()  # Flush card state changes so recalculate_status() sees them
+            user_word.recalculate_status()
 
         db.session.commit()
         return user_word

@@ -14,9 +14,9 @@
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <div class="d-flex gap-2">
-                        <span class="badge bg-info" id="new-cards-counter" title="Новые карточки">Новых: 0</span>
-                        <span class="badge bg-success" id="studied-cards-counter" title="Изученные карточки">Изучено: 0</span>
-                        <span class="badge bg-warning" id="review-cards-counter" title="Карточки на повторение">Повторить: 0</span>
+                        <span class="badge bg-info" id="new-cards-counter" title="Новые карточки (ещё не отвечали)">Новых: 0</span>
+                        <span class="badge bg-warning text-dark" id="studied-cards-counter" title="Карточки в процессе изучения">В изучении: 0</span>
+                        <span class="badge bg-danger" id="review-cards-counter" title="Карточки на интервальном повторении">На повтор: 0</span>
                     </div>
                     <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">Завершить</button>
                 </div>
@@ -106,6 +106,12 @@
 
                 <p id="hint-text" class="text-secondary my-4 hint-text hint-text-styles"></p>
 
+                <!-- Leech hint - shows example sentences for stuck cards -->
+                <div id="leech-hint" class="alert alert-warning mt-2" style="display: none; text-align: left; font-size: 0.9rem;">
+                    <i class="fas fa-lightbulb me-2"></i><strong>Подсказка:</strong>
+                    <div id="leech-hint-text" class="mt-1" style="white-space: pre-line;"></div>
+                </div>
+
                 <button id="show-answer-btn" class="btn btn-primary btn-lg mt-auto">
                     Показать ответ
                 </button>
@@ -152,6 +158,7 @@
                         <small class="rating-hint">Готово</small>
                     </button>
                 </div>
+            </div>
         </div>
 
         <!-- Сообщение о завершении дневного лимита -->
@@ -199,48 +206,290 @@
             </a>
         </div>
 
-        <!-- Session complete message -->
-        <div id="session-complete" class="card-container text-center" style="display: none;">
-            <h2 class="mb-4">
-                <i class="fas fa-check-circle text-success me-2"></i>
-                Сессия завершена!
-            </h2>
+        <!-- No cards / Session complete message -->
+        <div id="no-cards-in-source-message" class="session-done-screen" style="display: none;">
+            <div class="session-done-content">
+                <h1 class="session-done-title" id="no-cards-title">Ура! На сегодня всё.</h1>
 
-            <!-- XP Earned Banner -->
-            <div id="xp-earned-banner" class="mb-4 xp-banner">
-                <div class="celebration-icon-sm">⚡</div>
-                <div class="xp-banner-value">
-                    +<span id="xp-earned-amount">0</span> XP
+                <!-- Session stats -->
+                <div class="session-done-stats" id="session-stats-block">
+                    <p class="session-stats-label">В этой сессии изучено:</p>
+                    <div class="session-stats-row">
+                        <span class="stat-badge stat-new"><span id="session-new-count">0</span> новых</span>
+                        <span class="stat-badge stat-learning"><span id="session-learning-count">0</span> в изучении</span>
+                        <span class="stat-badge stat-review"><span id="session-review-count">0</span> повторений</span>
+                    </div>
                 </div>
-                <div class="xp-banner-label">
-                    Уровень <span id="current-level">1</span> • <span id="total-xp">0</span> XP
-                </div>
-            </div>
 
-            <div class="row mt-4">
-                <div class="col-md-4">
-                    <h2 id="stats-words" class="text-primary">0</h2>
-                    <p class="text-muted">Карточек изучено</p>
-                </div>
-                <div class="col-md-4">
-                    <h2 id="stats-correct" class="text-success">0</h2>
-                    <p class="text-muted">Правильных ответов</p>
-                </div>
-                <div class="col-md-4">
-                    <h2 id="stats-score" class="text-warning">0%</h2>
-                    <p class="text-muted">Результат</p>
-                </div>
-            </div>
+                <!-- Extra study offer -->
+                <p class="session-done-extra" id="extra-study-text">
+                    Если хотите заниматься вне расписания, начните
+                    <a href="#" id="extra-study-link" class="extra-study-link">допзанятие</a>.
+                </p>
 
-            <div class="mt-5">
-                <a href="{{ url_for('study.index') }}" class="btn btn-primary">
-                    Вернуться к обучению
-                </a>
-                <a href="{{ url_for('study.cards') }}" class="btn btn-outline-secondary ms-2">
-                    Новая сессия
+                <a href="{{ url_for('study.index') }}" class="session-done-back">
+                    <i class="fas fa-arrow-left me-2"></i>Вернуться к обучению
                 </a>
             </div>
         </div>
+
+        <style>
+            .session-done-screen {
+                padding: 3rem 1.5rem;
+                text-align: center;
+            }
+
+            .session-done-content {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+
+            .session-done-title {
+                font-size: 1.75rem;
+                font-weight: 600;
+                color: var(--text-primary, #1f2937);
+                margin-bottom: 1.5rem;
+            }
+
+            .session-done-stats {
+                background: var(--gray-50, #f9fafb);
+                border-radius: 12px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .session-stats-label {
+                font-size: 0.875rem;
+                color: var(--text-secondary, #6b7280);
+                margin-bottom: 0.75rem;
+            }
+
+            .session-stats-row {
+                display: flex;
+                justify-content: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+
+            .stat-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+                padding: 0.375rem 0.75rem;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: 500;
+            }
+
+            .stat-badge.stat-new {
+                background: #dbeafe;
+                color: #1d4ed8;
+            }
+
+            .stat-badge.stat-learning {
+                background: #fef3c7;
+                color: #b45309;
+            }
+
+            .stat-badge.stat-review {
+                background: #dcfce7;
+                color: #15803d;
+            }
+
+            .session-done-extra {
+                font-size: 0.95rem;
+                color: var(--text-secondary, #6b7280);
+                margin-bottom: 2rem;
+                line-height: 1.6;
+            }
+
+            .extra-study-link {
+                color: var(--primary-600, #4f46e5);
+                text-decoration: none;
+                font-weight: 500;
+            }
+
+            .extra-study-link:hover {
+                text-decoration: underline;
+            }
+
+            .session-done-back {
+                display: inline-flex;
+                align-items: center;
+                color: var(--text-secondary, #6b7280);
+                text-decoration: none;
+                font-size: 0.9rem;
+                transition: color 0.2s;
+            }
+
+            .session-done-back:hover {
+                color: var(--text-primary, #1f2937);
+            }
+        </style>
+
+        <!-- Session complete message -->
+        <div id="session-complete" class="session-done-screen" style="display: none;">
+            <div class="session-done-content">
+                <h1 class="session-done-title">Отлично! Сессия завершена.</h1>
+
+                <!-- Session stats -->
+                <div class="session-done-stats">
+                    <p class="session-stats-label">В этой сессии изучено:</p>
+                    <div class="session-stats-row">
+                        <span class="stat-badge stat-total"><span id="stats-words">0</span> карточек</span>
+                        <span class="stat-badge stat-correct"><span id="stats-correct">0</span> знаю</span>
+                        <span class="stat-badge stat-score"><span id="stats-score">0</span>%</span>
+                    </div>
+                </div>
+
+                <!-- XP earned -->
+                <div class="session-xp-earned">
+                    <span class="xp-icon">⚡</span>
+                    <span>+<span id="xp-earned-amount">0</span> XP</span>
+                    <span class="xp-level">(уровень <span id="current-level">1</span>)</span>
+                </div>
+                <span id="total-xp" style="display:none;">0</span>
+
+                <!-- Extra study offer -->
+                <p class="session-done-extra" id="session-extra-study-text" style="display: none;">
+                    Если хотите продолжить, начните
+                    <a href="#" id="session-extra-study-link" class="extra-study-link">допзанятие</a>.
+                </p>
+
+                <a href="{{ url_for('study.index') }}" class="session-done-back">
+                    <i class="fas fa-arrow-left me-2"></i>Вернуться к обучению
+                </a>
+            </div>
+        </div>
+
+        <style>
+            .session-done-screen {
+                padding: 3rem 1.5rem;
+                text-align: center;
+            }
+
+            .session-done-content {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+
+            .session-done-title {
+                font-size: 1.75rem;
+                font-weight: 600;
+                color: var(--text-primary, #1f2937);
+                margin-bottom: 1.5rem;
+            }
+
+            .session-done-stats {
+                background: var(--gray-50, #f9fafb);
+                border-radius: 12px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 1rem;
+            }
+
+            .session-stats-label {
+                font-size: 0.875rem;
+                color: var(--text-secondary, #6b7280);
+                margin-bottom: 0.75rem;
+            }
+
+            .session-stats-row {
+                display: flex;
+                justify-content: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+
+            .stat-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+                padding: 0.375rem 0.75rem;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: 500;
+            }
+
+            .stat-badge.stat-new {
+                background: #dbeafe;
+                color: #1d4ed8;
+            }
+
+            .stat-badge.stat-learning {
+                background: #fef3c7;
+                color: #b45309;
+            }
+
+            .stat-badge.stat-review {
+                background: #dcfce7;
+                color: #15803d;
+            }
+
+            .stat-badge.stat-total {
+                background: #e0e7ff;
+                color: #4338ca;
+            }
+
+            .stat-badge.stat-correct {
+                background: #dcfce7;
+                color: #15803d;
+            }
+
+            .stat-badge.stat-score {
+                background: #fef3c7;
+                color: #b45309;
+            }
+
+            .session-xp-earned {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.375rem;
+                font-size: 1rem;
+                font-weight: 600;
+                color: var(--primary-600, #4f46e5);
+                margin-bottom: 1.5rem;
+            }
+
+            .session-xp-earned .xp-icon {
+                font-size: 1.1rem;
+            }
+
+            .session-xp-earned .xp-level {
+                font-weight: 400;
+                color: var(--text-secondary, #6b7280);
+                font-size: 0.875rem;
+            }
+
+            .session-done-extra {
+                font-size: 0.95rem;
+                color: var(--text-secondary, #6b7280);
+                margin-bottom: 2rem;
+                line-height: 1.6;
+            }
+
+            .extra-study-link {
+                color: var(--primary-600, #4f46e5);
+                text-decoration: none;
+                font-weight: 500;
+            }
+
+            .extra-study-link:hover {
+                text-decoration: underline;
+            }
+
+            .session-done-back {
+                display: inline-flex;
+                align-items: center;
+                color: var(--text-secondary, #6b7280);
+                text-decoration: none;
+                font-size: 0.9rem;
+                transition: color 0.2s;
+            }
+
+            .session-done-back:hover {
+                color: var(--text-primary, #1f2937);
+            }
+        </style>
     </div>
 </div>
 
@@ -279,6 +528,7 @@
             correct: 0,
             incorrect: 0,
             new_cards: 0,
+            learning_cards: 0,
             review_cards: 0
         };
         let hintTimeout = null;
@@ -286,6 +536,33 @@
         // Anti-repeat: track recently shown card IDs
         const recentCardIds = [];
         const RECENT_CARDS_LIMIT = 5;  // Keep last 5 card IDs to exclude
+
+        // Track if more cards are available (for extra study option)
+        let hasMoreNewCards = false;
+        let hasMoreReviewCards = false;
+
+        // Fun completion messages
+        const completionMessages = [
+            'Done ✅',
+            'Готово.',
+            'Красава.',
+            'Good job.',
+            'Nice.',
+            'Keep going.',
+            'Едем дальше.',
+            'Mission complete ✅',
+            'Brain gains 💪',
+            'Vocabulary +1. Легенда.',
+            'Карточки? Разобрал(а).',
+            'Ты держишь темп — это круто.',
+            'Маленькая победа дня ✅',
+            'Твой английский растёт 🌱',
+            'Flipped. Learned. Dominated.'
+        ];
+
+        function getRandomCompletionMessage() {
+            return completionMessages[Math.floor(Math.random() * completionMessages.length)];
+        }
 
         // State configuration for display
         const STATE_CONFIG = {
@@ -421,6 +698,8 @@
         const exampleText = document.getElementById('example-text');
         const exampleTranslation = document.getElementById('example-translation');
         const hintText = document.getElementById('hint-text');
+        const leechHint = document.getElementById('leech-hint');
+        const leechHintText = document.getElementById('leech-hint-text');
         const cardCounter = document.getElementById('card-counter');
         const correctCounter = document.getElementById('correct-counter');
         const incorrectCounter = document.getElementById('incorrect-counter');
@@ -503,6 +782,12 @@
                     return [];
                 }
 
+                // Store has_more flags for extra study option
+                if (data.stats) {
+                    hasMoreNewCards = data.stats.has_more_new || false;
+                    hasMoreReviewCards = data.stats.has_more_reviews || false;
+                }
+
                 // Применяем фильтрацию к полученным карточкам
                 const filteredData = data.items.filter(card => card.translation && card.translation.trim() !== '');
 
@@ -517,8 +802,7 @@
         }
 
         function showNoCardsInSourceMessage(stats) {
-
-            // Сначала скрываем все контейнеры
+            // Скрываем всё лишнее
             loadingSpinner.style.display = 'none';
             if (cardFront) cardFront.style.display = 'none';
             if (cardBack) cardBack.style.display = 'none';
@@ -526,83 +810,74 @@
             if (sessionComplete) sessionComplete.style.display = 'none';
             if (dailyLimitMessage) dailyLimitMessage.style.display = 'none';
 
-            // Показываем flashcardView, так как в нем находится наше сообщение
+            // Скрываем прогресс-бар
+            const progressBar = document.querySelector('.card.shadow-sm.mb-4');
+            if (progressBar) progressBar.style.display = 'none';
+
+            // Показываем flashcardView
             flashcardView.style.display = 'block';
 
-            // Находим элемент сообщения
             const noCardsInSourceMessage = document.getElementById('no-cards-in-source-message');
-
-            if (noCardsInSourceMessage) {
-
-                // Обновляем статистику
-                const availableNewCards = document.getElementById('available-new-cards');
-                if (availableNewCards) {
-                    const remaining = stats.new_cards_limit - stats.new_cards_today;
-                    availableNewCards.textContent = `${remaining} / ${stats.new_cards_limit}`;
-                }
-
-                const availableReviews = document.getElementById('available-reviews');
-                if (availableReviews) {
-                    const remaining = stats.reviews_limit - stats.reviews_today;
-                    availableReviews.textContent = `${remaining} / ${stats.reviews_limit}`;
-                }
-
-                // Показываем сообщение и используем setTimeout для небольшой задержки
-                // чтобы убедиться, что DOM полностью обновлен
-                setTimeout(() => {
-                    noCardsInSourceMessage.style.display = 'block';
-
-                    // Дополнительная защита: повторно проверим через 100мс
-                    setTimeout(() => {
-                        if (noCardsInSourceMessage.style.display !== 'block') {
-                            noCardsInSourceMessage.style.display = 'block';
-                        }
-                    }, 100);
-                }, 50);
-            } else {
-                // Если элемент не найден, показываем сообщение в noCardsMessage
-                if (noCardsMessage) {
-                    noCardsMessage.innerHTML = `
-                        <h4>Нет карточек в этом разделе</h4>
-                        <p>В выбранном источнике нет доступных слов для изучения.</p>
-                        <div class="alert alert-info my-3">
-                            <p>У вас ещё есть дневной лимит. Попробуйте выбрать другой источник карточек или начните изучать новые слова.</p>
-                        </div>
-                        <div class="mt-4">
-                            <a href="{{ url_for('study.cards', word_source='new') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i> Изучить новые слова
-                            </a>
-                            <a href="{{ url_for('study.cards', word_source='all') }}" class="btn btn-outline-primary ms-2">
-                                <i class="fas fa-random me-2"></i> Смешанный режим
-                            </a>
-                            <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
-                                Вернуться к обучению
-                            </a>
-                        </div>
-                    `;
-
-                    // Используем setTimeout для показа, чтобы избежать конфликтов с другим кодом
-                    setTimeout(() => {
-                        noCardsMessage.style.display = 'block';
-                    }, 5);
-                }
+            if (!noCardsInSourceMessage) {
+                window.noCardsMessageShown = true;
+                return;
             }
 
-            // Предотвращаем дальнейшую инициализацию карточек
-            // Это важно! Добавляем флаг, что мы уже показали сообщение
+            // Определяем состояние
+            const hasMoreCards = stats.has_more_new || stats.has_more_reviews;
+
+            // Рандомный заголовок
+            const title = document.getElementById('no-cards-title');
+            if (title) {
+                title.textContent = getRandomCompletionMessage();
+            }
+
+            // Обновляем статистику сессии
+            const sessionNewCount = document.getElementById('session-new-count');
+            const sessionLearningCount = document.getElementById('session-learning-count');
+            const sessionReviewCount = document.getElementById('session-review-count');
+
+            if (sessionNewCount) sessionNewCount.textContent = stats.new_cards_today || 0;
+            if (sessionLearningCount) sessionLearningCount.textContent = sessionStats.learning_cards || 0;
+            if (sessionReviewCount) sessionReviewCount.textContent = stats.reviews_today || 0;
+
+            // Показываем/скрываем предложение допзанятия
+            const extraStudyText = document.getElementById('extra-study-text');
+            const extraStudyLink = document.getElementById('extra-study-link');
+
+            if (hasMoreCards && extraStudyText && extraStudyLink) {
+                extraStudyText.style.display = 'block';
+                // Строим URL
+                let extraUrl = deckId
+                    ? `/study/cards/deck/${deckId}?extra_study=true`
+                    : '{{ url_for("study.cards") }}?extra_study=true';
+                extraStudyLink.href = extraUrl;
+            } else if (extraStudyText) {
+                extraStudyText.style.display = 'none';
+            }
+
+            // Показываем экран
+            noCardsInSourceMessage.style.display = 'block';
+
             window.noCardsMessageShown = true;
         }
 
 
         // Create alternating cards (eng-rus, rus-eng) from original cards
+        // Shuffle only first N cards to preserve SRS priority for later cards
+        const SHUFFLE_WINDOW = 30;  // Shuffle only first 30 cards
+
         function createAlternatingCards(originalCards) {
             if (!originalCards || originalCards.length === 0) {
                 return [];
             }
 
             // API already returns cards with correct directions - just pass them through
-            // No need to create additional directions, that would cause duplicates
-            return shuffleCards([...originalCards]);
+            // Shuffle only first SHUFFLE_WINDOW cards to preserve SRS timeliness
+            const cardsToShuffle = originalCards.slice(0, SHUFFLE_WINDOW);
+            const remainingCards = originalCards.slice(SHUFFLE_WINDOW);
+
+            return [...shuffleCards(cardsToShuffle), ...remainingCards];
         }
 
         // Shuffle cards while keeping same words apart from each other
@@ -716,6 +991,7 @@
                 }
 
                 if (!originalCards || originalCards.length === 0) {
+                    showNoCardsMessage();
                     return;
                 }
 
@@ -723,33 +999,44 @@
                 cards = createAlternatingCards(originalCards);
 
                 if (!cards || cards.length === 0) {
+                    showNoCardsMessage();
                     return;
                 }
 
-                // Count new and review cards
+                // Count cards by state:
+                // - Новых = state === 'new' (never answered)
+                // - В изучении = state === 'learning' OR 'relearning' (in learning mode)
+                // - На повтор = state === 'review' (scheduled interval review)
                 let newCount = 0;
+                let learningCount = 0;
                 let reviewCount = 0;
-                
+
                 for (let card of cards) {
-                    if (card.is_new) {
+                    if (card.state === 'new') {
+                        // Card never answered
                         newCount++;
-                    } else {
+                    } else if (card.state === 'learning' || card.state === 'relearning') {
+                        // Card in learning/relearning mode
+                        learningCount++;
+                    } else if (card.state === 'review') {
+                        // Card on interval review
                         reviewCount++;
                     }
                 }
-                
+
                 sessionStats.new_cards = newCount;
+                sessionStats.learning_cards = learningCount;
                 sessionStats.review_cards = reviewCount;
-                
+
                 // Update counters
                 if (newCardsCounter) {
                     newCardsCounter.textContent = `Новых: ${newCount}`;
                 }
                 if (studiedCardsCounter) {
-                    studiedCardsCounter.textContent = `Изучено: 0`;
+                    studiedCardsCounter.textContent = `В изучении: ${learningCount}`;
                 }
                 if (reviewCardsCounter) {
-                    reviewCardsCounter.textContent = `Повторить: ${reviewCount}`;
+                    reviewCardsCounter.textContent = `На повтор: ${reviewCount}`;
                 }
 
                 // Update UI
@@ -774,7 +1061,7 @@
             }
 
             if (index >= cards.length) {
-                completeSession();
+                completeSession(hasMoreNewCards, hasMoreReviewCards);
                 return;
             }
 
@@ -817,6 +1104,15 @@
             hintText.textContent = hint;
             // Скрываем элемент если подсказка пустая
             hintText.style.display = hint ? '' : 'none';
+
+            // Leech hint - показываем примеры для "залипших" карточек (6+ провалов)
+            if (card.is_leech && card.leech_hint) {
+                leechHint.style.display = 'block';
+                leechHintText.textContent = card.leech_hint;
+            } else {
+                leechHint.style.display = 'none';
+                leechHintText.textContent = '';
+            }
 
             if (hasAudio && playAudio) {
                 // Настраиваем аудио источник
@@ -975,7 +1271,8 @@
                         quality: rating,  // Unified 1-2-3 scale (backward compatible)
                         session_id: sessionId,
                         is_new: card.is_new,
-                        deck_id: deckId  // For per-deck limit checking
+                        deck_id: deckId,  // For per-deck limit checking
+                        extra_study: new URLSearchParams(window.location.search).get('extra_study') === 'true'
                     }),
                 });
 
@@ -1028,39 +1325,64 @@
 
                 // Requeue the card if needed
                 if (shouldRequeue && requeuePosition !== null) {
+                    // Track state transition for counter update
+                    const oldState = card.state;
+                    const newState = data.state || card.state;
+
                     // Update card with new state from server
                     const cardCopy = {
                         ...card,
                         isRequeue: true,
-                        state: data.state || card.state,
+                        state: newState,
                         step_index: data.step_index !== undefined ? data.step_index : card.step_index,
                         lapses: data.lapses !== undefined ? data.lapses : card.lapses
                     };
                     // Fixed: removed +1 that caused cards to appear sooner than intended
                     const insertAt = Math.min(currentCardIndex + requeuePosition, cards.length);
                     cards.splice(insertAt, 0, cardCopy);
-                    console.log(`Card requeued at position +${requeuePosition}, state: ${data.state} (session attempt ${sessionAttempts[cardKey]})`);
+                    console.log(`Card requeued at position +${requeuePosition}, state: ${newState} (session attempt ${sessionAttempts[cardKey]})`);
+
+                    // Update counters when card transitions to learning/relearning state
+                    if (oldState === 'new' && (newState === 'learning' || newState === 'relearning')) {
+                        // New card started learning
+                        sessionStats.learning_cards++;
+                        if (studiedCardsCounter) {
+                            studiedCardsCounter.textContent = `В изучении: ${sessionStats.learning_cards}`;
+                        }
+                    } else if (oldState === 'review' && newState === 'relearning') {
+                        // Review card failed, now relearning
+                        sessionStats.learning_cards++;
+                        if (studiedCardsCounter) {
+                            studiedCardsCounter.textContent = `В изучении: ${sessionStats.learning_cards}`;
+                        }
+                    }
                 }
 
                 // Update session stats
                 sessionStats.total++;
 
-                // Update simplified counters
-                if (card.is_new && !card.isRequeue) {
-                    sessionStats.new_cards--;
-                    if (newCardsCounter) {
-                        newCardsCounter.textContent = `Новых: ${Math.max(0, sessionStats.new_cards)}`;
+                // Update counters (only for non-requeued cards)
+                // Logic matches initialization: new / learning+relearning / review
+                if (!card.isRequeue) {
+                    if (card.state === 'new') {
+                        // Card never answered before
+                        sessionStats.new_cards--;
+                        if (newCardsCounter) {
+                            newCardsCounter.textContent = `Новых: ${Math.max(0, sessionStats.new_cards)}`;
+                        }
+                    } else if (card.state === 'learning' || card.state === 'relearning') {
+                        // Card in learning/relearning mode
+                        sessionStats.learning_cards--;
+                        if (studiedCardsCounter) {
+                            studiedCardsCounter.textContent = `В изучении: ${Math.max(0, sessionStats.learning_cards)}`;
+                        }
+                    } else if (card.state === 'review') {
+                        // Card on interval review
+                        sessionStats.review_cards--;
+                        if (reviewCardsCounter) {
+                            reviewCardsCounter.textContent = `На повтор: ${Math.max(0, sessionStats.review_cards)}`;
+                        }
                     }
-                } else if (!card.isRequeue) {
-                    sessionStats.review_cards--;
-                    if (reviewCardsCounter) {
-                        reviewCardsCounter.textContent = `Повторить: ${Math.max(0, sessionStats.review_cards)}`;
-                    }
-                }
-
-                // Update studied cards counter
-                if (studiedCardsCounter) {
-                    studiedCardsCounter.textContent = `Изучено: ${sessionStats.total}`;
                 }
 
                 // Move to next card
@@ -1073,13 +1395,16 @@
         }
 
         // Complete the study session
-        async function completeSession() {
+        async function completeSession(hasMoreNew = false, hasMoreReviews = false) {
             try {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta && csrfMeta.content;
+
                 const response = await fetch('/study/api/complete-session', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
+                        ...(csrfToken && { 'X-CSRFToken': csrfToken })
                     },
                     body: JSON.stringify({
                         session_id: sessionId
@@ -1089,27 +1414,58 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Hide flashcard and show completion screen
-                    cardFront.style.display = 'none';
-                    cardBack.style.display = 'none';
-                    sessionComplete.style.display = 'flex';
+                    // Hide progress bar and cards
+                    const progressBar = document.querySelector('.card.shadow-sm.mb-4');
+                    if (progressBar) progressBar.style.display = 'none';
+                    if (cardFront) cardFront.style.display = 'none';
+                    if (cardBack) cardBack.style.display = 'none';
+                    if (noCardsMessage) noCardsMessage.style.display = 'none';
+                    if (dailyLimitMessage) dailyLimitMessage.style.display = 'none';
+                    const noCardsInSource = document.getElementById('no-cards-in-source-message');
+                    if (noCardsInSource) noCardsInSource.style.display = 'none';
 
-                    // Update stats display
-                    statsWords.textContent = data.stats.words_studied;
-                    statsCorrect.textContent = data.stats.correct;
-                    statsScore.textContent = data.stats.percentage + '%';
+                    // Show completion screen
+                    flashcardView.style.display = 'block';
+                    sessionComplete.style.display = 'block';
 
-                    // Update XP display
+                    // Set random completion message
+                    const titleEl = sessionComplete.querySelector('.session-done-title');
+                    if (titleEl) {
+                        titleEl.textContent = getRandomCompletionMessage();
+                    }
+
+                    // Update stats
+                    const wordsEl = document.getElementById('stats-words');
+                    const correctEl = document.getElementById('stats-correct');
+                    const scoreEl = document.getElementById('stats-score');
+
+                    if (wordsEl) wordsEl.textContent = data.stats.words_studied || 0;
+                    if (correctEl) correctEl.textContent = data.stats.correct || 0;
+                    if (scoreEl) scoreEl.textContent = data.stats.percentage || 0;
+
+                    // Update XP
                     if (data.xp_earned) {
                         document.getElementById('xp-earned-amount').textContent = data.xp_earned;
                         document.getElementById('current-level').textContent = data.level || 1;
                         document.getElementById('total-xp').textContent = data.total_xp || 0;
                     }
+
+                    // Show extra study option if more cards available
+                    if (hasMoreNew || hasMoreReviews) {
+                        const extraText = document.getElementById('session-extra-study-text');
+                        const extraLink = document.getElementById('session-extra-study-link');
+                        if (extraText && extraLink) {
+                            extraText.style.display = 'block';
+                            let extraUrl = deckId
+                                ? `/study/cards/deck/${deckId}?extra_study=true`
+                                : '{{ url_for("study.cards") }}?extra_study=true';
+                            extraLink.href = extraUrl;
+                        }
+                    }
                 }
 
             } catch (error) {
                 console.error('Error completing session:', error);
-                // На случай ошибки всё равно перенаправим на главную страницу
                 window.location.href = '{{ url_for("study.index") }}';
             }
         }
@@ -1146,7 +1502,7 @@
         endSessionBtn.addEventListener('click', function() {
             if (confirm('Вы уверены, что хотите завершить сессию?')) {
                 try {
-                    completeSession();
+                    completeSession(hasMoreNewCards, hasMoreReviewCards);
                 } catch(e) {
                     console.error('Error in complete session:', e);
                     // Если что-то пошло не так, просто перенаправим на главную

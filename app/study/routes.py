@@ -1,10 +1,10 @@
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 from sqlalchemy.orm import joinedload
 
 from app import csrf
@@ -20,6 +20,7 @@ from app.study.services import (
     DeckService, SRSService, SessionService,
     QuizService, GameService, StatsService, CollectionTopicService
 )
+from app.srs.stats_service import srs_stats_service
 
 study = Blueprint('study', __name__, template_folder='templates')
 
@@ -53,6 +54,9 @@ def index():
     """Упрощенная панель изучения - коллекции и колоды с минимальными кликами"""
     from app.study.models import QuizDeck, QuizResult
 
+    # Синхронизируем мастер-колоды (Все мои слова, Выученные слова)
+    sync_master_decks(current_user.id)
+
     # Статистика по SRS словам
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
@@ -61,16 +65,19 @@ def index():
         UserCardDirection.next_review <= datetime.now(timezone.utc)
     ).count()
 
-    total_items = UserWord.query.filter_by(
-        user_id=current_user.id
-    ).filter(
-        UserWord.status != 'mastered'
+    # Mastered = review status + min_interval >= 180 days
+    mastered_count = db.session.query(func.count(UserWord.id)).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status == 'review'
+    ).join(
+        UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+    ).group_by(UserWord.id).having(
+        func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
     ).count()
 
-    mastered_count = UserWord.query.filter_by(
-        user_id=current_user.id,
-        status='mastered'
-    ).count()
+    # Total items = all words that are not mastered (still being learned/reviewed)
+    all_words_count = UserWord.query.filter_by(user_id=current_user.id).count()
+    total_items = all_words_count - mastered_count
 
     # Мои колоды
     my_decks = QuizDeck.query.filter_by(
@@ -104,62 +111,90 @@ def index():
             ).all()
             user_words_dict = {uw.word_id: uw for uw in user_words}
 
-    # Предзагружаем review count одним запросом
-    now = datetime.now(timezone.utc)
-    review_counts = {}
+    # Предзагружаем min_interval для определения mastered (review + interval >= 180)
+    min_intervals = {}
     if user_words_dict:
         user_word_ids = [uw.id for uw in user_words_dict.values()]
-        review_data = db.session.query(
+        interval_data = db.session.query(
             UserWord.word_id,
-            func.count(UserCardDirection.id).label('review_count')
+            func.min(UserCardDirection.interval).label('min_interval')
         ).join(
             UserCardDirection, UserCardDirection.user_word_id == UserWord.id
         ).filter(
-            UserWord.id.in_(user_word_ids),
-            UserCardDirection.next_review <= now
+            UserWord.id.in_(user_word_ids)
         ).group_by(UserWord.word_id).all()
 
-        review_counts = {word_id: count for word_id, count in review_data}
+        min_intervals = {word_id: min_int for word_id, min_int in interval_data}
 
-    # Добавляем статистику для каждой колоды
+    # Добавляем статистику для каждой колоды (теперь по КАРТОЧКАМ, не словам)
     for deck in my_decks:
         # Получаем слова из предзагруженного словаря
         deck_words_list = deck_words_dict.get(deck.id, [])
         deck_word_ids = [dw.word_id for dw in deck_words_list if dw.word_id]
 
         if deck_word_ids:
-            new_count = 0
-            learning_count = 0
-            mastered_count_deck = 0
-            review_count = 0
+            # Базовый фильтр для карточек этой колоды
+            base_filter = and_(
+                UserWord.user_id == current_user.id,
+                UserWord.word_id.in_(deck_word_ids)
+            )
 
-            for word_id in deck_word_ids:
-                if word_id in user_words_dict:
-                    uw = user_words_dict[word_id]
-                    if uw.status == 'new':
-                        learning_count += 1  # 'new' в UserWord = начал изучать
-                    elif uw.status == 'learning':
-                        learning_count += 1
-                    elif uw.status == 'review':
-                        learning_count += 1  # 'review' тоже в процессе изучения
-                    elif uw.status == 'mastered':
-                        mastered_count_deck += 1
+            # Считаем КАРТОЧКИ по их state
+            # NEW: state='new' или state is NULL
+            new_count = db.session.query(func.count(UserCardDirection.id)).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                base_filter,
+                or_(UserCardDirection.state == 'new', UserCardDirection.state.is_(None))
+            ).scalar() or 0
 
-                    # Подсчет слов к повторению (due for review)
-                    if word_id in review_counts and review_counts[word_id] > 0:
-                        review_count += 1  # Считаем слова, а не направления
-                else:
-                    new_count += 1
+            # LEARNING: state='learning' или 'relearning'
+            learning_count = db.session.query(func.count(UserCardDirection.id)).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                base_filter,
+                UserCardDirection.state.in_(['learning', 'relearning'])
+            ).scalar() or 0
+
+            # REVIEW (not mastered): state='review' и interval < 180
+            review_count = db.session.query(func.count(UserCardDirection.id)).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                base_filter,
+                UserCardDirection.state == 'review',
+                or_(
+                    UserCardDirection.interval.is_(None),
+                    UserCardDirection.interval < UserWord.MASTERED_THRESHOLD_DAYS
+                )
+            ).scalar() or 0
+
+            # MASTERED: state='review' и interval >= 180
+            mastered_count_deck = db.session.query(func.count(UserCardDirection.id)).join(
+                UserWord, UserCardDirection.user_word_id == UserWord.id
+            ).filter(
+                base_filter,
+                UserCardDirection.state == 'review',
+                UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS
+            ).scalar() or 0
+
+            # Добавляем карточки для слов без UserWord записи
+            # Каждое такое слово = 2 потенциальные карточки (eng-rus + rus-eng)
+            words_with_userword = set(uw.word_id for uw in user_words_dict.values() if uw.word_id in deck_word_ids)
+            words_without_userword = len([wid for wid in deck_word_ids if wid not in words_with_userword])
+            new_count += words_without_userword * 2  # 2 направления на слово
 
             deck.new_count = new_count
             deck.learning_count = learning_count
-            deck.mastered_count = mastered_count_deck
             deck.review_count = review_count
+            deck.mastered_count = mastered_count_deck
+            # Всего карточек = существующие + потенциальные новые
+            deck.total_cards = new_count + learning_count + review_count + mastered_count_deck
         else:
             deck.new_count = 0
             deck.learning_count = 0
             deck.review_count = 0
             deck.mastered_count = 0
+            deck.total_cards = 0
 
     # Публичные колоды - топ 12 по популярности
     public_decks = QuizDeck.query.filter(
@@ -456,8 +491,10 @@ def get_study_items():
             UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
-        new_cards_limit = settings.new_words_per_day
-        reviews_limit = settings.reviews_per_day
+        # Use adaptive limits based on accuracy and backlog
+        adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
+        new_cards_limit = adaptive_new
+        reviews_limit = adaptive_reviews
 
     # Check if limits reached
     new_cards_limit_reached = new_cards_today >= new_cards_limit
@@ -487,13 +524,19 @@ def get_study_items():
         new_limit = max(0, new_cards_limit - new_cards_today)
         review_limit = max(0, reviews_limit - reviews_today)
 
-    remaining = review_limit
+    # Track remaining slots separately for new cards and reviews
+    remaining_new = new_limit
+    remaining_reviews = review_limit
 
     # Helper function to format card for response
     def format_card(direction, word, state_type):
         audio_url = get_audio_url_for_word(word)
         state = direction.state or CardState.NEW.value
         is_new = state == CardState.NEW.value
+        is_leech = direction.is_leech
+
+        # For leech cards, provide hint (example sentences) to help the user
+        leech_hint = word.sentences if is_leech and word.sentences else None
 
         if direction.direction == 'eng-rus':
             return {
@@ -507,7 +550,9 @@ def get_study_items():
                 'is_new': is_new,
                 'state': state,
                 'step_index': direction.step_index or 0,
-                'lapses': direction.lapses or 0
+                'lapses': direction.lapses or 0,
+                'is_leech': is_leech,
+                'leech_hint': leech_hint
             }
         else:
             return {
@@ -521,11 +566,30 @@ def get_study_items():
                 'is_new': is_new,
                 'state': state,
                 'step_index': direction.step_index or 0,
-                'lapses': direction.lapses or 0
+                'lapses': direction.lapses or 0,
+                'is_leech': is_leech,
+                'leech_hint': leech_hint
             }
 
+    # Grace period for LEARNING/RELEARNING cards - include cards due within next 15 minutes
+    # This allows users to study cards in the same session even if they're not due yet
+    learning_grace_period = timedelta(minutes=15)
+
+    # End of today - for REVIEW cards, show all cards due today regardless of specific hour
+    # This is important for users who check once daily - they should see all cards due "today"
+    end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
     # Base query for due cards with buried filter, anti-repeat, and eager loading
-    def base_due_query():
+    def base_due_query(include_learning_grace=False, include_today=False):
+        # For LEARNING/RELEARNING cards: include cards due within grace period
+        # For REVIEW cards (include_today=True): include all cards due today
+        if include_today:
+            due_filter = UserCardDirection.next_review <= end_of_today
+        elif include_learning_grace:
+            due_filter = UserCardDirection.next_review <= (now + learning_grace_period)
+        else:
+            due_filter = UserCardDirection.next_review <= now
+
         query = UserCardDirection.query \
             .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
             .options(
@@ -533,8 +597,8 @@ def get_study_items():
             ) \
             .filter(
                 UserWord.user_id == current_user.id,
-                UserWord.status.in_(['learning', 'review']),
-                UserCardDirection.next_review <= now,
+                UserWord.status.in_(['new', 'learning', 'review']),  # Include 'new' status words
+                due_filter,
                 # Filter out buried cards
                 or_(
                     UserCardDirection.buried_until.is_(None),
@@ -548,52 +612,56 @@ def get_study_items():
             query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
         return query
 
-    # PRIORITY 1: RELEARNING cards (due now)
-    if remaining > 0:
-        relearning_cards = base_due_query().filter(
+    # PRIORITY 1: RELEARNING cards (with grace period) - counts against review limit
+    if remaining_reviews > 0:
+        relearning_cards = base_due_query(include_learning_grace=True).filter(
             UserCardDirection.state == CardState.RELEARNING.value
         ).order_by(
             UserCardDirection.next_review
-        ).limit(remaining).all()
+        ).limit(remaining_reviews).all()
 
         for direction in relearning_cards:
             word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'relearning'))
-        remaining -= len(relearning_cards)
+        remaining_reviews -= len(relearning_cards)
 
-    # PRIORITY 2: LEARNING cards (due now)
-    if remaining > 0:
-        learning_cards = base_due_query().filter(
+    # PRIORITY 2: LEARNING cards (with grace period) - counts against review limit
+    if remaining_reviews > 0:
+        learning_cards = base_due_query(include_learning_grace=True).filter(
             UserCardDirection.state == CardState.LEARNING.value
         ).order_by(
             UserCardDirection.next_review
-        ).limit(remaining).all()
+        ).limit(remaining_reviews).all()
 
         for direction in learning_cards:
             word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'learning'))
-        remaining -= len(learning_cards)
+        remaining_reviews -= len(learning_cards)
 
     # PRIORITY 2.5: NEW state cards (cards added to learning but not yet started)
     # These are cards with state='new' that already have UserWord entries
-    if remaining > 0:
-        new_state_cards = base_due_query().filter(
+    # Counts against NEW cards limit, not review limit!
+    # Use include_today=True - show all NEW state cards due today
+    if remaining_new > 0:
+        new_state_cards = base_due_query(include_today=True).filter(
             UserCardDirection.state == CardState.NEW.value
         ).order_by(
             UserCardDirection.next_review
-        ).limit(remaining).all()
+        ).limit(remaining_new).all()
 
         for direction in new_state_cards:
             word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'new'))
-        remaining -= len(new_state_cards)
+        remaining_new -= len(new_state_cards)
 
-    # PRIORITY 3: REVIEW cards (due now)
-    if remaining > 0:
-        review_cards = base_due_query().filter(
+    # PRIORITY 3: REVIEW cards (due today) - counts against review limit
+    # Use include_today=True - show all REVIEW cards due today regardless of specific hour
+    # This is important for users who check once daily
+    if remaining_reviews > 0:
+        review_cards = base_due_query(include_today=True).filter(
             or_(
                 UserCardDirection.state == CardState.REVIEW.value,
                 # Legacy cards without state but with repetitions are REVIEW
@@ -601,17 +669,18 @@ def get_study_items():
             )
         ).order_by(
             UserCardDirection.next_review
-        ).limit(remaining).all()
+        ).limit(remaining_reviews).all()
 
         for direction in review_cards:
             word = direction.user_word.word  # Already loaded via joinedload
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'review'))
 
-    # PRIORITY 4: NEW cards
+    # PRIORITY 4: NEW cards (words without UserWord record yet)
     # Each word creates 2 cards (eng-rus + rus-eng), so we need half the words
-    if new_limit > 0:
-        words_to_fetch = (new_limit + 1) // 2  # Round up to get enough cards
+    # Use remaining_new which accounts for NEW state cards already added
+    if remaining_new > 0:
+        words_to_fetch = (remaining_new + 1) // 2  # Round up to get enough cards
 
         new_words_query = db.session.query(CollectionWords).outerjoin(
             UserWord,
@@ -625,25 +694,57 @@ def get_study_items():
         if deck_word_ids is not None:
             new_words_query = new_words_query.filter(CollectionWords.id.in_(deck_word_ids))
 
+        # Sort by usefulness: frequency first, then level, then random for ties
         new_words = new_words_query.order_by(
-            CollectionWords.id.desc()
+            CollectionWords.frequency_rank.asc(),  # Most frequent words first
+            CollectionWords.level.asc(),           # Then by level (A1 → C2)
+            func.random()                          # Random for same rank
         ).limit(words_to_fetch).all()
+
+        # Filter out similar words (same base_word_id) in one session
+        selected_base_ids = set()
+        filtered_words = []
+        for word in new_words:
+            base = word.base_word_id
+            if base and base in selected_base_ids:
+                continue  # Skip - already have a word with same base
+            filtered_words.append(word)
+            if base:
+                selected_base_ids.add(base)
+        new_words = filtered_words
+
+        # Direction balance: 70% rus→eng (production), 30% eng→rus (recognition)
+        RUS_ENG_PROBABILITY = 0.7
 
         new_cards_added = 0
         for word in new_words:
-            if new_cards_added >= new_limit:
+            if new_cards_added >= remaining_new:
                 break
 
             audio_url = get_audio_url_for_word(word)
 
-            # Add eng-rus direction
-            if new_cards_added < new_limit:
+            # Determine direction order based on probability
+            # 70% chance rus-eng first (production), 30% eng-rus first (recognition)
+            if random.random() < RUS_ENG_PROBABILITY:
+                directions = [
+                    ('rus-eng', word.russian_word, word.english_word),
+                    ('eng-rus', word.english_word, word.russian_word)
+                ]
+            else:
+                directions = [
+                    ('eng-rus', word.english_word, word.russian_word),
+                    ('rus-eng', word.russian_word, word.english_word)
+                ]
+
+            for direction, front, back in directions:
+                if new_cards_added >= remaining_new:
+                    break
                 result_items.append({
                     'id': None,
                     'word_id': word.id,
-                    'direction': 'eng-rus',
-                    'word': word.english_word,
-                    'translation': word.russian_word,
+                    'direction': direction,
+                    'word': front,
+                    'translation': back,
                     'examples': word.sentences,
                     'audio_url': audio_url,
                     'is_new': True,
@@ -653,22 +754,40 @@ def get_study_items():
                 })
                 new_cards_added += 1
 
-            # Add rus-eng direction
-            if new_cards_added < new_limit:
-                result_items.append({
-                    'id': None,
-                    'word_id': word.id,
-                    'direction': 'rus-eng',
-                    'word': word.russian_word,
-                    'translation': word.english_word,
-                    'examples': word.sentences,
-                    'audio_url': audio_url,
-                    'is_new': True,
-                    'state': CardState.NEW.value,
-                    'step_index': 0,
-                    'lapses': 0
-                })
-                new_cards_added += 1
+    # Check if there are more cards available beyond limits (for "extra study" button)
+    has_more_new = False
+    has_more_reviews = False
+
+    if not extra_study and len(result_items) == 0:
+        # Check for more NEW cards available (due today)
+        more_new_state = base_due_query(include_today=True).filter(
+            UserCardDirection.state == CardState.NEW.value
+        ).limit(1).first()
+
+        more_new_words = db.session.query(CollectionWords).outerjoin(
+            UserWord,
+            (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
+        ).filter(
+            UserWord.id == None,
+            CollectionWords.russian_word.isnot(None),
+            CollectionWords.russian_word != ''
+        )
+        if deck_word_ids is not None:
+            more_new_words = more_new_words.filter(CollectionWords.id.in_(deck_word_ids))
+        more_new_words = more_new_words.limit(1).first()
+
+        has_more_new = more_new_state is not None or more_new_words is not None
+
+        # Check for more REVIEW/LEARNING cards available (due today for review, grace period for learning)
+        more_reviews = base_due_query(include_today=True).filter(
+            or_(
+                UserCardDirection.state == CardState.REVIEW.value,
+                UserCardDirection.state == CardState.LEARNING.value,
+                UserCardDirection.state == CardState.RELEARNING.value,
+                UserCardDirection.state.is_(None)
+            )
+        ).limit(1).first()
+        has_more_reviews = more_reviews is not None
 
     return jsonify({
         'status': 'success',
@@ -676,7 +795,9 @@ def get_study_items():
             'new_cards_today': new_cards_today,
             'reviews_today': reviews_today,
             'new_cards_limit': new_cards_limit,
-            'reviews_limit': reviews_limit
+            'reviews_limit': reviews_limit,
+            'has_more_new': has_more_new,
+            'has_more_reviews': has_more_reviews
         },
         'items': result_items
     })
@@ -696,6 +817,9 @@ def update_study_item():
     is_new = data.get('is_new', False)
     deck_id = data.get('deck_id')  # Optional deck_id for per-deck limits
 
+    # Check if this is extra study (bypass limits)
+    extra_study = request.args.get('extra_study') == 'true' or data.get('extra_study', False)
+
     # Get or create user word
     user_word = UserWord.get_or_create(current_user.id, word_id)
 
@@ -705,37 +829,28 @@ def update_study_item():
         direction=direction_str
     ).first()
 
-    if not direction:
-        # New card - check daily limit
-        if is_new:
-            settings = StudySettings.query.filter_by(user_id=current_user.id).with_for_update().first()
-            if not settings:
-                settings = StudySettings(user_id=current_user.id)
-                db.session.add(settings)
-                db.session.flush()
+    # Check if this is a "new" card that will count against the limit
+    # A card is new if: it doesn't exist yet OR it exists but has never been reviewed (first_reviewed is None)
+    is_first_review = (not direction) or (direction and direction.first_reviewed is None)
 
-            # Per-deck or global limit check
-            if deck_id:
-                deck = QuizDeck.query.get(deck_id)
-                if deck and (deck.user_id == current_user.id or deck.is_public):
-                    new_cards_today, _ = SRSService.get_deck_stats_today(current_user.id, deck_id)
-                    new_cards_limit = deck.get_new_words_limit(settings)
-                else:
-                    # Fall back to global if deck not found
-                    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                    # New cards: first_reviewed is today (card was studied for the first time today)
-                    new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-                        UserCardDirection.user_word_id.in_(
-                            db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-                        ),
-                        UserCardDirection.first_reviewed >= today_start,
-                        UserCardDirection.first_reviewed.isnot(None)
-                    ).scalar() or 0
-                    new_cards_limit = settings.new_words_per_day
+    # Daily limit check for new cards (skip if extra_study mode)
+    if is_first_review and not extra_study:
+        settings = StudySettings.query.filter_by(user_id=current_user.id).with_for_update().first()
+        if not settings:
+            settings = StudySettings(user_id=current_user.id)
+            db.session.add(settings)
+            db.session.flush()
+
+        # Per-deck or global limit check
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if deck_id:
+            deck = QuizDeck.query.get(deck_id)
+            if deck and (deck.user_id == current_user.id or deck.is_public):
+                new_cards_today, _ = SRSService.get_deck_stats_today(current_user.id, deck_id)
+                new_cards_limit = deck.get_new_words_limit(settings)
             else:
-                # Global mode
-                today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                # New cards: first_reviewed is today (card was studied for the first time today)
+                # Fall back to global if deck not found
                 new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
                     UserCardDirection.user_word_id.in_(
                         db.session.query(UserWord.id).filter_by(user_id=current_user.id)
@@ -744,16 +859,27 @@ def update_study_item():
                     UserCardDirection.first_reviewed.isnot(None)
                 ).scalar() or 0
                 new_cards_limit = settings.new_words_per_day
+        else:
+            # Global mode
+            new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+                UserCardDirection.user_word_id.in_(
+                    db.session.query(UserWord.id).filter_by(user_id=current_user.id)
+                ),
+                UserCardDirection.first_reviewed >= today_start,
+                UserCardDirection.first_reviewed.isnot(None)
+            ).scalar() or 0
+            new_cards_limit = settings.new_words_per_day
 
-            if new_cards_today >= new_cards_limit:
-                db.session.rollback()
-                return jsonify({
-                    'success': False,
-                    'error': 'daily_limit_exceeded',
-                    'message': 'Daily limit for new cards has been reached',
-                    'deck_id': deck_id
-                }), 429
+        if new_cards_today >= new_cards_limit:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': 'daily_limit_exceeded',
+                'message': 'Daily limit for new cards has been reached',
+                'deck_id': deck_id
+            }), 429
 
+    if not direction:
         # Create new direction with NEW state
         direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
         direction.state = CardState.NEW.value
@@ -1983,3 +2109,225 @@ def add_topic(topic_id):
         })
 
     return redirect(url_for('study.topics'))
+
+
+# ============ Unified SRS Stats API ============
+
+@study.route('/api/srs-stats')
+@login_required
+def api_srs_stats():
+    """
+    GET: Unified SRS stats for words/cards.
+
+    Query params:
+        deck_id: Optional deck filter
+
+    Returns:
+        {
+            'new_count': int,
+            'learning_count': int,
+            'review_count': int,
+            'mastered_count': int,
+            'total': int,
+            'due_today': int
+        }
+    """
+    deck_id = request.args.get('deck_id', type=int)
+    stats = srs_stats_service.get_words_stats(current_user.id, deck_id=deck_id)
+    return jsonify(stats)
+
+
+@study.route('/api/srs-overview')
+@login_required
+def api_srs_overview():
+    """
+    GET: Overall SRS stats across all modules.
+
+    Returns:
+        {
+            'words': {...stats...},
+            'grammar': {...stats...},
+            'totals': {...stats...}
+        }
+    """
+    overview = srs_stats_service.get_user_overview(current_user.id)
+    return jsonify(overview)
+
+
+@study.route('/api/my-decks')
+@login_required
+def api_get_my_decks():
+    """
+    GET: List of user's decks for deck selection modal.
+
+    Returns list of decks with basic info for the dropdown/modal.
+    Excludes auto-decks that user cannot add words to manually.
+    """
+    from app.study.models import QuizDeck
+
+    # Get user's decks (excluding auto-decks)
+    decks = QuizDeck.query.filter_by(user_id=current_user.id).order_by(
+        QuizDeck.updated_at.desc()
+    ).all()
+
+    result = []
+    for deck in decks:
+        # Skip auto-decks (user cannot manually add words to them)
+        if DeckService.is_auto_deck(deck.title):
+            continue
+
+        result.append({
+            'id': deck.id,
+            'name': deck.title,
+            'word_count': deck.word_count,
+            'is_public': deck.is_public
+        })
+
+    return jsonify({
+        'success': True,
+        'decks': result,
+        'default_deck_id': current_user.default_study_deck_id
+    })
+
+
+@study.route('/api/default-deck', methods=['GET', 'POST'])
+@login_required
+def api_default_deck():
+    """
+    GET: Get user's default study deck
+    POST: Set user's default study deck
+
+    Body (POST): { "deck_id": 123 } or { "deck_id": null } for "только в изучение"
+    Returns: { "success": true, "default_deck_id": 123, "default_deck_name": "..." }
+    """
+    from app.study.models import QuizDeck
+
+    if request.method == 'POST':
+        data = request.get_json()
+        deck_id = data.get('deck_id')
+
+        # Validate deck exists and belongs to user (if not null)
+        if deck_id is not None:
+            deck = QuizDeck.query.filter_by(id=deck_id, user_id=current_user.id).first()
+            if not deck:
+                return jsonify({
+                    'success': False,
+                    'error': 'Колода не найдена'
+                }), 404
+
+        current_user.default_study_deck_id = deck_id
+        db.session.commit()
+
+    # Get current default deck info
+    default_deck_name = None
+    if current_user.default_study_deck_id:
+        deck = QuizDeck.query.get(current_user.default_study_deck_id)
+        if deck:
+            default_deck_name = deck.title
+        else:
+            # Deck was deleted, clear the default
+            current_user.default_study_deck_id = None
+            db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'default_deck_id': current_user.default_study_deck_id,
+        'default_deck_name': default_deck_name
+    })
+
+
+@study.route('/api/decks/create', methods=['POST'])
+@login_required
+def api_create_deck():
+    """
+    POST: Create a new deck via API (for quick deck creation from modal).
+
+    Body: { "name": "Deck name" }
+    Returns: { "success": true, "deck": {...} }
+    """
+    data = request.get_json()
+    name = data.get('name', '').strip()
+
+    if not name:
+        return jsonify({
+            'success': False,
+            'error': 'Название колоды обязательно'
+        }), 400
+
+    if len(name) > 200:
+        return jsonify({
+            'success': False,
+            'error': 'Название колоды слишком длинное'
+        }), 400
+
+    deck = DeckService.create_deck(
+        user_id=current_user.id,
+        title=name,
+        description='',
+        is_public=False
+    )
+
+    return jsonify({
+        'success': True,
+        'deck': {
+            'id': deck.id,
+            'name': deck.title,
+            'word_count': 0,
+            'is_public': False
+        }
+    })
+
+
+@study.route('/api/decks/<int:deck_id>/add-word', methods=['POST'])
+@login_required
+def api_add_word_to_deck(deck_id):
+    """
+    POST: Add a word to a specific deck.
+
+    Body: { "word_id": 123 }
+    Returns: { "success": true }
+    """
+    data = request.get_json()
+    word_id = data.get('word_id')
+
+    if not word_id:
+        return jsonify({
+            'success': False,
+            'error': 'word_id обязателен'
+        }), 400
+
+    # Validate word exists
+    word = CollectionWords.query.get(word_id)
+    if not word:
+        return jsonify({
+            'success': False,
+            'error': 'Слово не найдено'
+        }), 404
+
+    # Add word to deck using service
+    deck_word, error = DeckService.add_word_to_deck(
+        deck_id=deck_id,
+        user_id=current_user.id,
+        word_id=word_id,
+        custom_english=word.english_word,
+        custom_russian=word.russian_word,
+        custom_sentences=word.sentences
+    )
+
+    if error:
+        # Check if it's "already in deck" error - not a failure
+        if 'уже в колоде' in error:
+            return jsonify({
+                'success': True,
+                'message': error,
+                'already_exists': True
+            })
+        return jsonify({
+            'success': False,
+            'error': error
+        }), 400
+
+    return jsonify({
+        'success': True,
+        'message': 'Слово добавлено в колоду'
+    })
