@@ -12,7 +12,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.utils.db import db
-from app.study.models import QuizDeck, QuizDeckWord, UserWord
+from app.study.models import QuizDeck, QuizDeckWord, UserWord, UserCardDirection
 from app.words.models import CollectionWords
 
 
@@ -46,19 +46,34 @@ class DeckService:
         Synchronize master decks with user's word collection
 
         Creates/updates two automatic decks:
-        - "Все мои слова" (all learning words)
-        - "Выученные слова" (mastered words)
+        - "Все мои слова" (all words in learning: new, learning, review not mastered)
+        - "Выученные слова" (mastered words: status='mastered' OR review + interval >= 180 days)
         """
-        # Get user's words by status
-        learning_words = UserWord.query.filter(
-            UserWord.user_id == user_id,
-            UserWord.status != 'mastered'
+        # Get all user words
+        all_user_words = UserWord.query.filter(
+            UserWord.user_id == user_id
         ).all()
 
-        mastered_words = UserWord.query.filter(
+        # Get mastered word IDs via interval (review status + min_interval >= 180)
+        mastered_by_interval_query = db.session.query(UserWord.id).filter(
             UserWord.user_id == user_id,
-            UserWord.status == 'mastered'
-        ).all()
+            UserWord.status == 'review'
+        ).join(
+            UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+        ).group_by(UserWord.id).having(
+            func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
+        )
+        mastered_by_interval = {row[0] for row in mastered_by_interval_query.all()}
+
+        # Also include words with status='mastered' (set via "Знаю" button)
+        mastered_by_status = {uw.id for uw in all_user_words if uw.status == 'mastered'}
+
+        # Combine both sets
+        mastered_word_ids = mastered_by_interval | mastered_by_status
+
+        # Separate words into learning and mastered
+        learning_words = [uw for uw in all_user_words if uw.id not in mastered_word_ids]
+        mastered_words = [uw for uw in all_user_words if uw.id in mastered_word_ids]
 
         # Sync both decks
         cls._sync_deck(
@@ -98,6 +113,9 @@ class DeckService:
         existing_word_ids = {row[0] for row in db.session.query(QuizDeckWord.word_id).filter_by(deck_id=deck.id).all()}
         target_word_ids = {uw.word_id for uw in word_list}
 
+        # Build user_word lookup: word_id -> user_word.id
+        user_word_lookup = {uw.word_id: uw.id for uw in word_list}
+
         # Remove words no longer in UserWord
         to_remove = existing_word_ids - target_word_ids
         if to_remove:
@@ -106,16 +124,32 @@ class DeckService:
                 QuizDeckWord.word_id.in_(to_remove)
             ).delete(synchronize_session=False)
 
-        # Add new words with proper order indices
+        # Add new words with proper order indices and user_word_id link
         to_add = target_word_ids - existing_word_ids
         if to_add:
             # Get max existing order index for this deck
             max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter_by(deck_id=deck.id).scalar() or -1
 
-            # Add new words with incrementing order indices
+            # Add new words with incrementing order indices and user_word_id
             for i, word_id in enumerate(to_add, start=1):
-                deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id, order_index=max_order + i)
+                deck_word = QuizDeckWord(
+                    deck_id=deck.id,
+                    word_id=word_id,
+                    user_word_id=user_word_lookup.get(word_id),
+                    order_index=max_order + i
+                )
                 db.session.add(deck_word)
+
+        # Update existing deck_words to ensure user_word_id is set
+        # (for records created before this refactoring)
+        existing_deck_words = QuizDeckWord.query.filter(
+            QuizDeckWord.deck_id == deck.id,
+            QuizDeckWord.word_id.in_(existing_word_ids & target_word_ids),
+            QuizDeckWord.user_word_id.is_(None)
+        ).all()
+        for dw in existing_deck_words:
+            if dw.word_id in user_word_lookup:
+                dw.user_word_id = user_word_lookup[dw.word_id]
 
     @classmethod
     def get_user_decks(cls, user_id: int, include_public: bool = True) -> List[QuizDeck]:
@@ -138,14 +172,24 @@ class DeckService:
 
     @classmethod
     def get_deck_statistics(cls, deck_id: int, user_id: int) -> Dict:
-        """Get detailed statistics for a deck"""
+        """
+        Get detailed statistics for a deck.
+
+        Uses direct user_word relationship when available for efficiency.
+        Falls back to word_id lookup for legacy records without user_word_id.
+        """
+        from sqlalchemy.orm import joinedload
+
         deck = cls.get_deck_with_words(deck_id)
         if not deck:
             return None
 
-        deck_word_ids = [dw.word_id for dw in deck.words if dw.word_id]
+        # Load deck words with user_word relationship eagerly
+        deck_words = deck.words.options(
+            joinedload(QuizDeckWord.user_word)
+        ).all()
 
-        if not deck_word_ids:
+        if not deck_words:
             return {
                 'total': 0,
                 'new': 0,
@@ -154,26 +198,84 @@ class DeckService:
                 'mastered': 0
             }
 
-        # Bulk load existing UserWords
-        existing_user_words = db.session.query(UserWord.word_id, UserWord.status).filter(
-            UserWord.user_id == user_id,
-            UserWord.word_id.in_(deck_word_ids)
-        ).all()
-        existing_word_ids = {uw.word_id for uw in existing_user_words}
+        # Collect word_ids that need fallback lookup (no user_word_id set)
+        fallback_word_ids = []
+        for dw in deck_words:
+            if dw.word_id and not dw.user_word_id:
+                fallback_word_ids.append(dw.word_id)
+
+        # Fallback: load UserWords for deck_words without user_word_id
+        fallback_user_words = {}
+        if fallback_word_ids:
+            user_words = UserWord.query.filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(fallback_word_ids)
+            ).all()
+            fallback_user_words = {uw.word_id: uw for uw in user_words}
+
+        # Get min intervals for mastered calculation
+        # Collect all user_word_ids we need to check
+        user_word_ids_to_check = []
+        for dw in deck_words:
+            if dw.user_word and dw.user_word.status == 'review':
+                user_word_ids_to_check.append(dw.user_word.id)
+        for word_id, uw in fallback_user_words.items():
+            if uw.status == 'review':
+                user_word_ids_to_check.append(uw.id)
+
+        min_intervals = {}
+        if user_word_ids_to_check:
+            interval_data = db.session.query(
+                UserCardDirection.user_word_id,
+                func.min(UserCardDirection.interval).label('min_interval')
+            ).filter(
+                UserCardDirection.user_word_id.in_(user_word_ids_to_check)
+            ).group_by(UserCardDirection.user_word_id).all()
+            min_intervals = {uw_id: min_int for uw_id, min_int in interval_data}
 
         # Count by status
-        status_counts = {}
-        for _, status in existing_user_words:
-            status_counts[status] = status_counts.get(status, 0) + 1
+        new_count = 0
+        learning_count = 0
+        review_count = 0
+        mastered_count = 0
+        total_with_word_id = 0
 
-        new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
+        for dw in deck_words:
+            if not dw.word_id:
+                # Custom word without word_id - count as new
+                new_count += 1
+                continue
+
+            total_with_word_id += 1
+
+            # Get user_word: prefer direct relationship, fallback to lookup
+            user_word = dw.user_word
+            if not user_word and dw.word_id in fallback_user_words:
+                user_word = fallback_user_words[dw.word_id]
+
+            if not user_word:
+                new_count += 1
+            else:
+                status = user_word.status
+                if status == 'new':
+                    new_count += 1
+                elif status == 'learning':
+                    learning_count += 1
+                elif status == 'review':
+                    min_int = min_intervals.get(user_word.id, 0)
+                    if min_int >= UserWord.MASTERED_THRESHOLD_DAYS:
+                        mastered_count += 1
+                    else:
+                        review_count += 1
+                elif status == 'mastered':
+                    mastered_count += 1
 
         return {
-            'total': len(deck_word_ids),
+            'total': len(deck_words),
             'new': new_count,
-            'learning': status_counts.get('learning', 0),
-            'review': status_counts.get('review', 0),
-            'mastered': status_counts.get('mastered', 0)
+            'learning': learning_count,
+            'review': review_count,
+            'mastered': mastered_count
         }
 
     @classmethod
@@ -302,9 +404,16 @@ class DeckService:
 
         # Copy words with all fields
         for deck_word in original_deck.words:
+            # Get or create UserWord for the new owner (if word_id exists)
+            user_word_id = None
+            if deck_word.word_id:
+                user_word = UserWord.get_or_create(user_id, deck_word.word_id)
+                user_word_id = user_word.id
+
             new_deck_word = QuizDeckWord(
                 deck_id=new_deck.id,
                 word_id=deck_word.word_id,
+                user_word_id=user_word_id,  # Link to new owner's UserWord
                 custom_english=deck_word.custom_english,
                 custom_russian=deck_word.custom_russian,
                 order_index=deck_word.order_index
@@ -354,9 +463,13 @@ class DeckService:
             if existing:
                 return None, "Это слово уже в колоде"
 
+            # Get or create UserWord to link to deck_word
+            user_word = UserWord.get_or_create(user_id, word_id)
+
             deck_word = QuizDeckWord(
                 deck_id=deck_id,
                 word_id=word_id,
+                user_word_id=user_word.id,  # Link to user's word learning status
                 order_index=max_order + 1
             )
 
@@ -369,7 +482,7 @@ class DeckService:
             if custom_sentences and (not word.sentences or custom_sentences != word.sentences):
                 deck_word.custom_sentences = custom_sentences
         else:
-            # Adding custom word
+            # Adding custom word (no word_id, no user_word_id)
             deck_word = QuizDeckWord(
                 deck_id=deck_id,
                 custom_english=custom_english,
