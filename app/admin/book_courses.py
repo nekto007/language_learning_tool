@@ -1361,8 +1361,7 @@ def register_book_course_routes(admin_bp):
     @admin_required
     def search_words_api():
         """Search words in CollectionWords for adding to lesson - filtered by book"""
-        from app.words.models import CollectionWords
-        from app.utils.db import word_book_link
+        from app.words.models import CollectionWords, word_book_link
 
         query = request.args.get('q', '').strip()
         book_id = request.args.get('book_id', type=int)

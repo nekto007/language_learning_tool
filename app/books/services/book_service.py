@@ -132,7 +132,7 @@ class BookService:
             List of word dictionaries with status
         """
         from app.study.models import UserWord
-        from app.books.models import word_book_link
+        from app.words.models import word_book_link
 
         # Get words for book
         words = db.session.query(CollectionWords).join(

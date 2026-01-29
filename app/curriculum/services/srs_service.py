@@ -286,11 +286,14 @@ class SRSService:
             user_words = UserWord.query.filter_by(user_id=user_id).all()
 
             # Calculate statistics
+            # Note: 'mastered' is no longer a status - it's a threshold within 'review'
             total_words = len(user_words)
             new_words = sum(1 for uw in user_words if uw.status == 'new')
             learning_words = sum(1 for uw in user_words if uw.status == 'learning')
-            review_words = sum(1 for uw in user_words if uw.status == 'review')
-            mastered_words = sum(1 for uw in user_words if uw.status == 'mastered')
+            # Review words that are not mastered
+            review_words = sum(1 for uw in user_words if uw.status == 'review' and not uw.is_mastered)
+            # Mastered = review status + min_interval >= 180 days
+            mastered_words = sum(1 for uw in user_words if uw.is_mastered)
 
             # Get due cards count
             now = datetime.now(UTC)

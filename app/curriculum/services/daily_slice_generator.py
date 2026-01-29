@@ -24,8 +24,8 @@ from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLesso
 from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
 from app.curriculum.services.vocabulary_extractor import STOP_WORDS
 from app.nlp.processor import HP_EXCLUSIONS
-from app.utils.db import db, word_book_link
-from app.words.models import CollectionWords
+from app.utils.db import db
+from app.words.models import CollectionWords, word_book_link
 
 logger = logging.getLogger(__name__)
 

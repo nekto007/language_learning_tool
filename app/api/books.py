@@ -43,8 +43,7 @@ def get_book(book_id):
     book = Book.query.get_or_404(book_id)
 
     # Get word stats for this book using the new UserWord model
-    from app.utils.db import word_book_link
-    from app.words.models import CollectionWords
+    from app.words.models import CollectionWords, word_book_link
     from app.study.models import UserWord
 
     # Получаем статистику слов по статусам

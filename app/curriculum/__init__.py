@@ -57,13 +57,19 @@ def init_curriculum_module(app):
     if not app.config.get('TESTING', False):
         try:
             from app.curriculum.cache import warm_cache
+            from app.utils.db import db
+            from sqlalchemy import inspect
             # Don't warm cache if we don't have tables yet
             with app.app_context():
-                from app.curriculum.models import CEFRLevel
-                if CEFRLevel.query.count() > 0:
-                    warm_cache()
+                inspector = inspect(db.engine)
+                if 'cefr_levels' in inspector.get_table_names():
+                    from app.curriculum.models import CEFRLevel
+                    if CEFRLevel.query.count() > 0:
+                        warm_cache()
+                    else:
+                        app.logger.info("Skipping cache warming - no data in database yet")
                 else:
-                    app.logger.info("Skipping cache warming - no data in database yet")
+                    app.logger.info("Skipping cache warming - tables not created yet")
         except Exception as e:
             app.logger.error(f"Error warming curriculum cache: {str(e)}")
 

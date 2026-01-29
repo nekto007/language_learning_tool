@@ -25,9 +25,9 @@ from app.books.models import Book, Bookmark, Chapter
 from app.books.parsers import process_uploaded_book
 from app.books.processors import enqueue_book_processing
 from app.study.models import UserWord
-from app.utils.db import db, word_book_link
+from app.utils.db import db
 from app.utils.decorators import admin_required
-from app.words.models import CollectionWords
+from app.words.models import CollectionWords, word_book_link
 from app.modules.decorators import module_required
 
 books = Blueprint('books', __name__)
