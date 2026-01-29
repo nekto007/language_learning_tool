@@ -4,558 +4,557 @@
 
 {% block styles %}
 {{ super() }}
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-    --dash-bg: #f8fafc;
-    --dash-card: #ffffff;
-    --dash-card-hover: #ffffff;
-    --dash-border: #e2e8f0;
-    --dash-text: #1e293b;
-    --dash-muted: #64748b;
-    --dash-accent: #7c3aed;
-    --dash-accent-soft: rgba(124, 58, 237, 0.1);
-    --dash-green: #16a34a;
-    --dash-green-soft: rgba(22, 163, 74, 0.1);
-    --dash-blue: #2563eb;
-    --dash-blue-soft: rgba(37, 99, 235, 0.1);
-    --dash-orange: #ea580c;
-    --dash-orange-soft: rgba(234, 88, 12, 0.1);
-    --dash-pink: #db2777;
-    --dash-pink-soft: rgba(219, 39, 119, 0.1);
+    --d-bg: #fafbfc;
+    --d-surface: #ffffff;
+    --d-border: #e8ecf0;
+    --d-text: #1a1f36;
+    --d-text-soft: #525f7f;
+    --d-accent: #5046e5;
+    --d-accent-soft: rgba(80, 70, 229, 0.08);
+    --d-accent-medium: rgba(80, 70, 229, 0.15);
+    --d-success: #10b981;
+    --d-warning: #f59e0b;
+    --d-radius: 16px;
+    --d-radius-sm: 10px;
+    --d-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+    --d-shadow-hover: 0 4px 20px rgba(80, 70, 229, 0.12);
 }
 
-.dashboard-page {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--dash-bg);
+.dash {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--d-bg);
     min-height: 100vh;
-    padding: 2rem 0;
+    padding: 2rem 0 4rem;
 }
 
-.dashboard-page h1, .dashboard-page h2, .dashboard-page h3, .dashboard-page .stat-number {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
+/* Header */
 .dash-header {
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
 }
 
 .dash-greeting {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--dash-text);
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--d-text);
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
 }
 
 .dash-subtitle {
-    color: var(--dash-muted);
-    font-size: 1.1rem;
+    color: var(--d-text-soft);
+    font-size: 1rem;
     margin-top: 0.5rem;
+    font-weight: 500;
 }
 
-/* Bento Grid */
-.bento-grid {
+/* Module Grid - 2x2 */
+.module-grid {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap: 1.25rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
 }
 
-.bento-card {
-    background: var(--dash-card);
-    border: 1px solid var(--dash-border);
-    border-radius: 20px;
+/* Universal Module Card */
+.module-card {
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: var(--d-radius);
     padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--d-shadow);
+    display: flex;
+    flex-direction: column;
 }
 
-.bento-card:hover {
-    background: var(--dash-card-hover);
-    border-color: var(--card-accent, var(--dash-accent));
+.module-card:hover {
+    border-color: var(--d-accent);
+    box-shadow: var(--d-shadow-hover);
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
 }
 
-.bento-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--card-accent, var(--dash-accent)), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
+/* Card Header - Icon + Title */
+.module-header {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin-bottom: 1.25rem;
 }
 
-.bento-card:hover::before {
-    opacity: 1;
-}
-
-/* Card Sizes */
-.card-wide { grid-column: span 8; }
-.card-medium { grid-column: span 6; }
-.card-small { grid-column: span 4; }
-.card-full { grid-column: span 12; }
-.card-third { grid-column: span 4; }
-
-/* Card Header */
-.card-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+.module-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--d-radius-sm);
+    background: var(--d-accent-soft);
+    color: var(--d-accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    flex-shrink: 0;
 }
 
-.card-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--dash-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
-}
-
-.card-heading {
-    font-size: 1.5rem;
+.module-title {
+    font-size: 0.75rem;
     font-weight: 700;
-    color: var(--dash-text);
+    color: var(--d-text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     margin: 0;
 }
 
-/* Stats */
-.stat-number {
-    font-size: 3.5rem;
-    font-weight: 700;
+/* Main Stat */
+.module-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.module-stat-value {
+    font-size: 2.75rem;
+    font-weight: 800;
+    color: var(--d-text);
     line-height: 1;
-    color: var(--dash-text);
+    letter-spacing: -0.03em;
 }
 
-.stat-label {
-    color: var(--dash-muted);
-    font-size: 0.9rem;
-    margin-top: 0.25rem;
-}
-
-.stat-row {
-    display: flex;
-    gap: 2rem;
-    margin-top: 1.5rem;
-}
-
-.stat-item {
-    text-align: center;
-}
-
-.stat-item .num {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--dash-text);
-}
-
-.stat-item .label {
-    font-size: 0.75rem;
-    color: var(--dash-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* Progress Bar */
-.progress-track {
-    height: 8px;
-    background: var(--dash-border);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 1rem;
-}
-
-.progress-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.5s ease;
-}
-
-/* Action Button */
-.card-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    border-radius: 12px;
+.module-stat-total {
+    font-size: 1.25rem;
     font-weight: 600;
-    font-size: 0.9rem;
-    text-decoration: none;
-    transition: all 0.2s;
-    margin-top: 1.25rem;
+    color: var(--d-text-soft);
 }
 
-.card-action:hover {
-    transform: scale(1.02);
+.module-stat-label {
+    font-size: 0.875rem;
+    color: var(--d-text-soft);
+    font-weight: 500;
+    margin-bottom: 1rem;
 }
 
-.card-action i {
-    font-size: 0.8rem;
+/* Secondary Stats Row */
+.module-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
-/* Accent Colors */
-.accent-purple { --card-accent: var(--dash-accent); }
-.accent-green { --card-accent: var(--dash-green); }
-.accent-blue { --card-accent: var(--dash-blue); }
-.accent-orange { --card-accent: var(--dash-orange); }
-.accent-pink { --card-accent: var(--dash-pink); }
-
-.bg-accent-purple { background: var(--dash-accent-soft); color: var(--dash-accent); }
-.bg-accent-green { background: var(--dash-green-soft); color: var(--dash-green); }
-.bg-accent-blue { background: var(--dash-blue-soft); color: var(--dash-blue); }
-.bg-accent-orange { background: var(--dash-orange-soft); color: var(--dash-orange); }
-.bg-accent-pink { background: var(--dash-pink-soft); color: var(--dash-pink); }
-
-.btn-accent-purple { background: var(--dash-accent); color: white; }
-.btn-accent-green { background: var(--dash-green); color: white; }
-.btn-accent-blue { background: var(--dash-blue); color: white; }
-.btn-accent-orange { background: var(--dash-orange); color: white; }
-.btn-accent-pink { background: var(--dash-pink); color: white; }
-
-/* Mini Stats Row */
-.mini-stats {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
+.module-stats-row.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
 }
 
-.mini-stat {
-    flex: 1;
-    background: var(--dash-bg);
-    border-radius: 10px;
+.stat-box {
+    background: var(--d-bg);
+    border-radius: var(--d-radius-sm);
     padding: 0.75rem;
     text-align: center;
 }
 
-.mini-stat .value {
+.stat-box-value {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--dash-text);
+    color: var(--d-text);
+    line-height: 1.2;
 }
 
-.mini-stat .label {
-    font-size: 0.7rem;
-    color: var(--dash-muted);
+.stat-box-value.accent { color: var(--d-accent); }
+.stat-box-value.success { color: var(--d-success); }
+.stat-box-value.warning { color: var(--d-warning); }
+
+.stat-box-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--d-text-soft);
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
 }
 
-/* Book Continue Card */
-.book-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding: 1rem;
-    background: var(--dash-bg);
-    border-radius: 12px;
+/* Progress Bar */
+.module-progress {
+    height: 6px;
+    background: var(--d-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 1rem;
 }
 
-.book-cover {
-    width: 48px;
-    height: 64px;
-    background: linear-gradient(135deg, var(--dash-blue), var(--dash-accent));
-    border-radius: 6px;
-    display: flex;
+.module-progress-fill {
+    height: 100%;
+    background: var(--d-accent);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+/* Description */
+.module-desc {
+    color: var(--d-text-soft);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+}
+
+/* Action Button - Unified */
+.module-action {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    background: var(--d-accent);
     color: white;
-    font-size: 1.25rem;
+    border-radius: var(--d-radius-sm);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    margin-top: auto;
 }
 
-.book-details h4 {
-    margin: 0;
-    font-size: 1rem;
-    color: var(--dash-text);
+.module-action:hover {
+    background: #4338ca;
+    color: white;
+    transform: scale(1.02);
 }
 
-.book-details p {
-    margin: 0.25rem 0 0;
-    font-size: 0.8rem;
-    color: var(--dash-muted);
+.module-action i {
+    font-size: 0.75rem;
+    transition: transform 0.2s;
 }
 
-/* Quick Links */
-.quick-links {
+.module-action:hover i {
+    transform: translateX(3px);
+}
+
+/* Quick Actions Section */
+.quick-section {
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: var(--d-radius);
+    padding: 1.5rem;
+    box-shadow: var(--d-shadow);
+    margin-bottom: 2rem;
+}
+
+.quick-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--d-text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1rem;
+}
+
+.quick-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
-    margin-top: 1rem;
 }
 
-.quick-link {
+.quick-btn {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: center;
+    gap: 0.625rem;
     padding: 1rem;
-    background: var(--dash-bg);
-    border-radius: 12px;
+    background: var(--d-bg);
+    border: 1px solid var(--d-border);
+    border-radius: var(--d-radius-sm);
+    color: var(--d-text);
+    font-size: 0.875rem;
+    font-weight: 600;
     text-decoration: none;
-    color: var(--dash-text);
     transition: all 0.2s;
-    border: 1px solid var(--dash-border);
 }
 
-.quick-link:hover {
-    background: var(--dash-accent-soft);
-    color: var(--dash-accent);
-    border-color: var(--dash-accent);
+.quick-btn:hover {
+    background: var(--d-accent-soft);
+    border-color: var(--d-accent);
+    color: var(--d-accent);
 }
 
-.quick-link i {
-    font-size: 1.1rem;
+.quick-btn i {
+    font-size: 1rem;
     opacity: 0.7;
 }
 
-.quick-link span {
-    font-size: 0.9rem;
-    font-weight: 500;
+/* Stats Row - Bottom */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.stats-card {
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: var(--d-radius);
+    padding: 1.25rem;
+    box-shadow: var(--d-shadow);
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.stats-card:hover {
+    border-color: var(--d-accent);
+}
+
+.stats-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--d-radius-sm);
+    background: var(--d-accent-soft);
+    color: var(--d-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    margin: 0 auto 0.75rem;
+}
+
+.stats-card-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--d-text);
+    line-height: 1;
+}
+
+.stats-card-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--d-text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.375rem;
+}
+
+.stats-card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.75rem;
+    color: var(--d-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.stats-card-action:hover {
+    text-decoration: underline;
 }
 
 /* Responsive */
 @media (max-width: 1024px) {
-    .card-wide { grid-column: span 12; }
-    .card-medium { grid-column: span 6; }
-    .card-small { grid-column: span 6; }
-    .card-third { grid-column: span 6; }
+    .quick-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-    .bento-grid { gap: 1rem; }
-    .card-wide, .card-medium, .card-small, .card-third { grid-column: span 12; }
-    .dash-greeting { font-size: 1.75rem; }
-    .stat-number { font-size: 2.5rem; }
-    .stat-row { flex-wrap: wrap; gap: 1rem; }
-    .quick-links { grid-template-columns: 1fr; }
-}
-
-/* Override base styles for dark theme */
-.dashboard-page .container {
-    max-width: 1200px;
+    .module-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr; }
+    .quick-grid { grid-template-columns: 1fr; }
+    .dash-greeting { font-size: 1.5rem; }
+    .module-stat-value { font-size: 2.25rem; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-page">
-    <div class="container">
+<div class="dash">
+    <div class="container" style="max-width: 900px;">
+
         <!-- Header -->
         <div class="dash-header">
-            <h1 class="dash-greeting">Привет, {{ current_user.username }} <span style="font-size: 0.7em;">👋</span></h1>
+            <h1 class="dash-greeting">Привет, {{ current_user.username }} 👋</h1>
             <p class="dash-subtitle">Выбери, чем хочешь заняться сегодня</p>
         </div>
 
-        <!-- Bento Grid -->
-        <div class="bento-grid">
+        <!-- Main Module Grid -->
+        <div class="module-grid">
 
-            <!-- КАРТОЧКИ (Words) - Large Card -->
-            <div class="bento-card card-wide accent-purple">
-                <div class="card-icon bg-accent-purple">
-                    <i class="fas fa-clone"></i>
+            <!-- КАРТОЧКИ -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon"><i class="fas fa-clone"></i></div>
+                    <h2 class="module-title">Карточки</h2>
                 </div>
-                <div class="card-title">Карточки</div>
-                <div class="d-flex justify-content-between align-items-end">
-                    <div>
-                        <div class="stat-number">{{ words_total }}</div>
-                        <div class="stat-label">слов в коллекции</div>
+                <div class="module-stat">
+                    <span class="module-stat-value">{{ words_total }}</span>
+                </div>
+                <div class="module-stat-label">слов в коллекции</div>
+                <div class="module-stats-row">
+                    <div class="stat-box">
+                        <div class="stat-box-value warning">{{ words_stats.learning }}</div>
+                        <div class="stat-box-label">Учу</div>
                     </div>
-                    <div class="stat-row" style="margin: 0;">
-                        <div class="stat-item">
-                            <div class="num" style="color: var(--dash-orange);">{{ words_stats.learning }}</div>
-                            <div class="label">Учу</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="num" style="color: var(--dash-blue);">{{ words_stats.review }}</div>
-                            <div class="label">Повтор</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="num" style="color: var(--dash-green);">{{ words_stats.mastered }}</div>
-                            <div class="label">Выучено</div>
-                        </div>
+                    <div class="stat-box">
+                        <div class="stat-box-value accent">{{ words_stats.review }}</div>
+                        <div class="stat-box-label">Повтор</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-value success">{{ words_stats.mastered }}</div>
+                        <div class="stat-box-label">Выучено</div>
                     </div>
                 </div>
                 {% if words_total > 0 %}
-                <div class="progress-track">
-                    <div class="progress-fill" style="width: {{ (words_stats.mastered / words_total * 100) | int }}%; background: var(--dash-green);"></div>
+                <div class="module-progress">
+                    <div class="module-progress-fill" style="width: {{ (words_stats.mastered / words_total * 100) | int }}%;"></div>
                 </div>
                 {% endif %}
-                <a href="{{ url_for('study.index') }}" class="card-action btn-accent-purple">
+                <a href="{{ url_for('study.index') }}" class="module-action">
                     Учить слова <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
 
-            <!-- GRAMMAR LAB - Medium Card -->
-            <div class="bento-card card-small accent-pink">
-                <div class="card-icon bg-accent-pink">
-                    <i class="fas fa-flask"></i>
+            <!-- ГРАММАТИКА -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon"><i class="fas fa-flask"></i></div>
+                    <h2 class="module-title">Грамматика</h2>
                 </div>
-                <div class="card-title">Грамматика</div>
-                <div class="stat-number">{{ grammar_studied }}<span style="font-size: 0.4em; color: var(--dash-muted);">/{{ grammar_total }}</span></div>
-                <div class="stat-label">тем изучено</div>
-                <div class="mini-stats">
-                    <div class="mini-stat">
-                        <div class="value">{{ grammar_mastered }}</div>
-                        <div class="label">Освоено</div>
+                <div class="module-stat">
+                    <span class="module-stat-value">{{ grammar_studied }}</span>
+                    <span class="module-stat-total">/ {{ grammar_total }}</span>
+                </div>
+                <div class="module-stat-label">тем изучено</div>
+                <div class="module-stats-row cols-2">
+                    <div class="stat-box">
+                        <div class="stat-box-value success">{{ grammar_mastered }}</div>
+                        <div class="stat-box-label">Освоено</div>
                     </div>
-                    <div class="mini-stat">
-                        <div class="value">{{ grammar_total - grammar_studied }}</div>
-                        <div class="label">Осталось</div>
+                    <div class="stat-box">
+                        <div class="stat-box-value">{{ grammar_total - grammar_studied }}</div>
+                        <div class="stat-box-label">Осталось</div>
                     </div>
                 </div>
-                <a href="{{ url_for('grammar_lab.index') }}" class="card-action btn-accent-pink">
+                <a href="{{ url_for('grammar_lab.index') }}" class="module-action">
                     Grammar Lab <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
 
-            <!-- КУРСЫ - Medium Card -->
-            <div class="bento-card card-medium accent-blue">
-                <div class="card-icon bg-accent-blue">
-                    <i class="fas fa-graduation-cap"></i>
+            <!-- КУРСЫ -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon"><i class="fas fa-graduation-cap"></i></div>
+                    <h2 class="module-title">Курсы</h2>
                 </div>
-                <div class="card-title">Курсы</div>
                 {% if active_course %}
-                <div class="card-heading">{{ active_course.course.title }}</div>
-                <p style="color: var(--dash-muted); margin: 0.5rem 0;">{{ active_course.course.book.title if active_course.course.book else 'Активный курс' }}</p>
-                <div class="progress-track">
-                    <div class="progress-fill" style="width: {{ active_course.progress_percentage | int }}%; background: var(--dash-blue);"></div>
+                <div class="module-stat">
+                    <span class="module-stat-value">{{ active_course.progress_percentage | int }}%</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
-                    <span style="color: var(--dash-muted); font-size: 0.85rem;">Прогресс: {{ active_course.progress_percentage | int }}%</span>
-                    <span style="color: var(--dash-text); font-size: 0.85rem; font-weight: 600;">{{ active_course.course.level or 'A1' }}</span>
+                <div class="module-stat-label">{{ active_course.course.title }}</div>
+                <div class="module-progress">
+                    <div class="module-progress-fill" style="width: {{ active_course.progress_percentage | int }}%;"></div>
                 </div>
                 {% else %}
-                <div class="stat-number">{{ courses_enrolled }}</div>
-                <div class="stat-label">активных курсов</div>
-                <p style="color: var(--dash-muted); margin-top: 1rem; font-size: 0.9rem;">Выберите курс и начните обучение по структурированной программе</p>
+                <div class="module-stat">
+                    <span class="module-stat-value">{{ courses_enrolled }}</span>
+                </div>
+                <div class="module-stat-label">активных курсов</div>
+                <p class="module-desc">Выберите курс и начните обучение по структурированной программе</p>
                 {% endif %}
-                <a href="{{ url_for('book_courses.list_book_courses') }}" class="card-action btn-accent-blue">
+                <a href="{{ url_for('book_courses.list_book_courses') }}" class="module-action">
                     {% if active_course %}Продолжить{% else %}Выбрать курс{% endif %} <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
 
-            <!-- КНИГИ - Medium Card -->
-            <div class="bento-card card-medium accent-green">
-                <div class="card-icon bg-accent-green">
-                    <i class="fas fa-book-open"></i>
+            <!-- КНИГИ -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="module-icon"><i class="fas fa-book-open"></i></div>
+                    <h2 class="module-title">Книги</h2>
                 </div>
-                <div class="card-title">Книги</div>
                 {% if recent_book %}
-                <div class="card-heading">Продолжить чтение</div>
-                <div class="book-info">
-                    <div class="book-cover">
-                        <i class="fas fa-book"></i>
-                    </div>
-                    <div class="book-details">
-                        <h4>{{ recent_book.chapter.book.title }}</h4>
-                        <p>{{ recent_book.chapter.book.author or 'Автор неизвестен' }}</p>
-                    </div>
+                <div class="module-stat">
+                    <span class="module-stat-value">{{ books_reading }}</span>
                 </div>
+                <div class="module-stat-label">{{ recent_book.chapter.book.title }}</div>
                 {% else %}
-                <div class="stat-number">{{ books_reading }}</div>
-                <div class="stat-label">книг читаете</div>
-                <p style="color: var(--dash-muted); margin-top: 1rem; font-size: 0.9rem;">Читайте книги на английском и расширяйте словарный запас</p>
+                <div class="module-stat">
+                    <span class="module-stat-value">{{ books_reading }}</span>
+                </div>
+                <div class="module-stat-label">книг читаете</div>
+                <p class="module-desc">Читайте книги на английском и расширяйте словарный запас</p>
                 {% endif %}
-                <a href="{{ url_for('books.book_list') }}" class="card-action btn-accent-green">
+                <a href="{{ url_for('books.book_list') }}" class="module-action">
                     {% if recent_book %}Читать{% else %}Найти книгу{% endif %} <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
 
-            <!-- QUICK ACTIONS - Full Width -->
-            <div class="bento-card card-full accent-orange">
-                <div class="card-title">Быстрые действия</div>
-                <div class="quick-links">
-                    <a href="{{ url_for('study.cards', word_source='all') }}" class="quick-link">
-                        <i class="fas fa-clone"></i>
-                        <span>Карточки</span>
-                    </a>
-                    <a href="{{ url_for('study.quiz', word_source='all') }}" class="quick-link">
-                        <i class="fas fa-question-circle"></i>
-                        <span>Тест</span>
-                    </a>
-                    <a href="{{ url_for('study.matching', word_source='all') }}" class="quick-link">
-                        <i class="fas fa-th"></i>
-                        <span>Подбери пару</span>
-                    </a>
-                    <a href="{{ url_for('grammar_lab.practice') }}" class="quick-link">
-                        <i class="fas fa-dumbbell"></i>
-                        <span>Практика грамматики</span>
-                    </a>
-                    <a href="{{ url_for('words.word_list') }}" class="quick-link">
-                        <i class="fas fa-list"></i>
-                        <span>Все слова</span>
-                    </a>
-                    <a href="{{ url_for('study.topics') }}" class="quick-link">
-                        <i class="fas fa-layer-group"></i>
-                        <span>Темы слов</span>
-                    </a>
-                    <a href="{{ url_for('study.stats') }}" class="quick-link">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>Статистика</span>
-                    </a>
-                    <a href="{{ url_for('study.leaderboard') }}" class="quick-link">
-                        <i class="fas fa-trophy"></i>
-                        <span>Лидеры</span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- ACHIEVEMENTS - Third -->
-            <div class="bento-card card-third">
-                <div class="card-icon bg-accent-orange">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="card-title">Достижения</div>
-                <div class="stat-number">{{ earned_achievements }}<span style="font-size: 0.4em; color: var(--dash-muted);">/{{ total_achievements }}</span></div>
-                <div class="stat-label">получено</div>
-                <a href="{{ url_for('study.stats') }}" class="card-action" style="background: var(--dash-orange-soft); color: var(--dash-orange);">
-                    Смотреть <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <!-- MATCHING GAME - Third -->
-            <div class="bento-card card-third">
-                <div class="card-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">
-                    <i class="fas fa-th"></i>
-                </div>
-                <div class="card-title">Подбери пару</div>
-                {% if best_matching %}
-                <div class="stat-number">{{ best_matching.score }}</div>
-                <div class="stat-label">лучший результат</div>
-                {% else %}
-                <div style="color: var(--dash-muted); margin-top: 0.5rem;">Ещё не играли</div>
-                {% endif %}
-                <a href="{{ url_for('study.matching', word_source='all') }}" class="card-action" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">
-                    Играть <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <!-- QUIZ - Third -->
-            <div class="bento-card card-third">
-                <div class="card-icon" style="background: rgba(20, 184, 166, 0.15); color: #14b8a6;">
-                    <i class="fas fa-question-circle"></i>
-                </div>
-                <div class="card-title">Тест</div>
-                {% if best_quiz %}
-                <div class="stat-number">{{ best_quiz.score }}%</div>
-                <div class="stat-label">лучший результат</div>
-                {% else %}
-                <div style="color: var(--dash-muted); margin-top: 0.5rem;">Ещё не играли</div>
-                {% endif %}
-                <a href="{{ url_for('study.quiz', word_source='all') }}" class="card-action" style="background: rgba(20, 184, 166, 0.15); color: #14b8a6;">
-                    Играть <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
         </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-section">
+            <h3 class="quick-title">Быстрые действия</h3>
+            <div class="quick-grid">
+                <a href="{{ url_for('study.cards', word_source='all') }}" class="quick-btn">
+                    <i class="fas fa-clone"></i> Карточки
+                </a>
+                <a href="{{ url_for('study.quiz', word_source='all') }}" class="quick-btn">
+                    <i class="fas fa-question-circle"></i> Тест
+                </a>
+                <a href="{{ url_for('study.matching', word_source='all') }}" class="quick-btn">
+                    <i class="fas fa-th"></i> Подбери пару
+                </a>
+                <a href="{{ url_for('grammar_lab.practice') }}" class="quick-btn">
+                    <i class="fas fa-dumbbell"></i> Практика
+                </a>
+                <a href="{{ url_for('words.word_list') }}" class="quick-btn">
+                    <i class="fas fa-list"></i> Все слова
+                </a>
+                <a href="{{ url_for('study.topics') }}" class="quick-btn">
+                    <i class="fas fa-layer-group"></i> Темы
+                </a>
+                <a href="{{ url_for('study.stats') }}" class="quick-btn">
+                    <i class="fas fa-chart-bar"></i> Статистика
+                </a>
+                <a href="{{ url_for('study.leaderboard') }}" class="quick-btn">
+                    <i class="fas fa-trophy"></i> Лидеры
+                </a>
+            </div>
+        </div>
+
+        <!-- Bottom Stats -->
+        <div class="stats-row">
+            <div class="stats-card">
+                <div class="stats-card-icon"><i class="fas fa-trophy"></i></div>
+                <div class="stats-card-value">{{ earned_achievements }}<span style="font-size: 0.5em; color: var(--d-text-soft);">/{{ total_achievements }}</span></div>
+                <div class="stats-card-label">Достижения</div>
+                <a href="{{ url_for('study.stats') }}" class="stats-card-action">
+                    Смотреть <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
+                </a>
+            </div>
+            <div class="stats-card">
+                <div class="stats-card-icon"><i class="fas fa-th"></i></div>
+                {% if best_matching %}
+                <div class="stats-card-value">{{ best_matching.score }}</div>
+                {% else %}
+                <div class="stats-card-value">—</div>
+                {% endif %}
+                <div class="stats-card-label">Лучший матч</div>
+                <a href="{{ url_for('study.matching', word_source='all') }}" class="stats-card-action">
+                    Играть <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
+                </a>
+            </div>
+            <div class="stats-card">
+                <div class="stats-card-icon"><i class="fas fa-question-circle"></i></div>
+                {% if best_quiz %}
+                <div class="stats-card-value">{{ best_quiz.score }}%</div>
+                {% else %}
+                <div class="stats-card-value">—</div>
+                {% endif %}
+                <div class="stats-card-label">Лучший тест</div>
+                <a href="{{ url_for('study.quiz', word_source='all') }}" class="stats-card-action">
+                    Играть <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
+                </a>
+            </div>
+        </div>
+
     </div>
 </div>
 {% endblock %}
