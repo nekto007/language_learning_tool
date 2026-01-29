@@ -175,6 +175,57 @@ class SRSService:
         return reviews_today < review_limit
 
     @staticmethod
+    def get_adaptive_limits(user_id: int) -> Tuple[int, int]:
+        """
+        Returns adaptive limits based on accuracy and backlog.
+
+        If accuracy < 85% over last 50 reviews OR backlog > 50 overdue cards:
+        → reduce new cards limit to min(2, base_limit)
+
+        This helps users:
+        - Not accumulate debt when struggling
+        - Focus on retention before adding new material
+
+        Returns:
+            Tuple of (adaptive_new_limit, adaptive_review_limit)
+        """
+        settings = StudySettings.get_settings(user_id)
+        base_new = settings.new_words_per_day
+        base_reviews = settings.reviews_per_day
+        now = datetime.now(timezone.utc)
+
+        # Calculate accuracy over last 50 reviewed cards
+        recent_cards = db.session.query(UserCardDirection).filter(
+            UserCardDirection.user_word_id.in_(
+                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+            ),
+            UserCardDirection.last_reviewed.isnot(None)
+        ).order_by(UserCardDirection.last_reviewed.desc()).limit(50).all()
+
+        total_correct = sum(c.correct_count or 0 for c in recent_cards)
+        total_incorrect = sum(c.incorrect_count or 0 for c in recent_cards)
+        total = total_correct + total_incorrect
+
+        accuracy = (total_correct / total * 100) if total > 0 else 100
+
+        # Count backlog (overdue REVIEW cards)
+        backlog = db.session.query(func.count(UserCardDirection.id)).filter(
+            UserCardDirection.user_word_id.in_(
+                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+            ),
+            UserCardDirection.next_review < now,
+            UserCardDirection.state == 'review'
+        ).scalar() or 0
+
+        # Adaptive logic: reduce new cards if struggling or backlog is high
+        if accuracy < 85 or backlog > 50:
+            adaptive_new = min(2, base_new)  # Reduce to max 2 new cards
+        else:
+            adaptive_new = base_new
+
+        return (adaptive_new, base_reviews)
+
+    @staticmethod
     def get_card_counts(user_id: int, deck_word_ids: List[int] = None) -> Dict:
         """
         Get card counts for display (due, new, limits)
@@ -188,18 +239,24 @@ class SRSService:
             'nothing_to_study', 'limit_reached'
         """
         settings = StudySettings.get_settings(user_id)
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # End of today - show cards due anytime today (matches fetching logic)
+        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         if deck_word_ids:
             # Deck-specific counts
+            # Filter by status to match the fetching logic (exclude 'mastered')
+            # Use end_of_today to count all cards due today (matches fetching logic)
             due_count = db.session.query(func.count(UserCardDirection.id)).filter(
                 UserCardDirection.user_word_id.in_(
                     db.session.query(UserWord.id).filter(
                         UserWord.user_id == user_id,
-                        UserWord.word_id.in_(deck_word_ids)
+                        UserWord.word_id.in_(deck_word_ids),
+                        UserWord.status.in_(['new', 'learning', 'review'])
                     )
                 ),
-                UserCardDirection.next_review <= datetime.now(timezone.utc)
+                UserCardDirection.next_review <= end_of_today
             ).scalar() or 0
 
             # Get existing user words for this deck
@@ -207,12 +264,14 @@ class SRSService:
             new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
         else:
             # Auto mode - all cards
+            # Include 'new' status to match fetching logic
+            # Use end_of_today to count all cards due today
             due_count = UserCardDirection.query.join(
                 UserWord, UserCardDirection.user_word_id == UserWord.id
             ).filter(
                 UserWord.user_id == user_id,
-                UserWord.status.in_(['learning', 'review']),
-                UserCardDirection.next_review <= datetime.now(timezone.utc)
+                UserWord.status.in_(['new', 'learning', 'review']),
+                UserCardDirection.next_review <= end_of_today
             ).count()
 
             # Count all available new words
@@ -359,12 +418,12 @@ class SRSService:
         avg_interval = (forward.interval + backward.interval) / 2
 
         # Update status based on performance
+        # Note: 'mastered' is no longer a status - it's a threshold within 'review'
+        # (is_mastered = min_interval >= 180 days)
         if user_word.status in ['new', 'learning']:
             if avg_repetitions >= 3:
                 user_word.status = 'review'
-        elif user_word.status == 'review':
-            if avg_interval > 21:  # 3 weeks
-                user_word.status = 'mastered'
+        # 'review' status is the final status - mastered is computed from intervals
 
         db.session.flush()
 

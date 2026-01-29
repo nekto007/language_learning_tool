@@ -44,6 +44,7 @@ from app.srs.constants import (
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
+from app.grammar_lab.models import UserGrammarExercise, GrammarExercise
 
 logger = logging.getLogger(__name__)
 
@@ -518,32 +519,314 @@ class UnifiedSRSService:
             return {'success': False, 'error': str(e)}
 
     def _update_user_word_status(self, card: UserCardDirection) -> None:
-        """Обновляет статус UserWord на основе прогресса карточек."""
+        """
+        Обновляет статус UserWord на основе состояний всех направлений.
+
+        Логика (реализована в UserWord.recalculate_status):
+        - Если ЛЮБОЕ направление в 'learning'/'relearning' → status = 'learning'
+        - Иначе если ЛЮБОЕ направление в 'new' → status = 'new'
+        - Иначе (все в 'review') → status = 'review'
+
+        Mature/mastered теперь не статусы, а пороги внутри review:
+        - is_mature: min(interval) >= 21 дней
+        - is_mastered: min(interval) >= 180 дней
+        """
+        # Flush card state changes so recalculate_status() query sees them
+        db.session.flush()
         user_word = card.user_word
+        user_word.recalculate_status()
 
-        if user_word.status == 'new':
-            user_word.status = 'learning'
-            return
+    def grade_grammar_exercise(
+        self,
+        exercise_id: int,
+        rating: int,
+        user_id: int,
+        session_key: str = None
+    ) -> Dict[str, Any]:
+        """
+        Process grammar exercise rating using Anki-like state machine.
 
-        # Проверяем другое направление
-        other_direction = DIRECTION_RUS_ENG if card.direction == DIRECTION_ENG_RUS else DIRECTION_ENG_RUS
-        other_card = UserCardDirection.query.filter_by(
-            user_word_id=user_word.id,
-            direction=other_direction
-        ).first()
+        Args:
+            exercise_id: Exercise ID
+            rating: Rating (1=Don't know, 2=Doubt, 3=Know)
+            user_id: User ID
+            session_key: Session key (optional, for logging)
 
-        if not other_card:
-            return
+        Returns:
+            Dict with result:
+            {
+                'success': bool,
+                'state': str,
+                'interval': int,
+                'next_review': datetime,
+                'requeue_position': int | None,
+                'requeue_minutes': int | None,
+                'session_attempts': int,
+                'error': str (if success=False)
+            }
+        """
+        try:
+            # Get or create exercise progress
+            progress = UserGrammarExercise.get_or_create(user_id, exercise_id)
 
-        # Оба направления пройдены хотя бы раз → review
-        if other_card.repetitions > 0 and card.repetitions > 0:
-            if user_word.status == 'learning':
-                user_word.status = 'review'
+            # Get current state (default to 'new')
+            current_state = progress.state or CardState.NEW.value
+            current_step = progress.step_index or 0
 
-            # Оба направления с интервалом >= 30 дней → mastered
-            if other_card.interval >= 30 and card.interval >= 30:
-                if user_word.status == 'review':
-                    user_word.status = 'mastered'
+            # Calculate new parameters using state machine
+            update_result = self.calculate_sm2_update(
+                rating=rating,
+                state=current_state,
+                step_index=current_step,
+                repetitions=progress.repetitions or 0,
+                interval=progress.interval or 0,
+                ease_factor=progress.ease_factor or DEFAULT_EASE_FACTOR,
+                lapses=progress.lapses or 0
+            )
+
+            # Update progress with new values
+            progress.state = update_result['state']
+            progress.step_index = update_result['step_index']
+            progress.repetitions = update_result['repetitions']
+            progress.interval = update_result['interval']
+            progress.ease_factor = update_result['ease_factor']
+            progress.lapses = update_result['lapses']
+            progress.last_reviewed = datetime.now(timezone.utc)
+
+            # Set first_reviewed on first review
+            if progress.first_reviewed is None:
+                progress.first_reviewed = datetime.now(timezone.utc)
+
+            # Update correct/incorrect count
+            if rating >= RATING_DOUBT:
+                progress.correct_count = (progress.correct_count or 0) + 1
+            else:
+                progress.incorrect_count = (progress.incorrect_count or 0) + 1
+
+            # Increment session_attempts
+            progress.session_attempts = (progress.session_attempts or 0) + 1
+
+            # Calculate next_review based on state
+            now = datetime.now(timezone.utc)
+            requeue_minutes = update_result['requeue_minutes']
+            days_until_review = update_result['days_until_review']
+
+            if progress.state == CardState.REVIEW.value and days_until_review > 0:
+                # Add ±10% variance to prevent review cliff
+                variance = random.uniform(0.9, 1.1)
+                adjusted_days = max(1, round(days_until_review * variance))
+                progress.next_review = now + timedelta(days=adjusted_days)
+            elif requeue_minutes:
+                # Learning/Relearning: schedule for minutes from now
+                progress.next_review = now + timedelta(minutes=requeue_minutes)
+            else:
+                progress.next_review = now
+
+            db.session.commit()
+
+            # Calculate requeue position for client-side queue management
+            requeue_position = self.get_requeue_position(
+                rating=rating,
+                state=current_state,
+                step_index=current_step
+            )
+
+            # Check session limit
+            if progress.session_attempts >= MAX_SESSION_ATTEMPTS:
+                requeue_position = None  # Don't show again this session
+
+            logger.info(
+                f"Grammar exercise {exercise_id} graded: state={current_state}→{progress.state}, "
+                f"rating={rating}, interval={progress.interval}, "
+                f"requeue_pos={requeue_position}, requeue_min={requeue_minutes}, "
+                f"session={session_key}"
+            )
+
+            return {
+                'success': True,
+                'exercise_id': exercise_id,
+                'state': progress.state,
+                'step_index': progress.step_index,
+                'interval': progress.interval,
+                'next_review': progress.next_review.isoformat() if progress.next_review else None,
+                'requeue_position': requeue_position,
+                'requeue_minutes': requeue_minutes,
+                'session_attempts': progress.session_attempts,
+                'ease_factor': progress.ease_factor,
+                'repetitions': progress.repetitions,
+                'lapses': progress.lapses,
+                'correct_count': progress.correct_count,
+                'incorrect_count': progress.incorrect_count
+            }
+
+        except Exception as e:
+            logger.error(f"Error grading grammar exercise {exercise_id}: {str(e)}")
+            db.session.rollback()
+            return {'success': False, 'error': str(e)}
+
+    def get_due_grammar_exercises(
+        self,
+        user_id: int,
+        topic_id: int = None,
+        limit: int = 50,
+        exclude_exercise_ids: List[int] = None
+    ) -> List[UserGrammarExercise]:
+        """
+        Get grammar exercises for review with Anki-like priority queue.
+
+        Priority order:
+        1. RELEARNING exercises (due now) - failed reviews need immediate attention
+        2. LEARNING exercises (due now) - exercises in learning steps
+        3. REVIEW exercises (due today) - regular spaced repetition
+        4. NEW exercises - fresh exercises
+
+        Args:
+            user_id: User ID
+            topic_id: Optional topic filter
+            limit: Maximum exercises to return
+            exclude_exercise_ids: List of exercise IDs to exclude
+
+        Returns:
+            List of UserGrammarExercise objects
+        """
+        now = datetime.now(timezone.utc)
+        result = []
+
+        def base_query():
+            q = UserGrammarExercise.query.filter(
+                UserGrammarExercise.user_id == user_id,
+                # Filter out buried exercises
+                db.or_(
+                    UserGrammarExercise.buried_until.is_(None),
+                    UserGrammarExercise.buried_until <= now
+                )
+            )
+            if topic_id:
+                q = q.join(GrammarExercise).filter(GrammarExercise.topic_id == topic_id)
+            if exclude_exercise_ids:
+                q = q.filter(~UserGrammarExercise.exercise_id.in_(exclude_exercise_ids))
+            return q
+
+        remaining = limit
+
+        # PRIORITY 1: RELEARNING exercises (due now)
+        if remaining > 0:
+            relearning = base_query().filter(
+                UserGrammarExercise.state == CardState.RELEARNING.value,
+                UserGrammarExercise.next_review <= now
+            ).order_by(
+                UserGrammarExercise.next_review.asc()
+            ).limit(remaining).all()
+            result.extend(relearning)
+            remaining -= len(relearning)
+
+        # PRIORITY 2: LEARNING exercises (due now)
+        if remaining > 0:
+            learning = base_query().filter(
+                UserGrammarExercise.state == CardState.LEARNING.value,
+                UserGrammarExercise.next_review <= now
+            ).order_by(
+                UserGrammarExercise.next_review.asc()
+            ).limit(remaining).all()
+            result.extend(learning)
+            remaining -= len(learning)
+
+        # PRIORITY 3: REVIEW exercises (due today)
+        if remaining > 0:
+            reviews = base_query().filter(
+                UserGrammarExercise.state == CardState.REVIEW.value,
+                UserGrammarExercise.next_review <= now
+            ).order_by(
+                UserGrammarExercise.next_review.asc()
+            ).limit(remaining).all()
+            result.extend(reviews)
+            remaining -= len(reviews)
+
+        # PRIORITY 4: NEW exercises (never reviewed)
+        if remaining > 0:
+            new_exercises = base_query().filter(
+                db.or_(
+                    UserGrammarExercise.state == CardState.NEW.value,
+                    UserGrammarExercise.state.is_(None)
+                )
+            ).order_by(
+                UserGrammarExercise.id.asc()
+            ).limit(remaining).all()
+            result.extend(new_exercises)
+
+        return result
+
+    def get_or_create_grammar_exercise_progress(
+        self,
+        user_id: int,
+        exercise_ids: List[int]
+    ) -> List[UserGrammarExercise]:
+        """
+        Create or get progress for grammar exercises with Anki-like state initialization.
+
+        Args:
+            user_id: User ID
+            exercise_ids: List of exercise IDs
+
+        Returns:
+            List of UserGrammarExercise objects
+        """
+        result = []
+
+        for exercise_id in exercise_ids:
+            progress = UserGrammarExercise.query.filter_by(
+                user_id=user_id,
+                exercise_id=exercise_id
+            ).first()
+
+            if not progress:
+                progress = UserGrammarExercise(
+                    user_id=user_id,
+                    exercise_id=exercise_id
+                )
+                db.session.add(progress)
+                db.session.flush()
+
+            result.append(progress)
+
+        return result
+
+    def reset_grammar_session_attempts(
+        self,
+        user_id: int,
+        topic_id: int = None,
+        exercise_ids: List[int] = None
+    ) -> int:
+        """
+        Reset session_attempts for grammar exercises.
+
+        Args:
+            user_id: User ID
+            topic_id: Optional topic filter
+            exercise_ids: Optional list of specific exercise IDs
+
+        Returns:
+            Number of reset exercises
+        """
+        query = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.session_attempts > 0
+        )
+
+        if topic_id:
+            query = query.join(GrammarExercise).filter(GrammarExercise.topic_id == topic_id)
+
+        if exercise_ids:
+            query = query.filter(UserGrammarExercise.exercise_id.in_(exercise_ids))
+
+        exercises = query.all()
+
+        for exercise in exercises:
+            exercise.session_attempts = 0
+
+        db.session.commit()
+
+        return len(exercises)
 
     def create_session(
         self,
@@ -855,6 +1138,10 @@ class UnifiedSRSService:
                 db.session.flush()
 
             cards.append(card)
+
+        # Пересчитываем статус UserWord на основе состояний карточек
+        db.session.flush()  # Ensure all card state changes are visible
+        user_word.recalculate_status()
 
         return cards
 

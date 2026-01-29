@@ -50,16 +50,17 @@ EASY_INTERVAL = 4  # days (skip learning steps entirely)
 # =============================================================================
 # REQUEUE POSITIONS (for intra-session card requeue)
 # =============================================================================
-# These approximate the learning step times as card positions
-# E.g., if a step is 1 minute and ~30 seconds per card, that's ~2 cards
+# Increased intervals for better memory retrieval practice
+# "Не знаю" now +8-15 cards (was +1-3) - forces real memory recall
+# "Сомневаюсь" now +15-25 cards (was +3-6) - weak knowledge needs bigger gap
 
-REQUEUE_RANGE_STEP_0 = (1, 3)    # ~1 minute = 1-3 cards away
-REQUEUE_RANGE_STEP_1 = (8, 15)   # ~10 minutes = 8-15 cards away
-REQUEUE_RANGE_HARD = (3, 6)      # Rating 2 on LEARNING: repeat same step
+REQUEUE_RANGE_STEP_0 = (8, 15)   # "Не знаю" → +8-15 карточек
+REQUEUE_RANGE_STEP_1 = (20, 30)  # "Знаю" с шагом 2 → +20-30 карточек
+REQUEUE_RANGE_HARD = (15, 25)    # "Сомневаюсь" → +15-25 карточек
 
 # Legacy compatibility (still used in some places)
-REQUEUE_RANGE_DONT_KNOW = (1, 3)
-REQUEUE_RANGE_DOUBT = (3, 6)
+REQUEUE_RANGE_DONT_KNOW = (8, 15)
+REQUEUE_RANGE_DOUBT = (15, 25)
 
 # =============================================================================
 # SM-2 ALGORITHM PARAMETERS
@@ -93,7 +94,7 @@ EF_INCREASE_KNOW = 0.15
 # When a REVIEW card is failed, it becomes RELEARNING with these settings:
 LAPSE_NEW_INTERVAL_PERCENT = 0  # New interval = 0% of old (i.e., reset to 1 day)
 LAPSE_MINIMUM_INTERVAL = 1      # Minimum interval after lapse (days)
-LEECH_THRESHOLD = 8             # Card becomes a "leech" after this many lapses
+LEECH_THRESHOLD = 6             # Card becomes a "leech" after 6 lapses (was 8)
 
 # =============================================================================
 # CARD STATUSES (UserWord level)
