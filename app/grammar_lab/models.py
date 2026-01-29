@@ -9,7 +9,7 @@ Models:
 - GrammarAttempt: Individual exercise attempt
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from app.utils.db import db
@@ -177,37 +177,28 @@ class GrammarExercise(db.Model):
         return data
 
 
-class UserGrammarProgress(db.Model):
-    """User's progress on a grammar topic"""
-    __tablename__ = 'user_grammar_progress'
+class UserGrammarTopicStatus(db.Model):
+    """
+    Minimal user status for a grammar topic.
+
+    Only stores non-computable data:
+    - theory_completed: whether user read the theory
+    - xp_earned: accumulated XP (expensive to compute)
+
+    All SRS data is in UserGrammarExercise (exercise-level).
+    """
+    __tablename__ = 'user_grammar_topic_status'
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     topic_id = Column(Integer, ForeignKey('grammar_topics.id', ondelete='CASCADE'), nullable=False)
 
-    # Study status
+    # Theory status
     theory_completed = Column(Boolean, default=False)
     theory_completed_at = Column(DateTime)
 
-    # Practice (SRS-like system)
-    mastery_level = Column(Integer, default=0)  # 0-5 (0=new, 5=mastered)
-    correct_streak = Column(Integer, default=0)
-    total_attempts = Column(Integer, default=0)
-    correct_attempts = Column(Integer, default=0)
-
-    # SRS parameters
-    ease_factor = Column(Float, default=2.5)
-    interval = Column(Integer, default=0)  # days until next review
-    next_review = Column(DateTime)
-    last_reviewed = Column(DateTime)
-
-    # Error stats by exercise type
-    error_stats = Column(JSONBCompat, default={})
-    # {"fill_blank": {"attempts": 10, "correct": 7}, ...}
-
-    # XP and time
+    # XP (stored to avoid expensive recalculation)
     xp_earned = Column(Integer, default=0)
-    time_spent = Column(Integer, default=0)  # seconds
 
     # Timestamps
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -215,37 +206,30 @@ class UserGrammarProgress(db.Model):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    user = relationship('User', backref='grammar_progress')
-    topic = relationship('GrammarTopic', backref='user_progress')
+    user = relationship('User', backref='grammar_topic_status')
+    topic = relationship('GrammarTopic', backref='user_status')
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'topic_id', name='uq_user_grammar_topic'),
-        Index('idx_user_grammar_progress_user', 'user_id'),
-        Index('idx_user_grammar_progress_next_review', 'user_id', 'next_review'),
+        UniqueConstraint('user_id', 'topic_id', name='uq_user_grammar_topic_status'),
+        Index('idx_user_grammar_topic_status_user', 'user_id'),
     )
 
     def __repr__(self):
-        return f"<UserGrammarProgress user={self.user_id} topic={self.topic_id} level={self.mastery_level}>"
+        return f"<UserGrammarTopicStatus user={self.user_id} topic={self.topic_id}>"
 
-    @property
-    def accuracy(self):
-        """Calculate accuracy percentage"""
-        if self.total_attempts == 0:
-            return 0
-        return round((self.correct_attempts / self.total_attempts) * 100, 1)
+    @classmethod
+    def get_or_create(cls, user_id: int, topic_id: int):
+        """Get existing status or create new one"""
+        status = cls.query.filter_by(user_id=user_id, topic_id=topic_id).first()
+        if not status:
+            status = cls(user_id=user_id, topic_id=topic_id)
+            db.session.add(status)
+            db.session.flush()
+        return status
 
-    @property
-    def mastery_label(self):
-        """Get human-readable mastery level label"""
-        labels = {
-            0: 'new',
-            1: 'learning',
-            2: 'reviewing',
-            3: 'familiar',
-            4: 'confident',
-            5: 'mastered'
-        }
-        return labels.get(self.mastery_level, 'unknown')
+    def add_xp(self, amount: int):
+        """Add XP to this topic"""
+        self.xp_earned = (self.xp_earned or 0) + amount
 
     def to_dict(self):
         """Convert to dictionary for JSON response"""
@@ -254,15 +238,8 @@ class UserGrammarProgress(db.Model):
             'user_id': self.user_id,
             'topic_id': self.topic_id,
             'theory_completed': self.theory_completed,
-            'mastery_level': self.mastery_level,
-            'mastery_label': self.mastery_label,
-            'correct_streak': self.correct_streak,
-            'total_attempts': self.total_attempts,
-            'correct_attempts': self.correct_attempts,
-            'accuracy': self.accuracy,
-            'xp_earned': self.xp_earned,
-            'next_review': self.next_review.isoformat() if self.next_review else None,
-            'last_reviewed': self.last_reviewed.isoformat() if self.last_reviewed else None
+            'theory_completed_at': self.theory_completed_at.isoformat() if self.theory_completed_at else None,
+            'xp_earned': self.xp_earned or 0,
         }
 
 
@@ -298,3 +275,162 @@ class GrammarAttempt(db.Model):
 
     def __repr__(self):
         return f"<GrammarAttempt user={self.user_id} exercise={self.exercise_id} correct={self.is_correct}>"
+
+
+class UserGrammarExercise(db.Model):
+    """
+    SRS state for a specific exercise per user.
+    Analogous to UserCardDirection for words.
+
+    Anki-like state machine:
+        NEW → LEARNING → REVIEW ⟷ RELEARNING
+    """
+    __tablename__ = 'user_grammar_exercises'
+
+    # Thresholds for mature/mastered (in days)
+    MATURE_THRESHOLD_DAYS = 21
+    MASTERED_THRESHOLD_DAYS = 180
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    exercise_id = Column(Integer, ForeignKey('grammar_exercises.id', ondelete='CASCADE'), nullable=False)
+
+    # Anki-like card state: 'new', 'learning', 'review', 'relearning'
+    state = Column(String(15), default='new', nullable=False)
+
+    # Learning step index (0-based, for LEARNING and RELEARNING states)
+    step_index = Column(Integer, default=0, nullable=False)
+
+    # Lapse count (number of times exercise went from REVIEW to RELEARNING)
+    lapses = Column(Integer, default=0, nullable=False)
+
+    # SM-2 parameters
+    ease_factor = Column(Float, default=2.5, nullable=False)
+    interval = Column(Integer, default=0, nullable=False)  # days
+    repetitions = Column(Integer, default=0, nullable=False)
+
+    # Scheduling
+    next_review = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_reviewed = Column(DateTime, nullable=True)
+    first_reviewed = Column(DateTime, nullable=True)  # When exercise was first studied
+    buried_until = Column(DateTime, nullable=True)  # Card won't be shown until this timestamp
+
+    # Stats
+    correct_count = Column(Integer, default=0, nullable=False)
+    incorrect_count = Column(Integer, default=0, nullable=False)
+    session_attempts = Column(Integer, default=0, nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship('User', backref='grammar_exercise_progress')
+    exercise = relationship('GrammarExercise', backref='user_progress')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'exercise_id', name='uq_user_grammar_exercise'),
+        Index('idx_user_grammar_exercise_user', 'user_id'),
+        Index('idx_user_grammar_exercise_next_review', 'user_id', 'next_review'),
+        Index('idx_user_grammar_exercise_state', 'state'),
+        Index('idx_user_grammar_exercise_buried', 'buried_until'),
+    )
+
+    def __init__(self, user_id, exercise_id):
+        self.user_id = user_id
+        self.exercise_id = exercise_id
+        self.state = 'new'
+        self.step_index = 0
+        self.lapses = 0
+        self.ease_factor = 2.5
+        self.interval = 0
+        self.repetitions = 0
+        self.correct_count = 0
+        self.incorrect_count = 0
+        self.session_attempts = 0
+        self.next_review = datetime.now(timezone.utc)
+
+    def __repr__(self):
+        return f"<UserGrammarExercise user={self.user_id} exercise={self.exercise_id} state={self.state}>"
+
+    @classmethod
+    def get_or_create(cls, user_id: int, exercise_id: int):
+        """Get existing progress or create new one"""
+        progress = cls.query.filter_by(user_id=user_id, exercise_id=exercise_id).first()
+        if not progress:
+            progress = cls(user_id=user_id, exercise_id=exercise_id)
+            db.session.add(progress)
+            db.session.flush()
+        return progress
+
+    @property
+    def is_due(self) -> bool:
+        """Check if this exercise is due for review"""
+        if not self.next_review:
+            return True
+        if self.next_review.tzinfo is None:
+            next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
+        else:
+            next_review_aware = self.next_review
+        return datetime.now(timezone.utc) >= next_review_aware
+
+    @property
+    def is_buried(self) -> bool:
+        """Check if this exercise is currently buried"""
+        if not self.buried_until:
+            return False
+        if self.buried_until.tzinfo is None:
+            buried_aware = self.buried_until.replace(tzinfo=timezone.utc)
+        else:
+            buried_aware = self.buried_until
+        return datetime.now(timezone.utc) < buried_aware
+
+    @property
+    def is_mature(self) -> bool:
+        """Exercise is mature if in review state with interval >= 21 days"""
+        return self.state == 'review' and self.interval >= self.MATURE_THRESHOLD_DAYS
+
+    @property
+    def is_mastered(self) -> bool:
+        """Exercise is mastered if in review state with interval >= 180 days"""
+        return self.state == 'review' and self.interval >= self.MASTERED_THRESHOLD_DAYS
+
+    @property
+    def accuracy(self) -> float:
+        """Calculate accuracy percentage"""
+        total = self.correct_count + self.incorrect_count
+        if total == 0:
+            return 0.0
+        return round((self.correct_count / total) * 100, 1)
+
+    def bury(self, hours: int = 24):
+        """Bury this exercise - it won't be shown until the specified time"""
+        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=hours)
+
+    def unbury(self):
+        """Remove bury status from this exercise"""
+        self.buried_until = None
+
+    def to_dict(self):
+        """Convert to dictionary for JSON response"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'exercise_id': self.exercise_id,
+            'state': self.state,
+            'step_index': self.step_index,
+            'lapses': self.lapses,
+            'ease_factor': self.ease_factor,
+            'interval': self.interval,
+            'repetitions': self.repetitions,
+            'correct_count': self.correct_count,
+            'incorrect_count': self.incorrect_count,
+            'accuracy': self.accuracy,
+            'is_due': self.is_due,
+            'is_buried': self.is_buried,
+            'is_mature': self.is_mature,
+            'is_mastered': self.is_mastered,
+            'next_review': self.next_review.isoformat() if self.next_review else None,
+            'last_reviewed': self.last_reviewed.isoformat() if self.last_reviewed else None,
+        }
