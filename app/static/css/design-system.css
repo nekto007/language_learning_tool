@@ -7936,6 +7936,31 @@ textarea:focus-visible,
     max-width: 150px;
 }
 
+/* Compact rating buttons - simple emoji + text */
+.rating-btn-compact {
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+}
+
+.rating-btn-compact:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.rating-btn-compact:active {
+    transform: translateY(0);
+}
+
+.rating-btn-compact .rating-icon {
+    margin-right: 4px;
+}
+
 /* XP Earned Banner */
 .xp-banner {
     background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
