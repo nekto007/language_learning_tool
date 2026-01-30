@@ -919,7 +919,16 @@ class QuizResult(db.Model):
 
 class UserXP(db.Model):
     """
-    Tracks user's XP (Experience Points) for gamification
+    Tracks user's XP (Experience Points) for gamification.
+
+    Progressive level system:
+    - Level 1→2: 100 XP
+    - Level 2→3: 150 XP
+    - Level 3→4: 200 XP
+    - Each next level requires 50 XP more
+
+    Formula: XP needed for level L = 50 + 50*L
+    Total XP for level L = 25*(L-1)*(L+2)
     """
     __tablename__ = 'user_xp'
 
@@ -931,11 +940,48 @@ class UserXP(db.Model):
     # Relationship
     user = db.relationship('User', backref=db.backref('xp', uselist=False, cascade='all, delete-orphan'))
 
+    @staticmethod
+    def xp_for_level(level: int) -> int:
+        """Total XP required to reach a specific level."""
+        if level <= 1:
+            return 0
+        # Formula: 25*(L-1)*(L+2)
+        return 25 * (level - 1) * (level + 2)
+
+    @staticmethod
+    def xp_to_next_level(level: int) -> int:
+        """XP required to go from level to level+1."""
+        # Formula: 50 + 50*level
+        return 50 + 50 * level
+
     @hybrid_property
-    def level(self):
-        """Calculate level based on total XP (every 100 XP = next level)"""
-        # Level 1: 0-99 XP, Level 2: 100-199 XP, Level 3: 200-299 XP, etc.
-        return (self.total_xp // 100) + 1
+    def level(self) -> int:
+        """Calculate level based on total XP (progressive system)."""
+        import math
+        if self.total_xp <= 0:
+            return 1
+        # Solve: 25*(L-1)*(L+2) <= total_xp
+        # L = floor((-1 + sqrt(9 + 4*xp/25)) / 2)
+        discriminant = 9 + 4 * self.total_xp / 25
+        return int((-1 + math.sqrt(discriminant)) / 2)
+
+    @property
+    def xp_current_level(self) -> int:
+        """XP earned towards current level (progress within level)."""
+        return self.total_xp - self.xp_for_level(self.level)
+
+    @property
+    def xp_needed_for_next(self) -> int:
+        """XP needed to reach next level."""
+        return self.xp_to_next_level(self.level)
+
+    @property
+    def level_progress_percent(self) -> float:
+        """Progress percentage towards next level (0-100)."""
+        needed = self.xp_needed_for_next
+        if needed <= 0:
+            return 100.0
+        return min(100.0, (self.xp_current_level / needed) * 100)
 
     @classmethod
     def get_or_create(cls, user_id):
