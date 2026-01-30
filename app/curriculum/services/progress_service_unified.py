@@ -195,8 +195,8 @@ class ProgressService:
                 'xp': {
                     'total': user_xp.total_xp,
                     'level': user_xp.level,
-                    'xp_for_next_level': user_xp.level * 100,
-                    'xp_in_current_level': user_xp.total_xp % 100
+                    'xp_for_next_level': user_xp.xp_needed_for_next,
+                    'xp_in_current_level': user_xp.xp_current_level
                 },
                 'lessons': {
                     'total_started': total,

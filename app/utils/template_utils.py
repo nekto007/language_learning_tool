@@ -234,17 +234,12 @@ def init_template_utils(app):
             cache.set(cache_key, result, timeout=60)
             return result
 
-        # Calculate XP progress to next level
-        current_level_xp = (user_xp.level - 1) * 100
-        next_level_xp = user_xp.level * 100
-        xp_to_next = next_level_xp - user_xp.total_xp
-        xp_progress_percent = ((user_xp.total_xp - current_level_xp) / 100) * 100
-
+        # Use progressive level system from UserXP model
         result = {
             'user_xp': user_xp.total_xp,
             'user_level': user_xp.level,
-            'xp_to_next_level': xp_to_next,
-            'xp_progress_percent': int(xp_progress_percent)
+            'xp_to_next_level': user_xp.xp_needed_for_next - user_xp.xp_current_level,
+            'xp_progress_percent': int(user_xp.level_progress_percent)
         }
 
         # Cache for 60 seconds
