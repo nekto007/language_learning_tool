@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, case
 from sqlalchemy.orm import joinedload
 
 from app import csrf
@@ -54,9 +54,6 @@ def index():
     """Упрощенная панель изучения - коллекции и колоды с минимальными кликами"""
     from app.study.models import QuizDeck, QuizResult
 
-    # Синхронизируем мастер-колоды (Все мои слова, Выученные слова)
-    sync_master_decks(current_user.id)
-
     # Статистика по SRS словам
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
@@ -77,7 +74,7 @@ def index():
 
     # Total items = all words that are not mastered (still being learned/reviewed)
     all_words_count = UserWord.query.filter_by(user_id=current_user.id).count()
-    total_items = all_words_count - mastered_count
+    total_items = max(0, all_words_count - mastered_count)
 
     # Мои колоды
     my_decks = QuizDeck.query.filter_by(
@@ -111,94 +108,69 @@ def index():
             ).all()
             user_words_dict = {uw.word_id: uw for uw in user_words}
 
-    # Предзагружаем min_interval для определения mastered (review + interval >= 180)
-    min_intervals = {}
-    if user_words_dict:
-        user_word_ids = [uw.id for uw in user_words_dict.values()]
-        interval_data = db.session.query(
-            UserWord.word_id,
-            func.min(UserCardDirection.interval).label('min_interval')
+    # Получаем статистику карточек по колодам ОДНИМ запросом (вместо N+1)
+    deck_stats = {}
+    if my_decks and all_deck_word_ids:
+        from app.study.models import QuizDeckWord
+
+        # Категоризируем состояния: new, learning, review, mastered
+        # Используем CASE для категоризации в одном запросе
+        state_category = case(
+            (or_(UserCardDirection.state == 'new', UserCardDirection.state.is_(None)), 'new'),
+            (UserCardDirection.state.in_(['learning', 'relearning']), 'learning'),
+            (and_(
+                UserCardDirection.state == 'review',
+                or_(UserCardDirection.interval.is_(None), UserCardDirection.interval < UserWord.MASTERED_THRESHOLD_DAYS)
+            ), 'review'),
+            (and_(
+                UserCardDirection.state == 'review',
+                UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS
+            ), 'mastered'),
+            else_='new'
+        ).label('category')
+
+        # Один запрос для всех колод
+        stats_query = db.session.query(
+            QuizDeckWord.deck_id,
+            state_category,
+            func.count(UserCardDirection.id)
+        ).join(
+            UserWord, UserWord.word_id == QuizDeckWord.word_id
         ).join(
             UserCardDirection, UserCardDirection.user_word_id == UserWord.id
         ).filter(
-            UserWord.id.in_(user_word_ids)
-        ).group_by(UserWord.word_id).all()
+            QuizDeckWord.deck_id.in_([d.id for d in my_decks]),
+            UserWord.user_id == current_user.id
+        ).group_by(QuizDeckWord.deck_id, state_category).all()
 
-        min_intervals = {word_id: min_int for word_id, min_int in interval_data}
+        # Группируем результаты по deck_id
+        for deck_id, category, count in stats_query:
+            if deck_id not in deck_stats:
+                deck_stats[deck_id] = {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0}
+            deck_stats[deck_id][category] = count
 
-    # Добавляем статистику для каждой колоды (теперь по КАРТОЧКАМ, не словам)
+    # Применяем статистику к колодам
     for deck in my_decks:
-        # Получаем слова из предзагруженного словаря
         deck_words_list = deck_words_dict.get(deck.id, [])
-        deck_word_ids = [dw.word_id for dw in deck_words_list if dw.word_id]
+        deck_word_ids = set(dw.word_id for dw in deck_words_list if dw.word_id)
 
-        if deck_word_ids:
-            # Базовый фильтр для карточек этой колоды
-            base_filter = and_(
-                UserWord.user_id == current_user.id,
-                UserWord.word_id.in_(deck_word_ids)
-            )
+        stats = deck_stats.get(deck.id, {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0})
 
-            # Считаем КАРТОЧКИ по их state
-            # NEW: state='new' или state is NULL
-            new_count = db.session.query(func.count(UserCardDirection.id)).join(
-                UserWord, UserCardDirection.user_word_id == UserWord.id
-            ).filter(
-                base_filter,
-                or_(UserCardDirection.state == 'new', UserCardDirection.state.is_(None))
-            ).scalar() or 0
+        # Добавляем потенциальные карточки для слов без UserWord записи
+        words_with_userword = set(uw.word_id for uw in user_words_dict.values() if uw.word_id in deck_word_ids)
+        words_without_userword = len(deck_word_ids - words_with_userword)
+        potential_new = words_without_userword * 2  # 2 направления на слово
 
-            # LEARNING: state='learning' или 'relearning'
-            learning_count = db.session.query(func.count(UserCardDirection.id)).join(
-                UserWord, UserCardDirection.user_word_id == UserWord.id
-            ).filter(
-                base_filter,
-                UserCardDirection.state.in_(['learning', 'relearning'])
-            ).scalar() or 0
-
-            # REVIEW (not mastered): state='review' и interval < 180
-            review_count = db.session.query(func.count(UserCardDirection.id)).join(
-                UserWord, UserCardDirection.user_word_id == UserWord.id
-            ).filter(
-                base_filter,
-                UserCardDirection.state == 'review',
-                or_(
-                    UserCardDirection.interval.is_(None),
-                    UserCardDirection.interval < UserWord.MASTERED_THRESHOLD_DAYS
-                )
-            ).scalar() or 0
-
-            # MASTERED: state='review' и interval >= 180
-            mastered_count_deck = db.session.query(func.count(UserCardDirection.id)).join(
-                UserWord, UserCardDirection.user_word_id == UserWord.id
-            ).filter(
-                base_filter,
-                UserCardDirection.state == 'review',
-                UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS
-            ).scalar() or 0
-
-            # Добавляем карточки для слов без UserWord записи
-            # Каждое такое слово = 2 потенциальные карточки (eng-rus + rus-eng)
-            words_with_userword = set(uw.word_id for uw in user_words_dict.values() if uw.word_id in deck_word_ids)
-            words_without_userword = len([wid for wid in deck_word_ids if wid not in words_with_userword])
-            new_count += words_without_userword * 2  # 2 направления на слово
-
-            deck.new_count = new_count
-            deck.learning_count = learning_count
-            deck.review_count = review_count
-            deck.mastered_count = mastered_count_deck
-            # Всего карточек = существующие + потенциальные новые
-            deck.total_cards = new_count + learning_count + review_count + mastered_count_deck
-        else:
-            deck.new_count = 0
-            deck.learning_count = 0
-            deck.review_count = 0
-            deck.mastered_count = 0
-            deck.total_cards = 0
+        deck.new_count = stats['new'] + potential_new
+        deck.learning_count = stats['learning']
+        deck.review_count = stats['review']
+        deck.mastered_count = stats['mastered']
+        deck.total_cards = deck.new_count + deck.learning_count + deck.review_count + deck.mastered_count
+        deck.is_auto = is_auto_deck(deck.title)
 
     # Публичные колоды - топ 12 по популярности
     public_decks = QuizDeck.query.filter(
-        QuizDeck.is_public == True,
+        QuizDeck.is_public.is_(True),
         QuizDeck.user_id != current_user.id
     ).order_by(QuizDeck.times_played.desc(), QuizDeck.created_at.desc()).limit(12).all()
 

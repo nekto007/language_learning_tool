@@ -41,10 +41,10 @@
     </div>
     {% endif %}
 
-    <!-- Welcome Block - показываем пока нет своих колод -->
+    <!-- Welcome Block - показываем пока нет пользовательских колод -->
     {% set ns = namespace(custom_count=0) %}
     {% for deck in my_decks %}
-        {% if deck.title not in ['Все мои слова', 'Выученные слова', 'Слова из чтения'] and not deck.title.startswith('Топик:') and not deck.title.startswith('Коллекция:') %}
+        {% if not deck.is_auto %}
             {% set ns.custom_count = ns.custom_count + 1 %}
         {% endif %}
     {% endfor %}
@@ -93,154 +93,6 @@
             </div>
         </div>
     </div>
-    <style>
-    .welcome-hero {
-        position: relative;
-        border-radius: 20px;
-        overflow: hidden;
-        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
-    }
-    .welcome-hero-inner {
-        position: relative;
-        padding: 2.5rem;
-    }
-    .welcome-hero-glow {
-        position: absolute;
-        top: -50%;
-        right: -20%;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(129, 140, 248, 0.3) 0%, transparent 70%);
-        pointer-events: none;
-    }
-    .welcome-hero-content {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        flex-wrap: wrap;
-    }
-    .welcome-hero-icon {
-        width: 72px;
-        height: 72px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .welcome-hero-icon svg {
-        width: 36px;
-        height: 36px;
-        color: #a5b4fc;
-    }
-    .welcome-hero-text {
-        flex: 1;
-        min-width: 200px;
-    }
-    .welcome-hero-title {
-        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #fff;
-        margin: 0 0 0.5rem 0;
-        letter-spacing: -0.02em;
-    }
-    .welcome-hero-subtitle {
-        font-size: 1rem;
-        color: #c7d2fe;
-        margin: 0;
-        line-height: 1.5;
-    }
-    .welcome-hero-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem 2rem;
-        background: #fff;
-        color: #4338ca;
-        font-weight: 600;
-        font-size: 1rem;
-        border-radius: 12px;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-        flex-shrink: 0;
-    }
-    .welcome-hero-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        color: #3730a3;
-    }
-    .welcome-hero-btn i {
-        font-size: 0.875rem;
-    }
-    .welcome-hero-steps {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        flex-wrap: wrap;
-    }
-    .welcome-step {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1.25rem;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
-        backdrop-filter: blur(10px);
-    }
-    .welcome-step-num {
-        width: 28px;
-        height: 28px;
-        background: rgba(165, 180, 252, 0.2);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.875rem;
-        color: #a5b4fc;
-    }
-    .welcome-step-text {
-        font-size: 0.875rem;
-        color: #e0e7ff;
-        font-weight: 500;
-    }
-    .welcome-step-arrow {
-        color: rgba(255, 255, 255, 0.3);
-    }
-    .welcome-step-arrow svg {
-        width: 20px;
-        height: 20px;
-    }
-    @media (max-width: 768px) {
-        .welcome-hero-inner {
-            padding: 1.5rem;
-        }
-        .welcome-hero-content {
-            flex-direction: column;
-            text-align: center;
-        }
-        .welcome-hero-title {
-            font-size: 1.5rem;
-        }
-        .welcome-hero-steps {
-            gap: 0.5rem;
-        }
-        .welcome-step-arrow {
-            display: none;
-        }
-    }
-    </style>
     {% endif %}
 
     <!-- Быстрый старт - Карточки для повторения -->
@@ -275,7 +127,7 @@
     {% endif %}
 
     <!-- Мои колоды -->
-    {% if my_decks or True %}
+    {% if my_decks %}
     <div class="mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="fw-bold mb-0">
@@ -387,8 +239,8 @@
                                     <!-- Квиз и Карточки - горизонтально -->
                                     {% if deck.total_cards > 0 %}
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-primary" title="Пройти квиз"
-                                                onclick="openQuizModal({{ deck.id }}, {{ deck.word_count }}, '{{ deck.title|replace("'", "\\'") }}')">
+                                        <button type="button" class="btn btn-primary btn-quiz-modal" title="Пройти квиз"
+                                                data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}">
                                             <i class="fas fa-brain"></i> Квиз
                                         </button>
                                         {% if deck.title != 'Выученные слова' %}
@@ -400,24 +252,17 @@
                                     {% endif %}
 
                                     <!-- Кнопки управления колодой -->
-                                    {% set is_auto_deck = (
-                                        deck.title == 'Все мои слова' or
-                                        deck.title == 'Выученные слова' or
-                                        deck.title == 'Слова из чтения' or
-                                        deck.title.startswith('Топик:') or
-                                        deck.title.startswith('Коллекция:')
-                                    ) %}
                                     <div class="btn-group btn-group-sm" role="group">
                                         <!-- Настройки лимитов - для всех колод -->
                                         <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Настройки лимитов">
                                             <i class="fas fa-cog"></i>
                                         </a>
-                                        {% if not is_auto_deck %}
+                                        {% if not deck.is_auto %}
                                         <!-- Редактировать и Удалить - только для обычных колод -->
                                         <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-outline-danger" onclick="confirmDelete({{ deck.id }}, '{{ deck.title }}')" title="Удалить">
+                                        <button type="button" class="btn btn-outline-danger btn-delete-deck" data-deck-id="{{ deck.id }}" data-deck-title="{{ deck.title }}" title="Удалить">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         {% endif %}
@@ -645,6 +490,28 @@ function confirmDelete(deckId, deckTitle) {
         form.submit();
     }
 }
+
+// Event listeners for deck buttons (XSS-safe via data attributes)
+document.addEventListener('DOMContentLoaded', function() {
+    // Quiz modal buttons
+    document.querySelectorAll('.btn-quiz-modal').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const deckId = parseInt(this.dataset.deckId);
+            const wordCount = parseInt(this.dataset.wordCount);
+            const deckTitle = this.dataset.deckTitle;
+            openQuizModal(deckId, wordCount, deckTitle);
+        });
+    });
+
+    // Delete deck buttons
+    document.querySelectorAll('.btn-delete-deck').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const deckId = parseInt(this.dataset.deckId);
+            const deckTitle = this.dataset.deckTitle;
+            confirmDelete(deckId, deckTitle);
+        });
+    });
+});
 
 // Deck search functionality
 document.addEventListener('DOMContentLoaded', function() {
