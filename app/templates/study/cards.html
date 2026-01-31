@@ -321,167 +321,497 @@
             }
         </style>
 
-        <!-- Session complete message -->
-        <div id="session-complete" class="session-done-screen" style="display: none;">
-            <div class="session-done-content">
-                <h1 class="session-done-title">Отлично! Сессия завершена.</h1>
+        <!-- Session complete message - Celebration Screen -->
+        <div id="session-complete" class="celebration-screen" style="display: none;">
+            <!-- Confetti canvas -->
+            <canvas id="confetti-canvas"></canvas>
 
-                <!-- Session stats -->
-                <div class="session-done-stats">
-                    <p class="session-stats-label">В этой сессии изучено:</p>
-                    <div class="session-stats-row">
-                        <span class="stat-badge stat-total"><span id="stats-words">0</span> карточек</span>
-                        <span class="stat-badge stat-correct"><span id="stats-correct">0</span> знаю</span>
-                        <span class="stat-badge stat-score"><span id="stats-score">0</span>%</span>
+            <div class="celebration-content">
+                <!-- Trophy/Success icon -->
+                <div class="celebration-icon-wrapper">
+                    <div class="celebration-icon">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="32" cy="32" r="28" fill="url(#celebGrad)" />
+                            <path d="M20 32L28 40L44 24" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="checkmark-path"/>
+                            <defs>
+                                <linearGradient id="celebGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#10b981"/>
+                                    <stop offset="1" stop-color="#059669"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div class="celebration-rings">
+                        <div class="ring ring-1"></div>
+                        <div class="ring ring-2"></div>
+                        <div class="ring ring-3"></div>
                     </div>
                 </div>
 
-                <!-- XP earned -->
-                <div class="session-xp-earned">
-                    <span class="xp-icon">⚡</span>
-                    <span>+<span id="xp-earned-amount">0</span> XP</span>
-                    <span class="xp-level">(уровень <span id="current-level">1</span>)</span>
+                <!-- Title -->
+                <h1 class="celebration-title" id="celebration-title">Сессия завершена!</h1>
+
+                <!-- Stats grid -->
+                <div class="celebration-stats">
+                    <div class="stat-card stat-cards-studied">
+                        <div class="stat-value" id="stats-words">0</div>
+                        <div class="stat-label">карточек изучено</div>
+                    </div>
+
+                    <div class="stat-card stat-accuracy">
+                        <div class="accuracy-ring-wrapper">
+                            <svg class="accuracy-ring" viewBox="0 0 80 80">
+                                <circle cx="40" cy="40" r="34" fill="none" stroke="#e5e7eb" stroke-width="6"/>
+                                <circle cx="40" cy="40" r="34" fill="none" stroke="url(#accuracyGrad)" stroke-width="6"
+                                        stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                                        class="accuracy-progress" transform="rotate(-90 40 40)"/>
+                                <defs>
+                                    <linearGradient id="accuracyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#f59e0b"/>
+                                        <stop offset="100%" stop-color="#10b981"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div class="accuracy-value">
+                                <span id="stats-score">0</span><small>%</small>
+                            </div>
+                        </div>
+                        <div class="stat-label">точность</div>
+                    </div>
+
+                    <div class="stat-card stat-correct">
+                        <div class="stat-value" id="stats-correct">0</div>
+                        <div class="stat-label">правильных</div>
+                    </div>
+                </div>
+
+                <!-- XP earned with animation -->
+                <div class="xp-reward">
+                    <div class="xp-badge">
+                        <span class="xp-lightning">⚡</span>
+                        <span class="xp-amount">+<span id="xp-earned-amount">0</span></span>
+                        <span class="xp-label">XP</span>
+                    </div>
+                    <div class="xp-level-info">
+                        Уровень <span id="current-level">1</span>
+                    </div>
                 </div>
                 <span id="total-xp" style="display:none;">0</span>
 
-                <!-- Extra study offer -->
-                <p class="session-done-extra" id="session-extra-study-text" style="display: none;">
-                    Если хотите продолжить, начните
-                    <a href="#" id="session-extra-study-link" class="extra-study-link">допзанятие</a>.
-                </p>
+                <!-- Action buttons -->
+                <div class="celebration-actions">
+                    <!-- Extra study button (shown conditionally) -->
+                    <a href="#" id="session-extra-study-link" class="btn-extra-study" style="display: none;">
+                        <span class="btn-icon">🔥</span>
+                        Ещё карточки
+                    </a>
 
-                <a href="{{ url_for('study.index') }}" class="session-done-back">
-                    <i class="fas fa-arrow-left me-2"></i>Вернуться к обучению
-                </a>
+                    <a href="{{ url_for('study.index') }}" class="btn-back-home">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>К обучению</span>
+                    </a>
+                </div>
+
+                <!-- Hidden element for extra study text state -->
+                <span id="session-extra-study-text" style="display: none;"></span>
             </div>
         </div>
 
         <style>
-            .session-done-screen {
-                padding: 3rem 1.5rem;
+            /* Font import */
+            @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap');
+
+            /* ============================================
+               CELEBRATION SCREEN - Achievement Unlocked!
+               ============================================ */
+
+            .celebration-screen {
+                position: relative;
+                padding: 2rem 1rem 3rem;
+                min-height: 70vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            #confetti-canvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 1;
+            }
+
+            .celebration-content {
+                position: relative;
+                z-index: 2;
+                max-width: 380px;
+                width: 100%;
                 text-align: center;
             }
 
-            .session-done-content {
-                max-width: 400px;
-                margin: 0 auto;
+            /* Icon with animated rings */
+            .celebration-icon-wrapper {
+                position: relative;
+                width: 100px;
+                height: 100px;
+                margin: 0 auto 1.5rem;
             }
 
-            .session-done-title {
-                font-size: 1.75rem;
-                font-weight: 600;
-                color: var(--text-primary, #1f2937);
+            .celebration-icon {
+                position: relative;
+                z-index: 2;
+                width: 80px;
+                height: 80px;
+                margin: 10px auto;
+                animation: iconPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+                opacity: 0;
+                transform: scale(0);
+            }
+
+            .celebration-icon svg {
+                width: 100%;
+                height: 100%;
+                filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.4));
+            }
+
+            .checkmark-path {
+                stroke-dasharray: 40;
+                stroke-dashoffset: 40;
+                animation: drawCheck 0.5s ease-out 0.4s forwards;
+            }
+
+            .celebration-rings {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 100%;
+                height: 100%;
+            }
+
+            .ring {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                border-radius: 50%;
+                border: 2px solid rgba(16, 185, 129, 0.3);
+                opacity: 0;
+            }
+
+            .ring-1 {
+                width: 90px;
+                height: 90px;
+                animation: ringPulse 1.5s ease-out 0.2s infinite;
+            }
+
+            .ring-2 {
+                width: 110px;
+                height: 110px;
+                animation: ringPulse 1.5s ease-out 0.5s infinite;
+            }
+
+            .ring-3 {
+                width: 130px;
+                height: 130px;
+                animation: ringPulse 1.5s ease-out 0.8s infinite;
+            }
+
+            /* Title */
+            .celebration-title {
+                font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+                font-size: 1.625rem;
+                font-weight: 800;
+                color: #1f2937;
+                margin: 0 0 1.75rem;
+                animation: fadeSlideUp 0.5s ease-out 0.3s forwards;
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            /* Stats grid */
+            .celebration-stats {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 0.75rem;
                 margin-bottom: 1.5rem;
+                animation: fadeSlideUp 0.5s ease-out 0.5s forwards;
+                opacity: 0;
+                transform: translateY(10px);
             }
 
-            .session-done-stats {
-                background: var(--gray-50, #f9fafb);
-                border-radius: 12px;
-                padding: 1rem 1.25rem;
-                margin-bottom: 1rem;
+            .stat-card {
+                background: #f9fafb;
+                border-radius: 16px;
+                padding: 1rem 0.5rem;
+                transition: transform 0.2s, box-shadow 0.2s;
             }
 
-            .session-stats-label {
-                font-size: 0.875rem;
-                color: var(--text-secondary, #6b7280);
-                margin-bottom: 0.75rem;
+            .stat-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             }
 
-            .session-stats-row {
-                display: flex;
-                justify-content: center;
-                gap: 0.5rem;
-                flex-wrap: wrap;
+            .stat-value {
+                font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+                font-size: 1.75rem;
+                font-weight: 800;
+                color: #1f2937;
+                line-height: 1;
             }
 
-            .stat-badge {
+            .stat-cards-studied .stat-value {
+                color: #4f46e5;
+            }
+
+            .stat-correct .stat-value {
+                color: #10b981;
+            }
+
+            .stat-label {
+                font-size: 0.75rem;
+                color: #6b7280;
+                margin-top: 0.375rem;
+                font-weight: 500;
+            }
+
+            /* Accuracy ring */
+            .stat-accuracy {
+                position: relative;
+            }
+
+            .accuracy-ring-wrapper {
+                position: relative;
+                width: 70px;
+                height: 70px;
+                margin: -0.25rem auto 0;
+            }
+
+            .accuracy-ring {
+                width: 100%;
+                height: 100%;
+            }
+
+            .accuracy-progress {
+                transition: stroke-dashoffset 1s ease-out;
+            }
+
+            .accuracy-value {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+                font-size: 1.125rem;
+                font-weight: 800;
+                color: #f59e0b;
+            }
+
+            .accuracy-value small {
+                font-size: 0.625rem;
+                font-weight: 600;
+            }
+
+            /* XP reward */
+            .xp-reward {
+                margin-bottom: 2rem;
+                animation: fadeSlideUp 0.5s ease-out 0.7s forwards;
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            .xp-badge {
                 display: inline-flex;
                 align-items: center;
                 gap: 0.25rem;
-                padding: 0.375rem 0.75rem;
-                border-radius: 20px;
-                font-size: 0.8rem;
-                font-weight: 500;
+                background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                padding: 0.625rem 1.25rem;
+                border-radius: 50px;
+                box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+                animation: xpPulse 2s ease-in-out infinite;
             }
 
-            .stat-badge.stat-new {
-                background: #dbeafe;
-                color: #1d4ed8;
+            .xp-lightning {
+                font-size: 1.125rem;
+                animation: lightningBounce 0.6s ease-out 1s;
             }
 
-            .stat-badge.stat-learning {
-                background: #fef3c7;
+            .xp-amount {
+                font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+                font-size: 1.375rem;
+                font-weight: 800;
                 color: #b45309;
             }
 
-            .stat-badge.stat-review {
-                background: #dcfce7;
-                color: #15803d;
-            }
-
-            .stat-badge.stat-total {
-                background: #e0e7ff;
-                color: #4338ca;
-            }
-
-            .stat-badge.stat-correct {
-                background: #dcfce7;
-                color: #15803d;
-            }
-
-            .stat-badge.stat-score {
-                background: #fef3c7;
-                color: #b45309;
-            }
-
-            .session-xp-earned {
-                display: inline-flex;
-                align-items: center;
-                gap: 0.375rem;
-                font-size: 1rem;
-                font-weight: 600;
-                color: var(--primary-600, #4f46e5);
-                margin-bottom: 1.5rem;
-            }
-
-            .session-xp-earned .xp-icon {
-                font-size: 1.1rem;
-            }
-
-            .session-xp-earned .xp-level {
-                font-weight: 400;
-                color: var(--text-secondary, #6b7280);
+            .xp-label {
                 font-size: 0.875rem;
+                font-weight: 700;
+                color: #d97706;
             }
 
-            .session-done-extra {
-                font-size: 0.95rem;
-                color: var(--text-secondary, #6b7280);
-                margin-bottom: 2rem;
-                line-height: 1.6;
-            }
-
-            .extra-study-link {
-                color: var(--primary-600, #4f46e5);
-                text-decoration: none;
+            .xp-level-info {
+                margin-top: 0.5rem;
+                font-size: 0.8125rem;
+                color: #6b7280;
                 font-weight: 500;
             }
 
-            .extra-study-link:hover {
-                text-decoration: underline;
+            /* Action buttons */
+            .celebration-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                align-items: center;
+                animation: fadeSlideUp 0.5s ease-out 0.9s forwards;
+                opacity: 0;
+                transform: translateY(10px);
             }
 
-            .session-done-back {
+            .btn-extra-study {
                 display: inline-flex;
                 align-items: center;
-                color: var(--text-secondary, #6b7280);
+                gap: 0.5rem;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+                padding: 0.875rem 1.75rem;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 700;
                 text-decoration: none;
-                font-size: 0.9rem;
+                box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+
+            .btn-extra-study:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+                color: white;
+            }
+
+            .btn-extra-study .btn-icon {
+                font-size: 1.125rem;
+            }
+
+            .btn-back-home {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: #6b7280;
+                padding: 0.75rem 1rem;
+                font-size: 0.9375rem;
+                font-weight: 500;
+                text-decoration: none;
                 transition: color 0.2s;
             }
 
-            .session-done-back:hover {
-                color: var(--text-primary, #1f2937);
+            .btn-back-home:hover {
+                color: #1f2937;
+            }
+
+            .btn-back-home i {
+                font-size: 0.875rem;
+            }
+
+            /* ============================================
+               ANIMATIONS
+               ============================================ */
+
+            @keyframes iconPop {
+                0% {
+                    opacity: 0;
+                    transform: scale(0);
+                }
+                50% {
+                    transform: scale(1.2);
+                }
+                100% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            @keyframes drawCheck {
+                to {
+                    stroke-dashoffset: 0;
+                }
+            }
+
+            @keyframes ringPulse {
+                0% {
+                    opacity: 0.6;
+                    transform: translate(-50%, -50%) scale(0.8);
+                }
+                100% {
+                    opacity: 0;
+                    transform: translate(-50%, -50%) scale(1.3);
+                }
+            }
+
+            @keyframes fadeSlideUp {
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes xpPulse {
+                0%, 100% {
+                    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+                }
+                50% {
+                    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+                }
+            }
+
+            @keyframes lightningBounce {
+                0%, 100% {
+                    transform: translateY(0);
+                }
+                25% {
+                    transform: translateY(-4px);
+                }
+                50% {
+                    transform: translateY(0);
+                }
+                75% {
+                    transform: translateY(-2px);
+                }
+            }
+
+            /* ============================================
+               RESPONSIVE
+               ============================================ */
+
+            @media (max-width: 400px) {
+                .celebration-stats {
+                    grid-template-columns: 1fr;
+                    gap: 0.625rem;
+                }
+
+                .stat-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 0.875rem 1rem;
+                }
+
+                .stat-accuracy {
+                    flex-direction: row-reverse;
+                }
+
+                .accuracy-ring-wrapper {
+                    width: 50px;
+                    height: 50px;
+                    margin: 0;
+                }
+
+                .stat-label {
+                    margin-top: 0;
+                }
             }
         </style>
     </div>
@@ -1331,48 +1661,153 @@
 
                     // Show completion screen
                     flashcardView.style.display = 'block';
-                    sessionComplete.style.display = 'block';
+                    sessionComplete.style.display = 'flex';
 
                     // Set random completion message
-                    const titleEl = sessionComplete.querySelector('.session-done-title');
+                    const titleEl = document.getElementById('celebration-title');
                     if (titleEl) {
                         titleEl.textContent = getRandomCompletionMessage();
                     }
 
-                    // Update stats
-                    const wordsEl = document.getElementById('stats-words');
-                    const correctEl = document.getElementById('stats-correct');
-                    const scoreEl = document.getElementById('stats-score');
+                    // Get stats values
+                    const wordsStudied = data.stats.words_studied || 0;
+                    const correct = data.stats.correct || 0;
+                    const percentage = data.stats.percentage || 0;
+                    const xpEarned = data.xp_earned || 0;
 
-                    if (wordsEl) wordsEl.textContent = data.stats.words_studied || 0;
-                    if (correctEl) correctEl.textContent = data.stats.correct || 0;
-                    if (scoreEl) scoreEl.textContent = data.stats.percentage || 0;
+                    // Animate stats with counting effect
+                    animateValue('stats-words', 0, wordsStudied, 800);
+                    animateValue('stats-correct', 0, correct, 800);
+                    animateValue('stats-score', 0, percentage, 1000);
+                    animateValue('xp-earned-amount', 0, xpEarned, 1200);
 
-                    // Update XP
-                    if (data.xp_earned) {
-                        document.getElementById('xp-earned-amount').textContent = data.xp_earned;
-                        document.getElementById('current-level').textContent = data.level || 1;
-                        document.getElementById('total-xp').textContent = data.total_xp || 0;
-                    }
+                    // Animate accuracy ring
+                    setTimeout(() => {
+                        const accuracyRing = document.querySelector('.accuracy-progress');
+                        if (accuracyRing) {
+                            const circumference = 213.6; // 2 * PI * 34
+                            const offset = circumference - (percentage / 100) * circumference;
+                            accuracyRing.style.strokeDashoffset = offset;
+                        }
+                    }, 300);
 
-                    // Show extra study option if more cards available
+                    // Update level
+                    document.getElementById('current-level').textContent = data.level || 1;
+                    document.getElementById('total-xp').textContent = data.total_xp || 0;
+
+                    // Show extra study button if more cards available
                     if (hasMoreNew || hasMoreReviews) {
-                        const extraText = document.getElementById('session-extra-study-text');
                         const extraLink = document.getElementById('session-extra-study-link');
-                        if (extraText && extraLink) {
-                            extraText.style.display = 'block';
+                        if (extraLink) {
+                            extraLink.style.display = 'inline-flex';
                             let extraUrl = deckId
                                 ? `/study/cards/deck/${deckId}?extra_study=true`
                                 : '{{ url_for("study.cards") }}?extra_study=true';
                             extraLink.href = extraUrl;
                         }
                     }
+
+                    // Launch confetti!
+                    launchConfetti();
                 }
 
             } catch (error) {
                 console.error('Error completing session:', error);
                 window.location.href = '{{ url_for("study.index") }}';
             }
+        }
+
+        // Animate number counting
+        function animateValue(elementId, start, end, duration) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            const range = end - start;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(start + range * easeOut);
+                el.textContent = current;
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Confetti animation
+        function launchConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            const particles = [];
+            const colors = ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4'];
+
+            // Create particles
+            for (let i = 0; i < 80; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15 - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 10,
+                    gravity: 0.2,
+                    friction: 0.99,
+                    opacity: 1
+                });
+            }
+
+            let animationFrame;
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                let activeParticles = 0;
+                particles.forEach(p => {
+                    if (p.opacity <= 0) return;
+                    activeParticles++;
+
+                    p.vy += p.gravity;
+                    p.vx *= p.friction;
+                    p.vy *= p.friction;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.rotation += p.rotationSpeed;
+
+                    // Fade out when near bottom
+                    if (p.y > canvas.height * 0.8) {
+                        p.opacity -= 0.02;
+                    }
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation * Math.PI / 180);
+                    ctx.globalAlpha = p.opacity;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+                    ctx.restore();
+                });
+
+                if (activeParticles > 0) {
+                    animationFrame = requestAnimationFrame(animate);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animate();
         }
 
         // Show "no cards" message

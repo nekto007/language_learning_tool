@@ -109,27 +109,35 @@ def index():
             user_words_dict = {uw.word_id: uw for uw in user_words}
 
     # Получаем статистику карточек по колодам ОДНИМ запросом (вместо N+1)
+    # Показываем карточки, которые МОЖНО ИЗУЧАТЬ СЕГОДНЯ (как в UI карточек)
     deck_stats = {}
+    now = datetime.now(timezone.utc)
+    end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
     if my_decks and all_deck_word_ids:
         from app.study.models import QuizDeckWord
 
         # Категоризируем состояния: new, learning, review, mastered
-        # Используем CASE для категоризации в одном запросе
         state_category = case(
+            # NEW: state='new' или NULL
             (or_(UserCardDirection.state == 'new', UserCardDirection.state.is_(None)), 'new'),
+            # LEARNING: learning/relearning
             (UserCardDirection.state.in_(['learning', 'relearning']), 'learning'),
+            # MASTERED: review + interval >= 180 days
             (and_(
                 UserCardDirection.state == 'review',
-                or_(UserCardDirection.interval.is_(None), UserCardDirection.interval < UserWord.MASTERED_THRESHOLD_DAYS)
-            ), 'review'),
-            (and_(
-                UserCardDirection.state == 'review',
-                UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS
+                UserCardDirection.interval >= 180
             ), 'mastered'),
+            # REVIEW: review + not mastered (interval < 180 or NULL)
+            (and_(
+                UserCardDirection.state == 'review',
+                or_(UserCardDirection.interval.is_(None), UserCardDirection.interval < 180)
+            ), 'review'),
             else_='new'
         ).label('category')
 
         # Один запрос для всех колод
+        # Фильтруем по next_review: показываем карточки доступные для изучения сегодня
+        # NEW карточки всегда доступны, остальные - если next_review <= конец дня
         stats_query = db.session.query(
             QuizDeckWord.deck_id,
             state_category,
@@ -140,7 +148,13 @@ def index():
             UserCardDirection, UserCardDirection.user_word_id == UserWord.id
         ).filter(
             QuizDeckWord.deck_id.in_([d.id for d in my_decks]),
-            UserWord.user_id == current_user.id
+            UserWord.user_id == current_user.id,
+            # Фильтр: NEW карточки всегда, остальные только если пора повторять
+            or_(
+                UserCardDirection.state == 'new',
+                UserCardDirection.state.is_(None),
+                UserCardDirection.next_review <= end_of_today
+            )
         ).group_by(QuizDeckWord.deck_id, state_category).all()
 
         # Группируем результаты по deck_id

@@ -90,7 +90,8 @@ class XPService:
             Dictionary with XP breakdown
         """
         base_xp = cards_reviewed * XPService.XP_PER_CARD_REVIEWED
-        completion_bonus = XPService.XP_FLASHCARD_SESSION
+        # Only give completion bonus if at least 1 card was studied
+        completion_bonus = XPService.XP_FLASHCARD_SESSION if cards_reviewed > 0 else 0
         total_xp = base_xp + completion_bonus
 
         return {
