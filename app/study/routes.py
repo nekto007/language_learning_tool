@@ -108,6 +108,18 @@ def index():
             ).all()
             user_words_dict = {uw.word_id: uw for uw in user_words}
 
+            # Также получаем user_word_ids которые имеют UserCardDirection записи
+            # (слова с UserWord но без карточек тоже должны считаться как новые)
+            user_word_ids_with_cards = set()
+            if user_words:
+                user_word_ids = [uw.id for uw in user_words]
+                cards_exist = db.session.query(
+                    UserCardDirection.user_word_id
+                ).filter(
+                    UserCardDirection.user_word_id.in_(user_word_ids)
+                ).distinct().all()
+                user_word_ids_with_cards = set(row[0] for row in cards_exist)
+
     # Получаем статистику карточек по колодам ОДНИМ запросом (вместо N+1)
     # Показываем карточки, которые МОЖНО ИЗУЧАТЬ СЕГОДНЯ (как в UI карточек)
     deck_stats = {}
@@ -170,10 +182,19 @@ def index():
 
         stats = deck_stats.get(deck.id, {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0})
 
-        # Добавляем потенциальные карточки для слов без UserWord записи
+        # Добавляем потенциальные карточки для слов, которые ещё не изучались:
+        # 1. Слова без UserWord записи вообще
+        # 2. Слова с UserWord но без UserCardDirection (добавлены, но не изучались)
         words_with_userword = set(uw.word_id for uw in user_words_dict.values() if uw.word_id in deck_word_ids)
         words_without_userword = len(deck_word_ids - words_with_userword)
-        potential_new = words_without_userword * 2  # 2 направления на слово
+
+        # Слова с UserWord но без карточек (добавлены в колоду, но ни разу не изучались)
+        words_with_userword_no_cards = sum(
+            1 for uw in user_words_dict.values()
+            if uw.word_id in deck_word_ids and uw.id not in user_word_ids_with_cards
+        )
+
+        potential_new = (words_without_userword + words_with_userword_no_cards) * 2  # 2 направления на слово
 
         deck.new_count = stats['new'] + potential_new
         deck.learning_count = stats['learning']
