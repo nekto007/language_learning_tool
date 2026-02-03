@@ -7951,8 +7951,29 @@ textarea:focus-visible,
    ======================================== */
 
 .table-wrapper-rounded {
-    overflow: hidden;
     border-radius: var(--radius-lg);
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+}
+
+.table-wrapper-rounded > table {
+    margin-bottom: 0;
+}
+
+.table-wrapper-rounded > table thead tr:first-child th:first-child {
+    border-top-left-radius: var(--radius-lg);
+}
+
+.table-wrapper-rounded > table thead tr:first-child th:last-child {
+    border-top-right-radius: var(--radius-lg);
+}
+
+.table-wrapper-rounded > table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: var(--radius-lg);
+}
+
+.table-wrapper-rounded > table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: var(--radius-lg);
 }
 
 /* ========================================
@@ -8885,6 +8906,47 @@ textarea:focus-visible,
 .deck-col-name { width: 30%; }
 .deck-col-count { width: 10%; }
 .deck-col-action { width: 10%; }
+
+/* Responsive deck table for tablets */
+@media (max-width: 1024px) {
+    /* Hide "Сыграно" (played) column on tablets */
+    .deck-col-played {
+        display: none;
+    }
+
+    /* Narrower count columns */
+    .deck-col-count {
+        width: 8%;
+    }
+
+    /* Stack only study buttons (Quiz/Cards) vertically on tablets */
+    .deck-actions .deck-study-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .deck-actions .deck-study-buttons .btn {
+        border-radius: 0.375rem !important;
+        margin-bottom: 2px;
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Hide more columns on mobile */
+    .deck-col-learning,
+    .deck-col-review {
+        display: none;
+    }
+
+    .deck-col-name {
+        width: 40%;
+    }
+
+    .deck-col-count {
+        width: 12%;
+    }
+}
 
 /* Public deck card border */
 .deck-card-public {
