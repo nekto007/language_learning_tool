@@ -162,12 +162,12 @@
                                     <i class="fas fa-star"></i> Новые
                                 </span>
                             </th>
-                            <th class="text-center deck-col-count">
+                            <th class="text-center deck-col-count deck-col-learning">
                                 <span class="text-warning" title="Изучаемые слова">
                                     <i class="fas fa-graduation-cap"></i> Изучаю
                                 </span>
                             </th>
-                            <th class="text-center deck-col-count">
+                            <th class="text-center deck-col-count deck-col-review">
                                 <span class="text-danger" title="К повторению">
                                     <i class="fas fa-redo"></i> Повтор
                                 </span>
@@ -177,8 +177,8 @@
                                     <i class="fas fa-check-circle"></i> Выучено
                                 </span>
                             </th>
-                            <th class="text-center deck-col-count">Сыграно</th>
-                            <th class="text-center deck-col-count">Действия</th>
+                            <th class="text-center deck-col-count deck-col-played">Сыграно</th>
+                            <th class="text-center">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -222,30 +222,30 @@
                             <td class="text-center">
                                 <span class="badge bg-info">{{ deck.new_count }}</span>
                             </td>
-                            <td class="text-center">
+                            <td class="text-center deck-col-learning">
                                 <span class="badge bg-warning text-dark">{{ deck.learning_count }}</span>
                             </td>
-                            <td class="text-center">
+                            <td class="text-center deck-col-review">
                                 <span class="badge bg-danger">{{ deck.review_count }}</span>
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-success">{{ deck.mastered_count }}</span>
                             </td>
-                            <td class="text-center">
+                            <td class="text-center deck-col-played">
                                 <small class="text-muted">{{ deck.times_played }}</small>
                             </td>
-                            <td class="text-center">
+                            <td class="text-center deck-actions">
                                 <div class="d-flex flex-column gap-1 align-items-center">
-                                    <!-- Квиз и Карточки - горизонтально -->
+                                    <!-- Квиз и Карточки -->
                                     {% if deck.total_cards > 0 %}
-                                    <div class="btn-group btn-group-sm" role="group">
+                                    <div class="btn-group btn-group-sm deck-study-buttons" role="group">
                                         <button type="button" class="btn btn-primary btn-quiz-modal" title="Пройти квиз"
                                                 data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}">
-                                            <i class="fas fa-brain"></i> Квиз
+                                            <i class="fas fa-brain me-1"></i>Квиз
                                         </button>
                                         {% if deck.title != 'Выученные слова' %}
                                         <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="Интервальное повторение">
-                                            <i class="fas fa-layer-group"></i> Карточки
+                                            <i class="fas fa-layer-group me-1"></i>Карточки
                                         </a>
                                         {% endif %}
                                     </div>
