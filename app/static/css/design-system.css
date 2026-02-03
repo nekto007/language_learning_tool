@@ -8957,6 +8957,25 @@ textarea:focus-visible,
     font-size: 0.75rem;
 }
 
+/* Responsive deck views - table vs cards */
+.deck-table-view {
+    display: block;
+}
+
+.deck-cards-view {
+    display: none;
+}
+
+@media (max-width: 575.98px) {
+    .deck-table-view {
+        display: none !important;
+    }
+
+    .deck-cards-view {
+        display: block !important;
+    }
+}
+
 /* Responsive width utilities */
 @media (min-width: 768px) {
     .w-md-auto {
