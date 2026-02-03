@@ -8948,6 +8948,22 @@ textarea:focus-visible,
     }
 }
 
+/* Mobile deck cards */
+.deck-mobile-card {
+    border-left: 3px solid var(--primary-500);
+}
+
+.deck-mobile-card .badge {
+    font-size: 0.75rem;
+}
+
+/* Responsive width utilities */
+@media (min-width: 768px) {
+    .w-md-auto {
+        width: auto !important;
+    }
+}
+
 /* Public deck card border */
 .deck-card-public {
     border-left: 3px solid var(--success-500);
