@@ -650,12 +650,35 @@ def get_study_items():
     # PRIORITY 2.5: NEW state cards (cards added to learning but not yet started)
     # These are cards with state='new' that already have UserWord entries
     # Counts against NEW cards limit, not review limit!
-    # Use include_today=True - show all NEW state cards due today
+    # NEW cards may have next_review=NULL, so we need a separate query without due_filter
     if remaining_new > 0:
-        new_state_cards = base_due_query(include_today=True).filter(
-            UserCardDirection.state == CardState.NEW.value
-        ).order_by(
-            UserCardDirection.next_review
+        new_state_query = UserCardDirection.query \
+            .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+            .options(
+                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
+            ) \
+            .filter(
+                UserWord.user_id == current_user.id,
+                UserWord.status.in_(['new', 'learning', 'review']),
+                UserCardDirection.state == CardState.NEW.value,
+                # Include cards with NULL next_review or due today
+                or_(
+                    UserCardDirection.next_review.is_(None),
+                    UserCardDirection.next_review <= end_of_today
+                ),
+                # Filter out buried cards
+                or_(
+                    UserCardDirection.buried_until.is_(None),
+                    UserCardDirection.buried_until <= now
+                )
+            )
+        if deck_word_ids is not None:
+            new_state_query = new_state_query.filter(UserWord.word_id.in_(deck_word_ids))
+        if exclude_card_ids:
+            new_state_query = new_state_query.filter(~UserCardDirection.id.in_(exclude_card_ids))
+
+        new_state_cards = new_state_query.order_by(
+            UserCardDirection.next_review.nullsfirst()
         ).limit(remaining_new).all()
 
         for direction in new_state_cards:
