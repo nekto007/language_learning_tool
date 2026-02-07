@@ -706,17 +706,31 @@ def get_study_items():
             if word and word.russian_word:
                 result_items.append(format_card(direction, word, 'review'))
 
-    # PRIORITY 4: NEW cards (words without UserWord record yet)
+    # PRIORITY 4: NEW cards (words without UserCardDirection records)
+    # This includes:
+    # 1. Words without UserWord record at all
+    # 2. Words with UserWord but no UserCardDirection records (status='new', no directions)
     # Each word creates 2 cards (eng-rus + rus-eng), so we need half the words
     # Use remaining_new which accounts for NEW state cards already added
     if remaining_new > 0:
         words_to_fetch = (remaining_new + 1) // 2  # Round up to get enough cards
 
+        # Subquery to find user_words that have directions
+        user_words_with_directions = db.session.query(UserWord.word_id).join(
+            UserCardDirection, UserWord.id == UserCardDirection.user_word_id
+        ).filter(
+            UserWord.user_id == current_user.id
+        ).subquery()
+
         new_words_query = db.session.query(CollectionWords).outerjoin(
             UserWord,
             (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
         ).filter(
-            UserWord.id == None,
+            # Either no UserWord OR UserWord exists but has no directions
+            or_(
+                UserWord.id.is_(None),
+                ~CollectionWords.id.in_(user_words_with_directions)
+            ),
             CollectionWords.russian_word.isnot(None),
             CollectionWords.russian_word != ''
         )
