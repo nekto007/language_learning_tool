@@ -150,20 +150,26 @@ def import_curriculum():
                             db.session.add(module)
                             db.session.flush()
                             imported_stats['modules'] += 1
+                        else:
+                            # Обновляем существующий модуль
+                            if module_data.get('title'):
+                                module.title = sanitize_json_content(module_data.get('title'))
+                            if module_data.get('description'):
+                                module.description = sanitize_json_content(module_data.get('description'))
+                            if module_data.get('input_mode'):
+                                module.input_mode = module_data.get('input_mode')
+                            imported_stats['modules'] += 1
 
                         # Import lessons
                         for lesson_data in module_data.get('lessons', []):
                             # Поддержка обоих форматов: 'number' и 'order'
                             lesson_number = lesson_data.get('number') or lesson_data.get('order', 0)
 
-                            # Skip if lesson exists
+                            # Check if lesson exists
                             existing_lesson = Lessons.query.filter_by(
                                 module_id=module.id,
                                 number=lesson_number
                             ).first()
-
-                            if existing_lesson:
-                                continue
 
                             # Маппинг типов уроков из JSON в типы БД
                             type_mapping = {
@@ -241,24 +247,43 @@ def import_curriculum():
                             collection_id = lesson_data.get('collection_id')
                             book_id = lesson_data.get('book_id')
 
-                            lesson = Lessons(
-                                module_id=module.id,
-                                number=lesson_number,
-                                title=sanitize_json_content(
-                                    lesson_data.get('title', 'Untitled Lesson')
-                                ),
-                                type=mapped_type,
-                                description=sanitize_json_content(
-                                    lesson_data.get('grammar_focus', lesson_data.get('description', ''))
-                                ),
-                                order=lesson_number,  # используем lesson_number и для order
-                                content=content,
-                                collection_id=safe_int(collection_id) if collection_id else None,
-                                book_id=safe_int(book_id) if book_id else None
-                            )
-
-                            db.session.add(lesson)
-                            imported_stats['lessons'] += 1
+                            if existing_lesson:
+                                # Обновляем существующий урок
+                                existing_lesson.title = sanitize_json_content(
+                                    lesson_data.get('title', existing_lesson.title)
+                                )
+                                existing_lesson.type = mapped_type
+                                existing_lesson.description = sanitize_json_content(
+                                    lesson_data.get('grammar_focus', lesson_data.get('description', existing_lesson.description or ''))
+                                )
+                                existing_lesson.content = content
+                                if collection_id:
+                                    existing_lesson.collection_id = safe_int(collection_id)
+                                if book_id:
+                                    existing_lesson.book_id = safe_int(book_id)
+                                # Помечаем content как изменённый для SQLAlchemy
+                                from sqlalchemy.orm.attributes import flag_modified
+                                flag_modified(existing_lesson, 'content')
+                                imported_stats['lessons'] += 1
+                            else:
+                                # Создаём новый урок
+                                lesson = Lessons(
+                                    module_id=module.id,
+                                    number=lesson_number,
+                                    title=sanitize_json_content(
+                                        lesson_data.get('title', 'Untitled Lesson')
+                                    ),
+                                    type=mapped_type,
+                                    description=sanitize_json_content(
+                                        lesson_data.get('grammar_focus', lesson_data.get('description', ''))
+                                    ),
+                                    order=lesson_number,
+                                    content=content,
+                                    collection_id=safe_int(collection_id) if collection_id else None,
+                                    book_id=safe_int(book_id) if book_id else None
+                                )
+                                db.session.add(lesson)
+                                imported_stats['lessons'] += 1
 
                 db.session.commit()
 
