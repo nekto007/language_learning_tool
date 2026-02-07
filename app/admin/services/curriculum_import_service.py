@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 from flask_login import current_user
 from sqlalchemy import distinct, func
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.auth.models import User
 from app.books.models import Book
@@ -264,12 +265,14 @@ class CurriculumImportService:
             }
             lesson_type = type_mapping.get(lesson_type, lesson_type)
 
-            # Сначала проверяем по явному ID, затем по module_id + number
-            lesson = None
-            if explicit_lesson_id:
-                lesson = Lessons.query.get(explicit_lesson_id)
-            if not lesson:
-                lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
+            # Ищем урок по module_id + number (наиболее надёжный способ)
+            lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
+
+            # Если не нашли по номеру, пробуем по явному ID (только если урок принадлежит этому модулю)
+            if not lesson and explicit_lesson_id:
+                existing = Lessons.query.get(explicit_lesson_id)
+                if existing and existing.module_id == module.id:
+                    lesson = existing
 
             if not lesson:
                 lesson = Lessons(
@@ -394,8 +397,15 @@ class CurriculumImportService:
                     content['xp_reward'] = lesson_data.get('xp_reward')
                 lesson.content = content
 
+            # Явно помечаем content как изменённый для SQLAlchemy
+            flag_modified(lesson, 'content')
+            # Принудительно сохраняем изменения урока
+            db.session.flush()
+            logger.info(f"Обновлён урок id={lesson.id}: type={lesson_type}, content_keys={list(lesson.content.keys()) if isinstance(lesson.content, dict) else 'not dict'}")
+
         # 4. Сохраняем все изменения
         db.session.commit()
+        logger.info(f"Commit выполнен для модуля {module.id}")
 
         # 5. Сбрасываем PostgreSQL последовательности чтобы избежать конфликтов ID
         CurriculumImportService._reset_sequences()
