@@ -164,16 +164,25 @@ class CurriculumImportService:
         # Нормализация формата JSON (поддержка двух форматов)
         # Формат 1 (старый): {"level": "A1", "module": 6, "lessons": [...]}
         # Формат 2 (новый): {"module": {"id": 6, "level": "A1", "lessons": [...]}}
+        explicit_module_id = None
         if 'module' in data and isinstance(data['module'], dict):
             module_data = data['module']
+            explicit_module_id = module_data.get('id')  # Сохраняем ID из файла
             data = {
                 'level': module_data.get('level'),
-                'module': module_data.get('id') or module_data.get('number'),
+                'module': module_data.get('order') or module_data.get('id') or module_data.get('number'),
+                'module_id': explicit_module_id,  # Передаём явный ID
                 'title': module_data.get('title'),
+                'title_en': module_data.get('title_en'),  # Английское название
                 'description': module_data.get('description', ''),
+                'input_mode': module_data.get('input_mode', 'selection_only'),  # Режим ввода
+                'prerequisites': module_data.get('prerequisites', []),  # Предварительные требования
+                'skills_learned': module_data.get('skills_learned', []),  # Навыки для сохранения в raw_content
+                'total_xp': module_data.get('total_xp'),  # Всего XP
+                'estimated_time': module_data.get('estimated_time'),  # Примерное время
                 'lessons': module_data.get('lessons', [])
             }
-            logger.info("Обнаружен новый формат JSON, выполнена нормализация")
+            logger.info(f"Обнаружен новый формат JSON, module_id={explicit_module_id}, input_mode={data.get('input_mode')}")
 
         # Проверяем наличие обязательных полей
         if 'level' not in data or 'module' not in data:
@@ -199,21 +208,36 @@ class CurriculumImportService:
         # 2. Создаем или находим модуль
         module_number = data['module']
         module_description = data.get('description', '')
-        module = Module.query.filter_by(level_id=level.id, number=module_number).first()
+        explicit_module_id = data.get('module_id')
+
+        # Сначала проверяем по явному ID, затем по level_id + number
+        module = None
+        if explicit_module_id:
+            module = Module.query.get(explicit_module_id)
+        if not module:
+            module = Module.query.filter_by(level_id=level.id, number=module_number).first()
+
+        # Получаем prerequisites из JSON
+        module_prerequisites = data.get('prerequisites', [])
 
         if not module:
-            # Создаем новый модуль
+            # Создаем новый модуль с явным ID если указан
             module_title = data.get('title', f"Module {module_number}")
             module = Module(
                 level_id=level.id,
                 number=module_number,
                 title=module_title,
                 description=module_description,
-                raw_content=data
+                raw_content=data,
+                input_mode=data.get('input_mode', 'selection_only'),
+                prerequisites=module_prerequisites if module_prerequisites else None
             )
+            # Устанавливаем явный ID если указан
+            if explicit_module_id:
+                module.id = explicit_module_id
             db.session.add(module)
             db.session.flush()
-            logger.info(f"Создан новый модуль: {module.number}")
+            logger.info(f"Создан новый модуль: id={module.id}, number={module.number}")
         else:
             # Обновляем существующий модуль
             module.raw_content = data
@@ -221,14 +245,31 @@ class CurriculumImportService:
                 module.title = data.get('title')
             if module_description:
                 module.description = module_description
+            if data.get('input_mode'):
+                module.input_mode = data.get('input_mode')
+            if module_prerequisites:
+                module.prerequisites = module_prerequisites
 
         # 3. Создаём уроки из списка data['lessons']
         for lesson_data in data.get('lessons', []):
             # Нормализация формата урока (поддержка двух форматов)
+            explicit_lesson_id = lesson_data.get('id')
             number = lesson_data.get('lesson_number') or lesson_data.get('order') or lesson_data.get('id')
             lesson_type = lesson_data.get('lesson_type') or lesson_data.get('type')
             title = lesson_data.get('title', '')
-            lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
+
+            # Маппинг типов уроков (flashcards -> card)
+            type_mapping = {
+                'flashcards': 'card',
+            }
+            lesson_type = type_mapping.get(lesson_type, lesson_type)
+
+            # Сначала проверяем по явному ID, затем по module_id + number
+            lesson = None
+            if explicit_lesson_id:
+                lesson = Lessons.query.get(explicit_lesson_id)
+            if not lesson:
+                lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
 
             if not lesson:
                 lesson = Lessons(
@@ -237,14 +278,21 @@ class CurriculumImportService:
                     title=title,
                     type=lesson_type if lesson_type != 'text' else 'text',
                     order=number,
-                    description=title
+                    description=lesson_data.get('grammar_focus') or title
                 )
+                # Устанавливаем явный ID если указан
+                if explicit_lesson_id:
+                    lesson.id = explicit_lesson_id
                 db.session.add(lesson)
                 db.session.flush()
+                logger.info(f"Создан урок: id={lesson.id}, number={number}, type={lesson_type}")
             else:
                 # Update existing lesson metadata
                 if title:
                     lesson.title = title
+                if lesson_data.get('grammar_focus'):
+                    lesson.description = lesson_data.get('grammar_focus')
+                elif title:
                     lesson.description = title
                 if lesson_type:
                     lesson.type = lesson_type if lesson_type != 'text' else 'text'
@@ -261,7 +309,15 @@ class CurriculumImportService:
                     'examples': theory.get('examples', []) or grammar_explanation.get('examples', []),
                     'exercises': lesson_data.get('exercises', []) or content.get('exercises', [])
                 }
-                lesson.content = CurriculumImportService.process_grammar(grammar_input)
+                processed_grammar = CurriculumImportService.process_grammar(grammar_input)
+                # Сохраняем дополнительные поля из grammar_explanation
+                if grammar_explanation:
+                    processed_grammar['title'] = grammar_explanation.get('title', '')
+                    processed_grammar['sections'] = grammar_explanation.get('sections', [])
+                    processed_grammar['important_notes'] = grammar_explanation.get('important_notes', [])
+                    processed_grammar['summary'] = grammar_explanation.get('summary', {})
+                processed_grammar['xp_reward'] = lesson_data.get('xp_reward')
+                lesson.content = processed_grammar
 
             elif lesson_type == 'vocabulary':
                 # Поддержка обоих форматов: words или content.vocabulary
@@ -283,28 +339,66 @@ class CurriculumImportService:
                 CollectionWordLink.query.filter_by(collection_id=collection.id).delete()
                 CurriculumImportService.process_vocabulary(vocab_list, collection, level_code)
                 lesson.collection_id = collection.id
-                lesson.content = vocab_list
+                lesson.content = {
+                    'vocabulary': vocab_list,
+                    'xp_reward': lesson_data.get('xp_reward')
+                }
 
             elif lesson_type == 'card':
+                # Карточки могут быть в content.cards или напрямую в cards
+                content = lesson_data.get('content', {})
+                cards = content.get('cards', []) if isinstance(content, dict) else []
+                if not cards:
+                    cards = lesson_data.get('cards', [])
                 lesson.content = {
                     'settings': lesson_data.get('settings', {}),
-                    'cards': lesson_data.get('cards', []),
-                    'note': lesson_data.get('note', '')
+                    'cards': cards,
+                    'note': lesson_data.get('note', ''),
+                    'xp_reward': lesson_data.get('xp_reward')
                 }
             elif lesson_type == 'quiz':
-                lesson.content = {'exercises': lesson_data.get('exercises', [])}
-            elif lesson_type == 'text':
-                lesson.content = lesson_data.get('content', {})
-            elif lesson_type == 'final_test':
+                # Quiz может иметь exercises в content или напрямую
+                content = lesson_data.get('content', {})
+                exercises = content.get('exercises', []) if isinstance(content, dict) else []
+                if not exercises:
+                    exercises = lesson_data.get('exercises', [])
                 lesson.content = {
-                    'passing_score_percent': lesson_data.get('passing_score_percent', 0),
-                    'exercises': lesson_data.get('exercises', [])
+                    'exercises': exercises,
+                    'xp_reward': lesson_data.get('xp_reward')
                 }
+            elif lesson_type == 'text':
+                content = lesson_data.get('content', {})
+                if lesson_data.get('xp_reward'):
+                    content['xp_reward'] = lesson_data.get('xp_reward')
+                lesson.content = content
+            elif lesson_type == 'final_test':
+                content = lesson_data.get('content', {})
+                lesson.content = {
+                    'passing_score': content.get('passing_score', lesson_data.get('passing_score_percent', 75)),
+                    'total_points': content.get('total_points', 100),
+                    'test_sections': content.get('test_sections', []),
+                    'exercises': lesson_data.get('exercises', []),
+                    'xp_reward': lesson_data.get('xp_reward')
+                }
+            elif lesson_type in ('reading', 'listening_quiz', 'dialogue_completion_quiz',
+                                 'ordering_quiz', 'translation_quiz', 'listening_immersion'):
+                # Новые типы уроков - сохраняем content как есть
+                content = lesson_data.get('content', {})
+                if lesson_data.get('xp_reward'):
+                    content['xp_reward'] = lesson_data.get('xp_reward')
+                lesson.content = content
             else:
-                lesson.content = lesson_data
+                # Для неизвестных типов сохраняем всё содержимое
+                content = lesson_data.get('content', lesson_data)
+                if isinstance(content, dict) and lesson_data.get('xp_reward'):
+                    content['xp_reward'] = lesson_data.get('xp_reward')
+                lesson.content = content
 
         # 4. Сохраняем все изменения
         db.session.commit()
+
+        # 5. Сбрасываем PostgreSQL последовательности чтобы избежать конфликтов ID
+        CurriculumImportService._reset_sequences()
 
         # Возвращаем результат
         first_lesson = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.order).first()
@@ -318,6 +412,23 @@ class CurriculumImportService:
 
         logger.info("Импорт завершен успешно.")
         return result
+
+    @staticmethod
+    def _reset_sequences():
+        """Сбрасывает PostgreSQL последовательности для таблиц с явными ID"""
+        try:
+            # Сброс последовательности для modules
+            db.session.execute(db.text(
+                "SELECT setval('modules_id_seq', COALESCE((SELECT MAX(id) FROM modules), 1), true)"
+            ))
+            # Сброс последовательности для lessons
+            db.session.execute(db.text(
+                "SELECT setval('lessons_id_seq', COALESCE((SELECT MAX(id) FROM lessons), 1), true)"
+            ))
+            db.session.commit()
+            logger.info("PostgreSQL последовательности успешно сброшены")
+        except Exception as e:
+            logger.warning(f"Не удалось сбросить последовательности: {e}")
 
     @staticmethod
     def get_word_status_statistics():
