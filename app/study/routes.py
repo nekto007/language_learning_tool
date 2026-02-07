@@ -712,6 +712,8 @@ def get_study_items():
     # 2. Words with UserWord but no UserCardDirection records (status='new', no directions)
     # Each word creates 2 cards (eng-rus + rus-eng), so we need half the words
     # Use remaining_new which accounts for NEW state cards already added
+    import logging
+    logging.warning(f"DEBUG P4: remaining_new={remaining_new}, new_cards_today={new_cards_today}, new_cards_limit={new_cards_limit}, deck_word_ids count={len(deck_word_ids) if deck_word_ids else 'None'}")
     if remaining_new > 0:
         words_to_fetch = (remaining_new + 1) // 2  # Round up to get enough cards
 
@@ -744,6 +746,7 @@ def get_study_items():
             CollectionWords.level.asc(),           # Then by level (A1 → C2)
             func.random()                          # Random for same rank
         ).limit(words_to_fetch).all()
+        logging.warning(f"DEBUG P4: words_to_fetch={words_to_fetch}, found {len(new_words)} words")
 
         # Filter out similar words (same base_word_id) in one session
         selected_base_ids = set()
