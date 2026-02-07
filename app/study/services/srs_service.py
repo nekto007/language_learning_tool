@@ -256,30 +256,55 @@ class SRSService:
                         UserWord.status.in_(['new', 'learning', 'review'])
                     )
                 ),
-                UserCardDirection.next_review <= end_of_today
+                or_(
+                    UserCardDirection.next_review.is_(None),
+                    UserCardDirection.next_review <= end_of_today
+                )
             ).scalar() or 0
 
-            # Get existing user words for this deck
-            existing_word_ids = get_user_word_ids(user_id, deck_word_ids)
-            new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
+            # Count new words: words without UserWord OR words with UserWord but no directions
+            # Get word_ids that have UserCardDirection records
+            words_with_directions = db.session.query(UserWord.word_id).join(
+                UserCardDirection, UserWord.id == UserCardDirection.user_word_id
+            ).filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(deck_word_ids)
+            ).all()
+            words_with_directions_set = {row[0] for row in words_with_directions}
+
+            # New = deck words that don't have directions yet
+            new_count = len([wid for wid in deck_word_ids if wid not in words_with_directions_set])
         else:
             # Auto mode - all cards
             # Include 'new' status to match fetching logic
-            # Use end_of_today to count all cards due today
+            # Use end_of_today to count all cards due today (or NULL for new cards)
             due_count = UserCardDirection.query.join(
                 UserWord, UserCardDirection.user_word_id == UserWord.id
             ).filter(
                 UserWord.user_id == user_id,
                 UserWord.status.in_(['new', 'learning', 'review']),
-                UserCardDirection.next_review <= end_of_today
+                or_(
+                    UserCardDirection.next_review.is_(None),
+                    UserCardDirection.next_review <= end_of_today
+                )
             ).count()
 
-            # Count all available new words
+            # Count all available new words (no UserWord OR UserWord exists but no directions)
+            # Get word_ids that have directions
+            words_with_directions_subquery = db.session.query(UserWord.word_id).join(
+                UserCardDirection, UserWord.id == UserCardDirection.user_word_id
+            ).filter(
+                UserWord.user_id == user_id
+            ).subquery()
+
             new_count = CollectionWords.query.outerjoin(
                 UserWord,
                 (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == user_id)
             ).filter(
-                UserWord.id == None,
+                or_(
+                    UserWord.id.is_(None),
+                    ~CollectionWords.id.in_(words_with_directions_subquery)
+                ),
                 CollectionWords.russian_word.isnot(None),
                 CollectionWords.russian_word != ''
             ).count()
