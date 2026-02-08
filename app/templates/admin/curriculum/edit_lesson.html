@@ -72,8 +72,9 @@
                     </div>
 
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Сохранить изменения
+                        <button type="submit" class="btn btn-primary btn-with-loading">
+                            <span class="btn-text"><i class="fas fa-save me-2"></i>Сохранить изменения</span>
+                            <span class="btn-loading d-none"><i class="fas fa-spinner fa-spin me-2"></i>Сохранение...</span>
                         </button>
                         <a href="{{ url_for('curriculum_api.api_get_lesson_info', lesson_id=lesson.id) }}" class="btn btn-secondary">
                             <i class="fas fa-times me-2"></i>Отмена
@@ -106,15 +107,16 @@
                         </div>
                     </div>
                     
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
                         <button type="button" class="btn btn-outline-secondary" onclick="validateJSON()">
                             <i class="fas fa-check me-2"></i>Проверить JSON
                         </button>
                         <button type="button" class="btn btn-outline-primary" onclick="formatJSON()">
-                            <i class="fas fa-magic me-2"></i>Форматировать
+                            <i class="fas fa-wand-magic-sparkles me-2"></i>Форматировать
                         </button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save me-2"></i>Сохранить содержимое
+                        <button type="submit" class="btn btn-success btn-with-loading">
+                            <span class="btn-text"><i class="fas fa-save me-2"></i>Сохранить содержимое</span>
+                            <span class="btn-loading d-none"><i class="fas fa-spinner fa-spin me-2"></i>Сохранение...</span>
                         </button>
                     </div>
                 </form>
@@ -334,6 +336,18 @@ window.addEventListener('load', function() {
 // Clear draft on successful submit
 document.getElementById('contentForm').addEventListener('submit', function() {
     localStorage.removeItem('lesson_{{ lesson.id }}_draft');
+});
+
+// Loading state for buttons
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function() {
+        const btn = this.querySelector('.btn-with-loading');
+        if (btn) {
+            btn.classList.add('disabled');
+            btn.querySelector('.btn-text').classList.add('d-none');
+            btn.querySelector('.btn-loading').classList.remove('d-none');
+        }
+    });
 });
 </script>
 {% endblock %}

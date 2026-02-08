@@ -20,39 +20,55 @@
 
 <!-- Quick Stats -->
 <div class="row g-4 mb-4">
-    <div class="col-md-3">
-        <div class="stat-card text-center">
-            <i class="fas fa-layer-group fa-2x text-primary mb-3"></i>
-            <div class="stat-value">{{ levels|length }}</div>
-            <div class="stat-label">Уровни CEFR</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card text-center">
-            <i class="fas fa-book fa-2x text-success mb-3"></i>
-            <div class="stat-value">
-                {% set module_count = namespace(value=0) %}
-                {% for level in levels %}
-                    {% set module_count.value = module_count.value + level.modules|length %}
-                {% endfor %}
-                {{ module_count.value }}
+    <div class="col-md-3 col-6">
+        <a href="{{ url_for('admin_curriculum.level_list') }}" class="text-decoration-none">
+            <div class="stat-card stat-card-interactive text-center">
+                <div class="stat-icon-wrapper stat-icon-primary">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="stat-value">{{ levels|length }}</div>
+                <div class="stat-label">Уровни CEFR</div>
             </div>
-            <div class="stat-label">Модули</div>
-        </div>
+        </a>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card text-center">
-            <i class="fas fa-graduation-cap fa-2x text-info mb-3"></i>
-            <div class="stat-value">{{ recent_lessons|length }}</div>
-            <div class="stat-label">Последние уроки</div>
-        </div>
+    <div class="col-md-3 col-6">
+        <a href="{{ url_for('admin_curriculum.module_list') }}" class="text-decoration-none">
+            <div class="stat-card stat-card-interactive text-center">
+                <div class="stat-icon-wrapper stat-icon-success">
+                    <i class="fas fa-book"></i>
+                </div>
+                <div class="stat-value">
+                    {% set module_count = namespace(value=0) %}
+                    {% for level in levels %}
+                        {% set module_count.value = module_count.value + level.modules|length %}
+                    {% endfor %}
+                    {{ module_count.value }}
+                </div>
+                <div class="stat-label">Модули</div>
+            </div>
+        </a>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card text-center">
-            <i class="fas fa-users fa-2x text-warning mb-3"></i>
-            <div class="stat-value">{{ user_progress_count }}</div>
-            <div class="stat-label">Активных учеников</div>
-        </div>
+    <div class="col-md-3 col-6">
+        <a href="{{ url_for('admin_curriculum.lesson_list') }}" class="text-decoration-none">
+            <div class="stat-card stat-card-interactive text-center">
+                <div class="stat-icon-wrapper stat-icon-info">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="stat-value">{{ recent_lessons|length }}</div>
+                <div class="stat-label">Последние уроки</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{{ url_for('admin_curriculum.user_progress') }}" class="text-decoration-none">
+            <div class="stat-card stat-card-interactive text-center">
+                <div class="stat-icon-wrapper stat-icon-warning">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-value">{{ user_progress_count }}</div>
+                <div class="stat-label">Активных учеников</div>
+            </div>
+        </a>
     </div>
 </div>
 
@@ -221,23 +237,29 @@
                 <h5 class="mb-0">Быстрые действия</h5>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
+                <!-- Content Management -->
+                <h6 class="text-muted text-uppercase small mb-3">Контент</h6>
+                <div class="d-grid gap-2 mb-4">
                     <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="btn btn-outline-success">
                         <i class="fas fa-file-import me-2"></i> Импорт из JSON
                     </a>
+                    {% if levels|length > 0 and levels[0].modules|length > 0 %}
+                    <a href="{{ url_for('admin.create_lesson', module_id=levels[0].modules[0].id) }}"
+                       class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i> Создать новый урок
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- Related Resources -->
+                <h6 class="text-muted text-uppercase small mb-3">Связанные ресурсы</h6>
+                <div class="d-grid gap-2">
                     <a href="{{ url_for('collection_admin.collection_list') }}" class="btn btn-outline-primary">
                         <i class="fas fa-layer-group me-2"></i> Управление коллекциями
                     </a>
                     <a href="{{ url_for('topic_admin.topic_list') }}" class="btn btn-outline-info">
                         <i class="fas fa-tags me-2"></i> Управление темами
                     </a>
-                    {% if levels|length > 0 and levels[0].modules|length > 0 %}
-                    <hr>
-                    <a href="{{ url_for('admin.create_lesson', module_id=levels[0].modules[0].id) }}"
-                       class="btn btn-outline-primary">
-                        <i class="fas fa-plus me-2"></i> Создать новый урок
-                    </a>
-                    {% endif %}
                 </div>
             </div>
         </div>

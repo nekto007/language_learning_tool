@@ -33,15 +33,19 @@
    Usage: {{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Users', '')]) }}
    -------------------------------------------------------------------------- #}
 {% macro breadcrumb(items) %}
-<nav class="admin-breadcrumb" aria-label="breadcrumb">
+<nav class="admin-breadcrumb" aria-label="Breadcrumb navigation">
+    <ol role="list">
     {% for label, url in items %}
         {% if loop.last %}
-            <span class="current">{{ label }}</span>
+            <li><span class="current" aria-current="page">{{ label }}</span></li>
         {% else %}
-            <a href="{{ url }}">{{ label }}</a>
-            <span class="separator"><i class="fas fa-chevron-right"></i></span>
+            <li>
+                <a href="{{ url }}">{{ label }}</a>
+                <span class="separator" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+            </li>
         {% endif %}
     {% endfor %}
+    </ol>
 </nav>
 {% endmacro %}
 
@@ -165,17 +169,28 @@
    Empty State
    Usage: {{ empty_state('No users found', 'fa-users', 'Add your first user') }}
    -------------------------------------------------------------------------- #}
-{% macro empty_state(title, icon='fa-inbox', description='', action_url='', action_text='') %}
-<div class="text-center py-5">
-    <i class="fas {{ icon }} fa-3x text-muted mb-3"></i>
-    <h5 class="text-muted">{{ title }}</h5>
+{% macro empty_state(title, icon='fa-inbox', description='', action_url='', action_text='', secondary_url='', secondary_text='') %}
+<div class="empty-state text-center py-5">
+    <div class="empty-state-icon mb-4">
+        <i class="fas {{ icon }} fa-3x"></i>
+    </div>
+    <h5 class="empty-state-title mb-2">{{ title }}</h5>
     {% if description %}
-    <p class="text-muted mb-3">{{ description }}</p>
+    <p class="empty-state-description text-muted mb-4">{{ description }}</p>
     {% endif %}
-    {% if action_url %}
-    <a href="{{ action_url }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>{{ action_text }}
-    </a>
+    {% if action_url or secondary_url %}
+    <div class="empty-state-actions d-flex gap-2 justify-content-center flex-wrap">
+        {% if action_url %}
+        <a href="{{ action_url }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>{{ action_text }}
+        </a>
+        {% endif %}
+        {% if secondary_url %}
+        <a href="{{ secondary_url }}" class="btn btn-outline-secondary">
+            {{ secondary_text }}
+        </a>
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 {% endmacro %}
