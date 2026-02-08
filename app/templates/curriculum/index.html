@@ -3,273 +3,856 @@
 {% block title %}{{ _('Обучение') }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <!-- Hero Section: Приветствие и главная CTA -->
+<div class="learn-page">
+  <!-- Hero Section -->
   {% if current_user.is_authenticated %}
-    <div class="hero-section mb-3">
-      <div class="hero-content">
-        <div class="hero-greeting">
-          <h1>👋 Привет, {{ current_user.name or current_user.username }}!</h1>
-        </div>
+    <div class="learn-hero">
+      <div class="learn-hero__bg-shapes">
+        <div class="shape shape--1"></div>
+        <div class="shape shape--2"></div>
       </div>
 
-      <!-- Gamification Stats -->
-      {% if gamification %}
-        <div class="gamification-stats">
-          <div class="stat-card streak">
-            <div class="stat-icon">🔥</div>
-            <div class="stat-value">{{ gamification.streak }}</div>
-            <div class="stat-label">{{ 'день' if gamification.streak == 1 else 'дня' if gamification.streak < 5 else 'дней' }} подряд</div>
-          </div>
-
-          <div class="stat-card points">
-            <div class="stat-icon">⭐</div>
-            <div class="stat-value">{{ gamification.total_points }}</div>
-            <div class="stat-label">очков</div>
-          </div>
-
-          <div class="stat-card level">
-            <div class="stat-icon">🎯</div>
-            <div class="stat-value">{{ total_stats.progress_percent }}%</div>
-            <div class="stat-label">пройдено</div>
-          </div>
-
-          <div class="stat-card daily">
-            <div class="stat-icon">✅</div>
-            <div class="stat-value">{{ gamification.daily_progress }}/{{ gamification.daily_goal }}</div>
-            <div class="stat-label">уроков сегодня</div>
+      <div class="learn-hero__content">
+        <div class="learn-hero__greeting">
+          <span class="learn-hero__wave">👋</span>
+          <div>
+            <h1 class="learn-hero__title">Привет, {{ current_user.name or current_user.username }}!</h1>
+            <p class="learn-hero__subtitle">Продолжай изучение языка</p>
           </div>
         </div>
-      {% endif %}
+
+        {% if gamification %}
+          <div class="learn-stats">
+            <div class="learn-stat learn-stat--streak">
+              <div class="learn-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 23c-4.97 0-9-2.582-9-7.5 0-3.5 2.5-6.5 2.5-10C5.5 4 7 2 9 2c1.5 0 2.5 1 2.5 2.5 0 1.5-.5 3-1 4.5 1-1.5 3-3 5.5-3 2 0 3 1 3.5 2.5.5 1.5 0 3.5-1 5 2 1 3.5 3 3.5 6 0 4.918-4.03 7.5-9 7.5z"/>
+                </svg>
+              </div>
+              <div class="learn-stat__data">
+                <span class="learn-stat__value">{{ gamification.streak }}</span>
+                <span class="learn-stat__label">{{ 'день' if gamification.streak == 1 else 'дня' if gamification.streak < 5 else 'дней' }}</span>
+              </div>
+            </div>
+
+            <div class="learn-stat learn-stat--points">
+              <div class="learn-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <div class="learn-stat__data">
+                <span class="learn-stat__value">{{ gamification.total_points }}</span>
+                <span class="learn-stat__label">очков</span>
+              </div>
+            </div>
+
+            <div class="learn-stat learn-stat--progress">
+              <div class="learn-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+              </div>
+              <div class="learn-stat__data">
+                <span class="learn-stat__value">{{ total_stats.progress_percent }}%</span>
+                <span class="learn-stat__label">пройдено</span>
+              </div>
+            </div>
+
+            <div class="learn-stat learn-stat--daily">
+              <div class="learn-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                  <path d="M22 4L12 14.01l-3-3"/>
+                </svg>
+              </div>
+              <div class="learn-stat__data">
+                <span class="learn-stat__value">{{ gamification.daily_progress }}/{{ gamification.daily_goal }}</span>
+                <span class="learn-stat__label">сегодня</span>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
   {% endif %}
 
-  <!-- Learning Modules -->
-  <div class="section-card mb-4">
-    <div class="section-header">
-      <h2>📚 {{ _('Модули обучения') }}</h2>
-      <p class="section-subtitle">{{ _('Выбери модуль и начни обучение') }}</p>
+  <!-- Levels Grid -->
+  <div class="learn-section">
+    <div class="learn-section__header">
+      <h2 class="learn-section__title">Уровни обучения</h2>
+      <p class="learn-section__subtitle">Выберите уровень для продолжения</p>
     </div>
-    <div class="section-content">
-      {% if levels_data %}
-        <div class="modules-list">
-          {% for level_data in levels_data %}
-            {% for module_data in level_data.modules %}
-              {# Check module availability #}
-              {% set is_module_available = module_data.is_available %}
-              {# Check if module has any in_progress or available lessons #}
-              {% set has_in_progress = module_data.lessons | selectattr('status', 'equalto', 'in_progress') | list | length > 0 %}
-              {% set has_available = module_data.lessons | selectattr('status', 'equalto', 'available') | list | length > 0 %}
-              {% set is_current = is_module_available and (has_in_progress or has_available or (module_data.progress_percent > 0 and module_data.progress_percent < 100)) %}
-              {% set is_completed = module_data.progress_percent == 100 %}
-              {% set is_new = module_data.progress_percent == 0 and not has_in_progress and not has_available %}
-              {% set is_locked = not is_module_available %}
 
-              <div class="module-card-main {{ 'locked' if is_locked else 'current' if is_current else 'completed' if is_completed else 'new' }}">
-                <div class="module-header-main" onclick="{{ '' if is_locked else 'toggleModule(\'module-' ~ module_data.module.id ~ '\')' }}">
-                  <div class="module-number">{{ module_data.module.number }}</div>
-                  <div class="module-info">
-                    <h3>{{ module_data.module.title }}</h3>
-                    <p>{{ is_locked and 'Завершите предыдущий модуль чтобы разблокировать' or module_data.module.description }}</p>
-                  </div>
+    {% if levels_data %}
+      <div class="levels-grid">
+        {% for level_data in levels_data %}
+          {% set level = level_data.level %}
+          {% set has_progress = level_data.completed_lessons > 0 %}
+          {% set is_completed = level_data.progress_percent == 100 %}
+          {% set is_current = has_progress and not is_completed %}
 
-                  <!-- Stats inline -->
-                  {% if not is_locked %}
-                  <div class="module-stat">
-                    <span class="module-stat-icon">📊</span>
-                    <span class="module-stat-value">{{ module_data.completed_lessons }}/{{ module_data.total_lessons }}</span>
-                    <span class="module-stat-label">уроков</span>
-                  </div>
-
-                  {% if module_data.progress_percent > 0 %}
-                    <div class="module-stat">
-                      <span class="module-stat-icon">🎯</span>
-                      <span class="module-stat-value">{{ module_data.progress_percent }}%</span>
-                      <span class="module-stat-label">прогресс</span>
-                    </div>
-                  {% endif %}
-                  {% endif %}
-
-                  {% if is_locked %}
-                    <div class="module-status-badge locked">🔒 Заблокирован</div>
-                  {% elif is_completed %}
-                    <div class="module-status-badge completed">✓ Завершен</div>
-                  {% elif is_current %}
-                    <div class="module-status-badge current">В процессе</div>
-                  {% endif %}
-
-                  <!-- Expand/Collapse icon -->
-                  {% if not is_locked %}
-                  <div class="expand-icon">
-                    <span class="icon-collapsed" style="display:{{ 'none' if is_current else 'inline' }};">▼</span>
-                    <span class="icon-expanded" style="display:{{ 'inline' if is_current else 'none' }};">▲</span>
-                  </div>
-                  {% endif %}
-                </div>
-
-                <!-- Lessons List -->
-                <div class="module-lessons-main" id="module-{{ module_data.module.id }}" style="display:{{ 'block' if is_current else 'none' }};">
-                  {% for lesson_data in module_data.lessons %}
-                    {% set is_locked = lesson_data.status == 'locked' %}
-                    {% set is_completed = lesson_data.status == 'completed' %}
-                    {% set is_current = lesson_data.status == 'in_progress' %}
-                    {% set is_available = lesson_data.status == 'available' %}
-
-                    <div class="lesson-item {{ lesson_data.status }}">
-                      <div class="lesson-number">{{ lesson_data.lesson.number }}</div>
-                      <div class="lesson-info">
-                        <div class="lesson-title">{{ lesson_data.lesson.title }}</div>
-                        <div class="lesson-type">{{ lesson_data.lesson.type }}</div>
-                      </div>
-                      <div class="lesson-status">
-                        {% if is_completed %}
-                          <span class="status-icon completed">✓</span>
-                        {% elif is_current %}
-                          <span class="status-icon current">▶</span>
-                        {% elif is_locked %}
-                          <span class="status-icon locked">🔒</span>
-                        {% else %}
-                          <span class="status-icon available">○</span>
-                        {% endif %}
-                      </div>
-                      {% if not is_locked %}
-                        <a href="{{ get_lesson_url(lesson_data.lesson) }}" class="lesson-link">
-                          {% if is_completed %}
-                            Повторить
-                          {% elif is_current %}
-                            Продолжить
-                          {% else %}
-                            Начать
-                          {% endif %}
-                        </a>
-                      {% else %}
-                        <span class="lesson-locked">Недоступно</span>
-                      {% endif %}
-                    </div>
-                  {% endfor %}
-                </div>
+          <a href="/learn/{{ level.code|lower }}/" class="level-card level-card--{{ level.code[0]|lower }} {% if is_completed %}level-card--completed{% elif is_current %}level-card--current{% endif %}">
+            <div class="level-card__header">
+              <div class="level-card__badge">
+                <span class="level-card__code">{{ level.code }}</span>
               </div>
-            {% endfor %}
-          {% endfor %}
+              {% if is_completed %}
+                <div class="level-card__status level-card__status--completed">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </div>
+              {% elif is_current %}
+                <div class="level-card__status level-card__status--current">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="level-card__content">
+              <h3 class="level-card__title">{{ level.name or level.code }}</h3>
+              {% if level.description %}
+                <p class="level-card__desc">{{ level.description }}</p>
+              {% endif %}
+            </div>
+
+            <div class="level-card__footer">
+              <div class="level-card__stats">
+                <span class="level-card__stat">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                  </svg>
+                  {{ level_data.completed_lessons }}/{{ level_data.total_lessons }}
+                </span>
+                <span class="level-card__stat">
+                  {{ level_data.modules|length }} {{ 'модуль' if level_data.modules|length == 1 else 'модуля' if level_data.modules|length < 5 else 'модулей' }}
+                </span>
+              </div>
+
+              {% if has_progress %}
+                <div class="level-card__progress">
+                  <div class="level-card__progress-bar">
+                    <div class="level-card__progress-fill" style="width: {{ level_data.progress_percent }}%"></div>
+                  </div>
+                  <span class="level-card__progress-text">{{ level_data.progress_percent }}%</span>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="level-card__arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="learn-empty">
+        <div class="learn-empty__icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
         </div>
-      {% else %}
-        <div class="empty-state">
-          <div class="empty-icon">📚</div>
-          <h4>{{ _('Учебные материалы не найдены') }}</h4>
-          <p>{{ _('Обратитесь к администратору для настройки курса') }}</p>
-        </div>
-      {% endif %}
-    </div>
+        <h4>Учебные материалы не найдены</h4>
+        <p>Обратитесь к администратору для настройки курса</p>
+      </div>
+    {% endif %}
   </div>
 
-  <!-- Recent Activity (Compact) -->
-  {% if current_user.is_authenticated and recent_activity and recent_activity|length > 1 %}
-    <div class="section-card">
-      <div class="section-header">
-        <h2>📝 {{ _('Последняя активность') }}</h2>
+  <!-- Recent Activity -->
+  {% if current_user.is_authenticated and recent_activity and recent_activity|length > 0 %}
+    <div class="learn-section">
+      <div class="learn-section__header">
+        <h2 class="learn-section__title">Последняя активность</h2>
       </div>
-      <div class="section-content p-0">
-        <div class="activity-list">
-          {% for activity in recent_activity[:5] %}
-            <a href="{{ get_lesson_url(activity.lesson) }}" class="activity-item activity-link">
-              <div class="activity-dot {{ 'completed' if activity.status == 'completed' else 'in-progress' }}"></div>
-              <div class="activity-info">
-                <div class="activity-title">{{ activity.lesson.title }}</div>
-                <div class="activity-meta">
-                  {{ activity.level.code }} • {{ _('Модуль') }} {{ activity.module.number }} •
-                  {{ activity.last_activity.strftime('%d.%m %H:%M') }}
-                </div>
+
+      <div class="activity-grid">
+        {% for activity in recent_activity[:5] %}
+          <a href="{{ get_lesson_url(activity.lesson) }}" class="activity-card">
+            <div class="activity-card__indicator {{ 'completed' if activity.status == 'completed' else 'in-progress' }}"></div>
+            <div class="activity-card__content">
+              <div class="activity-card__title">{{ activity.lesson.title }}</div>
+              <div class="activity-card__meta">
+                <span class="activity-card__level">{{ activity.level.code }}</span>
+                <span class="activity-card__dot"></span>
+                <span>Модуль {{ activity.module.number }}</span>
+                <span class="activity-card__dot"></span>
+                <span>{{ activity.last_activity.strftime('%d.%m %H:%M') }}</span>
               </div>
-              {% if activity.score %}
-                <div class="activity-score">{{ activity.score|round(1) }}%</div>
-              {% endif %}
-            </a>
-          {% endfor %}
-        </div>
+            </div>
+            {% if activity.score %}
+              <div class="activity-card__score">{{ activity.score|round(0)|int }}%</div>
+            {% endif %}
+            <div class="activity-card__arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </div>
+          </a>
+        {% endfor %}
       </div>
     </div>
   {% endif %}
 </div>
 
-<script>
-let allLevelsVisible = false;
+<style>
+/* ============================================
+   Learn Page - Unified Design System
+   ============================================ */
 
-function toggleLevel(levelId) {
-  const content = document.getElementById(levelId);
-  const header = content.previousElementSibling;
-  const iconCollapsed = header.querySelector('.expand-icon .icon-collapsed');
-  const iconExpanded = header.querySelector('.expand-icon .icon-expanded');
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
 
-  if (content.style.display === 'none' || content.style.display === '') {
-    content.style.display = 'block';
-    iconCollapsed.style.display = 'none';
-    iconExpanded.style.display = 'inline';
-  } else {
-    content.style.display = 'none';
-    iconCollapsed.style.display = 'inline';
-    iconExpanded.style.display = 'none';
+.learn-page {
+  --learn-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --learn-primary: #6366f1;
+  --learn-primary-dark: #4f46e5;
+  --learn-surface: #ffffff;
+  --learn-surface-alt: #f8fafc;
+  --learn-text: #0f172a;
+  --learn-text-muted: #64748b;
+  --learn-border: #e2e8f0;
+  --learn-radius: 16px;
+  --learn-radius-sm: 10px;
+
+  font-family: var(--learn-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ============================================
+   Hero Section
+   ============================================ */
+
+.learn-hero {
+  position: relative;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: var(--learn-radius);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  color: white;
+}
+
+.learn-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.learn-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.learn-hero .shape--1 {
+  width: 250px;
+  height: 250px;
+  top: -80px;
+  right: -40px;
+  animation: float-1 20s ease-in-out infinite;
+}
+
+.learn-hero .shape--2 {
+  width: 150px;
+  height: 150px;
+  bottom: -50px;
+  left: -30px;
+  animation: float-2 15s ease-in-out infinite;
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 20px) scale(1.05); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(30px, -20px) rotate(10deg); }
+}
+
+.learn-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.learn-hero__greeting {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.learn-hero__wave {
+  font-size: 2.5rem;
+  animation: wave 2s ease-in-out infinite;
+  transform-origin: 70% 70%;
+}
+
+@keyframes wave {
+  0%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(0deg); }
+}
+
+.learn-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.learn-hero__subtitle {
+  font-size: 0.9375rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+/* Stats Row */
+.learn-stats {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.learn-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--learn-radius-sm);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.learn-stat__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.learn-stat--streak .learn-stat__icon {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.learn-stat--points .learn-stat__icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.learn-stat--progress .learn-stat__icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.learn-stat--daily .learn-stat__icon {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.learn-stat__data {
+  display: flex;
+  flex-direction: column;
+}
+
+.learn-stat__value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.learn-stat__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.125rem;
+}
+
+/* ============================================
+   Section
+   ============================================ */
+
+.learn-section {
+  background: var(--learn-surface);
+  border-radius: var(--learn-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--learn-border);
+}
+
+.learn-section__header {
+  margin-bottom: 1.25rem;
+}
+
+.learn-section__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--learn-text);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.learn-section__subtitle {
+  font-size: 0.8125rem;
+  color: var(--learn-text-muted);
+  margin: 0;
+}
+
+/* ============================================
+   Levels Grid
+   ============================================ */
+
+.levels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.level-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background: var(--learn-surface-alt);
+  border-radius: var(--learn-radius-sm);
+  border: 2px solid transparent;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.level-card:hover {
+  border-color: var(--learn-primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+}
+
+.level-card--current {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border-color: var(--learn-primary);
+}
+
+.level-card--completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);
+}
+
+.level-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.level-card__badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.level-card--a .level-card__badge {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  color: white;
+}
+
+.level-card--b .level-card__badge {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  color: white;
+}
+
+.level-card--c .level-card__badge {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.level-card__code {
+  letter-spacing: -0.02em;
+}
+
+.level-card__status {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.level-card__status--completed {
+  background: #22c55e;
+  color: white;
+}
+
+.level-card__status--current {
+  background: var(--learn-primary);
+  color: white;
+}
+
+.level-card__content {
+  flex: 1;
+  min-height: 48px;
+}
+
+.level-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--learn-text);
+  margin: 0 0 0.25rem;
+  line-height: 1.3;
+}
+
+.level-card__desc {
+  font-size: 0.8125rem;
+  color: var(--learn-text-muted);
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.level-card__footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--learn-border);
+}
+
+.level-card__stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.level-card__stat {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--learn-text-muted);
+}
+
+.level-card__stat svg {
+  color: var(--learn-primary);
+}
+
+.level-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.level-card__progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.level-card__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--learn-primary) 0%, #8b5cf6 100%);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.level-card--completed .level-card__progress-fill {
+  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
+}
+
+.level-card__progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--learn-primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+.level-card--completed .level-card__progress-text {
+  color: #22c55e;
+}
+
+.level-card__arrow {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--learn-text-muted);
+  opacity: 0;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.level-card:hover .level-card__arrow {
+  opacity: 1;
+  right: 0.75rem;
+  color: var(--learn-primary);
+}
+
+/* ============================================
+   Activity Grid
+   ============================================ */
+
+.activity-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.activity-card {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  background: var(--learn-surface-alt);
+  border-radius: var(--learn-radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+
+.activity-card:hover {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateX(4px);
+}
+
+.activity-card__indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.activity-card__indicator.completed {
+  background: #22c55e;
+}
+
+.activity-card__indicator.in-progress {
+  background: var(--learn-primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+.activity-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-card__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--learn-text);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--learn-text-muted);
+  margin-top: 0.125rem;
+}
+
+.activity-card__level {
+  font-weight: 600;
+  color: var(--learn-primary);
+}
+
+.activity-card__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--learn-text-muted);
+  opacity: 0.5;
+}
+
+.activity-card__score {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #22c55e;
+  padding: 0.25rem 0.625rem;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: 6px;
+}
+
+.activity-card__arrow {
+  color: var(--learn-text-muted);
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.activity-card:hover .activity-card__arrow {
+  opacity: 1;
+  color: var(--learn-primary);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.learn-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--learn-text-muted);
+}
+
+.learn-empty__icon {
+  margin-bottom: 1rem;
+  color: var(--learn-border);
+}
+
+.learn-empty h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--learn-text);
+  margin: 0 0 0.5rem;
+}
+
+.learn-empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 640px) {
+  .learn-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .learn-hero {
+    padding: 1.5rem;
+  }
+
+  .learn-hero__greeting {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .learn-hero__wave {
+    font-size: 2rem;
+  }
+
+  .learn-hero__title {
+    font-size: 1.25rem;
+  }
+
+  .learn-stats {
+    gap: 0.5rem;
+  }
+
+  .learn-stat {
+    flex: 1 1 calc(50% - 0.25rem);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .learn-stat__icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .learn-stat__value {
+    font-size: 1rem;
+  }
+
+  .learn-section {
+    padding: 1.25rem;
+  }
+
+  .levels-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .level-card__arrow {
+    display: none;
   }
 }
 
-function toggleModule(moduleId) {
-  const content = document.getElementById(moduleId);
-  const header = content.previousElementSibling;
-  const iconCollapsed = header.querySelector('.expand-icon .icon-collapsed');
-  const iconExpanded = header.querySelector('.expand-icon .icon-expanded');
+/* ============================================
+   Page Load Animation
+   ============================================ */
 
-  if (content.style.display === 'none' || content.style.display === '') {
-    content.style.display = 'block';
-    iconCollapsed.style.display = 'none';
-    iconExpanded.style.display = 'inline';
-
-    // Auto-scroll to first non-completed lesson
-    setTimeout(() => {
-      const firstActiveLesson = content.querySelector('.lesson-item.in_progress, .lesson-item.available');
-      if (firstActiveLesson) {
-        firstActiveLesson.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
-    }, 100);
-  } else {
-    content.style.display = 'none';
-    iconCollapsed.style.display = 'inline';
-    iconExpanded.style.display = 'none';
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-function toggleAllLevels() {
-  const levelCards = document.querySelectorAll('[data-level-card]');
-  const toggleBtn = document.getElementById('toggleText');
-
-  allLevelsVisible = !allLevelsVisible;
-
-  levelCards.forEach(card => {
-    if (allLevelsVisible) {
-      card.style.display = '';
-    } else {
-      // Hide cards that were originally hidden
-      const isHidden = card.style.display === 'none' || card.getAttribute('data-originally-hidden') === 'true';
-      if (!card.classList.contains('current') &&
-          !(card.nextElementSibling && card.classList.contains('new'))) {
-        card.style.display = 'none';
-      }
-    }
-  });
-
-  toggleBtn.textContent = allLevelsVisible ? 'Скрыть уровни' : 'Показать все уровни';
+.learn-hero {
+  animation: slideUp 0.5s ease-out;
 }
 
-// Mark originally hidden cards on page load
-document.addEventListener('DOMContentLoaded', function() {
-  const levelCards = document.querySelectorAll('[data-level-card]');
-  levelCards.forEach(card => {
-    if (card.style.display === 'none') {
-      card.setAttribute('data-originally-hidden', 'true');
-    }
-  });
-});
-</script>
+.learn-section {
+  animation: slideUp 0.5s ease-out both;
+}
+
+.learn-section:nth-of-type(1) { animation-delay: 0.1s; }
+.learn-section:nth-of-type(2) { animation-delay: 0.2s; }
+
+.level-card {
+  animation: slideUp 0.4s ease-out both;
+}
+
+.level-card:nth-child(1) { animation-delay: 0.15s; }
+.level-card:nth-child(2) { animation-delay: 0.2s; }
+.level-card:nth-child(3) { animation-delay: 0.25s; }
+.level-card:nth-child(4) { animation-delay: 0.3s; }
+.level-card:nth-child(5) { animation-delay: 0.35s; }
+.level-card:nth-child(6) { animation-delay: 0.4s; }
+.level-card:nth-child(7) { animation-delay: 0.45s; }
+
+.activity-card {
+  animation: slideUp 0.3s ease-out both;
+}
+
+.activity-card:nth-child(1) { animation-delay: 0.25s; }
+.activity-card:nth-child(2) { animation-delay: 0.3s; }
+.activity-card:nth-child(3) { animation-delay: 0.35s; }
+.activity-card:nth-child(4) { animation-delay: 0.4s; }
+.activity-card:nth-child(5) { animation-delay: 0.45s; }
+</style>
 {% endblock %}
-
