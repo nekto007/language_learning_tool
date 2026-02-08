@@ -70,7 +70,7 @@
                 class="btn-lesson btn-primary"
                 id="complete-exercise"
                 style="display: none;"
-                data-next-url="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
+                data-next-url="/learn/{{ next_lesson.id }}/"
                 onclick="window.location.href=this.getAttribute('data-next-url')">
           {{ _('Следующий урок') }} →
         </button>

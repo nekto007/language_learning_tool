@@ -30,6 +30,932 @@ logger = logging.getLogger(__name__)
 lessons_bp = Blueprint('curriculum_lessons', __name__)
 
 
+# =============================================================================
+# RENDER FUNCTIONS - вызываются напрямую из main.py без редиректов
+# =============================================================================
+
+def render_vocabulary_lesson(lesson):
+    """Рендер vocabulary урока"""
+    if lesson.type not in ['vocabulary', 'flashcards']:
+        abort(400, "This is not a vocabulary lesson")
+
+    # Get user progress
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    # Process vocabulary content
+    words = []
+
+    # Validate and sanitize content
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'vocabulary', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid vocabulary content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid vocabulary content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    # Process words based on content structure
+    if isinstance(cleaned_content, dict):
+        word_list = cleaned_content.get('words', cleaned_content.get('items', cleaned_content.get('cards', cleaned_content.get('vocabulary', []))))
+    else:
+        word_list = cleaned_content
+
+    # Bulk load all words to avoid N+1 queries
+    english_words = []
+    for word_data in word_list:
+        english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
+        if english_word:
+            english_words.append(english_word.lower())
+
+    # Single query for all CollectionWords
+    db_words = {}
+    if english_words:
+        collection_words = CollectionWords.query.filter(
+            CollectionWords.english_word.in_(english_words)
+        ).all()
+        db_words = {w.english_word: w for w in collection_words}
+
+    # Single query for all UserWords
+    user_words_dict = {}
+    if current_user.is_authenticated and db_words:
+        word_ids = [w.id for w in db_words.values()]
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        user_words_dict = {uw.word_id: uw for uw in user_words}
+
+    # Build words list
+    for idx, word_data in enumerate(word_list):
+        english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
+        if english_word:
+            word = db_words.get(english_word.lower())
+
+            if word:
+                user_word = user_words_dict.get(word.id)
+                word_dict = {
+                    'id': word.id,
+                    'english': sanitize_html(word.english_word),
+                    'russian': sanitize_html(word.russian_word),
+                    'pronunciation': word_data.get('pronunciation', ''),
+                    'example': sanitize_html(word_data.get('example', '')),
+                    'usage': sanitize_html(word_data.get('usage', word_data.get('example_translation', ''))),
+                    'hint': sanitize_html(word_data.get('hint', '')),
+                    'status': user_word.status if user_word else 'new',
+                    'audio_url': word.listening if hasattr(word, 'listening') else None,
+                    'get_download': 1 if word.get_download == 1 else 0
+                }
+                words.append(word_dict)
+            else:
+                russian_word = word_data.get('russian', word_data.get('translation', word_data.get('back', '')))
+                word_dict = {
+                    'id': 10000 + idx,
+                    'english': sanitize_html(english_word),
+                    'russian': sanitize_html(russian_word),
+                    'pronunciation': word_data.get('pronunciation', ''),
+                    'example': sanitize_html(word_data.get('example', '')),
+                    'usage': sanitize_html(word_data.get('usage', word_data.get('example_translation', ''))),
+                    'hint': sanitize_html(word_data.get('hint', '')),
+                    'status': word_data.get('status', 'new'),
+                    'audio': word_data.get('audio', ''),
+                    'audio_url': None,
+                    'get_download': 0
+                }
+                words.append(word_dict)
+
+    next_lesson = get_next_lesson(lesson.id)
+
+    return render_template(
+        'curriculum/lessons/vocabulary.html',
+        lesson=lesson,
+        words=words,
+        progress=progress,
+        next_lesson=next_lesson
+    )
+
+
+def render_grammar_lesson(lesson):
+    """Рендер grammar урока"""
+    import html
+
+    if lesson.type != 'grammar':
+        abort(400, "This is not a grammar lesson")
+
+    # Validate and sanitize content
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'grammar', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid grammar content for lesson {lesson.id}: {error_msg}")
+        flash(f'Ошибка в содержимом урока: {error_msg}', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid grammar content for lesson {lesson.id}: {error_msg}")
+        flash(f'Ошибка в содержимом урока: {error_msg}', 'error')
+        return redirect('/learn/')
+
+    # Sanitize HTML content
+    for field in ['content', 'rule', 'text', 'title', 'description']:
+        if field in cleaned_content:
+            cleaned_content[field] = sanitize_html(cleaned_content[field])
+
+    if 'examples' in cleaned_content:
+        if cleaned_content['examples'] and isinstance(cleaned_content['examples'][0], dict):
+            for example in cleaned_content['examples']:
+                if 'sentence' in example:
+                    example['sentence'] = sanitize_html(example['sentence'])
+                if 'translation' in example:
+                    example['translation'] = sanitize_html(example['translation'])
+        else:
+            cleaned_content['examples'] = [
+                sanitize_html(ex) if isinstance(ex, str) else ex
+                for ex in cleaned_content['examples']
+            ]
+
+    reset_progress = request.args.get('reset') == 'true'
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    if reset_progress and progress:
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
+    next_lesson = get_next_lesson(lesson.id)
+
+    grammar_rule = cleaned_content.get('title') or cleaned_content.get('rule') or lesson.title
+    grammar_description = cleaned_content.get('content') or cleaned_content.get('description') or cleaned_content.get('text', '')
+    examples = cleaned_content.get('examples', [])
+    exercises = cleaned_content.get('exercises', [])
+    grammar_explanation = cleaned_content.get('grammar_explanation')
+
+    if grammar_explanation:
+        def decode_html_in_dict(obj):
+            if isinstance(obj, dict):
+                return {k: decode_html_in_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [decode_html_in_dict(item) for item in obj]
+            elif isinstance(obj, str):
+                return html.unescape(obj)
+            else:
+                return obj
+        grammar_explanation = decode_html_in_dict(grammar_explanation)
+
+    # Handle POST request (exercise submission)
+    if request.method == 'POST':
+        try:
+            answers = {}
+            for key in request.form:
+                if key.startswith('answer_'):
+                    exercise_idx = key.replace('answer_', '')
+                    answers[exercise_idx] = request.form[key]
+
+            from app.curriculum.service import process_grammar_submission as service_process_grammar
+            result = service_process_grammar(exercises, answers)
+
+        except Exception as e:
+            logger.error(f"Error processing grammar submission: {str(e)}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'error': 'Ошибка при обработке ответов.'
+                }), 500
+            else:
+                flash('Ошибка при обработке ответов', 'error')
+                return redirect(f'/learn/{lesson.id}/')
+
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
+            lesson=lesson,
+            result=result,
+            passing_score=70
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response_data = {
+                'success': True,
+                'score': result.get('score', 0),
+                'feedback': result.get('feedback', {}),
+                'correct_answers': result.get('correct_answers', 0),
+                'total_questions': result.get('total_questions', 0)
+            }
+            if completion_result:
+                response_data['grade'] = completion_result['grade']
+                response_data['grade_name'] = completion_result['grade_name']
+                response_data['new_achievements'] = completion_result['new_achievements']
+            return jsonify(response_data)
+
+    return render_template(
+        'curriculum/lessons/grammar.html',
+        lesson=lesson,
+        content=cleaned_content,
+        grammar_rule=grammar_rule,
+        grammar_description=grammar_description,
+        examples=examples,
+        exercises=exercises,
+        grammar_explanation=grammar_explanation,
+        progress=progress,
+        next_lesson=next_lesson
+    )
+
+
+def render_quiz_lesson(lesson):
+    """Рендер quiz урока"""
+    import html
+    import random
+
+    quiz_types = ['quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
+                  'dialogue_completion_quiz', 'listening_immersion_quiz']
+    if lesson.type not in quiz_types:
+        abort(400, "This is not a quiz lesson")
+
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'quiz', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid quiz content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid quiz content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    # Sanitize and decode HTML entities in question content
+    for question in cleaned_content['questions']:
+        if 'question' in question:
+            question['question'] = html.unescape(sanitize_html(question['question']))
+        elif 'prompt' in question:
+            question['question'] = html.unescape(sanitize_html(question['prompt']))
+
+        if 'sentence' in question:
+            question['sentence'] = html.unescape(question['sentence'])
+
+        if 'options' in question:
+            sanitized_options = [html.unescape(sanitize_html(opt)) for opt in question['options']]
+            seen = set()
+            unique_options = []
+            for opt in sanitized_options:
+                if opt not in seen:
+                    seen.add(opt)
+                    unique_options.append(opt)
+            question['options'] = unique_options
+
+        if 'explanation' in question:
+            question['explanation'] = html.unescape(sanitize_html(question['explanation']))
+
+        if 'correct_index' in question and 'correct' not in question:
+            question['correct'] = question['correct_index']
+
+        if 'answer' in question and 'correct_answer' not in question:
+            question['correct_answer'] = question['answer']
+
+        if question.get('type') == 'matching' and 'pairs' in question:
+            normalized_pairs = []
+            for pair in question['pairs']:
+                if 'left' in pair and 'right' in pair:
+                    normalized_pairs.append(pair)
+                elif 'english' in pair and 'russian' in pair:
+                    normalized_pairs.append({
+                        'left': pair['english'],
+                        'right': pair['russian'],
+                        'hint': pair.get('hint')
+                    })
+            question['pairs'] = normalized_pairs
+            right_items = [pair['right'] for pair in normalized_pairs]
+            random.shuffle(right_items)
+            question['shuffled_right_items'] = right_items
+
+        if question.get('type') in ['ordering', 'reorder'] and 'words' in question:
+            shuffled_words = question['words'][:]
+            random.shuffle(shuffled_words)
+            question['shuffled_words'] = shuffled_words
+
+        if question.get('type') in ['multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'] and 'options' in question and len(question['options']) > 0:
+            correct_answer = question.get('correct') or question.get('correct_answer') or question.get('answer')
+            original_correct_index = None
+            if isinstance(correct_answer, str):
+                for i, opt in enumerate(question['options']):
+                    if opt.lower().strip() == correct_answer.lower().strip():
+                        original_correct_index = i
+                        break
+            elif isinstance(correct_answer, int):
+                original_correct_index = correct_answer
+
+            shuffled_options = question['options'][:]
+            random.shuffle(shuffled_options)
+
+            if original_correct_index is not None and original_correct_index < len(question['options']):
+                original_correct_text = question['options'][original_correct_index]
+                new_correct_index = shuffled_options.index(original_correct_text)
+                question['correct_index'] = new_correct_index
+                question['correct'] = new_correct_index
+
+            question['options'] = shuffled_options
+
+    reset_progress = request.args.get('reset') == 'true'
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    if reset_progress and progress:
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
+    if not progress:
+        progress = LessonProgress(
+            user_id=current_user.id,
+            lesson_id=lesson.id,
+            status='in_progress',
+            started_at=datetime.now(UTC),
+            last_activity=datetime.now(UTC)
+        )
+        db.session.add(progress)
+        db.session.commit()
+
+    # Handle POST request
+    if request.method == 'POST':
+        answers = {}
+        for key in request.form:
+            if key.startswith('answer_'):
+                question_idx = key.replace('answer_', '')
+                try:
+                    idx = int(question_idx)
+                    answers[idx] = request.form[key]
+                except ValueError:
+                    logger.error(f"Invalid question index: {question_idx}")
+
+        if 'client_results' in request.form:
+            try:
+                import json
+                client_results = json.loads(request.form['client_results'])
+                client_score = float(request.form['client_score'])
+                client_correct_count = int(request.form.get('client_correct_count', 0))
+
+                feedback = {}
+                for item in client_results:
+                    q_idx = item['question_index']
+                    is_correct = item['is_correct']
+                    attempts = item['attempts']
+                    user_answer = item['answer']
+                    question = cleaned_content['questions'][q_idx]
+                    correct_answer = question.get('correct_answer') or question.get('correct') or question.get('answer')
+
+                    if is_correct:
+                        feedback[str(q_idx)] = {
+                            'status': 'correct',
+                            'message': 'Правильно!' if attempts == 1 else f'Правильно! (попытка {attempts})',
+                            'user_answer': user_answer,
+                            'correct_answer': correct_answer,
+                            'attempts': attempts
+                        }
+                    else:
+                        feedback[str(q_idx)] = {
+                            'status': 'incorrect',
+                            'message': f'Неправильно. Правильный ответ: {correct_answer}',
+                            'user_answer': user_answer,
+                            'correct_answer': correct_answer,
+                            'attempts': attempts
+                        }
+
+                result = {
+                    'score': client_score,
+                    'correct_count': client_correct_count,
+                    'total_count': len(cleaned_content['questions']),
+                    'feedback': feedback,
+                    'answers': answers
+                }
+            except (ValueError, TypeError) as e:
+                logger.error(f"Invalid client results data: {e}")
+                result = process_quiz_submission(cleaned_content['questions'], answers)
+        else:
+            result = process_quiz_submission(cleaned_content['questions'], answers)
+            if 'client_score' in request.form:
+                try:
+                    client_score = float(request.form['client_score'])
+                    client_correct_count = int(request.form.get('client_correct_count', 0))
+                    result['score'] = client_score
+                    result['correct_answers'] = client_correct_count
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Invalid client score data: {e}")
+
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
+            lesson=lesson,
+            result=result,
+            passing_score=70
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response_data = {
+                'success': True,
+                'score': result.get('score', 0),
+                'feedback': result.get('feedback', {}),
+                'correct_answers': result.get('correct_answers', 0),
+                'total_questions': result.get('total_questions', 0)
+            }
+            if completion_result:
+                response_data['grade'] = completion_result['grade']
+                response_data['grade_name'] = completion_result['grade_name']
+                response_data['new_achievements'] = completion_result['new_achievements']
+            return jsonify(response_data)
+
+    next_lesson = get_next_lesson(lesson.id)
+
+    return render_template(
+        'curriculum/lessons/quiz.html',
+        lesson=lesson,
+        questions=cleaned_content['questions'],
+        settings=cleaned_content,
+        progress=progress,
+        next_lesson=next_lesson
+    )
+
+
+def render_matching_lesson(lesson):
+    """Рендер matching урока"""
+    if lesson.type != 'matching':
+        abort(400, "This is not a matching lesson")
+
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'matching', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid matching content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid matching content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    for pair in cleaned_content['pairs']:
+        pair['left'] = sanitize_html(pair['left'])
+        pair['right'] = sanitize_html(pair['right'])
+        if 'hint' in pair:
+            pair['hint'] = sanitize_html(pair['hint'])
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    next_lesson = get_next_lesson(lesson.id)
+
+    return render_template(
+        'curriculum/lessons/matching.html',
+        lesson=lesson,
+        pairs=cleaned_content['pairs'],
+        settings=cleaned_content,
+        progress=progress,
+        next_lesson=next_lesson
+    )
+
+
+def render_text_lesson(lesson):
+    """Рендер text урока"""
+    if lesson.type not in ['text', 'reading', 'listening_immersion']:
+        abort(400, "This is not a text lesson")
+
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'text', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid text content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid text content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    text_content = cleaned_content.get('content', cleaned_content.get('text', ''))
+
+    if isinstance(text_content, dict) and 'lines' in text_content:
+        cleaned_content['text'] = text_content
+        cleaned_content['is_reading_with_lines'] = True
+    else:
+        cleaned_content['content'] = sanitize_html(text_content)
+        if 'text' not in cleaned_content and text_content:
+            cleaned_content['text'] = cleaned_content['content']
+
+    if lesson.type == 'listening_immersion':
+        cleaned_content['is_listening_immersion'] = True
+        if 'translation' in cleaned_content:
+            cleaned_content['translation'] = sanitize_html(cleaned_content['translation'])
+        if 'instruction' in cleaned_content:
+            cleaned_content['instruction'] = sanitize_html(cleaned_content['instruction'])
+
+    if 'title' in cleaned_content:
+        cleaned_content['title'] = sanitize_html(cleaned_content['title'])
+
+    if 'comprehension_questions' in cleaned_content:
+        for question in cleaned_content['comprehension_questions']:
+            if 'question' in question:
+                question['question'] = sanitize_html(question['question'])
+            if 'correct_answer' in question:
+                if isinstance(question['correct_answer'], str):
+                    question['correct_answer'] = sanitize_html(question['correct_answer'])
+            if 'alternative_answers' in question:
+                question['alternative_answers'] = [
+                    sanitize_html(ans) if isinstance(ans, str) else ans
+                    for ans in question['alternative_answers']
+                ]
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    next_lesson = get_next_lesson(lesson.id)
+
+    # Handle POST request
+    if request.method == 'POST':
+        comprehension_data = request.json.get('comprehension_results') if request.is_json else None
+
+        if comprehension_data:
+            score = comprehension_data.get('score', 100.0)
+            result = {
+                'score': score,
+                'status': 'completed',
+                'comprehension': comprehension_data
+            }
+        else:
+            result = {'score': 100.0, 'status': 'completed'}
+
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
+            lesson=lesson,
+            result=result,
+            passing_score=70
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response_data = {
+                'success': True,
+                'status': 'completed',
+                'score': 100.0
+            }
+            if completion_result:
+                response_data['grade'] = completion_result['grade']
+                response_data['grade_name'] = completion_result['grade_name']
+                response_data['new_achievements'] = completion_result['new_achievements']
+            return jsonify(response_data)
+
+        flash('Урок отмечен как прочитанный!', 'success')
+        return redirect(f'/learn/{lesson.id}/')
+
+    book = None
+    if lesson.book_id:
+        from app.books.models import Book
+        book = Book.query.get(lesson.book_id)
+
+    saved_comprehension = None
+    if progress and progress.data:
+        saved_comprehension = progress.data.get('comprehension')
+
+    return render_template(
+        'curriculum/lessons/text.html',
+        lesson=lesson,
+        text_content=cleaned_content,
+        book=book,
+        progress=progress,
+        next_lesson=next_lesson,
+        saved_comprehension=saved_comprehension
+    )
+
+
+def render_card_lesson(lesson):
+    """Рендер card урока"""
+    from app.words.models import CollectionWordLink, CollectionWords
+    from app.curriculum.service import sync_lesson_cards_to_words
+    import json
+    import re
+
+    if lesson.type not in ['card', 'flashcards']:
+        abort(400, "This is not a card lesson")
+
+    success, message, updated, created = sync_lesson_cards_to_words(lesson)
+    if success and (created > 0 or updated > 0):
+        logger.info(f"Synced lesson {lesson.id} cards: {message}")
+        db.session.refresh(lesson)
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    next_lesson = None
+    if lesson.number is not None:
+        next_lesson = Lessons.query.filter(
+            Lessons.module_id == lesson.module_id,
+            Lessons.number > lesson.number
+        ).order_by(Lessons.number).first()
+
+    word_ids = []
+
+    if lesson.collection_id:
+        word_links = CollectionWordLink.query.filter_by(
+            collection_id=lesson.collection_id
+        ).all()
+        word_ids = [link.word_id for link in word_links]
+
+    if lesson.content:
+        try:
+            content = json.loads(lesson.content) if isinstance(lesson.content, str) else lesson.content
+            if isinstance(content, dict) and 'cards' in content:
+                for card in content['cards']:
+                    if isinstance(card, dict) and 'word_id' in card:
+                        word_ids.append(card['word_id'])
+        except Exception as e:
+            logger.error(f"Error parsing lesson content: {e}")
+
+    if not word_ids and lesson.module_id and lesson.number is not None:
+        previous_lessons = Lessons.query.filter(
+            Lessons.module_id == lesson.module_id,
+            Lessons.number < lesson.number,
+            Lessons.type.in_(['vocabulary', 'card', 'flashcards'])
+        ).all()
+
+        for prev_lesson in previous_lessons:
+            if prev_lesson.collection_id:
+                word_links = CollectionWordLink.query.filter_by(
+                    collection_id=prev_lesson.collection_id
+                ).all()
+                word_ids.extend([link.word_id for link in word_links])
+            elif prev_lesson.content:
+                try:
+                    prev_content = json.loads(prev_lesson.content) if isinstance(prev_lesson.content, str) else prev_lesson.content
+                    if isinstance(prev_content, dict) and 'cards' in prev_content:
+                        for card in prev_content['cards']:
+                            if isinstance(card, dict) and 'word_id' in card:
+                                word_ids.append(card['word_id'])
+                except:
+                    pass
+
+        word_ids = list(set(word_ids))
+
+    cards_list = []
+
+    if word_ids:
+        word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
+
+        for word in word_objects:
+            user_word = UserWord.query.filter_by(
+                user_id=current_user.id,
+                word_id=word.id
+            ).first()
+
+            audio_file = None
+            if word.listening:
+                match = re.search(r'\[sound:([^\]]+)\]', word.listening)
+                if match:
+                    audio_file = match.group(1)
+            elif word.get_download == 1:
+                audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
+
+            example_en = ''
+            example_ru = ''
+            if word.sentences:
+                try:
+                    sentences_data = json.loads(word.sentences) if isinstance(word.sentences, str) else word.sentences
+                    if isinstance(sentences_data, list) and len(sentences_data) > 0:
+                        first_sentence = sentences_data[0]
+                        if isinstance(first_sentence, dict):
+                            example_en = first_sentence.get('en', '')
+                            example_ru = first_sentence.get('ru', '')
+                except:
+                    pass
+
+            card_data = {
+                'id': word.id,
+                'word_id': word.id,
+                'english': word.english_word,
+                'russian': word.russian_word,
+                'listening': word.listening if word.listening else '',
+                'sentences': word.sentences if word.sentences else '',
+                'example': example_en,
+                'example_en': example_en,
+                'example_ru': example_ru,
+                'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
+                'usage': '',
+                'hint': '',
+                'is_new': user_word is None,
+                'status': user_word.status if user_word else 'new',
+                'audio': audio_file,
+                'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
+                'get_download': 1 if word.get_download == 1 else 0
+            }
+            cards_list.append(card_data)
+
+    next_review_time = None
+    if len(cards_list) == 0:
+        if word_ids:
+            from datetime import datetime
+            user_words = UserWord.query.filter(
+                UserWord.user_id == current_user.id,
+                UserWord.word_id.in_(word_ids),
+                UserWord.next_review.isnot(None)
+            ).order_by(UserWord.next_review.asc()).first()
+
+            if user_words and user_words.next_review:
+                time_diff = user_words.next_review - datetime.now(UTC)
+                hours = int(time_diff.total_seconds() / 3600)
+                if hours < 1:
+                    minutes = int(time_diff.total_seconds() / 60)
+                    next_review_time = f"{minutes} мин" if minutes > 0 else "скоро"
+                elif hours < 24:
+                    next_review_time = f"{hours} ч"
+                else:
+                    days = int(hours / 24)
+                    next_review_time = f"{days} д"
+
+    cards_data = {
+        'cards': cards_list,
+        'srs_settings': {
+            'new_cards_limit': 20,
+            'review_cards_limit': 50,
+            'show_hint_time': 5
+        },
+        'lesson_settings': {},
+        'stats': {},
+        'next_review_time': next_review_time
+    }
+
+    return render_template(
+        'curriculum/lessons/card.html',
+        lesson=lesson,
+        progress=progress,
+        cards_data=cards_data,
+        next_lesson=next_lesson,
+        lesson_id=lesson.id
+    )
+
+
+def render_final_test_lesson(lesson):
+    """Рендер final_test урока"""
+    if lesson.type != 'final_test':
+        abort(400, "This is not a final test lesson")
+
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'final_test', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid final test content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом финального теста', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid final test content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом финального теста', 'error')
+        return redirect('/learn/')
+
+    questions_to_sanitize = []
+    if 'test_sections' in cleaned_content:
+        for section in cleaned_content['test_sections']:
+            questions_to_sanitize.extend(section.get('exercises', []))
+    else:
+        questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
+        questions_to_sanitize = cleaned_content.get(questions_field, [])
+
+    for question in questions_to_sanitize:
+        if 'question' in question:
+            question['question'] = sanitize_html(question['question'])
+        elif 'prompt' in question:
+            question['question'] = sanitize_html(question['prompt'])
+
+        if 'options' in question:
+            question['options'] = [sanitize_html(opt) for opt in question['options']]
+
+        if 'explanation' in question:
+            question['explanation'] = sanitize_html(question['explanation'])
+
+        if 'correct_index' in question and 'correct' not in question:
+            question['correct'] = question['correct_index']
+
+        if 'answer' in question and 'correct_answer' not in question:
+            question['correct_answer'] = question['answer']
+
+    reset_progress = request.args.get('reset') == 'true'
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    if reset_progress and progress:
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
+    # Handle POST request
+    if request.method == 'POST':
+        answers = {}
+        for key in request.form:
+            if key.startswith('answer_'):
+                question_idx = key.replace('answer_', '')
+                try:
+                    idx = int(question_idx)
+                    answers[idx] = request.form[key]
+                except ValueError:
+                    logger.error(f"Invalid question index: {question_idx}")
+
+        all_questions = []
+        if 'test_sections' in cleaned_content:
+            for section in cleaned_content['test_sections']:
+                all_questions.extend(section.get('exercises', []))
+        else:
+            questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
+            all_questions = cleaned_content.get(questions_field, [])
+
+        result = process_quiz_submission(all_questions, answers)
+        passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
+
+        progress, completion_result = ProgressService.update_progress_with_grading(
+            user_id=current_user.id,
+            lesson=lesson,
+            result=result,
+            passing_score=passing_score
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response_data = {
+                'success': True,
+                'score': result.get('score', 0),
+                'feedback': result.get('feedback', {}),
+                'correct_count': result.get('correct_count', 0),
+                'total_count': result.get('total_count', 0),
+                'passing_score': passing_score,
+                'passed': result.get('score', 0) >= passing_score
+            }
+            if completion_result:
+                response_data['grade'] = completion_result['grade']
+                response_data['grade_name'] = completion_result['grade_name']
+                response_data['new_achievements'] = completion_result['new_achievements']
+            return jsonify(response_data)
+        else:
+            return redirect(url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id))
+
+    next_lesson = get_next_lesson(lesson.id)
+
+    if 'test_sections' in cleaned_content:
+        questions = []
+        for section in cleaned_content.get('test_sections', []):
+            questions.extend(section.get('exercises', []))
+    else:
+        questions = cleaned_content.get('exercises', cleaned_content.get('questions', []))
+
+    return render_template(
+        'curriculum/lessons/final_test.html',
+        lesson=lesson,
+        questions=questions,
+        exercises=questions,
+        settings=cleaned_content,
+        progress=progress,
+        next_lesson=next_lesson,
+        passing_score=cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
+    )
+
+
 @lessons_bp.route('/lesson/<int:lesson_id>')
 @login_required
 @require_lesson_access

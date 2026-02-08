@@ -5,13 +5,13 @@
 {% block content %}
 <div class="container py-4">
   <!-- Минималистичная навигация -->
-  <nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb-minimal">
-      <li><a href="{{ url_for('curriculum.index') }}">{{ _('Курсы') }}</a></li>
-      <li>/</li>
-      <li><a href="{{ '/learn/' }}">{{ module.level.code }}</a></li>
-      <li>/</li>
-      <li class="active">{{ _('Модуль') }} {{ module.number }}</li>
+  <nav aria-label="{{ _('Навигация') }}" class="mb-4">
+    <ol class="breadcrumb-minimal" role="list">
+      <li><a href="/learn/">{{ _('Курсы') }}</a></li>
+      <li aria-hidden="true">/</li>
+      <li><a href="/learn/{{ module.level.code|lower }}/">{{ module.level.code }}</a></li>
+      <li aria-hidden="true">/</li>
+      <li class="active" aria-current="page">{{ _('Модуль') }} {{ module.number }}</li>
     </ol>
   </nav>
 
@@ -35,12 +35,17 @@
           {% endif %}
         {% endfor %}
 
-        <div class="progress-circle-container">
-          <svg class="progress-circle" width="120" height="120">
-            <circle cx="60" cy="60" r="50" fill="none" stroke="#e9ecef" stroke-width="8"></circle>
-            <circle cx="60" cy="60" r="50" fill="none" stroke="#0d6efd" stroke-width="8"
+        <div class="progress-circle-container" role="progressbar"
+             aria-valuenow="{{ counter.completed }}"
+             aria-valuemin="0"
+             aria-valuemax="{{ lessons|length }}"
+             aria-label="{{ _('Прогресс модуля') }}: {{ counter.completed }} из {{ lessons|length }} уроков">
+          <svg class="progress-circle" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="50" fill="none" class="progress-circle-bg" stroke-width="8"></circle>
+            <circle cx="60" cy="60" r="50" fill="none" class="progress-circle-fill" stroke-width="8"
                     stroke-dasharray="{{ ((counter.completed / lessons|length) * 314)|round if lessons|length > 0 else 0 }} 314"
                     stroke-dashoffset="0"
+                    stroke-linecap="round"
                     transform="rotate(-90 60 60)"></circle>
           </svg>
           <div class="progress-info">
@@ -58,19 +63,16 @@
     {% for lesson in lessons %}
       {% set is_completed = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
       {% set is_in_progress = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'in_progress' %}
-      {% set is_current = is_in_progress or (not current_lesson_found and not is_completed) %}
 
-      {% if is_current %}
-        {% set current_lesson_found = true %}
-      {% endif %}
-
+      {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок завершён #}
       {% set is_available = false %}
       {% if lesson.number == 1 %}
         {% set is_available = true %}
-      {% elif lesson.id in user_lesson_progress and (user_lesson_progress[lesson.id].status == 'in_progress' or user_lesson_progress[lesson.id].status == 'completed') %}
+      {% elif is_completed %}
+        {# Завершённые уроки всегда доступны для повторения #}
         {% set is_available = true %}
       {% else %}
-        {% set prev_lesson_completed = false %}
+        {# Проверяем, завершён ли предыдущий урок #}
         {% for l in lessons %}
           {% if l.number == lesson.number - 1 %}
             {% if l.id in user_lesson_progress and user_lesson_progress[l.id].status == 'completed' %}
@@ -78,6 +80,13 @@
             {% endif %}
           {% endif %}
         {% endfor %}
+      {% endif %}
+
+      {# Текущий урок - первый доступный незавершённый #}
+      {% set is_current = is_available and not is_completed and not current_lesson_found %}
+
+      {% if is_current %}
+        {% set current_lesson_found = true %}
       {% endif %}
 
       <div class="lesson-item {{ 'completed' if is_completed else 'current' if is_current else 'locked' if not is_available else 'available' }}">
@@ -120,7 +129,7 @@
 
         <div class="lesson-action">
           {% if is_available %}
-            <a href="/learn/{{ module.level.code|lower }}/module-{{ module.number }}/lesson-{{ lesson.number }}-{{ lesson.type }}/"
+            <a href="/learn/{{ lesson.id }}/"
                class="btn {{ 'btn-success' if is_completed else 'btn-primary' if is_current else 'btn-outline-primary' }}">
               {% if is_completed %}
                 {{ _('Повторить') }}
@@ -140,7 +149,7 @@
 
   <!-- Навигация -->
   <div class="module-navigation mt-5">
-    <a href="{{ '/learn/' }}"
+    <a href="/learn/{{ module.level.code|lower }}/"
        class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left me-2"></i>{{ _('К модулям') }}
     </a>

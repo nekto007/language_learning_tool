@@ -525,7 +525,7 @@
       };
 
       {% if next_lesson %}
-          const nextLessonUrl = "{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}";
+          const nextLessonUrl = "/learn/{{ next_lesson.id }}/";
       {% else %}
           const nextLessonUrl = null;
       {% endif %}
