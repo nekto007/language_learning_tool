@@ -584,7 +584,7 @@
   <div class="result-actions">
     {% if results.score >= passing_score %}
       {% if next_lesson %}
-        <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson.id) }}"
+        <a href="/learn/{{ next_lesson.id }}/"
            class="action-btn primary">
           <i class="fas fa-arrow-right"></i>
           {{ _('Перейти к следующему уроку') }}
