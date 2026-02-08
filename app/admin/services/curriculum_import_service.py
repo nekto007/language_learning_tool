@@ -283,9 +283,8 @@ class CurriculumImportService:
                     order=number,
                     description=lesson_data.get('grammar_focus') or title
                 )
-                # Устанавливаем явный ID если указан
-                if explicit_lesson_id:
-                    lesson.id = explicit_lesson_id
+                # НЕ используем explicit_lesson_id - это относительные ID внутри модуля,
+                # не глобально уникальные. Пусть БД генерирует ID автоматически.
                 db.session.add(lesson)
                 db.session.flush()
                 logger.info(f"Создан урок: id={lesson.id}, number={number}, type={lesson_type}")

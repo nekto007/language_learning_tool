@@ -127,10 +127,12 @@ class CurriculumCacheService:
                     level_lessons += module_total
                     level_completed += module_completed
 
-                # Find next lesson for this level
+                # Find next lesson for this level (sorted by module number, then lesson number)
                 next_lesson = None
-                for module in level.modules:
-                    for lesson in module.lessons:
+                sorted_modules = sorted(level.modules, key=lambda m: m.number)
+                for module in sorted_modules:
+                    sorted_lessons = sorted(module.lessons, key=lambda l: l.number)
+                    for lesson in sorted_lessons:
                         progress = progress_map.get(lesson.id)
                         if not progress or progress.status != 'completed':
                             next_lesson = lesson
