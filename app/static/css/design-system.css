@@ -1947,28 +1947,46 @@ select.form-control {
 .progress-circle-container {
     display: flex;
     align-items: center;
+    justify-content: center;
     margin-bottom: var(--space-4);
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-left: auto;
 }
 
 .progress-circle {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: conic-gradient(var(--primary-500) 0deg, var(--gray-200) 0deg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    margin-right: var(--space-4);
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
 }
 
-.progress-circle::before {
-    content: '';
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: white;
+.progress-circle-bg {
+    stroke: var(--gray-200);
+}
+
+.progress-circle-fill {
+    stroke: var(--primary-500);
+    transition: stroke-dasharray 0.5s ease-out;
+}
+
+.progress-circle-container .progress-info {
     position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.progress-circle-container .progress-number {
+    font-size: 1.25rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}
+
+.progress-circle-container .progress-label {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
 }
 
 .progress-percentage {
@@ -3570,6 +3588,12 @@ body.dark-theme #translationPopup {
     text-decoration: underline;
 }
 
+.breadcrumb-minimal li a:focus {
+    outline: 2px solid var(--primary-400);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .breadcrumb-minimal li.active {
     color: var(--text-primary);
     font-weight: var(--font-semibold);
@@ -4037,6 +4061,55 @@ body.dark-theme #translationPopup {
     margin: 0;
 }
 
+/* Hero CTA Button */
+.hero-cta {
+    margin-top: var(--space-4);
+}
+
+.btn-hero {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-5);
+    color: white;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.btn-hero:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-hero-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.btn-hero-text strong {
+    font-size: var(--text-base);
+    font-weight: 600;
+}
+
+.btn-hero-text small {
+    font-size: var(--text-sm);
+    opacity: 0.85;
+}
+
+.btn-hero-icon {
+    font-size: var(--text-xl);
+    opacity: 0.9;
+}
+
 /* Level Stats Grid */
 .level-stats-grid {
     display: grid;
@@ -4423,64 +4496,89 @@ body.dark-theme #translationPopup {
     border-color: var(--gray-300);
 }
 
-/* Gamification Stats */
+/* Gamification Stats - Hero Section */
 .gamification-stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(100px, 150px));
-    gap: var(--space-2);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
     margin-top: 0;
-    justify-content: center;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .hero-section .stat-card {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: var(--radius-sm);
-    padding: var(--space-2);
+    border-radius: 8px;
+    padding: 0.5rem 0.375rem;
     text-align: center;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section .stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
 }
 
 .hero-section .stat-card:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Card Color Variants */
 .stat-card.streak {
-    background: var(--gradient-danger);
-    color: var(--text-inverse);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
 .stat-card.points {
-    background: var(--gradient-warning);
-    color: var(--gray-800);
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
 
 .stat-card.level {
-    background: var(--gradient-primary);
-    color: var(--text-inverse);
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8px);
 }
 
 .stat-card.daily {
-    background: var(--gradient-success);
-    color: var(--text-inverse);
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+/* Force white text on all hero stat cards */
+.hero-section .stat-card,
+.hero-section .stat-card .stat-icon,
+.hero-section .stat-card .stat-value,
+.hero-section .stat-card .stat-label {
+    color: #ffffff !important;
 }
 
 .hero-section .stat-icon {
-    font-size: var(--text-lg);
-    margin-bottom: var(--space-1);
+    position: static;
+    font-size: 1rem;
+    opacity: 0.9;
+    transform: none;
 }
 
 .hero-section .stat-value {
-    font-size: var(--text-base);
-    font-weight: var(--font-bold);
-    margin-bottom: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
     line-height: 1;
+    letter-spacing: -0.025em;
 }
 
 .hero-section .stat-label {
-    font-size: 0.6rem;
-    opacity: 0.9;
+    font-size: 0.625rem;
+    font-weight: 600;
     line-height: 1.2;
-    margin-top: 2px;
+    opacity: 0.95;
 }
 
 /* Activity List */
@@ -4825,6 +4923,91 @@ body.dark-theme #translationPopup {
 .stat-card.stat-info::before { background: var(--info-500); opacity: 1; }
 .stat-card.stat-info .stat-icon { color: var(--info-200); }
 .stat-card.stat-info:hover .stat-icon { color: var(--info-400); }
+
+/* Interactive Stat Cards (clickable) */
+.stat-card-interactive {
+    cursor: pointer;
+}
+
+.stat-card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card-interactive:active {
+    transform: translateY(0);
+}
+
+/* Stat Icon Wrapper */
+.stat-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.75rem;
+    font-size: 1.25rem;
+    transition: var(--transition-fast);
+}
+
+.stat-icon-primary {
+    background: var(--primary-100);
+    color: var(--primary-600);
+}
+
+.stat-card-interactive:hover .stat-icon-primary {
+    background: var(--primary-500);
+    color: white;
+}
+
+.stat-icon-success {
+    background: var(--success-100);
+    color: var(--success-600);
+}
+
+.stat-card-interactive:hover .stat-icon-success {
+    background: var(--success-500);
+    color: white;
+}
+
+.stat-icon-warning {
+    background: var(--warning-100);
+    color: var(--warning-600);
+}
+
+.stat-card-interactive:hover .stat-icon-warning {
+    background: var(--warning-500);
+    color: white;
+}
+
+.stat-icon-info {
+    background: var(--info-100);
+    color: var(--info-600);
+}
+
+.stat-card-interactive:hover .stat-icon-info {
+    background: var(--info-500);
+    color: white;
+}
+
+/* Button with loading state */
+.btn-with-loading {
+    position: relative;
+    min-width: 140px;
+}
+
+.btn-with-loading .btn-loading {
+    display: none;
+}
+
+.btn-with-loading.loading .btn-text {
+    display: none;
+}
+
+.btn-with-loading.loading .btn-loading {
+    display: inline-flex;
+}
 
 /* Admin Charts */
 .chart-container {
@@ -5658,9 +5841,250 @@ body.dark-theme #translationPopup {
     padding: 1rem 1.5rem 1.5rem 1.5rem;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-light);
-    max-height: 500px;
-    overflow-y: auto;
+    max-height: 0;
+    overflow: hidden;
     scroll-behavior: smooth;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Expanded state for module cards */
+.module-card-main.expanded .module-lessons-main {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+}
+
+/* Module header button reset */
+button.module-header-main {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+}
+
+button.module-header-main:focus {
+    outline: 2px solid var(--primary-400);
+    outline-offset: -2px;
+}
+
+button.module-header-main:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Expand/collapse icons */
+.expand-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    color: var(--text-tertiary);
+    transition: transform 0.3s ease;
+}
+
+.expand-icon .icon-collapsed,
+.expand-icon .icon-expanded {
+    transition: opacity 0.2s ease;
+}
+
+.expand-icon .icon-expanded {
+    display: none;
+}
+
+.module-card-main.expanded .expand-icon .icon-collapsed {
+    display: none;
+}
+
+.module-card-main.expanded .expand-icon .icon-expanded {
+    display: inline-block;
+}
+
+/* Locked module status badge */
+.module-status-badge.locked {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Module stat icon styling for Font Awesome */
+.module-stat-icon {
+    font-size: 1.125rem;
+    color: var(--text-tertiary);
+}
+
+/* ==========================================
+   Module Lessons Page (module_lessons.html)
+   ========================================== */
+
+.lessons-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.lessons-container .lesson-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    transition: var(--transition-fast);
+}
+
+.lessons-container .lesson-item:hover {
+    border-color: var(--primary-200);
+    box-shadow: var(--shadow-sm);
+}
+
+.lessons-container .lesson-item.completed {
+    border-color: var(--success-200);
+    background: var(--success-50);
+}
+
+.lessons-container .lesson-item.current {
+    border-color: var(--primary-400);
+    background: var(--primary-50);
+}
+
+.lessons-container .lesson-item.locked {
+    opacity: 0.6;
+    background: var(--gray-50);
+}
+
+.lesson-number-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.lessons-container .lesson-number {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    font-weight: var(--font-bold);
+    color: var(--text-secondary);
+}
+
+.lessons-container .lesson-item.completed .lesson-number {
+    background: var(--success-500);
+    color: white;
+}
+
+.lessons-container .lesson-item.current .lesson-number {
+    background: var(--primary-500);
+    color: white;
+}
+
+.lesson-check,
+.lesson-arrow,
+.lesson-lock {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.625rem;
+    border: 2px solid white;
+}
+
+.lesson-check {
+    background: var(--success-500);
+    color: white;
+}
+
+.lesson-arrow {
+    background: var(--primary-500);
+    color: white;
+}
+
+.lesson-lock {
+    background: var(--gray-400);
+    color: white;
+}
+
+.lessons-container .lesson-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.lessons-container .lesson-type {
+    font-size: 0.75rem;
+    font-weight: var(--font-medium);
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.lessons-container .lesson-title {
+    font-size: 1rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.lessons-container .lesson-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: var(--font-medium);
+    color: var(--warning-600);
+}
+
+.lesson-action {
+    flex-shrink: 0;
+}
+
+.module-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.completion-message {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--warning-50);
+    border: 1px solid var(--warning-200);
+    border-radius: var(--radius-lg);
+    color: var(--warning-800);
+    font-weight: var(--font-medium);
+}
+
+/* Module label for header */
+.module-label {
+    font-size: 0.875rem;
+    font-weight: var(--font-semibold);
+    color: var(--primary-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.module-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-top: 0.5rem;
 }
 
 /* ==========================================
@@ -5895,25 +6319,102 @@ body.dark-theme #translationPopup {
 
     /* Hero section */
     .hero-greeting h1 {
-        font-size: 1.5rem;
-    }
-
-    /* Gamification stats - stack vertically */
-    .gamification-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-    }
-
-    .stat-card {
-        padding: 0.75rem;
-    }
-
-    .stat-value {
         font-size: 1.25rem;
     }
 
-    .stat-label {
+    /* Gamification stats - 2x2 grid on tablet/phone */
+    .gamification-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.375rem;
+        max-width: 320px;
+    }
+
+    .hero-section .stat-card {
+        padding: 0.375rem 0.25rem;
+        border-radius: 6px;
+    }
+
+    .hero-section .stat-icon {
+        font-size: 0.875rem;
+    }
+
+    .hero-section .stat-value {
+        font-size: 1rem;
+    }
+
+    .hero-section .stat-label {
+        font-size: 0.5rem;
+    }
+
+    /* Progress circle - responsive */
+    .progress-circle-container {
+        width: 100px;
+        height: 100px;
+    }
+
+    .progress-circle-container .progress-number {
+        font-size: 1rem;
+    }
+
+    .progress-circle-container .progress-label {
         font-size: 0.75rem;
+    }
+
+    /* Module header layout on mobile */
+    .module-header-main.row {
+        flex-direction: column;
+    }
+
+    .module-header-main .col-md-4 {
+        margin-top: 1rem;
+    }
+
+    .progress-circle-container {
+        margin: 0 auto;
+    }
+
+    /* Lessons container - mobile */
+    .lessons-container .lesson-item {
+        flex-wrap: wrap;
+        padding: 0.875rem 1rem;
+    }
+
+    .lesson-number-container {
+        flex-shrink: 0;
+    }
+
+    .lessons-container .lesson-number {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .lessons-container .lesson-content {
+        flex: 1 1 calc(100% - 60px);
+    }
+
+    .lessons-container .lesson-title {
+        font-size: 0.9375rem;
+    }
+
+    .lesson-action {
+        width: 100%;
+        margin-top: 0.75rem;
+    }
+
+    .lesson-action .btn {
+        width: 100%;
+    }
+
+    /* Module navigation - stack on mobile */
+    .module-navigation {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .completion-message {
+        text-align: center;
+        justify-content: center;
     }
 
     /* Module cards - mobile layout */
@@ -6159,7 +6660,7 @@ body.dark-theme #translationPopup {
 /* Tablet-specific adjustments */
 @media (min-width: 769px) and (max-width: 1024px) {
     .gamification-stats {
-        grid-template-columns: repeat(2, 1fr);
+        max-width: 380px;
     }
 
     .module-info p {
@@ -6178,12 +6679,36 @@ body.dark-theme #translationPopup {
 /* Large mobile/small tablet (landscape) */
 @media (min-width: 576px) and (max-width: 768px) {
     .gamification-stats {
-        grid-template-columns: repeat(4, 1fr);
+        max-width: 340px;
     }
 
     .module-info p {
         display: block;
         font-size: 0.8125rem;
+    }
+}
+
+/* Small phones */
+@media (max-width: 375px) {
+    .gamification-stats {
+        max-width: 280px;
+        gap: 0.25rem;
+    }
+
+    .hero-section .stat-card {
+        padding: 0.25rem;
+    }
+
+    .hero-section .stat-icon {
+        font-size: 0.75rem;
+    }
+
+    .hero-section .stat-value {
+        font-size: 0.875rem;
+    }
+
+    .hero-section .stat-label {
+        font-size: 0.4375rem;
     }
 }
 
@@ -10328,12 +10853,25 @@ footer .col-md-4 {
    ========================================================================== */
 
 .admin-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     padding: 12px 0;
     margin-bottom: 16px;
     font-size: 14px;
+}
+
+.admin-breadcrumb ol {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.admin-breadcrumb li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .admin-breadcrumb a {
@@ -10346,13 +10884,48 @@ footer .col-md-4 {
     color: var(--primary-600);
 }
 
+.admin-breadcrumb a:focus {
+    outline: 2px solid var(--primary-400);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .admin-breadcrumb .separator {
     color: var(--gray-300);
+    font-size: 0.75rem;
 }
 
 .admin-breadcrumb .current {
     color: var(--text-primary);
     font-weight: 500;
+}
+
+/* ==========================================================================
+   Empty State Component
+   ========================================================================== */
+
+.empty-state {
+    padding: var(--space-8) var(--space-4);
+}
+
+.empty-state-icon {
+    color: var(--gray-300);
+}
+
+.empty-state-icon i {
+    font-size: 3.5rem;
+}
+
+.empty-state-title {
+    color: var(--text-primary);
+    font-weight: var(--font-semibold);
+}
+
+.empty-state-description {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    color: var(--text-secondary);
 }
 
 /* ==========================================================================
