@@ -68,6 +68,14 @@ class CurriculumImportService:
             english_word = (word_data.get('word') or word_data.get('english', '')).lower()
             translation = word_data.get('translation') or word_data.get('russian', '')
 
+            # Формируем sentences из example/example_translation
+            sentences_json = None
+            if word_data.get('example'):
+                sentences_json = json.dumps([{
+                    'en': word_data.get('example', ''),
+                    'ru': word_data.get('example_translation', '')
+                }])
+
             # Find or create the word
             word = CollectionWords.query.filter_by(english_word=english_word).first()
             if not word:
@@ -75,15 +83,24 @@ class CurriculumImportService:
                     english_word=english_word,
                     russian_word=translation,
                     level=level_code,
-                    frequency_rank=word_data.get('frequency_rank', 0)
+                    frequency_rank=word_data.get('frequency_rank', 0),
+                    listening=word_data.get('audio', ''),
+                    sentences=sentences_json
                 )
                 db.session.add(word)
                 db.session.flush()
             else:
-                # Update translation or rank if provided
+                # Update all fields if provided
                 if word_data.get('frequency_rank'):
                     word.frequency_rank = word_data['frequency_rank']
+                # Always update both english and russian to fix any data issues
+                word.english_word = english_word
                 word.russian_word = translation
+                # Update listening and sentences if provided
+                if word_data.get('audio'):
+                    word.listening = word_data['audio']
+                if sentences_json:
+                    word.sentences = sentences_json
 
             # Link the word to the collection
             existing = CollectionWordLink.query.filter_by(
