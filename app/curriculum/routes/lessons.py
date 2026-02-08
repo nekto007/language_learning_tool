@@ -20,7 +20,7 @@ from app.curriculum.validators import (
     LessonContentValidator, ProgressUpdateSchema, SRSReviewSchema,
     validate_request_data,
 )
-from app.study.models import UserWord
+from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -207,6 +207,16 @@ def render_grammar_lesson(lesson):
     examples = cleaned_content.get('examples', [])
     exercises = cleaned_content.get('exercises', [])
     grammar_explanation = cleaned_content.get('grammar_explanation')
+
+    # Fallback: if no grammar_explanation but sections exist at top level, construct grammar_explanation
+    if not grammar_explanation and cleaned_content.get('sections'):
+        grammar_explanation = {
+            'title': cleaned_content.get('title', ''),
+            'introduction': cleaned_content.get('description', ''),
+            'sections': cleaned_content.get('sections', []),
+            'important_notes': cleaned_content.get('important_notes', []),
+            'summary': cleaned_content.get('summary', {})
+        }
 
     if grammar_explanation:
         def decode_html_in_dict(obj):
@@ -418,7 +428,7 @@ def render_quiz_lesson(lesson):
                 import json
                 client_results = json.loads(request.form['client_results'])
                 client_score = float(request.form['client_score'])
-                client_correct_count = int(request.form.get('client_correct_count', 0))
+                client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
 
                 feedback = {}
                 for item in client_results:
@@ -448,8 +458,8 @@ def render_quiz_lesson(lesson):
 
                 result = {
                     'score': client_score,
-                    'correct_count': client_correct_count,
-                    'total_count': len(cleaned_content['questions']),
+                    'correct_answers': client_correct_count,
+                    'total_questions': len(cleaned_content['questions']),
                     'feedback': feedback,
                     'answers': answers
                 }
@@ -461,7 +471,7 @@ def render_quiz_lesson(lesson):
             if 'client_score' in request.form:
                 try:
                     client_score = float(request.form['client_score'])
-                    client_correct_count = int(request.form.get('client_correct_count', 0))
+                    client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
                     result['score'] = client_score
                     result['correct_answers'] = client_correct_count
                 except (ValueError, TypeError) as e:
@@ -731,6 +741,18 @@ def render_card_lesson(lesson):
 
     cards_list = []
 
+    # Получаем направления карточек пользователя через UserWord
+    user_directions = {}
+    if word_ids:
+        directions = db.session.query(UserCardDirection, UserWord.word_id).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        for direction, word_id in directions:
+            user_directions[word_id] = direction.direction
+
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
 
@@ -761,9 +783,23 @@ def render_card_lesson(lesson):
                 except:
                     pass
 
+            # Определяем направление и front/back
+            direction = user_directions.get(word.id, 'eng-rus')
+            if direction == 'eng-rus':
+                front = word.english_word
+                back = word.russian_word
+            else:
+                front = word.russian_word
+                back = word.english_word
+
             card_data = {
                 'id': word.id,
                 'word_id': word.id,
+                'direction': direction,
+                'front': front,
+                'back': back,
+                'word': front,  # для JS fallback
+                'translation': back,  # для JS fallback
                 'english': word.english_word,
                 'russian': word.russian_word,
                 'listening': word.listening if word.listening else '',
@@ -1486,7 +1522,7 @@ def quiz_lesson(lesson_id):
                 import json
                 client_results = json.loads(request.form['client_results'])
                 client_score = float(request.form['client_score'])
-                client_correct_count = int(request.form.get('client_correct_count', 0))
+                client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
 
                 logger.info(f"Using client-side results with retry data: score={client_score}, correct={client_correct_count}")
 
@@ -1520,8 +1556,8 @@ def quiz_lesson(lesson_id):
 
                 result = {
                     'score': client_score,
-                    'correct_count': client_correct_count,
-                    'total_count': len(cleaned_content['questions']),
+                    'correct_answers': client_correct_count,
+                    'total_questions': len(cleaned_content['questions']),
                     'feedback': feedback,
                     'answers': answers
                 }
@@ -1537,7 +1573,7 @@ def quiz_lesson(lesson_id):
             if 'client_score' in request.form:
                 try:
                     client_score = float(request.form['client_score'])
-                    client_correct_count = int(request.form.get('client_correct_count', 0))
+                    client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
                     logger.info(f"Using client-side calculation: score={client_score}, correct={client_correct_count}")
                     result['score'] = client_score
                     result['correct_answers'] = client_correct_count

@@ -1001,20 +1001,20 @@
       <div class="quiz-stats-cards">
         <div class="stat-card points">
           <div class="stat-icon">⭐</div>
-          <div class="stat-value">{{ previous_data.get('points_earned', (previous_data.correct_answers * 10))|int }}</div>
+          <div class="stat-value">{{ previous_data.get('points_earned', ((previous_data.get('correct_answers') or previous_data.get('correct_count') or 0) * 10))|int }}</div>
           <div class="stat-label">очков</div>
         </div>
 
         <div class="stat-card percentage">
           <div class="stat-icon">🎯</div>
-          <div class="stat-value">{{ (previous_data.score|default(0))|round(0)|int }}%</div>
+          <div class="stat-value">{{ (previous_data.get('score', 0))|round(0)|int }}%</div>
           <div class="stat-label">правильно</div>
         </div>
 
         {% if previous_data.get('time_spent') %}
         <div class="stat-card time">
           <div class="stat-icon">⏱️</div>
-          <div class="stat-value">{{ previous_data.time_spent }}с</div>
+          <div class="stat-value">{{ previous_data.get('time_spent', 0) }}с</div>
           <div class="stat-label">время</div>
         </div>
         {% endif %}
