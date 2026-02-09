@@ -12,7 +12,8 @@ from sqlalchemy import func, desc
 
 from app.utils.db import db
 from app.study.models import (
-    UserWord, GameScore, QuizResult, UserXP, Achievement, UserAchievement, StudySession
+    UserWord, GameScore, QuizResult, UserXP, Achievement, UserAchievement, StudySession,
+    UserCardDirection
 )
 from app.auth.models import User
 
@@ -32,10 +33,31 @@ class StatsService:
 
         # Today's statistics
         today = datetime.now(timezone.utc).date()
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         today_sessions = StudySession.query.filter_by(user_id=user_id) \
             .filter(func.date(StudySession.start_time) == today).all()
 
-        today_words_studied = sum(session.words_studied for session in today_sessions)
+        # Count unique cards studied today (not total review actions)
+        # New cards: first_reviewed is today
+        new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
+            UserCardDirection.user_word_id.in_(
+                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+            ),
+            UserCardDirection.first_reviewed >= today_start,
+            UserCardDirection.first_reviewed.isnot(None)
+        ).scalar() or 0
+
+        # Review cards: last_reviewed is today but first_reviewed was before today
+        reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
+            UserCardDirection.user_word_id.in_(
+                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+            ),
+            UserCardDirection.last_reviewed >= today_start,
+            UserCardDirection.first_reviewed < today_start,
+            UserCardDirection.first_reviewed.isnot(None)
+        ).scalar() or 0
+
+        today_words_studied = new_cards_today + reviews_today
         today_time_spent = sum(session.duration for session in today_sessions)
 
         return {

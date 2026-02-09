@@ -865,6 +865,28 @@
         let hasMoreNewCards = false;
         let hasMoreReviewCards = false;
 
+        // Debug: expose state to console
+        window.debugCards = {
+            get cards() { return cards; },
+            get originalCards() { return originalCards; },
+            get currentIndex() { return currentCardIndex; },
+            get stats() { return sessionStats; },
+            list() {
+                return cards.map((c, i) =>
+                    `${i+1}. ${c.word} (${c.direction}) ${c.is_new ? 'NEW' : c.state || 'review'}`
+                ).join('\n');
+            },
+            table() {
+                console.table(cards.map((c, i) => ({
+                    '#': i + 1,
+                    word: c.word,
+                    direction: c.direction,
+                    state: c.state || 'review',
+                    is_new: c.is_new
+                })));
+            }
+        };
+
         // Fun completion messages
         const completionMessages = [
             'Done ✅',
@@ -1098,63 +1120,87 @@
         }
 
 
-        // Create alternating cards (eng-rus, rus-eng) from original cards
-        // Shuffle only first N cards to preserve SRS priority for later cards
-        const SHUFFLE_WINDOW = 30;  // Shuffle only first 30 cards
-
+        // Process cards: maintain priority order and spread out same-word cards
         function createAlternatingCards(originalCards) {
             if (!originalCards || originalCards.length === 0) {
                 return [];
             }
 
-            // API already returns cards with correct directions - just pass them through
-            // Shuffle only first SHUFFLE_WINDOW cards to preserve SRS timeliness
-            const cardsToShuffle = originalCards.slice(0, SHUFFLE_WINDOW);
-            const remainingCards = originalCards.slice(SHUFFLE_WINDOW);
+            // Separate cards by priority type
+            const relearning = [];
+            const learning = [];
+            const review = [];
+            const newCards = [];
 
-            return [...shuffleCards(cardsToShuffle), ...remainingCards];
+            for (const card of originalCards) {
+                if (card.state === 'relearning') {
+                    relearning.push(card);
+                } else if (card.state === 'learning') {
+                    learning.push(card);
+                } else if (card.is_new) {
+                    newCards.push(card);
+                } else {
+                    review.push(card);
+                }
+            }
+
+            // Shuffle and spread each group separately, then combine in priority order
+            return [
+                ...spreadSameWordCards(shuffleArray(relearning)),
+                ...spreadSameWordCards(shuffleArray(learning)),
+                ...spreadSameWordCards(shuffleArray(review)),
+                ...spreadSameWordCards(shuffleArray(newCards))
+            ];
         }
 
-        // Shuffle cards while keeping same words apart from each other
-        function shuffleCards(cards) {
-            if (!cards || cards.length === 0) {
-                return [];
-            }
-
-            // Group cards by word_id
-            const cardsByWordId = {};
-            for (const card of cards) {
-                if (!cardsByWordId[card.word_id]) {
-                    cardsByWordId[card.word_id] = [];
-                }
-                cardsByWordId[card.word_id].push(card);
-            }
-
-            // Create shuffled word_id array
-            const wordIds = Object.keys(cardsByWordId);
-            for (let i = wordIds.length - 1; i > 0; i--) {
+        // Simple Fisher-Yates shuffle
+        function shuffleArray(arr) {
+            const result = [...arr];
+            for (let i = result.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
-                [wordIds[i], wordIds[j]] = [wordIds[j], wordIds[i]];
+                [result[i], result[j]] = [result[j], result[i]];
+            }
+            return result;
+        }
+
+        // Spread out cards of the same word so they don't appear consecutively
+        function spreadSameWordCards(cards) {
+            if (cards.length <= 2) return cards;
+
+            // Group by word_id
+            const byWord = {};
+            for (const card of cards) {
+                if (!byWord[card.word_id]) byWord[card.word_id] = [];
+                byWord[card.word_id].push(card);
             }
 
-            // Rebuild cards array with randomized directions
-            const shuffledCards = [];
+            const wordIds = Object.keys(byWord);
 
-            for (const wordId of wordIds) {
-                const cardsForWord = cardsByWordId[wordId];
+            // If no duplicates, just return shuffled
+            if (wordIds.length === cards.length) return cards;
 
-                // Перемешиваем карточки этого слова (рандомный порядок направлений)
-                const shuffledDirections = [...cardsForWord];
-                for (let i = shuffledDirections.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffledDirections[i], shuffledDirections[j]] = [shuffledDirections[j], shuffledDirections[i]];
+            // Interleave: take one card from each word in rotation
+            const result = [];
+            let hasMore = true;
+            let round = 0;
+
+            // Shuffle word order
+            const shuffledWordIds = shuffleArray(wordIds);
+
+            while (hasMore) {
+                hasMore = false;
+                for (const wordId of shuffledWordIds) {
+                    if (byWord[wordId].length > round) {
+                        result.push(byWord[wordId][round]);
+                        if (byWord[wordId].length > round + 1) {
+                            hasMore = true;
+                        }
+                    }
                 }
-
-                // Добавляем все карточки этого слова
-                shuffledCards.push(...shuffledDirections);
+                round++;
             }
 
-            return shuffledCards;
+            return result;
         }
 
         // Format hint with first letter and underscores showing the length of the word

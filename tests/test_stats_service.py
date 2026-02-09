@@ -179,13 +179,17 @@ class TestGetUserStats:
         assert 'study_streak' in stats
 
     def test_mastery_percentage_calculated_correctly(self, db_session, test_user):
-        """Test mastery percentage calculation"""
+        """Test mastery percentage calculation
+
+        Note: 'mastered' status is now calculated based on UserCardDirection.interval >= 180 days,
+        not stored directly. The mastery_percentage is based on mastered/total.
+        """
         from app.study.services.stats_service import StatsService
-        from app.study.models import UserWord
+        from app.study.models import UserWord, UserCardDirection
         from app.words.models import CollectionWords
         import uuid
 
-        # Create 10 words - 3 mastered, 7 not mastered
+        # Create 10 words - 3 will be mastered (have interval >= 180), 7 in learning
         for i in range(10):
             word = CollectionWords(
                 english_word=f'test_{i}_{uuid.uuid4().hex[:4]}',
@@ -195,8 +199,23 @@ class TestGetUserStats:
             db_session.flush()
 
             user_word = UserWord(user_id=test_user.id, word_id=word.id)
-            user_word.status = 'mastered' if i < 3 else 'learning'
+            if i < 3:
+                # Mastered words need 'review' status AND interval >= 180 days
+                user_word.status = 'review'
+            else:
+                user_word.status = 'learning'
             db_session.add(user_word)
+            db_session.flush()
+
+            if i < 3:
+                # Create UserCardDirection with interval >= 180 for mastered words
+                # Note: UserCardDirection.__init__ only takes user_word_id and direction,
+                # other fields must be set after creation
+                direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+                direction.state = 'review'
+                direction.interval = 200  # >= 180 days threshold
+                direction.ease_factor = 2.5
+                db_session.add(direction)
 
         db_session.commit()
 
@@ -238,38 +257,108 @@ class TestGetUserStats:
         assert len(stats['recent_sessions']) > 0
 
     def test_today_statistics_accurate(self, db_session, test_user):
-        """Test today's statistics are calculated correctly"""
-        from app.study.services.stats_service import StatsService
-        from app.study.models import StudySession
+        """Test today's statistics are calculated correctly
 
-        # Create 2 sessions today
-        for i in range(2):
-            session = StudySession(
-                user_id=test_user.id,
-                session_type='cards',
-                words_studied=5 + i,
-                correct_answers=4,
-                incorrect_answers=1
+        today_words_studied counts UNIQUE cards studied today:
+        - New cards: cards where first_reviewed is today
+        - Review cards: cards where last_reviewed is today but first_reviewed was before today
+        """
+        from app.study.services.stats_service import StatsService
+        from app.study.models import StudySession, UserWord, UserCardDirection
+        from app.words.models import CollectionWords
+        import uuid
+
+        now = datetime.now(timezone.utc)
+        yesterday = now - timedelta(days=1)
+
+        # Create words and user_words with card directions
+        for i in range(11):
+            word = CollectionWords(
+                english_word=f'test_word_{uuid.uuid4().hex[:8]}',
+                russian_word=f'тест_{i}',
+                level='A1'
             )
-            session.start_time = datetime.now(timezone.utc) - timedelta(hours=i+1)
-            session.end_time = datetime.now(timezone.utc) - timedelta(hours=i)
-            db_session.add(session)
+            db_session.add(word)
+            db_session.flush()
+
+            user_word = UserWord(user_id=test_user.id, word_id=word.id)
+            user_word.status = 'review'
+            db_session.add(user_word)
+            db_session.flush()
+
+            # First 5 are new cards (first_reviewed today)
+            # Next 6 are review cards (first_reviewed yesterday, last_reviewed today)
+            direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+            if i < 5:
+                direction.first_reviewed = now - timedelta(hours=i)
+                direction.last_reviewed = now - timedelta(hours=i)
+            else:
+                direction.first_reviewed = yesterday
+                direction.last_reviewed = now - timedelta(hours=i-5)
+            db_session.add(direction)
+
+        # Create session for time tracking
+        session = StudySession(
+            user_id=test_user.id,
+            session_type='cards',
+            words_studied=20,  # This is total review actions, not unique words
+            correct_answers=15,
+            incorrect_answers=5
+        )
+        session.start_time = now - timedelta(hours=1)
+        session.end_time = now
+        db_session.add(session)
 
         db_session.commit()
 
         stats = StatsService.get_user_stats(test_user.id)
 
-        # Should have 5 + 6 = 11 words studied today
+        # Should have 5 new + 6 review = 11 unique words studied today
         assert stats['today_words_studied'] == 11
         assert stats['today_time_spent'] >= 0
 
 
 class TestGetUserWordStats:
-    """Test get_user_word_stats method"""
+    """Test get_user_word_stats method
 
-    def test_counts_words_by_status(self, db_session, test_user, user_words):
+    Note: 'mastered' is calculated separately based on UserCardDirection.interval >= 180 days.
+    The status counts (new, learning, review) are from UserWord.status.
+    Mastered words are a subset of 'review' words with high intervals.
+    """
+
+    def test_counts_words_by_status(self, db_session, test_user):
         """Test word count by status"""
         from app.study.services.stats_service import StatsService
+        from app.study.models import UserWord, UserCardDirection
+        from app.words.models import CollectionWords
+        import uuid
+
+        # Create words with proper status values (only 'new', 'learning', 'review' are valid)
+        # The fixture uses 'mastered' status which isn't a valid DB status
+        statuses = ['new', 'new', 'learning', 'learning', 'review', 'review', 'review', 'review', 'new', 'learning']
+
+        for i, status in enumerate(statuses):
+            word = CollectionWords(
+                english_word=f'statstest_{i}_{uuid.uuid4().hex[:4]}',
+                russian_word=f'тест_{i}'
+            )
+            db_session.add(word)
+            db_session.flush()
+
+            user_word = UserWord(user_id=test_user.id, word_id=word.id)
+            user_word.status = status
+            db_session.add(user_word)
+            db_session.flush()
+
+            # Make 2 of the review words have high interval (mastered)
+            if i in [5, 6]:
+                direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+                direction.state = 'review'
+                direction.interval = 200  # >= 180 days threshold
+                direction.ease_factor = 2.5
+                db_session.add(direction)
+
+        db_session.commit()
 
         stats = StatsService.get_user_word_stats(test_user.id)
 
@@ -279,7 +368,9 @@ class TestGetUserWordStats:
         assert 'mastered' in stats
         assert 'total' in stats
 
-        # Total should be sum of all statuses
+        # Total is the sum of actual DB status counts (new + learning + review from DB)
+        # Mastered is extracted from review, so:
+        # total = new + learning + review_in_db = new + learning + (review_returned + mastered)
         assert stats['total'] == (stats['new'] + stats['learning'] +
                                   stats['review'] + stats['mastered'])
 
