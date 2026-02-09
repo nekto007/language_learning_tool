@@ -88,7 +88,7 @@ class QuizQuestionSchema(Schema):
         unknown = INCLUDE  # Allow additional fields not defined in schema
 
     type = fields.Str(required=False, validate=validate.OneOf(
-        ['multiple_choice', 'true_false', 'fill_blank', 'fill_in_blank', 'translation',
+        ['multiple_choice', 'mc', 'true_false', 'tf', 'fill_blank', 'fill_in_blank', 'translation',
          'reorder', 'ordering', 'matching', 'transformation', 'listening_choice', 'dialogue_completion']))
     question = fields.Str(required=False, validate=validate.Length(min=1, max=500))
     prompt = fields.Str(required=False, validate=validate.Length(min=1, max=500))  # Alternative to question
@@ -163,6 +163,9 @@ class QuizQuestionSchema(Schema):
 
 class QuizContentSchema(Schema):
     """Schema for quiz lesson content"""
+    class Meta:
+        unknown = INCLUDE  # Allow additional fields like xp_reward
+
     questions = fields.List(
         fields.Nested(QuizQuestionSchema),
         required=False,
@@ -184,6 +187,7 @@ class QuizContentSchema(Schema):
     )
     shuffle_questions = fields.Bool(required=False)
     shuffle_options = fields.Bool(required=False)
+    xp_reward = fields.Int(required=False, validate=validate.Range(min=0))
 
     @validates_schema
     def validate_quiz_content(self, data, **kwargs):
@@ -294,10 +298,18 @@ class LessonContentValidator:
 
     SCHEMAS = {
         'vocabulary': VocabularyContentSchema,
+        'flashcards': VocabularyContentSchema,  # alias
         'grammar': GrammarContentSchema,
         'quiz': QuizContentSchema,
+        'ordering_quiz': QuizContentSchema,  # alias
+        'translation_quiz': QuizContentSchema,  # alias
+        'listening_quiz': QuizContentSchema,  # alias
+        'dialogue_completion_quiz': QuizContentSchema,  # alias
+        'listening_immersion_quiz': QuizContentSchema,  # alias
         'matching': MatchingContentSchema,
         'text': TextContentSchema,
+        'reading': TextContentSchema,  # alias
+        'listening_immersion': TextContentSchema,  # alias
         'card': CardContentSchema,
         'final_test': FinalTestContentSchema,
     }
