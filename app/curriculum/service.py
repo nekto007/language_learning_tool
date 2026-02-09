@@ -2017,11 +2017,12 @@ def sync_lesson_cards_to_words(lesson):
                 skipped_count += 1
                 continue
 
-            english = card.get('back', '').strip().lower()
-            russian = card.get('front', '').strip()
+            # Support both formats: front/back (eng-rus) and english/russian
+            english = (card.get('english') or card.get('front', '')).strip().lower()
+            russian = (card.get('russian') or card.get('back', '')).strip()
 
             if not english:
-                logger.warning(f"Card {idx} (id={card.get('id')}) missing 'back' field (English)")
+                logger.warning(f"Card {idx} (id={card.get('id')}) missing 'english'/'front' field")
                 continue
 
             # Check if word exists
