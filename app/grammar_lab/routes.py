@@ -76,14 +76,32 @@ def topic_detail(topic_id):
 
 
 @grammar_lab_bp.route('/practice')
+@grammar_lab_bp.route('/practice/topic/<int:topic_id>')
 @login_required
-def practice():
-    """SRS practice page (mixed topics)"""
-    session = grammar_service.get_practice_session(current_user.id, count=10)
+def practice(topic_id=None):
+    """
+    Unified practice page.
+
+    - /practice - SRS practice (mixed topics)
+    - /practice/topic/<id> - Practice for specific topic
+    """
+    topic = None
+
+    if topic_id:
+        # Topic-specific practice
+        topic = grammar_service.get_topic_detail(topic_id, current_user.id)
+        if not topic:
+            return redirect(url_for('grammar_lab.topics'))
+
+        session = grammar_service.start_topic_practice(topic_id, current_user.id)
+    else:
+        # SRS mixed practice
+        session = grammar_service.get_practice_session(current_user.id, count=10)
 
     return render_template(
         'grammar_lab/practice.html',
-        session=session
+        session=session,
+        topic=topic
     )
 
 
