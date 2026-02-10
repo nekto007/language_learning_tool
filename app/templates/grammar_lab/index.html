@@ -3,157 +3,1096 @@
 {% block title %}Grammar Lab{% endblock %}
 
 {% block content %}
-<div class="container container-xl">
-    <!-- Header -->
-    <div class="mb-4">
-        <h1 class="h2 fw-bold mb-2">Grammar Lab</h1>
-        <p class="text-muted">Изучайте грамматику английского языка по уровням</p>
+<div class="grammar-page">
+  <!-- Hero Section -->
+  {% if current_user.is_authenticated %}
+    <div class="grammar-hero">
+      <div class="grammar-hero__bg-shapes">
+        <div class="shape shape--1"></div>
+        <div class="shape shape--2"></div>
+        <div class="shape shape--3"></div>
+      </div>
+
+      <div class="grammar-hero__content">
+        <div class="grammar-hero__header">
+          <div class="grammar-hero__icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="grammar-hero__title">Grammar Lab</h1>
+            <p class="grammar-hero__subtitle">Изучайте грамматику английского языка</p>
+          </div>
+        </div>
+
+        {% if stats and stats.topics_started > 0 %}
+          <div class="grammar-stats">
+            <div class="grammar-stat grammar-stat--xp">
+              <div class="grammar-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <div class="grammar-stat__data">
+                <span class="grammar-stat__value">{{ stats.total_xp }}</span>
+                <span class="grammar-stat__label">XP</span>
+              </div>
+            </div>
+
+            <div class="grammar-stat grammar-stat--topics">
+              <div class="grammar-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                </svg>
+              </div>
+              <div class="grammar-stat__data">
+                <span class="grammar-stat__value">{{ stats.topics_mastered }}/{{ stats.total_topics }}</span>
+                <span class="grammar-stat__label">тем освоено</span>
+              </div>
+            </div>
+
+            <div class="grammar-stat grammar-stat--accuracy">
+              <div class="grammar-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                  <path d="M22 4L12 14.01l-3-3"/>
+                </svg>
+              </div>
+              <div class="grammar-stat__data">
+                <span class="grammar-stat__value">{{ stats.overall_accuracy }}%</span>
+                <span class="grammar-stat__label">точность</span>
+              </div>
+            </div>
+
+            <div class="grammar-stat grammar-stat--mastered">
+              <div class="grammar-stat__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 23c-4.97 0-9-2.582-9-7.5 0-3.5 2.5-6.5 2.5-10C5.5 4 7 2 9 2c1.5 0 2.5 1 2.5 2.5 0 1.5-.5 3-1 4.5 1-1.5 3-3 5.5-3 2 0 3 1 3.5 2.5.5 1.5 0 3.5-1 5 2 1 3.5 3 3.5 6 0 4.918-4.03 7.5-9 7.5z"/>
+                </svg>
+              </div>
+              <div class="grammar-stat__data">
+                <span class="grammar-stat__value">{{ stats.mastered_count }}</span>
+                <span class="grammar-stat__label">освоено</span>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Recommendations -->
+  {% if recommendations %}
+    <div class="grammar-section">
+      <div class="grammar-section__header">
+        <h2 class="grammar-section__title">Рекомендации</h2>
+        <a href="{{ url_for('grammar_lab.practice') }}" class="grammar-section__action">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Практика
+        </a>
+      </div>
+
+      <div class="recommendations-grid">
+        {% for topic in recommendations %}
+          <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="recommendation-card">
+            <div class="recommendation-card__header">
+              <span class="recommendation-card__level recommendation-card__level--{{ topic.level[0]|lower }}">{{ topic.level }}</span>
+              <span class="recommendation-card__reason recommendation-card__reason--{{ topic.reason }}">
+                {% if topic.reason == 'due_for_review' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                  </svg>
+                {% elif topic.reason == 'in_progress' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                {% else %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                {% endif %}
+                {{ topic.reason_text }}
+              </span>
+            </div>
+            <div class="recommendation-card__content">
+              <h3 class="recommendation-card__title">{{ topic.title }}</h3>
+              <p class="recommendation-card__subtitle">{{ topic.title_ru }}</p>
+            </div>
+            <div class="recommendation-card__arrow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Levels Grid -->
+  <div class="grammar-section">
+    <div class="grammar-section__header">
+      <h2 class="grammar-section__title">Уровни</h2>
+      <p class="grammar-section__subtitle">Выберите уровень для изучения</p>
     </div>
 
-    <!-- Stats Card -->
-    {% if stats and stats.topics_started > 0 %}
-    <div class="card mb-4 shadow-sm hero-gradient-card">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <div class="icon-lg">&#127891;</div>
-                        <div>
-                            <h4 class="mb-1">Ваш прогресс</h4>
-                            <p class="mb-0 text-muted">
-                                {{ stats.topics_mastered }} из {{ stats.total_topics }} тем освоено
-                            </p>
-                        </div>
-                    </div>
-                    <div class="progress" style="height: 10px;">
-                        {% set progress_pct = (stats.topics_mastered / stats.total_topics * 100) if stats.total_topics > 0 else 0 %}
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_pct }}%;"></div>
-                    </div>
+    {% if levels %}
+      <div class="levels-grid">
+        {% for level in levels %}
+          {% set has_progress = level.exercises_mastered > 0 %}
+          {% set is_completed = level.progress_pct == 100 and level.topic_count > 0 %}
+          {% set is_current = has_progress and not is_completed %}
+
+          <a href="{{ url_for('grammar_lab.topics', level=level.level) }}" class="level-card level-card--{{ level.level[0]|lower }} {% if is_completed %}level-card--completed{% elif is_current %}level-card--current{% endif %}">
+            <div class="level-card__header">
+              <div class="level-card__badge">
+                <span class="level-card__code">{{ level.level }}</span>
+              </div>
+              {% if is_completed %}
+                <div class="level-card__status level-card__status--completed">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-flex flex-column gap-2">
-                        <span class="badge bg-primary fs-6">{{ stats.total_xp }} XP</span>
-                        <small class="text-muted">Точность: {{ stats.overall_accuracy }}%</small>
-                    </div>
+              {% elif is_current %}
+                <div class="level-card__status level-card__status--current">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
                 </div>
+              {% endif %}
             </div>
+
+            <div class="level-card__content">
+              <h3 class="level-card__title">Уровень {{ level.level }}</h3>
+              <p class="level-card__desc">
+                {% if level.level == 'A1' %}Базовый{% endif %}
+                {% if level.level == 'A2' %}Элементарный{% endif %}
+                {% if level.level == 'B1' %}Средний{% endif %}
+                {% if level.level == 'B2' %}Выше среднего{% endif %}
+                {% if level.level == 'C1' %}Продвинутый{% endif %}
+                {% if level.level == 'C2' %}Владение в совершенстве{% endif %}
+              </p>
+            </div>
+
+            <div class="level-card__footer">
+              <div class="level-card__stats">
+                <span class="level-card__stat">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                  </svg>
+                  {{ level.topic_count }} {{ 'тема' if level.topic_count == 1 else 'темы' if level.topic_count < 5 else 'тем' }}
+                </span>
+                <span class="level-card__stat">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M3 9h18M9 21V9"/>
+                  </svg>
+                  {{ level.exercises_total }} упр.
+                </span>
+              </div>
+
+              {% if level.topic_count > 0 %}
+                <div class="level-card__progress">
+                  <div class="level-card__progress-bar">
+                    <div class="level-card__progress-fill" style="width: {{ level.progress_pct }}%"></div>
+                  </div>
+                  <span class="level-card__progress-text">{{ level.progress_pct|round(0)|int }}%</span>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="level-card__arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="grammar-empty">
+        <div class="grammar-empty__icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
         </div>
-    </div>
+        <h4>Грамматические темы не найдены</h4>
+        <p>Импортируйте темы из модулей в панели администратора</p>
+      </div>
     {% endif %}
+  </div>
 
-    <!-- Recommendations -->
-    {% if recommendations %}
-    <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0">
-                <i class="fas fa-star text-warning me-2"></i>Рекомендации
-            </h4>
-            <a href="{{ url_for('grammar_lab.practice') }}" class="btn btn-sm btn-primary">
-                <i class="fas fa-play me-1"></i>Практика
-            </a>
-        </div>
-        <div class="row g-3">
-            {% for topic in recommendations %}
-            <div class="col-md-6 col-lg-4">
-                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' if topic.level in ['B1', 'B2'] else 'warning' }}">{{ topic.level }}</span>
-                            <span class="badge bg-light text-dark">
-                                {% if topic.reason == 'due_for_review' %}
-                                    <i class="fas fa-clock text-danger"></i> {{ topic.reason_text }}
-                                {% elif topic.reason == 'in_progress' %}
-                                    <i class="fas fa-spinner text-warning"></i> {{ topic.reason_text }}
-                                {% else %}
-                                    <i class="fas fa-plus text-success"></i> {{ topic.reason_text }}
-                                {% endif %}
-                            </span>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">{{ topic.title }}</h6>
-                        <p class="text-muted small mb-0">{{ topic.title_ru }}</p>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Levels Grid -->
-    <div class="mb-4">
-        <h4 class="fw-bold mb-3">
-            <i class="fas fa-layer-group text-primary me-2"></i>Уровни
-        </h4>
-        <div class="row g-3">
-            {% for level in levels %}
-            <div class="col-md-6 col-lg-4">
-                <a href="{{ url_for('grammar_lab.topics', level=level.level) }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0 fw-bold">
-                                <span class="badge bg-{{ 'primary' if level.level in ['A1', 'A2'] else 'success' if level.level in ['B1', 'B2'] else 'warning' }} me-2">{{ level.level }}</span>
-                            </h5>
-                            <span class="text-muted">{{ level.topic_count }} тем</span>
-                        </div>
-
-                        {% if level.topic_count > 0 %}
-                        <div class="progress mb-2" style="height: 8px;">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ level.progress_pct }}%;"></div>
-                        </div>
-                        <div class="d-flex justify-content-between small">
-                            <span class="text-muted">Начато: {{ level.topics_started }}</span>
-                            <span class="text-success">Освоено: {{ level.topics_mastered }}</span>
-                        </div>
-                        {% else %}
-                        <p class="text-muted small mb-0">Скоро появятся темы</p>
-                        {% endif %}
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
+  <!-- Quick Actions -->
+  <div class="grammar-section">
+    <div class="grammar-section__header">
+      <h2 class="grammar-section__title">Быстрые действия</h2>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="mb-4">
-        <h4 class="fw-bold mb-3">
-            <i class="fas fa-bolt text-warning me-2"></i>Быстрые действия
-        </h4>
-        <div class="row g-3">
-            <div class="col-md-4">
-                <a href="{{ url_for('grammar_lab.practice') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                            <i class="fas fa-brain text-primary fs-3"></i>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">Практика SRS</h6>
-                        <p class="text-muted small mb-0">Повторение на основе интервалов</p>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4">
-                <a href="{{ url_for('grammar_lab.topics') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                            <i class="fas fa-book text-success fs-3"></i>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">Все темы</h6>
-                        <p class="text-muted small mb-0">Полный каталог грамматики</p>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4">
-                <a href="{{ url_for('grammar_lab.stats') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                            <i class="fas fa-chart-bar text-warning fs-3"></i>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">Статистика</h6>
-                        <p class="text-muted small mb-0">Ваш прогресс и достижения</p>
-                    </div>
-                </a>
-            </div>
+    <div class="actions-grid">
+      <a href="{{ url_for('grammar_lab.practice') }}" class="action-card action-card--primary">
+        <div class="action-card__icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
         </div>
+        <div class="action-card__content">
+          <h3 class="action-card__title">Практика SRS</h3>
+          <p class="action-card__desc">Интервальное повторение</p>
+        </div>
+        <div class="action-card__arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>
+      </a>
+
+      <a href="{{ url_for('grammar_lab.topics') }}" class="action-card action-card--secondary">
+        <div class="action-card__icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+          </svg>
+        </div>
+        <div class="action-card__content">
+          <h3 class="action-card__title">Все темы</h3>
+          <p class="action-card__desc">Полный каталог грамматики</p>
+        </div>
+        <div class="action-card__arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>
+      </a>
+
+      <a href="{{ url_for('grammar_lab.stats') }}" class="action-card action-card--tertiary">
+        <div class="action-card__icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
+        </div>
+        <div class="action-card__content">
+          <h3 class="action-card__title">Статистика</h3>
+          <p class="action-card__desc">Прогресс и достижения</p>
+        </div>
+        <div class="action-card__arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>
+      </a>
     </div>
+  </div>
 </div>
+
+<style>
+/* ============================================
+   Grammar Lab Page - Unified Design System
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.grammar-page {
+  --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --grammar-primary: #8b5cf6;
+  --grammar-primary-dark: #7c3aed;
+  --grammar-surface: #ffffff;
+  --grammar-surface-alt: #f8fafc;
+  --grammar-text: #0f172a;
+  --grammar-text-muted: #64748b;
+  --grammar-border: #e2e8f0;
+  --grammar-radius: 16px;
+  --grammar-radius-sm: 10px;
+
+  font-family: var(--grammar-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ============================================
+   Hero Section
+   ============================================ */
+
+.grammar-hero {
+  position: relative;
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
+  border-radius: var(--grammar-radius);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  color: white;
+}
+
+.grammar-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.grammar-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.grammar-hero .shape--1 {
+  width: 200px;
+  height: 200px;
+  top: -60px;
+  right: -30px;
+  animation: float-1 18s ease-in-out infinite;
+}
+
+.grammar-hero .shape--2 {
+  width: 120px;
+  height: 120px;
+  bottom: -40px;
+  left: -20px;
+  animation: float-2 14s ease-in-out infinite;
+}
+
+.grammar-hero .shape--3 {
+  width: 80px;
+  height: 80px;
+  top: 50%;
+  right: 25%;
+  animation: float-3 20s ease-in-out infinite;
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+@keyframes float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+  50% { transform: translate(-25px, 10px) scale(1.1); opacity: 0.8; }
+}
+
+.grammar-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.grammar-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.grammar-hero__icon {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.grammar-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.grammar-hero__subtitle {
+  font-size: 0.9375rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+/* Stats Row */
+.grammar-stats {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.grammar-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--grammar-radius-sm);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.grammar-stat__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grammar-stat--xp .grammar-stat__icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.grammar-stat--topics .grammar-stat__icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.grammar-stat--accuracy .grammar-stat__icon {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.grammar-stat--mastered .grammar-stat__icon {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.grammar-stat__data {
+  display: flex;
+  flex-direction: column;
+}
+
+.grammar-stat__value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.grammar-stat__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.125rem;
+}
+
+/* ============================================
+   Section
+   ============================================ */
+
+.grammar-section {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--grammar-border);
+}
+
+.grammar-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.grammar-section__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.grammar-section__subtitle {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0.25rem 0 0;
+}
+
+.grammar-section__action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.grammar-section__action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  color: white;
+}
+
+/* ============================================
+   Recommendations Grid
+   ============================================ */
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.recommendation-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  background: var(--grammar-surface-alt);
+  border-radius: var(--grammar-radius-sm);
+  border: 2px solid transparent;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.25s ease;
+}
+
+.recommendation-card:hover {
+  border-color: var(--grammar-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.15);
+}
+
+.recommendation-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.recommendation-card__level {
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+}
+
+.recommendation-card__level--a {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.recommendation-card__level--b {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+}
+
+.recommendation-card__level--c {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+}
+
+.recommendation-card__reason {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.recommendation-card__reason--due_for_review {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.recommendation-card__reason--in_progress {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.recommendation-card__reason--new {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.recommendation-card__content {
+  flex: 1;
+}
+
+.recommendation-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  margin: 0 0 0.25rem;
+  line-height: 1.3;
+}
+
+.recommendation-card__subtitle {
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.recommendation-card__arrow {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--grammar-text-muted);
+  opacity: 0;
+  transition: all 0.25s ease;
+}
+
+.recommendation-card:hover .recommendation-card__arrow {
+  opacity: 1;
+  color: var(--grammar-primary);
+}
+
+/* ============================================
+   Levels Grid
+   ============================================ */
+
+.levels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.level-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background: var(--grammar-surface-alt);
+  border-radius: var(--grammar-radius-sm);
+  border: 2px solid transparent;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.level-card:hover {
+  border-color: var(--grammar-primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15);
+}
+
+.level-card--current {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+  border-color: var(--grammar-primary);
+}
+
+.level-card--completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);
+}
+
+.level-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.level-card__badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.level-card--a .level-card__badge {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  color: white;
+}
+
+.level-card--b .level-card__badge {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  color: white;
+}
+
+.level-card--c .level-card__badge {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.level-card__code {
+  letter-spacing: -0.02em;
+}
+
+.level-card__status {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.level-card__status--completed {
+  background: #22c55e;
+  color: white;
+}
+
+.level-card__status--current {
+  background: var(--grammar-primary);
+  color: white;
+}
+
+.level-card__content {
+  flex: 1;
+  min-height: 48px;
+}
+
+.level-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  margin: 0 0 0.25rem;
+  line-height: 1.3;
+}
+
+.level-card__desc {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.level-card__footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--grammar-border);
+}
+
+.level-card__stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.level-card__stat {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--grammar-text-muted);
+}
+
+.level-card__stat svg {
+  color: var(--grammar-primary);
+}
+
+.level-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.level-card__progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.level-card__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.level-card--completed .level-card__progress-fill {
+  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
+}
+
+.level-card__progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--grammar-primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+.level-card--completed .level-card__progress-text {
+  color: #22c55e;
+}
+
+.level-card__arrow {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--grammar-text-muted);
+  opacity: 0;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.level-card:hover .level-card__arrow {
+  opacity: 1;
+  right: 0.75rem;
+  color: var(--grammar-primary);
+}
+
+/* ============================================
+   Actions Grid
+   ============================================ */
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--grammar-surface-alt);
+  border-radius: var(--grammar-radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.25s ease;
+  border: 2px solid transparent;
+}
+
+.action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.action-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.action-card--primary .action-card__icon {
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  color: white;
+}
+
+.action-card--primary:hover {
+  border-color: var(--grammar-primary);
+}
+
+.action-card--secondary .action-card__icon {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+}
+
+.action-card--secondary:hover {
+  border-color: #22c55e;
+}
+
+.action-card--tertiary .action-card__icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.action-card--tertiary:hover {
+  border-color: #f59e0b;
+}
+
+.action-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  margin: 0 0 0.125rem;
+}
+
+.action-card__desc {
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+  margin: 0;
+}
+
+.action-card__arrow {
+  color: var(--grammar-text-muted);
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.action-card:hover .action-card__arrow {
+  opacity: 1;
+}
+
+.action-card--primary:hover .action-card__arrow { color: var(--grammar-primary); }
+.action-card--secondary:hover .action-card__arrow { color: #22c55e; }
+.action-card--tertiary:hover .action-card__arrow { color: #f59e0b; }
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.grammar-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--grammar-text-muted);
+}
+
+.grammar-empty__icon {
+  margin-bottom: 1rem;
+  color: var(--grammar-border);
+}
+
+.grammar-empty h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  margin: 0 0 0.5rem;
+}
+
+.grammar-empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 640px) {
+  .grammar-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .grammar-hero {
+    padding: 1.5rem;
+  }
+
+  .grammar-hero__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .grammar-hero__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .grammar-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .grammar-stats {
+    gap: 0.5rem;
+  }
+
+  .grammar-stat {
+    flex: 1 1 calc(50% - 0.25rem);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .grammar-stat__icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .grammar-stat__value {
+    font-size: 1rem;
+  }
+
+  .grammar-section {
+    padding: 1.25rem;
+  }
+
+  .grammar-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .recommendations-grid,
+  .levels-grid,
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .level-card__arrow,
+  .recommendation-card__arrow {
+    display: none;
+  }
+}
+
+/* ============================================
+   Page Load Animation
+   ============================================ */
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grammar-hero {
+  animation: slideUp 0.5s ease-out;
+}
+
+.grammar-section {
+  animation: slideUp 0.5s ease-out both;
+}
+
+.grammar-section:nth-of-type(1) { animation-delay: 0.1s; }
+.grammar-section:nth-of-type(2) { animation-delay: 0.2s; }
+.grammar-section:nth-of-type(3) { animation-delay: 0.3s; }
+
+.level-card,
+.recommendation-card {
+  animation: slideUp 0.4s ease-out both;
+}
+
+.level-card:nth-child(1),
+.recommendation-card:nth-child(1) { animation-delay: 0.15s; }
+.level-card:nth-child(2),
+.recommendation-card:nth-child(2) { animation-delay: 0.2s; }
+.level-card:nth-child(3),
+.recommendation-card:nth-child(3) { animation-delay: 0.25s; }
+.level-card:nth-child(4),
+.recommendation-card:nth-child(4) { animation-delay: 0.3s; }
+.level-card:nth-child(5),
+.recommendation-card:nth-child(5) { animation-delay: 0.35s; }
+.level-card:nth-child(6) { animation-delay: 0.4s; }
+
+.action-card {
+  animation: slideUp 0.3s ease-out both;
+}
+
+.action-card:nth-child(1) { animation-delay: 0.35s; }
+.action-card:nth-child(2) { animation-delay: 0.4s; }
+.action-card:nth-child(3) { animation-delay: 0.45s; }
+</style>
 {% endblock %}

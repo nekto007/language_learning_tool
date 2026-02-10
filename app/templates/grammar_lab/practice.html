@@ -1,348 +1,1665 @@
 {% extends "base.html" %}
 
-{% block title %}Практика - Grammar Lab{% endblock %}
+{% block title %}{% if topic %}{{ topic.title }}{% else %}Практика{% endif %} - Grammar Lab{% endblock %}
 
 {% block content %}
-<div class="container container-xl">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
-            <li class="breadcrumb-item active">Практика</li>
-        </ol>
-    </nav>
-
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h2 fw-bold mb-2">SRS Практика</h1>
-            <p class="text-muted mb-0">Интервальное повторение грамматики</p>
-        </div>
-    </div>
-
-    {% if session.exercises %}
-    <!-- Practice Session -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="fas fa-brain text-primary me-2"></i>Сессия практики
-            </h5>
-            <span class="badge bg-primary">{{ session.total_exercises }} упражнений</span>
-        </div>
-        <div class="card-body">
-            <!-- Progress Bar -->
-            <div class="mb-4">
-                <div class="d-flex justify-content-between mb-1">
-                    <span>Прогресс</span>
-                    <span id="progress-text">0 / {{ session.total_exercises }}</span>
-                </div>
-                <div class="progress" style="height: 10px;">
-                    <div class="progress-bar bg-success" role="progressbar" id="progress-bar" style="width: 0%;"></div>
-                </div>
-            </div>
-
-            <!-- Exercise Area -->
-            <div id="exercise-area">
-                <div class="text-center py-5">
-                    <div class="mb-3">
-                        <i class="fas fa-play-circle text-primary" style="font-size: 4rem;"></i>
-                    </div>
-                    <h4>Готовы к практике?</h4>
-                    <p class="text-muted">{{ session.total_exercises }} упражнений из разных тем</p>
-                    <button type="button" class="btn btn-primary btn-lg" id="start-session-btn">
-                        <i class="fas fa-play me-2"></i>Начать
-                    </button>
-                </div>
-            </div>
-
-            <!-- Exercise Content (hidden initially) -->
-            <div id="exercise-content" style="display: none;">
-                <div class="mb-3">
-                    <span class="badge bg-secondary" id="topic-badge"></span>
-                </div>
-                <div id="question-area" class="mb-4"></div>
-                <div id="feedback-area" class="mb-3" style="display: none;"></div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary flex-grow-1" id="check-btn">
-                        <i class="fas fa-check me-2"></i>Проверить
-                    </button>
-                    <button type="button" class="btn btn-success flex-grow-1" id="next-btn" style="display: none;">
-                        <i class="fas fa-arrow-right me-2"></i>Далее
-                    </button>
-                </div>
-            </div>
-
-            <!-- Session Complete (hidden initially) -->
-            <div id="session-complete" style="display: none;">
-                <div class="text-center py-5">
-                    <div class="mb-3">
-                        <i class="fas fa-trophy text-warning" style="font-size: 4rem;"></i>
-                    </div>
-                    <h3>Отлично!</h3>
-                    <p class="text-muted">Вы завершили сессию практики</p>
-                    <div class="row justify-content-center mb-4">
-                        <div class="col-auto">
-                            <div class="card bg-success text-white">
-                                <div class="card-body text-center">
-                                    <div class="h2 mb-0" id="correct-count">0</div>
-                                    <small>Верно</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <div class="card bg-danger text-white">
-                                <div class="card-body text-center">
-                                    <div class="h2 mb-0" id="wrong-count">0</div>
-                                    <small>Ошибок</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body text-center">
-                                    <div class="h2 mb-0" id="xp-earned">0</div>
-                                    <small>XP</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2 justify-content-center">
-                        <a href="{{ url_for('grammar_lab.practice') }}" class="btn btn-primary">
-                            <i class="fas fa-redo me-2"></i>Еще практика
-                        </a>
-                        <a href="{{ url_for('grammar_lab.index') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-home me-2"></i>На главную
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Due Topics -->
-    {% if session.due_topics %}
-    <div class="card shadow-sm">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-clock text-warning me-2"></i>Темы для повторения
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                {% for topic in session.due_topics %}
-                <div class="col-md-6 col-lg-4">
-                    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="card h-100 hover-card text-decoration-none">
-                        <div class="card-body">
-                            <span class="badge bg-{{ 'primary' if topic.level in ['A1', 'A2'] else 'success' }}">{{ topic.level }}</span>
-                            <h6 class="fw-bold text-dark mt-2 mb-1">{{ topic.title }}</h6>
-                            <p class="text-muted small mb-0">{{ topic.title_ru }}</p>
-                        </div>
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
+<div class="grammar-page">
+  <!-- Breadcrumb -->
+  <nav class="grammar-breadcrumb" aria-label="breadcrumb">
+    <a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    {% if topic %}
+    <a href="{{ url_for('grammar_lab.topics', level=topic.level) }}">{{ topic.level }}</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}">{{ topic.title }}</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span>Практика</span>
     {% else %}
-    <!-- No exercises available -->
-    <div class="card shadow-sm">
-        <div class="card-body text-center py-5">
-            <div class="mb-3">
-                <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
-            </div>
-            <h3>Все повторено!</h3>
-            <p class="text-muted">Нет упражнений для практики. Изучите новые темы или дождитесь времени повторения.</p>
-            <div class="d-flex gap-2 justify-content-center">
-                <a href="{{ url_for('grammar_lab.topics') }}" class="btn btn-primary">
-                    <i class="fas fa-book me-2"></i>Изучить новые темы
-                </a>
-                <a href="{{ url_for('grammar_lab.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-home me-2"></i>На главную
-                </a>
-            </div>
-        </div>
+    <span>Практика</span>
+    {% endif %}
+  </nav>
+
+  {% if session.exercises %}
+  <!-- Practice Session -->
+  <div class="practice-container">
+    <!-- Header -->
+    {% if topic %}
+    <!-- Topic Practice Header -->
+    <div class="practice-hero practice-hero--{{ topic.level[0]|lower }}">
+      <div class="practice-hero__bg-shapes">
+        <div class="shape shape--1"></div>
+        <div class="shape shape--2"></div>
+      </div>
+      <div class="practice-hero__content">
+        <div class="practice-hero__badge">{{ topic.level }}</div>
+        <h1 class="practice-hero__title">{{ topic.title }}</h1>
+        <p class="practice-hero__subtitle">{{ topic.title_ru }}</p>
+      </div>
+    </div>
+    {% else %}
+    <!-- SRS Practice Header -->
+    <div class="practice-header">
+      <div class="practice-header__icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="practice-header__title">SRS Практика</h1>
+        <p class="practice-header__subtitle">Интервальное повторение грамматики</p>
+      </div>
+    </div>
+
+    <!-- Stats Bar (SRS only) -->
+    {% if session.stats %}
+    <div class="practice-stats">
+      <div class="practice-stats__item practice-stats__item--relearn">
+        <span class="practice-stats__value">{{ session.stats.relearning_count }}</span>
+        <span class="practice-stats__label">Переучить</span>
+      </div>
+      <div class="practice-stats__item practice-stats__item--learn">
+        <span class="practice-stats__value">{{ session.stats.learning_count }}</span>
+        <span class="practice-stats__label">Учить</span>
+      </div>
+      <div class="practice-stats__item practice-stats__item--review">
+        <span class="practice-stats__value">{{ session.stats.review_count }}</span>
+        <span class="practice-stats__label">Повторить</span>
+      </div>
+      <div class="practice-stats__item practice-stats__item--new">
+        <span class="practice-stats__value">{{ session.stats.new_count }}</span>
+        <span class="practice-stats__label">Новые</span>
+      </div>
     </div>
     {% endif %}
+    {% endif %}
+
+    <!-- Progress -->
+    <div class="practice-progress">
+      <div class="practice-progress__info">
+        <span class="practice-progress__label">Прогресс</span>
+        <span class="practice-progress__count" id="progress-text">0 / {{ session.total_exercises }}</span>
+      </div>
+      <div class="practice-progress__bar">
+        <div class="practice-progress__fill" id="progress-bar" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <!-- Exercise Card -->
+    <div class="practice-card">
+      <!-- Start Screen -->
+      <div id="start-screen" class="practice-start">
+        <div class="practice-start__icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </div>
+        <h2 class="practice-start__title">Готовы к практике?</h2>
+        {% if topic %}
+        <p class="practice-start__desc">{{ session.total_exercises }} упражнений по теме «{{ topic.title }}»</p>
+        <p class="practice-start__note">Система подберёт задания на основе вашего прогресса</p>
+        {% else %}
+        <p class="practice-start__desc">{{ session.total_exercises }} упражнений из разных тем</p>
+        {% endif %}
+        <button type="button" class="practice-btn practice-btn--primary practice-btn--large" id="start-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Начать
+        </button>
+      </div>
+
+      <!-- Exercise Content -->
+      <div id="exercise-screen" style="display: none;">
+        <div class="practice-exercise">
+          <div class="practice-exercise__topic" id="topic-badge"></div>
+          <div class="practice-exercise__question" id="question-area"></div>
+          <div class="practice-exercise__feedback" id="feedback-area" style="display: none;"></div>
+          <div class="practice-exercise__actions">
+            <button type="button" class="practice-btn practice-btn--primary" id="check-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+              Проверить
+            </button>
+            <button type="button" class="practice-btn practice-btn--success" id="next-btn" style="display: none;">
+              Далее
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Complete Screen -->
+      <div id="complete-screen" style="display: none;">
+        <div class="practice-complete">
+          <div class="practice-complete__icon">🎉</div>
+          <h2 class="practice-complete__title">Отлично!</h2>
+          <p class="practice-complete__desc">Вы завершили сессию практики</p>
+
+          <div class="practice-complete__stats">
+            <div class="practice-complete__stat practice-complete__stat--correct">
+              <span class="practice-complete__stat-value" id="correct-count">0</span>
+              <span class="practice-complete__stat-label">Верно</span>
+            </div>
+            <div class="practice-complete__stat practice-complete__stat--wrong">
+              <span class="practice-complete__stat-value" id="wrong-count">0</span>
+              <span class="practice-complete__stat-label">Ошибок</span>
+            </div>
+            <div class="practice-complete__stat practice-complete__stat--xp">
+              <span class="practice-complete__stat-value" id="xp-earned">0</span>
+              <span class="practice-complete__stat-label">XP</span>
+            </div>
+          </div>
+
+          <div class="practice-complete__accuracy">
+            <div class="practice-complete__accuracy-bar">
+              <div class="practice-complete__accuracy-fill" id="accuracy-fill"></div>
+            </div>
+            <span class="practice-complete__accuracy-text" id="accuracy-text">0%</span>
+          </div>
+
+          <div class="practice-complete__actions">
+            {% if topic %}
+            <a href="{{ url_for('grammar_lab.practice', topic_id=topic.id) }}" class="practice-btn practice-btn--primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6M23 20v-6h-6"/>
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
+              </svg>
+              Ещё практика
+            </a>
+            <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="practice-btn practice-btn--secondary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+              </svg>
+              К теории
+            </a>
+            {% else %}
+            <a href="{{ url_for('grammar_lab.practice') }}" class="practice-btn practice-btn--primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6M23 20v-6h-6"/>
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
+              </svg>
+              Ещё практика
+            </a>
+            <a href="{{ url_for('grammar_lab.index') }}" class="practice-btn practice-btn--secondary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              На главную
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- No Exercises -->
+  <div class="practice-empty">
+    <div class="practice-empty__icon">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <path d="M22 4L12 14.01l-3-3"/>
+      </svg>
+    </div>
+    <h2 class="practice-empty__title">Всё повторено!</h2>
+    <p class="practice-empty__desc">Нет упражнений для практики. Изучите новые темы или дождитесь времени повторения.</p>
+    <div class="practice-empty__actions">
+      <a href="{{ url_for('grammar_lab.topics') }}" class="practice-btn practice-btn--primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+        </svg>
+        Изучить новые темы
+      </a>
+      <a href="{{ url_for('grammar_lab.index') }}" class="practice-btn practice-btn--secondary">
+        На главную
+      </a>
+    </div>
+  </div>
+  {% endif %}
 </div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.grammar-page {
+  --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --grammar-primary: #8b5cf6;
+  --grammar-primary-dark: #7c3aed;
+  --grammar-success: #22c55e;
+  --grammar-danger: #ef4444;
+  --grammar-warning: #f59e0b;
+  --grammar-surface: #ffffff;
+  --grammar-surface-alt: #f8fafc;
+  --grammar-text: #0f172a;
+  --grammar-text-muted: #64748b;
+  --grammar-border: #e2e8f0;
+  --grammar-radius: 16px;
+  --grammar-radius-sm: 10px;
+
+  font-family: var(--grammar-font);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* Breadcrumb */
+.grammar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--grammar-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.grammar-breadcrumb a {
+  color: var(--grammar-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.grammar-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.grammar-breadcrumb svg {
+  opacity: 0.5;
+}
+
+/* Header */
+.practice-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.practice-header__icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+/* Topic Hero */
+.practice-hero {
+  position: relative;
+  border-radius: var(--grammar-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: white;
+}
+
+.practice-hero--a {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.practice-hero--b {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+}
+
+.practice-hero--c {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+}
+
+.practice-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.practice-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.practice-hero .shape--1 {
+  width: 150px;
+  height: 150px;
+  top: -60px;
+  right: -30px;
+  animation: float-1 18s ease-in-out infinite;
+}
+
+.practice-hero .shape--2 {
+  width: 80px;
+  height: 80px;
+  bottom: -30px;
+  left: 10%;
+  animation: float-2 14s ease-in-out infinite;
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+.practice-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.practice-hero__badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  backdrop-filter: blur(5px);
+  margin-bottom: 0.5rem;
+}
+
+.practice-hero__title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0 0 0.125rem;
+  line-height: 1.2;
+}
+
+.practice-hero__subtitle {
+  font-size: 0.9375rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.practice-header__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--grammar-text);
+  letter-spacing: -0.02em;
+}
+
+.practice-header__subtitle {
+  font-size: 0.875rem;
+  color: var(--grammar-text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* Stats Bar */
+.practice-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.practice-stats__item {
+  flex: 1;
+  min-width: 80px;
+  padding: 0.75rem;
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius-sm);
+  border: 1px solid var(--grammar-border);
+  text-align: center;
+}
+
+.practice-stats__value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.practice-stats__label {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--grammar-text-muted);
+  margin-top: 0.25rem;
+}
+
+.practice-stats__item--relearn .practice-stats__value { color: #dc2626; }
+.practice-stats__item--learn .practice-stats__value { color: #d97706; }
+.practice-stats__item--review .practice-stats__value { color: #16a34a; }
+.practice-stats__item--new .practice-stats__value { color: #2563eb; }
+
+/* Progress */
+.practice-progress {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius-sm);
+  padding: 1rem;
+  border: 1px solid var(--grammar-border);
+  margin-bottom: 1.5rem;
+}
+
+.practice-progress__info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.practice-progress__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--grammar-text);
+}
+
+.practice-progress__count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--grammar-primary);
+}
+
+.practice-progress__bar {
+  height: 8px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.practice-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Practice Card */
+.practice-card {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius);
+  border: 1px solid var(--grammar-border);
+  overflow: hidden;
+}
+
+/* Start Screen */
+.practice-start {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.practice-start__icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--grammar-primary);
+}
+
+.practice-start__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0 0 0.5rem;
+}
+
+.practice-start__desc {
+  font-size: 0.9375rem;
+  color: var(--grammar-text);
+  margin: 0 0 0.25rem;
+}
+
+.practice-start__note {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0 0 1.5rem;
+}
+
+/* Exercise */
+.practice-exercise {
+  padding: 1.5rem;
+}
+
+.practice-exercise__topic {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+  color: var(--grammar-primary);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.practice-exercise__question {
+  margin-bottom: 1.5rem;
+}
+
+.practice-exercise__question > label:first-child {
+  display: block;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--grammar-text);
+  margin-bottom: 0.75rem;
+}
+
+.practice-exercise__question input[type="text"] {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  font-family: var(--grammar-font);
+  border: 2px solid var(--grammar-border);
+  border-radius: var(--grammar-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.practice-exercise__question input[type="text"]:focus {
+  outline: none;
+  border-color: var(--grammar-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* Radio options */
+.practice-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--grammar-surface-alt);
+  border: 2px solid transparent;
+  border-radius: var(--grammar-radius-sm);
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.practice-option:hover {
+  border-color: var(--grammar-primary);
+}
+
+.practice-option.selected {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: var(--grammar-primary);
+}
+
+.practice-option input {
+  display: none;
+}
+
+.practice-option__radio {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--grammar-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.practice-option.selected .practice-option__radio {
+  border-color: var(--grammar-primary);
+  background: var(--grammar-primary);
+}
+
+.practice-option.selected .practice-option__radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.practice-option__text {
+  font-size: 1rem;
+  color: var(--grammar-text);
+}
+
+/* True/False buttons */
+.practice-tf {
+  display: flex;
+  gap: 1rem;
+}
+
+.practice-tf__btn {
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid var(--grammar-border);
+  border-radius: var(--grammar-radius-sm);
+  background: var(--grammar-surface);
+  font-family: var(--grammar-font);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.practice-tf__btn--true {
+  color: var(--grammar-success);
+}
+
+.practice-tf__btn--false {
+  color: var(--grammar-danger);
+}
+
+.practice-tf__btn:hover {
+  transform: translateY(-2px);
+}
+
+.practice-tf__btn.selected.practice-tf__btn--true {
+  background: var(--grammar-success);
+  border-color: var(--grammar-success);
+  color: white;
+}
+
+.practice-tf__btn.selected.practice-tf__btn--false {
+  background: var(--grammar-danger);
+  border-color: var(--grammar-danger);
+  color: white;
+}
+
+/* Feedback */
+.practice-exercise__feedback {
+  padding: 1rem;
+  border-radius: var(--grammar-radius-sm);
+  margin-bottom: 1rem;
+}
+
+.practice-exercise__feedback.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #16a34a;
+}
+
+.practice-exercise__feedback.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.practice-exercise__feedback-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.practice-exercise__feedback-answer {
+  font-weight: 600;
+}
+
+/* Actions */
+.practice-exercise__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Buttons */
+.practice-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--grammar-font);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--grammar-radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.practice-btn--large {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+}
+
+.practice-btn--primary {
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  color: white;
+  flex: 1;
+}
+
+.practice-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  color: white;
+}
+
+.practice-btn--success {
+  background: linear-gradient(135deg, var(--grammar-success) 0%, #16a34a 100%);
+  color: white;
+  flex: 1;
+}
+
+.practice-btn--success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  color: white;
+}
+
+.practice-btn--secondary {
+  background: var(--grammar-surface-alt);
+  color: var(--grammar-text);
+  border: 1px solid var(--grammar-border);
+}
+
+.practice-btn--secondary:hover {
+  background: var(--grammar-surface);
+  color: var(--grammar-text);
+}
+
+/* Complete Screen */
+.practice-complete {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.practice-complete__icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.practice-complete__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0 0 0.5rem;
+}
+
+.practice-complete__desc {
+  font-size: 0.9375rem;
+  color: var(--grammar-text-muted);
+  margin: 0 0 2rem;
+}
+
+.practice-complete__stats {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.practice-complete__stat {
+  padding: 1rem 1.5rem;
+  border-radius: var(--grammar-radius-sm);
+  min-width: 80px;
+}
+
+.practice-complete__stat--correct {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.practice-complete__stat--wrong {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.practice-complete__stat--xp {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.practice-complete__stat-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.practice-complete__stat--correct .practice-complete__stat-value { color: var(--grammar-success); }
+.practice-complete__stat--wrong .practice-complete__stat-value { color: var(--grammar-danger); }
+.practice-complete__stat--xp .practice-complete__stat-value { color: var(--grammar-primary); }
+
+.practice-complete__stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+  margin-top: 0.25rem;
+}
+
+.practice-complete__accuracy {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 300px;
+  margin: 0 auto 2rem;
+}
+
+.practice-complete__accuracy-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.practice-complete__accuracy-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.practice-complete__accuracy-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--grammar-primary);
+  min-width: 48px;
+}
+
+.practice-complete__actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.practice-complete__actions .practice-btn {
+  flex: 0 0 auto;
+}
+
+/* Empty State */
+.practice-empty {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius);
+  border: 1px solid var(--grammar-border);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.practice-empty__icon {
+  color: var(--grammar-success);
+  margin-bottom: 1.5rem;
+}
+
+.practice-empty__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0 0 0.5rem;
+}
+
+.practice-empty__desc {
+  font-size: 0.9375rem;
+  color: var(--grammar-text-muted);
+  margin: 0 0 2rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.practice-empty__actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Wordbank (Reorder) */
+.practice-wordbank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.practice-word {
+  padding: 0.5rem 1rem;
+  background: var(--grammar-surface-alt);
+  border: 2px solid var(--grammar-border);
+  border-radius: 8px;
+  font-family: var(--grammar-font);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.practice-word:hover:not(.selected) {
+  border-color: var(--grammar-primary);
+  color: var(--grammar-primary);
+}
+
+.practice-word.selected {
+  background: var(--grammar-primary);
+  border-color: var(--grammar-primary);
+  color: white;
+}
+
+.practice-answer-area {
+  padding: 1rem;
+  min-height: 60px;
+  background: var(--grammar-surface-alt);
+  border: 2px dashed var(--grammar-border);
+  border-radius: 12px;
+  color: var(--grammar-text-muted);
+  font-size: 0.9375rem;
+}
+
+.practice-answer-area:not(.empty) {
+  color: var(--grammar-text);
+  font-weight: 500;
+  border-style: solid;
+  border-color: var(--grammar-primary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.practice-answer-placeholder {
+  color: var(--grammar-text-muted);
+  font-weight: 400;
+}
+
+.practice-answer-word {
+  padding: 0.5rem 0.875rem;
+  background: var(--grammar-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--grammar-font);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.practice-answer-word:hover {
+  background: var(--grammar-danger);
+  transform: scale(0.95);
+}
+
+.practice-answer-word:hover::after {
+  content: '×';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: var(--grammar-danger);
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Matching */
+.practice-matching {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.practice-matching__column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.practice-matching__item {
+  padding: 0.75rem 1rem;
+  background: var(--grammar-surface-alt);
+  border: 2px solid var(--grammar-border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.practice-matching__item:hover:not(.matched) {
+  border-color: var(--grammar-primary);
+}
+
+.practice-matching__item.selected {
+  border-color: var(--grammar-primary);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.practice-matching__item.matched {
+  border-color: var(--grammar-success);
+  background: rgba(34, 197, 94, 0.1);
+  cursor: default;
+}
+
+.practice-matching__item.wrong {
+  border-color: var(--grammar-danger);
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.practice-matching__progress {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--grammar-text-muted);
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.practice-header { animation: slideUp 0.4s ease-out; }
+.practice-hero { animation: slideUp 0.4s ease-out; }
+.practice-stats { animation: slideUp 0.4s ease-out 0.1s both; }
+.practice-progress { animation: slideUp 0.4s ease-out 0.15s both; }
+.practice-card { animation: slideUp 0.4s ease-out 0.2s both; }
+.practice-empty { animation: slideUp 0.5s ease-out; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .grammar-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .practice-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .practice-stats {
+    gap: 0.5rem;
+  }
+
+  .practice-stats__item {
+    min-width: 70px;
+    padding: 0.625rem;
+  }
+
+  .practice-start,
+  .practice-complete {
+    padding: 2rem 1.5rem;
+  }
+
+  .practice-complete__stats {
+    flex-wrap: wrap;
+  }
+
+  .practice-exercise__actions {
+    flex-direction: column;
+  }
+
+  .practice-complete__actions {
+    flex-direction: column;
+  }
+
+  .practice-complete__actions .practice-btn {
+    width: 100%;
+  }
+
+  .practice-matching {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 {% if session.exercises %}
 <script>
 const sessionId = '{{ session.session_id }}';
-const exercises = {{ session.exercises|tojson|safe }};
+let exercises = {{ session.exercises|tojson|safe }};
+{% if topic %}
+const topicId = {{ topic.id }};
+{% else %}
+const topicId = null;
+{% endif %}
 let currentIndex = 0;
 let correctCount = 0;
 let wrongCount = 0;
 let totalXP = 0;
 
-document.getElementById('start-session-btn').addEventListener('click', function() {
-    document.getElementById('exercise-area').style.display = 'none';
-    document.getElementById('exercise-content').style.display = 'block';
-    showExercise(0);
+// Get CSRF token safely
+function getCSRFToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
+// Session storage key - use stable key based on topic or SRS mode
+// This ensures the key doesn't change on page reload
+const SESSION_KEY = topicId ? `grammar_practice_topic_${topicId}` : 'grammar_practice_srs';
+
+// Save session state to sessionStorage
+function saveSessionState() {
+  const state = {
+    exercises,  // Save entire exercises array to preserve order
+    currentIndex,
+    correctCount,
+    wrongCount,
+    totalXP,
+    timestamp: Date.now()
+  };
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+}
+
+// Load session state from sessionStorage
+function loadSessionState() {
+  const saved = sessionStorage.getItem(SESSION_KEY);
+  if (!saved) return null;
+
+  try {
+    const state = JSON.parse(saved);
+    // Check if session is not too old (1 hour max)
+    if (Date.now() - state.timestamp > 3600000) {
+      clearSessionState();
+      return null;
+    }
+    // Validate saved state has exercises
+    if (!state.exercises || !Array.isArray(state.exercises) || state.exercises.length === 0) {
+      clearSessionState();
+      return null;
+    }
+    // Verify it's a valid in-progress session (not already completed)
+    if (state.currentIndex >= state.exercises.length) {
+      clearSessionState();
+      return null;
+    }
+    return state;
+  } catch (e) {
+    clearSessionState();
+    return null;
+  }
+}
+
+// Clear session state
+function clearSessionState() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
+// Restore session on page load
+function restoreSession() {
+  const state = loadSessionState();
+  if (!state) return false;
+
+  // Restore saved exercises array to preserve order and avoid server's random shuffle
+  exercises = state.exercises;
+  currentIndex = state.currentIndex;
+  correctCount = state.correctCount;
+  wrongCount = state.wrongCount;
+  totalXP = state.totalXP;
+
+  // If session was in progress, show exercise screen
+  if (currentIndex < exercises.length) {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('exercise-screen').style.display = 'block';
+    showExercise(currentIndex);
+    return true;
+  }
+
+  return false;
+}
+
+// Try to restore session on page load
+document.addEventListener('DOMContentLoaded', function() {
+  restoreSession();
+});
+
+// Start button
+document.getElementById('start-btn').addEventListener('click', function() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('exercise-screen').style.display = 'block';
+  saveSessionState();
+  showExercise(0);
 });
 
 function showExercise(index) {
-    const exercise = exercises[index];
-    if (!exercise) return;
+  const exercise = exercises[index];
+  if (!exercise) return;
 
-    // Update progress
-    document.getElementById('progress-text').textContent = `${index} / ${exercises.length}`;
-    document.getElementById('progress-bar').style.width = `${(index / exercises.length) * 100}%`;
+  // Update progress
+  document.getElementById('progress-text').textContent = `${index} / ${exercises.length}`;
+  document.getElementById('progress-bar').style.width = `${(index / exercises.length) * 100}%`;
 
-    // Set topic badge
-    document.getElementById('topic-badge').textContent = exercise.topic_title || 'Grammar';
+  // Set topic badge
+  document.getElementById('topic-badge').textContent = exercise.topic_title || 'Grammar';
 
-    // Render question
-    const questionArea = document.getElementById('question-area');
-    questionArea.innerHTML = renderExercise(exercise);
+  // Render question
+  const questionArea = document.getElementById('question-area');
+  questionArea.innerHTML = renderExercise(exercise);
 
-    // Reset UI
-    document.getElementById('feedback-area').style.display = 'none';
-    document.getElementById('check-btn').style.display = 'inline-block';
-    document.getElementById('next-btn').style.display = 'none';
+  // Reset UI
+  document.getElementById('feedback-area').style.display = 'none';
+  document.getElementById('check-btn').style.display = 'inline-flex';
+  document.getElementById('next-btn').style.display = 'none';
 
-    // Setup event handlers after render
-    setupExerciseHandlers(exercise);
+  // Setup handlers
+  setupExerciseHandlers(exercise);
 }
 
 function renderExercise(exercise) {
-    switch (exercise.exercise_type) {
-        case 'fill_blank':
-            return `
-                <div class="mb-3">
-                    <label class="form-label fs-5">${exercise.content.question || 'Заполните пропуск:'}</label>
-                    <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Введите ответ" autocomplete="off">
-                </div>
-            `;
-        case 'multiple_choice':
-            let html = `<p class="fs-5">${exercise.content.question || 'Выберите правильный ответ:'}</p>`;
-            exercise.content.options.forEach((option, i) => {
-                html += `
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="radio" name="answer" id="option-${i}" value="${i}">
-                        <label class="form-check-label fs-5" for="option-${i}">${option}</label>
-                    </div>
-                `;
-            });
-            return html;
-        case 'true_false':
-            return `
-                <p class="fs-5">${exercise.content.statement || exercise.content.question}</p>
-                <div class="d-flex gap-3">
-                    <button type="button" class="btn btn-outline-success btn-lg flex-grow-1 tf-btn" data-value="true">Верно</button>
-                    <button type="button" class="btn btn-outline-danger btn-lg flex-grow-1 tf-btn" data-value="false">Неверно</button>
-                </div>
-                <input type="hidden" id="user-answer" value="">
-            `;
-        case 'translation': {
-            // API returns data directly (exercise.sentence), not nested in content
-            let translationText = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
-            // Remove "Переведите на английский:" prefix if present
-            translationText = translationText.replace(/^Переведите на английский:\s*/i, '');
-            return `
-                <label class="form-label">Переведите на английский:</label>
-                <p class="fs-5 fw-bold">${translationText}</p>
-                <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
-            `;
-        }
-        default:
-            return `
-                <label class="form-label fs-5">${exercise.content.question || 'Введите ответ:'}</label>
-                <input type="text" class="form-control form-control-lg" id="user-answer" placeholder="Введите ответ" autocomplete="off">
-            `;
+  // Data comes directly from exercise, NOT from exercise.content
+  const question = exercise.question || exercise.instruction || '';
+  const options = exercise.options || [];
+  const statement = exercise.statement || exercise.question || '';
+  const sentence = exercise.sentence || exercise.question || '';
+  const exerciseType = (exercise.exercise_type || '').toLowerCase();
+
+  switch (exerciseType) {
+    case 'fill_blank':
+      return `
+        <label>${question || 'Заполните пропуск:'}</label>
+        <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
+      `;
+
+    case 'multiple_choice':
+      let html = `<label>${question || 'Выберите правильный ответ:'}</label>`;
+      options.forEach((option, i) => {
+        html += `
+          <label class="practice-option" onclick="selectOption(this, ${i})">
+            <input type="radio" name="answer" value="${i}">
+            <span class="practice-option__radio"></span>
+            <span class="practice-option__text">${option}</span>
+          </label>
+        `;
+      });
+      return html;
+
+    case 'true_false':
+      return `
+        <label>${statement}</label>
+        <div class="practice-tf">
+          <button type="button" class="practice-tf__btn practice-tf__btn--true" onclick="selectTF(this, 'true')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            Верно
+          </button>
+          <button type="button" class="practice-tf__btn practice-tf__btn--false" onclick="selectTF(this, 'false')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            Неверно
+          </button>
+        </div>
+        <input type="hidden" id="user-answer" value="">
+      `;
+
+    case 'translation':
+      let translationText = sentence.replace(/^Переведите на английский:\s*/i, '');
+      return `
+        <label>Переведите на английский:</label>
+        <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${translationText}</p>
+        <input type="text" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
+      `;
+
+    case 'reorder':
+      return renderReorder(exercise);
+
+    case 'matching':
+      return renderMatching(exercise);
+
+    case 'error_correction':
+      return `
+        <label>Найдите и исправьте ошибку:</label>
+        <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;">${sentence}</p>
+        <input type="text" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
+      `;
+
+    case 'transformation':
+      const original = exercise.original || sentence;
+      const instruction = exercise.instruction || 'Преобразуйте предложение';
+      return `
+        <label>${instruction}:</label>
+        <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${original}</p>
+        <input type="text" id="user-answer" placeholder="Введите преобразованное предложение" autocomplete="off">
+      `;
+
+    default:
+      return `
+        <label>${question || 'Введите ответ:'}</label>
+        <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
+      `;
+  }
+}
+
+function selectOption(el, value) {
+  document.querySelectorAll('.practice-option').forEach(opt => opt.classList.remove('selected'));
+  el.classList.add('selected');
+  el.querySelector('input').checked = true;
+}
+
+function selectTF(el, value) {
+  document.querySelectorAll('.practice-tf__btn').forEach(btn => btn.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('user-answer').value = value;
+}
+
+function renderReorder(exercise) {
+  const words = exercise.words || [];
+  const shuffledWords = [...words];
+  for (let i = shuffledWords.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledWords[i], shuffledWords[j]] = [shuffledWords[j], shuffledWords[i]];
+  }
+
+  let html = `<label>${exercise.instruction || 'Составьте предложение из слов:'}</label>`;
+  html += '<div class="practice-wordbank" id="word-bank">';
+  shuffledWords.forEach((word, i) => {
+    html += `<button type="button" class="practice-word" data-index="${i}" data-word="${word}">${word}</button>`;
+  });
+  html += '</div>';
+  html += '<div class="practice-answer-area empty" id="answer-area"><span class="practice-answer-placeholder">Нажмите на слова выше</span></div>';
+  html += '<input type="hidden" id="user-answer" value="">';
+
+  setTimeout(() => {
+    const wordBank = document.getElementById('word-bank');
+    const answerArea = document.getElementById('answer-area');
+    const hiddenInput = document.getElementById('user-answer');
+    // Store selected word indices (not just words, to handle duplicates)
+    let selectedIndices = [];
+
+    function updateAnswerArea() {
+      if (selectedIndices.length > 0) {
+        // Render clickable word buttons in answer area
+        const wordButtons = selectedIndices.map((idx, pos) => {
+          const word = wordBank.querySelector(`[data-index="${idx}"]`).dataset.word;
+          return `<button type="button" class="practice-answer-word" data-pos="${pos}" data-index="${idx}">${word}</button>`;
+        }).join('');
+        answerArea.innerHTML = wordButtons;
+        answerArea.classList.remove('empty');
+
+        // Add click handlers to remove words from answer
+        answerArea.querySelectorAll('.practice-answer-word').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const idx = parseInt(this.dataset.index);
+            const pos = parseInt(this.dataset.pos);
+            // Remove from selectedIndices
+            selectedIndices.splice(pos, 1);
+            // Remove selected class from word bank
+            wordBank.querySelector(`[data-index="${idx}"]`).classList.remove('selected');
+            updateAnswerArea();
+          });
+        });
+      } else {
+        answerArea.innerHTML = '<span class="practice-answer-placeholder">Нажмите на слова выше</span>';
+        answerArea.classList.add('empty');
+      }
+      // Update hidden input with joined words
+      hiddenInput.value = selectedIndices.map(idx =>
+        wordBank.querySelector(`[data-index="${idx}"]`).dataset.word
+      ).join(' ');
     }
+
+    wordBank?.querySelectorAll('.practice-word').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const idx = parseInt(this.dataset.index);
+        if (this.classList.contains('selected')) {
+          // Remove from selection
+          const pos = selectedIndices.indexOf(idx);
+          if (pos > -1) selectedIndices.splice(pos, 1);
+          this.classList.remove('selected');
+        } else {
+          // Add to selection
+          selectedIndices.push(idx);
+          this.classList.add('selected');
+        }
+        updateAnswerArea();
+      });
+    });
+  }, 100);
+
+  return html;
+}
+
+function renderMatching(exercise) {
+  const pairs = exercise.pairs || exercise.content?.pairs || [];
+  if (pairs.length === 0) {
+    return `<label>Нет пар для сопоставления</label>`;
+  }
+
+  const rightItems = pairs.map((pair, i) => ({
+    text: pair.russian || pair.right,
+    correctIndex: i
+  }));
+  for (let i = rightItems.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rightItems[i], rightItems[j]] = [rightItems[j], rightItems[i]];
+  }
+
+  let html = `<label>${exercise.instruction || 'Соотнесите пары:'}</label>`;
+  html += '<div class="practice-matching">';
+  html += '<div class="practice-matching__column" id="matching-left">';
+  pairs.forEach((pair, i) => {
+    html += `<div class="practice-matching__item" data-index="${i}" data-side="left">${pair.english || pair.left}</div>`;
+  });
+  html += '</div>';
+  html += '<div class="practice-matching__column" id="matching-right">';
+  rightItems.forEach((item, i) => {
+    html += `<div class="practice-matching__item" data-index="${i}" data-correct="${item.correctIndex}" data-side="right">${item.text}</div>`;
+  });
+  html += '</div>';
+  html += '</div>';
+  html += `<div class="practice-matching__progress">Совпадений: <strong id="match-count">0</strong> из <strong>${pairs.length}</strong></div>`;
+  html += '<input type="hidden" id="user-answer" value="">';
+
+  setTimeout(() => setupMatchingHandlers(pairs.length), 100);
+
+  return html;
+}
+
+function setupMatchingHandlers(totalPairs) {
+  let selectedLeft = null;
+  let selectedRight = null;
+  let matches = {};
+  let matchCount = 0;
+
+  const leftItems = document.querySelectorAll('#matching-left .practice-matching__item');
+  const rightItems = document.querySelectorAll('#matching-right .practice-matching__item');
+
+  function updateAnswer() {
+    document.getElementById('user-answer').value = JSON.stringify(matches);
+    document.getElementById('match-count').textContent = matchCount;
+  }
+
+  function checkMatch() {
+    if (selectedLeft !== null && selectedRight !== null) {
+      const leftIdx = parseInt(selectedLeft.dataset.index);
+      const rightCorrect = parseInt(selectedRight.dataset.correct);
+
+      if (leftIdx === rightCorrect) {
+        selectedLeft.classList.remove('selected');
+        selectedLeft.classList.add('matched');
+        selectedRight.classList.remove('selected');
+        selectedRight.classList.add('matched');
+        matches[leftIdx] = leftIdx;
+        matchCount++;
+        updateAnswer();
+      } else {
+        selectedLeft.classList.add('wrong');
+        selectedRight.classList.add('wrong');
+        setTimeout(() => {
+          selectedLeft?.classList.remove('selected', 'wrong');
+          selectedRight?.classList.remove('selected', 'wrong');
+          selectedLeft = null;
+          selectedRight = null;
+        }, 500);
+        return;
+      }
+      selectedLeft = null;
+      selectedRight = null;
+    }
+  }
+
+  leftItems.forEach(item => {
+    item.addEventListener('click', function() {
+      if (this.classList.contains('matched')) return;
+      leftItems.forEach(i => i.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedLeft = this;
+      checkMatch();
+    });
+  });
+
+  rightItems.forEach(item => {
+    item.addEventListener('click', function() {
+      if (this.classList.contains('matched')) return;
+      rightItems.forEach(i => i.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedRight = this;
+      checkMatch();
+    });
+  });
 }
 
 function setupExerciseHandlers(exercise) {
-    // True/False buttons
-    document.querySelectorAll('.tf-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.tf-btn').forEach(b => {
-                b.classList.remove('btn-success', 'btn-danger');
-                b.classList.add('btn-outline-success', 'btn-outline-danger');
-            });
-            this.classList.remove('btn-outline-success', 'btn-outline-danger');
-            this.classList.add(this.dataset.value === 'true' ? 'btn-success' : 'btn-danger');
-            document.getElementById('user-answer').value = this.dataset.value;
-        });
-    });
+  // Focus on input if exists
+  const input = document.getElementById('user-answer');
+  if (input && input.type === 'text') {
+    input.focus();
+  }
 }
 
+// Check answer
 document.getElementById('check-btn').addEventListener('click', async function() {
-    const exercise = exercises[currentIndex];
-    let answer;
+  const exercise = exercises[currentIndex];
+  const exerciseType = (exercise.exercise_type || '').toLowerCase();
+  let answer;
 
-    if (exercise.exercise_type === 'multiple_choice') {
-        const selected = document.querySelector('input[name="answer"]:checked');
-        if (!selected) {
-            alert('Выберите ответ');
-            return;
-        }
-        answer = selected.value;
-    } else {
-        answer = document.getElementById('user-answer').value;
-        if (!answer) {
-            alert('Введите ответ');
-            return;
-        }
+  if (exerciseType === 'multiple_choice') {
+    const selected = document.querySelector('input[name="answer"]:checked');
+    if (!selected) {
+      alert('Выберите ответ');
+      return;
     }
-
+    answer = selected.value;
+  } else if (exerciseType === 'matching') {
+    const answerStr = document.getElementById('user-answer').value;
+    if (!answerStr) {
+      alert('Соотнесите все пары');
+      return;
+    }
     try {
-        const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                answer: answer,
-                session_id: sessionId,
-                source: 'srs_review'
-            })
-        });
-        const data = await response.json();
-
-        const feedback = document.getElementById('feedback-area');
-        if (data.is_correct) {
-            correctCount++;
-            totalXP += data.xp_earned || 0;
-            feedback.className = 'alert alert-success';
-            feedback.innerHTML = `<i class="fas fa-check-circle me-2"></i>Правильно!${data.xp_earned ? ` +${data.xp_earned} XP` : ''}`;
-        } else {
-            wrongCount++;
-            feedback.className = 'alert alert-danger';
-            feedback.innerHTML = `<i class="fas fa-times-circle me-2"></i>Неверно. Правильный ответ: <strong>${data.correct_answer}</strong>`;
-        }
-        feedback.style.display = 'block';
-
-        this.style.display = 'none';
-        document.getElementById('next-btn').style.display = 'inline-block';
-
-        // Disable inputs
-        document.querySelectorAll('#question-area input, #question-area button').forEach(el => el.disabled = true);
-
-    } catch (error) {
-        console.error('Error:', error);
+      const matches = JSON.parse(answerStr);
+      const pairsCount = (exercise.pairs || exercise.content?.pairs || []).length;
+      if (Object.keys(matches).length < pairsCount) {
+        alert(`Соотнесите все пары (${Object.keys(matches).length}/${pairsCount})`);
+        return;
+      }
+      answer = matches;
+    } catch (e) {
+      alert('Соотнесите все пары');
+      return;
     }
+  } else {
+    answer = document.getElementById('user-answer').value;
+    if (!answer) {
+      alert('Введите ответ');
+      return;
+    }
+  }
+
+  try {
+    const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken()
+      },
+      body: JSON.stringify({
+        answer: answer,
+        session_id: sessionId,
+        source: 'srs_review'
+      })
+    });
+    const data = await response.json();
+
+    const feedback = document.getElementById('feedback-area');
+    if (data.is_correct) {
+      correctCount++;
+      totalXP += data.xp_earned || 0;
+      feedback.className = 'practice-exercise__feedback success';
+      feedback.innerHTML = `
+        <div class="practice-exercise__feedback-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+            <path d="M22 4L12 14.01l-3-3"/>
+          </svg>
+          Правильно!${data.xp_earned ? ` +${data.xp_earned} XP` : ''}
+        </div>
+      `;
+    } else {
+      wrongCount++;
+      feedback.className = 'practice-exercise__feedback error';
+      feedback.innerHTML = `
+        <div class="practice-exercise__feedback-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M15 9l-6 6M9 9l6 6"/>
+          </svg>
+          Неверно
+        </div>
+        <div>Правильный ответ: <span class="practice-exercise__feedback-answer">${data.correct_answer}</span></div>
+      `;
+    }
+    feedback.style.display = 'block';
+
+    this.style.display = 'none';
+    document.getElementById('next-btn').style.display = 'inline-flex';
+
+    // Disable inputs
+    document.querySelectorAll('#question-area input, #question-area button').forEach(el => el.disabled = true);
+
+    // Save progress after answer
+    saveSessionState();
+
+  } catch (error) {
+    console.error('Error:', error);
+  }
 });
 
+// Next exercise
 document.getElementById('next-btn').addEventListener('click', function() {
-    currentIndex++;
-    if (currentIndex < exercises.length) {
-        showExercise(currentIndex);
-    } else {
-        // Session complete
-        document.getElementById('exercise-content').style.display = 'none';
-        document.getElementById('session-complete').style.display = 'block';
-        document.getElementById('correct-count').textContent = correctCount;
-        document.getElementById('wrong-count').textContent = wrongCount;
-        document.getElementById('xp-earned').textContent = totalXP;
-        document.getElementById('progress-bar').style.width = '100%';
-        document.getElementById('progress-text').textContent = `${exercises.length} / ${exercises.length}`;
-    }
+  currentIndex++;
+  saveSessionState();
+  if (currentIndex < exercises.length) {
+    showExercise(currentIndex);
+  } else {
+    // Complete - clear session state
+    clearSessionState();
+    document.getElementById('exercise-screen').style.display = 'none';
+    document.getElementById('complete-screen').style.display = 'block';
+    document.getElementById('correct-count').textContent = correctCount;
+    document.getElementById('wrong-count').textContent = wrongCount;
+    document.getElementById('xp-earned').textContent = totalXP;
+
+    const accuracy = exercises.length > 0 ? Math.round((correctCount / exercises.length) * 100) : 0;
+    document.getElementById('accuracy-fill').style.width = `${accuracy}%`;
+    document.getElementById('accuracy-text').textContent = `${accuracy}%`;
+
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-text').textContent = `${exercises.length} / ${exercises.length}`;
+  }
 });
 </script>
 {% endif %}
