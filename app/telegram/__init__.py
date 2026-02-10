@@ -1,4 +1,5 @@
-# app/telegram/__init__.py
-from app.telegram.models import TelegramToken
+from flask import Blueprint
 
-__all__ = ['TelegramToken']
+telegram_bp = Blueprint('telegram', __name__, url_prefix='/telegram')
+
+from app.telegram import routes  # noqa: E402, F401

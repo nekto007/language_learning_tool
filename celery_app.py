@@ -70,11 +70,6 @@ def make_celery(app_name=__name__):
                 'task': 'app.tasks.maintenance_tasks.cleanup_expired_sessions',
                 'schedule': crontab(hour=4, minute=0),
             },
-            # Clean up old Telegram tokens weekly on Sunday at 2 AM
-            'cleanup-old-telegram-tokens': {
-                'task': 'app.tasks.maintenance_tasks.cleanup_old_telegram_tokens',
-                'schedule': crontab(hour=2, minute=0, day_of_week=0),
-            },
             # Warm cache every 6 hours
             'warm-cache': {
                 'task': 'app.tasks.maintenance_tasks.warm_cache',

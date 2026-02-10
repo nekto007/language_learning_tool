@@ -28,7 +28,7 @@ jwt = JWTManager()
 # Initialize rate limiter with enhanced configuration
 limiter = Limiter(
     key_func=get_remote_address_key,
-    default_limits=["1000 per hour"],  # Global limit per IP
+    default_limits=["10000 per hour", "100 per second"],  # More generous limits
     storage_uri="memory://",
     # Customizable error messages
     headers_enabled=True,  # Enable X-RateLimit headers
@@ -152,9 +152,6 @@ def create_app(config_class=Config):
     from app.api.topics_collections import api_topics_collections
     app.register_blueprint(api_topics_collections, url_prefix='/api')
 
-    from app.api.telegram import api_telegram as api_telegram_blueprint
-    app.register_blueprint(api_telegram_blueprint, url_prefix='/api')
-
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
 
@@ -168,6 +165,10 @@ def create_app(config_class=Config):
     # Register Grammar Lab blueprint
     from app.grammar_lab import grammar_lab_bp
     app.register_blueprint(grammar_lab_bp)
+
+    # Register Telegram bot blueprint
+    from app.telegram import telegram_bp
+    app.register_blueprint(telegram_bp)
 
     # Register uploads blueprint for secure file serving
     from app.uploads.routes import uploads as uploads_blueprint
@@ -201,7 +202,12 @@ def create_app(config_class=Config):
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
         from flask import request, jsonify
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Return JSON for AJAX requests and API endpoints
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        is_api = request.path.startswith('/api/')
+        accepts_json = 'application/json' in request.headers.get('Accept', '')
+
+        if is_ajax or is_api or accepts_json:
             return jsonify({'success': False, 'error': 'CSRF token missing or invalid'}), 400
         return e.description, 400
 
@@ -239,5 +245,21 @@ def create_app(config_class=Config):
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
     configure_database_engine(app, db)
+
+    # Start Telegram services (skip in tests)
+    has_token = bool(app.config.get('TELEGRAM_BOT_TOKEN'))
+    if not app.config.get('TESTING', False) and has_token:
+        from app.telegram.scheduler import init_scheduler
+        init_scheduler(app)
+
+        # Dev mode: use polling instead of webhook
+        # WERKZEUG_RUN_MAIN=true means we're in Flask reloader child (dev mode)
+        is_dev = os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or os.environ.get('TELEGRAM_POLLING')
+        if is_dev:
+            from app.telegram.polling import start_polling
+            start_polling(app)
+            print('🤖 Telegram polling started')
+    elif not app.config.get('TESTING', False):
+        print(f'🤖 Telegram bot disabled (token set: {has_token})')
 
     return app

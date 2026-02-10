@@ -68,39 +68,6 @@ def cleanup_expired_sessions() -> Dict:
             'sessions_deleted': deleted
         }
 
-
-@celery.task
-def cleanup_old_telegram_tokens() -> Dict:
-    """
-    Clean up expired Telegram tokens
-
-    Returns:
-        Dictionary with cleanup statistics
-    """
-    app = create_app()
-
-    with app.app_context():
-        logger.info("Cleaning up expired Telegram tokens")
-
-        from app.telegram.models import TelegramToken
-
-        # Delete tokens that expired more than 30 days ago
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=30)
-
-        deleted = TelegramToken.query.filter(
-            TelegramToken.expires_at < cutoff_date
-        ).delete()
-
-        db.session.commit()
-
-        logger.info(f"Deleted {deleted} expired tokens")
-
-        return {
-            'status': 'success',
-            'tokens_deleted': deleted
-        }
-
-
 @celery.task
 def warm_cache() -> Dict:
     """
