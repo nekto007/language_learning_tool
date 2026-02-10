@@ -378,6 +378,11 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
     lines.append(f"✏️ Упражнений решено: {stats.get('exercises_done', 0)}")
     lines.append(f"📖 Слов на повторении: {stats.get('words_in_srs', 0)}")
 
+    if stats.get('books_started', 0) > 0:
+        lines.append(f"📕 Книг начато: {stats['books_started']}")
+    if stats.get('current_book'):
+        lines.append(f"📖 Читаю: {stats['current_book']}")
+
     site_url = current_app.config.get('SITE_URL', '')
     if site_url:
         lines.append(f'\n🔗 {site_url}/study')

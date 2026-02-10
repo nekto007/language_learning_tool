@@ -394,9 +394,31 @@ def get_quick_stats(user_id: int) -> dict[str, Any]:
 
     streak = get_current_streak(user_id)
 
+    # Books: count started and find current
+    from app.books.models import Chapter
+    from sqlalchemy import distinct
+    started_books = db.session.query(
+        Book.title,
+        func.max(UserChapterProgress.updated_at).label('last_read'),
+    ).join(
+        Chapter, Chapter.book_id == Book.id
+    ).join(
+        UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
+    ).filter(
+        UserChapterProgress.user_id == user_id,
+    ).group_by(Book.id, Book.title).all()
+
+    books_started = len(started_books)
+    current_book = None
+    if started_books:
+        latest = max(started_books, key=lambda r: r[1] if r[1] else datetime.min.replace(tzinfo=timezone.utc))
+        current_book = latest[0]
+
     return {
         'streak': streak,
         'lessons_completed': lessons_completed,
         'exercises_done': exercises_done,
         'words_in_srs': words_in_srs,
+        'books_started': books_started,
+        'current_book': current_book,
     }
