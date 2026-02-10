@@ -17,6 +17,15 @@ import logging
 from sqlalchemy.orm import joinedload
 
 from app.utils.db import db
+
+
+def _make_aware(dt):
+    """Convert naive datetime to UTC-aware, or return aware datetime as-is."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 from app.grammar_lab.models import (
     GrammarTopic, GrammarExercise,
     GrammarAttempt, UserGrammarExercise, UserGrammarTopicStatus
@@ -75,9 +84,27 @@ class GrammarLabService:
 
                 data['status'] = status.to_dict() if status else None
                 data['srs_stats'] = srs_stats
+
+                # Build progress object for template (bug fix: was missing)
+                topic_status = status.status if status else 'new'
+                STATUS_PROGRESS = {
+                    'new': 0, 'theory_completed': 33,
+                    'practicing': 66, 'mastered': 100,
+                }
+                total = srs_stats.get('total', 0)
+                mastered = srs_stats.get('mastered_count', 0)
+                mastery_level = min(5, int((mastered / total * 5) if total > 0 else 0))
+
+                data['progress'] = {
+                    'status': topic_status,
+                    'mastery_level': mastery_level,
+                    'theory_completed': status.theory_completed if status else False,
+                    'progress_pct': STATUS_PROGRESS.get(topic_status, 0),
+                }
             else:
                 data['status'] = None
                 data['srs_stats'] = None
+                data['progress'] = None
 
             result.append(data)
 
@@ -149,10 +176,41 @@ class GrammarLabService:
             data['status'] = status.to_dict() if status else None
 
             # Get SRS stats
-            data['srs_stats'] = self.srs.get_topic_stats(user_id, topic_id)
+            srs_stats = self.srs.get_topic_stats(user_id, topic_id)
+            data['srs_stats'] = srs_stats
+
+            # Build progress object for template compatibility
+            # Template expects: mastery_level, correct_attempts, total_attempts, theory_completed, xp_earned
+            total = srs_stats.get('total', 0)
+            mastered = srs_stats.get('mastered_count', 0)
+            mastery_level = min(5, int((mastered / total * 5) if total > 0 else 0))
+
+            # Get attempt counts from exercise progress
+            exercise_ids = [e.id for e in exercises]
+            total_correct = 0
+            total_incorrect = 0
+            if exercise_ids:
+                progress_records = UserGrammarExercise.query.filter(
+                    UserGrammarExercise.user_id == user_id,
+                    UserGrammarExercise.exercise_id.in_(exercise_ids)
+                ).all()
+                for p in progress_records:
+                    total_correct += p.correct_count or 0
+                    total_incorrect += p.incorrect_count or 0
+
+            data['progress'] = {
+                'status': status.status if status else 'new',
+                'mastery_level': mastery_level,
+                'correct_attempts': total_correct,
+                'total_attempts': total_correct + total_incorrect,
+                'theory_completed': status.theory_completed if status else False,
+                'xp_earned': status.xp_earned if status else 0,
+                'next_review': None,  # Can be computed if needed
+            }
         else:
             data['status'] = None
             data['srs_stats'] = None
+            data['progress'] = None
 
         return data
 
@@ -204,13 +262,13 @@ class GrammarLabService:
             if not progress or progress.state == CardState.NEW.value:
                 new.append(ex)
             elif progress.state == CardState.RELEARNING.value:
-                if progress.next_review <= now:
+                if _make_aware(progress.next_review) <= now:
                     relearning.append(ex)
             elif progress.state == CardState.LEARNING.value:
-                if progress.next_review <= now:
+                if _make_aware(progress.next_review) <= now:
                     learning.append(ex)
             elif progress.state == CardState.REVIEW.value:
-                if progress.next_review <= now:
+                if _make_aware(progress.next_review) <= now:
                     review.append(ex)
 
         # Build priority queue
@@ -298,6 +356,14 @@ class GrammarLabService:
         if xp_earned > 0:
             self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
 
+        # Update topic status based on exercise activity
+        topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
+        if result['is_correct'] and topic_status.status == 'theory_completed':
+            topic_status.transition_to('practicing')
+
+        # Check mastery / regression
+        self.check_and_update_mastery(exercise.topic_id, user_id)
+
         db.session.commit()
 
         return {
@@ -316,8 +382,7 @@ class GrammarLabService:
 
         xp_earned = 0
         if not status.theory_completed:
-            status.theory_completed = True
-            status.theory_completed_at = datetime.now(timezone.utc)
+            status.transition_to('theory_completed')
             xp_earned = GRAMMAR_XP['theory_completed']
             status.add_xp(xp_earned)
             db.session.commit()
@@ -326,6 +391,41 @@ class GrammarLabService:
             'status': status.to_dict(),
             'xp_earned': xp_earned
         }
+
+    def check_and_update_mastery(self, topic_id: int, user_id: int) -> bool:
+        """Check if all exercises are mastered; handle regression too."""
+        topic_status = self.srs.get_or_create_topic_status(user_id, topic_id)
+
+        if topic_status.status not in ('practicing', 'mastered'):
+            return False
+
+        exercises = GrammarExercise.query.filter_by(topic_id=topic_id).all()
+        if not exercises:
+            return False
+
+        exercise_ids = [e.id for e in exercises]
+        progress_records = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.exercise_id.in_(exercise_ids)
+        ).all()
+
+        # Check for regression: any exercise in RELEARNING while mastered
+        if topic_status.status == 'mastered':
+            has_relearning = any(
+                p.state == CardState.RELEARNING.value for p in progress_records
+            )
+            if has_relearning:
+                topic_status.transition_to('practicing')
+                return True
+
+        # Check for mastery: ALL exercises must be mastered (interval >= 180d)
+        if topic_status.status == 'practicing' and len(progress_records) == len(exercises):
+            all_mastered = all(p.is_mastered for p in progress_records)
+            if all_mastered:
+                topic_status.transition_to('mastered')
+                return True
+
+        return False
 
     def get_user_stats(self, user_id: int) -> Dict:
         """Get comprehensive stats for a user."""
@@ -374,13 +474,13 @@ class GrammarLabService:
                 if include_new:
                     new.append(ex)
             elif progress.state == CardState.RELEARNING.value:
-                if progress.next_review <= now:
+                if _make_aware(progress.next_review) <= now:
                     relearning.append(ex)
             elif progress.state == CardState.LEARNING.value:
-                if progress.next_review <= now:
+                if _make_aware(progress.next_review) <= now:
                     learning.append(ex)
             elif progress.state == CardState.REVIEW.value:
-                if progress.next_review <= now:
+                if _make_aware(progress.next_review) <= now:
                     review.append(ex)
 
         # Build priority queue

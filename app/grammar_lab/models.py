@@ -169,6 +169,10 @@ class GrammarExercise(db.Model):
             data['source_lang'] = self.content.get('source_lang', 'ru')
             data['target_lang'] = self.content.get('target_lang', 'en')
 
+        # For true_false type
+        if self.exercise_type == 'true_false':
+            data['statement'] = self.content.get('statement') or self.content.get('question', '')
+
         if not hide_answer:
             data['correct_answer'] = self.content.get('correct_answer')
             data['alternatives'] = self.content.get('alternatives', [])
@@ -196,6 +200,9 @@ class UserGrammarTopicStatus(db.Model):
     # Theory status
     theory_completed = Column(Boolean, default=False)
     theory_completed_at = Column(DateTime)
+
+    # Topic status: 'new', 'theory_completed', 'practicing', 'mastered'
+    status = Column(String(20), default='new', nullable=False)
 
     # XP (stored to avoid expensive recalculation)
     xp_earned = Column(Integer, default=0)
@@ -231,12 +238,29 @@ class UserGrammarTopicStatus(db.Model):
         """Add XP to this topic"""
         self.xp_earned = (self.xp_earned or 0) + amount
 
+    def transition_to(self, new_status: str) -> bool:
+        """Transition to new status if valid. Returns True if transitioned."""
+        VALID_TRANSITIONS = {
+            'new': ['theory_completed'],
+            'theory_completed': ['practicing'],
+            'practicing': ['mastered'],
+            'mastered': ['practicing'],  # regression
+        }
+        if new_status in VALID_TRANSITIONS.get(self.status, []):
+            self.status = new_status
+            if new_status == 'theory_completed' and not self.theory_completed:
+                self.theory_completed = True
+                self.theory_completed_at = datetime.now(timezone.utc)
+            return True
+        return False
+
     def to_dict(self):
         """Convert to dictionary for JSON response"""
         return {
             'id': self.id,
             'user_id': self.user_id,
             'topic_id': self.topic_id,
+            'status': self.status,
             'theory_completed': self.theory_completed,
             'theory_completed_at': self.theory_completed_at.isoformat() if self.theory_completed_at else None,
             'xp_earned': self.xp_earned or 0,

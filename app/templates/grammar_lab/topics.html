@@ -2,126 +2,685 @@
 
 {% block title %}Темы грамматики{% if current_level %} - {{ current_level }}{% endif %}{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar-lab.css') }}?v={{ range(1000, 9999) | random }}">
-{% endblock %}
-
 {% block content %}
-<div class="container container-xl">
-    <!-- Breadcrumb -->
-    <nav class="gl-breadcrumb" aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
-            <li class="breadcrumb-item active">{% if current_level %}{{ current_level }}{% else %}Все темы{% endif %}</li>
-        </ol>
-    </nav>
+<div class="grammar-page">
+  <!-- Breadcrumb -->
+  <nav class="grammar-breadcrumb" aria-label="breadcrumb">
+    <a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span>{% if current_level %}{{ current_level }}{% else %}Все темы{% endif %}</span>
+  </nav>
 
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+  <!-- Hero Header -->
+  <div class="topics-hero">
+    <div class="topics-hero__bg-shapes">
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
+    </div>
+
+    <div class="topics-hero__content">
+      <div class="topics-hero__header">
+        <div class="topics-hero__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+          </svg>
+        </div>
         <div>
-            <h1 class="h2 fw-bold mb-2">
-                {% if current_level %}
-                    Темы уровня {{ current_level }}
-                {% else %}
-                    Все темы грамматики
-                {% endif %}
-            </h1>
-            <p class="text-muted mb-0">{{ topics|length }} тем</p>
+          <h1 class="topics-hero__title">
+            {% if current_level %}
+              Уровень {{ current_level }}
+            {% else %}
+              Все темы
+            {% endif %}
+          </h1>
+          <p class="topics-hero__subtitle">{{ topics|length }} {{ 'тема' if topics|length == 1 else 'темы' if topics|length < 5 else 'тем' }}</p>
         </div>
-        <a href="{{ url_for('grammar_lab.practice') }}" class="btn btn-primary">
-            <i class="fas fa-play me-1"></i>Практика
-        </a>
+      </div>
+
+      <a href="{{ url_for('grammar_lab.practice') }}" class="topics-hero__action">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Практика
+      </a>
     </div>
+  </div>
 
-    <!-- Level Filter -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body py-2">
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span class="text-muted me-2">Уровень:</span>
-                <a href="{{ url_for('grammar_lab.topics') }}" class="btn btn-sm {% if not current_level %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                    Все
-                </a>
-                {% for level in levels %}
-                <a href="{{ url_for('grammar_lab.topics', level=level.level) }}"
-                   class="btn btn-sm {% if current_level == level.level %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                    {{ level.level }}
-                    {% if level.topic_count > 0 %}
-                    <span class="badge bg-light text-dark ms-1">{{ level.topic_count }}</span>
-                    {% endif %}
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Topics List -->
-    {% if topics %}
-    <div class="gl-topics-list">
-        {% for topic in topics %}
-        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="gl-topic-row">
-            <!-- Level Badge -->
-            <div class="gl-topic-level {{ 'beginner' if topic.level in ['A1', 'A2'] else 'intermediate' if topic.level in ['B1', 'B2'] else 'advanced' }}">
-                {{ topic.level }}
-            </div>
-
-            <!-- Main Content -->
-            <div class="gl-topic-content">
-                <div class="gl-topic-title">{{ topic.title }}</div>
-                <div class="gl-topic-subtitle">{{ topic.title_ru }}</div>
-            </div>
-
-            <!-- Progress -->
-            <div class="gl-topic-progress">
-                {% if topic.progress %}
-                    {% set mastery = topic.progress.mastery_level %}
-                    <div class="gl-topic-progress-bar">
-                        <div class="gl-topic-progress-fill" style="width: {{ (mastery / 5 * 100)|int }}%;"></div>
-                    </div>
-                    <span class="gl-topic-progress-text">{{ mastery }}/5</span>
-                {% endif %}
-            </div>
-
-            <!-- Status Badge -->
-            <div class="gl-topic-status">
-                {% if topic.progress %}
-                    {% set mastery = topic.progress.mastery_level %}
-                    {% if mastery >= 5 %}
-                        <span class="gl-status-badge mastered"><i class="fas fa-check"></i> Освоено</span>
-                    {% elif mastery >= 3 %}
-                        <span class="gl-status-badge confident">Уверенно</span>
-                    {% elif mastery >= 1 %}
-                        <span class="gl-status-badge learning">Изучаю</span>
-                    {% else %}
-                        <span class="gl-status-badge started">Начато</span>
-                    {% endif %}
-                {% else %}
-                    <span class="gl-status-badge new">Новая</span>
-                {% endif %}
-            </div>
-
-            <!-- Meta -->
-            <div class="gl-topic-meta">
-                {% if topic.estimated_time %}
-                <span><i class="fas fa-clock"></i> {{ topic.estimated_time }} мин</span>
-                {% endif %}
-            </div>
-
-            <!-- Arrow -->
-            <div class="gl-topic-arrow">
-                <i class="fas fa-chevron-right"></i>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>
-        {% if current_level %}
-        Темы для уровня {{ current_level }} пока не добавлены.
-        {% else %}
-        Темы грамматики пока не добавлены.
+  <!-- Level Filter -->
+  <div class="topics-filter">
+    <span class="topics-filter__label">Уровень:</span>
+    <div class="topics-filter__buttons">
+      <a href="{{ url_for('grammar_lab.topics') }}" class="topics-filter__btn {% if not current_level %}topics-filter__btn--active{% endif %}">
+        Все
+      </a>
+      {% for level in levels %}
+      <a href="{{ url_for('grammar_lab.topics', level=level.level) }}"
+         class="topics-filter__btn topics-filter__btn--{{ level.level[0]|lower }} {% if current_level == level.level %}topics-filter__btn--active{% endif %}">
+        {{ level.level }}
+        {% if level.topic_count > 0 %}
+        <span class="topics-filter__count">{{ level.topic_count }}</span>
         {% endif %}
+      </a>
+      {% endfor %}
     </div>
-    {% endif %}
+  </div>
+
+  <!-- Topics List -->
+  {% if topics %}
+  <div class="topics-list">
+    {% for topic in topics %}
+    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="topic-card">
+      <!-- Level Badge -->
+      <div class="topic-card__level topic-card__level--{{ topic.level[0]|lower }}">
+        {{ topic.level }}
+      </div>
+
+      <!-- Content -->
+      <div class="topic-card__content">
+        <h3 class="topic-card__title">{{ topic.title }}</h3>
+        <p class="topic-card__subtitle">{{ topic.title_ru }}</p>
+      </div>
+
+      <!-- Progress -->
+      {% if topic.progress %}
+      {% set progress_pct = topic.progress.progress_pct|default(0) %}
+      <div class="topic-card__progress">
+        <div class="topic-card__progress-bar">
+          <div class="topic-card__progress-fill" style="width: {{ progress_pct }}%;"></div>
+        </div>
+        <span class="topic-card__progress-text">{{ progress_pct }}%</span>
+      </div>
+      {% endif %}
+
+      <!-- Status Badge -->
+      <div class="topic-card__status">
+        {% set topic_status = topic.progress.status if topic.progress else 'new' %}
+        {% if topic_status == 'mastered' %}
+          <span class="topic-status topic-status--mastered">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            Освоена
+          </span>
+        {% elif topic_status == 'practicing' %}
+          <span class="topic-status topic-status--confident">Практикуется</span>
+        {% elif topic_status == 'theory_completed' %}
+          <span class="topic-status topic-status--learning">Теория изучена</span>
+        {% else %}
+          <span class="topic-status topic-status--new">Новая</span>
+        {% endif %}
+      </div>
+
+      <!-- Meta -->
+      {% if topic.estimated_time %}
+      <div class="topic-card__meta">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+        {{ topic.estimated_time }} мин
+      </div>
+      {% endif %}
+
+      <!-- Arrow -->
+      <div class="topic-card__arrow">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="topics-empty">
+    <div class="topics-empty__icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+      </svg>
+    </div>
+    <h3 class="topics-empty__title">
+      {% if current_level %}
+        Темы для уровня {{ current_level }} пока не добавлены
+      {% else %}
+        Темы грамматики пока не добавлены
+      {% endif %}
+    </h3>
+    <p class="topics-empty__desc">Импортируйте темы из модулей в панели администратора</p>
+  </div>
+  {% endif %}
 </div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.grammar-page {
+  --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --grammar-primary: #8b5cf6;
+  --grammar-primary-dark: #7c3aed;
+  --grammar-success: #22c55e;
+  --grammar-surface: #ffffff;
+  --grammar-surface-alt: #f8fafc;
+  --grammar-text: #0f172a;
+  --grammar-text-muted: #64748b;
+  --grammar-border: #e2e8f0;
+  --grammar-radius: 16px;
+  --grammar-radius-sm: 10px;
+
+  font-family: var(--grammar-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* Breadcrumb */
+.grammar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--grammar-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.grammar-breadcrumb a {
+  color: var(--grammar-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.grammar-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.grammar-breadcrumb svg {
+  opacity: 0.5;
+}
+
+/* Hero */
+.topics-hero {
+  position: relative;
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
+  border-radius: var(--grammar-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: white;
+}
+
+.topics-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.topics-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.topics-hero .shape--1 {
+  width: 150px;
+  height: 150px;
+  top: -50px;
+  right: -30px;
+  animation: float-1 18s ease-in-out infinite;
+}
+
+.topics-hero .shape--2 {
+  width: 80px;
+  height: 80px;
+  bottom: -30px;
+  left: 10%;
+  animation: float-2 14s ease-in-out infinite;
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+.topics-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.topics-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topics-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.topics-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.topics-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+.topics-hero__action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.topics-hero__action:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  color: white;
+}
+
+/* Filter */
+.topics-filter {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius-sm);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--grammar-border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.topics-filter__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--grammar-text-muted);
+}
+
+.topics-filter__buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.topics-filter__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--grammar-surface-alt);
+  border: 1px solid var(--grammar-border);
+  border-radius: 8px;
+  color: var(--grammar-text);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.topics-filter__btn:hover {
+  border-color: var(--grammar-primary);
+  color: var(--grammar-primary);
+}
+
+.topics-filter__btn--active {
+  background: var(--grammar-primary);
+  border-color: var(--grammar-primary);
+  color: white;
+}
+
+.topics-filter__btn--active:hover {
+  color: white;
+}
+
+.topics-filter__btn--a.topics-filter__btn--active {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  border-color: #3b82f6;
+}
+
+.topics-filter__btn--b.topics-filter__btn--active {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  border-color: #ef4444;
+}
+
+.topics-filter__btn--c.topics-filter__btn--active {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  border-color: #8b5cf6;
+}
+
+.topics-filter__count {
+  padding: 0.125rem 0.375rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+}
+
+.topics-filter__btn:not(.topics-filter__btn--active) .topics-filter__count {
+  background: var(--grammar-border);
+  color: var(--grammar-text-muted);
+}
+
+/* Topics List */
+.topics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.topic-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--grammar-surface);
+  border: 1px solid var(--grammar-border);
+  border-radius: var(--grammar-radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.25s ease;
+}
+
+.topic-card:hover {
+  border-color: var(--grammar-primary);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+}
+
+.topic-card__level {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.topic-card__level--a {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.topic-card__level--b {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+}
+
+.topic-card__level--c {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+}
+
+.topic-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  margin: 0 0 0.25rem;
+  line-height: 1.3;
+}
+
+.topic-card__subtitle {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topic-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.topic-card__progress-bar {
+  width: 60px;
+  height: 6px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.topic-card__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 3px;
+}
+
+.topic-card__progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--grammar-primary);
+  min-width: 24px;
+}
+
+.topic-card__status {
+  flex-shrink: 0;
+}
+
+.topic-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.topic-status--mastered {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.topic-status--confident {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.topic-status--learning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.topic-status--started {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--grammar-primary);
+}
+
+.topic-status--new {
+  background: var(--grammar-surface-alt);
+  color: var(--grammar-text-muted);
+}
+
+.topic-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+  flex-shrink: 0;
+}
+
+.topic-card__arrow {
+  color: var(--grammar-text-muted);
+  opacity: 0;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.topic-card:hover .topic-card__arrow {
+  opacity: 1;
+  color: var(--grammar-primary);
+}
+
+/* Empty State */
+.topics-empty {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius);
+  border: 1px solid var(--grammar-border);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.topics-empty__icon {
+  color: var(--grammar-border);
+  margin-bottom: 1rem;
+}
+
+.topics-empty__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  margin: 0 0 0.5rem;
+}
+
+.topics-empty__desc {
+  font-size: 0.875rem;
+  color: var(--grammar-text-muted);
+  margin: 0;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.topics-hero { animation: slideUp 0.4s ease-out; }
+.topics-filter { animation: slideUp 0.4s ease-out 0.1s both; }
+.topics-list { animation: slideUp 0.4s ease-out 0.15s both; }
+.topics-empty { animation: slideUp 0.5s ease-out; }
+
+.topic-card {
+  animation: slideUp 0.35s ease-out both;
+}
+
+.topic-card:nth-child(1) { animation-delay: 0.1s; }
+.topic-card:nth-child(2) { animation-delay: 0.15s; }
+.topic-card:nth-child(3) { animation-delay: 0.2s; }
+.topic-card:nth-child(4) { animation-delay: 0.25s; }
+.topic-card:nth-child(5) { animation-delay: 0.3s; }
+.topic-card:nth-child(6) { animation-delay: 0.35s; }
+.topic-card:nth-child(7) { animation-delay: 0.4s; }
+.topic-card:nth-child(8) { animation-delay: 0.45s; }
+.topic-card:nth-child(9) { animation-delay: 0.5s; }
+.topic-card:nth-child(10) { animation-delay: 0.55s; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .grammar-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .topics-hero {
+    padding: 1.25rem;
+  }
+
+  .topics-hero__content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topics-hero__action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .topics-filter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topics-filter__buttons {
+    width: 100%;
+  }
+
+  .topics-filter__btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .topic-card {
+    flex-wrap: wrap;
+    padding: 1rem;
+  }
+
+  .topic-card__content {
+    flex: 1 1 calc(100% - 60px);
+    order: 1;
+  }
+
+  .topic-card__level {
+    order: 0;
+  }
+
+  .topic-card__progress {
+    order: 3;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .topic-card__progress-bar {
+    flex: 1;
+  }
+
+  .topic-card__status {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .topic-card__meta {
+    display: none;
+  }
+
+  .topic-card__arrow {
+    display: none;
+  }
+}
+</style>
 {% endblock %}

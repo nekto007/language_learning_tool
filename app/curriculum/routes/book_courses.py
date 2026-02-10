@@ -620,34 +620,40 @@ def view_lesson(course_id, module_id, lesson_number):
             # Grammar Bridge: show Grammar Lab topic content directly
             from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
-            course_level = course.level or 'A1'
-            day_number = daily_lesson.day_number if daily_lesson else lesson_number
-
-            # Calculate which grammar topic to show based on day number
-            grammar_lesson_index = (day_number - 1) // 6  # Cycle through topics
-
-            # Get Grammar Lab topics for this level
-            grammar_topics = GrammarTopic.query.filter_by(
-                level=course_level
-            ).order_by(GrammarTopic.order).all()
-
-            # If no topics for this level, try fallback levels
-            if not grammar_topics:
-                for fallback in ['A1', 'A2', 'B1']:
-                    grammar_topics = GrammarTopic.query.filter_by(
-                        level=fallback
-                    ).order_by(GrammarTopic.order).all()
-                    if grammar_topics:
-                        break
-
-            # Select topic by index (cycles through available)
+            # Try explicit FK first (from DailyLesson's linked Lesson)
             topic = None
-            exercises = []
-            if grammar_topics:
-                topic_index = grammar_lesson_index % len(grammar_topics)
-                topic = grammar_topics[topic_index]
+            if daily_lesson and daily_lesson.lesson and daily_lesson.lesson.grammar_topic_id:
+                topic = GrammarTopic.query.get(daily_lesson.lesson.grammar_topic_id)
 
-                # Get exercises for this topic (multiple_choice and fill_blank)
+            # Fallback to modulo-based mapping
+            if not topic:
+                course_level = course.level or 'A1'
+                day_number = daily_lesson.day_number if daily_lesson else lesson_number
+
+                # Calculate which grammar topic to show based on day number
+                grammar_lesson_index = (day_number - 1) // 6  # Cycle through topics
+
+                # Get Grammar Lab topics for this level
+                grammar_topics = GrammarTopic.query.filter_by(
+                    level=course_level
+                ).order_by(GrammarTopic.order).all()
+
+                # If no topics for this level, try fallback levels
+                if not grammar_topics:
+                    for fallback in ['A1', 'A2', 'B1']:
+                        grammar_topics = GrammarTopic.query.filter_by(
+                            level=fallback
+                        ).order_by(GrammarTopic.order).all()
+                        if grammar_topics:
+                            break
+
+                if grammar_topics:
+                    topic_index = grammar_lesson_index % len(grammar_topics)
+                    topic = grammar_topics[topic_index]
+
+            # Get exercises for the topic
+            exercises = []
+            if topic:
                 topic_exercises = GrammarExercise.query.filter_by(
                     topic_id=topic.id
                 ).filter(
@@ -1090,41 +1096,43 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
             # Grammar Bridge: show Grammar Lab topic content directly
             from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
-            course_level = course.level or 'A1'
-            day_number = daily_lesson.day_number if daily_lesson else lesson_number
-
-            # Calculate which grammar topic to show based on day number
-            grammar_lesson_index = (day_number - 1) // 6  # Cycle through topics
-
-            # Get Grammar Lab topics for this level
-            grammar_topics = GrammarTopic.query.filter_by(
-                level=course_level
-            ).order_by(GrammarTopic.order).all()
-
-            # If no topics for this level, try fallback levels
-            if not grammar_topics:
-                for fallback in ['A1', 'A2', 'B1']:
-                    grammar_topics = GrammarTopic.query.filter_by(
-                        level=fallback
-                    ).order_by(GrammarTopic.order).all()
-                    if grammar_topics:
-                        break
-
-            # Select topic by index (cycles through available)
+            # Try explicit FK first
             topic = None
-            exercises = []
-            if grammar_topics:
-                topic_index = grammar_lesson_index % len(grammar_topics)
-                topic = grammar_topics[topic_index]
+            if daily_lesson and daily_lesson.lesson and daily_lesson.lesson.grammar_topic_id:
+                topic = GrammarTopic.query.get(daily_lesson.lesson.grammar_topic_id)
 
-                # Get exercises for this topic (multiple_choice and fill_blank)
+            # Fallback to modulo-based mapping
+            if not topic:
+                course_level = course.level or 'A1'
+                day_number = daily_lesson.day_number if daily_lesson else lesson_number
+
+                grammar_lesson_index = (day_number - 1) // 6
+
+                grammar_topics = GrammarTopic.query.filter_by(
+                    level=course_level
+                ).order_by(GrammarTopic.order).all()
+
+                if not grammar_topics:
+                    for fallback in ['A1', 'A2', 'B1']:
+                        grammar_topics = GrammarTopic.query.filter_by(
+                            level=fallback
+                        ).order_by(GrammarTopic.order).all()
+                        if grammar_topics:
+                            break
+
+                if grammar_topics:
+                    topic_index = grammar_lesson_index % len(grammar_topics)
+                    topic = grammar_topics[topic_index]
+
+            # Get exercises for the topic
+            exercises = []
+            if topic:
                 topic_exercises = GrammarExercise.query.filter_by(
                     topic_id=topic.id
                 ).filter(
                     GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
                 ).order_by(GrammarExercise.order).limit(5).all()
 
-                # Convert to JSON-serializable format
                 for ex in topic_exercises:
                     exercises.append({
                         'id': ex.id,
@@ -1573,6 +1581,50 @@ def complete_lesson_api_v1(lesson_id):
                 logger.info(f"Auto-created SRS cards for lesson {lesson_id}")
             except Exception as e:
                 logger.error(f"Error auto-creating SRS cards: {str(e)}")
+
+        # Sync grammar completion with Grammar Lab
+        if daily_lesson.lesson_type in ['grammar', 'grammar_focus']:
+            try:
+                from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
+
+                # Try explicit FK first
+                topic = None
+                if daily_lesson.lesson and daily_lesson.lesson.grammar_topic_id:
+                    topic = GrammarTopic.query.get(daily_lesson.lesson.grammar_topic_id)
+
+                # Fallback to modulo-based mapping
+                if not topic:
+                    from app.curriculum.book_courses import BookCourse
+
+                    course = BookCourse.query.get(module.course_id)
+                    course_level = course.level if course else 'A1'
+
+                    grammar_topics = GrammarTopic.query.filter_by(
+                        level=course_level
+                    ).order_by(GrammarTopic.order).all()
+
+                    if not grammar_topics:
+                        for fallback in ['A1', 'A2', 'B1']:
+                            grammar_topics = GrammarTopic.query.filter_by(
+                                level=fallback
+                            ).order_by(GrammarTopic.order).all()
+                            if grammar_topics:
+                                break
+
+                    if grammar_topics:
+                        grammar_lesson_index = (daily_lesson.day_number - 1) // 6
+                        topic = grammar_topics[grammar_lesson_index % len(grammar_topics)]
+
+                if topic:
+                    topic_status = UserGrammarTopicStatus.get_or_create(
+                        user_id=current_user.id,
+                        topic_id=topic.id
+                    )
+                    topic_status.transition_to('theory_completed')
+                    logger.info(f"Synced grammar topic {topic.id} status for user {current_user.id}")
+
+            except Exception as e:
+                logger.error(f"Error syncing grammar with Grammar Lab: {str(e)}")
 
         db.session.commit()
 

@@ -302,8 +302,8 @@ def import_from_modules():
                     continue
 
                 content = grammar_lesson.content or {}
-                grammar_data = content.get('grammar_explanation', {})
-                title = grammar_data.get('title', '')
+                # Данные на верхнем уровне content, не в grammar_explanation
+                title = content.get('title', '')
 
                 if not title:
                     continue
@@ -321,10 +321,10 @@ def import_from_modules():
                     topic.title_ru = title
                     topic.level = level_code
                     topic.content = {
-                        'introduction': grammar_data.get('introduction', ''),
-                        'sections': grammar_data.get('sections', []),
-                        'important_notes': grammar_data.get('important_notes', []),
-                        'summary': grammar_data.get('summary', {}),
+                        'introduction': content.get('description', ''),
+                        'sections': content.get('sections', []),
+                        'important_notes': content.get('important_notes', []),
+                        'summary': content.get('summary', {}),
                         'source_module': module.number
                     }
                     # Delete old exercises to reimport
@@ -339,10 +339,10 @@ def import_from_modules():
                         level=level_code,
                         order=module.number,
                         content={
-                            'introduction': grammar_data.get('introduction', ''),
-                            'sections': grammar_data.get('sections', []),
-                            'important_notes': grammar_data.get('important_notes', []),
-                            'summary': grammar_data.get('summary', {}),
+                            'introduction': content.get('description', ''),
+                            'sections': content.get('sections', []),
+                            'important_notes': content.get('important_notes', []),
+                            'summary': content.get('summary', {}),
                             'source_module': module.number
                         },
                         estimated_time=15,
@@ -352,20 +352,20 @@ def import_from_modules():
                     db.session.flush()  # Get topic.id
                     imported += 1
 
-                # Find ALL quiz lessons and import exercises from each
+                # Link source grammar lesson back to the topic
+                grammar_lesson.grammar_topic_id = topic.id
+
+                # Упражнения находятся в quiz уроках в content['exercises']
                 quiz_lessons = Lessons.query.filter_by(
                     module_id=module.id,
                     type='quiz'
                 ).all()
 
-                all_exercises = []
+                exercises = []
                 for quiz_lesson in quiz_lessons:
                     quiz_content = quiz_lesson.content or {}
-                    # В БД упражнения могут быть в 'questions' или 'exercises'
-                    lesson_exercises = quiz_content.get('questions') or quiz_content.get('exercises', [])
-                    all_exercises.extend(lesson_exercises)
-
-                exercises = all_exercises
+                    lesson_exercises = quiz_content.get('exercises', [])
+                    exercises.extend(lesson_exercises)
                 if exercises:
 
                     for i, ex in enumerate(exercises):
@@ -459,8 +459,8 @@ def import_from_modules():
             continue
 
         content = grammar_lesson.content or {}
-        grammar_data = content.get('grammar_explanation', {})
-        title = grammar_data.get('title', '')
+        # Данные на верхнем уровне content, не в grammar_explanation
+        title = content.get('title', '')
 
         if not title:
             continue
@@ -470,7 +470,7 @@ def import_from_modules():
         slug = f"module-{module.number}-{slug}"[:100]
         exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
 
-        # Count quiz exercises from ALL quiz lessons
+        # Упражнения находятся в quiz уроках в content['exercises']
         quiz_lessons = Lessons.query.filter_by(
             module_id=module.id,
             type='quiz'
@@ -479,9 +479,8 @@ def import_from_modules():
         exercise_count = 0
         for quiz_lesson in quiz_lessons:
             quiz_content = quiz_lesson.content or {}
-            # В БД упражнения могут быть в 'questions' или 'exercises'
-            questions = quiz_content.get('questions') or quiz_content.get('exercises', [])
-            exercise_count += len(questions)
+            lesson_exercises = quiz_content.get('exercises', [])
+            exercise_count += len(lesson_exercises)
 
         modules_with_grammar.append({
             'module_id': module.number,

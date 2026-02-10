@@ -2,922 +2,1446 @@
 
 {% block title %}{{ topic.title }} - Grammar Lab{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar-lab.css') }}?v={{ range(1000, 9999) | random }}">
-{% endblock %}
-
-{% block body_class %}grammar-lab-page{% endblock %}
-
 {% block content %}
-<div class="container">
-    <!-- Breadcrumb -->
-    <nav class="gl-breadcrumb" aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('grammar_lab.topics', level=topic.level) }}">{{ topic.level }}</a></li>
-            <li class="breadcrumb-item active">{{ topic.title }}</li>
-        </ol>
-    </nav>
+<div class="grammar-page">
+  <!-- Breadcrumb -->
+  <nav class="grammar-breadcrumb" aria-label="breadcrumb">
+    <a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <a href="{{ url_for('grammar_lab.topics', level=topic.level) }}">{{ topic.level }}</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span>{{ topic.title }}</span>
+  </nav>
 
-    <!-- Hero Header -->
-    <div class="gl-hero">
-        <div class="gl-hero-content">
-            <div class="gl-level-badge">
-                <i class="fas fa-layer-group"></i>
-                {{ topic.level }}
-            </div>
-            <h1>{{ topic.title }}</h1>
-            <p class="gl-hero-subtitle">{{ topic.title_ru }}</p>
-
-            {% if topic.progress %}
-            <div class="gl-hero-progress">
-                {% set progress_pct = (topic.progress.mastery_level / 5 * 100) %}
-                <div class="gl-hero-progress-bar" style="width: {{ progress_pct }}%;"></div>
-            </div>
-            <div class="gl-hero-stats">
-                <div class="gl-hero-stat">
-                    <span class="gl-hero-stat-value">{{ topic.progress.mastery_level }}/5</span>
-                    <span class="gl-hero-stat-label">Уровень</span>
-                </div>
-                <div class="gl-hero-stat">
-                    <span class="gl-hero-stat-value">{{ topic.progress.correct_attempts }}</span>
-                    <span class="gl-hero-stat-label">Верно</span>
-                </div>
-                <div class="gl-hero-stat">
-                    <span class="gl-hero-stat-value">{{ topic.progress.total_attempts }}</span>
-                    <span class="gl-hero-stat-label">Всего</span>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        {% if topic.progress %}
-        <div class="gl-xp-badge">
-            <i class="fas fa-star"></i>
-            <span>{{ topic.progress.xp_earned }} XP</span>
-        </div>
-        {% endif %}
+  <!-- Hero -->
+  <div class="topic-hero topic-hero--{{ topic.level[0]|lower }}">
+    <div class="topic-hero__bg-shapes">
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
+      <div class="shape shape--3"></div>
     </div>
 
-    <!-- Content Grid -->
-    <div class="gl-content-grid">
-        <!-- Main Content -->
-        <div class="gl-main">
-            <!-- Theory Card -->
-            <div class="gl-card" id="theory">
-                <div class="gl-card-header">
-                    <h3>
-                        <span class="gl-card-header-icon theory">
-                            <i class="fas fa-book-open"></i>
-                        </span>
-                        Теория
-                    </h3>
-                    {% if topic.progress and topic.progress.theory_completed %}
-                    <span class="gl-completed-badge">
-                        <i class="fas fa-check"></i>
-                        Изучено
-                    </span>
-                    {% endif %}
-                </div>
-                <div class="gl-card-body">
-                    {% if topic.content %}
-                        <!-- Introduction -->
-                        {% if topic.content.introduction %}
-                        <div class="gl-theory-intro">
-                            {{ topic.content.introduction|unescape }}
-                        </div>
-                        {% endif %}
+    <div class="topic-hero__content">
+      <div class="topic-hero__badge">{{ topic.level }}</div>
+      <h1 class="topic-hero__title">{{ topic.title }}</h1>
+      <p class="topic-hero__subtitle">{{ topic.title_ru }}</p>
 
-                        <!-- Sections -->
-                        {% if topic.content.sections %}
-                        {% for section in topic.content.sections %}
-                        <div class="gl-theory-section">
-                            <h5>{{ section.subtitle|unescape }}</h5>
-                            {% if section.description %}
-                            <p>{{ section.description|unescape }}</p>
-                            {% endif %}
+      {% if topic.progress %}
+      {% set topic_status = topic.progress.status|default('new') %}
+      {% set status_pct = {'new': 0, 'theory_completed': 33, 'practicing': 66, 'mastered': 100} %}
+      {% set status_labels = {'new': 'Новая', 'theory_completed': 'Теория изучена', 'practicing': 'Практикуется', 'mastered': 'Освоена'} %}
+      <div class="topic-hero__progress">
+        <div class="topic-hero__progress-bar">
+          <div class="topic-hero__progress-fill" style="width: {{ status_pct.get(topic_status, 0) }}%;"></div>
+        </div>
+        <div class="topic-hero__stats">
+          <div class="topic-hero__stat">
+            <span class="topic-hero__stat-value">{{ status_labels.get(topic_status, 'Новая') }}</span>
+            <span class="topic-hero__stat-label">Статус</span>
+          </div>
+          <div class="topic-hero__stat">
+            <span class="topic-hero__stat-value">{{ topic.progress.correct_attempts }}</span>
+            <span class="topic-hero__stat-label">Верно</span>
+          </div>
+          <div class="topic-hero__stat">
+            <span class="topic-hero__stat-value">{{ topic.progress.total_attempts }}</span>
+            <span class="topic-hero__stat-label">Всего</span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
 
-                            <!-- Table -->
-                            {% if section.table %}
-                            <table class="gl-grammar-table">
-                                <tbody>
-                                {% for row in section.table %}
-                                <tr>
-                                    {% if row.pronoun %}<td class="pronoun">{{ row.pronoun|unescape }}</td>{% endif %}
-                                    {% if row.form %}<td><span class="form">{{ row.form|unescape }}</span></td>{% endif %}
-                                    {% if row.example %}<td>{{ row.example|unescape }}</td>{% endif %}
-                                    {% if row.translation %}<td class="translation">{{ row.translation|unescape }}</td>{% endif %}
-                                </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                            {% endif %}
+    {% if topic.progress %}
+    <div class="topic-hero__xp">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+      {{ topic.progress.xp_earned }} XP
+    </div>
+    {% endif %}
+  </div>
 
-                            <!-- Rules -->
-                            {% if section.rules %}
-                            <ul class="gl-rules-list">
-                                {% for rule in section.rules %}
-                                <li class="gl-rule-item">
-                                    <strong>{{ rule.rule|unescape }}</strong>
-                                    {% if rule.examples %}
-                                    <ul>
-                                        {% for example in rule.examples %}
-                                        <li>{{ example|unescape }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                    {% endif %}
-                                    {% if rule.note %}
-                                    <div class="gl-rule-note">{{ rule.note|unescape }}</div>
-                                    {% endif %}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-
-                            <!-- Usage -->
-                            {% if section.usage %}
-                            <ul class="gl-rules-list">
-                                {% for usage in section.usage %}
-                                <li class="gl-rule-item">
-                                    <strong>{{ usage.case|unescape }}</strong>
-                                    {% if usage.examples %}
-                                    <ul>
-                                        {% for example in usage.examples %}
-                                        <li>{{ example|unescape }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                    {% endif %}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                        {% endif %}
-
-                        <!-- Important Notes -->
-                        {% if topic.content.important_notes %}
-                        <div class="gl-important">
-                            <div class="gl-important-header">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                Важно
-                            </div>
-                            <ul>
-                                {% for note in topic.content.important_notes %}
-                                <li>{{ note|unescape }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
-
-                        <!-- Common Mistakes -->
-                        {% if topic.content.common_mistakes %}
-                        <div class="gl-mistakes">
-                            <div class="gl-mistakes-header">
-                                <i class="fas fa-times-circle"></i>
-                                Типичные ошибки
-                            </div>
-                            {% for mistake in topic.content.common_mistakes %}
-                            <div class="gl-mistake-item">
-                                <span class="gl-mistake-wrong">{{ mistake.wrong|unescape }}</span>
-                                <i class="fas fa-arrow-right gl-mistake-arrow"></i>
-                                <span class="gl-mistake-correct">{{ mistake.correct|unescape }}</span>
-                            </div>
-                            {% if mistake.explanation %}
-                            <span class="gl-mistake-explain">{{ mistake.explanation|unescape }}</span>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-
-                        <!-- Summary Table -->
-                        {% if topic.content.summary_table %}
-                        <div class="gl-summary">
-                            <div class="gl-summary-header">
-                                <i class="fas fa-table"></i>
-                                Сводная таблица
-                            </div>
-                            <table>
-                                <tbody>
-                                {% if topic.content.summary_table.affirmative %}
-                                <tr><td>+</td><td>{{ topic.content.summary_table.affirmative|unescape }}</td></tr>
-                                {% endif %}
-                                {% if topic.content.summary_table.negative %}
-                                <tr><td>-</td><td>{{ topic.content.summary_table.negative|unescape }}</td></tr>
-                                {% endif %}
-                                {% if topic.content.summary_table.question %}
-                                <tr><td>?</td><td>{{ topic.content.summary_table.question|unescape }}</td></tr>
-                                {% endif %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% endif %}
-                    {% else %}
-                        <p class="text-muted text-center">Теоретический материал скоро будет добавлен.</p>
-                    {% endif %}
-
-                    {% if not topic.progress or not topic.progress.theory_completed %}
-                    <div class="text-center mt-4">
-                        <button type="button" class="gl-theory-complete-btn" id="complete-theory-btn">
-                            <i class="fas fa-check"></i>
-                            Теория изучена (+20 XP)
-                        </button>
-                    </div>
-                    {% endif %}
-                </div>
+  <!-- Content Grid -->
+  <div class="topic-grid">
+    <!-- Main Content -->
+    <div class="topic-main">
+      <!-- Theory Card -->
+      <div class="topic-card" id="theory">
+        <div class="topic-card__header">
+          <div class="topic-card__header-left">
+            <div class="topic-card__icon topic-card__icon--theory">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+              </svg>
             </div>
-
-            <!-- Practice Card -->
-            <div class="gl-card" id="practice">
-                <div class="gl-card-header">
-                    <h3>
-                        <span class="gl-card-header-icon practice">
-                            <i class="fas fa-dumbbell"></i>
-                        </span>
-                        Практика
-                    </h3>
-                    <span class="gl-exercise-count">{{ topic.exercise_count }} упражнений</span>
-                </div>
-                <div class="gl-card-body">
-                    {% if topic.exercises %}
-                    <div class="gl-practice-start">
-                        <div class="gl-practice-icon">
-                            <i class="fas fa-play"></i>
-                        </div>
-                        <h4>Готовы к практике?</h4>
-                        <p>Сессия: <strong>10-12 упражнений</strong> из {{ topic.exercise_count }}</p>
-                        <p class="text-muted small mb-3">Система подберёт задания на основе вашего прогресса</p>
-                        <button type="button" class="gl-start-btn" id="start-practice-btn">
-                            <i class="fas fa-rocket"></i>
-                            Начать практику
-                        </button>
-                    </div>
-                    {% else %}
-                    <p class="text-muted text-center mb-0">Упражнения скоро будут добавлены.</p>
-                    {% endif %}
-                </div>
-            </div>
+            <h2 class="topic-card__title">Теория</h2>
+          </div>
+          {% if topic.progress and topic.progress.theory_completed %}
+          <span class="topic-card__badge topic-card__badge--success">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            Изучено
+          </span>
+          {% endif %}
         </div>
 
-        <!-- Sidebar -->
-        <div class="gl-sidebar">
-            <!-- Progress Card -->
-            {% if topic.progress %}
-            <div class="gl-sidebar-card gl-progress-card">
-                <div class="gl-card-header">
-                    <h4>
-                        <span class="gl-card-header-icon progress">
-                            <i class="fas fa-chart-line"></i>
-                        </span>
-                        Ваш прогресс
-                    </h4>
-                </div>
-                <div class="gl-card-body">
-                    <div class="gl-mastery-section">
-                        <div class="gl-mastery-label">
-                            <span>Мастерство</span>
-                            <strong>{{ topic.progress.mastery_level }}/5</strong>
-                        </div>
-                        <div class="gl-mastery-bar">
-                            {% set mastery_pct = (topic.progress.mastery_level / 5 * 100) %}
-                            <div class="gl-mastery-fill" style="width: {{ mastery_pct }}%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="gl-stats-grid">
-                        <div class="gl-stat-box">
-                            <span class="gl-stat-value success">{{ topic.progress.correct_attempts }}</span>
-                            <span class="gl-stat-label">Верно</span>
-                        </div>
-                        <div class="gl-stat-box">
-                            <span class="gl-stat-value primary">{{ topic.progress.total_attempts }}</span>
-                            <span class="gl-stat-label">Всего</span>
-                        </div>
-                    </div>
-
-                    {% if topic.progress.total_attempts > 0 %}
-                    <div class="gl-accuracy">
-                        {% set accuracy = (topic.progress.correct_attempts / topic.progress.total_attempts * 100)|round(1) %}
-                        <div class="gl-accuracy-value {% if accuracy >= 80 %}high{% elif accuracy >= 60 %}medium{% else %}low{% endif %}">
-                            {{ accuracy }}%
-                        </div>
-                        <span class="gl-accuracy-label">Точность</span>
-                    </div>
-                    {% endif %}
-
-                    {% if topic.progress.next_review %}
-                    <div class="gl-next-review">
-                        <div class="gl-next-review-label">Следующее повторение</div>
-                        <div class="gl-next-review-date">{{ topic.progress.next_review[:10] }}</div>
-                    </div>
-                    {% endif %}
-                </div>
+        <div class="topic-card__body">
+          {% if topic.content %}
+            <!-- Introduction -->
+            {% if topic.content.introduction %}
+            <div class="theory-intro">
+              {{ topic.content.introduction|unescape }}
             </div>
             {% endif %}
 
-            <!-- Topic Info Card -->
-            <div class="gl-sidebar-card">
-                <div class="gl-card-header">
-                    <h4>
-                        <span class="gl-card-header-icon info">
-                            <i class="fas fa-info-circle"></i>
-                        </span>
-                        О теме
-                    </h4>
-                </div>
-                <div class="gl-card-body">
-                    <ul class="gl-info-list">
-                        <li class="gl-info-item">
-                            <span class="gl-info-icon level">
-                                <i class="fas fa-layer-group"></i>
-                            </span>
-                            <div class="gl-info-text">
-                                <span>Уровень</span>
-                                <strong>{{ topic.level }}</strong>
-                            </div>
-                        </li>
-                        {% if topic.estimated_time %}
-                        <li class="gl-info-item">
-                            <span class="gl-info-icon time">
-                                <i class="fas fa-clock"></i>
-                            </span>
-                            <div class="gl-info-text">
-                                <span>Время изучения</span>
-                                <strong>{{ topic.estimated_time }} мин</strong>
-                            </div>
-                        </li>
-                        {% endif %}
-                        {% if topic.difficulty %}
-                        <li class="gl-info-item">
-                            <span class="gl-info-icon difficulty">
-                                <i class="fas fa-signal"></i>
-                            </span>
-                            <div class="gl-info-text">
-                                <span>Сложность</span>
-                                <strong>{% for i in range(topic.difficulty) %}<i class="fas fa-star" style="color: #f59e0b;"></i>{% endfor %}{% for i in range(5 - topic.difficulty) %}<i class="far fa-star" style="color: #e2e8f0;"></i>{% endfor %}</strong>
-                            </div>
-                        </li>
-                        {% endif %}
-                        <li class="gl-info-item">
-                            <span class="gl-info-icon exercises">
-                                <i class="fas fa-dumbbell"></i>
-                            </span>
-                            <div class="gl-info-text">
-                                <span>Упражнений</span>
-                                <strong>{{ topic.exercise_count }}</strong>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
+            <!-- Sections -->
+            {% if topic.content.sections %}
+            {% for section in topic.content.sections %}
+            <div class="theory-section">
+              <h3 class="theory-section__title">{{ section.subtitle|unescape }}</h3>
+              {% if section.description %}
+              <p class="theory-section__desc">{{ section.description|unescape }}</p>
+              {% endif %}
+
+              <!-- Table -->
+              {% if section.table %}
+              <div class="theory-table-wrapper">
+                <table class="theory-table">
+                  <tbody>
+                  {% for row in section.table %}
+                  <tr>
+                    {% if row.pronoun %}<td class="theory-table__pronoun">{{ row.pronoun|unescape }}</td>{% endif %}
+                    {% if row.form %}<td class="theory-table__form">{{ row.form|unescape }}</td>{% endif %}
+                    {% if row.example %}<td>{{ row.example|unescape }}</td>{% endif %}
+                    {% if row.translation %}<td class="theory-table__translation">{{ row.translation|unescape }}</td>{% endif %}
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% endif %}
+
+              <!-- Rules -->
+              {% if section.rules %}
+              <ul class="theory-rules">
+                {% for rule in section.rules %}
+                <li class="theory-rule">
+                  <strong>{{ rule.rule|unescape }}</strong>
+                  {% if rule.examples %}
+                  <ul class="theory-rule__examples">
+                    {% for example in rule.examples %}
+                    <li>{{ example|unescape }}</li>
+                    {% endfor %}
+                  </ul>
+                  {% endif %}
+                  {% if rule.note %}
+                  <div class="theory-rule__note">{{ rule.note|unescape }}</div>
+                  {% endif %}
+                </li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+
+              <!-- Usage -->
+              {% if section.usage %}
+              <ul class="theory-rules">
+                {% for usage in section.usage %}
+                <li class="theory-rule">
+                  <strong>{{ usage.case|unescape }}</strong>
+                  {% if usage.examples %}
+                  <ul class="theory-rule__examples">
+                    {% for example in usage.examples %}
+                    <li>{{ example|unescape }}</li>
+                    {% endfor %}
+                  </ul>
+                  {% endif %}
+                </li>
+                {% endfor %}
+              </ul>
+              {% endif %}
             </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Important Notes -->
+            {% if topic.content.important_notes %}
+            <div class="theory-alert theory-alert--warning">
+              <div class="theory-alert__header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Важно
+              </div>
+              <ul>
+                {% for note in topic.content.important_notes %}
+                <li>{{ note|unescape }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            <!-- Common Mistakes -->
+            {% if topic.content.common_mistakes %}
+            <div class="theory-alert theory-alert--danger">
+              <div class="theory-alert__header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M15 9l-6 6M9 9l6 6"/>
+                </svg>
+                Типичные ошибки
+              </div>
+              {% for mistake in topic.content.common_mistakes %}
+              <div class="theory-mistake">
+                <span class="theory-mistake__wrong">{{ mistake.wrong|unescape }}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                <span class="theory-mistake__correct">{{ mistake.correct|unescape }}</span>
+              </div>
+              {% if mistake.explanation %}
+              <p class="theory-mistake__explain">{{ mistake.explanation|unescape }}</p>
+              {% endif %}
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Summary Table -->
+            {% if topic.content.summary or topic.content.summary_table %}
+            {% set summary = topic.content.summary or topic.content.summary_table %}
+            <div class="theory-summary">
+              <div class="theory-summary__header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M3 9h18M9 21V9"/>
+                </svg>
+                {{ summary.title or 'Сводная таблица' }}
+              </div>
+              {% if summary.table %}
+              <div class="theory-table-wrapper">
+                <table class="theory-table theory-table--summary">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>+</th>
+                      <th>-</th>
+                      <th>?</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for row in summary.table %}
+                  <tr>
+                    <td class="theory-table__pronoun">{{ row.subject|unescape }}</td>
+                    <td>{{ row.affirmative|unescape }}</td>
+                    <td>{{ row.negative|unescape }}</td>
+                    <td>{{ row.question|unescape }}</td>
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="theory-table-wrapper">
+                <table class="theory-table">
+                  <tbody>
+                  {% if summary.affirmative %}
+                  <tr><td class="theory-table__pronoun">+</td><td>{{ summary.affirmative|unescape }}</td></tr>
+                  {% endif %}
+                  {% if summary.negative %}
+                  <tr><td class="theory-table__pronoun">-</td><td>{{ summary.negative|unescape }}</td></tr>
+                  {% endif %}
+                  {% if summary.question %}
+                  <tr><td class="theory-table__pronoun">?</td><td>{{ summary.question|unescape }}</td></tr>
+                  {% endif %}
+                  </tbody>
+                </table>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          {% else %}
+            <p class="topic-card__empty">Теоретический материал скоро будет добавлен.</p>
+          {% endif %}
+
+          {% if not topic.progress or not topic.progress.theory_completed %}
+          <div class="topic-card__action">
+            <button type="button" class="topic-btn topic-btn--outline" id="complete-theory-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+              Теория изучена (+20 XP)
+            </button>
+          </div>
+          {% endif %}
         </div>
+      </div>
+
+      <!-- Practice Card -->
+      <div class="topic-card" id="practice">
+        <div class="topic-card__header">
+          <div class="topic-card__header-left">
+            <div class="topic-card__icon topic-card__icon--practice">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </div>
+            <h2 class="topic-card__title">Практика</h2>
+          </div>
+          <span class="topic-card__badge">{{ topic.exercise_count }} упражнений</span>
+        </div>
+
+        <div class="topic-card__body">
+          {% if topic.exercises %}
+          <div class="practice-start">
+            <div class="practice-start__icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </div>
+            <h3 class="practice-start__title">Готовы к практике?</h3>
+            <p class="practice-start__desc">Сессия: <strong>10-12 упражнений</strong> из {{ topic.exercise_count }}</p>
+            <p class="practice-start__note">Система подберёт задания на основе вашего прогресса</p>
+            <a href="{{ url_for('grammar_lab.practice', topic_id=topic.id) }}" class="topic-btn topic-btn--primary topic-btn--large">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Начать практику
+            </a>
+          </div>
+          {% else %}
+          <p class="topic-card__empty">Упражнения скоро будут добавлены.</p>
+          {% endif %}
+        </div>
+      </div>
     </div>
+
+    <!-- Sidebar -->
+    <div class="topic-sidebar">
+      <!-- Progress Card -->
+      {% if topic.progress %}
+      <div class="sidebar-card">
+        <div class="sidebar-card__header">
+          <div class="sidebar-card__icon sidebar-card__icon--progress">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10M12 20V4M6 20v-6"/>
+            </svg>
+          </div>
+          <h3 class="sidebar-card__title">Ваш прогресс</h3>
+        </div>
+
+        <div class="sidebar-card__body">
+          {% set sidebar_status = topic.progress.status|default('new') %}
+          {% set sidebar_pct = {'new': 0, 'theory_completed': 33, 'practicing': 66, 'mastered': 100} %}
+          {% set sidebar_labels = {'new': 'Новая', 'theory_completed': 'Теория изучена', 'practicing': 'Практикуется', 'mastered': 'Освоена'} %}
+          <div class="progress-mastery">
+            <div class="progress-mastery__header">
+              <span>Статус</span>
+              <strong>{{ sidebar_labels.get(sidebar_status, 'Новая') }}</strong>
+            </div>
+            <div class="progress-mastery__bar">
+              <div class="progress-mastery__fill" style="width: {{ sidebar_pct.get(sidebar_status, 0) }}%;"></div>
+            </div>
+          </div>
+
+          <div class="progress-stats">
+            <div class="progress-stat progress-stat--success">
+              <span class="progress-stat__value">{{ topic.progress.correct_attempts }}</span>
+              <span class="progress-stat__label">Верно</span>
+            </div>
+            <div class="progress-stat progress-stat--primary">
+              <span class="progress-stat__value">{{ topic.progress.total_attempts }}</span>
+              <span class="progress-stat__label">Всего</span>
+            </div>
+          </div>
+
+          {% if topic.progress.total_attempts > 0 %}
+          <div class="progress-accuracy">
+            {% set accuracy = (topic.progress.correct_attempts / topic.progress.total_attempts * 100)|round(1) %}
+            <span class="progress-accuracy__value {% if accuracy >= 80 %}progress-accuracy__value--high{% elif accuracy >= 60 %}progress-accuracy__value--medium{% else %}progress-accuracy__value--low{% endif %}">
+              {{ accuracy }}%
+            </span>
+            <span class="progress-accuracy__label">Точность</span>
+          </div>
+          {% endif %}
+
+          {% if topic.progress.next_review %}
+          <div class="progress-review">
+            <span class="progress-review__label">Следующее повторение</span>
+            <span class="progress-review__date">{{ topic.progress.next_review[:10] }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Topic Info Card -->
+      <div class="sidebar-card">
+        <div class="sidebar-card__header">
+          <div class="sidebar-card__icon sidebar-card__icon--info">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+          </div>
+          <h3 class="sidebar-card__title">О теме</h3>
+        </div>
+
+        <div class="sidebar-card__body">
+          <ul class="info-list">
+            <li class="info-item">
+              <div class="info-item__icon info-item__icon--level">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div class="info-item__content">
+                <span class="info-item__label">Уровень</span>
+                <strong class="info-item__value">{{ topic.level }}</strong>
+              </div>
+            </li>
+            {% if topic.estimated_time %}
+            <li class="info-item">
+              <div class="info-item__icon info-item__icon--time">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+              </div>
+              <div class="info-item__content">
+                <span class="info-item__label">Время изучения</span>
+                <strong class="info-item__value">{{ topic.estimated_time }} мин</strong>
+              </div>
+            </li>
+            {% endif %}
+            {# Difficulty based on CEFR level: A1=1, A2=2, B1=3, B2=4, C1/C2=5 #}
+            {% set level_difficulty = {'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 5} %}
+            {% set difficulty_stars = level_difficulty.get(topic.level, 3) %}
+            <li class="info-item">
+              <div class="info-item__icon info-item__icon--difficulty">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 17V7M12 17V3M18 17v-6"/>
+                </svg>
+              </div>
+              <div class="info-item__content">
+                <span class="info-item__label">Сложность</span>
+                <strong class="info-item__value">
+                  {% for i in range(difficulty_stars) %}<svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>{% endfor %}{% for i in range(5 - difficulty_stars) %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>{% endfor %}
+                </strong>
+              </div>
+            </li>
+            <li class="info-item">
+              <div class="info-item__icon info-item__icon--exercises">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                </svg>
+              </div>
+              <div class="info-item__content">
+                <span class="info-item__label">Упражнений</span>
+                <strong class="info-item__value">{{ topic.exercise_count }}</strong>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Exercise Modal -->
-<div class="modal fade gl-modal" id="exerciseModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-pencil-alt me-2"></i>
-                    Упражнение <span id="exercise-number">1</span> из <span id="exercise-total">{{ topic.exercise_count }}</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="exercise-content">
-                <!-- Exercise content loaded dynamically -->
-            </div>
-            <div class="modal-footer">
-                <div id="exercise-feedback" class="w-100" style="display: none;"></div>
-                <button type="button" class="gl-modal-btn secondary" data-bs-dismiss="modal">Закрыть</button>
-                <button type="button" class="gl-modal-btn primary" id="submit-answer-btn">
-                    <i class="fas fa-check"></i>
-                    Проверить
-                </button>
-                <button type="button" class="gl-modal-btn success" id="next-exercise-btn" style="display: none;">
-                    Далее
-                    <i class="fas fa-arrow-right"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.grammar-page {
+  --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --grammar-primary: #8b5cf6;
+  --grammar-primary-dark: #7c3aed;
+  --grammar-success: #22c55e;
+  --grammar-warning: #f59e0b;
+  --grammar-danger: #ef4444;
+  --grammar-surface: #ffffff;
+  --grammar-surface-alt: #f8fafc;
+  --grammar-text: #0f172a;
+  --grammar-text-muted: #64748b;
+  --grammar-border: #e2e8f0;
+  --grammar-radius: 16px;
+  --grammar-radius-sm: 10px;
+
+  font-family: var(--grammar-font);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* Breadcrumb */
+.grammar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--grammar-text-muted);
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.grammar-breadcrumb a {
+  color: var(--grammar-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.grammar-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.grammar-breadcrumb svg {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* Hero */
+.topic-hero {
+  position: relative;
+  border-radius: var(--grammar-radius);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: white;
+}
+
+.topic-hero--a {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.topic-hero--b {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+}
+
+.topic-hero--c {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+}
+
+.topic-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.topic-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.topic-hero .shape--1 {
+  width: 200px;
+  height: 200px;
+  top: -80px;
+  right: -40px;
+  animation: float-1 18s ease-in-out infinite;
+}
+
+.topic-hero .shape--2 {
+  width: 100px;
+  height: 100px;
+  bottom: -40px;
+  left: 10%;
+  animation: float-2 14s ease-in-out infinite;
+}
+
+.topic-hero .shape--3 {
+  width: 60px;
+  height: 60px;
+  top: 30%;
+  right: 20%;
+  animation: float-3 20s ease-in-out infinite;
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+@keyframes float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+  50% { transform: translate(-25px, 10px) scale(1.1); opacity: 0.8; }
+}
+
+.topic-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.topic-hero__badge {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  backdrop-filter: blur(5px);
+  margin-bottom: 0.75rem;
+}
+
+.topic-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.topic-hero__subtitle {
+  font-size: 1rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.topic-hero__progress {
+  margin-top: 1.5rem;
+}
+
+.topic-hero__progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.topic-hero__progress-fill {
+  height: 100%;
+  background: white;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.topic-hero__stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.topic-hero__stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.topic-hero__stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.topic-hero__stat-label {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.topic-hero__xp {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  backdrop-filter: blur(5px);
+  z-index: 1;
+}
+
+.topic-hero__xp svg {
+  color: #fbbf24;
+}
+
+/* Grid */
+.topic-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.topic-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Topic Card */
+.topic-card {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius);
+  border: 1px solid var(--grammar-border);
+  overflow: hidden;
+}
+
+.topic-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--grammar-border);
+  background: var(--grammar-surface-alt);
+}
+
+.topic-card__header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topic-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.topic-card__icon--theory {
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+}
+
+.topic-card__icon--practice {
+  background: linear-gradient(135deg, var(--grammar-success) 0%, #16a34a 100%);
+}
+
+.topic-card__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0;
+}
+
+.topic-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--grammar-surface);
+  color: var(--grammar-text-muted);
+  border: 1px solid var(--grammar-border);
+}
+
+.topic-card__badge--success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border-color: transparent;
+}
+
+.topic-card__body {
+  padding: 1.5rem;
+}
+
+.topic-card__empty {
+  text-align: center;
+  color: var(--grammar-text-muted);
+  margin: 0;
+}
+
+.topic-card__action {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+/* Theory Styles */
+.theory-intro {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--grammar-text);
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+  border-radius: var(--grammar-radius-sm);
+  border-left: 4px solid var(--grammar-primary);
+}
+
+.theory-section {
+  margin-bottom: 2rem;
+}
+
+.theory-section:last-child {
+  margin-bottom: 0;
+}
+
+.theory-section__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0 0 0.75rem;
+}
+
+.theory-section__desc {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--grammar-text-muted);
+  margin: 0 0 1rem;
+}
+
+.theory-table-wrapper {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.theory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.theory-table th,
+.theory-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--grammar-border);
+}
+
+.theory-table th {
+  background: var(--grammar-surface-alt);
+  font-weight: 600;
+  color: var(--grammar-text);
+}
+
+.theory-table__pronoun {
+  font-weight: 600;
+  color: var(--grammar-primary);
+  white-space: nowrap;
+}
+
+.theory-table__form {
+  font-weight: 600;
+  color: var(--grammar-text);
+}
+
+.theory-table__translation {
+  color: var(--grammar-text-muted);
+  font-style: italic;
+}
+
+.theory-table--summary th:first-child {
+  width: 80px;
+}
+
+.theory-rules {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.theory-rule {
+  padding: 1rem;
+  background: var(--grammar-surface-alt);
+  border-radius: var(--grammar-radius-sm);
+  margin-bottom: 0.75rem;
+}
+
+.theory-rule:last-child {
+  margin-bottom: 0;
+}
+
+.theory-rule strong {
+  display: block;
+  color: var(--grammar-text);
+  margin-bottom: 0.5rem;
+}
+
+.theory-rule__examples {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 0;
+  color: var(--grammar-text-muted);
+}
+
+.theory-rule__examples li {
+  margin-bottom: 0.25rem;
+}
+
+.theory-rule__note {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: var(--grammar-primary-dark);
+}
+
+.theory-alert {
+  padding: 1rem;
+  border-radius: var(--grammar-radius-sm);
+  margin: 1.5rem 0;
+}
+
+.theory-alert--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.theory-alert--danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.theory-alert__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.theory-alert--warning .theory-alert__header {
+  color: #d97706;
+}
+
+.theory-alert--danger .theory-alert__header {
+  color: #dc2626;
+}
+
+.theory-alert ul {
+  padding-left: 1.25rem;
+  margin: 0;
+}
+
+.theory-alert li {
+  margin-bottom: 0.375rem;
+  color: var(--grammar-text);
+}
+
+.theory-mistake {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.theory-mistake__wrong {
+  padding: 0.375rem 0.75rem;
+  background: rgba(239, 68, 68, 0.15);
+  border-radius: 6px;
+  color: #dc2626;
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.theory-mistake__correct {
+  padding: 0.375rem 0.75rem;
+  background: rgba(34, 197, 94, 0.15);
+  border-radius: 6px;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.theory-mistake__explain {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0 0 1rem;
+}
+
+.theory-summary {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(16, 163, 127, 0.05) 100%);
+  border-radius: var(--grammar-radius-sm);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.theory-summary__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 1rem;
+}
+
+/* Practice Start */
+.practice-start {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.practice-start__icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1.25rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--grammar-success);
+}
+
+.practice-start__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0 0 0.5rem;
+}
+
+.practice-start__desc {
+  font-size: 0.9375rem;
+  color: var(--grammar-text);
+  margin: 0 0 0.25rem;
+}
+
+.practice-start__note {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0 0 1.5rem;
+}
+
+/* Sidebar */
+.topic-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sidebar-card {
+  background: var(--grammar-surface);
+  border-radius: var(--grammar-radius);
+  border: 1px solid var(--grammar-border);
+  overflow: hidden;
+}
+
+.sidebar-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--grammar-border);
+  background: var(--grammar-surface-alt);
+}
+
+.sidebar-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.sidebar-card__icon--progress {
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+}
+
+.sidebar-card__icon--info {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.sidebar-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0;
+}
+
+.sidebar-card__body {
+  padding: 1rem;
+}
+
+/* Progress */
+.progress-mastery {
+  margin-bottom: 1rem;
+}
+
+.progress-mastery__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--grammar-text);
+}
+
+.progress-mastery__bar {
+  height: 8px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-mastery__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.progress-stat {
+  padding: 0.75rem;
+  border-radius: var(--grammar-radius-sm);
+  text-align: center;
+}
+
+.progress-stat--success {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.progress-stat--primary {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.progress-stat__value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.progress-stat--success .progress-stat__value {
+  color: var(--grammar-success);
+}
+
+.progress-stat--primary .progress-stat__value {
+  color: var(--grammar-primary);
+}
+
+.progress-stat__label {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--grammar-text-muted);
+  margin-top: 0.25rem;
+}
+
+.progress-accuracy {
+  text-align: center;
+  padding: 0.75rem;
+  background: var(--grammar-surface-alt);
+  border-radius: var(--grammar-radius-sm);
+  margin-bottom: 1rem;
+}
+
+.progress-accuracy__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.progress-accuracy__value--high {
+  color: var(--grammar-success);
+}
+
+.progress-accuracy__value--medium {
+  color: var(--grammar-warning);
+}
+
+.progress-accuracy__value--low {
+  color: var(--grammar-danger);
+}
+
+.progress-accuracy__label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+  margin-top: 0.125rem;
+}
+
+.progress-review {
+  padding: 0.75rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: var(--grammar-radius-sm);
+  text-align: center;
+}
+
+.progress-review__label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.progress-review__date {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+/* Info List */
+.info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--grammar-border);
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-item__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-item__icon--level {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--grammar-primary);
+}
+
+.info-item__icon--time {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.info-item__icon--difficulty {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.info-item__icon--exercises {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.info-item__content {
+  flex: 1;
+}
+
+.info-item__label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--grammar-text-muted);
+}
+
+.info-item__value {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 0.9375rem;
+  color: var(--grammar-text);
+}
+
+/* Buttons */
+.topic-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-family: var(--grammar-font);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--grammar-radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.topic-btn--large {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+}
+
+.topic-btn--primary {
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  color: white;
+}
+
+.topic-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  color: white;
+}
+
+.topic-btn--success {
+  background: linear-gradient(135deg, var(--grammar-success) 0%, #16a34a 100%);
+  color: white;
+}
+
+.topic-btn--success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  color: white;
+}
+
+.topic-btn--secondary {
+  background: var(--grammar-surface-alt);
+  color: var(--grammar-text);
+  border: 1px solid var(--grammar-border);
+}
+
+.topic-btn--secondary:hover {
+  background: var(--grammar-surface);
+  color: var(--grammar-text);
+}
+
+.topic-btn--outline {
+  background: transparent;
+  color: var(--grammar-primary);
+  border: 2px solid var(--grammar-primary);
+}
+
+.topic-btn--outline:hover {
+  background: var(--grammar-primary);
+  color: white;
+}
+
+/* XP Notification */
+.xp-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+  z-index: 9999;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(100px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; transform: translateY(-20px); }
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.topic-hero { animation: slideUp 0.4s ease-out; }
+.topic-grid { animation: slideUp 0.4s ease-out 0.1s both; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .topic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-sidebar {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .grammar-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .topic-hero {
+    padding: 1.5rem;
+  }
+
+  .topic-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .topic-hero__xp {
+    position: static;
+    display: inline-flex;
+    margin-top: 1rem;
+  }
+
+  .topic-hero__stats {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .topic-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const topicId = {{ topic.id }};
-let exercises = {{ topic.exercises|tojson|safe }};
-let currentExerciseIndex = 0;
-let sessionId = null;
-let correctCount = 0;
-let wrongCount = 0;
-let totalXP = 0;
+
+// Get CSRF token safely
+function getCSRFToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') : '';
+}
 
 // Complete theory
 document.getElementById('complete-theory-btn')?.addEventListener('click', async function() {
-    try {
-        const response = await fetch(`/grammar-lab/api/topic/${topicId}/complete-theory`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
-        });
-        const data = await response.json();
+  try {
+    const csrfToken = getCSRFToken();
+    const response = await fetch(`/grammar-lab/api/topic/${topicId}/complete-theory`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      }
+    });
+    const data = await response.json();
 
-        if (data.xp_earned > 0) {
-            this.innerHTML = '<i class="fas fa-check"></i> Изучено!';
-            this.disabled = true;
-            this.style.background = 'var(--gl-text-light)';
+    if (data.xp_earned > 0) {
+      this.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Изучено!';
+      this.disabled = true;
+      this.style.background = 'var(--grammar-surface-alt)';
+      this.style.borderColor = 'var(--grammar-border)';
+      this.style.color = 'var(--grammar-text-muted)';
 
-            // Show XP notification
-            const notification = document.createElement('div');
-            notification.className = 'gl-xp-notification';
-            notification.innerHTML = `<i class="fas fa-star"></i><span>+${data.xp_earned} XP</span>`;
-            document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 3000);
-        }
-    } catch (error) {
-        console.error('Error completing theory:', error);
+      const notification = document.createElement('div');
+      notification.className = 'xp-notification';
+      notification.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><span>+${data.xp_earned} XP</span>`;
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
     }
+  } catch (error) {
+    console.error('Error completing theory:', error);
+  }
 });
-
-// Start practice
-document.getElementById('start-practice-btn')?.addEventListener('click', async function() {
-    try {
-        const response = await fetch(`/grammar-lab/api/topic/${topicId}/start-practice`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
-        });
-        const data = await response.json();
-
-        if (data.session_id) {
-            sessionId = data.session_id;
-            exercises = data.exercises || exercises;
-            currentExerciseIndex = 0;
-            showExercise(0);
-            const modal = new bootstrap.Modal(document.getElementById('exerciseModal'));
-            modal.show();
-        }
-    } catch (error) {
-        console.error('Error starting practice:', error);
-    }
-});
-
-function showExercise(index) {
-    const exercise = exercises[index];
-    if (!exercise) return;
-
-    document.getElementById('exercise-number').textContent = index + 1;
-    document.getElementById('exercise-total').textContent = exercises.length;
-
-    const content = document.getElementById('exercise-content');
-    let html = '';
-
-    switch (exercise.exercise_type) {
-        case 'fill_blank':
-            html = renderFillBlank(exercise);
-            break;
-        case 'multiple_choice':
-            html = renderMultipleChoice(exercise);
-            break;
-        case 'reorder':
-            html = renderReorder(exercise);
-            break;
-        case 'true_false':
-            html = renderTrueFalse(exercise);
-            break;
-        case 'translation':
-            html = renderTranslation(exercise);
-            break;
-        case 'error_correction':
-            html = renderErrorCorrection(exercise);
-            break;
-        case 'transformation':
-            html = renderTransformation(exercise);
-            break;
-        case 'matching':
-            html = renderMatching(exercise);
-            break;
-        default:
-            html = `<p>Тип упражнения: ${exercise.exercise_type}</p>`;
-    }
-
-    content.innerHTML = html;
-
-    // Reset buttons
-    document.getElementById('submit-answer-btn').style.display = 'inline-flex';
-    document.getElementById('next-exercise-btn').style.display = 'none';
-    document.getElementById('exercise-feedback').style.display = 'none';
-}
-
-function renderFillBlank(exercise) {
-    return `
-        <div class="gl-exercise-question">${exercise.question || 'Заполните пропуск:'}</div>
-        <input type="text" class="gl-input" id="user-answer" placeholder="Введите ответ" autocomplete="off">
-    `;
-}
-
-function renderMultipleChoice(exercise) {
-    let html = `<div class="gl-exercise-question">${exercise.question || 'Выберите правильный ответ:'}</div>`;
-    html += '<div class="gl-options">';
-    (exercise.options || []).forEach((option, i) => {
-        html += `
-            <label class="gl-option" onclick="selectOption(this, ${i})">
-                <input type="radio" name="answer" value="${i}">
-                <span class="gl-option-radio"></span>
-                <span class="gl-option-text">${option}</span>
-            </label>
-        `;
-    });
-    html += '</div>';
-    return html;
-}
-
-function selectOption(el, value) {
-    document.querySelectorAll('.gl-option').forEach(opt => opt.classList.remove('selected'));
-    el.classList.add('selected');
-    el.querySelector('input').checked = true;
-}
-
-function renderReorder(exercise) {
-    const words = exercise.words || [];
-
-    // Shuffle words for display
-    const shuffledWords = [...words];
-    for (let i = shuffledWords.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffledWords[i], shuffledWords[j]] = [shuffledWords[j], shuffledWords[i]];
-    }
-
-    let html = `<div class="gl-exercise-question">${exercise.instruction || 'Составьте предложение из слов:'}</div>`;
-    html += '<div class="gl-word-bank" id="word-bank">';
-    shuffledWords.forEach((word, i) => {
-        html += `<button type="button" class="gl-word-btn" data-index="${i}" data-word="${word}">${word}</button>`;
-    });
-    html += '</div>';
-    html += '<div class="gl-answer-area empty" id="answer-area">Нажмите на слова выше</div>';
-    html += '<input type="hidden" id="user-answer" value="">';
-
-    setTimeout(() => {
-        const wordBank = document.getElementById('word-bank');
-        const answerArea = document.getElementById('answer-area');
-        const hiddenInput = document.getElementById('user-answer');
-        let selectedWords = [];
-
-        wordBank.querySelectorAll('.gl-word-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (this.classList.contains('selected')) {
-                    const idx = selectedWords.indexOf(this.dataset.word);
-                    if (idx > -1) selectedWords.splice(idx, 1);
-                    this.classList.remove('selected');
-                } else {
-                    selectedWords.push(this.dataset.word);
-                    this.classList.add('selected');
-                }
-                if (selectedWords.length > 0) {
-                    answerArea.textContent = selectedWords.join(' ');
-                    answerArea.classList.remove('empty');
-                } else {
-                    answerArea.textContent = 'Нажмите на слова выше';
-                    answerArea.classList.add('empty');
-                }
-                hiddenInput.value = selectedWords.join(' ');
-            });
-        });
-    }, 100);
-
-    return html;
-}
-
-function renderTrueFalse(exercise) {
-    return `
-        <div class="gl-exercise-question">${exercise.statement || exercise.question}</div>
-        <div class="gl-tf-buttons">
-            <button type="button" class="gl-tf-btn true-btn" onclick="selectTF(this, 'true')">
-                <i class="fas fa-check"></i>
-                <span>Верно</span>
-            </button>
-            <button type="button" class="gl-tf-btn false-btn" onclick="selectTF(this, 'false')">
-                <i class="fas fa-times"></i>
-                <span>Неверно</span>
-            </button>
-        </div>
-        <input type="hidden" id="user-answer" value="">
-    `;
-}
-
-function selectTF(el, value) {
-    document.querySelectorAll('.gl-tf-btn').forEach(btn => btn.classList.remove('selected'));
-    el.classList.add('selected');
-    document.getElementById('user-answer').value = value;
-}
-
-function renderTranslation(exercise) {
-    let sentence = exercise.sentence || exercise.question || exercise.content?.sentence || exercise.content?.question || '';
-    sentence = sentence.replace(/^Переведите на английский:\s*/i, '');
-    return `
-        <div class="gl-exercise-question">Переведите на английский:</div>
-        <div class="gl-exercise-highlight">${sentence}</div>
-        <input type="text" class="gl-input" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
-    `;
-}
-
-function renderErrorCorrection(exercise) {
-    const sentence = exercise.sentence || exercise.content?.sentence || exercise.question || '';
-    return `
-        <div class="gl-exercise-question">Найдите и исправьте ошибку:</div>
-        <div class="gl-exercise-highlight" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #991b1b;">${sentence}</div>
-        <input type="text" class="gl-input" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
-    `;
-}
-
-function renderTransformation(exercise) {
-    // Original sentence can be in: original, sentence, or question fields
-    const original = exercise.original || exercise.sentence || exercise.question ||
-                     exercise.content?.original || exercise.content?.sentence || exercise.content?.question || '';
-    const instruction = exercise.instruction || exercise.content?.instruction || 'Преобразуйте предложение';
-    return `
-        <div class="gl-exercise-question">${instruction}:</div>
-        <div class="gl-exercise-highlight">${original}</div>
-        <input type="text" class="gl-input" id="user-answer" placeholder="Введите преобразованное предложение" autocomplete="off">
-    `;
-}
-
-function renderMatching(exercise) {
-    const pairs = exercise.pairs || [];
-    if (pairs.length === 0) {
-        return `<div class="gl-exercise-question">Нет пар для сопоставления</div>`;
-    }
-
-    // Create shuffled right column
-    const rightItems = pairs.map((pair, i) => ({
-        text: pair.russian || pair.right,
-        correctIndex: i
-    }));
-    // Shuffle right items
-    for (let i = rightItems.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [rightItems[i], rightItems[j]] = [rightItems[j], rightItems[i]];
-    }
-
-    let html = `<div class="gl-exercise-question">${exercise.instruction || 'Соотнесите пары:'}</div>`;
-    html += '<div class="gl-matching-container">';
-
-    // Left column (source items)
-    html += '<div class="gl-matching-column" id="matching-left">';
-    pairs.forEach((pair, i) => {
-        html += `<div class="gl-matching-item" data-index="${i}" data-side="left">${pair.english || pair.left}</div>`;
-    });
-    html += '</div>';
-
-    // Right column (shuffled target items)
-    html += '<div class="gl-matching-column" id="matching-right">';
-    rightItems.forEach((item, i) => {
-        html += `<div class="gl-matching-item" data-index="${i}" data-correct="${item.correctIndex}" data-side="right">${item.text}</div>`;
-    });
-    html += '</div>';
-
-    html += '</div>';
-
-    // Progress indicator
-    html += `<div class="gl-matching-progress">
-        <span class="gl-matching-progress-text">Совпадений: <strong id="match-count">0</strong> из <strong>${pairs.length}</strong></span>
-    </div>`;
-
-    html += '<input type="hidden" id="user-answer" value="">';
-
-    // Setup matching logic after render
-    setTimeout(() => setupMatchingHandlers(pairs.length), 100);
-
-    return html;
-}
-
-function setupMatchingHandlers(totalPairs) {
-    let selectedLeft = null;
-    let selectedRight = null;
-    let matches = {};
-    let matchCount = 0;
-
-    const leftItems = document.querySelectorAll('#matching-left .gl-matching-item');
-    const rightItems = document.querySelectorAll('#matching-right .gl-matching-item');
-
-    function updateAnswer() {
-        document.getElementById('user-answer').value = JSON.stringify(matches);
-        document.getElementById('match-count').textContent = matchCount;
-
-        // Auto-submit when all matched
-        if (matchCount === totalPairs) {
-            document.getElementById('user-answer').value = JSON.stringify(matches);
-        }
-    }
-
-    function checkMatch() {
-        if (selectedLeft !== null && selectedRight !== null) {
-            const leftIdx = parseInt(selectedLeft.dataset.index);
-            const rightCorrect = parseInt(selectedRight.dataset.correct);
-
-            if (leftIdx === rightCorrect) {
-                // Correct match
-                selectedLeft.classList.remove('selected');
-                selectedLeft.classList.add('matched');
-                selectedRight.classList.remove('selected');
-                selectedRight.classList.add('matched');
-
-                matches[leftIdx] = leftIdx;
-                matchCount++;
-                updateAnswer();
-            } else {
-                // Wrong match - shake and reset
-                selectedLeft.classList.add('wrong');
-                selectedRight.classList.add('wrong');
-
-                setTimeout(() => {
-                    selectedLeft.classList.remove('selected', 'wrong');
-                    selectedRight.classList.remove('selected', 'wrong');
-                    selectedLeft = null;
-                    selectedRight = null;
-                }, 500);
-                return;
-            }
-
-            selectedLeft = null;
-            selectedRight = null;
-        }
-    }
-
-    leftItems.forEach(item => {
-        item.addEventListener('click', function() {
-            if (this.classList.contains('matched')) return;
-
-            leftItems.forEach(i => i.classList.remove('selected'));
-            this.classList.add('selected');
-            selectedLeft = this;
-            checkMatch();
-        });
-    });
-
-    rightItems.forEach(item => {
-        item.addEventListener('click', function() {
-            if (this.classList.contains('matched')) return;
-
-            rightItems.forEach(i => i.classList.remove('selected'));
-            this.classList.add('selected');
-            selectedRight = this;
-            checkMatch();
-        });
-    });
-}
-
-// Submit answer
-document.getElementById('submit-answer-btn').addEventListener('click', async function() {
-    const exercise = exercises[currentExerciseIndex];
-    let answer;
-
-    if (exercise.exercise_type === 'multiple_choice') {
-        const selected = document.querySelector('input[name="answer"]:checked');
-        if (!selected) {
-            alert('Выберите ответ');
-            return;
-        }
-        answer = selected.value;
-    } else if (exercise.exercise_type === 'matching') {
-        const answerStr = document.getElementById('user-answer').value;
-        if (!answerStr) {
-            alert('Соотнесите все пары');
-            return;
-        }
-        try {
-            const matches = JSON.parse(answerStr);
-            const pairsCount = (exercise.pairs || []).length;
-            if (Object.keys(matches).length < pairsCount) {
-                alert(`Соотнесите все пары (${Object.keys(matches).length}/${pairsCount})`);
-                return;
-            }
-            answer = matches;
-        } catch (e) {
-            alert('Соотнесите все пары');
-            return;
-        }
-    } else {
-        answer = document.getElementById('user-answer').value;
-        if (!answer) {
-            alert('Введите ответ');
-            return;
-        }
-    }
-
-    try {
-        const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                answer: answer,
-                session_id: sessionId,
-                source: 'topic_practice'
-            })
-        });
-        const data = await response.json();
-
-        // Show feedback and track results
-        const feedback = document.getElementById('exercise-feedback');
-        if (data.is_correct) {
-            correctCount++;
-            totalXP += data.xp_earned || 0;
-            feedback.className = 'gl-feedback success';
-            feedback.innerHTML = `
-                <div class="gl-feedback-header">
-                    <i class="fas fa-check-circle"></i>
-                    Правильно!${data.xp_earned ? ` <span>+${data.xp_earned} XP</span>` : ''}
-                </div>
-            `;
-        } else {
-            wrongCount++;
-            feedback.className = 'gl-feedback error';
-            feedback.innerHTML = `
-                <div class="gl-feedback-header">
-                    <i class="fas fa-times-circle"></i>
-                    Неверно
-                </div>
-                <div>Правильный ответ: <span class="gl-feedback-answer">${data.correct_answer}</span></div>
-                ${data.explanation ? `<div class="gl-feedback-explain">${data.explanation}</div>` : ''}
-            `;
-        }
-        feedback.style.display = 'block';
-
-        // Toggle buttons
-        this.style.display = 'none';
-        document.getElementById('next-exercise-btn').style.display = 'inline-flex';
-
-        // Disable inputs
-        document.querySelectorAll('#exercise-content input, #exercise-content button').forEach(el => el.disabled = true);
-
-    } catch (error) {
-        console.error('Error submitting answer:', error);
-    }
-});
-
-// Next exercise
-document.getElementById('next-exercise-btn').addEventListener('click', function() {
-    currentExerciseIndex++;
-    if (currentExerciseIndex < exercises.length) {
-        showExercise(currentExerciseIndex);
-    } else {
-        // Practice complete - show completion screen
-        showCompletionScreen();
-    }
-});
-
-function showCompletionScreen() {
-    const accuracy = exercises.length > 0 ? Math.round((correctCount / exercises.length) * 100) : 0;
-    const emoji = accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪';
-    const message = accuracy >= 80 ? 'Отлично!' : accuracy >= 60 ? 'Хорошая работа!' : 'Продолжайте практиковаться!';
-
-    document.getElementById('exercise-content').innerHTML = `
-        <div class="gl-completion">
-            <div class="gl-completion-emoji">${emoji}</div>
-            <h3 class="gl-completion-title">${message}</h3>
-            <p class="gl-completion-subtitle">Вы завершили практику по теме</p>
-
-            <div class="gl-completion-stats">
-                <div class="gl-completion-stat correct">
-                    <div class="gl-completion-stat-value">${correctCount}</div>
-                    <div class="gl-completion-stat-label">Верно</div>
-                </div>
-                <div class="gl-completion-stat wrong">
-                    <div class="gl-completion-stat-value">${wrongCount}</div>
-                    <div class="gl-completion-stat-label">Ошибок</div>
-                </div>
-                <div class="gl-completion-stat xp">
-                    <div class="gl-completion-stat-value">${totalXP}</div>
-                    <div class="gl-completion-stat-label">XP</div>
-                </div>
-            </div>
-
-            <div class="gl-completion-accuracy">
-                <div class="gl-completion-accuracy-bar">
-                    <div class="gl-completion-accuracy-fill" style="width: ${accuracy}%;"></div>
-                </div>
-                <span class="gl-completion-accuracy-text">${accuracy}% точность</span>
-            </div>
-        </div>
-    `;
-
-    // Update modal footer
-    document.getElementById('exercise-feedback').style.display = 'none';
-    document.getElementById('submit-answer-btn').style.display = 'none';
-    document.getElementById('next-exercise-btn').style.display = 'none';
-
-    // Change title
-    document.querySelector('#exerciseModal .modal-title').innerHTML = '<i class="fas fa-trophy text-warning me-2"></i>Практика завершена';
-}
 </script>
 {% endblock %}

@@ -140,6 +140,7 @@ class Lessons(db.Model):
     content_version = Column(Integer, default=1, nullable=False)  # Content schema version
     collection_id = Column(Integer, ForeignKey('collections.id', ondelete='SET NULL'))  # For vocabulary components
     book_id = Column(Integer, ForeignKey('book.id', ondelete='SET NULL'))  # For text components
+    grammar_topic_id = Column(Integer, ForeignKey('grammar_topics.id', ondelete='SET NULL'))  # For grammar lessons
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
@@ -233,6 +234,7 @@ class Lessons(db.Model):
     module = relationship('Module', back_populates='lessons')
     collection = relationship('Collection', backref='lessons')
     book = relationship('Book', backref='lesson_components')
+    grammar_topic = relationship('GrammarTopic', backref='curriculum_lessons', foreign_keys=[grammar_topic_id])
     lesson_progress = relationship(
         'LessonProgress',
         back_populates='lesson',
@@ -256,6 +258,7 @@ class Lessons(db.Model):
         Index('idx_lessons_order', 'order'),
         Index('idx_lessons_collection_id', 'collection_id'),
         Index('idx_lessons_book_id', 'book_id'),
+        Index('idx_lessons_grammar_topic_id', 'grammar_topic_id'),
         Index('idx_lessons_module_order', 'module_id', 'order'),
     )
 

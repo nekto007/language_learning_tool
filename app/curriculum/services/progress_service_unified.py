@@ -88,6 +88,18 @@ class ProgressService:
             return 0
 
     @classmethod
+    def sync_grammar_topic_status(cls, user_id: int, lesson: Lessons) -> None:
+        """When a grammar lesson is completed in curriculum, sync to Grammar Lab."""
+        if lesson.type not in ('grammar', 'grammar_focus') or not lesson.grammar_topic_id:
+            return
+        try:
+            from app.grammar_lab.models import UserGrammarTopicStatus
+            status = UserGrammarTopicStatus.get_or_create(user_id, lesson.grammar_topic_id)
+            status.transition_to('theory_completed')
+        except Exception as e:
+            logger.error(f"Error syncing grammar topic status: {e}")
+
+    @classmethod
     def update_lesson_progress(
         cls,
         user_id: int,
@@ -148,6 +160,10 @@ class ProgressService:
                     if not progress.data:
                         progress.data = {}
                     progress.data['xp_earned'] = xp_earned
+
+                # Sync grammar topic status
+                if lesson:
+                    cls.sync_grammar_topic_status(user_id, lesson)
 
             db.session.commit()
             return progress
