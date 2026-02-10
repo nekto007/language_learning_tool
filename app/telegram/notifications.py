@@ -11,14 +11,40 @@ def format_morning_reminder(user_name: str, streak: int,
         lines.append(f'🔥 Стрик: {streak} дн. подряд')
         lines.append('')
 
-    # Onboarding suggestions for new users
-    suggestions = plan.get('suggestions', [])
-    if suggestions:
+    # Onboarding block for new users
+    onboarding = plan.get('onboarding')
+    if onboarding:
         lines.append('💡 С чего начать:')
-        for s in suggestions:
-            lines.append(f'• {s}')
-        if site_url:
-            lines.append(f'\n🔗 {site_url}')
+        lines.append('')
+
+        first = onboarding.get('first_lesson')
+        if first:
+            level = f" ({first['level_name']})" if first.get('level_name') else ''
+            lines.append(f"📚 Курс{level}:")
+            lines.append(f"   {first['module_title']} → {first['title']}")
+            if site_url:
+                lines.append(f'   🔗 {site_url}/curriculum/levels')
+            lines.append('')
+
+        books = onboarding.get('available_books')
+        if books:
+            total = onboarding.get('total_books', len(books))
+            lines.append(f'📕 Книги ({total} шт.):')
+            for b in books:
+                lvl = f" [{b['level']}]" if b.get('level') else ''
+                lines.append(f"   • {b['title']}{lvl}")
+            if total > len(books):
+                lines.append(f'   ...и ещё {total - len(books)}')
+            if site_url:
+                lines.append(f'   🔗 {site_url}/curriculum/book-courses')
+            lines.append('')
+
+        if onboarding.get('no_words'):
+            lines.append('📖 Карточки — добавь слова для повторения')
+            if site_url:
+                lines.append(f'   🔗 {site_url}/study/cards')
+            lines.append('')
+
         return '\n'.join(lines)
 
     lines.append('📋 План на сегодня:')
@@ -26,24 +52,30 @@ def format_morning_reminder(user_name: str, streak: int,
     if plan.get('next_lesson'):
         nl = plan['next_lesson']
         module_str = f"{nl['module_number']}." if nl.get('module_number') else ''
-        lines.append(f"• Урок {module_str}{nl.get('lesson_order', '')} — {nl['title']}")
+        lines.append(f"📚 Урок {module_str}{nl.get('lesson_order', '')} — {nl['title']}")
+        if site_url:
+            lines.append(f'   🔗 {site_url}/curriculum/levels')
 
     if plan.get('grammar_topic'):
         gt = plan['grammar_topic']
         status_label = 'теория' if gt['status'] == 'theory_completed' else 'практика'
         due_str = f" ({gt['due_exercises']} упр.)" if gt.get('due_exercises') else ''
-        lines.append(f"• Грамматика: {gt['title']} — {status_label}{due_str}")
+        lines.append(f"✏️ Грамматика: {gt['title']} — {status_label}{due_str}")
+        if site_url:
+            lines.append(f'   🔗 {site_url}/grammar-lab/')
 
     if plan.get('words_due', 0) > 0:
-        lines.append(f"• {plan['words_due']} слов на повторение")
+        lines.append(f"📖 {plan['words_due']} слов на повторение")
+        if site_url:
+            lines.append(f'   🔗 {site_url}/study/cards')
 
     if plan.get('book_to_read'):
-        lines.append(f"• Почитать: {plan['book_to_read']['title']}")
+        lines.append(f"📕 Почитать: {plan['book_to_read']['title']}")
+        if site_url:
+            lines.append(f'   🔗 {site_url}/curriculum/book-courses')
 
     lines.append('')
     lines.append('Удачного дня!')
-    if site_url:
-        lines.append(f'🔗 {site_url}/study')
 
     return '\n'.join(lines)
 

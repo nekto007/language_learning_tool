@@ -207,25 +207,52 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
             if book:
                 book_to_read = {'title': book.title}
 
-    # Onboarding suggestions for new users
-    suggestions = []
+    # Onboarding: concrete suggestions for new users
     has_any_words = UserWord.query.filter_by(user_id=user_id).first() is not None
     has_any_lessons = LessonProgress.query.filter_by(user_id=user_id).first() is not None
     has_any_books = len(started_book_ids) > 0
 
-    if not has_any_lessons:
-        suggestions.append('Начни курс — структурированные уроки по уровням')
-    if not has_any_words:
-        suggestions.append('Добавь слова в карточки для повторения')
-    if not has_any_books:
-        suggestions.append('Выбери книгу для чтения с переводом')
+    onboarding = None
+    if not has_any_lessons or not has_any_books:
+        onboarding = {}
+
+        # Suggest first lesson if user hasn't started the course
+        if not has_any_lessons and not next_lesson:
+            first_module = Module.query.order_by(Module.number).first()
+            if first_module:
+                first_lesson = Lessons.query.filter_by(
+                    module_id=first_module.id,
+                ).order_by(Lessons.order).first()
+                if first_lesson:
+                    level = first_module.level
+                    onboarding['first_lesson'] = {
+                        'title': first_lesson.title,
+                        'module_title': first_module.title,
+                        'level_name': level.name if level else None,
+                    }
+
+        # Suggest books if user hasn't started any (max 3)
+        if not has_any_books:
+            available_books = Book.query.filter(
+                Book.chapters_cnt > 0,
+            ).order_by(Book.level, Book.title).limit(3).all()
+            total_books = Book.query.filter(Book.chapters_cnt > 0).count()
+            if available_books:
+                onboarding['available_books'] = [
+                    {'title': b.title, 'author': b.author, 'level': b.level}
+                    for b in available_books
+                ]
+                onboarding['total_books'] = total_books
+
+        if not has_any_words:
+            onboarding['no_words'] = True
 
     return {
         'next_lesson': next_lesson,
         'grammar_topic': grammar_topic,
         'words_due': words_due,
         'book_to_read': book_to_read,
-        'suggestions': suggestions,
+        'onboarding': onboarding,
     }
 
 
@@ -394,11 +421,13 @@ def get_quick_stats(user_id: int) -> dict[str, Any]:
 
     streak = get_current_streak(user_id)
 
-    # Books: count started and find current
+    # Books: progress per book (title, chapters read, total chapters, last read date)
     from app.books.models import Chapter
-    from sqlalchemy import distinct
-    started_books = db.session.query(
+    books_data = db.session.query(
         Book.title,
+        Book.chapters_cnt,
+        func.max(Chapter.chap_num).label('max_chapter'),
+        func.count(UserChapterProgress.chapter_id).label('chapters_read'),
         func.max(UserChapterProgress.updated_at).label('last_read'),
     ).join(
         Chapter, Chapter.book_id == Book.id
@@ -406,19 +435,26 @@ def get_quick_stats(user_id: int) -> dict[str, Any]:
         UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
     ).filter(
         UserChapterProgress.user_id == user_id,
-    ).group_by(Book.id, Book.title).all()
+    ).group_by(Book.id, Book.title, Book.chapters_cnt).all()
 
-    books_started = len(started_books)
-    current_book = None
-    if started_books:
-        latest = max(started_books, key=lambda r: r[1] if r[1] else datetime.min.replace(tzinfo=timezone.utc))
-        current_book = latest[0]
+    books = []
+    for row in books_data:
+        total = row.chapters_cnt or row.max_chapter or 1
+        pct = round(row.chapters_read / total * 100) if total else 0
+        books.append({
+            'title': row.title,
+            'chapters_read': row.chapters_read,
+            'chapters_total': total,
+            'progress_pct': min(pct, 100),
+            'last_read': row.last_read,
+        })
+    # Sort by last_read descending
+    books.sort(key=lambda b: b['last_read'] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
     return {
         'streak': streak,
         'lessons_completed': lessons_completed,
         'exercises_done': exercises_done,
         'words_in_srs': words_in_srs,
-        'books_started': books_started,
-        'current_book': current_book,
+        'books': books,
     }

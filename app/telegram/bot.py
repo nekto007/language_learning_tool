@@ -11,6 +11,12 @@ from app.utils.db import db
 logger = logging.getLogger(__name__)
 
 
+def _progress_bar(pct: int, length: int = 10) -> str:
+    """Build a text progress bar: ▓▓▓▓░░░░░░"""
+    filled = round(pct / 100 * length)
+    return '▓' * filled + '░' * (length - filled)
+
+
 def _send_message(chat_id: int, text: str, parse_mode: str = 'HTML',
                   reply_markup: dict | None = None) -> None:
     """Send a message via Telegram Bot API."""
@@ -378,14 +384,20 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
     lines.append(f"✏️ Упражнений решено: {stats.get('exercises_done', 0)}")
     lines.append(f"📖 Слов на повторении: {stats.get('words_in_srs', 0)}")
 
-    if stats.get('books_started', 0) > 0:
-        lines.append(f"📕 Книг начато: {stats['books_started']}")
-    if stats.get('current_book'):
-        lines.append(f"📖 Читаю: {stats['current_book']}")
+    if stats.get('books'):
+        lines.append('')
+        for book in stats['books']:
+            pct = book['progress_pct']
+            bar = _progress_bar(pct)
+            lines.append(f"📕 {book['title']}")
+            lines.append(f"   {bar} {pct}% · гл. {book['chapters_read']}/{book['chapters_total']}")
 
     site_url = current_app.config.get('SITE_URL', '')
     if site_url:
-        lines.append(f'\n🔗 {site_url}/study')
+        lines.append('')
+        lines.append(f'📚 {site_url}/curriculum/levels')
+        lines.append(f'📖 {site_url}/study/cards')
+        lines.append(f'📕 {site_url}/curriculum/book-courses')
 
     _send_message(chat_id, '\n'.join(lines))
 
