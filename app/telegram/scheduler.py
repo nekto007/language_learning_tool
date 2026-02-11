@@ -12,6 +12,7 @@ from app.telegram.models import TelegramUser
 from app.telegram.queries import (
     has_activity_today, get_current_streak,
     get_daily_plan, get_daily_summary, get_weekly_report,
+    get_tomorrow_preview, get_quickest_action, get_cards_url,
 )
 from app.telegram.notifications import (
     format_morning_reminder, format_evening_summary,
@@ -94,19 +95,25 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
     user_id = tg_user.user_id
     chat_id = tg_user.telegram_id
 
+    user = User.query.get(user_id)
+    name = user.username if user else 'друг'
+    cards_url = get_cards_url(user_id, site_url) if site_url else ''
+
     # Morning reminder (user's custom hour)
     if local_hour == tg_user.morning_hour and tg_user.morning_reminder:
-        user = User.query.get(user_id)
-        name = user.username if user else 'друг'
         streak = get_current_streak(user_id)
         plan = get_daily_plan(user_id)
-        text = format_morning_reminder(name, streak, plan, site_url)
+        text = format_morning_reminder(name, streak, plan, site_url,
+                                       cards_url=cards_url)
         send_message(chat_id, text)
 
     # Nudge (user's custom hour, only if no activity today)
     elif local_hour == tg_user.nudge_hour and tg_user.skip_nudge:
         if not has_activity_today(user_id):
-            text = format_nudge(site_url)
+            quick_action = get_quickest_action(user_id)
+            text = format_nudge(name, site_url,
+                                quick_action=quick_action,
+                                cards_url=cards_url)
             send_message(chat_id, text)
 
     # Sunday weekly report (1 hour before evening summary)
@@ -120,13 +127,19 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
         if has_activity_today(user_id):
             summary = get_daily_summary(user_id)
             streak = get_current_streak(user_id)
-            text = format_evening_summary(summary, streak, site_url)
-            send_message(chat_id, text)
+            tomorrow = get_tomorrow_preview(user_id)
+            text, reply_markup = format_evening_summary(
+                name, summary, streak, site_url, tomorrow=tomorrow,
+            )
+            send_message(chat_id, text, reply_markup=reply_markup)
 
     # Streak alert (user's custom hour, only if no activity and streak > 0)
     elif local_hour == tg_user.streak_hour and tg_user.streak_alert:
         if not has_activity_today(user_id):
             streak = get_current_streak(user_id)
             if streak > 0:
-                text = format_streak_alert(streak, site_url)
+                quick_action = get_quickest_action(user_id)
+                text = format_streak_alert(name, streak, site_url,
+                                           quick_action=quick_action,
+                                           cards_url=cards_url)
                 send_message(chat_id, text)

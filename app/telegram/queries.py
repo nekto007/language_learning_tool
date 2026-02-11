@@ -145,6 +145,7 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
                         'title': next_l.title,
                         'module_number': next_module.number if next_module else None,
                         'lesson_order': next_l.order,
+                        'lesson_type': next_l.type,
                     }
 
     # Grammar topic to practice
@@ -458,3 +459,118 @@ def get_quick_stats(user_id: int) -> dict[str, Any]:
         'words_in_srs': words_in_srs,
         'books': books,
     }
+
+
+def get_tomorrow_preview(user_id: int) -> dict[str, Any] | None:
+    """Get next lesson title for evening 'Завтра' line."""
+    last_completed = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+    ).order_by(LessonProgress.completed_at.desc()).first()
+
+    if not last_completed:
+        return None
+
+    lesson = Lessons.query.get(last_completed.lesson_id)
+    if not lesson:
+        return None
+
+    module = Module.query.get(lesson.module_id)
+    if not module:
+        return None
+
+    # Find next lesson in same module or next module
+    next_l = Lessons.query.filter(
+        Lessons.module_id == module.id,
+        Lessons.order > lesson.order,
+    ).order_by(Lessons.order).first()
+
+    if not next_l:
+        next_module = Module.query.filter(
+            Module.number == module.number + 1,
+        ).first()
+        if next_module:
+            next_l = Lessons.query.filter(
+                Lessons.module_id == next_module.id,
+            ).order_by(Lessons.order).first()
+
+    if not next_l:
+        return None
+
+    next_module = Module.query.get(next_l.module_id)
+    return {
+        'title': next_l.title,
+        'module_number': next_module.number if next_module else None,
+        'lesson_order': next_l.order,
+        'lesson_type': next_l.type,
+    }
+
+
+def get_quickest_action(user_id: int) -> dict[str, Any] | None:
+    """Find fastest streak-saving action. Priority: words > grammar > lesson."""
+    now = datetime.now(timezone.utc)
+
+    # Words due for review
+    words_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
+        UserWord.user_id == user_id,
+        UserCardDirection.next_review <= now,
+        UserCardDirection.direction == 'eng-rus',
+    ).scalar() or 0
+
+    if words_due > 0:
+        count = min(words_due, 10)
+        return {
+            'type': 'words',
+            'label': f'{count} карточек',
+            'count': count,
+            'minutes': max(count // 5, 2),
+        }
+
+    # Grammar exercises due
+    due_exercises = UserGrammarExercise.query.filter(
+        UserGrammarExercise.user_id == user_id,
+        UserGrammarExercise.next_review <= now,
+    ).count()
+
+    if due_exercises > 0:
+        count = min(due_exercises, 5)
+        return {
+            'type': 'grammar',
+            'label': f'{count} упражнений',
+            'count': count,
+            'minutes': count * 2,
+        }
+
+    # Next lesson
+    last_completed = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+    ).order_by(LessonProgress.completed_at.desc()).first()
+
+    if last_completed:
+        lesson = Lessons.query.get(last_completed.lesson_id)
+        if lesson:
+            module = Module.query.get(lesson.module_id)
+            if module:
+                next_l = Lessons.query.filter(
+                    Lessons.module_id == module.id,
+                    Lessons.order > lesson.order,
+                ).order_by(Lessons.order).first()
+                if next_l:
+                    return {
+                        'type': 'lesson',
+                        'label': next_l.title,
+                        'count': 1,
+                        'minutes': 10,
+                    }
+
+    return None
+
+
+def get_cards_url(user_id: int, site_url: str) -> str:
+    """Build cards URL using user's default deck if set."""
+    from app.auth.models import User
+    user = User.query.get(user_id)
+    if user and user.default_study_deck_id:
+        return f'{site_url}/study/cards/deck/{user.default_study_deck_id}'
+    return f'{site_url}/study/cards'

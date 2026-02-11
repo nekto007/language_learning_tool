@@ -237,6 +237,21 @@ def _edit_message(chat_id: int, message_id: int, text: str,
         logger.exception('Failed to edit message')
 
 
+def _remove_reply_markup(chat_id: int, message_id: int) -> None:
+    """Remove inline keyboard from a message without changing text."""
+    token = current_app.config.get('TELEGRAM_BOT_TOKEN')
+    if not token or not message_id:
+        return
+    try:
+        requests.post(
+            f'https://api.telegram.org/bot{token}/editMessageReplyMarkup',
+            json={'chat_id': chat_id, 'message_id': message_id},
+            timeout=10,
+        )
+    except requests.RequestException:
+        logger.exception('Failed to remove reply markup')
+
+
 def _answer_callback(callback_query_id: str, text: str = 'Сохранено!') -> None:
     """Answer callback query to remove loading indicator."""
     token = current_app.config.get('TELEGRAM_BOT_TOKEN')
@@ -260,6 +275,34 @@ def _settings_text(tg_user: TelegramUser) -> str:
         f'Часовой пояс: {tz_label}\n\n'
         f'Нажми на время, чтобы изменить.'
     )
+
+
+REFLECTION_RESPONSES: dict[str, str] = {
+    'easy': 'Супер! Ты в ударе! \U0001f680',
+    'ok': 'Отлично, так держать! \U0001f44d',
+    'hard': 'Спасибо! Завтра будет легче \U0001f4aa',
+}
+
+
+def _handle_reflection_callback(chat_id: int, telegram_id: int,
+                                 callback_data: str, callback_query_id: str,
+                                 message_id: int | None = None) -> None:
+    """Handle reflect:easy|ok|hard callback from evening summary."""
+    from datetime import datetime, timezone
+
+    value = callback_data.split(':')[1]  # easy, ok, hard
+    if value not in REFLECTION_RESPONSES:
+        return
+
+    tg_user = TelegramUser.query.filter_by(telegram_id=telegram_id).first()
+    if tg_user:
+        tg_user.last_reflection = value
+        tg_user.last_reflection_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+    _answer_callback(callback_query_id, REFLECTION_RESPONSES[value])
+    if message_id:
+        _remove_reply_markup(chat_id, message_id)
 
 
 def _handle_settings_callback(chat_id: int, telegram_id: int,
@@ -374,7 +417,7 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
         _send_message(chat_id, 'Сначала привяжи аккаунт: /link XXXXXX')
         return
 
-    from app.telegram.queries import get_quick_stats
+    from app.telegram.queries import get_quick_stats, get_cards_url
     stats = get_quick_stats(tg_user.user_id)
 
     lines = ['📊 Статистика\n']
@@ -394,9 +437,10 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
 
     site_url = current_app.config.get('SITE_URL', '')
     if site_url:
+        cards = get_cards_url(tg_user.user_id, site_url)
         lines.append('')
         lines.append(f'📚 {site_url}/curriculum/levels')
-        lines.append(f'📖 {site_url}/study/cards')
+        lines.append(f'📖 {cards}')
         lines.append(f'📕 {site_url}/curriculum/book-courses')
 
     _send_message(chat_id, '\n'.join(lines))
@@ -411,12 +455,20 @@ def handle_update(data: dict) -> None:
     if callback_query:
         chat_id = callback_query['message']['chat']['id']
         telegram_id = callback_query['from']['id']
-        _handle_settings_callback(
-            chat_id, telegram_id,
-            callback_query['data'],
-            callback_query['id'],
-            message_id=callback_query['message'].get('message_id'),
-        )
+        cb_data = callback_query['data']
+        cb_id = callback_query['id']
+        message_id = callback_query['message'].get('message_id')
+
+        if cb_data.startswith('reflect:'):
+            _handle_reflection_callback(
+                chat_id, telegram_id, cb_data, cb_id,
+                message_id=message_id,
+            )
+        else:
+            _handle_settings_callback(
+                chat_id, telegram_id, cb_data, cb_id,
+                message_id=message_id,
+            )
         return
 
     message = data.get('message')

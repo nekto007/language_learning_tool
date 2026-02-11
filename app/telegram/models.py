@@ -31,6 +31,10 @@ class TelegramUser(db.Model):
     evening_hour = Column(SmallInteger, default=21, nullable=False)
     streak_hour = Column(SmallInteger, default=22, nullable=False)
 
+    # Reflection after evening summary
+    last_reflection = Column(String(10))       # 'hard', 'ok', 'easy'
+    last_reflection_at = Column(DateTime)
+
     linked_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
