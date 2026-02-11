@@ -20,6 +20,7 @@ def dashboard():
     from app.study.models import UserWord, Achievement, UserAchievement
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
     from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
+    from app.telegram.models import TelegramUser
 
     # === WORDS STATS ===
     # Count words by status, but 'mastered' is now a computed value (review + interval >= 180)
@@ -90,6 +91,11 @@ def dashboard():
         user_id=current_user.id, game_type='quiz'
     ).order_by(GameScore.score.desc()).first()
 
+    # === TELEGRAM ===
+    telegram_linked = TelegramUser.query.filter_by(
+        user_id=current_user.id, is_active=True
+    ).first() is not None
+
     return render_template('dashboard.html',
         # Words
         words_stats=words_stats,
@@ -111,6 +117,8 @@ def dashboard():
         # Games
         best_matching=best_matching,
         best_quiz=best_quiz,
+        # Telegram
+        telegram_linked=telegram_linked,
     )
 
 

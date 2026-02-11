@@ -10,6 +10,9 @@ from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
+# In-memory state for two-step /link flow
+_pending_link: dict[int, bool] = {}
+
 
 def _progress_bar(pct: int, length: int = 10) -> str:
     """Build a text progress bar: ▓▓▓▓░░░░░░"""
@@ -78,10 +81,14 @@ def _handle_start(chat_id: int, telegram_id: int, username: str | None) -> None:
 
 def _handle_link(chat_id: int, telegram_id: int, username: str | None,
                  args: str) -> None:
-    """Handle /link XXXXXX command."""
+    """Handle /link XXXXXX command (supports two-step flow)."""
     code = args.strip()
-    if not code or len(code) != 6 or not code.isdigit():
-        _send_message(chat_id, 'Отправь 6-значный код: /link 123456')
+    if not code:
+        _pending_link[telegram_id] = True
+        _send_message(chat_id, 'Отправь код привязки — 6 цифр:')
+        return
+    if len(code) != 6 or not code.isdigit():
+        _send_message(chat_id, 'Код должен содержать ровно 6 цифр.')
         return
 
     link_code = TelegramLinkCode.verify(code)
@@ -483,6 +490,10 @@ def handle_update(data: dict) -> None:
     if not text:
         return
 
+    if text.startswith('/'):
+        # Any command clears pending /link state
+        _pending_link.pop(telegram_id, None)
+
     if text == '/start' or text.startswith('/start '):
         _handle_start(chat_id, telegram_id, username)
     elif text.startswith('/link'):
@@ -494,7 +505,12 @@ def handle_update(data: dict) -> None:
         _handle_settings(chat_id, telegram_id)
     elif text == '/stats':
         _handle_stats(chat_id, telegram_id)
+    elif telegram_id in _pending_link and text.isdigit() and len(text) == 6:
+        # Two-step /link flow: user sent code after /link
+        del _pending_link[telegram_id]
+        _handle_link(chat_id, telegram_id, username, text)
     else:
+        _pending_link.pop(telegram_id, None)
         _send_message(chat_id, (
             'Доступные команды:\n'
             '/stats — статистика\n'
