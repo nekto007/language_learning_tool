@@ -1,5 +1,8 @@
 """APScheduler jobs for Telegram notifications."""
+import fcntl
 import logging
+import os
+import tempfile
 from datetime import datetime, timezone
 
 import pytz
@@ -18,17 +21,32 @@ from app.telegram.notifications import (
 logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
+_lock_file = None
 
 
 def init_scheduler(app) -> None:
-    """Initialize APScheduler within Flask app context."""
-    global _scheduler
+    """Initialize APScheduler within Flask app context.
+
+    Uses a file lock to ensure only one gunicorn worker starts the scheduler.
+    """
+    global _scheduler, _lock_file
 
     if not app.config.get('TELEGRAM_BOT_TOKEN'):
         logger.info('TELEGRAM_BOT_TOKEN not set — scheduler disabled')
         return
 
     if _scheduler is not None:
+        return
+
+    # Acquire exclusive lock — only one process wins
+    lock_path = os.path.join(tempfile.gettempdir(), 'tg_scheduler.lock')
+    _lock_file = open(lock_path, 'w')
+    try:
+        fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        logger.info('Another worker owns the scheduler — skipping')
+        _lock_file.close()
+        _lock_file = None
         return
 
     _scheduler = BackgroundScheduler(timezone='UTC')
@@ -41,7 +59,7 @@ def init_scheduler(app) -> None:
         replace_existing=True,
     )
     _scheduler.start()
-    logger.info('Telegram scheduler started')
+    logger.info('Telegram scheduler started (pid=%s)', os.getpid())
 
 
 def _hourly_check(app) -> None:
