@@ -1,13 +1,13 @@
 """Drop old telegram tables and create new ones for accountability bot.
 
 Revision ID: recreate_telegram
-Revises: add_grammar_status_and_topic_links
+Revises: add_grammar_status
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = 'recreate_telegram'
-down_revision = 'add_grammar_status_and_topic_links'
+down_revision = 'add_grammar_status'
 branch_labels = None
 depends_on = None
 

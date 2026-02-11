@@ -209,13 +209,19 @@ def index():
         QuizDeck.user_id != current_user.id
     ).order_by(QuizDeck.times_played.desc(), QuizDeck.created_at.desc()).limit(12).all()
 
+    from app.telegram.models import TelegramUser
+    telegram_linked = TelegramUser.query.filter_by(
+        user_id=current_user.id, is_active=True
+    ).first() is not None
+
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
         total_items=total_items,
         mastered_count=mastered_count,
         my_decks=my_decks,
-        public_decks=public_decks
+        public_decks=public_decks,
+        telegram_linked=telegram_linked,
     )
 
 
@@ -1046,6 +1052,11 @@ def stats():
     """Study statistics page"""
     stats = StatsService.get_user_stats(current_user.id)
 
+    from app.telegram.models import TelegramUser
+    telegram_linked = TelegramUser.query.filter_by(
+        user_id=current_user.id, is_active=True
+    ).first() is not None
+
     return render_template(
         'study/stats.html',
         total_items=stats['total'],
@@ -1057,7 +1068,8 @@ def stats():
         today_time_spent=stats['today_time_spent'],
         new_words=stats['new'],
         learning_words=stats['learning'],
-        mastered_words=stats['mastered']
+        mastered_words=stats['mastered'],
+        telegram_linked=telegram_linked,
     )
 
 

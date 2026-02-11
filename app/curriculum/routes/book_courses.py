@@ -121,10 +121,16 @@ def list_book_courses():
             }
             course_data.append(course_info)
 
+        from app.telegram.models import TelegramUser
+        telegram_linked = TelegramUser.query.filter_by(
+            user_id=current_user.id, is_active=True
+        ).first() is not None
+
         return render_template(
             'curriculum/book_courses/list.html',
             courses=course_data,
-            total_courses=len(course_data)
+            total_courses=len(course_data),
+            telegram_linked=telegram_linked,
         )
 
     except Exception as e:

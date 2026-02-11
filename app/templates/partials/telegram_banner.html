@@ -1,0 +1,18 @@
+{% if not telegram_linked %}
+<div class="card shadow-sm mb-4" style="background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%); border-color: #c5d5e4;">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-3">
+            <div style="font-size: 1.75rem;">
+                <i class="fab fa-telegram" style="color: #229ED9;"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-bold">Telegram-бот</div>
+                <small class="text-muted">Напоминания, вечерняя сводка и защита стрика</small>
+            </div>
+            <a href="{{ url_for('study.settings') }}#telegram-section" class="btn btn-primary btn-sm">
+                Подключить <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
