@@ -187,6 +187,10 @@
 const currentWordStatus = '{{ word.user_status or "new" }}';
 const wordId = {{ word.id }};
 
+// Cache for default deck
+let defaultDeckCache = null;
+let defaultDeckLoaded = false;
+
 function playAudio(audioUrl) {
     const audio = document.getElementById('audioPlayer');
     if (!audio) return;
@@ -201,13 +205,91 @@ function playAudio(audioUrl) {
     }
 }
 
-function changeStatus(newStatus) {
-    // If adding to study (from 'new' to 'learning'), show deck selection modal
-    if (currentWordStatus === 'new' && newStatus === 'learning') {
-        deckSelectModal.show(wordId, function(result) {
-            // result: { deckId, deckName }
-            updateWordStatus(newStatus, result.deckId);
+async function loadDefaultDeck() {
+    if (defaultDeckLoaded) return defaultDeckCache;
+
+    try {
+        const response = await fetch('/study/api/default-deck');
+        const data = await response.json();
+        if (data.success) {
+            defaultDeckCache = {
+                id: data.default_deck_id,
+                name: data.default_deck_name
+            };
+            defaultDeckLoaded = true;
+        }
+    } catch (error) {
+        console.error('Error loading default deck:', error);
+    }
+    return defaultDeckCache;
+}
+
+async function saveDefaultDeck(deckId, deckName) {
+    const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+
+    try {
+        const response = await fetch('/study/api/default-deck', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || ''
+            },
+            body: JSON.stringify({ deck_id: deckId })
         });
+
+        const data = await response.json();
+        if (data.success) {
+            defaultDeckCache = {
+                id: data.default_deck_id,
+                name: data.default_deck_name
+            };
+            defaultDeckLoaded = true;
+        }
+    } catch (error) {
+        console.error('Error saving default deck:', error);
+    }
+}
+
+async function changeStatus(newStatus) {
+    // For transitions from 'new' to 'learning' or 'mastered', ensure deck is selected
+    if (currentWordStatus === 'new' && (newStatus === 'learning' || newStatus === 'mastered')) {
+        const defaultDeck = await loadDefaultDeck();
+
+        // If default deck is set, use it directly
+        if (defaultDeck && defaultDeck.id) {
+            updateWordStatus(newStatus, defaultDeck.id);
+            return;
+        }
+
+        // No default deck — fetch user's decks
+        try {
+            const decksResponse = await fetch('/study/api/my-decks');
+            const decksData = await decksResponse.json();
+            const decks = (decksData.success && decksData.decks) ? decksData.decks : [];
+
+            if (decks.length === 0) {
+                // 0 decks → show "create first deck" modal
+                deckSelectModal.showCreateFirst(async function(result) {
+                    await saveDefaultDeck(result.deckId, result.deckName);
+                    updateWordStatus(newStatus, result.deckId);
+                });
+            } else if (decks.length === 1) {
+                // 1 deck → auto-set as default, add word immediately
+                await saveDefaultDeck(decks[0].id, decks[0].name);
+                updateWordStatus(newStatus, decks[0].id);
+            } else {
+                // 2+ decks → show selection modal (without "study only")
+                deckSelectModal.showWithCallback(wordId, async function(result) {
+                    await saveDefaultDeck(result.deckId, result.deckName);
+                    updateWordStatus(newStatus, result.deckId);
+                }, true, { forceDecks: true });
+            }
+        } catch (error) {
+            console.error('Error fetching decks:', error);
+            deckSelectModal.show(wordId, function(result) {
+                updateWordStatus(newStatus, result.deckId);
+            }, { forceDecks: true });
+        }
     } else {
         // Direct status update without deck selection
         updateWordStatus(newStatus, null);

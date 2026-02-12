@@ -525,7 +525,6 @@
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
                                     <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="addToStudyOnly({{ word.id }}); return false;"><i class="fas fa-graduation-cap me-2 text-success"></i>{{ _('Только в изучение') }}</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-muted small" href="#" onclick="openDefaultDeckSettings(); return false;"><i class="fas fa-cog me-2"></i>{{ _('Настроить по умолчанию') }}</a></li>
                                 </ul>
@@ -604,7 +603,6 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
                         <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="addToStudyOnly({{ word.id }}); return false;"><i class="fas fa-graduation-cap me-2 text-success"></i>{{ _('Только в изучение') }}</a></li>
                     </ul>
                 </div>
                 <button class="btn btn-sm btn-warning" onclick="markAsKnown({{ word.id }})" title="{{ _('Уже знаю') }}">
@@ -721,31 +719,88 @@ async function loadDefaultDeck() {
     return defaultDeckCache;
 }
 
+/**
+ * Save a deck as the default deck
+ */
+async function saveDefaultDeck(deckId, deckName) {
+    const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+
+    try {
+        const response = await fetch('/study/api/default-deck', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || ''
+            },
+            body: JSON.stringify({ deck_id: deckId })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            defaultDeckCache = {
+                id: data.default_deck_id,
+                name: data.default_deck_name
+            };
+            defaultDeckLoaded = true;
+
+            showToast(`По умолчанию: ${data.default_deck_name}`, 'success');
+        }
+    } catch (error) {
+        console.error('Error saving default deck:', error);
+    }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', loadDefaultDeck);
+
+/**
+ * Ensure word is added to a deck. Handles all scenarios:
+ * - Default deck set → use it
+ * - 0 decks → show "create first deck" modal
+ * - 1 deck, no default → auto-set as default
+ * - 2+ decks, no default → show deck selection modal
+ */
+async function ensureDeckAndExecute(wordId, status) {
+    const defaultDeck = await loadDefaultDeck();
+
+    // If default deck is set, use it directly
+    if (defaultDeck && defaultDeck.id) {
+        updateWordStatusApi(wordId, status, defaultDeck.id);
+        return;
+    }
+
+    // No default deck — fetch user's decks
+    try {
+        const decksResponse = await fetch('/study/api/my-decks');
+        const decksData = await decksResponse.json();
+        const decks = (decksData.success && decksData.decks) ? decksData.decks : [];
+
+        if (decks.length === 0) {
+            // 0 decks → show "create first deck" modal
+            deckSelectModal.showCreateFirst(async function(result) {
+                await saveDefaultDeck(result.deckId, result.deckName);
+                updateWordStatusApi(wordId, status, result.deckId);
+            });
+        } else if (decks.length === 1) {
+            // 1 deck → auto-set as default, add word immediately
+            await saveDefaultDeck(decks[0].id, decks[0].name);
+            updateWordStatusApi(wordId, status, decks[0].id);
+        } else {
+            // 2+ decks → show selection modal (without "study only")
+            showSetDefaultDeckModal(wordId, status);
+        }
+    } catch (error) {
+        console.error('Error fetching decks:', error);
+        // Fallback: show modal
+        showSetDefaultDeckModal(wordId, status);
+    }
+}
 
 /**
  * Add word to study using default deck (main button action)
  */
 async function addToStudyDefault(wordId) {
-    // Ensure default deck is loaded
-    const defaultDeck = await loadDefaultDeck();
-
-    // If no default set yet and user has decks, show one-time prompt
-    if (!defaultDeckLoaded || (defaultDeck && defaultDeck.id === undefined)) {
-        // Check if user has any decks
-        const decksResponse = await fetch('/study/api/my-decks');
-        const decksData = await decksResponse.json();
-
-        if (decksData.decks && decksData.decks.length > 0 && defaultDeck?.id === undefined) {
-            // User has decks but no default set - show modal to set default
-            showSetDefaultDeckModal(wordId);
-            return;
-        }
-    }
-
-    // Add using default deck (or null for "только в изучение")
-    updateWordStatusApi(wordId, 'learning', defaultDeckCache?.id || null);
+    await ensureDeckAndExecute(wordId, 'learning');
 }
 
 /**
@@ -754,73 +809,36 @@ async function addToStudyDefault(wordId) {
 function addToStudyChooseDeck(wordId) {
     deckSelectModal.show(wordId, function(result) {
         updateWordStatusApi(wordId, 'learning', result.deckId);
-    });
+    }, { forceDecks: true });
 }
 
 /**
- * Add to study only (no deck)
- */
-function addToStudyOnly(wordId) {
-    updateWordStatusApi(wordId, 'learning', null);
-}
-
-/**
- * Mark word as known (mastered) and add to default deck
+ * Mark word as known (mastered) and add to deck
  */
 async function markAsKnown(wordId) {
-    // Load default deck
-    const defaultDeck = await loadDefaultDeck();
-
-    // Mark as mastered with default deck
-    updateWordStatusApi(wordId, 'mastered', defaultDeckCache?.id || null);
+    await ensureDeckAndExecute(wordId, 'mastered');
 }
 
 /**
  * Open settings modal for default deck
  */
 function openDefaultDeckSettings() {
-    showSetDefaultDeckModal(null);
+    showSetDefaultDeckModal(null, null);
 }
 
 /**
  * Show modal to set default deck (one-time prompt or from settings)
  */
-function showSetDefaultDeckModal(wordIdToAddAfter) {
+function showSetDefaultDeckModal(wordIdToAddAfter, status) {
     deckSelectModal.showWithCallback(wordIdToAddAfter, async function(result) {
         // Save as default
-        const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
-
-        try {
-            const response = await fetch('/study/api/default-deck', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken || ''
-                },
-                body: JSON.stringify({ deck_id: result.deckId })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                defaultDeckCache = {
-                    id: data.default_deck_id,
-                    name: data.default_deck_name
-                };
-
-                // Show confirmation
-                showToast(result.deckId
-                    ? `По умолчанию: ${data.default_deck_name}`
-                    : 'По умолчанию: только в изучение', 'success');
-            }
-        } catch (error) {
-            console.error('Error saving default deck:', error);
-        }
+        await saveDefaultDeck(result.deckId, result.deckName);
 
         // Add the word if this was triggered by adding a word
-        if (wordIdToAddAfter) {
-            updateWordStatusApi(wordIdToAddAfter, 'learning', result.deckId);
+        if (wordIdToAddAfter && status) {
+            updateWordStatusApi(wordIdToAddAfter, status, result.deckId);
         }
-    }, true); // true = show "сохранить как по умолчанию" option
+    }, true, { forceDecks: true }); // true = show "set as default", forceDecks = hide "study only"
 }
 
 /**
@@ -852,14 +870,14 @@ function changeWordStatus(wordId, status, currentStatus) {
         return;
     }
 
-    // For non-learning transitions, just update directly
-    if (!(currentStatus === 'new' && status === 'learning')) {
-        updateWordStatusApi(wordId, status, null);
+    // For transitions from 'new', ensure deck is selected
+    if (currentStatus === 'new' && (status === 'learning' || status === 'mastered')) {
+        ensureDeckAndExecute(wordId, status);
         return;
     }
 
-    // For adding to study, use the default deck flow
-    addToStudyDefault(wordId)
+    // For other transitions, just update directly
+    updateWordStatusApi(wordId, status, null);
 }
 
 function updateWordStatusApi(wordId, status, deckId) {
@@ -987,11 +1005,11 @@ function bulkUpdateStatus(status) {
         return id;
     });
 
-    // If bulk adding to study (learning), show deck selection modal
-    if (status === 'learning') {
+    // If bulk adding to study (learning/mastered), show deck selection modal
+    if (status === 'learning' || status === 'mastered') {
         deckSelectModal.showBulk(wordIds, function(result) {
             executeBulkUpdate(wordIds, status, result.deckId);
-        });
+        }, { forceDecks: true });
     } else {
         executeBulkUpdate(wordIds, status, null);
     }

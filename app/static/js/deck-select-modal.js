@@ -2,11 +2,12 @@
  * DeckSelectModal - Modal component for selecting a deck when adding words
  *
  * Usage:
- *   deckSelectModal.show(wordId, callback)
- *   deckSelectModal.showBulk(wordIds, callback)
+ *   deckSelectModal.show(wordId, callback, options)
+ *   deckSelectModal.showBulk(wordIds, callback, options)
+ *   deckSelectModal.showCreateFirst(callback)
  *
- * The callback receives: { deckId: number|null, deckName: string|null }
- * - deckId is null if user chose "только в изучение" (study only)
+ * The callback receives: { deckId: number, deckName: string }
+ * Options: { forceDecks: true } - hides "study only" option
  */
 
 class DeckSelectModal {
@@ -18,6 +19,7 @@ class DeckSelectModal {
         this.wordIds = [];
         this.isBulk = false;
         this.isCreatingDeck = false;
+        this.forceDecks = false;
 
         // Create modal element on initialization
         this._createModalElement();
@@ -154,7 +156,26 @@ class DeckSelectModal {
             createForm.style.display = 'none';
             createToggle.style.display = 'inline-block';
             createInput.value = '';
+
+            // Reset forceDecks state
+            this._setForceDecks(false);
+
+            // Reset title and subtitle
+            this.modalElement.querySelector('#deckSelectModalLabel').textContent = 'Добавить в колоду';
+            this.modalElement.querySelector('.deck-modal-subtitle').textContent = 'Выберите колоду или добавьте только в изучение';
+
+            // Show deck list container
+            this.modalElement.querySelector('.deck-list-container').style.display = 'block';
         });
+    }
+
+    /**
+     * Set forceDecks mode - hides/shows "study only" button
+     */
+    _setForceDecks(force) {
+        this.forceDecks = force;
+        const studyOnlyBtn = this.modalElement.querySelector('[data-deck-id=""]');
+        studyOnlyBtn.style.display = force ? 'none' : 'block';
     }
 
     /**
@@ -325,22 +346,80 @@ class DeckSelectModal {
     }
 
     /**
+     * Show modal for "create first deck" scenario (0 decks)
+     * @param {function} callback - Called with { deckId, deckName }
+     */
+    showCreateFirst(callback) {
+        this.wordIds = [];
+        this.isBulk = false;
+        this.isSetDefault = false;
+        this.onSelect = callback;
+
+        // Update title and subtitle
+        this.modalElement.querySelector('#deckSelectModalLabel').textContent = 'Создайте первую колоду';
+        const subtitle = this.modalElement.querySelector('.deck-modal-subtitle');
+        subtitle.textContent = 'Для добавления слов нужна хотя бы одна колода';
+
+        // Hide "study only" button
+        this._setForceDecks(true);
+
+        // Hide deck list container (no decks to show), show only create form
+        const deckListContainer = this.modalElement.querySelector('.deck-list-container');
+        deckListContainer.style.display = 'block';
+
+        // Hide deck list and empty state, show only create form
+        const deckList = this.modalElement.querySelector('.deck-list');
+        const emptyState = this.modalElement.querySelector('.deck-list-empty');
+        const deckListHeader = this.modalElement.querySelector('.deck-list-header');
+        deckList.innerHTML = '';
+        emptyState.style.display = 'none';
+        deckListHeader.style.display = 'none';
+
+        // Show create form expanded with autofocus
+        const createForm = this.modalElement.querySelector('.deck-create-form');
+        const createToggle = this.modalElement.querySelector('.deck-create-toggle');
+        const createInput = this.modalElement.querySelector('.deck-create-input');
+        createForm.style.display = 'block';
+        createToggle.style.display = 'none';
+        createInput.value = '';
+
+        this.modal.show();
+
+        // Autofocus after modal is shown
+        this.modalElement.addEventListener('shown.bs.modal', () => {
+            createInput.focus();
+        }, { once: true });
+    }
+
+    /**
      * Show modal for single word
      * @param {number} wordId - Word ID to add
      * @param {function} callback - Called with { deckId, deckName }
+     * @param {Object} options - Options: { forceDecks: boolean }
      */
-    show(wordId, callback) {
+    show(wordId, callback, options = {}) {
         this.wordIds = [wordId];
         this.isBulk = false;
         this.isSetDefault = false;
         this.onSelect = callback;
 
+        // Apply forceDecks option
+        if (options.forceDecks) {
+            this._setForceDecks(true);
+        }
+
         // Update subtitle
         const subtitle = this.modalElement.querySelector('.deck-modal-subtitle');
-        subtitle.textContent = 'Выберите колоду или добавьте только в изучение';
+        subtitle.textContent = options.forceDecks
+            ? 'Выберите колоду для добавления слова'
+            : 'Выберите колоду или добавьте только в изучение';
 
         // Hide "set as default" checkbox
         this._toggleDefaultCheckbox(false);
+
+        // Restore deck list header visibility
+        const deckListHeader = this.modalElement.querySelector('.deck-list-header');
+        deckListHeader.style.display = '';
 
         this._loadDecks();
         this.modal.show();
@@ -351,23 +430,35 @@ class DeckSelectModal {
      * @param {number|null} wordId - Word ID to add (null if just setting default)
      * @param {function} callback - Called with { deckId, deckName }
      * @param {boolean} showSetDefault - Whether to show "set as default" option
+     * @param {Object} options - Options: { forceDecks: boolean }
      */
-    showWithCallback(wordId, callback, showSetDefault = false) {
+    showWithCallback(wordId, callback, showSetDefault = false, options = {}) {
         this.wordIds = wordId ? [wordId] : [];
         this.isBulk = false;
         this.isSetDefault = showSetDefault;
         this.onSelect = callback;
+
+        // Apply forceDecks option
+        if (options.forceDecks) {
+            this._setForceDecks(true);
+        }
 
         // Update subtitle
         const subtitle = this.modalElement.querySelector('.deck-modal-subtitle');
         if (showSetDefault) {
             subtitle.innerHTML = '<strong>Выберите колоду по умолчанию</strong><br><small class="text-muted">Это действие будет применяться автоматически</small>';
         } else {
-            subtitle.textContent = 'Выберите колоду или добавьте только в изучение';
+            subtitle.textContent = options.forceDecks
+                ? 'Выберите колоду для добавления слова'
+                : 'Выберите колоду или добавьте только в изучение';
         }
 
         // Show/hide "set as default" checkbox
         this._toggleDefaultCheckbox(showSetDefault);
+
+        // Restore deck list header visibility
+        const deckListHeader = this.modalElement.querySelector('.deck-list-header');
+        deckListHeader.style.display = '';
 
         this._loadDecks();
         this.modal.show();
@@ -403,12 +494,18 @@ class DeckSelectModal {
      * Show modal for bulk words
      * @param {number[]} wordIds - Array of word IDs to add
      * @param {function} callback - Called with { deckId, deckName, wordIds }
+     * @param {Object} options - Options: { forceDecks: boolean }
      */
-    showBulk(wordIds, callback) {
+    showBulk(wordIds, callback, options = {}) {
         this.wordIds = wordIds;
         this.isBulk = true;
         this.isSetDefault = false;
         this.onSelect = callback;
+
+        // Apply forceDecks option
+        if (options.forceDecks) {
+            this._setForceDecks(true);
+        }
 
         // Update subtitle
         const subtitle = this.modalElement.querySelector('.deck-modal-subtitle');
@@ -416,6 +513,10 @@ class DeckSelectModal {
 
         // Hide "set as default" checkbox
         this._toggleDefaultCheckbox(false);
+
+        // Restore deck list header visibility
+        const deckListHeader = this.modalElement.querySelector('.deck-list-header');
+        deckListHeader.style.display = '';
 
         this._loadDecks();
         this.modal.show();
