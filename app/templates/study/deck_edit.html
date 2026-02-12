@@ -156,6 +156,60 @@
         </div>
     </div>
 
+    <!-- Add from Collection/Topic -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white" style="cursor: pointer;" onclick="document.getElementById('coll-topic-section').classList.toggle('d-none')">
+            <h5 class="mb-0">
+                <i class="fas fa-folder-plus me-2"></i>Добавить из коллекции / темы
+                <i class="fas fa-chevron-down float-end mt-1"></i>
+            </h5>
+        </div>
+        <div class="card-body d-none" id="coll-topic-section">
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-3" id="collTopicTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="collections-tab" data-bs-toggle="tab"
+                            data-bs-target="#collections-panel" type="button" role="tab">
+                        <i class="fas fa-folder me-1"></i>Коллекции
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="topics-tab" data-bs-toggle="tab"
+                            data-bs-target="#topics-panel" type="button" role="tab">
+                        <i class="fas fa-tags me-1"></i>Темы
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Search -->
+            <div class="mb-3">
+                <input type="text" class="form-control" id="coll-topic-search"
+                       placeholder="Поиск..." autocomplete="off">
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Collections Panel -->
+                <div class="tab-pane fade show active" id="collections-panel" role="tabpanel">
+                    <div id="collections-list" class="coll-topic-list" style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Загрузка...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Topics Panel -->
+                <div class="tab-pane fade" id="topics-panel" role="tabpanel">
+                    <div id="topics-list" class="coll-topic-list" style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Загрузка...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Word List -->
     <div class="card shadow-sm mb-4 deck-edit-card-low">
         <div class="card-header bg-info text-white">
@@ -668,6 +722,148 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
     };
 
+    // ===== Collection/Topic section =====
+    let collTopicData = null;
+
+    // Load data when section is first opened
+    const collTopicSection = document.getElementById('coll-topic-section');
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (!collTopicSection.classList.contains('d-none') && !collTopicData) {
+                loadCollTopicData();
+            }
+        });
+    });
+    observer.observe(collTopicSection, { attributes: true, attributeFilter: ['class'] });
+
+    function loadCollTopicData() {
+        fetch('/study/api/collections-topics')
+        .then(r => r.json())
+        .then(data => {
+            collTopicData = data;
+            renderCollections(data.collections);
+            renderTopics(data.topics);
+        })
+        .catch(err => {
+            console.error('Failed to load collections/topics:', err);
+            document.getElementById('collections-list').innerHTML = '<div class="text-center text-danger py-3">Ошибка загрузки</div>';
+            document.getElementById('topics-list').innerHTML = '<div class="text-center text-danger py-3">Ошибка загрузки</div>';
+        });
+    }
+
+    function renderCollections(collections) {
+        const container = document.getElementById('collections-list');
+        if (!collections.length) {
+            container.innerHTML = '<div class="text-center text-muted py-3">Нет коллекций</div>';
+            return;
+        }
+        container.innerHTML = collections.map(c => `
+            <div class="coll-topic-item" data-name="${c.name.toLowerCase()}">
+                <div class="coll-topic-item__info">
+                    <strong>${escapeHtml(c.name)}</strong>
+                    <small class="text-muted ms-2">${c.word_count} слов</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success coll-topic-add-btn"
+                        data-type="collection" data-id="${c.id}">
+                    <i class="fas fa-plus me-1"></i>Добавить
+                </button>
+            </div>
+        `).join('');
+        attachAddHandlers(container);
+    }
+
+    function renderTopics(topics) {
+        const container = document.getElementById('topics-list');
+        if (!topics.length) {
+            container.innerHTML = '<div class="text-center text-muted py-3">Нет тем</div>';
+            return;
+        }
+        container.innerHTML = topics.map(t => `
+            <div class="coll-topic-item" data-name="${t.name.toLowerCase()}">
+                <div class="coll-topic-item__info">
+                    <strong>${escapeHtml(t.name)}</strong>
+                    <small class="text-muted ms-2">${t.word_count} слов</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success coll-topic-add-btn"
+                        data-type="topic" data-id="${t.id}">
+                    <i class="fas fa-plus me-1"></i>Добавить
+                </button>
+            </div>
+        `).join('');
+        attachAddHandlers(container);
+    }
+
+    function attachAddHandlers(container) {
+        container.querySelectorAll('.coll-topic-add-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const type = this.dataset.type;
+                const id = this.dataset.id;
+                const originalHtml = this.innerHTML;
+
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                const url = type === 'collection'
+                    ? `/study/api/decks/{{ deck.id }}/add-from-collection`
+                    : `/study/api/decks/{{ deck.id }}/add-from-topic`;
+
+                const body = type === 'collection'
+                    ? { collection_id: parseInt(id) }
+                    : { topic_id: parseInt(id) };
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify(body)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage(data.message, data.added_count > 0 ? 'success' : 'info');
+                        if (data.added_count > 0) {
+                            this.innerHTML = '<i class="fas fa-check me-1"></i>Добавлено';
+                            this.classList.remove('btn-outline-success');
+                            this.classList.add('btn-success');
+                            // Reload page to show new words
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            this.innerHTML = '<i class="fas fa-check me-1"></i>Уже в колоде';
+                            this.classList.remove('btn-outline-success');
+                            this.classList.add('btn-outline-secondary');
+                        }
+                    } else {
+                        showMessage(data.message || 'Ошибка', 'danger');
+                        this.disabled = false;
+                        this.innerHTML = originalHtml;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    showMessage('Ошибка при добавлении', 'danger');
+                    this.disabled = false;
+                    this.innerHTML = originalHtml;
+                });
+            });
+        });
+    }
+
+    // Client-side search filter
+    const searchInput = document.getElementById('coll-topic-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const activePanel = document.querySelector('.tab-pane.active');
+            if (!activePanel) return;
+            activePanel.querySelectorAll('.coll-topic-item').forEach(item => {
+                const name = item.dataset.name || '';
+                item.style.display = name.includes(query) ? '' : 'none';
+            });
+        });
+    }
+
     // Save word edit
     window.saveWordEdit = function() {
         const wordId = document.getElementById('edit-word-id').value;
@@ -752,6 +948,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
 #autocomplete-results .list-group-item:last-child {
     border-bottom: none;
+}
+
+/* Collection/Topic list items */
+.coll-topic-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.15s;
+}
+
+.coll-topic-item:last-child {
+    border-bottom: none;
+}
+
+.coll-topic-item:hover {
+    background-color: #f8f9fa;
+}
+
+.coll-topic-item__info {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    flex: 1;
+}
+
+.coll-topic-item__info strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.coll-topic-list {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
 }
 </style>
 {% endblock %}

@@ -3,238 +3,646 @@
 {% block title %}{{ collection.name }} - Детали коллекции{% endblock %}
 
 {% block content %}
-  <div class="container mt-4">
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('study.collections') }}">Коллекции</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{{ collection.name }}</li>
-      </ol>
-    </nav>
+<div class="coll-detail-page">
+  <!-- Breadcrumb -->
+  <nav class="coll-detail-breadcrumb" aria-label="breadcrumb">
+    <a href="{{ url_for('study.collections') }}">Коллекции</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span>{{ collection.name }}</span>
+  </nav>
 
-    <div class="card mb-4">
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h3 class="mb-0">{{ collection.name }}</h3>
-        <span class="badge bg-light text-primary">{{ collection.words|length }} слов</span>
-      </div>
-      <div class="card-body">
-        {% if collection.description %}
-          <div class="mb-4">
-            <h5>Описание</h5>
-            <p>{{ collection.description }}</p>
-          </div>
-        {% endif %}
-
-        <div class="mb-4">
-          <h5>Темы</h5>
-          <div>
-            {% for topic in topics %}
-              <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}"
-                 class="badge bg-secondary text-decoration-none me-1 mb-1">
-                {{ topic.name }}
-              </a>
-            {% else %}
-              <p class="text-muted fst-italic">Темы не назначены для этой коллекции</p>
-            {% endfor %}
-          </div>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center">
-          <a href="{{ url_for('study.collections') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i> Назад к коллекциям
-          </a>
-
-          <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}"
-                id="add-collection-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-success" id="add-collection-btn">
-              <i class="fas fa-plus me-1"></i> Добавить все слова к изучению
-            </button>
-          </form>
-        </div>
-      </div>
+  <!-- Hero Header -->
+  <div class="coll-detail-hero">
+    <div class="coll-detail-hero__bg-shapes">
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
     </div>
 
-    <div class="card">
-      <div class="card-header bg-light">
-        <h4 class="mb-0">Слова в этой коллекции</h4>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead class="table-light">
-            <tr>
-              <th>Английский</th>
-              <th>Русский</th>
-              <th>Уровень</th>
-              <th>Статус</th>
-              <th class="text-end">Действия</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for word in words %}
-              <tr>
-                <td>
-                  <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="word-link">
-                    {{ word.english_word }}
-                  </a>
-                </td>
-                <td>{{ word.russian_word }}</td>
-                <td>
-                  {% if word.level %}
-                    <span class="badge {% if word.level == 'A1' %}bg-success{% elif word.level == 'A2' %}bg-info{% elif word.level == 'B1' %}bg-primary{% elif word.level == 'B2' %}bg-warning{% else %}bg-danger{% endif %}">
-                                    {{ word.level }}
-                                </span>
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
-                <td>
-                  {% if word.is_studying %}
-                    <span class="badge bg-success">Изучается</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Не изучается</span>
-                  {% endif %}
-                </td>
-                <td class="text-end">
-                  {% if not word.is_studying %}
-                    <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}"
-                          class="d-inline add-word-form">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="btn btn-sm btn-outline-success add-word-btn">
-                        <i class="fas fa-plus"></i> Добавить
-                      </button>
-                    </form>
-                  {% else %}
-                    <button type="button" class="btn btn-sm btn-outline-success" disabled>
-                      <i class="fas fa-check"></i> Добавлено
-                    </button>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
+    <div class="coll-detail-hero__content">
+      <div class="coll-detail-hero__info">
+        <div class="coll-detail-hero__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="coll-detail-hero__title">{{ collection.name }}</h1>
+          <p class="coll-detail-hero__subtitle">{{ collection.words|length }} слов</p>
+          {% if collection.description %}
+          <p class="coll-detail-hero__desc">{{ collection.description }}</p>
+          {% endif %}
         </div>
       </div>
+
+      <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}"
+            id="add-collection-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="coll-detail-hero__action" id="add-collection-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Добавить все
+        </button>
+      </form>
     </div>
   </div>
+
+  <!-- Topic Badges -->
+  {% if topics %}
+  <div class="coll-detail-topics">
+    <span class="coll-detail-topics__label">Темы:</span>
+    {% for topic in topics %}
+    <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="coll-detail-topics__badge">
+      {{ topic.name }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Words List -->
+  {% if words %}
+  <div class="coll-detail-words">
+    {% for word in words %}
+    <div class="word-card">
+      <!-- Level Badge -->
+      <div class="word-card__level word-card__level--{{ (word.level or 'na')|lower }}">
+        {{ word.level or '-' }}
+      </div>
+
+      <!-- Content -->
+      <div class="word-card__content">
+        <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="word-card__english">{{ word.english_word }}</a>
+        <span class="word-card__russian">{{ word.russian_word }}</span>
+      </div>
+
+      <!-- Status -->
+      <div class="word-card__status">
+        {% if word.is_studying %}
+        <span class="word-status word-status--studying">Изучается</span>
+        {% else %}
+        <span class="word-status word-status--new">Не изучается</span>
+        {% endif %}
+      </div>
+
+      <!-- Action -->
+      <div class="word-card__action">
+        {% if not word.is_studying %}
+        <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}"
+              class="add-word-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="word-card__add-btn add-word-btn" title="Добавить">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        </form>
+        {% else %}
+        <span class="word-card__added">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="coll-detail-empty">
+    <p>В этой коллекции пока нет слов</p>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.coll-detail-page {
+  --cd-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --cd-primary: #3b82f6;
+  --cd-accent: #06b6d4;
+  --cd-success: #22c55e;
+  --cd-surface: #ffffff;
+  --cd-surface-alt: #f8fafc;
+  --cd-text: #0f172a;
+  --cd-text-muted: #64748b;
+  --cd-border: #e2e8f0;
+  --cd-radius: 16px;
+  --cd-radius-sm: 10px;
+
+  font-family: var(--cd-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* Breadcrumb */
+.coll-detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--cd-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.coll-detail-breadcrumb a {
+  color: var(--cd-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.coll-detail-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.coll-detail-breadcrumb svg {
+  opacity: 0.5;
+}
+
+/* Hero */
+.coll-detail-hero {
+  position: relative;
+  background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 50%, #06b6d4 100%);
+  border-radius: var(--cd-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: white;
+}
+
+.coll-detail-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.coll-detail-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.coll-detail-hero .shape--1 {
+  width: 150px;
+  height: 150px;
+  top: -50px;
+  right: -30px;
+  animation: cd-float-1 18s ease-in-out infinite;
+}
+
+.coll-detail-hero .shape--2 {
+  width: 80px;
+  height: 80px;
+  bottom: -30px;
+  left: 10%;
+  animation: cd-float-2 14s ease-in-out infinite;
+}
+
+@keyframes cd-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes cd-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+.coll-detail-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.coll-detail-hero__info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+}
+
+.coll-detail-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.coll-detail-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.coll-detail-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+.coll-detail-hero__desc {
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
+.coll-detail-hero__action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: var(--cd-font);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.coll-detail-hero__action:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.coll-detail-hero__action:disabled {
+  opacity: 0.7;
+  cursor: default;
+  transform: none;
+}
+
+/* Topics */
+.coll-detail-topics {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.coll-detail-topics__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--cd-text-muted);
+}
+
+.coll-detail-topics__badge {
+  padding: 0.375rem 0.75rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--cd-primary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.coll-detail-topics__badge:hover {
+  background: var(--cd-primary);
+  color: white;
+  border-color: var(--cd-primary);
+}
+
+/* Words List */
+.coll-detail-words {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.word-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.word-card:hover {
+  border-color: var(--cd-primary);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+}
+
+.word-card__level {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.word-card__level--a1 { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.word-card__level--a2 { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.word-card__level--b1 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.word-card__level--b2 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.word-card__level--c1 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.word-card__level--c2 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.word-card__level--na { background: var(--cd-border); color: var(--cd-text-muted); }
+
+.word-card__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.word-card__english {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cd-text);
+  text-decoration: none;
+}
+
+.word-card__english:hover {
+  color: var(--cd-primary);
+}
+
+.word-card__russian {
+  font-size: 0.8125rem;
+  color: var(--cd-text-muted);
+}
+
+.word-card__status {
+  flex-shrink: 0;
+}
+
+.word-status {
+  display: inline-flex;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.word-status--studying {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.word-status--new {
+  background: var(--cd-surface-alt);
+  color: var(--cd-text-muted);
+}
+
+.word-card__action {
+  flex-shrink: 0;
+}
+
+.word-card__add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.word-card__add-btn:hover {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+  transform: scale(1.1);
+}
+
+.word-card__add-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+.word-card__added {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coll-detail-empty {
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--cd-text-muted);
+}
+
+/* Animations */
+@keyframes cd-slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.coll-detail-hero { animation: cd-slideUp 0.4s ease-out; }
+.coll-detail-topics { animation: cd-slideUp 0.4s ease-out 0.1s both; }
+.coll-detail-words { animation: cd-slideUp 0.4s ease-out 0.15s both; }
+
+.word-card {
+  animation: cd-slideUp 0.3s ease-out both;
+}
+
+.word-card:nth-child(1) { animation-delay: 0.1s; }
+.word-card:nth-child(2) { animation-delay: 0.13s; }
+.word-card:nth-child(3) { animation-delay: 0.16s; }
+.word-card:nth-child(4) { animation-delay: 0.19s; }
+.word-card:nth-child(5) { animation-delay: 0.22s; }
+.word-card:nth-child(6) { animation-delay: 0.25s; }
+.word-card:nth-child(7) { animation-delay: 0.28s; }
+.word-card:nth-child(8) { animation-delay: 0.31s; }
+.word-card:nth-child(9) { animation-delay: 0.34s; }
+.word-card:nth-child(10) { animation-delay: 0.37s; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .coll-detail-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .coll-detail-hero {
+    padding: 1.25rem;
+  }
+
+  .coll-detail-hero__content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .coll-detail-hero__action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .word-card {
+    flex-wrap: wrap;
+    padding: 0.75rem;
+  }
+
+  .word-card__content {
+    flex: 1 1 calc(100% - 52px);
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .word-card__status {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .word-card__action {
+    order: 4;
+  }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
-  <script>
-      document.addEventListener('DOMContentLoaded', function () {
-          // Обработка формы добавления всей коллекции
-          const addCollectionForm = document.getElementById('add-collection-form');
-          const addCollectionBtn = document.getElementById('add-collection-btn');
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add all collection words
+    const addCollectionForm = document.getElementById('add-collection-form');
+    const addCollectionBtn = document.getElementById('add-collection-btn');
 
-          if (addCollectionForm) {
-              addCollectionForm.addEventListener('submit', function (e) {
-                  e.preventDefault();
+    if (addCollectionForm) {
+        addCollectionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-                  addCollectionBtn.disabled = true;
-                  addCollectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
+            addCollectionBtn.disabled = true;
+            addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Добавление...';
 
-                  fetch(this.action, {
-                      method: 'POST',
-                      headers: {
-                          'X-Requested-With': 'XMLHttpRequest',
-                          'Content-Type': 'application/x-www-form-urlencoded',
-                      },
-                      body: new URLSearchParams(new FormData(this))
-                  })
-                      .then(response => response.json())
-                      .then(data => {
-                          if (data.success) {
-                              // Показать сообщение об успехе
-                              const toastHtml = `
-                            <div class="toast-container position-fixed bottom-0 end-0 p-3">
-                                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                                    <div class="toast-header bg-success text-white">
-                                        <strong class="me-auto">Успешно</strong>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                                    </div>
-                                    <div class="toast-body">
-                                        ${data.message}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showCDToast(data.message, 'success');
 
-                              // Добавить тост в DOM
-                              const toastContainer = document.createElement('div');
-                              toastContainer.innerHTML = toastHtml;
-                              document.body.appendChild(toastContainer);
+                    if (data.added_count > 0) {
+                        addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Добавлено';
+                        addCollectionBtn.disabled = true;
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        addCollectionBtn.disabled = false;
+                        addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addCollectionBtn.disabled = false;
+                addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+            });
+        });
+    }
 
-                              // Инициализировать и показать тост
-                              const toastEl = document.querySelector('.toast');
-                              const toast = new bootstrap.Toast(toastEl, {delay: 3000});
-                              toast.show();
+    // Add individual words
+    document.querySelectorAll('.add-word-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-                              // Обновить кнопку
-                              if (data.added_count > 0) {
-                                  addCollectionBtn.classList.remove('btn-success');
-                                  addCollectionBtn.classList.add('btn-outline-success');
-                                  addCollectionBtn.innerHTML = '<i class="fas fa-check me-1"></i> Слова добавлены';
-                                  addCollectionBtn.disabled = true;
+            const submitBtn = this.querySelector('.add-word-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83"/></svg>';
 
-                                  // Перезагрузить страницу через 2 секунды
-                                  setTimeout(() => {
-                                      location.reload();
-                                  }, 2000);
-                              } else {
-                                  addCollectionBtn.disabled = false;
-                                  addCollectionBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить все слова к изучению';
-                              }
-                          }
-                      })
-                      .catch(error => {
-                          console.error('Error:', error);
-                          addCollectionBtn.disabled = false;
-                          addCollectionBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить все слова к изучению';
-                      });
-              });
-          }
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Replace button with check
+                    const card = submitBtn.closest('.word-card');
+                    submitBtn.closest('.add-word-form').outerHTML = '<span class="word-card__added"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>';
 
-          // Обработка форм добавления отдельных слов
-          const addWordForms = document.querySelectorAll('.add-word-form');
+                    // Update status badge
+                    const statusEl = card.querySelector('.word-status');
+                    if (statusEl) {
+                        statusEl.className = 'word-status word-status--studying';
+                        statusEl.textContent = 'Изучается';
+                    }
+                } else {
+                    throw new Error('Server error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>';
+            });
+        });
+    });
 
-          addWordForms.forEach(form => {
-              form.addEventListener('submit', function (e) {
-                  e.preventDefault();
+    function showCDToast(message, type) {
+        const colors = {
+            success: { bg: '#dcfce7', border: '#22c55e', icon: '\u2713' },
+            info: { bg: '#dbeafe', border: '#3b82f6', icon: '\u2139' }
+        };
+        const c = colors[type] || colors.info;
 
-                  const submitBtn = this.querySelector('.add-word-btn');
-                  submitBtn.disabled = true;
-                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            background: ${c.bg}; padding: 16px 20px; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 12px;
+            border-left: 4px solid ${c.border}; font-family: 'Onest', sans-serif; font-size: 14px; font-weight: 500;
+            animation: cd-slideUp 0.3s ease-out;
+        `;
+        toast.innerHTML = `<span style="color: ${c.border}; font-size: 18px; font-weight: bold;">${c.icon}</span><span>${message}</span>`;
+        document.body.appendChild(toast);
 
-                  fetch(this.action, {
-                      method: 'POST',
-                      headers: {
-                          'X-Requested-With': 'XMLHttpRequest',
-                          'Content-Type': 'application/x-www-form-urlencoded',
-                      },
-                      body: new URLSearchParams(new FormData(this))
-                  })
-                      .then(response => {
-                          if (response.ok) {
-                              // Изменить кнопку на "Добавлено"
-                              submitBtn.innerHTML = '<i class="fas fa-check"></i> Добавлено';
-                              submitBtn.disabled = true;
-
-                              // Обновить строку таблицы
-                              const row = submitBtn.closest('tr');
-                              const statusCell = row.querySelector('td:nth-child(4)');
-                              statusCell.innerHTML = '<span class="badge bg-success">Изучается</span>';
-                          } else {
-                              throw new Error('Server error');
-                          }
-                      })
-                      .catch(error => {
-                          console.error('Error:', error);
-                          submitBtn.disabled = false;
-                          submitBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить';
-                      });
-              });
-          });
-      });
-  </script>
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+});
+</script>
 {% endblock %}

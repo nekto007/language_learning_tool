@@ -3,7 +3,6 @@ Deck Service - handles all deck-related business logic
 
 Responsibilities:
 - Deck CRUD operations
-- Master deck synchronization (automatic decks)
 - Deck word management
 - Deck statistics
 """
@@ -19,17 +18,9 @@ from app.words.models import CollectionWords
 class DeckService:
     """Service for managing quiz decks"""
 
-    # Master deck titles
-    LEARNING_DECK_TITLE = "Все мои слова"
-    MASTERED_DECK_TITLE = "Выученные слова"
-
     @staticmethod
     def is_auto_deck(deck_title: str) -> bool:
-        """Check if deck is automatically managed (master deck, reading, topic, or collection)"""
-        # Check exact matches for master decks
-        if deck_title in [DeckService.LEARNING_DECK_TITLE, DeckService.MASTERED_DECK_TITLE]:
-            return True
-
+        """Check if deck is automatically managed (reading, topic, or collection)"""
         # Check exact match for reading words deck
         if deck_title == "Слова из чтения":
             return True
@@ -39,117 +30,6 @@ class DeckService:
             return True
 
         return False
-
-    @classmethod
-    def sync_master_decks(cls, user_id: int) -> None:
-        """
-        Synchronize master decks with user's word collection
-
-        Creates/updates two automatic decks:
-        - "Все мои слова" (all words in learning: new, learning, review not mastered)
-        - "Выученные слова" (mastered words: status='mastered' OR review + interval >= 180 days)
-        """
-        # Get all user words
-        all_user_words = UserWord.query.filter(
-            UserWord.user_id == user_id
-        ).all()
-
-        # Get mastered word IDs via interval (review status + min_interval >= 180)
-        mastered_by_interval_query = db.session.query(UserWord.id).filter(
-            UserWord.user_id == user_id,
-            UserWord.status == 'review'
-        ).join(
-            UserCardDirection, UserCardDirection.user_word_id == UserWord.id
-        ).group_by(UserWord.id).having(
-            func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
-        )
-        mastered_by_interval = {row[0] for row in mastered_by_interval_query.all()}
-
-        # Also include words with status='mastered' (set via "Знаю" button)
-        mastered_by_status = {uw.id for uw in all_user_words if uw.status == 'mastered'}
-
-        # Combine both sets
-        mastered_word_ids = mastered_by_interval | mastered_by_status
-
-        # Separate words into learning and mastered
-        learning_words = [uw for uw in all_user_words if uw.id not in mastered_word_ids]
-        mastered_words = [uw for uw in all_user_words if uw.id in mastered_word_ids]
-
-        # Sync both decks
-        cls._sync_deck(
-            user_id,
-            cls.LEARNING_DECK_TITLE,
-            "Автоматическая колода со всеми вашими словами в процессе изучения",
-            learning_words
-        )
-
-        cls._sync_deck(
-            user_id,
-            cls.MASTERED_DECK_TITLE,
-            "Автоматическая колода с выученными словами",
-            mastered_words
-        )
-
-        db.session.commit()
-
-    @classmethod
-    def _sync_deck(cls, user_id: int, title: str, description: str, word_list: List[UserWord]) -> None:
-        """Sync a single deck with given word list"""
-        # Find or create deck
-        deck = QuizDeck.query.filter_by(user_id=user_id, title=title).first()
-        if not deck:
-            deck = QuizDeck(
-                title=title,
-                description=description,
-                user_id=user_id,
-                is_public=False
-            )
-            db.session.add(deck)
-            db.session.flush()
-        else:
-            deck.description = description
-
-        # Get current and target word sets
-        existing_word_ids = {row[0] for row in db.session.query(QuizDeckWord.word_id).filter_by(deck_id=deck.id).all()}
-        target_word_ids = {uw.word_id for uw in word_list}
-
-        # Build user_word lookup: word_id -> user_word.id
-        user_word_lookup = {uw.word_id: uw.id for uw in word_list}
-
-        # Remove words no longer in UserWord
-        to_remove = existing_word_ids - target_word_ids
-        if to_remove:
-            QuizDeckWord.query.filter(
-                QuizDeckWord.deck_id == deck.id,
-                QuizDeckWord.word_id.in_(to_remove)
-            ).delete(synchronize_session=False)
-
-        # Add new words with proper order indices and user_word_id link
-        to_add = target_word_ids - existing_word_ids
-        if to_add:
-            # Get max existing order index for this deck
-            max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter_by(deck_id=deck.id).scalar() or -1
-
-            # Add new words with incrementing order indices and user_word_id
-            for i, word_id in enumerate(to_add, start=1):
-                deck_word = QuizDeckWord(
-                    deck_id=deck.id,
-                    word_id=word_id,
-                    user_word_id=user_word_lookup.get(word_id),
-                    order_index=max_order + i
-                )
-                db.session.add(deck_word)
-
-        # Update existing deck_words to ensure user_word_id is set
-        # (for records created before this refactoring)
-        existing_deck_words = QuizDeckWord.query.filter(
-            QuizDeckWord.deck_id == deck.id,
-            QuizDeckWord.word_id.in_(existing_word_ids & target_word_ids),
-            QuizDeckWord.user_word_id.is_(None)
-        ).all()
-        for dw in existing_deck_words:
-            if dw.word_id in user_word_lookup:
-                dw.user_word_id = user_word_lookup[dw.word_id]
 
     @classmethod
     def get_user_decks(cls, user_id: int, include_public: bool = True) -> List[QuizDeck]:
@@ -547,6 +427,75 @@ class DeckService:
         db.session.delete(deck_word)
         db.session.commit()
         return True, None
+
+    @classmethod
+    def add_bulk_words_to_deck(cls, deck_id: int, user_id: int, word_ids: List[int]) -> Tuple[int, int]:
+        """
+        Add multiple words to a deck in bulk.
+
+        Args:
+            deck_id: Target deck ID
+            user_id: Owner user ID
+            word_ids: List of CollectionWords IDs to add
+
+        Returns:
+            Tuple of (added_count, skipped_count)
+        """
+        deck = QuizDeck.query.get(deck_id)
+        if not deck or deck.user_id != user_id:
+            return 0, 0
+
+        if cls.is_auto_deck(deck.title):
+            return 0, 0
+
+        if not word_ids:
+            return 0, 0
+
+        # Check which words already exist in deck
+        existing = {row[0] for row in db.session.query(QuizDeckWord.word_id).filter(
+            QuizDeckWord.deck_id == deck_id,
+            QuizDeckWord.word_id.in_(word_ids)
+        ).all()}
+
+        # Get max order index
+        max_order = db.session.query(func.max(QuizDeckWord.order_index)).filter(
+            QuizDeckWord.deck_id == deck_id
+        ).scalar() or 0
+
+        # Filter to new words only
+        new_word_ids = [wid for wid in word_ids if wid not in existing]
+        skipped = len(word_ids) - len(new_word_ids)
+
+        if not new_word_ids:
+            return 0, skipped
+
+        # Ensure UserWord records exist for all new words
+        existing_user_words = {row[0]: row[1] for row in db.session.query(
+            UserWord.word_id, UserWord.id
+        ).filter(
+            UserWord.user_id == user_id,
+            UserWord.word_id.in_(new_word_ids)
+        ).all()}
+
+        for i, word_id in enumerate(new_word_ids):
+            # Create UserWord if needed
+            if word_id not in existing_user_words:
+                uw = UserWord(user_id=user_id, word_id=word_id)
+                db.session.add(uw)
+                db.session.flush()
+                existing_user_words[word_id] = uw.id
+
+            # Create QuizDeckWord
+            deck_word = QuizDeckWord(
+                deck_id=deck_id,
+                word_id=word_id,
+                user_word_id=existing_user_words[word_id],
+                order_index=max_order + i + 1
+            )
+            db.session.add(deck_word)
+
+        db.session.commit()
+        return len(new_word_ids), skipped
 
     @classmethod
     def search_words(cls, query: str, limit: int = 20) -> List[CollectionWords]:

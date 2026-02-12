@@ -3,247 +3,654 @@
 {% block title %}{{ topic.name }} - Детали темы{% endblock %}
 
 {% block content %}
-  <div class="container mt-4">
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('study.topics') }}">Темы</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{{ topic.name }}</li>
-      </ol>
-    </nav>
+<div class="topic-detail-page">
+  <!-- Breadcrumb -->
+  <nav class="td-breadcrumb" aria-label="breadcrumb">
+    <a href="{{ url_for('study.topics') }}">Темы</a>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span>{{ topic.name }}</span>
+  </nav>
 
-    <div class="card mb-4">
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h3 class="mb-0">{{ topic.name }}</h3>
-        <span class="badge bg-light text-primary">{{ words|length }} слов</span>
-      </div>
-      <div class="card-body">
-        {% if topic.description %}
-          <div class="mb-4">
-            <h5>Описание</h5>
-            <p>{{ topic.description }}</p>
-          </div>
-        {% endif %}
-
-        {% if related_collections %}
-          <div class="mb-4">
-            <h5>Связанные коллекции</h5>
-            <div class="row row-cols-1 row-cols-md-3 g-3">
-              {% for collection in related_collections %}
-                <div class="col">
-                  <div class="card h-100">
-                    <div class="card-body">
-                      <h6 class="card-title">{{ collection.name }}</h6>
-                      <p class="card-text small">{{ collection.description|truncate(60) }}</p>
-                    </div>
-                    <div class="card-footer bg-transparent">
-                      <a href="{{ url_for('study.collection_details', collection_id=collection.id) }}"
-                         class="btn btn-sm btn-outline-primary w-100">
-                        Смотреть коллекцию
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-        {% endif %}
-
-        <div class="d-flex justify-content-between align-items-center">
-          <a href="{{ url_for('study.topics') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i> Назад к темам
-          </a>
-
-          <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}" id="add-topic-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-success" id="add-topic-btn">
-              <i class="fas fa-plus me-1"></i> Добавить все слова к изучению
-            </button>
-          </form>
-        </div>
-      </div>
+  <!-- Hero Header -->
+  <div class="td-hero">
+    <div class="td-hero__bg-shapes">
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
     </div>
 
-    <div class="card">
-      <div class="card-header bg-light">
-        <h4 class="mb-0">Слова в этой теме</h4>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead class="table-light">
-            <tr>
-              <th>Английский</th>
-              <th>Русский</th>
-              <th>Уровень</th>
-              <th>Статус</th>
-              <th class="text-end">Действия</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for word in words %}
-              <tr>
-                <td>
-                  <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="word-link">
-                    {{ word.english_word }}
-                  </a>
-                </td>
-                <td>{{ word.russian_word }}</td>
-                <td>
-                  {% if word.level %}
-                    <span class="badge {% if word.level == 'A1' %}bg-success{% elif word.level == 'A2' %}bg-info{% elif word.level == 'B1' %}bg-primary{% elif word.level == 'B2' %}bg-warning{% else %}bg-danger{% endif %}">
-                                    {{ word.level }}
-                                </span>
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
-                <td>
-                  {% if word.is_studying %}
-                    <span class="badge bg-success">Изучается</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Не изучается</span>
-                  {% endif %}
-                </td>
-                <td class="text-end">
-                  {% if not word.is_studying %}
-                    <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}"
-                          class="d-inline add-word-form">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="btn btn-sm btn-outline-success add-word-btn">
-                        <i class="fas fa-plus"></i> Добавить
-                      </button>
-                    </form>
-                  {% else %}
-                    <button type="button" class="btn btn-sm btn-outline-success" disabled>
-                      <i class="fas fa-check"></i> Добавлено
-                    </button>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
+    <div class="td-hero__content">
+      <div class="td-hero__info">
+        <div class="td-hero__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="td-hero__title">{{ topic.name }}</h1>
+          <p class="td-hero__subtitle">{{ words|length }} слов</p>
+          {% if topic.description %}
+          <p class="td-hero__desc">{{ topic.description }}</p>
+          {% endif %}
         </div>
       </div>
+
+      <form method="POST" action="{{ url_for('study.add_topic', topic_id=topic.id) }}"
+            id="add-topic-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="td-hero__action" id="add-topic-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Добавить все
+        </button>
+      </form>
     </div>
   </div>
+
+  <!-- Related Collections -->
+  {% if related_collections %}
+  <div class="td-related">
+    <span class="td-related__label">Коллекции:</span>
+    {% for collection in related_collections %}
+    <a href="{{ url_for('study.collection_details', collection_id=collection.id) }}" class="td-related__pill">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+      </svg>
+      {{ collection.name }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Words List -->
+  {% if words %}
+  <div class="td-words">
+    {% for word in words %}
+    <div class="td-word-card">
+      <!-- Level Badge -->
+      <div class="td-word-card__level td-word-card__level--{{ (word.level or 'na')|lower }}">
+        {{ word.level or '-' }}
+      </div>
+
+      <!-- Content -->
+      <div class="td-word-card__content">
+        <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="td-word-card__english">{{ word.english_word }}</a>
+        <span class="td-word-card__russian">{{ word.russian_word }}</span>
+      </div>
+
+      <!-- Status -->
+      <div class="td-word-card__status">
+        {% if word.is_studying %}
+        <span class="td-word-status td-word-status--studying">Изучается</span>
+        {% else %}
+        <span class="td-word-status td-word-status--new">Не изучается</span>
+        {% endif %}
+      </div>
+
+      <!-- Action -->
+      <div class="td-word-card__action">
+        {% if not word.is_studying %}
+        <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}"
+              class="td-add-word-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="td-word-card__add-btn td-add-word-btn" title="Добавить">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        </form>
+        {% else %}
+        <span class="td-word-card__added">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="td-empty">
+    <p>В этой теме пока нет слов</p>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.topic-detail-page {
+  --td-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --td-primary: #10b981;
+  --td-accent: #06b6d4;
+  --td-surface: #ffffff;
+  --td-surface-alt: #f8fafc;
+  --td-text: #0f172a;
+  --td-text-muted: #64748b;
+  --td-border: #e2e8f0;
+  --td-radius: 16px;
+  --td-radius-sm: 10px;
+
+  font-family: var(--td-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* Breadcrumb */
+.td-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--td-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.td-breadcrumb a {
+  color: var(--td-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.td-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.td-breadcrumb svg {
+  opacity: 0.5;
+}
+
+/* Hero */
+.td-hero {
+  position: relative;
+  background: linear-gradient(135deg, #10b981 0%, #14b8a6 50%, #06b6d4 100%);
+  border-radius: var(--td-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: white;
+}
+
+.td-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.td-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.td-hero .shape--1 {
+  width: 150px;
+  height: 150px;
+  top: -50px;
+  right: -30px;
+  animation: td-float-1 18s ease-in-out infinite;
+}
+
+.td-hero .shape--2 {
+  width: 80px;
+  height: 80px;
+  bottom: -30px;
+  left: 10%;
+  animation: td-float-2 14s ease-in-out infinite;
+}
+
+@keyframes td-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes td-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+.td-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.td-hero__info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+}
+
+.td-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.td-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.td-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+.td-hero__desc {
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
+.td-hero__action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: var(--td-font);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.td-hero__action:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.td-hero__action:disabled {
+  opacity: 0.7;
+  cursor: default;
+  transform: none;
+}
+
+/* Related Collections */
+.td-related {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.td-related__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--td-text-muted);
+}
+
+.td-related__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--td-primary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.td-related__pill:hover {
+  background: var(--td-primary);
+  color: white;
+  border-color: var(--td-primary);
+}
+
+.td-related__pill svg {
+  opacity: 0.7;
+}
+
+/* Words List */
+.td-words {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.td-word-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.td-word-card:hover {
+  border-color: var(--td-primary);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+}
+
+.td-word-card__level {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.td-word-card__level--a1 { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.td-word-card__level--a2 { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.td-word-card__level--b1 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.td-word-card__level--b2 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.td-word-card__level--c1 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.td-word-card__level--c2 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.td-word-card__level--na { background: var(--td-border); color: var(--td-text-muted); }
+
+.td-word-card__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.td-word-card__english {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--td-text);
+  text-decoration: none;
+}
+
+.td-word-card__english:hover {
+  color: var(--td-primary);
+}
+
+.td-word-card__russian {
+  font-size: 0.8125rem;
+  color: var(--td-text-muted);
+}
+
+.td-word-card__status {
+  flex-shrink: 0;
+}
+
+.td-word-status {
+  display: inline-flex;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.td-word-status--studying {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.td-word-status--new {
+  background: var(--td-surface-alt);
+  color: var(--td-text-muted);
+}
+
+.td-word-card__action {
+  flex-shrink: 0;
+}
+
+.td-word-card__add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.td-word-card__add-btn:hover {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+  transform: scale(1.1);
+}
+
+.td-word-card__add-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+.td-word-card__added {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.td-empty {
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius);
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--td-text-muted);
+}
+
+/* Animations */
+@keyframes td-slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.td-hero { animation: td-slideUp 0.4s ease-out; }
+.td-related { animation: td-slideUp 0.4s ease-out 0.1s both; }
+.td-words { animation: td-slideUp 0.4s ease-out 0.15s both; }
+
+.td-word-card {
+  animation: td-slideUp 0.3s ease-out both;
+}
+
+.td-word-card:nth-child(1) { animation-delay: 0.1s; }
+.td-word-card:nth-child(2) { animation-delay: 0.13s; }
+.td-word-card:nth-child(3) { animation-delay: 0.16s; }
+.td-word-card:nth-child(4) { animation-delay: 0.19s; }
+.td-word-card:nth-child(5) { animation-delay: 0.22s; }
+.td-word-card:nth-child(6) { animation-delay: 0.25s; }
+.td-word-card:nth-child(7) { animation-delay: 0.28s; }
+.td-word-card:nth-child(8) { animation-delay: 0.31s; }
+.td-word-card:nth-child(9) { animation-delay: 0.34s; }
+.td-word-card:nth-child(10) { animation-delay: 0.37s; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .topic-detail-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .td-hero {
+    padding: 1.25rem;
+  }
+
+  .td-hero__content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .td-hero__action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .td-word-card {
+    flex-wrap: wrap;
+    padding: 0.75rem;
+  }
+
+  .td-word-card__content {
+    flex: 1 1 calc(100% - 52px);
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .td-word-card__status {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .td-word-card__action {
+    order: 4;
+  }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
-  <script>
-      document.addEventListener('DOMContentLoaded', function () {
-          // Обработка формы добавления всех слов темы
-          const addTopicForm = document.getElementById('add-topic-form');
-          const addTopicBtn = document.getElementById('add-topic-btn');
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add all topic words
+    const addTopicForm = document.getElementById('add-topic-form');
+    const addTopicBtn = document.getElementById('add-topic-btn');
 
-          if (addTopicForm) {
-              addTopicForm.addEventListener('submit', function (e) {
-                  e.preventDefault();
+    if (addTopicForm) {
+        addTopicForm.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-                  addTopicBtn.disabled = true;
-                  addTopicBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
+            addTopicBtn.disabled = true;
+            addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Добавление...';
 
-                  fetch(this.action, {
-                      method: 'POST',
-                      headers: {
-                          'X-Requested-With': 'XMLHttpRequest',
-                          'Content-Type': 'application/x-www-form-urlencoded',
-                      },
-                      body: new URLSearchParams(new FormData(this))
-                  })
-                      .then(response => response.json())
-                      .then(data => {
-                          if (data.success) {
-                              // Показать сообщение об успехе
-                              const toastHtml = `
-                            <div class="toast-container position-fixed bottom-0 end-0 p-3">
-                                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                                    <div class="toast-header bg-success text-white">
-                                        <strong class="me-auto">Успешно</strong>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                                    </div>
-                                    <div class="toast-body">
-                                        ${data.message}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showTDToast(data.message, 'success');
 
-                              // Добавить тост в DOM
-                              const toastContainer = document.createElement('div');
-                              toastContainer.innerHTML = toastHtml;
-                              document.body.appendChild(toastContainer);
+                    if (data.added_count > 0) {
+                        addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Добавлено';
+                        addTopicBtn.disabled = true;
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        addTopicBtn.disabled = false;
+                        addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addTopicBtn.disabled = false;
+                addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+            });
+        });
+    }
 
-                              // Инициализировать и показать тост
-                              const toastEl = document.querySelector('.toast');
-                              const toast = new bootstrap.Toast(toastEl, {delay: 3000});
-                              toast.show();
+    // Add individual words
+    document.querySelectorAll('.td-add-word-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-                              // Обновить кнопку
-                              if (data.added_count > 0) {
-                                  addTopicBtn.classList.remove('btn-success');
-                                  addTopicBtn.classList.add('btn-outline-success');
-                                  addTopicBtn.innerHTML = '<i class="fas fa-check me-1"></i> Слова добавлены';
-                                  addTopicBtn.disabled = true;
+            const submitBtn = this.querySelector('.td-add-word-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83"/></svg>';
 
-                                  // Перезагрузить страницу через 2 секунды
-                                  setTimeout(() => {
-                                      location.reload();
-                                  }, 2000);
-                              } else {
-                                  addTopicBtn.disabled = false;
-                                  addTopicBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить все слова к изучению';
-                              }
-                          }
-                      })
-                      .catch(error => {
-                          console.error('Error:', error);
-                          addTopicBtn.disabled = false;
-                          addTopicBtn.innerHTML = '<i class="fas fa-plus me-1"></i> Добавить все слова к изучению';
-                      });
-              });
-          }
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => {
+                if (response.ok) {
+                    const card = submitBtn.closest('.td-word-card');
+                    submitBtn.closest('.td-add-word-form').outerHTML = '<span class="td-word-card__added"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>';
 
-          // Обработка форм добавления отдельных слов
-          const addWordForms = document.querySelectorAll('.add-word-form');
+                    const statusEl = card.querySelector('.td-word-status');
+                    if (statusEl) {
+                        statusEl.className = 'td-word-status td-word-status--studying';
+                        statusEl.textContent = 'Изучается';
+                    }
+                } else {
+                    throw new Error('Server error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>';
+            });
+        });
+    });
 
-          addWordForms.forEach(form => {
-              form.addEventListener('submit', function (e) {
-                  e.preventDefault();
+    function showTDToast(message, type) {
+        const colors = {
+            success: { bg: '#dcfce7', border: '#22c55e', icon: '\u2713' },
+            info: { bg: '#dbeafe', border: '#3b82f6', icon: '\u2139' }
+        };
+        const c = colors[type] || colors.info;
 
-                  const submitBtn = this.querySelector('.add-word-btn');
-                  submitBtn.disabled = true;
-                  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            background: ${c.bg}; padding: 16px 20px; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 12px;
+            border-left: 4px solid ${c.border}; font-family: 'Onest', sans-serif; font-size: 14px; font-weight: 500;
+            animation: td-slideUp 0.3s ease-out;
+        `;
+        toast.innerHTML = `<span style="color: ${c.border}; font-size: 18px; font-weight: bold;">${c.icon}</span><span>${message}</span>`;
+        document.body.appendChild(toast);
 
-                  fetch(this.action, {
-                      method: 'POST',
-                      headers: {
-                          'X-Requested-With': 'XMLHttpRequest',
-                          'Content-Type': 'application/x-www-form-urlencoded',
-                      },
-                      body: new URLSearchParams(new FormData(this))
-                  })
-                      .then(response => {
-                          if (response.ok) {
-                              // Изменить кнопку на "Добавлено"
-                              submitBtn.innerHTML = '<i class="fas fa-check"></i> Добавлено';
-                              submitBtn.disabled = true;
-
-                              // Обновить строку таблицы
-                              const row = submitBtn.closest('tr');
-                              const statusCell = row.querySelector('td:nth-child(4)');
-                              statusCell.innerHTML = '<span class="badge bg-success">Изучается</span>';
-                          } else {
-                              throw new Error('Server error');
-                          }
-                      })
-                      .catch(error => {
-                          console.error('Error:', error);
-                          submitBtn.disabled = false;
-                          submitBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить';
-                      });
-              });
-          });
-      });
-  </script>
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+});
+</script>
 {% endblock %}
