@@ -1,6 +1,8 @@
 # app/curriculum/routes/lessons.py
 
+import json
 import logging
+import re
 from datetime import UTC, datetime
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
@@ -28,6 +30,118 @@ logger = logging.getLogger(__name__)
 
 # Create blueprint for lesson routes
 lessons_bp = Blueprint('curriculum_lessons', __name__)
+
+
+def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
+    """Build card data list for words, one card per UserCardDirection.
+
+    Looks up existing UserWord/UserCardDirection records, creates eng-rus
+    direction if none exists, and produces card dicts with proper
+    direction/front/back/SRS fields.
+    """
+    if not word_objects:
+        return []
+
+    word_ids = [w.id for w in word_objects]
+
+    # Batch-load UserWord records
+    user_words = UserWord.query.filter(
+        UserWord.user_id == user_id,
+        UserWord.word_id.in_(word_ids)
+    ).all()
+    user_word_map = {uw.word_id: uw for uw in user_words}
+
+    # Batch-load UserCardDirection records grouped by word_id
+    user_word_ids = [uw.id for uw in user_words]
+    directions_by_word: dict[int, list] = {}
+    if user_word_ids:
+        rows = db.session.query(UserCardDirection, UserWord.word_id).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(UserWord.id.in_(user_word_ids)).all()
+        for dir_obj, word_id in rows:
+            directions_by_word.setdefault(word_id, []).append(dir_obj)
+
+    # Create missing UserWord + eng-rus direction for words without any
+    needs_flush = False
+    for word in word_objects:
+        if word.id not in directions_by_word:
+            uw = user_word_map.get(word.id)
+            if not uw:
+                uw = UserWord.get_or_create(user_id, word.id)
+                user_word_map[word.id] = uw
+            dir_obj = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+            db.session.add(dir_obj)
+            directions_by_word[word.id] = [dir_obj]
+            needs_flush = True
+
+    if needs_flush:
+        db.session.flush()
+
+    # Build card dicts
+    cards_list = []
+    for word in word_objects:
+        # Parse audio
+        audio_file = None
+        if word.listening:
+            match = re.search(r'\[sound:([^\]]+)\]', word.listening)
+            if match:
+                audio_file = match.group(1)
+        elif word.get_download == 1:
+            audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
+
+        # Parse examples
+        example_en = ''
+        example_ru = ''
+        if word.sentences:
+            try:
+                sentences_data = json.loads(word.sentences) if isinstance(word.sentences, str) else word.sentences
+                if isinstance(sentences_data, list) and len(sentences_data) > 0:
+                    first_sentence = sentences_data[0]
+                    if isinstance(first_sentence, dict):
+                        example_en = first_sentence.get('en', '')
+                        example_ru = first_sentence.get('ru', '')
+            except Exception:
+                pass
+
+        for dir_obj in directions_by_word.get(word.id, []):
+            if dir_obj.direction == 'eng-rus':
+                front = word.english_word
+                back = word.russian_word
+            else:
+                front = word.russian_word
+                back = word.english_word
+
+            cards_list.append({
+                'id': word.id,
+                'word_id': word.id,
+                'direction_id': dir_obj.id,
+                'direction': dir_obj.direction,
+                'front': front,
+                'back': back,
+                'word': front,
+                'translation': back,
+                'english': word.english_word,
+                'russian': word.russian_word,
+                'listening': word.listening or '',
+                'sentences': word.sentences or '',
+                'example': example_en,
+                'example_en': example_en,
+                'example_ru': example_ru,
+                'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
+                'usage': '',
+                'hint': '',
+                'is_new': dir_obj.repetitions == 0 and dir_obj.last_reviewed is None,
+                'status': dir_obj.state or 'new',
+                'interval': dir_obj.interval or 0,
+                'ease_factor': dir_obj.ease_factor or 2.5,
+                'repetitions': dir_obj.repetitions or 0,
+                'session_attempts': dir_obj.session_attempts or 0,
+                'audio': audio_file,
+                'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
+                'get_download': 1 if word.get_download == 1 else 0,
+            })
+
+    return cards_list
 
 
 # =============================================================================
@@ -671,10 +785,8 @@ def render_text_lesson(lesson):
 
 def render_card_lesson(lesson):
     """Рендер card урока"""
-    from app.words.models import CollectionWordLink, CollectionWords
+    from app.words.models import CollectionWordLink
     from app.curriculum.service import sync_lesson_cards_to_words
-    import json
-    import re
 
     if lesson.type not in ['card', 'flashcards']:
         abort(400, "This is not a card lesson")
@@ -740,88 +852,13 @@ def render_card_lesson(lesson):
         word_ids = list(set(word_ids))
 
     cards_list = []
-
-    # Получаем направления карточек пользователя через UserWord
-    user_directions = {}
-    if word_ids:
-        directions = db.session.query(UserCardDirection, UserWord.word_id).join(
-            UserWord, UserCardDirection.user_word_id == UserWord.id
-        ).filter(
-            UserWord.user_id == current_user.id,
-            UserWord.word_id.in_(word_ids)
-        ).all()
-        for direction, word_id in directions:
-            user_directions[word_id] = direction.direction
-
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-
-        for word in word_objects:
-            user_word = UserWord.query.filter_by(
-                user_id=current_user.id,
-                word_id=word.id
-            ).first()
-
-            audio_file = None
-            if word.listening:
-                match = re.search(r'\[sound:([^\]]+)\]', word.listening)
-                if match:
-                    audio_file = match.group(1)
-            elif word.get_download == 1:
-                audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
-
-            example_en = ''
-            example_ru = ''
-            if word.sentences:
-                try:
-                    sentences_data = json.loads(word.sentences) if isinstance(word.sentences, str) else word.sentences
-                    if isinstance(sentences_data, list) and len(sentences_data) > 0:
-                        first_sentence = sentences_data[0]
-                        if isinstance(first_sentence, dict):
-                            example_en = first_sentence.get('en', '')
-                            example_ru = first_sentence.get('ru', '')
-                except:
-                    pass
-
-            # Определяем направление и front/back
-            direction = user_directions.get(word.id, 'eng-rus')
-            if direction == 'eng-rus':
-                front = word.english_word
-                back = word.russian_word
-            else:
-                front = word.russian_word
-                back = word.english_word
-
-            card_data = {
-                'id': word.id,
-                'word_id': word.id,
-                'direction': direction,
-                'front': front,
-                'back': back,
-                'word': front,  # для JS fallback
-                'translation': back,  # для JS fallback
-                'english': word.english_word,
-                'russian': word.russian_word,
-                'listening': word.listening if word.listening else '',
-                'sentences': word.sentences if word.sentences else '',
-                'example': example_en,
-                'example_en': example_en,
-                'example_ru': example_ru,
-                'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
-                'usage': '',
-                'hint': '',
-                'is_new': user_word is None,
-                'status': user_word.status if user_word else 'new',
-                'audio': audio_file,
-                'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
-                'get_download': 1 if word.get_download == 1 else 0
-            }
-            cards_list.append(card_data)
+        cards_list = _build_cards_for_words(word_objects, current_user.id)
 
     next_review_time = None
     if len(cards_list) == 0:
         if word_ids:
-            from datetime import datetime
             user_words = UserWord.query.filter(
                 UserWord.user_id == current_user.id,
                 UserWord.word_id.in_(word_ids),
@@ -2034,9 +2071,8 @@ def text_lesson(lesson_id):
 @require_lesson_access
 def card_lesson(lesson_id):
     """Display SRS card lesson"""
-    from app.words.models import CollectionWordLink, CollectionWords
+    from app.words.models import CollectionWordLink
     from app.curriculum.service import sync_lesson_cards_to_words
-    import json
 
     lesson = Lessons.query.get_or_404(lesson_id)
 
@@ -2111,77 +2147,16 @@ def card_lesson(lesson_id):
 
         word_ids = list(set(word_ids))
 
-    # Load word objects and prepare cards data
     cards_list = []
-
-    # Add cards from word_ids
     if word_ids:
-        from app.study.models import UserWord
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-
-        # Prepare cards in the format expected by template
-        for word in word_objects:
-            # Check if user has this word in their study list
-            user_word = UserWord.query.filter_by(
-                user_id=current_user.id,
-                word_id=word.id
-            ).first()
-
-            # Parse audio filename from listening field
-            audio_file = None
-            if word.listening:
-                # Format: [sound:pronunciation_en_aunt.mp3]
-                import re
-                match = re.search(r'\[sound:([^\]]+)\]', word.listening)
-                if match:
-                    audio_file = match.group(1)
-            elif word.get_download == 1:
-                # Fallback to generated filename
-                audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
-
-            # Parse sentences for examples
-            example_en = ''
-            example_ru = ''
-            if word.sentences:
-                try:
-                    import json
-                    sentences_data = json.loads(word.sentences) if isinstance(word.sentences, str) else word.sentences
-                    if isinstance(sentences_data, list) and len(sentences_data) > 0:
-                        first_sentence = sentences_data[0]
-                        if isinstance(first_sentence, dict):
-                            example_en = first_sentence.get('en', '')
-                            example_ru = first_sentence.get('ru', '')
-                except:
-                    pass
-
-            card_data = {
-                'id': word.id,
-                'word_id': word.id,
-                'english': word.english_word,
-                'russian': word.russian_word,
-                'listening': word.listening if word.listening else '',
-                'sentences': word.sentences if word.sentences else '',
-                'example': example_en,
-                'example_en': example_en,
-                'example_ru': example_ru,
-                'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
-                'usage': '',
-                'hint': '',
-                'is_new': user_word is None,
-                'status': user_word.status if user_word else 'new',
-                'audio': audio_file,
-                'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
-                'get_download': 1 if word.get_download == 1 else 0
-            }
-            cards_list.append(card_data)
+        cards_list = _build_cards_for_words(word_objects, current_user.id)
 
     # Calculate next review time if no cards available
     next_review_time = None
     if len(cards_list) == 0:
         if word_ids:
             # Find the earliest next_review time among all words in this lesson
-            from datetime import datetime
-            from app.study.models import UserWord
             user_words = UserWord.query.filter(
                 UserWord.user_id == current_user.id,
                 UserWord.word_id.in_(word_ids),

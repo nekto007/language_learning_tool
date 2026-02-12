@@ -247,11 +247,9 @@
                                                 data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}">
                                             <i class="fas fa-brain me-1"></i>Квиз
                                         </button>
-                                        {% if deck.title != 'Выученные слова' %}
                                         <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="Интервальное повторение">
                                             <i class="fas fa-layer-group me-1"></i>Карточки
                                         </a>
-                                        {% endif %}
                                     </div>
                                     {% endif %}
 
@@ -335,11 +333,9 @@
                                 data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}">
                             <i class="fas fa-brain me-1"></i>Квиз
                         </button>
-                        {% if deck.title != 'Выученные слова' %}
                         <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success flex-fill">
                             <i class="fas fa-layer-group me-1"></i>Карточки
                         </a>
-                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

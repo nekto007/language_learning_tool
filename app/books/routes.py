@@ -630,11 +630,6 @@ def add_word_to_learning():
 
         db.session.commit()
 
-        # Синхронизация мастер-колод
-        from app.study.routes import sync_master_decks
-        sync_master_decks(current_user.id)
-        db.session.commit()
-
         return jsonify({'success': True, 'message': f'Word "{word}" added to learning list'})
 
     except Exception as e:
@@ -1197,7 +1192,6 @@ def get_word_translation(word):
 def add_to_learning():
     """API для добавления слова в очередь изучения и колоду 'Слова из чтения'"""
     from app.study.models import QuizDeck, QuizDeckWord
-    from app.study.services.deck_service import DeckService
     from sqlalchemy import func
 
     data = request.get_json()
@@ -1256,10 +1250,6 @@ def add_to_learning():
         added_to_deck = True
 
     db.session.commit()
-
-    # Синхронизация мастер-колод (только если было изменение)
-    if was_new:
-        DeckService.sync_master_decks(current_user.id)
 
     # Формируем ответ
     if was_new:
