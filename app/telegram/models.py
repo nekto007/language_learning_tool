@@ -22,7 +22,7 @@ class TelegramUser(db.Model):
     # Notification preferences
     morning_reminder = Column(Boolean, default=True, nullable=False)
     evening_summary = Column(Boolean, default=True, nullable=False)
-    skip_nudge = Column(Boolean, default=True, nullable=False)
+    nudge_enabled = Column(Boolean, default=True, nullable=False)
     streak_alert = Column(Boolean, default=True, nullable=False)
 
     # Custom notification times (hour in user's timezone)
@@ -54,7 +54,7 @@ class TelegramUser(db.Model):
             'timezone': self.timezone,
             'morning_reminder': self.morning_reminder,
             'evening_summary': self.evening_summary,
-            'skip_nudge': self.skip_nudge,
+            'nudge_enabled': self.nudge_enabled,
             'streak_alert': self.streak_alert,
             'linked_at': self.linked_at.isoformat() if self.linked_at else None,
             'is_active': self.is_active,

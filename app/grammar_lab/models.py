@@ -50,6 +50,9 @@ class GrammarTopic(db.Model):
     #   "related_topics": ["past-simple", "present-simple"]
     # }
 
+    # Telegram mini-summary (2-4 bullets + example, for morning reminders)
+    telegram_summary = Column(Text, nullable=True)
+
     # Metadata
     estimated_time = Column(Integer, default=15)  # minutes to study
     difficulty = Column(Integer, default=1)        # 1-5 difficulty
