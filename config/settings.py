@@ -225,6 +225,7 @@ class Config:
     # Telegram bot
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
+    TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "llt_englishbot")
     SITE_URL = os.environ.get("SITE_URL", "")
 
     # Database Connection Pooling

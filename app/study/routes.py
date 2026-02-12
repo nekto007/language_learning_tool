@@ -1,7 +1,7 @@
 import random
 from datetime import datetime, timezone, timedelta
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, and_, case
@@ -26,7 +26,6 @@ study = Blueprint('study', __name__, template_folder='templates')
 
 # Use DeckService methods directly
 is_auto_deck = DeckService.is_auto_deck
-sync_master_decks = DeckService.sync_master_decks
 
 
 def get_audio_url_for_word(word):
@@ -241,7 +240,9 @@ def settings():
         flash(_('Your study settings have been updated!'), 'success')
         return redirect(url_for('study.index'))
 
-    return render_template('study/settings.html', form=form)
+    bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'llt_englishbot')
+    return render_template('study/settings.html', form=form,
+                           telegram_bot_username=bot_username)
 
 
 # Маршрут /learn убран - используем отдельные страницы cards, quiz, matching
@@ -292,11 +293,6 @@ def cards_deck(deck_id):
     # Check if deck has words
     if deck.word_count == 0:
         flash('В колоде нет слов', 'warning')
-        return redirect(url_for('study.index'))
-
-    # Mastered words don't need SRS review
-    if deck.title == DeckService.MASTERED_DECK_TITLE:
-        flash('Выученные слова не требуют повторения. Используйте режим квиза для практики.', 'info')
         return redirect(url_for('study.index'))
 
     # Get word IDs from deck
@@ -954,10 +950,6 @@ def update_study_item():
             else:
                 session.incorrect_answers += 1
 
-    db.session.commit()
-
-    # Sync master decks on status change
-    sync_master_decks(current_user.id)
     db.session.commit()
 
     # Calculate requeue position based on state
@@ -2033,7 +2025,8 @@ def collections():
         'study/collections.html',
         collections=[d['collection'] for d in collections_data],
         form=form,
-        topics=topics
+        topics=topics,
+        selected_topic=topic_id
     )
 
 
@@ -2165,6 +2158,79 @@ def add_topic(topic_id):
         })
 
     return redirect(url_for('study.topics'))
+
+
+# ============ Collections/Topics Deck API ============
+
+@study.route('/api/collections-topics')
+@login_required
+def api_collections_topics():
+    """GET: List collections and topics with word counts for deck edit UI"""
+    collections = Collection.query.order_by(Collection.name).all()
+    topics_list = Topic.query.order_by(Topic.name).all()
+
+    return jsonify({
+        'collections': [{
+            'id': c.id,
+            'name': c.name,
+            'description': c.description or '',
+            'word_count': len(c.words)
+        } for c in collections],
+        'topics': [{
+            'id': t.id,
+            'name': t.name,
+            'description': t.description or '',
+            'word_count': len(t.words)
+        } for t in topics_list]
+    })
+
+
+@study.route('/api/decks/<int:deck_id>/add-from-collection', methods=['POST'])
+@login_required
+def api_add_from_collection(deck_id):
+    """POST: Add all words from a collection to a deck"""
+    data = request.get_json()
+    if not data or not data.get('collection_id'):
+        return jsonify({'success': False, 'message': 'collection_id is required'}), 400
+
+    collection = Collection.query.get(data['collection_id'])
+    if not collection:
+        return jsonify({'success': False, 'message': 'Collection not found'}), 404
+
+    word_ids = [w.id for w in collection.words]
+    added, skipped = DeckService.add_bulk_words_to_deck(deck_id, current_user.id, word_ids)
+
+    return jsonify({
+        'success': True,
+        'added_count': added,
+        'skipped_count': skipped,
+        'message': f'Добавлено {added} слов из "{collection.name}"' if added > 0
+                   else f'Все слова из "{collection.name}" уже в колоде'
+    })
+
+
+@study.route('/api/decks/<int:deck_id>/add-from-topic', methods=['POST'])
+@login_required
+def api_add_from_topic(deck_id):
+    """POST: Add all words from a topic to a deck"""
+    data = request.get_json()
+    if not data or not data.get('topic_id'):
+        return jsonify({'success': False, 'message': 'topic_id is required'}), 400
+
+    topic = Topic.query.get(data['topic_id'])
+    if not topic:
+        return jsonify({'success': False, 'message': 'Topic not found'}), 404
+
+    word_ids = [w.id for w in topic.words]
+    added, skipped = DeckService.add_bulk_words_to_deck(deck_id, current_user.id, word_ids)
+
+    return jsonify({
+        'success': True,
+        'added_count': added,
+        'skipped_count': skipped,
+        'message': f'Добавлено {added} слов из темы "{topic.name}"' if added > 0
+                   else f'Все слова из темы "{topic.name}" уже в колоде'
+    })
 
 
 # ============ Unified SRS Stats API ============

@@ -1,5 +1,6 @@
 """Telegram bot command handlers."""
 import logging
+import time
 from typing import Any
 
 import requests
@@ -10,8 +11,24 @@ from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
-# In-memory state for two-step /link flow
-_pending_link: dict[int, bool] = {}
+# In-memory state for two-step /link flow: {telegram_id: timestamp}
+_pending_link: dict[int, float] = {}
+_PENDING_LINK_TTL = 300  # 5 minutes
+_PENDING_LINK_MAX = 1000
+
+
+def _cleanup_pending_links() -> None:
+    """Remove expired entries and enforce max size."""
+    now = time.monotonic()
+    expired = [tid for tid, ts in _pending_link.items()
+               if now - ts > _PENDING_LINK_TTL]
+    for tid in expired:
+        del _pending_link[tid]
+    # If still too many, drop oldest
+    if len(_pending_link) > _PENDING_LINK_MAX:
+        sorted_items = sorted(_pending_link.items(), key=lambda x: x[1])
+        for tid, _ in sorted_items[:len(_pending_link) - _PENDING_LINK_MAX]:
+            del _pending_link[tid]
 
 
 def _progress_bar(pct: int, length: int = 10) -> str:
@@ -84,7 +101,7 @@ def _handle_link(chat_id: int, telegram_id: int, username: str | None,
     """Handle /link XXXXXX command (supports two-step flow)."""
     code = args.strip()
     if not code:
-        _pending_link[telegram_id] = True
+        _pending_link[telegram_id] = time.monotonic()
         _send_message(chat_id, 'Отправь код привязки — 6 цифр:')
         return
     if len(code) != 6 or not code.isdigit():
@@ -136,6 +153,22 @@ def _handle_unlink(chat_id: int, telegram_id: int) -> None:
     _send_message(chat_id, 'Аккаунт отвязан. Чтобы привязать снова: /link XXXXXX')
 
 
+HELP_TEXT = (
+    'Доступные команды:\n\n'
+    '/stats — статистика: стрик, уроки, слова, книги\n'
+    '/settings — настройки уведомлений и часовой пояс\n'
+    '/link — привязать аккаунт\n'
+    '/unlink — отвязать аккаунт\n'
+    '/help — эта справка\n\n'
+    'Бот присылает:\n'
+    '• Утреннее напоминание с планом на день\n'
+    '• Вечернюю сводку результатов\n'
+    '• Напоминание, если забыл позаниматься\n'
+    '• Предупреждение о потере стрика\n\n'
+    'Все уведомления настраиваются в /settings'
+)
+
+
 TIMEZONE_OPTIONS = {
     'Europe/Kaliningrad': 'Калининград (UTC+2)',
     'Europe/Moscow': 'Москва (UTC+3)',
@@ -144,6 +177,7 @@ TIMEZONE_OPTIONS = {
     'Asia/Omsk': 'Омск (UTC+6)',
     'Asia/Krasnoyarsk': 'Красноярск (UTC+7)',
     'Asia/Irkutsk': 'Иркутск (UTC+8)',
+    'Asia/Yakutsk': 'Якутск (UTC+9)',
     'Asia/Vladivostok': 'Владивосток (UTC+10)',
 }
 
@@ -151,7 +185,7 @@ TIMEZONE_OPTIONS = {
 NOTIFICATION_LABELS = {
     'morning_reminder': ('Утро', 'morning_hour'),
     'evening_summary': ('Вечер', 'evening_hour'),
-    'skip_nudge': ('День', 'nudge_hour'),
+    'nudge_enabled': ('День', 'nudge_hour'),
     'streak_alert': ('Стрик', 'streak_hour'),
 }
 
@@ -177,7 +211,7 @@ def _build_settings_keyboard(tg_user: TelegramUser) -> dict:
         'inline_keyboard': [
             time_btn('morning_reminder', 'morning_hour', 'Утро'),
             time_btn('evening_summary', 'evening_hour', 'Вечер'),
-            time_btn('skip_nudge', 'nudge_hour', 'Днём'),
+            time_btn('nudge_enabled', 'nudge_hour', 'Днём'),
             time_btn('streak_alert', 'streak_hour', 'Стрик'),
             [{'text': f'🕐 {tz_label}',
               'callback_data': 'change_timezone'}],
@@ -285,9 +319,9 @@ def _settings_text(tg_user: TelegramUser) -> str:
 
 
 REFLECTION_RESPONSES: dict[str, str] = {
-    'easy': 'Супер! Ты в ударе! \U0001f680',
-    'ok': 'Отлично, так держать! \U0001f44d',
-    'hard': 'Спасибо! Завтра будет легче \U0001f4aa',
+    'easy': 'Супер! \U0001f680 Завтра можем добавить +1 короткий шаг (слова на 3 минуты).',
+    'ok': 'Отлично \U0001f44d Держим темп. Завтра \u2014 один урок и немного повторения.',
+    'hard': 'Понял \U0001f4aa Завтра разрешаем сделать меньше.',
 }
 
 
@@ -397,7 +431,7 @@ def _handle_settings_callback(chat_id: int, telegram_id: int,
     field_map = {
         'toggle_morning_reminder': 'morning_reminder',
         'toggle_evening_summary': 'evening_summary',
-        'toggle_skip_nudge': 'skip_nudge',
+        'toggle_nudge_enabled': 'nudge_enabled',
         'toggle_streak_alert': 'streak_alert',
     }
 
@@ -425,7 +459,7 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
         return
 
     from app.telegram.queries import get_quick_stats, get_cards_url
-    stats = get_quick_stats(tg_user.user_id)
+    stats = get_quick_stats(tg_user.user_id, tz=tg_user.timezone)
 
     lines = ['📊 Статистика\n']
     if stats.get('streak', 0) > 0:
@@ -457,6 +491,8 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
 
 def handle_update(data: dict) -> None:
     """Dispatch an incoming Telegram update to the appropriate handler."""
+    _cleanup_pending_links()
+
     # Handle callback queries (inline button presses)
     callback_query = data.get('callback_query')
     if callback_query:
@@ -505,7 +541,11 @@ def handle_update(data: dict) -> None:
         _handle_settings(chat_id, telegram_id)
     elif text == '/stats':
         _handle_stats(chat_id, telegram_id)
-    elif telegram_id in _pending_link and text.isdigit() and len(text) == 6:
+    elif text == '/help':
+        _send_message(chat_id, HELP_TEXT)
+    elif (telegram_id in _pending_link
+          and time.monotonic() - _pending_link[telegram_id] < _PENDING_LINK_TTL
+          and text.isdigit() and len(text) == 6):
         # Two-step /link flow: user sent code after /link
         del _pending_link[telegram_id]
         _handle_link(chat_id, telegram_id, username, text)
@@ -515,5 +555,6 @@ def handle_update(data: dict) -> None:
             'Доступные команды:\n'
             '/stats — статистика\n'
             '/settings — настройки уведомлений\n'
-            '/unlink — отвязать аккаунт'
+            '/unlink — отвязать аккаунт\n'
+            '/help — справка'
         ))

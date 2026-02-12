@@ -2,6 +2,7 @@
 from datetime import datetime, timezone, timedelta, date
 from typing import Any
 
+import pytz
 from sqlalchemy import func
 
 from app.utils.db import db
@@ -9,16 +10,38 @@ from app.curriculum.models import LessonProgress, Lessons, Module
 from app.grammar_lab.models import UserGrammarExercise, UserGrammarTopicStatus, GrammarTopic
 from app.study.models import UserWord, UserCardDirection
 from app.books.models import UserChapterProgress, Book
+from app.telegram.notifications import LESSON_TIME
+
+DEFAULT_TZ = 'Europe/Moscow'
 
 
-def has_activity_today(user_id: int) -> bool:
-    """Check if user had any learning activity today (UTC-based)."""
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+def _user_day_boundaries(tz_name: str = DEFAULT_TZ,
+                         offset_days: int = 0) -> tuple[datetime, datetime]:
+    """Return (start_utc, end_utc) for 'today' in user's timezone.
+
+    offset_days=-1 means yesterday in user's timezone, etc.
+    """
+    try:
+        tz = pytz.timezone(tz_name)
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone(DEFAULT_TZ)
+
+    local_now = datetime.now(tz)
+    local_day = local_now.date() + timedelta(days=offset_days)
+    local_start = tz.localize(datetime(local_day.year, local_day.month, local_day.day))
+    local_end = local_start + timedelta(days=1)
+    return local_start.astimezone(pytz.utc), local_end.astimezone(pytz.utc)
+
+
+def has_activity_today(user_id: int, tz: str = DEFAULT_TZ) -> bool:
+    """Check if user had any learning activity today in their timezone."""
+    today_start, today_end = _user_day_boundaries(tz)
 
     # Check lesson progress
     lesson_activity = LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
         LessonProgress.last_activity >= today_start,
+        LessonProgress.last_activity < today_end,
     ).first()
     if lesson_activity:
         return True
@@ -27,6 +50,7 @@ def has_activity_today(user_id: int) -> bool:
     grammar_activity = UserGrammarExercise.query.filter(
         UserGrammarExercise.user_id == user_id,
         UserGrammarExercise.last_reviewed >= today_start,
+        UserGrammarExercise.last_reviewed < today_end,
     ).first()
     if grammar_activity:
         return True
@@ -35,6 +59,7 @@ def has_activity_today(user_id: int) -> bool:
     word_activity = db.session.query(UserCardDirection).join(UserWord).filter(
         UserWord.user_id == user_id,
         UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.last_reviewed < today_end,
     ).first()
     if word_activity:
         return True
@@ -43,6 +68,7 @@ def has_activity_today(user_id: int) -> bool:
     book_activity = UserChapterProgress.query.filter(
         UserChapterProgress.user_id == user_id,
         UserChapterProgress.updated_at >= today_start,
+        UserChapterProgress.updated_at < today_end,
     ).first()
     if book_activity:
         return True
@@ -50,63 +76,58 @@ def has_activity_today(user_id: int) -> bool:
     return False
 
 
-def get_current_streak(user_id: int) -> int:
+def _has_activity_in_range(user_id: int, start_utc: datetime,
+                           end_utc: datetime) -> bool:
+    """Check if user had any activity between start_utc and end_utc."""
+    if LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.last_activity >= start_utc,
+        LessonProgress.last_activity < end_utc,
+    ).first():
+        return True
+
+    if UserGrammarExercise.query.filter(
+        UserGrammarExercise.user_id == user_id,
+        UserGrammarExercise.last_reviewed >= start_utc,
+        UserGrammarExercise.last_reviewed < end_utc,
+    ).first():
+        return True
+
+    if db.session.query(UserCardDirection).join(UserWord).filter(
+        UserWord.user_id == user_id,
+        UserCardDirection.last_reviewed >= start_utc,
+        UserCardDirection.last_reviewed < end_utc,
+    ).first():
+        return True
+
+    return False
+
+
+def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
     """Calculate current streak (consecutive days with activity).
 
+    Uses user's timezone to determine day boundaries.
     Looks back from yesterday (today may still have activity ahead).
     """
-    today = date.today()
     streak = 0
 
     # If there's activity today, count today
-    if has_activity_today(user_id):
+    if has_activity_today(user_id, tz=tz):
         streak = 1
-        check_date = today - timedelta(days=1)
-    else:
-        check_date = today - timedelta(days=1)
 
-    # Walk backwards through dates
-    for _ in range(365):  # max lookback
-        day_start = datetime(check_date.year, check_date.month, check_date.day,
-                             tzinfo=timezone.utc)
-        day_end = day_start + timedelta(days=1)
+    # Walk backwards through dates (starting from yesterday)
+    for offset in range(1, 366):
+        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
 
-        had_activity = False
-
-        # Check lessons
-        if LessonProgress.query.filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.last_activity >= day_start,
-            LessonProgress.last_activity < day_end,
-        ).first():
-            had_activity = True
-
-        # Check grammar
-        if not had_activity and UserGrammarExercise.query.filter(
-            UserGrammarExercise.user_id == user_id,
-            UserGrammarExercise.last_reviewed >= day_start,
-            UserGrammarExercise.last_reviewed < day_end,
-        ).first():
-            had_activity = True
-
-        # Check words
-        if not had_activity and db.session.query(UserCardDirection).join(UserWord).filter(
-            UserWord.user_id == user_id,
-            UserCardDirection.last_reviewed >= day_start,
-            UserCardDirection.last_reviewed < day_end,
-        ).first():
-            had_activity = True
-
-        if had_activity:
+        if _has_activity_in_range(user_id, day_start, day_end):
             streak += 1
-            check_date -= timedelta(days=1)
         else:
             break
 
     return streak
 
 
-def get_daily_plan(user_id: int) -> dict[str, Any]:
+def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     """Build daily study plan: next lesson, grammar topic, SRS words due."""
     now = datetime.now(timezone.utc)
 
@@ -141,11 +162,16 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
 
                 if next_l:
                     next_module = Module.query.get(next_l.module_id)
+                    level_code = None
+                    if next_module and next_module.level:
+                        level_code = next_module.level.code
                     next_lesson = {
                         'title': next_l.title,
                         'module_number': next_module.number if next_module else None,
                         'lesson_order': next_l.order,
                         'lesson_type': next_l.type,
+                        'lesson_id': next_l.id,
+                        'level_code': level_code,
                     }
 
     # Grammar topic to practice
@@ -171,6 +197,8 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
                 'title': topic.title,
                 'status': active_status.status,
                 'due_exercises': due_exercises,
+                'topic_id': topic.id,
+                'telegram_summary': topic.telegram_summary,
             }
 
     # Words due for SRS review
@@ -181,7 +209,7 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
     ).scalar() or 0
 
     # Book reading — find active book not read today
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start, today_end = _user_day_boundaries(tz)
     book_to_read = None
 
     # Find books user has started reading (has chapter progress)
@@ -199,6 +227,7 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
         ).filter(
             UserChapterProgress.user_id == user_id,
             UserChapterProgress.updated_at >= today_start,
+            UserChapterProgress.updated_at < today_end,
         ).all()
         read_today_book_ids = {r[0] for r in read_today_book_ids}
 
@@ -206,7 +235,19 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
         if not_read_today:
             book = Book.query.get(not_read_today[0])
             if book:
-                book_to_read = {'title': book.title}
+                book_to_read = {'title': book.title, 'id': book.id}
+
+    # Suggest books for users who haven't started any (non-onboarding)
+    suggested_books = None
+    if not started_book_ids and not book_to_read:
+        suggestions = Book.query.filter(
+            Book.chapters_cnt > 0,
+        ).order_by(Book.level, Book.title).limit(3).all()
+        if suggestions:
+            suggested_books = [
+                {'id': b.id, 'title': b.title}
+                for b in suggestions
+            ]
 
     # Onboarding: concrete suggestions for new users
     has_any_words = UserWord.query.filter_by(user_id=user_id).first() is not None
@@ -214,7 +255,7 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
     has_any_books = len(started_book_ids) > 0
 
     onboarding = None
-    if not has_any_lessons or not has_any_books:
+    if not has_any_lessons and not has_any_books and not has_any_words:
         onboarding = {}
 
         # Suggest first lesson if user hasn't started the course
@@ -226,21 +267,32 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
                 ).order_by(Lessons.order).first()
                 if first_lesson:
                     level = first_module.level
+                    # Find first grammar lesson title in the module
+                    grammar_lesson = Lessons.query.filter_by(
+                        module_id=first_module.id,
+                        type='grammar',
+                    ).order_by(Lessons.order).first()
+                    grammar_topic_title = grammar_lesson.title if grammar_lesson else None
+                    grammar_minutes = LESSON_TIME.get('grammar', 12)
                     onboarding['first_lesson'] = {
                         'title': first_lesson.title,
                         'module_title': first_module.title,
                         'level_name': level.name if level else None,
+                        'level_code': level.code if level else None,
+                        'module_number': first_module.number,
+                        'grammar_topic_title': grammar_topic_title,
+                        'estimated_minutes': grammar_minutes,
                     }
 
-        # Suggest books if user hasn't started any (max 3)
+        # Suggest books if user hasn't started any (max 5)
         if not has_any_books:
             available_books = Book.query.filter(
                 Book.chapters_cnt > 0,
-            ).order_by(Book.level, Book.title).limit(3).all()
+            ).order_by(Book.level, Book.title).limit(5).all()
             total_books = Book.query.filter(Book.chapters_cnt > 0).count()
             if available_books:
                 onboarding['available_books'] = [
-                    {'title': b.title, 'author': b.author, 'level': b.level}
+                    {'id': b.id, 'title': b.title, 'author': b.author, 'level': b.level}
                     for b in available_books
                 ]
                 onboarding['total_books'] = total_books
@@ -252,37 +304,42 @@ def get_daily_plan(user_id: int) -> dict[str, Any]:
         'next_lesson': next_lesson,
         'grammar_topic': grammar_topic,
         'words_due': words_due,
+        'has_any_words': has_any_words,
         'book_to_read': book_to_read,
+        'suggested_books': suggested_books,
         'onboarding': onboarding,
     }
 
 
-def get_daily_summary(user_id: int) -> dict[str, Any]:
-    """Get summary of today's activity."""
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
+    """Get summary of today's activity in user's timezone."""
+    today_start, today_end = _user_day_boundaries(tz)
 
     # Lessons completed today
     lessons_completed = LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
         LessonProgress.status == 'completed',
         LessonProgress.completed_at >= today_start,
+        LessonProgress.completed_at < today_end,
     ).all()
 
-    lesson_titles = []
+    lesson_types: list[str] = []
     for lp in lessons_completed:
         lesson = Lessons.query.get(lp.lesson_id)
-        if lesson:
-            lesson_titles.append(lesson.title)
+        if lesson and lesson.type:
+            lesson_types.append(lesson.type)
 
     # Grammar exercises done today
     grammar_done = UserGrammarExercise.query.filter(
         UserGrammarExercise.user_id == user_id,
         UserGrammarExercise.last_reviewed >= today_start,
+        UserGrammarExercise.last_reviewed < today_end,
     ).count()
 
     grammar_correct = UserGrammarExercise.query.filter(
         UserGrammarExercise.user_id == user_id,
         UserGrammarExercise.last_reviewed >= today_start,
+        UserGrammarExercise.last_reviewed < today_end,
     ).with_entities(
         func.sum(UserGrammarExercise.correct_count)
     ).scalar() or 0
@@ -291,6 +348,7 @@ def get_daily_summary(user_id: int) -> dict[str, Any]:
     words_reviewed = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
         UserWord.user_id == user_id,
         UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.last_reviewed < today_end,
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
 
@@ -304,11 +362,13 @@ def get_daily_summary(user_id: int) -> dict[str, Any]:
     ).filter(
         UserChapterProgress.user_id == user_id,
         UserChapterProgress.updated_at >= today_start,
+        UserChapterProgress.updated_at < today_end,
     ).distinct().all()
     book_titles = [r[0] for r in books_read_today]
 
     return {
-        'lessons_completed': lesson_titles,
+        'lessons_count': len(lesson_types),
+        'lesson_types': lesson_types,
         'grammar_exercises': grammar_done,
         'grammar_correct': grammar_correct,
         'words_reviewed': words_reviewed,
@@ -316,11 +376,12 @@ def get_daily_summary(user_id: int) -> dict[str, Any]:
     }
 
 
-def get_weekly_report(user_id: int) -> dict[str, Any]:
+def get_weekly_report(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     """Get weekly statistics for the report."""
-    now = datetime.now(timezone.utc)
-    week_start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start, _ = _user_day_boundaries(tz)
+    week_start = today_start - timedelta(days=7)
     prev_week_start = week_start - timedelta(days=7)
+    now = today_start  # use start of today as "end of this week"
 
     def _count_active_days(start: datetime, end: datetime) -> int:
         """Count days with at least one activity."""
@@ -385,7 +446,7 @@ def get_weekly_report(user_id: int) -> dict[str, Any]:
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
 
-    streak = get_current_streak(user_id)
+    streak = get_current_streak(user_id, tz=tz)
 
     return {
         'week_start': week_start.date(),
@@ -400,10 +461,8 @@ def get_weekly_report(user_id: int) -> dict[str, Any]:
     }
 
 
-def get_quick_stats(user_id: int) -> dict[str, Any]:
+def get_quick_stats(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     """Quick stats for /stats command."""
-    now = datetime.now(timezone.utc)
-
     lessons_completed = LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
         LessonProgress.status == 'completed',
@@ -420,7 +479,7 @@ def get_quick_stats(user_id: int) -> dict[str, Any]:
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
 
-    streak = get_current_streak(user_id)
+    streak = get_current_streak(user_id, tz=tz)
 
     # Books: progress per book (title, chapters read, total chapters, last read date)
     from app.books.models import Chapter
@@ -503,10 +562,11 @@ def get_tomorrow_preview(user_id: int) -> dict[str, Any] | None:
         'module_number': next_module.number if next_module else None,
         'lesson_order': next_l.order,
         'lesson_type': next_l.type,
+        'lesson_id': next_l.id,
     }
 
 
-def get_quickest_action(user_id: int) -> dict[str, Any] | None:
+def get_quickest_action(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any] | None:
     """Find fastest streak-saving action. Priority: words > grammar > lesson."""
     now = datetime.now(timezone.utc)
 

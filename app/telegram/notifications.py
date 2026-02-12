@@ -25,141 +25,226 @@ def format_morning_reminder(user_name: str, streak: int,
     lines = [f'Доброе утро, {user_name} \U0001f642', '']
 
     if streak > 0:
-        lines.append(f'\U0001f525 {streak} дней подряд — красиво идёшь!')
+        lines.append(f'\U0001f525 {streak} дней подряд \u2014 отличный темп!')
         lines.append('')
 
-    # Onboarding block for new users (unchanged logic)
+    # Onboarding block for new users
     onboarding = plan.get('onboarding')
     if onboarding:
-        lines.append('\U0001f4a1 С чего начать:')
+        lines.append('Давай начнём с одного короткого шага (10\u201315 минут).')
         lines.append('')
 
         first = onboarding.get('first_lesson')
         if first:
-            level = f" ({first['level_name']})" if first.get('level_name') else ''
-            lines.append(f"\U0001f4da Курс{level}:")
-            lines.append(f"   {first['module_title']} → {first['title']}")
+            level_code = first.get('level_code', 'A1')
+            module_num = first.get('module_number', 1)
+            module_title = first.get('module_title', '')
+            grammar = first.get('grammar_topic_title')
+            minutes = first.get('estimated_minutes', 12)
+
+            grammar_part = f' \u2014 грамматика: {grammar}' if grammar else ''
+            lines.append(
+                f'1. \U0001f4da {level_code} / Модуль {module_num}: '
+                f'"{module_title}"{grammar_part} (~{minutes} мин)'
+            )
             if site_url:
-                lines.append(f'   \U0001f517 {site_url}/curriculum/levels')
+                lines.append(
+                    f'   \U0001f517 {site_url}/learn/'
+                    f'{level_code.lower()}/module-{module_num}/'
+                )
             lines.append('')
 
         books = onboarding.get('available_books')
         if books:
             total = onboarding.get('total_books', len(books))
-            lines.append(f'\U0001f4d5 Книги ({total} шт.):')
+            lines.append('Если останутся силы (5\u201310 минут):')
+            lines.append('')
+            lines.append(f'2. \U0001f4d5 Чтение (пара страниц) \u2014 '
+                         f'выбери любую книгу ({total} на выбор):')
             for b in books:
-                lvl = f" [{b['level']}]" if b.get('level') else ''
-                lines.append(f"   • {b['title']}{lvl}")
+                book_url = f' \u2014 \U0001f517 {site_url}/books/{b["id"]}' if site_url else ''
+                lines.append(f'   \u2022 {b["title"]}{book_url}')
             if total > len(books):
                 lines.append(f'   ...и ещё {total - len(books)}')
-            if site_url:
-                lines.append(f'   \U0001f517 {site_url}/curriculum/book-courses')
+            lines.append('   \U0001f4a1 Во время чтения: любое слово можно '
+                         'перевести "на лету", послушать озвучку, '
+                         'и добавить в изучение через SRS + QUIZ.')
             lines.append('')
 
         if onboarding.get('no_words'):
-            lines.append('\U0001f4d6 Карточки — добавь слова для повторения')
+            lines.append('3. \U0001f0cf Карточки (2\u20133 мин)')
             if site_url:
-                lines.append(f'   \U0001f517 {cards_url or (site_url + "/study/cards")}')
+                lines.append(f'   \u2022 Создай свою колоду: '
+                             f'\U0001f517 {site_url}/study/my-decks/create')
+                lines.append(f'   \u2022 Затем выбери слова и добавь в колоду: '
+                             f'\U0001f517 {site_url}/words')
+            lines.append('   Мини-цель: добавь 3\u20135 слов из урока/книги.')
             lines.append('')
 
         return '\n'.join(lines)
 
-    # Regular plan — numbered list
-    lines.append('На сегодня предлагаю так:')
-    lines.append('')
+    # Regular plan — structured blocks with direct links
     step = 1
 
+    # Block 1: Next lesson (always shown if available)
     if plan.get('next_lesson'):
         nl = plan['next_lesson']
-        module_str = f"{nl['module_number']}." if nl.get('module_number') else ''
+        module_num = nl.get('module_number', '')
         lesson_type = nl.get('lesson_type')
         minutes = _lesson_minutes(lesson_type)
-        lines.append(f"{step}. \U0001f3af Урок {module_str}{nl.get('lesson_order', '')} — {nl['title']} ({minutes} мин)")
-        if site_url:
-            lines.append(f'   \U0001f517 {site_url}/curriculum/levels')
+        lesson_id = nl.get('lesson_id')
+
+        lines.append(f'План-минимум на сегодня (10\u201315 минут):')
+        lines.append(
+            f'{step}) \U0001f3af Модуль {module_num} \u2014 '
+            f'следующий урок: {nl["title"]} (~{minutes} мин)'
+        )
+        if site_url and lesson_id:
+            lines.append(f'\U0001f517 {site_url}/learn/{lesson_id}/')
+        lines.append('')
         step += 1
 
+        # "If you have extra time" separator
+        extra_blocks = []
+        if plan.get('grammar_topic'):
+            extra_blocks.append('grammar')
+        if True:  # words block is always shown
+            extra_blocks.append('words')
+        if plan.get('book_to_read') or plan.get('suggested_books'):
+            extra_blocks.append('books')
+
+        if extra_blocks:
+            lines.append('Если есть ещё 5\u201310 минут:')
+            lines.append('')
+
+    # Block 2: Grammar quick review
     if plan.get('grammar_topic'):
         gt = plan['grammar_topic']
-        due = gt.get('due_exercises', 0)
-        if due > 0:
-            minutes = due * 2
-            lines.append(f'{step}. \u270f\ufe0f {due} упражнений по грамматике (~{minutes} мин)')
-        else:
-            lines.append(f'{step}. \u270f\ufe0f Грамматика: {gt["title"]}')
-        if site_url:
-            lines.append(f'   \U0001f517 {site_url}/grammar-lab/')
+        topic_id = gt.get('topic_id')
+        summary = gt.get('telegram_summary')
+
+        lines.append(f'{step}) \U0001f9e0 Быстрый повтор грамматики (3\u20135 мин)')
+        if summary:
+            lines.append(summary)
+        lines.append(f'Хочешь потренировать: Grammar Lab \u2014 {gt["title"]} + quiz')
+        if site_url and topic_id:
+            lines.append(f'\U0001f517 {site_url}/grammar-lab/practice/topic/{topic_id}')
+        lines.append('')
         step += 1
 
-    if plan.get('words_due', 0) > 0:
-        words = plan['words_due']
-        minutes = _words_minutes(words)
-        lines.append(f'{step}. \U0001f4d6 {words} слов на повторение (~{minutes} мин)')
-        word_url = cards_url or (site_url + '/study/cards') if site_url else ''
+    # Block 3: Words — review / all done / add new
+    words_due = plan.get('words_due', 0)
+    has_any_words = plan.get('has_any_words', False)
+    lines.append(f'{step}) \U0001f4d6 Слова (3\u20135 мин)')
+    if words_due > 0:
+        lines.append(f'Есть {words_due} слов на повторение \u2014 просто повтори их.')
+        word_url = cards_url or ((site_url + '/study/cards') if site_url else '')
         if word_url:
-            lines.append(f'   \U0001f517 {word_url}')
-        step += 1
-
-    if plan.get('book_to_read'):
-        lines.append(f"{step}. \U0001f4d5 Почитать: {plan['book_to_read']['title']} (5–10 мин)")
+            lines.append(f'\U0001f517 {word_url}')
+    elif has_any_words:
+        lines.append('\u2705 Все слова на сегодня повторены! Завтра будут новые.')
+    else:
+        lines.append('Добавь 5\u201310 новых слов:')
         if site_url:
-            lines.append(f'   \U0001f517 {site_url}/curriculum/book-courses')
-
+            lines.append(f'\U0001f517 {site_url}/words')
     lines.append('')
-    lines.append('Хочешь — просто сделай пункт 1, и день уже засчитан \U0001f44d')
+    step += 1
+
+    # Block 4: Reading (if book_to_read or suggested_books)
+    book = plan.get('book_to_read')
+    suggested = plan.get('suggested_books')
+    if book or suggested:
+        lines.append(f'{step}) \U0001f4d5 Чтение (по желанию) 5\u201310 мин')
+        if book:
+            lines.append(book['title'])
+            if site_url and book.get('id'):
+                lines.append(f'\U0001f517 {site_url}/books/{book["id"]}')
+        elif suggested:
+            lines.append('Выбери книгу:')
+            for sb in suggested:
+                if site_url:
+                    lines.append(f'\u2022 {sb["title"]} \u2014 \U0001f517 {site_url}/books/{sb["id"]}')
+                else:
+                    lines.append(f'\u2022 {sb["title"]}')
+        lines.append('\U0001f4a1 Чтение = закрепляешь лексику в контексте '
+                     '+ привыкаешь к структуре фраз.')
+        lines.append('(слово \u2192 перевод/озвучка \u2192 добавить в SRS + QUIZ)')
 
     return '\n'.join(lines)
+
+
+def _format_lesson_types(types: list[str]) -> str:
+    """Deduplicate and capitalize lesson types for display."""
+    label_map: dict[str, str] = {
+        'vocabulary': 'Vocabulary',
+        'grammar': 'Grammar',
+        'quiz': 'Quiz',
+        'matching': 'Matching',
+        'text': 'Text',
+        'card': 'Cards',
+        'anki_cards': 'Cards',
+        'checkpoint': 'Checkpoint',
+    }
+    seen: list[str] = []
+    for t in types:
+        label = label_map.get(t, t.capitalize())
+        if label not in seen:
+            seen.append(label)
+    return ', '.join(seen)
 
 
 def format_evening_summary(user_name: str, summary: dict[str, Any],
                            streak: int, site_url: str,
                            tomorrow: dict[str, Any] | None = None) -> tuple[str, dict | None]:
-    """Format evening summary with praise and reflection buttons.
+    """Format evening summary with metrics and reflection buttons.
 
     Returns (text, reply_markup) tuple.
     """
     lines = [f'Классный день, {user_name}! \U0001f525', '']
+    lines.append('Сегодня сделал:')
 
-    # Achievements
-    if summary.get('lessons_completed'):
-        count = len(summary['lessons_completed'])
-        for title in summary['lessons_completed']:
-            lines.append(f'\u2705 {title} — пройден')
-        if count >= 2:
-            lines.append('   впечатляет!')
+    # Lessons count + types
+    lessons_count = summary.get('lessons_count', 0)
+    if lessons_count > 0:
+        lesson_types = summary.get('lesson_types', [])
+        types_str = f' ({_format_lesson_types(lesson_types)})' if lesson_types else ''
+        lines.append(f'\u2705 Уроки: {lessons_count}{types_str}')
 
-    if summary.get('grammar_exercises', 0) > 0:
+    # Grammar accuracy
+    grammar_total = summary.get('grammar_exercises', 0)
+    if grammar_total > 0:
         correct = summary.get('grammar_correct', 0)
-        total = summary['grammar_exercises']
-        line = f'\u2705 {correct}/{total} упражнений верно'
-        if total > 0 and correct / total >= 0.8:
-            line += ' — хорошая точность!'
-        lines.append(line)
+        pct = round(correct / grammar_total * 100) if grammar_total else 0
+        lines.append(f'\u270f\ufe0f Практика: {correct}/{grammar_total} верно ({pct}%)')
 
-    if summary.get('words_reviewed', 0) > 0:
-        words = summary['words_reviewed']
-        line = f'\u2705 {words} слов повторено'
-        if words >= 20:
-            line += ' — солидная работа'
-        lines.append(line)
+    # Words reviewed
+    words = summary.get('words_reviewed', 0)
+    if words > 0:
+        lines.append(f'\U0001f4d6 Слова: {words} повторено')
 
+    # Books read
     if summary.get('books_read'):
         for title in summary['books_read']:
-            lines.append(f'\U0001f4d6 Читал: {title}')
+            lines.append(f'\U0001f4d5 Чтение: {title}')
 
-    lines.append('')
+    # Streak
     if streak > 0:
-        lines.append(f'Стрик: {streak} дней')
+        lines.append('')
+        lines.append(f'\U0001f525 Стрик: {streak} дней')
 
     # Tomorrow preview
     if tomorrow:
-        module_str = f"{tomorrow['module_number']}." if tomorrow.get('module_number') else ''
+        module_num = tomorrow.get('module_number', '')
         lesson_type = tomorrow.get('lesson_type')
         minutes = _lesson_minutes(lesson_type)
+        lesson_id = tomorrow.get('lesson_id')
         lines.append('')
-        lines.append(f"Завтра: Урок {module_str}{tomorrow.get('lesson_order', '')} — {tomorrow['title']} (~{minutes} мин)")
-        if site_url:
-            lines.append(f'\U0001f517 {site_url}/curriculum/levels')
+        lines.append(
+            f'Завтра начнём с: Модуль {module_num} \u2192 '
+            f'{tomorrow["title"]} (~{minutes} мин)'
+        )
+        if site_url and lesson_id:
+            lines.append(f'\U0001f517 {site_url}/learn/{lesson_id}/')
 
     text = '\n'.join(lines)
 
@@ -178,25 +263,22 @@ def format_evening_summary(user_name: str, summary: dict[str, Any],
 def format_nudge(user_name: str, site_url: str,
                  quick_action: dict[str, Any] | None = None,
                  cards_url: str = '') -> str:
-    """Format midday nudge — personal and specific."""
+    """Format midday nudge — only sent when a quick action is available."""
     lines = [f'Эй, {user_name} \U0001f642', '']
 
-    if quick_action:
-        label = quick_action['label']
-        minutes = quick_action['minutes']
-        lines.append(f'Давай совсем маленький шаг — {label} (~{minutes} мин).')
-        if quick_action['type'] == 'words' and (cards_url or site_url):
-            url = cards_url or (site_url + '/study/cards')
-            lines.append(f'\U0001f517 {url}')
-        elif quick_action['type'] == 'grammar' and site_url:
-            lines.append(f'\U0001f517 {site_url}/grammar-lab/')
-        elif quick_action['type'] == 'lesson' and site_url:
-            lines.append(f'\U0001f517 {site_url}/curriculum/levels')
-    else:
-        lines.append('Давай совсем маленький шаг — 5 минут повторения.')
-        url = cards_url or (site_url + '/study/cards') if site_url else ''
-        if url:
-            lines.append(f'\U0001f517 {url}')
+    if not quick_action:
+        return '\n'.join(lines)
+
+    label = quick_action['label']
+    minutes = quick_action['minutes']
+    lines.append(f'Давай совсем маленький шаг \u2014 {label} (~{minutes} мин).')
+    if quick_action['type'] == 'words' and (cards_url or site_url):
+        url = cards_url or (site_url + '/study/cards')
+        lines.append(f'\U0001f517 {url}')
+    elif quick_action['type'] == 'grammar' and site_url:
+        lines.append(f'\U0001f517 {site_url}/grammar-lab/')
+    elif quick_action['type'] == 'lesson' and site_url:
+        lines.append(f'\U0001f517 {site_url}/learn/')
 
     return '\n'.join(lines)
 
@@ -218,7 +300,7 @@ def format_streak_alert(user_name: str, streak: int, site_url: str,
         elif quick_action['type'] == 'grammar' and site_url:
             lines.append(f'\U0001f517 {site_url}/grammar-lab/')
         elif quick_action['type'] == 'lesson' and site_url:
-            lines.append(f'\U0001f517 {site_url}/curriculum/levels')
+            lines.append(f'\U0001f517 {site_url}/learn/')
     else:
         lines.append('Сделай 2–3 минуты: пару карточек или 1 упражнение.')
         url = cards_url or (site_url + '/study/cards') if site_url else ''

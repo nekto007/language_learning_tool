@@ -1,5 +1,5 @@
 {% if not telegram_linked %}
-<div class="card shadow-sm mb-4" style="background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%); border-color: #c5d5e4;">
+<div class="card shadow-sm mb-4" id="tg-banner" style="background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%); border-color: #c5d5e4; display: none;">
     <div class="card-body py-3">
         <div class="d-flex align-items-center gap-3">
             <div style="font-size: 1.75rem;">
@@ -12,7 +12,19 @@
             <a href="{{ url_for('study.settings') }}#telegram-section" class="btn btn-primary btn-sm">
                 Подключить <i class="fas fa-arrow-right ms-1"></i>
             </a>
+            <button type="button" class="btn-close" aria-label="Закрыть" onclick="dismissTgBanner()"></button>
         </div>
     </div>
 </div>
+<script>
+(function() {
+    if (!localStorage.getItem('tg_banner_dismissed')) {
+        document.getElementById('tg-banner').style.display = '';
+    }
+})();
+function dismissTgBanner() {
+    localStorage.setItem('tg_banner_dismissed', '1');
+    document.getElementById('tg-banner').style.display = 'none';
+}
+</script>
 {% endif %}

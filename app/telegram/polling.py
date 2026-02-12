@@ -57,6 +57,7 @@ def _set_bot_commands(token: str) -> None:
         {'command': 'settings', 'description': 'Настройки уведомлений'},
         {'command': 'link', 'description': 'Привязать аккаунт'},
         {'command': 'unlink', 'description': 'Отвязать аккаунт'},
+        {'command': 'help', 'description': 'Справка'},
     ]
     try:
         resp = requests.post(

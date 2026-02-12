@@ -3,7 +3,7 @@ import logging
 
 from flask import request, jsonify, current_app
 from flask_login import login_required, current_user
-from app import csrf
+from app import csrf, limiter
 from app.telegram import telegram_bp
 from app.telegram.models import TelegramLinkCode, TelegramUser
 from app.utils.db import db
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 @telegram_bp.route('/generate-code', methods=['POST'])
 @login_required
+@limiter.limit("3 per minute")
 def generate_code():
     """Generate a 6-digit code for linking Telegram account."""
     # Check if already linked
