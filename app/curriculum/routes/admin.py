@@ -651,72 +651,100 @@ def delete_lesson(lesson_id):
         return redirect(url_for('curriculum_admin.admin_lessons'))
 
 
+def _extract_sound_filename(value: str) -> str | None:
+    """Extract filename from '[sound:name.mp3]' or plain 'name.mp3'."""
+    import re
+    if not value:
+        return None
+    m = re.search(r'\[sound:([^\]]+)\]', value)
+    if m:
+        return m.group(1)
+    if value.endswith('.mp3'):
+        return value
+    return None
+
+
 @admin_bp.route('/admin/audio-stats')
 @login_required
 @admin_required
 def audio_stats():
-    """Show audio file statistics per module"""
+    """Show audio file statistics per module — all sources."""
     import os
-    import re
     from flask import current_app
+    from app.words.models import CollectionWords, CollectionWordLink
 
-    # Audio files directory
     audio_dir = os.path.join(current_app.static_folder, 'audio')
 
-    # Get existing audio files
-    existing_files = set()
+    existing_files: set[str] = set()
     if os.path.exists(audio_dir):
         for f in os.listdir(audio_dir):
             if f.endswith('.mp3'):
                 existing_files.add(f)
 
-    # Get modules from database
     module_stats = []
     modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
 
     for module in modules:
         level_code = module.level.code if module.level else 'A0'
+        audio_refs: list[dict] = []
+        missing_files: list[dict] = []
+        seen_files: set[str] = set()
 
-        # Extract audio references from lessons
-        audio_refs = []
-        missing_files = []
+        def _add_ref(label: str, filename: str, source: str) -> None:
+            if filename in seen_files:
+                return
+            seen_files.add(filename)
+            audio_refs.append({'word': label, 'file': filename, 'source': source})
+            if filename not in existing_files:
+                missing_files.append({'word': label, 'file': filename, 'source': source})
 
         lessons = Lessons.query.filter_by(module_id=module.id).all()
         for lesson in lessons:
             content = lesson.content or {}
+            if not isinstance(content, dict):
+                continue
 
-            # Check different content structures
-            vocabulary = []
-            if isinstance(content, dict):
-                vocabulary = content.get('vocabulary', [])
-                # Also check 'words' key
-                if not vocabulary:
-                    vocabulary = content.get('words', [])
-
+            # --- 1. Vocabulary / words in content ---
+            vocabulary = content.get('vocabulary', []) or content.get('words', []) or []
             if isinstance(vocabulary, list):
                 for word in vocabulary:
                     if not isinstance(word, dict):
                         continue
+                    audio_val = word.get('audio', '') or word.get('audio_url', '')
+                    fn = _extract_sound_filename(str(audio_val))
+                    if fn:
+                        label = word.get('english') or word.get('word') or word.get('front', '')
+                        _add_ref(label, fn, 'vocabulary')
 
-                    # Get audio field
-                    audio = word.get('audio', '')
+            # --- 2. Top-level audio (text / listening lessons) ---
+            top_audio = content.get('audio', '')
+            fn = _extract_sound_filename(str(top_audio))
+            if fn:
+                _add_ref(f'Урок: {lesson.title}', fn, 'lesson')
 
-                    # Parse [sound:filename.mp3] format
-                    match = re.search(r'\[sound:([^\]]+)\]', str(audio))
-                    if match:
-                        filename = match.group(1)
-                        word_text = word.get('english') or word.get('word') or word.get('front', '')
-                        audio_refs.append({
-                            'word': word_text,
-                            'file': filename
-                        })
-                        if filename not in existing_files:
-                            missing_files.append({
-                                'word': word_text,
-                                'file': filename
-                            })
+            # --- 3. Card lessons → CollectionWords.listening ---
+            if lesson.type in ('card', 'flashcards', 'anki_cards'):
+                coll_id = lesson.collection_id or content.get('collection_id')
+                word_ids: list[int] = []
+                if coll_id:
+                    links = CollectionWordLink.query.filter_by(
+                        collection_id=coll_id,
+                    ).all()
+                    word_ids = [lnk.word_id for lnk in links]
+                extra_ids = content.get('word_ids', [])
+                if isinstance(extra_ids, list):
+                    word_ids.extend(extra_ids)
+                word_ids = list(set(word_ids))
 
-        # Only add modules that have audio references
+                if word_ids:
+                    coll_words = CollectionWords.query.filter(
+                        CollectionWords.id.in_(word_ids),
+                    ).all()
+                    for cw in coll_words:
+                        fn = _extract_sound_filename(str(cw.listening or ''))
+                        if fn:
+                            _add_ref(cw.english_word or '', fn, 'collection')
+
         if audio_refs:
             module_stats.append({
                 'id': module.number,
@@ -725,14 +753,15 @@ def audio_stats():
                 'total_audio': len(audio_refs),
                 'missing_count': len(missing_files),
                 'missing_files': missing_files,
-                'completion_percent': round((len(audio_refs) - len(missing_files)) / len(audio_refs) * 100) if audio_refs else 100
+                'completion_percent': round(
+                    (len(audio_refs) - len(missing_files)) / len(audio_refs) * 100
+                ),
             })
 
-    # Sort by module number
     module_stats.sort(key=lambda x: x['id'])
 
     return render_template(
         'admin/curriculum/audio_stats.html',
         module_stats=module_stats,
-        total_existing=len(existing_files)
+        total_existing=len(existing_files),
     )

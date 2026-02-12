@@ -61,6 +61,11 @@
                                     <div class="mb-1">
                                         <code>{{ item.file }}</code>
                                         <span class="text-muted">({{ item.word }})</span>
+                                        {% if item.source == 'collection' %}
+                                        <span class="badge bg-info bg-opacity-75">collection</span>
+                                        {% elif item.source == 'lesson' %}
+                                        <span class="badge bg-warning bg-opacity-75">lesson</span>
+                                        {% endif %}
                                     </div>
                                     {% endfor %}
                                 </div>
