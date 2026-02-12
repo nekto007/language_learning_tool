@@ -974,6 +974,22 @@ def process_quiz_submission(questions, answers):
                 correct_text = str(correct_answer) if correct_answer is not None else 'Не указан'
                 user_text = str(user_answer)
 
+            elif question_type == 'matching':
+                # For matching questions, format pairs as readable text
+                if isinstance(correct_answer, list):
+                    correct_text = ', '.join(
+                        f"{p.get('left', '')} → {p.get('right', '')}"
+                        for p in correct_answer if isinstance(p, dict)
+                    )
+                elif 'pairs' in question:
+                    correct_text = ', '.join(
+                        f"{p.get('left', '')} → {p.get('right', '')}"
+                        for p in question['pairs']
+                    )
+                else:
+                    correct_text = str(correct_answer) if correct_answer is not None else 'Не указан'
+                user_text = str(user_answer)
+
             else:
                 correct_text = str(correct_answer) if correct_answer is not None else 'Не указан'
                 user_text = str(user_answer)

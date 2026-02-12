@@ -553,6 +553,13 @@ def render_quiz_lesson(lesson):
                     question = cleaned_content['questions'][q_idx]
                     correct_answer = question.get('correct_answer') or question.get('correct') or question.get('answer')
 
+                    # For matching questions, format pairs as readable text
+                    if question.get('type') == 'matching' and 'pairs' in question:
+                        correct_answer = ', '.join(
+                            f"{p.get('left', '')} → {p.get('right', '')}"
+                            for p in question['pairs']
+                        )
+
                     if is_correct:
                         feedback[str(q_idx)] = {
                             'status': 'correct',
@@ -1573,6 +1580,13 @@ def quiz_lesson(lesson_id):
 
                     question = cleaned_content['questions'][q_idx]
                     correct_answer = question.get('correct_answer') or question.get('correct') or question.get('answer')
+
+                    # For matching questions, format pairs as readable text
+                    if question.get('type') == 'matching' and 'pairs' in question:
+                        correct_answer = ', '.join(
+                            f"{p.get('left', '')} → {p.get('right', '')}"
+                            for p in question['pairs']
+                        )
 
                     if is_correct:
                         feedback[str(q_idx)] = {
