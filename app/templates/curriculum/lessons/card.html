@@ -25,6 +25,14 @@
   margin: 0 auto;
 }
 
+/* Disable 300ms tap delay on iOS / touch devices */
+.show-answer-btn,
+.audio-btn,
+.rating-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .srs-card::before {
   content: '';
   position: absolute;
@@ -1037,14 +1045,21 @@
       }
 
       // Оценить карточку
-      async function rateCard(rating) {
+      let _ratingInProgress = false;
+
+      async function rateCard(rating, e) {
+          if (_ratingInProgress) return;
+          _ratingInProgress = true;
+
           const card = sessionState.currentCard;
           const cardKey = `${card.word_id}-${card.direction}`;
 
           // Анимация нажатия кнопки
-          const btn = event.currentTarget;
-          btn.classList.add('clicked');
-          setTimeout(() => btn.classList.remove('clicked'), 300);
+          const btn = e?.currentTarget;
+          if (btn) {
+              btn.classList.add('clicked');
+              setTimeout(() => btn.classList.remove('clicked'), 300);
+          }
 
           if (rating === 0) {
               // "Снова" - добавляем в очередь повтора с перетасовкой
@@ -1119,6 +1134,7 @@
           updateStatistics();
           saveSessionState(); // Сохраняем прогресс после каждого рейтинга
           showNextCard();
+          setTimeout(() => { _ratingInProgress = false; }, 400);
       }
 
       // Обновить статистику
@@ -1207,14 +1223,30 @@
       }
 
       // Обработчики событий
-      elements.showAnswerBtn?.addEventListener('click', showCardBack);
-      elements.frontAudioBtn?.addEventListener('click', () => elements.wordAudio.play());
-      elements.backAudioBtn?.addEventListener('click', () => elements.wordAudio.play());
+      elements.showAnswerBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showCardBack();
+      });
+
+      elements.frontAudioBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          elements.wordAudio.play();
+      });
+
+      elements.backAudioBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          elements.wordAudio.play();
+      });
 
       document.querySelectorAll('.rating-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
               const rating = parseInt(e.currentTarget.dataset.rating);
-              rateCard(rating);
+              rateCard(rating, e);
           });
       });
 
