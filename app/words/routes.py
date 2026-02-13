@@ -16,14 +16,32 @@ words = Blueprint('words', __name__)
 @login_required
 @module_required('words')
 def dashboard():
-    """Main dashboard with all modules overview"""
+    """Main dashboard with daily plan, streak and activity summary."""
     from app.study.models import UserWord, Achievement, UserAchievement
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
     from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
     from app.telegram.models import TelegramUser
+    from app.telegram.queries import get_daily_plan, get_current_streak, get_daily_summary
+    from app.telegram.notifications import _lesson_minutes, _words_minutes
+
+    # === DAILY PLAN & STREAK ===
+    streak = get_current_streak(current_user.id)
+    daily_plan = get_daily_plan(current_user.id)
+    daily_summary = get_daily_summary(current_user.id)
+
+    # Cards URL (user's default deck or generic)
+    cards_url = url_for('study.cards')
+    if current_user.default_study_deck_id:
+        cards_url = url_for('study.cards_deck', deck_id=current_user.default_study_deck_id)
+
+    # Lesson time estimate
+    lesson_minutes = None
+    if daily_plan.get('next_lesson'):
+        lesson_minutes = _lesson_minutes(daily_plan['next_lesson'].get('lesson_type'))
+
+    words_minutes = _words_minutes(daily_plan.get('words_due', 0))
 
     # === WORDS STATS ===
-    # Count words by status, but 'mastered' is now a computed value (review + interval >= 180)
     from app.study.models import UserCardDirection
 
     status_counts = db.session.query(
@@ -38,7 +56,6 @@ def dashboard():
         if status in words_stats:
             words_stats[status] = count
 
-    # Calculate mastered count: review status + min_interval >= 180 days
     mastered_count = db.session.query(func.count(func.distinct(UserWord.id))).filter(
         UserWord.user_id == current_user.id,
         UserWord.status == 'review'
@@ -48,7 +65,6 @@ def dashboard():
         func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
     ).count()
 
-    # Adjust counts: mastered words should not be counted as review
     words_stats['mastered'] = mastered_count
     words_stats['review'] = max(0, words_stats['review'] - mastered_count)
 
@@ -68,7 +84,6 @@ def dashboard():
         UserGrammarTopicStatus.user_id == current_user.id,
         UserGrammarTopicStatus.theory_completed == True
     ).count()
-    # Mastery is now tracked at exercise level, simplified to count studied topics
     grammar_mastered = grammar_studied
 
     # === BOOK COURSES STATS ===
@@ -97,6 +112,13 @@ def dashboard():
     ).first() is not None
 
     return render_template('dashboard.html',
+        # Daily plan
+        streak=streak,
+        daily_plan=daily_plan,
+        daily_summary=daily_summary,
+        cards_url=cards_url,
+        lesson_minutes=lesson_minutes,
+        words_minutes=words_minutes,
         # Words
         words_stats=words_stats,
         words_total=words_total,
