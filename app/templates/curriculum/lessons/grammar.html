@@ -259,12 +259,15 @@
             {% if section.table %}
               <table class="grammar-table">
                 {% for row in section.table %}
-                  <tr>
-                    <td><strong>{{ row.pronoun|safe }}</strong></td>
-                    <td><strong>{{ row.form|safe }}</strong></td>
-                    <td>{{ row.example|safe }}</td>
-                    <td class="text-muted">{{ row.translation|safe }}</td>
-                  </tr>
+                  {% if row is mapping %}
+                    <tr>
+                      {% for key, val in row.items() if key != 'audio' %}
+                        <td{% if 'translation' in key %} class="text-muted"{% endif %}>
+                          {% if loop.first %}<strong>{{ val|safe }}</strong>{% else %}{{ val|safe }}{% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endif %}
                 {% endfor %}
               </table>
             {% endif %}
@@ -320,26 +323,28 @@
         </div>
       {% endif %}
 
-      {% if grammar_explanation.summary and grammar_explanation.summary.table %}
+      {% if grammar_explanation.summary is mapping and grammar_explanation.summary.table %}
         <div class="summary-section">
           <h4>{{ grammar_explanation.summary.title }}</h4>
           <table class="grammar-table summary">
             <thead>
               <tr>
-                <th>{{ _('Подлежащее') }}</th>
-                <th>{{ _('Утверждение') }}</th>
-                <th>{{ _('Отрицание') }}</th>
-                <th>{{ _('Вопрос') }}</th>
+                {% for key in grammar_explanation.summary.table[0] if key != 'audio' %}
+                  <th>{{ key|replace('_', ' ')|capitalize }}</th>
+                {% endfor %}
               </tr>
             </thead>
             <tbody>
               {% for row in grammar_explanation.summary.table %}
-                <tr>
-                  <td><strong>{{ row.subject }}</strong></td>
-                  <td>{{ row.affirmative }}</td>
-                  <td>{{ row.negative }}</td>
-                  <td>{{ row.question }}</td>
-                </tr>
+                {% if row is mapping %}
+                  <tr>
+                    {% for key, val in row.items() if key != 'audio' %}
+                      <td{% if 'translation' in key %} class="text-muted"{% endif %}>
+                        {% if loop.first %}<strong>{{ val|safe }}</strong>{% else %}{{ val|safe }}{% endif %}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endif %}
               {% endfor %}
             </tbody>
           </table>
