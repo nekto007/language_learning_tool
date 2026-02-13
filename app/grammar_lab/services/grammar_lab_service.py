@@ -58,6 +58,46 @@ class GrammarLabService:
         self.srs = GrammarSRS()
         self.grader = GrammarExerciseGrader()
 
+    def _sync_curriculum_progress(self, user_id: int, topic_ids: List[int]) -> None:
+        """
+        Lazy sync: if user completed a curriculum grammar lesson linked to a topic
+        but has no UserGrammarTopicStatus, create one with theory_completed.
+        Runs once per missing status — after record exists, this is a no-op.
+        """
+        from app.curriculum.models import Lessons, LessonProgress
+
+        # Find topics that have no status record for this user
+        existing = db.session.query(UserGrammarTopicStatus.topic_id).filter(
+            UserGrammarTopicStatus.user_id == user_id,
+            UserGrammarTopicStatus.topic_id.in_(topic_ids)
+        ).all()
+        existing_ids = {row[0] for row in existing}
+        missing_ids = set(topic_ids) - existing_ids
+
+        if not missing_ids:
+            return
+
+        # Find completed grammar lessons linked to these topics
+        completed = db.session.query(Lessons.grammar_topic_id).join(
+            LessonProgress, LessonProgress.lesson_id == Lessons.id
+        ).filter(
+            Lessons.grammar_topic_id.in_(missing_ids),
+            Lessons.type.in_(['grammar', 'grammar_focus']),
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed'
+        ).all()
+
+        for (topic_id,) in completed:
+            try:
+                status = UserGrammarTopicStatus.get_or_create(user_id, topic_id)
+                status.transition_to('theory_completed')
+                logger.info(f"Lazy sync: user {user_id} topic {topic_id} → theory_completed")
+            except Exception as e:
+                logger.warning(f"Lazy sync failed: user {user_id} topic {topic_id}: {e}")
+
+        if completed:
+            db.session.commit()
+
     def get_topics_by_level(self, level: str = None, user_id: int = None) -> List[Dict]:
         """
         Get all topics, optionally filtered by level, with user progress.
@@ -68,6 +108,13 @@ class GrammarLabService:
             query = query.filter(GrammarTopic.level == level)
 
         topics = query.all()
+
+        # Lazy sync curriculum progress for this user
+        if user_id and topics:
+            try:
+                self._sync_curriculum_progress(user_id, [t.id for t in topics])
+            except Exception as e:
+                logger.warning(f"Curriculum progress sync error: {e}")
 
         result = []
         for topic in topics:

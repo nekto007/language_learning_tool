@@ -284,6 +284,7 @@ def import_from_modules():
         imported = 0
         skipped = 0
         exercises_imported = 0
+        total_synced = 0
 
         try:
             # Get all modules with their levels
@@ -358,16 +359,37 @@ def import_from_modules():
                 # Retroactive sync: if users already completed this lesson, update Grammar Lab status
                 from app.curriculum.models import LessonProgress
                 from app.grammar_lab.models import UserGrammarTopicStatus
+                synced_count = 0
                 completed_progresses = LessonProgress.query.filter_by(
                     lesson_id=grammar_lesson.id,
                     status='completed'
                 ).all()
+                if not completed_progresses:
+                    # Try broader search - maybe status differs
+                    all_progresses = LessonProgress.query.filter_by(
+                        lesson_id=grammar_lesson.id
+                    ).all()
+                    logger.info(
+                        f"Module {module.number}: lesson {grammar_lesson.id} has "
+                        f"{len(all_progresses)} progress records, "
+                        f"statuses: {[p.status for p in all_progresses]}"
+                    )
                 for progress in completed_progresses:
                     try:
-                        status = UserGrammarTopicStatus.get_or_create(progress.user_id, topic.id)
-                        status.transition_to('theory_completed')
+                        topic_st = UserGrammarTopicStatus.get_or_create(progress.user_id, topic.id)
+                        if topic_st.transition_to('theory_completed'):
+                            synced_count += 1
+                            logger.info(f"Synced user {progress.user_id} for topic {topic.id}")
+                        else:
+                            logger.info(
+                                f"User {progress.user_id} topic {topic.id}: "
+                                f"already status={topic_st.status}, skip"
+                            )
                     except Exception as e:
                         logger.warning(f"Retroactive sync failed for user {progress.user_id}: {e}")
+                total_synced += synced_count
+                if synced_count > 0:
+                    logger.info(f"Module {module.number}: synced {synced_count} users")
 
                 # Упражнения находятся в quiz уроках в content['exercises']
                 quiz_lessons = Lessons.query.filter_by(
@@ -447,7 +469,8 @@ def import_from_modules():
                         exercises_imported += 1
 
             db.session.commit()
-            flash(f'Создано: {imported} тем, обновлено: {skipped} тем, упражнений: {exercises_imported}', 'success')
+            sync_msg = f', синхронизировано прогрессов: {total_synced}' if total_synced else ''
+            flash(f'Создано: {imported} тем, обновлено: {skipped} тем, упражнений: {exercises_imported}{sync_msg}', 'success')
 
         except Exception as e:
             db.session.rollback()
