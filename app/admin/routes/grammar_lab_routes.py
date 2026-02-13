@@ -355,6 +355,20 @@ def import_from_modules():
                 # Link source grammar lesson back to the topic
                 grammar_lesson.grammar_topic_id = topic.id
 
+                # Retroactive sync: if users already completed this lesson, update Grammar Lab status
+                from app.curriculum.models import LessonProgress
+                from app.grammar_lab.models import UserGrammarTopicStatus
+                completed_progresses = LessonProgress.query.filter_by(
+                    lesson_id=grammar_lesson.id,
+                    status='completed'
+                ).all()
+                for progress in completed_progresses:
+                    try:
+                        status = UserGrammarTopicStatus.get_or_create(progress.user_id, topic.id)
+                        status.transition_to('theory_completed')
+                    except Exception as e:
+                        logger.warning(f"Retroactive sync failed for user {progress.user_id}: {e}")
+
                 # Упражнения находятся в quiz уроках в content['exercises']
                 quiz_lessons = Lessons.query.filter_by(
                     module_id=module.id,
