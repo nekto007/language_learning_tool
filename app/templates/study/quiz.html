@@ -5,20 +5,691 @@
 {% block styles %}
 {{ super() }}
 <style>
-/* Animations moved to design-system.css: pulse, slideInUp, fadeInScale */
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
 
-#xp-earned {
-    transition: var(--transition-base);
+/* ── Scoped Variables ── */
+.qz-page {
+  --qz-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --qz-primary: #f59e0b;
+  --qz-primary-dark: #d97706;
+  --qz-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --qz-surface: #ffffff;
+  --qz-surface-alt: #f8fafc;
+  --qz-text: #0f172a;
+  --qz-text-muted: #64748b;
+  --qz-text-light: #94a3b8;
+  --qz-border: #e2e8f0;
+  --qz-radius: 16px;
+  --qz-radius-sm: 10px;
+  --qz-success: #10b981;
+  --qz-danger: #ef4444;
+  --qz-warning: #f59e0b;
+  font-family: var(--qz-font);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
 }
 
-#session-complete {
-    animation: fadeInScale 0.5s ease-out;
+/* ── Animations ── */
+@keyframes qzSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes qzFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-18px, 18px) scale(1.06); }
+}
+
+@keyframes qzFloat2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(22px, -16px) rotate(10deg); }
+}
+
+@keyframes qzPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes qzFadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.qz-page .progress-container {
+  animation: qzSlideUp 0.4s ease-out;
+}
+
+.qz-page #quiz-view {
+  animation: qzSlideUp 0.4s ease-out 0.1s both;
+}
+
+/* ── Progress Header ── */
+.qz-page .progress-container {
+  background: var(--qz-gradient);
+  border-radius: var(--qz-radius) var(--qz-radius) 0 0;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 0;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.qz-page .progress-container::before,
+.qz-page .progress-container::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.qz-page .progress-container::before {
+  width: 160px;
+  height: 160px;
+  top: -60px;
+  right: -40px;
+  animation: qzFloat1 18s ease-in-out infinite;
+}
+
+.qz-page .progress-container::after {
+  width: 80px;
+  height: 80px;
+  bottom: -30px;
+  left: 10%;
+  animation: qzFloat2 14s ease-in-out infinite;
+}
+
+.qz-page .progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.qz-page .progress-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+}
+
+.qz-page .progress-title .badge {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  backdrop-filter: blur(5px);
+}
+
+.qz-page .question-counter {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.qz-page .progress-stats {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.qz-page .stat-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.qz-page .stat-correct {
+  background: rgba(255, 255, 255, 0.9);
+  color: #059669;
+}
+
+.qz-page .stat-incorrect {
+  background: rgba(255, 255, 255, 0.9);
+  color: #dc2626;
+}
+
+.qz-page .end-session-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--qz-radius-sm);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(5px);
+}
+
+.qz-page .end-session-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.qz-page .progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.qz-page .progress-fill {
+  height: 100%;
+  background: #fff !important;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Quiz Container ── */
+.qz-page .quiz-container {
+  background: var(--qz-surface);
+  border: 1px solid var(--qz-border);
+  border-top: none;
+  border-radius: 0 0 var(--qz-radius) var(--qz-radius);
+  padding: 2rem;
+  position: relative;
+}
+
+/* ── Timer ── */
+.qz-page .timer-container {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  background: var(--qz-surface-alt);
+  border: 1px solid var(--qz-border);
+  border-radius: 999px;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--qz-text);
+  font-family: var(--qz-font);
+  transition: all 0.3s;
+}
+
+.qz-page .timer-container.warning {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.qz-page .timer-container.warning .timer-icon,
+.qz-page .timer-container.warning .timer-value {
+  color: var(--qz-danger);
+}
+
+.qz-page .timer-icon {
+  color: var(--qz-text-muted);
+  flex-shrink: 0;
+}
+
+.qz-page .timer-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--qz-text);
+}
+
+/* ── Question ── */
+.qz-page .quiz-header {
+  margin-bottom: 0.5rem;
+}
+
+.qz-page .quiz-question-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--qz-primary);
+  display: none;
+}
+
+.qz-page .quiz-question-container {
+  margin-bottom: 1.5rem;
+}
+
+.qz-page .quiz-word-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.qz-page .quiz-question-text {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--qz-text);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.qz-page .audio-btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fef3c7;
+  border: none;
+  color: var(--qz-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.qz-page .audio-btn-icon:hover {
+  background: #fde68a;
+  transform: scale(1.05);
+}
+
+.qz-page .audio-btn-icon::after {
+  display: none;
+}
+
+/* ── Feedback ── */
+.qz-page .feedback-container {
+  display: none;
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--qz-radius-sm);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.qz-page .feedback-container p {
+  margin: 0;
+}
+
+.qz-page .feedback-correct {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.qz-page .feedback-incorrect {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.qz-page .correct-answer {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-top: 0.375rem;
+  opacity: 0.85;
+}
+
+/* ── Options Grid ── */
+.qz-page .options-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0;
+}
+
+.qz-page .option-btn {
+  padding: 1rem 1.25rem;
+  background: var(--qz-surface);
+  border: 1.5px solid var(--qz-border);
+  border-radius: var(--qz-radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  color: var(--qz-text);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.qz-page .option-btn:hover {
+  border-color: var(--qz-primary);
+  background: #fffbeb;
+}
+
+.qz-page .option-btn.selected {
+  border-color: var(--qz-primary);
+  background: #fef3c7;
+  color: var(--qz-primary-dark);
+}
+
+.qz-page .option-btn.correct {
+  border-color: var(--qz-success);
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.qz-page .option-btn.incorrect {
+  border-color: var(--qz-danger);
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+/* ── Fill Blank ── */
+.qz-page .quiz-fill-blank {
+  margin-bottom: 0;
+}
+
+.qz-page .quiz-fill-input {
+  width: 300px;
+  max-width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: 1.5px solid var(--qz-border);
+  border-radius: var(--qz-radius-sm);
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  color: var(--qz-text);
+  text-align: center;
+  transition: all 0.2s;
+  background: var(--qz-surface);
+}
+
+.qz-page .quiz-fill-input:focus {
+  outline: none;
+  border-color: var(--qz-primary);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.qz-page .quiz-fill-input::placeholder {
+  color: var(--qz-text-light);
+  font-weight: 400;
+}
+
+/* ── Buttons ── */
+.qz-page .quiz-buttons-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.qz-page .hint-btn {
+  padding: 0.625rem 1.25rem;
+  background: var(--qz-surface);
+  border: 1.5px solid var(--qz-border);
+  border-radius: var(--qz-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  color: var(--qz-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qz-page .hint-btn:hover {
+  border-color: var(--qz-warning);
+  color: var(--qz-warning);
+}
+
+.qz-page .submit-answer-btn {
+  padding: 0.625rem 1.5rem;
+  background: var(--qz-gradient);
+  border: none;
+  border-radius: var(--qz-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qz-page .submit-answer-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.qz-page .submit-answer-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qz-page .submit-answer-btn:disabled::after {
+  display: none;
+}
+
+.qz-page .next-btn {
+  padding: 0.625rem 1.5rem;
+  background: var(--qz-gradient);
+  border: none;
+  border-radius: var(--qz-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+
+.qz-page .next-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* ── Hint ── */
+.qz-page .hint-container {
+  text-align: center;
+}
+
+.qz-page .hint-text {
+  display: none;
+  padding: 0.875rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--qz-radius-sm);
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+/* ── Session Complete ── */
+.qz-page .quiz-session-complete {
+  background: var(--qz-surface);
+  border: 1px solid var(--qz-border);
+  border-radius: var(--qz-radius);
+  padding: 2.5rem;
+  text-align: center;
+  animation: qzFadeInScale 0.5s ease-out;
+}
+
+.qz-page .quiz-complete-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--qz-text);
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.qz-page .quiz-score {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.03em;
+}
+
+.qz-page .quiz-score-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--qz-text-muted);
+  margin: 0 0 1rem;
+}
+
+.qz-page .quiz-stats-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  background: var(--qz-surface-alt);
+  border-radius: 999px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.qz-page .quiz-xp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  background: var(--qz-gradient);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.qz-page .quiz-achievements {
+  margin-bottom: 1rem;
+}
+
+.qz-page .quiz-achievements-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--qz-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.qz-page .quiz-achievement-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.qz-page .quiz-action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.qz-page .quiz-action-buttons .btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--qz-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--qz-font);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.qz-page .quiz-action-buttons .btn-primary {
+  background: var(--qz-gradient);
+  border: none;
+  color: #fff;
+}
+
+.qz-page .quiz-action-buttons .btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.qz-page .quiz-action-buttons .btn-outline-secondary {
+  background: var(--qz-surface);
+  border: 1.5px solid var(--qz-border);
+  color: var(--qz-text-muted);
+}
+
+.qz-page .quiz-action-buttons .btn-outline-secondary:hover {
+  border-color: var(--qz-primary);
+  color: var(--qz-primary);
+}
+
+/* ── No questions message ── */
+.qz-page .alert-info {
+  background: var(--qz-surface);
+  border: 1px solid var(--qz-border);
+  border-radius: var(--qz-radius);
+  padding: 2.5rem;
+  text-align: center;
+  color: var(--qz-text);
+}
+
+.qz-page .alert-info h4 {
+  font-weight: 700;
+  color: var(--qz-text);
+  margin-bottom: 0.5rem;
+}
+
+.qz-page .alert-info p {
+  color: var(--qz-text-muted);
+}
+
+.qz-page .alert-info .btn-primary {
+  background: var(--qz-gradient);
+  border: none;
+  border-radius: var(--qz-radius-sm);
+  font-family: var(--qz-font);
+  font-weight: 600;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .qz-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .qz-page .progress-container {
+    padding: 1rem 1.25rem;
+  }
+
+  .qz-page .quiz-container {
+    padding: 1.25rem;
+  }
+
+  .qz-page .quiz-question-text {
+    font-size: 1.35rem;
+  }
+
+  .qz-page .options-container {
+    grid-template-columns: 1fr;
+  }
+
+  .qz-page .quiz-session-complete {
+    padding: 1.5rem;
+    border-radius: var(--qz-radius);
+  }
+
+  .qz-page .quiz-score {
+    font-size: 2.75rem;
+  }
+
+  .qz-page .quiz-action-buttons {
+    flex-direction: column;
+  }
+
+  .qz-page .quiz-buttons-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .qz-page .progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4" id="quiz-app">
+<div class="qz-page" id="quiz-app">
     <!-- Progress bar and stats -->
     <div class="progress-container">
         <div class="progress-header">
@@ -49,7 +720,7 @@
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Загрузка...</span>
         </div>
-        <p class="mt-2 text-muted">Загрузка вопросов...</p>
+        <p class="mt-2" style="color: var(--qz-text-muted);">Загрузка вопросов...</p>
     </div>
 
     <!-- Quiz container -->
@@ -57,7 +728,7 @@
         <div id="quiz-container" class="quiz-container">
             <!-- Timer (optional) -->
             <div class="timer-container quiz-timer" id="timer-container">
-                <i class="fas fa-clock timer-icon"></i>
+                <svg class="timer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 <span class="timer-value" id="timer-value">30</span>
             </div>
 
@@ -71,7 +742,7 @@
                 <div class="quiz-word-row">
                     <h2 class="quiz-question-text" id="question-text"></h2>
                     <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать">
-                        <i class="fas fa-volume-up"></i>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     </button>
                 </div>
             </div>
@@ -99,9 +770,9 @@
 
             <!-- Buttons row - centered -->
             <div class="quiz-buttons-row" style="display: flex; justify-content: center; gap: 16px; margin: 24px 0;">
-                <button id="hint-btn" class="hint-btn">💡 Подсказка</button>
+                <button id="hint-btn" class="hint-btn">Подсказка</button>
                 <button id="submit-answer-btn" class="submit-answer-btn">Отправить</button>
-                <button id="next-btn" class="next-btn">Далее →</button>
+                <button id="next-btn" class="next-btn">Далее</button>
             </div>
 
             <!-- Hint text -->
@@ -113,7 +784,7 @@
         <!-- Session complete message - COMPACT VERSION with XP -->
         <div id="session-complete" class="quiz-session-complete" style="display: none;">
             <!-- Title -->
-            <h3 class="quiz-complete-title">🎯 Квиз завершен</h3>
+            <h3 class="quiz-complete-title">Квиз завершен</h3>
 
             <!-- Score display -->
             <div class="mb-3">
@@ -125,7 +796,7 @@
             <div class="quiz-stats-summary">
                 <span id="stats-summary" class="d-flex align-items-center gap-2">
                     <span id="stats-correct" class="text-success fw-semibold">17</span>/<span id="stats-questions" class="fw-semibold">20</span>
-                    <span class="text-muted">•</span>
+                    <span class="text-muted">&bull;</span>
                     <span id="stats-time" class="fw-medium">5:23</span>
                 </span>
             </div>
@@ -146,10 +817,10 @@
             <!-- Action buttons - compact row -->
             <div id="action-buttons" class="quiz-action-buttons">
                 <a id="retry-quiz-btn" href="#" class="btn btn-primary">
-                    <i class="fas fa-redo me-1"></i> Еще раз
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Еще раз
                 </a>
                 <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-home me-1"></i> Назад
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Назад
                 </a>
             </div>
         </div>
@@ -214,7 +885,7 @@
 
     // Pulse animation for XP badge
     function pulseElement(element) {
-        element.style.animation = 'pulse 0.6s ease-in-out 3';
+        element.style.animation = 'qzPulse 0.6s ease-in-out 3';
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -286,7 +957,6 @@
         // Fetch questions from API
         async function fetchQuestions() {
             try {
-                // Get current language from URL or session
                 const urlParams = new URLSearchParams(window.location.search);
                 const lang = urlParams.get('lang') || '{{ g.locale }}';
 
@@ -318,14 +988,11 @@
             }
         }
 
-        // Get unique quiz key for localStorage
         function getQuizStateKey() {
-            // Use deckId for deck quizzes or 'auto' for automatic quizzes
             const quizKey = deckId ? `deck_${deckId}` : 'auto';
             return `quizState_${quizKey}`;
         }
 
-        // Save quiz state to localStorage
         function saveQuizState() {
             const state = {
                 deckId: deckId,
@@ -341,9 +1008,7 @@
             localStorage.setItem(getQuizStateKey(), JSON.stringify(state));
         }
 
-        // Load quiz state from localStorage
         function loadQuizState() {
-            // Check for completion flag - if quiz was completed, start fresh
             const completedKey = getQuizStateKey() + '_completed';
             if (localStorage.getItem(completedKey)) {
                 localStorage.removeItem(completedKey);
@@ -356,14 +1021,12 @@
                 try {
                     const state = JSON.parse(savedState);
 
-                    // Check if state is not too old (max 24 hours)
-                    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+                    const maxAge = 24 * 60 * 60 * 1000;
                     if (state.timestamp && (Date.now() - state.timestamp) > maxAge) {
                         clearQuizState();
                         return null;
                     }
 
-                    // Verify that deck ID matches (or both are auto)
                     if (state.deckId === deckId && state.wordSource === wordSource) {
                         return state;
                     }
@@ -374,26 +1037,20 @@
             return null;
         }
 
-        // Clear quiz state from localStorage
         function clearQuizState() {
             localStorage.removeItem(getQuizStateKey());
         }
 
-        // Initialize quiz
         async function initQuiz() {
             try {
-                // Check for fresh parameter to force new quiz
                 const urlParams = new URLSearchParams(window.location.search);
                 const forceFresh = urlParams.get('fresh') === 'true';
 
-                // Try to load saved state first (unless fresh is requested)
                 const savedState = forceFresh ? null : loadQuizState();
 
                 if (savedState && savedState.questions && savedState.questions.length > 0) {
-                    // Check if quiz was already completed (currentQuestionIndex >= questions.length)
                     const savedIndex = savedState.currentQuestionIndex || 0;
                     if (savedIndex >= savedState.questions.length) {
-                        // Quiz was completed, start fresh
                         clearQuizState();
                         questions = await fetchQuestions();
 
@@ -408,7 +1065,6 @@
                         return;
                     }
 
-                    // Restore from saved state
                     questions = savedState.questions;
                     currentQuestionIndex = savedIndex;
                     sessionStats = savedState.sessionStats || {total: 0, correct: 0, incorrect: 0, timeSpent: 0};
@@ -416,18 +1072,14 @@
                     incorrectQuestions = savedState.incorrectQuestions || [];
                     isRetryPhase = savedState.isRetryPhase || false;
 
-                    // Update counters
                     correctCounter.textContent = sessionStats.correct;
                     incorrectCounter.textContent = sessionStats.incorrect;
 
-                    // Show UI
                     loadingSpinner.style.display = 'none';
                     quizView.style.display = 'block';
 
-                    // Show current question
                     showQuestion(currentQuestionIndex);
                 } else {
-                    // Fetch new questions
                     questions = await fetchQuestions();
 
                     if (!questions || questions.length === 0) {
@@ -435,14 +1087,11 @@
                         return;
                     }
 
-                    // Update UI
                     loadingSpinner.style.display = 'none';
                     quizView.style.display = 'block';
 
-                    // Show first question
                     showQuestion(0);
 
-                    // Save initial state
                     saveQuizState();
                 }
             } catch (error) {
@@ -451,16 +1100,12 @@
             }
         }
 
-        // Show a question
         function showQuestion(index) {
             if (index >= questions.length) {
-                // Check if there are incorrect questions to retry
                 if (incorrectQuestions.length > 0) {
-                    // Add incorrect questions to the end for retry
                     questions.push(...incorrectQuestions);
-                    incorrectQuestions = []; // Clear the retry queue
+                    incorrectQuestions = [];
                     isRetryPhase = true;
-                    // Continue showing the next question (which is the first retry)
                 } else {
                     completeQuiz();
                     return;
@@ -470,34 +1115,26 @@
             const question = questions[index];
             currentQuestionIndex = index;
 
-            // Debug log
-
-            // Validate question data
             if (!question) {
                 console.error('Invalid question at index:', index);
                 return;
             }
 
-            // Reset state
             resetQuestionState();
 
-            // Update progress
             const progress = ((index + 1) / questions.length) * 100;
             progressFill.style.width = `${progress}%`;
 
-            // Show retry indicator if this is a retry question
             if (question.retryCount) {
                 questionCounter.textContent = `Повтор ${question.retryCount}/${MAX_RETRY_ATTEMPTS}: Вопрос ${index + 1} из ${questions.length}`;
-                questionCounter.style.color = 'var(--warning-color, #f0ad4e)';
+                questionCounter.style.color = '#fde68a';
             } else {
                 questionCounter.textContent = `Вопрос ${index + 1} из ${questions.length}`;
                 questionCounter.style.color = '';
             }
 
-            // Set question details
             questionText.textContent = question.text || '';
 
-            // Set question label if available
             const questionLabel = document.getElementById('question-label');
             if (question.question_label) {
                 questionLabel.textContent = question.question_label;
@@ -506,7 +1143,6 @@
                 questionLabel.style.display = 'none';
             }
 
-            // Setup audio if available
             if (question.audio_url && playAudio) {
                 audioBtn.style.display = 'inline-flex';
                 wordAudio.src = question.audio_url;
@@ -514,19 +1150,14 @@
                 audioBtn.style.display = 'none';
             }
 
-            // Set hint
             hintText.textContent = question.hint || '';
 
-            // Show appropriate answer interface
             setupAnswerInterface(question);
 
-            // Start timer if applicable
             startQuestionTimer();
         }
 
-        // Setup the appropriate answer interface based on question type
         function setupAnswerInterface(question) {
-
             switch (question.type) {
                 case 'multiple_choice':
                     setupMultipleChoice(question);
@@ -539,26 +1170,19 @@
             }
         }
 
-        // Setup multiple choice interface
         function setupMultipleChoice(question) {
             multipleChoiceContainer.style.setProperty('display', 'grid', 'important');
             fillBlankContainer.style.setProperty('display', 'none', 'important');
 
-            // Hide submit button for multiple choice (auto-submit on click)
             submitAnswerBtn.style.display = 'none';
 
-            // Get option buttons
             const optionButtons = multipleChoiceContainer.querySelectorAll('.option-btn');
 
-            // Debug log
-
-            // Validate options
             if (!question.options || !Array.isArray(question.options)) {
                 console.error('Invalid options:', question.options);
                 return;
             }
 
-            // Set options text
             optionButtons.forEach((button, index) => {
                 if (index < question.options.length) {
                     button.textContent = question.options[index];
@@ -569,47 +1193,36 @@
                 button.classList.remove('selected', 'correct', 'incorrect');
             });
 
-            // Add click event for options
             optionButtons.forEach(button => {
                 button.onclick = function() {
-                    // Only allow click if button is visible and answer hasn't been submitted yet
                     if (this.style.display !== 'none' && nextBtn.style.display === 'none') {
                         optionButtons.forEach(btn => btn.classList.remove('selected'));
                         this.classList.add('selected');
                         selectedOption = this.getAttribute('data-option');
-                        // Auto-submit for multiple choice
                         submitAnswer();
                     }
                 };
             });
         }
 
-        // Setup fill in the blank interface
         function setupFillBlank(question) {
-
-            // Explicitly hide multiple choice and show fill blank with !important
             multipleChoiceContainer.style.setProperty('display', 'none', 'important');
             fillBlankContainer.style.setProperty('display', 'block', 'important');
 
-            // Show submit button for fill blank (required for manual submit)
             submitAnswerBtn.style.display = 'block';
             submitAnswerBtn.disabled = true;
 
-            // Reset input
             fillBlankInput.value = '';
 
-            // Focus on input
             setTimeout(() => {
                 fillBlankInput.focus();
             }, 100);
 
-            // Add input event
             fillBlankInput.oninput = function() {
                 selectedOption = this.value.trim();
                 submitAnswerBtn.disabled = selectedOption === '';
             };
 
-            // Add enter key event
             fillBlankInput.onkeydown = function(e) {
                 if (e.key === 'Enter' && this.value.trim() !== '') {
                     submitAnswer();
@@ -617,47 +1230,36 @@
             };
         }
 
-        // Reset the state for a new question
         function resetQuestionState() {
-            // Reset selection
             selectedOption = null;
 
-            // Reset buttons and inputs
             submitAnswerBtn.style.display = 'block';
             submitAnswerBtn.disabled = true;
             nextBtn.style.display = 'none';
 
-            // Reset feedback
             feedbackContainer.style.display = 'none';
             feedbackContainer.className = 'feedback-container';
 
-            // Reset hint
             hintText.style.display = 'none';
 
-            // Hide all answer interfaces initially
             multipleChoiceContainer.style.setProperty('display', 'none', 'important');
             fillBlankContainer.style.setProperty('display', 'none', 'important');
 
-            // Stop any timers
             if (timer) {
                 clearInterval(timer);
                 timer = null;
             }
         }
 
-        // Start timer for the current question
         function startQuestionTimer() {
-            // Reset timer
             timeRemaining = 30;
             timerValue.textContent = timeRemaining;
             timerContainer.classList.remove('warning');
 
-            // Clear any existing timer
             if (timer) {
                 clearInterval(timer);
             }
 
-            // Start new timer
             timer = setInterval(() => {
                 timeRemaining--;
                 timerValue.textContent = timeRemaining;
@@ -672,7 +1274,6 @@
                     clearInterval(timer);
                     timer = null;
 
-                    // Auto-submit if time runs out
                     if (submitAnswerBtn.style.display !== 'none') {
                         submitAnswer();
                     }
@@ -680,9 +1281,7 @@
             }, 1000);
         }
 
-        // Submit the current answer
         async function submitAnswer() {
-            // Stop timer
             if (timer) {
                 clearInterval(timer);
                 timer = null;
@@ -692,7 +1291,6 @@
             let userAnswer = '';
             let isCorrect = false;
 
-            // Get user answer based on question type
             switch (question.type) {
                 case 'multiple_choice':
                     userAnswer = selectedOption !== null ? question.options[parseInt(selectedOption)] : '';
@@ -701,7 +1299,6 @@
                 case 'fill_blank':
                     userAnswer = fillBlankInput.value.trim().toLowerCase();
 
-                    // For fill in blank, allow for slight variations
                     if (Array.isArray(question.acceptable_answers)) {
                         isCorrect = question.acceptable_answers.some(answer =>
                             userAnswer === answer.toLowerCase());
@@ -711,7 +1308,6 @@
                     break;
             }
 
-            // Display feedback
             feedbackContainer.style.display = 'block';
             feedbackContainer.classList.add(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
             feedbackText.textContent = isCorrect ?
@@ -725,7 +1321,6 @@
                 correctAnswer.style.display = 'none';
             }
 
-            // Highlight correct/incorrect options for multiple choice
             if (question.type === 'multiple_choice') {
                 const optionButtons = multipleChoiceContainer.querySelectorAll('.option-btn');
 
@@ -740,7 +1335,6 @@
                 });
             }
 
-            // Update session stats
             sessionStats.total++;
 
             if (isCorrect) {
@@ -750,7 +1344,6 @@
                 sessionStats.incorrect++;
                 incorrectCounter.textContent = sessionStats.incorrect;
 
-                // Track for retry (limit attempts to prevent infinite loops)
                 const retryCount = question.retryCount || 0;
                 if (retryCount < MAX_RETRY_ATTEMPTS) {
                     incorrectQuestions.push({
@@ -760,7 +1353,6 @@
                 }
             }
 
-            // Send result to server
             try {
                 const response = await fetch('/study/api/submit-quiz-answer', {
                     method: 'POST',
@@ -784,34 +1376,25 @@
                 console.error('Error submitting answer:', error);
             }
 
-            // Update UI for next action
             submitAnswerBtn.style.display = 'none';
             nextBtn.style.display = 'block';
 
-            // Save state after submitting answer
             saveQuizState();
         }
 
-        // Move to the next question
         function nextQuestion() {
             showQuestion(currentQuestionIndex + 1);
-            // Save state after moving to next question
             saveQuizState();
         }
 
-        // Complete the quiz
         async function completeQuiz() {
             try {
-                // Set completion flag before clearing state
                 localStorage.setItem(getQuizStateKey() + '_completed', Date.now().toString());
-                // Clear saved state when quiz is completed
                 clearQuizState();
 
-                // Calculate score percentage
                 const scorePercentage = sessionStats.total > 0 ?
                     Math.round((sessionStats.correct / sessionStats.total) * 100) : 0;
 
-                // Calculate time spent
                 const timeSpent = Math.floor((Date.now() - sessionStartTime) / 1000);
 
                 const response = await fetch('/study/api/complete-quiz', {
@@ -832,60 +1415,50 @@
 
                 const data = await response.json();
 
-                // Hide quiz container
                 quizContainer.style.display = 'none';
 
-                // Show completion screen
                 sessionComplete.style.display = 'block';
 
-                // Format time for display
                 const minutes = Math.floor(timeSpent / 60);
                 const seconds = timeSpent % 60;
                 const timeFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-                // Update stats display - COMPACT VERSION
                 finalScore.textContent = `${scorePercentage}%`;
                 statsQuestions.textContent = sessionStats.total;
                 statsCorrect.textContent = sessionStats.correct;
                 statsTime.textContent = timeFormatted;
 
-                // Set score color based on percentage
                 if (scorePercentage >= 90) {
-                    finalScore.style.color = '#28a745';
+                    finalScore.style.color = '#10b981';
                 } else if (scorePercentage >= 75) {
-                    finalScore.style.color = '#007bff';
+                    finalScore.style.color = '#3b82f6';
                 } else if (scorePercentage >= 60) {
-                    finalScore.style.color = '#ffc107';
+                    finalScore.style.color = '#f59e0b';
                 } else {
-                    finalScore.style.color = '#dc3545';
+                    finalScore.style.color = '#ef4444';
                 }
 
-                // Update XP amount with animation
                 const xpAmount = data.xp_earned || 0;
                 const xpAmountEl = document.getElementById('xp-amount');
                 if (xpAmountEl && xpAmount > 0) {
-                    // Animate XP counting from 0 to earned amount
                     animateValue(xpAmountEl, 0, xpAmount, 1500);
 
-                    // Pulse the XP container
                     const xpContainer = document.getElementById('xp-earned');
                     if (xpContainer) {
                         pulseElement(xpContainer);
                     }
                 }
 
-                // Show achievements if earned
                 if (data.achievements && data.achievements.length > 0) {
                     const achievementsContainer = document.getElementById('achievements-earned');
                     const badgesContainer = document.getElementById('achievement-badges');
                     badgesContainer.innerHTML = '';
 
-                    // Trigger confetti celebration!
                     setTimeout(() => celebrateWithConfetti(), 500);
 
                     data.achievements.forEach((achievement, index) => {
                         const badge = document.createElement('div');
-                        badge.style.cssText = `background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; animation: slideInUp 0.5s ease-out ${index * 0.1}s both;`;
+                        badge.style.cssText = `background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; animation: qzSlideUp 0.5s ease-out ${index * 0.1}s both;`;
                         badge.innerHTML = `
                             <span style="font-size: 18px;">${achievement.icon}</span>
                             <span>${achievement.name}</span>
@@ -896,7 +1469,6 @@
                     achievementsContainer.style.display = 'block';
                 }
 
-                // Set retry button URL with fresh=true and optional limit parameter
                 const retryBtn = document.getElementById('retry-quiz-btn');
                 if (retryBtn && deckId) {
                     let retryUrl = `/study/quiz/deck/${deckId}?fresh=true`;
@@ -914,11 +1486,9 @@
             }
         }
 
-        // Show message if no questions are available
         function showNoQuestionsMessage() {
             loadingSpinner.style.display = 'none';
 
-            // Create and show message
             const messageDiv = document.createElement('div');
             messageDiv.className = 'alert alert-info text-center';
             messageDiv.innerHTML = `

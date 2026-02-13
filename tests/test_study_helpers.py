@@ -6,29 +6,21 @@ import pytest
 from unittest.mock import patch
 from datetime import datetime, timezone
 
-from app.study.routes import (
-    is_auto_deck,
-    sync_master_decks,
-    generate_quiz_questions,
-    create_multiple_choice_question,
-    create_true_false_question,
-    create_fill_blank_question,
-    _calculate_matching_score
-)
+from app.study.services.deck_service import DeckService
+from app.study.services.quiz_service import QuizService
+from app.study.routes import _calculate_matching_score
+
+# Aliases for backward compatibility with tests
+is_auto_deck = DeckService.is_auto_deck
+generate_quiz_questions = QuizService.generate_quiz_questions
+create_multiple_choice_question = QuizService.create_multiple_choice_question
+create_fill_blank_question = QuizService.create_fill_blank_question
 from app.study.models import QuizDeck, QuizDeckWord, UserWord
 from app.utils.db import db
 
 
 class TestIsAutoDeck:
     """Test is_auto_deck() function - Lines 20-33"""
-
-    def test_all_my_words_deck(self):
-        """Test exact match for 'Все мои слова'"""
-        assert is_auto_deck('Все мои слова') is True
-
-    def test_mastered_words_deck(self):
-        """Test exact match for 'Выученные слова'"""
-        assert is_auto_deck('Выученные слова') is True
 
     def test_reading_words_deck(self):
         """Test exact match for 'Слова из чтения'"""
@@ -51,8 +43,8 @@ class TestIsAutoDeck:
 
     def test_partial_match_not_auto(self):
         """Test that partial matches don't trigger auto deck"""
-        assert is_auto_deck('Все мои слова NEW') is False
-        assert is_auto_deck('Prefix Все мои слова') is False
+        assert is_auto_deck('Слова из чтения NEW') is False
+        assert is_auto_deck('Prefix Слова из чтения') is False
 
     def test_empty_title(self):
         """Test empty deck title"""
@@ -62,170 +54,6 @@ class TestIsAutoDeck:
         """Test custom names with colons that don't match patterns"""
         assert is_auto_deck('Random: Deck Name') is False
         assert is_auto_deck('Level: A1') is False
-
-
-class TestSyncMasterDecks:
-    """Test sync_master_decks() function - Lines 36-114"""
-
-    def test_creates_learning_deck_first_time(self, db_session, test_user, user_words):
-        """Test creating 'Все мои слова' deck for the first time"""
-        sync_master_decks(test_user.id)
-
-        deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Все мои слова'
-        ).first()
-
-        assert deck is not None
-        assert deck.is_public is False
-        # Should contain non-mastered words (8 out of 10)
-        assert deck.word_count == 8
-
-    def test_creates_mastered_deck_first_time(self, db_session, test_user, user_words):
-        """Test creating 'Выученные слова' deck for the first time"""
-        sync_master_decks(test_user.id)
-
-        deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Выученные слова'
-        ).first()
-
-        assert deck is not None
-        assert deck.is_public is False
-        # Should contain mastered words (2 out of 10)
-        assert deck.word_count == 2
-
-    def test_adds_new_words_to_existing_deck(self, db_session, test_user, user_words):
-        """Test adding new words to existing deck"""
-        from app.words.models import CollectionWords
-        import uuid
-
-        # First sync
-        sync_master_decks(test_user.id)
-
-        deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Все мои слова'
-        ).first()
-        initial_count = deck.word_count
-
-        # Create and add a completely new word with unique identifier
-        unique_id = uuid.uuid4().hex[:8]
-        new_word = CollectionWords(
-            english_word=f'unique_test_word_{unique_id}',
-            russian_word='уникальное_тестовое_слово',
-            level='A1'
-        )
-        db_session.add(new_word)
-        db_session.commit()
-
-        new_user_word = UserWord(user_id=test_user.id, word_id=new_word.id)
-        new_user_word.status = 'learning'
-        db_session.add(new_user_word)
-        db_session.commit()
-
-        # Second sync
-        sync_master_decks(test_user.id)
-        db_session.commit()
-
-        # Refresh deck
-        db_session.refresh(deck)
-
-        # Deck should have one more word
-        assert deck.word_count == initial_count + 1
-
-    def test_removes_mastered_words_from_learning_deck(self, db_session, test_user, user_words):
-        """Test removing mastered words from learning deck"""
-        # First sync with current statuses
-        sync_master_decks(test_user.id)
-
-        learning_deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Все мои слова'
-        ).first()
-        initial_count = learning_deck.word_count
-
-        # Change a learning word to mastered
-        learning_word = next((uw for uw in user_words if uw.status == 'learning'), None)
-        learning_word.status = 'mastered'
-        db_session.commit()
-
-        # Sync again
-        sync_master_decks(test_user.id)
-
-        # Learning deck should have one less word
-        assert learning_deck.word_count == initial_count - 1
-
-    def test_adds_words_to_mastered_deck_when_status_changes(self, db_session, test_user, user_words):
-        """Test adding words to mastered deck when status changes"""
-        # First sync
-        sync_master_decks(test_user.id)
-
-        mastered_deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Выученные слова'
-        ).first()
-        initial_count = mastered_deck.word_count
-
-        # Change a learning word to mastered
-        learning_word = next((uw for uw in user_words if uw.status == 'learning'), None)
-        learning_word.status = 'mastered'
-        db_session.commit()
-
-        # Sync again
-        sync_master_decks(test_user.id)
-
-        # Mastered deck should have one more word
-        assert mastered_deck.word_count == initial_count + 1
-
-    def test_handles_empty_word_lists(self, db_session, test_user):
-        """Test sync with no user words"""
-        sync_master_decks(test_user.id)
-
-        learning_deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Все мои слова'
-        ).first()
-
-        assert learning_deck is not None
-        assert learning_deck.word_count == 0
-
-    def test_updates_existing_deck_description(self, db_session, test_user, user_words):
-        """Test that description is updated on existing decks"""
-        # First sync
-        sync_master_decks(test_user.id)
-
-        deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Все мои слова'
-        ).first()
-
-        # Manually change description
-        deck.description = "Old description"
-        db_session.commit()
-
-        # Sync again should reset description to the correct one
-        sync_master_decks(test_user.id)
-
-        db_session.refresh(deck)
-        assert deck.description == "Автоматическая колода со всеми вашими словами в процессе изучения"
-
-    def test_maintains_order_index(self, db_session, test_user, user_words):
-        """Test that order_index is properly maintained"""
-        sync_master_decks(test_user.id)
-        db_session.commit()
-
-        deck = QuizDeck.query.filter_by(
-            user_id=test_user.id,
-            title='Все мои слова'
-        ).first()
-
-        deck_words = QuizDeckWord.query.filter_by(deck_id=deck.id).order_by(QuizDeckWord.order_index).all()
-
-        # Check that order indices are unique
-        order_indices = [dw.order_index for dw in deck_words]
-        assert len(order_indices) == len(set(order_indices)), "Order indices should be unique"
-        assert len(order_indices) > 0, "Deck should have words"
 
 
 class TestGenerateQuizQuestions:
@@ -265,19 +93,17 @@ class TestGenerateQuizQuestions:
             assert 'word_id' in question
             assert 'direction' in question
 
-    @patch('app.study.routes.create_multiple_choice_question')
-    @patch('app.study.routes.create_true_false_question')
-    @patch('app.study.routes.create_fill_blank_question')
-    def test_calls_question_creation_functions(self, mock_fill, mock_tf, mock_mc, test_words_list):
+    @patch('app.study.services.quiz_service.QuizService.create_multiple_choice_question')
+    @patch('app.study.services.quiz_service.QuizService.create_fill_blank_question')
+    def test_calls_question_creation_functions(self, mock_fill, mock_mc, test_words_list):
         """Test that question creation functions are called"""
         mock_mc.return_value = {'type': 'multiple_choice', 'word_id': 1, 'direction': 'eng-rus'}
-        mock_tf.return_value = {'type': 'true_false', 'word_id': 1, 'direction': 'eng-rus'}
         mock_fill.return_value = {'type': 'fill_blank', 'word_id': 1, 'direction': 'eng-rus'}
 
         questions = generate_quiz_questions(test_words_list, count=10)
 
         # At least one type should be called
-        assert mock_mc.called or mock_tf.called or mock_fill.called
+        assert mock_mc.called or mock_fill.called
 
 
 class TestCreateMultipleChoiceQuestion:
@@ -329,45 +155,6 @@ class TestCreateMultipleChoiceQuestion:
         # Count occurrences of correct answer
         correct_count = question['options'].count(question['answer'])
         assert correct_count == 1, "Correct answer should appear exactly once"
-
-
-class TestCreateTrueFalseQuestion:
-    """Test create_true_false_question() function - Lines 1323-1389"""
-
-    def test_creates_true_question(self, test_words_list):
-        """Test creating a true question (correct translation)"""
-        word = test_words_list[0]
-
-        # Mock random to always return True
-        with patch('random.choice', return_value=True):
-            question = create_true_false_question(word, test_words_list, direction='eng_to_rus')
-
-            assert question['type'] == 'true_false'
-            assert question['answer'] == 'true'
-            assert word.russian_word in question['text']
-
-    def test_creates_false_question(self, test_words_list):
-        """Test creating a false question (incorrect translation)"""
-        word = test_words_list[0]
-
-        # We need at least 2 words for false question
-        if len(test_words_list) >= 2:
-            # Mock random to always return False, then return another word
-            with patch('random.choice', side_effect=[False, test_words_list[1]]):
-                question = create_true_false_question(word, test_words_list, direction='eng_to_rus')
-
-                assert question['type'] == 'true_false'
-                assert question['answer'] == 'false'
-                assert word.english_word in question['text']
-
-    def test_handles_single_word(self, test_words_list):
-        """Test with only one word (can't create false question)"""
-        word = test_words_list[0]
-        question = create_true_false_question(word, [word], direction='eng_to_rus')
-
-        # Should create a question (might be true or false with made-up translation)
-        assert question['type'] == 'true_false'
-        assert question['answer'] in ['true', 'false']
 
 
 class TestCreateFillBlankQuestion:

@@ -352,9 +352,12 @@ class TestUserXPModel:
 
     def test_level_calculation(self, app, test_user, db_session):
         from app.study.models import UserXP
-        
+        import math
+
+        # Progressive level formula: L = int((-1 + sqrt(9 + 4*xp/25)) / 2)
+        # For 250 XP: int((-1 + sqrt(49)) / 2) = int(6/2) = 3
         xp = UserXP(user_id=test_user.id, total_xp=250)
-        assert xp.level == 2  # 250 / 100 = 2
+        assert xp.level == 3  # Progressive formula, not linear
 
     def test_add_xp(self, app, test_user, db_session):
         from app.study.models import UserXP

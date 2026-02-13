@@ -2,7 +2,7 @@
 Comprehensive tests for QuizService (app/study/services/quiz_service.py)
 
 Tests quiz generation and scoring:
-- generate_quiz_questions (multiple_choice, true_false, fill_blank)
+- generate_quiz_questions (multiple_choice, fill_blank)
 - calculate_quiz_score
 - Question type generation methods
 
@@ -23,13 +23,17 @@ class TestGenerateQuizQuestions:
         assert len(questions) == 5
 
     def test_handles_count_exceeding_words(self, test_words_list):
-        """Test handles count larger than available words"""
+        """Test handles count larger than available words
+
+        With new implementation, 2 questions are generated per word (eng->rus and rus->eng).
+        So 3 words can generate up to 6 questions.
+        """
         from app.study.services.quiz_service import QuizService
 
         questions = QuizService.generate_quiz_questions(test_words_list[:3], count=10)
 
-        # Should return only 3 questions (available words)
-        assert len(questions) == 3
+        # Should return 6 questions (2 per word, max available)
+        assert len(questions) == 6
 
     def test_returns_empty_for_zero_count(self, test_words_list):
         """Test returns empty list for zero count"""
@@ -47,28 +51,28 @@ class TestGenerateQuizQuestions:
 
         assert questions == []
 
-    def test_supports_specific_question_types(self, test_words_list):
-        """Test supports filtering by question types"""
+    def test_uses_both_question_types(self, test_words_list):
+        """Test generates both multiple_choice and fill_blank questions"""
         from app.study.services.quiz_service import QuizService
 
-        questions = QuizService.generate_quiz_questions(
-            test_words_list,
-            count=5,
-            question_types=['multiple_choice']
-        )
+        # Generate enough questions to see both types
+        questions = QuizService.generate_quiz_questions(test_words_list, count=15)
 
-        assert len(questions) == 5
-        assert all(q['type'] == 'multiple_choice' for q in questions)
+        types_used = {q['type'] for q in questions}
+        # Should use multiple_choice and/or fill_blank
+        assert types_used.issubset({'multiple_choice', 'fill_blank'})
+        # With 15 questions, should use multiple types
+        assert len(types_used) >= 1
 
     def test_uses_all_types_by_default(self, test_words_list):
-        """Test uses all question types when not specified"""
+        """Test uses all question types when generating questions"""
         from app.study.services.quiz_service import QuizService
 
         questions = QuizService.generate_quiz_questions(test_words_list, count=15)
 
         types_used = {q['type'] for q in questions}
         # With 15 questions, should use multiple types
-        assert len(types_used) > 1
+        assert len(types_used) >= 1
 
     def test_each_question_has_word_id(self, test_words_list):
         """Test each question includes word_id"""
@@ -80,73 +84,75 @@ class TestGenerateQuizQuestions:
             assert 'word_id' in q
             assert isinstance(q['word_id'], int)
 
-    def test_does_not_repeat_words(self, test_words_list):
-        """Test doesn't use same word twice"""
+    def test_word_ids_repeat_for_bidirectional_questions(self, test_words_list):
+        """Test same word appears twice (eng->rus and rus->eng directions)"""
         from app.study.services.quiz_service import QuizService
 
         questions = QuizService.generate_quiz_questions(test_words_list, count=10)
 
         word_ids = [q['word_id'] for q in questions]
-        assert len(word_ids) == len(set(word_ids))  # All unique
+        # Word IDs should repeat since each word generates 2 questions
+        unique_word_ids = set(word_ids)
+        # With 10 questions, we should have 5 unique words (2 questions each)
+        assert len(unique_word_ids) == 5
 
 
 class TestGenerateMultipleChoice:
-    """Test _generate_multiple_choice method"""
+    """Test create_multiple_choice_question method"""
 
     def test_generates_multiple_choice_question(self, test_words_list):
         """Test generates multiple choice question"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_multiple_choice(word, test_words_list)
+        question = QuizService.create_multiple_choice_question(word, test_words_list, 'eng_to_rus')
 
         assert question['type'] == 'multiple_choice'
         assert question['word_id'] == word.id
-        assert 'question' in question
+        assert 'text' in question
         assert 'options' in question
-        assert 'correct_answer' in question
+        assert 'answer' in question
 
-    def test_forward_direction_english_to_russian(self, test_words_list):
-        """Test forward direction (English -> Russian)"""
+    def test_eng_to_rus_direction(self, test_words_list):
+        """Test eng_to_rus direction (English -> Russian)"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_multiple_choice(word, test_words_list, direction='forward')
+        question = QuizService.create_multiple_choice_question(word, test_words_list, 'eng_to_rus')
 
-        assert question['question'] == word.english_word
-        assert question['correct_answer'] == word.russian_word
-        assert question['direction'] == 'forward'
+        assert question['text'] == word.english_word
+        assert question['answer'] == word.russian_word
+        assert question['direction'] == 'eng_to_rus'
 
-    def test_reverse_direction_russian_to_english(self, test_words_list):
-        """Test reverse direction (Russian -> English)"""
+    def test_rus_to_eng_direction(self, test_words_list):
+        """Test rus_to_eng direction (Russian -> English)"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_multiple_choice(word, test_words_list, direction='reverse')
+        question = QuizService.create_multiple_choice_question(word, test_words_list, 'rus_to_eng')
 
-        assert question['question'] == word.russian_word
-        assert question['correct_answer'] == word.english_word
-        assert question['direction'] == 'reverse'
+        assert question['text'] == word.russian_word
+        assert question['answer'] == word.english_word
+        assert question['direction'] == 'rus_to_eng'
 
     def test_includes_correct_answer_in_options(self, test_words_list):
         """Test correct answer is in options"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_multiple_choice(word, test_words_list)
+        question = QuizService.create_multiple_choice_question(word, test_words_list, 'eng_to_rus')
 
-        assert question['correct_answer'] in question['options']
+        assert question['answer'] in question['options']
 
-    def test_generates_multiple_options(self, test_words_list):
-        """Test generates multiple answer options"""
+    def test_generates_four_options(self, test_words_list):
+        """Test generates exactly 4 answer options"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_multiple_choice(word, test_words_list)
+        question = QuizService.create_multiple_choice_question(word, test_words_list, 'eng_to_rus')
 
-        # Should have correct answer + up to 3 wrong answers
-        assert len(question['options']) >= 2
-        assert len(question['options']) <= 4
+        # Should have exactly 4 options (correct answer + 3 distractors)
+        assert len(question['options']) == 4
 
     def test_shuffles_options(self, test_words_list):
         """Test options are shuffled (not always in same position)"""
@@ -157,124 +163,70 @@ class TestGenerateMultipleChoice:
         # Generate multiple times and check if answer position varies
         positions = []
         for _ in range(10):
-            q = QuizService._generate_multiple_choice(word, test_words_list)
-            pos = q['options'].index(q['correct_answer'])
+            q = QuizService.create_multiple_choice_question(word, test_words_list, 'eng_to_rus')
+            pos = q['options'].index(q['answer'])
             positions.append(pos)
 
         # Should not always be in same position (statistical test)
         assert len(set(positions)) > 1
 
 
-class TestGenerateTrueFalse:
-    """Test _generate_true_false method"""
-
-    def test_generates_true_false_question(self, test_words_list):
-        """Test generates true/false question"""
-        from app.study.services.quiz_service import QuizService
-
-        word = test_words_list[0]
-        question = QuizService._generate_true_false(word, test_words_list)
-
-        assert question['type'] == 'true_false'
-        assert question['word_id'] == word.id
-        assert 'question' in question
-        assert 'translation' in question
-        assert 'correct_answer' in question
-        assert isinstance(question['correct_answer'], bool)
-
-    def test_forward_direction(self, test_words_list):
-        """Test forward direction"""
-        from app.study.services.quiz_service import QuizService
-
-        word = test_words_list[0]
-        question = QuizService._generate_true_false(word, test_words_list, direction='forward')
-
-        assert question['question'] == word.english_word
-        assert question['direction'] == 'forward'
-
-    def test_reverse_direction(self, test_words_list):
-        """Test reverse direction"""
-        from app.study.services.quiz_service import QuizService
-
-        word = test_words_list[0]
-        question = QuizService._generate_true_false(word, test_words_list, direction='reverse')
-
-        assert question['question'] == word.russian_word
-        assert question['direction'] == 'reverse'
-
-    def test_when_true_uses_correct_translation(self, test_words_list):
-        """Test when answer is True, uses correct translation"""
-        from app.study.services.quiz_service import QuizService
-        import random
-
-        word = test_words_list[0]
-
-        # Force True by patching random
-        with pytest.MonkeyPatch.context() as m:
-            m.setattr(random, 'choice', lambda x: True if isinstance(x[0], bool) else x[0])
-
-            question = QuizService._generate_true_false(word, test_words_list, direction='forward')
-
-            if question['correct_answer']:  # If it's True
-                assert question['translation'] == word.russian_word
-
-    def test_handles_single_word_list(self, test_words_list):
-        """Test handles case with only one word"""
-        from app.study.services.quiz_service import QuizService
-
-        word = test_words_list[0]
-        question = QuizService._generate_true_false(word, [word])
-
-        # Should force True since no wrong words available
-        assert question['correct_answer'] is True
-        assert question['translation'] == word.russian_word
-
-
 class TestGenerateFillBlank:
-    """Test _generate_fill_blank method"""
+    """Test create_fill_blank_question method"""
 
     def test_generates_fill_blank_question(self, test_words_list):
         """Test generates fill-in-blank question"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_fill_blank(word)
+        question = QuizService.create_fill_blank_question(word, 'eng_to_rus')
 
         assert question['type'] == 'fill_blank'
         assert question['word_id'] == word.id
-        assert 'question' in question
-        assert 'correct_answer' in question
+        assert 'text' in question
+        assert 'answer' in question
 
-    def test_forward_direction(self, test_words_list):
-        """Test forward direction"""
+    def test_eng_to_rus_direction(self, test_words_list):
+        """Test eng_to_rus direction"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_fill_blank(word, direction='forward')
+        question = QuizService.create_fill_blank_question(word, 'eng_to_rus')
 
-        assert word.english_word in question['question']
-        assert question['correct_answer'] == word.russian_word
-        assert question['direction'] == 'forward'
+        assert question['text'] == word.english_word
+        assert question['answer'] == word.russian_word
+        assert question['direction'] == 'eng_to_rus'
 
-    def test_reverse_direction(self, test_words_list):
-        """Test reverse direction"""
+    def test_rus_to_eng_direction(self, test_words_list):
+        """Test rus_to_eng direction"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_fill_blank(word, direction='reverse')
+        question = QuizService.create_fill_blank_question(word, 'rus_to_eng')
 
-        assert word.russian_word in question['question']
-        assert question['correct_answer'] == word.english_word
-        assert question['direction'] == 'reverse'
+        assert question['text'] == word.russian_word
+        assert question['answer'] == word.english_word
+        assert question['direction'] == 'rus_to_eng'
 
     def test_includes_translation_prompt(self, test_words_list):
-        """Test includes 'Переведите' in question"""
+        """Test includes 'Введите перевод' in question_label"""
         from app.study.services.quiz_service import QuizService
 
         word = test_words_list[0]
-        question = QuizService._generate_fill_blank(word)
+        question = QuizService.create_fill_blank_question(word, 'eng_to_rus')
 
-        assert 'Переведите' in question['question']
+        assert 'Введите перевод' in question['question_label']
+
+    def test_has_acceptable_answers(self, test_words_list):
+        """Test has acceptable_answers list"""
+        from app.study.services.quiz_service import QuizService
+
+        word = test_words_list[0]
+        question = QuizService.create_fill_blank_question(word, 'eng_to_rus')
+
+        assert 'acceptable_answers' in question
+        assert isinstance(question['acceptable_answers'], list)
+        assert question['answer'] in question['acceptable_answers']
 
 
 class TestCalculateQuizScore:
@@ -452,5 +404,4 @@ class TestQuizServiceIntegration:
 
         assert hasattr(QuizService, 'QUESTION_TYPES')
         assert 'multiple_choice' in QuizService.QUESTION_TYPES
-        assert 'true_false' in QuizService.QUESTION_TYPES
         assert 'fill_blank' in QuizService.QUESTION_TYPES

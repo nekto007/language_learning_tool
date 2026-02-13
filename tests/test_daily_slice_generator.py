@@ -68,7 +68,7 @@ class TestInit:
         }
         assert generator.WORDS_PER_LEVEL_DEFAULT == (400, 600)
         assert len(generator.PRACTICE_ROTATION) == 6
-        assert generator.VOCABULARY_WORDS_PER_LESSON == 20
+        assert generator.VOCABULARY_WORDS_PER_LESSON == 30
         assert generator.timezone.zone == 'Europe/Amsterdam'
 
         # v3.2: Level-specific schedules
@@ -286,8 +286,8 @@ class TestCreatePracticeLesson:
         assert lesson.lesson_type == 'vocabulary'
         assert lesson.word_count == 0  # Practice lessons have 0 word count
 
-    def test_truncates_long_text(self, generator, mock_module):
-        """Test long text is truncated for practice lessons"""
+    def test_preserves_full_text(self, generator, mock_module):
+        """Test full text is preserved for practice lessons (for audio matching)"""
         long_text = "x" * 1000
         slice_data = {
             'text': long_text,
@@ -301,7 +301,8 @@ class TestCreatePracticeLesson:
             mock_module, 1, 'grammar_focus', slice_data, {}
         )
 
-        assert len(lesson.slice_text) <= 503  # 500 + "..."
+        # Full text is preserved (was truncated in earlier versions)
+        assert len(lesson.slice_text) == 1000
 
 
 class TestSplitIntoSentences:
@@ -335,13 +336,15 @@ class TestSplitIntoSentences:
         assert "   " not in result[1]
 
     def test_handles_paragraph_breaks(self, generator):
-        """Test paragraph break preservation"""
+        """Test paragraph break handling - splits paragraphs into separate sentences"""
         text = "First paragraph.\n\nSecond paragraph."
 
         result = generator._split_into_sentences(text)
 
-        # Paragraph breaks are replaced with <PARAGRAPH> marker
-        assert '<PARAGRAPH>' in ''.join(result)
+        # Paragraphs are processed separately, no special marker
+        assert len(result) == 2
+        assert result[0] == "First paragraph."
+        assert result[1] == "Second paragraph."
 
 
 class TestGetBlockVocabulary:

@@ -3,164 +3,998 @@
 {% block title %}{{ _('Модуль') }} {{ module.number }}: {{ module.title }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <!-- Минималистичная навигация -->
-  <nav aria-label="{{ _('Навигация') }}" class="mb-4">
-    <ol class="breadcrumb-minimal" role="list">
-      <li><a href="/learn/">{{ _('Курсы') }}</a></li>
-      <li aria-hidden="true">/</li>
-      <li><a href="/learn/{{ module.level.code|lower }}/">{{ module.level.code }}</a></li>
-      <li aria-hidden="true">/</li>
-      <li class="active" aria-current="page">{{ _('Модуль') }} {{ module.number }}</li>
-    </ol>
-  </nav>
+<div class="ml-page">
+  {# ── Calculate progress ── #}
+  {% set counter = namespace(completed=0) %}
+  {% for lesson in lessons %}
+    {% if lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
+      {% set counter.completed = counter.completed + 1 %}
+    {% endif %}
+  {% endfor %}
+  {% set progress_pct = ((counter.completed / lessons|length) * 100)|round|int if lessons|length > 0 else 0 %}
 
-  <!-- Заголовок модуля с прогрессом -->
-  <div class="module-header-main mb-5">
-    <div class="row align-items-center">
-      <div class="col-md-8">
-        <div class="module-info">
-          <div class="module-label">{{ module.level.code }} - {{ module.level.name }}</div>
-          <h1>{{ _('Модуль') }} {{ module.number }}: {{ module.title }}</h1>
-          {% if module.description %}
-            <p class="module-description">{{ module.description }}</p>
-          {% endif %}
+  <!-- Hero Section -->
+  <div class="ml-hero">
+    <div class="ml-hero__bg-shapes">
+      <div class="ml-shape ml-shape--1"></div>
+      <div class="ml-shape ml-shape--2"></div>
+      <div class="ml-shape ml-shape--3"></div>
+    </div>
+
+    <div class="ml-hero__content">
+      <a href="/learn/{{ module.level.code|lower }}/" class="ml-hero__back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        <span>{{ _('К модулям') }}</span>
+      </a>
+
+      <nav class="ml-hero__breadcrumb" aria-label="{{ _('Навигация') }}">
+        <ol role="list">
+          <li><a href="/learn/">{{ _('Курсы') }}</a></li>
+          <li aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </li>
+          <li><a href="/learn/{{ module.level.code|lower }}/">{{ module.level.code }}</a></li>
+          <li aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </li>
+          <li aria-current="page">{{ _('Модуль') }} {{ module.number }}</li>
+        </ol>
+      </nav>
+
+      <div class="ml-hero__main">
+        <div class="ml-hero__badge">
+          <span class="ml-hero__badge-number">{{ module.number }}</span>
+          <span class="ml-hero__badge-label">{{ _('модуль') }}</span>
         </div>
-      </div>
-      <div class="col-md-4">
-        {% set counter = namespace(completed=0) %}
-        {% for lesson in lessons %}
-          {% if lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
-            {% set counter.completed = counter.completed + 1 %}
-          {% endif %}
-        {% endfor %}
 
-        <div class="progress-circle-container" role="progressbar"
-             aria-valuenow="{{ counter.completed }}"
-             aria-valuemin="0"
-             aria-valuemax="{{ lessons|length }}"
-             aria-label="{{ _('Прогресс модуля') }}: {{ counter.completed }} из {{ lessons|length }} уроков">
-          <svg class="progress-circle" viewBox="0 0 120 120" aria-hidden="true">
-            <circle cx="60" cy="60" r="50" fill="none" class="progress-circle-bg" stroke-width="8"></circle>
-            <circle cx="60" cy="60" r="50" fill="none" class="progress-circle-fill" stroke-width="8"
-                    stroke-dasharray="{{ ((counter.completed / lessons|length) * 314)|round if lessons|length > 0 else 0 }} 314"
-                    stroke-dashoffset="0"
-                    stroke-linecap="round"
-                    transform="rotate(-90 60 60)"></circle>
-          </svg>
-          <div class="progress-info">
-            <div class="progress-number">{{ counter.completed }}/{{ lessons|length }}</div>
-            <div class="progress-label">{{ _('уроков') }}</div>
-          </div>
+        <div class="ml-hero__info">
+          <div class="ml-hero__level">{{ module.level.code }} - {{ module.level.name }}</div>
+          <h1 class="ml-hero__title">{{ module.title }}</h1>
+          {% if module.description %}
+            <p class="ml-hero__desc">{{ module.description }}</p>
+          {% endif %}
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Список уроков -->
-  <div class="lessons-container">
-    {% set current_lesson_found = false %}
-    {% for lesson in lessons %}
-      {% set is_completed = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
-      {% set is_in_progress = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'in_progress' %}
-
-      {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок завершён #}
-      {% set is_available = false %}
-      {% if lesson.number == 1 %}
-        {% set is_available = true %}
-      {% elif is_completed %}
-        {# Завершённые уроки всегда доступны для повторения #}
-        {% set is_available = true %}
-      {% else %}
-        {# Проверяем, завершён ли предыдущий урок #}
-        {% for l in lessons %}
-          {% if l.number == lesson.number - 1 %}
-            {% if l.id in user_lesson_progress and user_lesson_progress[l.id].status == 'completed' %}
-              {% set is_available = true %}
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-      {% endif %}
-
-      {# Текущий урок - первый доступный незавершённый #}
-      {% set is_current = is_available and not is_completed and not current_lesson_found %}
-
-      {% if is_current %}
-        {% set current_lesson_found = true %}
-      {% endif %}
-
-      <div class="lesson-item {{ 'completed' if is_completed else 'current' if is_current else 'locked' if not is_available else 'available' }}">
-        <div class="lesson-number-container">
-          <div class="lesson-number">{{ lesson.number }}</div>
-          {% if is_completed %}
-            <div class="lesson-check"><i class="fas fa-check"></i></div>
-          {% elif is_current %}
-            <div class="lesson-arrow"><i class="fas fa-arrow-right"></i></div>
-          {% elif not is_available %}
-            <div class="lesson-lock"><i class="fas fa-lock"></i></div>
-          {% endif %}
-        </div>
-
-        <div class="lesson-content">
-          <div class="lesson-type">
-            {% if lesson.type == 'vocabulary' %}
-              <i class="fas fa-book"></i> {{ _('Словарь') }}
-            {% elif lesson.type == 'grammar' %}
-              <i class="fas fa-pen"></i> {{ _('Грамматика') }}
-            {% elif lesson.type == 'quiz' %}
-              <i class="fas fa-question-circle"></i> {{ _('Викторина') }}
-            {% elif lesson.type == 'matching' %}
-              <i class="fas fa-random"></i> {{ _('Сопоставление') }}
-            {% elif lesson.type == 'text' %}
-              <i class="fas fa-file-alt"></i> {{ _('Чтение') }}
-            {% elif lesson.type == 'card' or lesson.type == 'anki_cards' %}
-              <i class="fas fa-clone"></i> {{ _('Карточки') }}
-            {% elif lesson.type == 'checkpoint' %}
-              <i class="fas fa-flag-checkered"></i> {{ _('Контрольная точка') }}
-            {% endif %}
-          </div>
-          <h3 class="lesson-title">{{ lesson.title }}</h3>
-          {% if lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].score %}
-            <div class="lesson-score">
-              <i class="fas fa-star"></i> {{ user_lesson_progress[lesson.id].score|round }}%
-            </div>
-          {% endif %}
-        </div>
-
-        <div class="lesson-action">
-          {% if is_available %}
-            <a href="/learn/{{ lesson.id }}/"
-               class="btn {{ 'btn-success' if is_completed else 'btn-primary' if is_current else 'btn-outline-primary' }}">
-              {% if is_completed %}
-                {{ _('Повторить') }}
-              {% elif is_current or is_in_progress %}
-                {{ _('Продолжить') }}
-              {% else %}
-                {{ _('Начать') }}
-              {% endif %}
-            </a>
-          {% else %}
-            <span class="text-muted">{{ _('Заблокировано') }}</span>
-          {% endif %}
-        </div>
+    <!-- Stats Row -->
+    <div class="ml-stats">
+      <div class="ml-stat">
+        <div class="ml-stat__value">{{ counter.completed }}<span class="ml-stat__divider">/</span>{{ lessons|length }}</div>
+        <div class="ml-stat__label">{{ _('уроков') }}</div>
       </div>
-    {% endfor %}
+      <div class="ml-stat">
+        <div class="ml-stat__value">{{ progress_pct }}<span class="ml-stat__unit">%</span></div>
+        <div class="ml-stat__label">{{ _('прогресс') }}</div>
+      </div>
+      {% if counter.completed == lessons|length and lessons|length > 0 %}
+        <div class="ml-stat ml-stat--trophy">
+          <div class="ml-stat__value">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5 3h14c.6 0 1 .4 1 1v2c0 3.3-2.2 6-5 6.7V16h2c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h2v-3.3C6.2 12 4 9.3 4 6V4c0-.6.4-1 1-1zm1 2v1c0 2.2 1.8 4 4 4h4c2.2 0 4-1.8 4-4V5H6z"/>
+            </svg>
+          </div>
+          <div class="ml-stat__label">{{ _('завершён') }}</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Progress Bar -->
+    {% if lessons|length > 0 %}
+      <div class="ml-hero__progress">
+        <div class="ml-hero__progress-fill" style="width: {{ progress_pct }}%"></div>
+      </div>
+    {% endif %}
   </div>
 
-  <!-- Навигация -->
-  <div class="module-navigation mt-5">
-    <a href="/learn/{{ module.level.code|lower }}/"
-       class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-left me-2"></i>{{ _('К модулям') }}
+  <!-- Lessons Section -->
+  <div class="ml-lessons">
+    <div class="ml-lessons__header">
+      <h2 class="ml-lessons__title">{{ _('Уроки модуля') }}</h2>
+      <p class="ml-lessons__subtitle">{{ lessons|length }} {{ _('уроков для изучения') }}</p>
+    </div>
+
+    {% if lessons %}
+      <div class="ml-lessons__list">
+        {% set current_lesson_found = false %}
+        {% for lesson in lessons %}
+          {% set is_completed = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
+          {% set is_in_progress = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'in_progress' %}
+
+          {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок завершён #}
+          {% set is_available = false %}
+          {% if lesson.number == 1 %}
+            {% set is_available = true %}
+          {% elif is_completed %}
+            {# Завершённые уроки всегда доступны для повторения #}
+            {% set is_available = true %}
+          {% else %}
+            {# Проверяем, завершён ли предыдущий урок #}
+            {% for l in lessons %}
+              {% if l.number == lesson.number - 1 %}
+                {% if l.id in user_lesson_progress and user_lesson_progress[l.id].status == 'completed' %}
+                  {% set is_available = true %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+
+          {# Текущий урок - первый доступный незавершённый #}
+          {% set is_current = is_available and not is_completed and not current_lesson_found %}
+
+          {% if is_current %}
+            {% set current_lesson_found = true %}
+          {% endif %}
+
+          <div class="ml-lesson {% if is_completed %}ml-lesson--completed{% elif is_current %}ml-lesson--current{% elif not is_available %}ml-lesson--locked{% else %}ml-lesson--available{% endif %}">
+            <div class="ml-lesson__number">
+              <span>{{ lesson.number }}</span>
+              {% if is_completed %}
+                <div class="ml-lesson__badge ml-lesson__badge--check">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </div>
+              {% elif is_current %}
+                <div class="ml-lesson__badge ml-lesson__badge--current">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </div>
+              {% elif not is_available %}
+                <div class="ml-lesson__badge ml-lesson__badge--lock">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                  </svg>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="ml-lesson__content">
+              <div class="ml-lesson__type">
+                {% if lesson.type == 'vocabulary' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                  </svg>
+                  <span>{{ _('Словарь') }}</span>
+                {% elif lesson.type == 'grammar' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  <span>{{ _('Грамматика') }}</span>
+                {% elif lesson.type == 'quiz' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/>
+                  </svg>
+                  <span>{{ _('Викторина') }}</span>
+                {% elif lesson.type == 'matching' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+                  </svg>
+                  <span>{{ _('Сопоставление') }}</span>
+                {% elif lesson.type == 'text' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                  </svg>
+                  <span>{{ _('Чтение') }}</span>
+                {% elif lesson.type == 'card' or lesson.type == 'anki_cards' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                    <path d="M16 3h-8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/>
+                  </svg>
+                  <span>{{ _('Карточки') }}</span>
+                {% elif lesson.type == 'checkpoint' %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                    <line x1="4" y1="22" x2="4" y2="15"/>
+                  </svg>
+                  <span>{{ _('Контрольная точка') }}</span>
+                {% endif %}
+              </div>
+              <h3 class="ml-lesson__title">{{ lesson.title }}</h3>
+              {% if lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].score %}
+                <div class="ml-lesson__score">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                  {{ user_lesson_progress[lesson.id].score|round }}%
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="ml-lesson__action">
+              {% if is_available %}
+                <a href="/learn/{{ lesson.id }}/"
+                   class="ml-lesson__btn {% if is_completed %}ml-lesson__btn--completed{% elif is_current %}ml-lesson__btn--current{% endif %}">
+                  {% if is_completed %}
+                    <span>{{ _('Повторить') }}</span>
+                  {% elif is_current or is_in_progress %}
+                    <span>{{ _('Продолжить') }}</span>
+                  {% else %}
+                    <span>{{ _('Начать') }}</span>
+                  {% endif %}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </a>
+              {% else %}
+                <span class="ml-lesson__locked-label">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                  </svg>
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="ml-lessons__empty">
+        <div class="ml-lessons__empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+        </div>
+        <h4>{{ _('Уроки появятся скоро') }}</h4>
+        <p>{{ _('Мы готовим учебные материалы для этого модуля') }}</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="ml-nav">
+    <a href="/learn/{{ module.level.code|lower }}/" class="ml-nav__back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      <span>{{ _('К модулям') }}</span>
     </a>
 
     {% if counter.completed == lessons|length and lessons|length > 0 %}
-      <div class="completion-message">
-        <i class="fas fa-trophy text-warning me-2"></i>
+      <div class="ml-nav__completion">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 3h14c.6 0 1 .4 1 1v2c0 3.3-2.2 6-5 6.7V16h2c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h2v-3.3C6.2 12 4 9.3 4 6V4c0-.6.4-1 1-1zm1 2v1c0 2.2 1.8 4 4 4h4c2.2 0 4-1.8 4-4V5H6z"/>
+        </svg>
         <span>{{ _('Поздравляем! Вы завершили все уроки в этом модуле.') }}</span>
       </div>
     {% endif %}
   </div>
 </div>
-{% endblock %}
 
+<style>
+/* ============================================
+   Module Lessons Page
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.ml-page {
+  --ml-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ml-primary: #10b981;
+  --ml-primary-dark: #059669;
+  --ml-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --ml-surface: #ffffff;
+  --ml-surface-alt: #f8fafc;
+  --ml-text: #0f172a;
+  --ml-text-muted: #64748b;
+  --ml-border: #e2e8f0;
+  --ml-radius: 16px;
+  --ml-radius-sm: 10px;
+  font-family: var(--ml-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ============================================
+   Hero Section
+   ============================================ */
+
+.ml-hero {
+  position: relative;
+  background: var(--ml-gradient);
+  border-radius: var(--ml-radius);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  color: white;
+}
+
+/* Background Shapes */
+.ml-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ml-shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ml-shape--1 {
+  width: 300px;
+  height: 300px;
+  top: -100px;
+  right: -50px;
+  animation: ml-float-1 20s ease-in-out infinite;
+}
+
+.ml-shape--2 {
+  width: 200px;
+  height: 200px;
+  bottom: -80px;
+  left: -40px;
+  animation: ml-float-2 15s ease-in-out infinite;
+}
+
+.ml-shape--3 {
+  width: 100px;
+  height: 100px;
+  top: 50%;
+  right: 30%;
+  animation: ml-float-3 12s ease-in-out infinite;
+}
+
+@keyframes ml-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 20px) scale(1.05); }
+}
+
+@keyframes ml-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(30px, -20px) rotate(10deg); }
+}
+
+@keyframes ml-float-3 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.1; }
+  50% { transform: translate(-15px, 15px); opacity: 0.2; }
+}
+
+/* Hero Content */
+.ml-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.ml-hero__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.ml-hero__back:hover {
+  color: white;
+  transform: translateX(-4px);
+}
+
+/* Breadcrumb */
+.ml-hero__breadcrumb ol {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.ml-hero__breadcrumb li {
+  display: flex;
+  align-items: center;
+}
+
+.ml-hero__breadcrumb a {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.ml-hero__breadcrumb a:hover {
+  color: white;
+}
+
+.ml-hero__breadcrumb li[aria-current="page"] {
+  color: white;
+  font-weight: 600;
+}
+
+.ml-hero__breadcrumb li[aria-hidden="true"] {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Hero Main */
+.ml-hero__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.ml-hero__badge {
+  flex-shrink: 0;
+  width: 80px;
+  height: 90px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: var(--ml-radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.ml-hero__badge-number {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.ml-hero__badge-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.ml-hero__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ml-hero__level {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  margin-bottom: 0.375rem;
+}
+
+.ml-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.ml-hero__desc {
+  font-size: 1rem;
+  margin: 0;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+/* Stats Row */
+.ml-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 1;
+}
+
+.ml-stat {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--ml-radius-sm);
+  backdrop-filter: blur(5px);
+}
+
+.ml-stat--trophy {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ml-stat__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.ml-stat__divider {
+  opacity: 0.5;
+  margin: 0 0.125rem;
+}
+
+.ml-stat__unit {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.ml-stat__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+/* Hero Progress Bar */
+.ml-hero__progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  margin-top: 1.25rem;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.ml-hero__progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* ============================================
+   Lessons Section
+   ============================================ */
+
+.ml-lessons {
+  background: var(--ml-surface);
+  border-radius: var(--ml-radius);
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--ml-border);
+}
+
+.ml-lessons__header {
+  margin-bottom: 1.5rem;
+}
+
+.ml-lessons__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ml-text);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.ml-lessons__subtitle {
+  font-size: 0.875rem;
+  color: var(--ml-text-muted);
+  margin: 0;
+}
+
+/* Lessons List */
+.ml-lessons__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Lesson Card */
+.ml-lesson {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  background: var(--ml-surface-alt);
+  border-radius: var(--ml-radius-sm);
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.ml-lesson:hover:not(.ml-lesson--locked) {
+  border-color: var(--ml-primary);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.ml-lesson--current {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%);
+  border-color: var(--ml-primary);
+}
+
+.ml-lesson--completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(16, 185, 129, 0.06) 100%);
+}
+
+.ml-lesson--locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Lesson Number */
+.ml-lesson__number {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ml-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-lesson--current .ml-lesson__number {
+  background: var(--ml-primary);
+  color: white;
+}
+
+.ml-lesson--completed .ml-lesson__number {
+  background: #22c55e;
+  color: white;
+}
+
+.ml-lesson__badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ml-surface-alt);
+}
+
+.ml-lesson__badge--check {
+  background: #22c55e;
+  color: white;
+}
+
+.ml-lesson__badge--current {
+  background: var(--ml-primary);
+  color: white;
+}
+
+.ml-lesson__badge--lock {
+  background: #94a3b8;
+  color: white;
+}
+
+/* Lesson Content */
+.ml-lesson__content {
+  min-width: 0;
+}
+
+.ml-lesson__type {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ml-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.25rem;
+}
+
+.ml-lesson--current .ml-lesson__type {
+  color: var(--ml-primary-dark);
+}
+
+.ml-lesson__type svg {
+  flex-shrink: 0;
+}
+
+.ml-lesson__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ml-text);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ml-lesson__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f59e0b;
+  margin-top: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 6px;
+}
+
+.ml-lesson__score svg {
+  color: #f59e0b;
+}
+
+/* Lesson Action */
+.ml-lesson__action {
+  flex-shrink: 0;
+}
+
+.ml-lesson__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: var(--ml-primary);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.ml-lesson__btn:hover {
+  background: var(--ml-primary-dark);
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.ml-lesson__btn--completed {
+  background: #22c55e;
+}
+
+.ml-lesson__btn--completed:hover {
+  background: #16a34a;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.ml-lesson__btn--current {
+  background: var(--ml-primary);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.ml-lesson__locked-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #94a3b8;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.ml-lessons__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--ml-text-muted);
+}
+
+.ml-lessons__empty-icon {
+  margin-bottom: 1rem;
+  color: var(--ml-border);
+}
+
+.ml-lessons__empty h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ml-text);
+  margin: 0 0 0.5rem;
+}
+
+.ml-lessons__empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ============================================
+   Bottom Navigation
+   ============================================ */
+
+.ml-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.ml-nav__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--ml-surface);
+  color: var(--ml-text);
+  border: 1px solid var(--ml-border);
+  border-radius: var(--ml-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.ml-nav__back:hover {
+  border-color: var(--ml-primary);
+  color: var(--ml-primary);
+  transform: translateX(-4px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.ml-nav__completion {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 179, 8, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--ml-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.ml-nav__completion svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 640px) {
+  .ml-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .ml-hero {
+    padding: 1.5rem;
+  }
+
+  .ml-hero__main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .ml-hero__badge {
+    width: 64px;
+    height: 72px;
+  }
+
+  .ml-hero__badge-number {
+    font-size: 1.5rem;
+  }
+
+  .ml-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .ml-stats {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .ml-stat {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: calc(50% - 0.5rem);
+  }
+
+  .ml-stat__value {
+    font-size: 1.25rem;
+  }
+
+  .ml-lessons {
+    padding: 1.25rem;
+  }
+
+  .ml-lesson {
+    grid-template-columns: 44px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .ml-lesson__number {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .ml-lesson__action {
+    grid-column: 1 / -1;
+  }
+
+  .ml-lesson__btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ml-lesson__locked-label {
+    display: none;
+  }
+
+  .ml-nav {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ml-nav__back {
+    justify-content: center;
+  }
+
+  .ml-nav__completion {
+    text-align: center;
+    justify-content: center;
+  }
+
+  .ml-hero__breadcrumb {
+    display: none;
+  }
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes ml-slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ml-hero {
+  animation: ml-slideUp 0.5s ease-out;
+}
+
+.ml-lessons {
+  animation: ml-slideUp 0.5s ease-out 0.1s both;
+}
+
+.ml-nav {
+  animation: ml-slideUp 0.4s ease-out 0.2s both;
+}
+
+.ml-lesson {
+  animation: ml-slideUp 0.4s ease-out both;
+}
+
+.ml-lesson:nth-child(1) { animation-delay: 0.15s; }
+.ml-lesson:nth-child(2) { animation-delay: 0.2s; }
+.ml-lesson:nth-child(3) { animation-delay: 0.25s; }
+.ml-lesson:nth-child(4) { animation-delay: 0.3s; }
+.ml-lesson:nth-child(5) { animation-delay: 0.35s; }
+.ml-lesson:nth-child(6) { animation-delay: 0.4s; }
+.ml-lesson:nth-child(7) { animation-delay: 0.45s; }
+.ml-lesson:nth-child(8) { animation-delay: 0.5s; }
+.ml-lesson:nth-child(9) { animation-delay: 0.55s; }
+.ml-lesson:nth-child(10) { animation-delay: 0.6s; }
+.ml-lesson:nth-child(n+11) { animation-delay: 0.65s; }
+</style>
+{% endblock %}

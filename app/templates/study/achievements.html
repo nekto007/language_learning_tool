@@ -3,129 +3,655 @@
 {% block title %}Достижения{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Header -->
-    <div class="card shadow-lg mb-4 hero-gradient-card">
-        <div class="card-body p-4">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="mb-2"><i class="fas fa-trophy me-2"></i>Достижения</h1>
-                    <p class="mb-0 opacity-90">Открывайте награды за успехи в обучении</p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="mb-2">
-                        <div class="fs-2 fw-bold">{{ earned_count }}/{{ total_achievements }}</div>
-                        <div class="opacity-75">Получено</div>
-                    </div>
-                    <div class="progress progress-slim-glass">
-                        <div class="progress-bar progress-bar-glass" style="width: {{ (earned_count / total_achievements * 100) if total_achievements > 0 else 0 }}%;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="ach-page">
+  <!-- Hero -->
+  <div class="ach-hero">
+    <div class="ach-hero__bg-shapes">
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
+      <div class="shape shape--3"></div>
     </div>
 
-    <!-- XP Stats -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3 icon-emoji-xl">⚡</div>
-                        <div>
-                            <div class="fs-4 fw-bold text-primary">{{ earned_xp }} XP</div>
-                            <div class="text-muted">Заработано из {{ total_xp_available }} XP</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="ach-hero__content">
+      <div class="ach-hero__header">
+        <div class="ach-hero__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/>
+            <path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/>
+            <path d="M4 22h16"/>
+            <path d="M10 22V8a2 2 0 00-2-2H6a2 2 0 00-2 2v14"/>
+            <path d="M14 22V8a2 2 0 012-2h2a2 2 0 012 2v14"/>
+            <path d="M14 8h-4"/>
+            <path d="M10 12h4"/>
+          </svg>
         </div>
-        <div class="col-md-6">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3 icon-emoji-xl">📊</div>
-                        <div>
-                            <div class="fs-4 fw-bold text-success">{{ ((earned_count / total_achievements * 100)|int) if total_achievements > 0 else 0 }}%</div>
-                            <div class="text-muted">Процент завершения</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div>
+          <h1 class="ach-hero__title">Достижения</h1>
+          <p class="ach-hero__subtitle">Открывайте награды за успехи в обучении</p>
         </div>
+      </div>
+
+      <div class="ach-hero__stats">
+        <div class="ach-hero__counter">{{ earned_count }}/{{ total_achievements }}</div>
+        <div class="ach-hero__counter-label">Получено</div>
+        <div class="ach-hero__progress">
+          <div class="ach-hero__progress-fill" style="width: {{ (earned_count / total_achievements * 100) if total_achievements > 0 else 0 }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- XP Stats -->
+  <div class="ach-stats">
+    <div class="ach-stats__card">
+      <div class="ach-stats__emoji">&#9889;</div>
+      <div class="ach-stats__info">
+        <div class="ach-stats__value ach-stats__value--xp">{{ earned_xp }} XP</div>
+        <div class="ach-stats__label">Заработано из {{ total_xp_available }} XP</div>
+      </div>
+    </div>
+    <div class="ach-stats__card">
+      <div class="ach-stats__emoji">&#128202;</div>
+      <div class="ach-stats__info">
+        <div class="ach-stats__value ach-stats__value--pct">{{ ((earned_count / total_achievements * 100)|int) if total_achievements > 0 else 0 }}%</div>
+        <div class="ach-stats__label">Процент завершения</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Achievements by Category -->
+  {% set category_names = {
+      'quiz': 'Квизы',
+      'study': 'Обучение',
+      'streak': 'Серии',
+      'special': 'Особые',
+      'books': 'Книги',
+      'flashcards': 'Карточки',
+      'matching': 'Совпадения',
+      'lessons': 'Уроки',
+      'levels': 'Уровни'
+  } %}
+
+  {% set category_icons = {
+      'quiz': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>',
+      'study': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>',
+      'streak': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+      'special': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+      'books': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
+      'flashcards': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/></svg>',
+      'matching': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-6"/><path d="M21 3l-9 9"/><path d="M3 3l9 9"/></svg>',
+      'lessons': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 12 3 12 0v-5"/></svg>',
+      'levels': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+  } %}
+
+  {% for category, achievements in achievements_by_category.items() %}
+  <div class="ach-category">
+    <div class="ach-category__header">
+      <div class="ach-category__header-left">
+        <span class="ach-category__icon">{{ category_icons.get(category, '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>')|safe }}</span>
+        <h2 class="ach-category__title">{{ category_names.get(category, category.title()) }}</h2>
+      </div>
+      <span class="ach-category__count">{{ achievements|selectattr('earned', 'equalto', True)|list|length }}/{{ achievements|length }}</span>
     </div>
 
-    <!-- Achievements by Category -->
-    {% set category_names = {
-        'quiz': '🎯 Квизы',
-        'study': '📚 Обучение',
-        'streak': '🔥 Серии',
-        'special': '✨ Особые',
-        'books': '📖 Книги',
-        'flashcards': '🎴 Карточки',
-        'matching': '🎊 Совпадения',
-        'lessons': '🎓 Уроки',
-        'levels': '🌟 Уровни'
-    } %}
+    <div class="ach-category__grid">
+      {% for item in achievements %}
+      {% set ach = item.achievement %}
+      {% set earned = item.earned %}
+      {% set earned_at = item.earned_at %}
 
-    {% for category, achievements in achievements_by_category.items() %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h3 class="mb-0">{{ category_names.get(category, category.title()) }}</h3>
-            <small class="text-muted">
-                {{ achievements|selectattr('earned', 'equalto', True)|list|length }}/{{ achievements|length }} получено
-            </small>
+      <div class="ach-card {% if earned %}ach-card--earned{% else %}ach-card--locked{% endif %}">
+        {% if earned %}
+        <div class="ach-card__badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+          Получено
         </div>
-        <div class="card-body">
-            <div class="row g-3">
-                {% for item in achievements %}
-                {% set ach = item.achievement %}
-                {% set earned = item.earned %}
-                {% set earned_at = item.earned_at %}
+        {% endif %}
 
-                <div class="col-md-6 col-lg-4">
-                    <div class="achievement-card {% if earned %}earned{% else %}locked{% endif %}">
-                        <!-- Earned badge -->
-                        {% if earned %}
-                        <div class="achievement-earned-badge">
-                            <i class="fas fa-check me-1"></i>Получено
-                        </div>
-                        {% endif %}
+        <div class="ach-card__icon">{{ ach.icon }}</div>
 
-                        <!-- Icon -->
-                        <div class="achievement-icon-lg">{{ ach.icon }}</div>
+        <h3 class="ach-card__name {% if not earned %}ach-card__name--locked{% endif %}">{{ ach.name }}</h3>
+        <p class="ach-card__desc {% if not earned %}ach-card__desc--locked{% endif %}">{{ ach.description }}</p>
 
-                        <!-- Title and description -->
-                        <h5 class="mb-2 fw-bold {% if not earned %}achievement-text-locked{% endif %}">{{ ach.name }}</h5>
-                        <p class="mb-2 small {% if not earned %}achievement-text-locked{% endif %}">{{ ach.description }}</p>
+        <div class="ach-card__footer">
+          <span class="ach-card__xp {% if earned %}ach-card__xp--earned{% else %}ach-card__xp--locked{% endif %}">
+            +{{ ach.xp_reward }} XP
+          </span>
 
-                        <!-- XP reward -->
-                        <div class="d-flex align-items-center justify-content-between mt-3">
-                            <span class="achievement-xp-badge {% if earned %}earned{% else %}locked{% endif %}">
-                                +{{ ach.xp_reward }} XP
-                            </span>
-
-                            {% if earned and earned_at %}
-                            <small class="text-muted">
-                                {{ earned_at.strftime('%d.%m.%Y') }}
-                            </small>
-                            {% endif %}
-                        </div>
-
-                        <!-- Progress hint for locked achievements -->
-                        {% if not earned %}
-                        <div class="mt-2 small text-muted">
-                            <i class="fas fa-lock me-1"></i>Ещё не получено
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+          {% if earned and earned_at %}
+          <span class="ach-card__date">{{ earned_at.strftime('%d.%m.%Y') }}</span>
+          {% endif %}
         </div>
+
+        {% if not earned %}
+        <div class="ach-card__locked-hint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          Ещё не получено
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
+  </div>
+  {% endfor %}
 </div>
 
-<!-- Styles moved to design-system.css -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.ach-page {
+  --ach-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ach-primary: #f59e0b;
+  --ach-primary-dark: #d97706;
+  --ach-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --ach-surface: #ffffff;
+  --ach-surface-alt: #f8fafc;
+  --ach-text: #0f172a;
+  --ach-text-muted: #64748b;
+  --ach-border: #e2e8f0;
+  --ach-radius: 16px;
+  --ach-radius-sm: 10px;
+  --ach-success: #22c55e;
+  --ach-success-bg: rgba(34, 197, 94, 0.1);
+
+  font-family: var(--ach-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ═══════════════════════════════════════
+   Hero Section
+   ═══════════════════════════════════════ */
+.ach-hero {
+  position: relative;
+  background: var(--ach-gradient);
+  border-radius: var(--ach-radius);
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: white;
+}
+
+.ach-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ach-hero .shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ach-hero .shape--1 {
+  width: 160px;
+  height: 160px;
+  top: -50px;
+  right: -30px;
+  animation: ach-float-1 18s ease-in-out infinite;
+}
+
+.ach-hero .shape--2 {
+  width: 90px;
+  height: 90px;
+  bottom: -30px;
+  left: 10%;
+  animation: ach-float-2 14s ease-in-out infinite;
+}
+
+.ach-hero .shape--3 {
+  width: 50px;
+  height: 50px;
+  top: 40%;
+  right: 30%;
+  background: rgba(255, 255, 255, 0.07);
+  animation: ach-float-3 20s ease-in-out infinite;
+}
+
+@keyframes ach-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes ach-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+@keyframes ach-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-10px, 10px) scale(1.15); }
+}
+
+.ach-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.ach-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ach-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.ach-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.ach-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+.ach-hero__stats {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.ach-hero__counter {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ach-hero__counter-label {
+  font-size: 0.8125rem;
+  opacity: 0.8;
+  margin-bottom: 0.5rem;
+}
+
+.ach-hero__progress {
+  width: 140px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-left: auto;
+}
+
+.ach-hero__progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* ═══════════════════════════════════════
+   XP Stats Cards
+   ═══════════════════════════════════════ */
+.ach-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.ach-stats__card {
+  background: var(--ach-surface);
+  border: 1px solid var(--ach-border);
+  border-radius: var(--ach-radius);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.25s ease;
+}
+
+.ach-stats__card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.ach-stats__emoji {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ach-stats__info {
+  min-width: 0;
+}
+
+.ach-stats__value {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ach-stats__value--xp {
+  color: var(--ach-primary);
+}
+
+.ach-stats__value--pct {
+  color: var(--ach-success);
+}
+
+.ach-stats__label {
+  font-size: 0.8125rem;
+  color: var(--ach-text-muted);
+  margin-top: 0.125rem;
+}
+
+/* ═══════════════════════════════════════
+   Category Sections
+   ═══════════════════════════════════════ */
+.ach-category {
+  background: var(--ach-surface);
+  border: 1px solid var(--ach-border);
+  border-radius: var(--ach-radius);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.ach-category__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--ach-border);
+}
+
+.ach-category__header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.ach-category__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--ach-radius-sm);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+  color: var(--ach-primary-dark);
+  flex-shrink: 0;
+}
+
+.ach-category__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--ach-text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ach-category__count {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ach-text-muted);
+  background: var(--ach-surface-alt);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--ach-border);
+}
+
+.ach-category__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+/* ═══════════════════════════════════════
+   Achievement Card
+   ═══════════════════════════════════════ */
+.ach-card {
+  position: relative;
+  background: var(--ach-surface);
+  border: 1px solid var(--ach-border);
+  border-radius: var(--ach-radius-sm);
+  padding: 1.25rem 1rem;
+  text-align: center;
+  transition: all 0.25s ease;
+}
+
+.ach-card--earned {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, var(--ach-surface) 100%);
+}
+
+.ach-card--earned:hover {
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+  transform: translateY(-3px);
+}
+
+.ach-card--locked {
+  opacity: 0.65;
+  background: var(--ach-surface-alt);
+}
+
+.ach-card--locked:hover {
+  opacity: 0.8;
+  transform: translateY(-2px);
+}
+
+.ach-card__badge {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--ach-success);
+  background: var(--ach-success-bg);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.ach-card__icon {
+  font-size: 2.25rem;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+}
+
+.ach-card__name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ach-text);
+  margin: 0 0 0.375rem;
+  line-height: 1.3;
+}
+
+.ach-card__name--locked {
+  color: var(--ach-text-muted);
+}
+
+.ach-card__desc {
+  font-size: 0.8125rem;
+  color: var(--ach-text-muted);
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.ach-card__desc--locked {
+  color: #94a3b8;
+}
+
+.ach-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}
+
+.ach-card__xp {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.2rem 0.625rem;
+  border-radius: 6px;
+}
+
+.ach-card__xp--earned {
+  color: var(--ach-primary-dark);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.ach-card__xp--locked {
+  color: var(--ach-text-muted);
+  background: var(--ach-surface-alt);
+  border: 1px solid var(--ach-border);
+}
+
+.ach-card__date {
+  font-size: 0.75rem;
+  color: var(--ach-text-muted);
+}
+
+.ach-card__locked-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.625rem;
+}
+
+/* ═══════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════ */
+@keyframes ach-slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ach-hero { animation: ach-slideUp 0.4s ease-out; }
+.ach-stats { animation: ach-slideUp 0.4s ease-out 0.1s both; }
+
+.ach-category {
+  animation: ach-slideUp 0.4s ease-out both;
+}
+
+.ach-category:nth-child(3) { animation-delay: 0.15s; }
+.ach-category:nth-child(4) { animation-delay: 0.2s; }
+.ach-category:nth-child(5) { animation-delay: 0.25s; }
+.ach-category:nth-child(6) { animation-delay: 0.3s; }
+.ach-category:nth-child(7) { animation-delay: 0.35s; }
+.ach-category:nth-child(8) { animation-delay: 0.4s; }
+.ach-category:nth-child(9) { animation-delay: 0.45s; }
+.ach-category:nth-child(10) { animation-delay: 0.5s; }
+.ach-category:nth-child(11) { animation-delay: 0.55s; }
+
+.ach-card {
+  animation: ach-slideUp 0.35s ease-out both;
+}
+
+.ach-card:nth-child(1) { animation-delay: 0.05s; }
+.ach-card:nth-child(2) { animation-delay: 0.1s; }
+.ach-card:nth-child(3) { animation-delay: 0.15s; }
+.ach-card:nth-child(4) { animation-delay: 0.2s; }
+.ach-card:nth-child(5) { animation-delay: 0.25s; }
+.ach-card:nth-child(6) { animation-delay: 0.3s; }
+.ach-card:nth-child(7) { animation-delay: 0.35s; }
+.ach-card:nth-child(8) { animation-delay: 0.4s; }
+.ach-card:nth-child(9) { animation-delay: 0.45s; }
+
+/* ═══════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════ */
+@media (max-width: 640px) {
+  .ach-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .ach-hero {
+    padding: 1.25rem;
+  }
+
+  .ach-hero__content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ach-hero__stats {
+    text-align: left;
+    width: 100%;
+  }
+
+  .ach-hero__progress {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .ach-hero__counter {
+    font-size: 1.5rem;
+  }
+
+  .ach-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .ach-category__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .ach-category__header {
+    padding: 0.875rem 1rem;
+  }
+
+  .ach-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .ach-card__icon {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .ach-card__name {
+    font-size: 0.8125rem;
+  }
+
+  .ach-card__desc {
+    font-size: 0.75rem;
+  }
+
+  .ach-card__footer {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .ach-card__badge {
+    font-size: 0.625rem;
+    padding: 0.15rem 0.375rem;
+  }
+}
+</style>
 {% endblock %}

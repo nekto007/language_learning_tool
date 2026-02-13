@@ -2,280 +2,260 @@
 
 {% block title %}{{ lesson.title or 'Урок' }} - {{ course.title }}{% endblock %}
 
-{% block content %}
-<div class="lesson-container">
-  <!-- Lesson Header -->
-  <div class="lesson-header-bar">
-    <div class="lesson-nav">
-      <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="back-btn">
-        ← К модулю
-      </a>
-    </div>
-    <div class="lesson-info">
-      <span class="lesson-type">{% block lesson_type %}Урок{% endblock %}</span>
-      <span class="lesson-title">{{ lesson.title or ('Урок ' ~ lesson_number) }}</span>
-    </div>
-  </div>
-
-  <!-- SRS Review Section (if there are due cards) -->
-  {% if review_cards and review_cards|length > 0 %}
-  <div class="srs-review-section" id="srs-review-section">
-    <div class="review-header">
-      <div class="review-info">
-        <span class="review-icon">🔄</span>
-        <span class="review-title">Повторение слов</span>
-        <span class="review-count">{{ review_cards|length }} слов</span>
-      </div>
-      <button class="review-toggle-btn" onclick="toggleReviewSection()">
-        <span id="review-toggle-text">Начать</span>
-      </button>
-    </div>
-
-    <div class="review-content" id="review-content" style="display: none;">
-      <div class="review-card-container">
-        <div class="review-card" id="review-card" onclick="flipReviewCard()">
-          <div class="review-card-front">
-            <div class="review-word" id="review-front"></div>
-            <div class="review-hint">Нажмите для перевода</div>
-          </div>
-          <div class="review-card-back">
-            <div class="review-word" id="review-back"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="review-controls">
-        <div class="review-progress">
-          <span id="review-current">1</span> / <span id="review-total">{{ review_cards|length }}</span>
-        </div>
-        <!-- Unified 1-2-3 rating scale -->
-        <div class="review-buttons" id="review-buttons" style="display: none;">
-          <button class="review-btn hard" onclick="rateReviewCard(1)">Не знаю</button>
-          <button class="review-btn good" onclick="rateReviewCard(2)">Сомневаюсь</button>
-          <button class="review-btn easy" onclick="rateReviewCard(3)">Знаю</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Lesson Content -->
-  <div class="lesson-content">
-    {% block lesson_content %}{% endblock %}
-  </div>
-
-  <!-- Lesson Footer -->
-  <div class="lesson-footer">
-    {% block lesson_footer %}
-    <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" disabled>
-      Завершить урок
-    </button>
-    {% endblock %}
-  </div>
-</div>
-
+{% block styles %}
+{{ super() }}
 <style>
-/* Base Lesson Styles */
-.lesson-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-primary);
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
+
+/* ── Scoped Book Lesson Variables ── */
+.bls-page {
+  --bls-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bls-primary: #10b981;
+  --bls-primary-dark: #059669;
+  --bls-gradient: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+  --bls-surface: #ffffff;
+  --bls-surface-alt: #f8fafc;
+  --bls-text: #0f172a;
+  --bls-text-muted: #64748b;
+  --bls-text-light: #94a3b8;
+  --bls-border: #e2e8f0;
+  --bls-radius: 16px;
+  --bls-radius-sm: 10px;
+  --bls-success: #10b981;
+  --bls-warning: #f59e0b;
+  --bls-danger: #ef4444;
+
+  font-family: var(--bls-font);
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1rem 6rem;
 }
 
-.lesson-header-bar {
+/* ── Animations ── */
+@keyframes blsSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blsFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-12px, 12px) scale(1.05); }
+}
+
+@keyframes blsFloat2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(14px, -10px) rotate(8deg); }
+}
+
+.bls-page .bls-header { animation: blsSlideUp 0.4s ease-out; }
+.bls-page .bls-body { animation: blsSlideUp 0.4s ease-out 0.08s both; }
+.bls-page .bls-footer { animation: blsSlideUp 0.3s ease-out 0.12s both; }
+
+/* ── Header ── */
+.bls-header {
+  background: var(--bls-gradient);
+  border-radius: var(--bls-radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.bls-header::before,
+.bls-header::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.bls-header::before {
+  width: 120px;
+  height: 120px;
+  top: -40px;
+  right: -30px;
+  animation: blsFloat1 18s ease-in-out infinite;
+}
+
+.bls-header::after {
+  width: 70px;
+  height: 70px;
+  bottom: -25px;
+  left: 8%;
+  animation: blsFloat2 14s ease-in-out infinite;
+}
+
+.bls-header__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 2rem;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0.75rem;
 }
 
-.back-btn {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-size: 0.875rem;
+.bls-header__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
-.back-btn:hover {
-  color: var(--accent-color);
-}
-
-.lesson-info {
-  text-align: center;
-}
-
-.lesson-type {
-  display: block;
+.bls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
   font-size: 0.75rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.lesson-title {
   font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(5px);
 }
 
-.lesson-content {
-  flex: 1;
-  padding: 2rem;
-  max-width: 900px;
+.bls-badge__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.bls-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bls-header__counter {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+/* ── Content Area ── */
+.bls-body {
+  margin-bottom: 2rem;
+}
+
+/* ── Footer ── */
+.bls-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bls-surface);
+  border-top: 1px solid var(--bls-border);
+  padding: 0.75rem 1rem;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.bls-footer__inner {
+  max-width: 800px;
   margin: 0 auto;
   width: 100%;
-}
-
-.lesson-footer {
-  padding: 1.5rem 2rem;
-  background: var(--card-bg);
-  border-top: 1px solid var(--border-color);
-  text-align: center;
-}
-
-/* Common Lesson Elements */
-.lesson-intro {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.lesson-intro h1 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.lesson-intro p {
-  color: var(--text-secondary);
-}
-
-.lesson-instructions {
-  background: var(--bg-secondary);
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 2rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-/* Buttons */
-.btn {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  text-decoration: none;
-  text-align: center;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-lg {
-  padding: 1rem 2rem;
-  font-size: 1.125rem;
-}
-
-.btn-primary {
-  background: var(--accent-color);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.btn-secondary {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: var(--bg-tertiary);
-}
-
-/* Results */
-.lesson-results {
-  text-align: center;
-  padding: 2rem;
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-}
-
-.results-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
-
-.results-score {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--accent-color);
-  margin-bottom: 0.5rem;
-}
-
-.results-message {
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-}
-
-.results-actions {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .lesson-header-bar {
-    padding: 1rem;
-  }
-
-  .lesson-content {
-    padding: 1rem;
-  }
-
-  .lesson-footer {
-    padding: 1rem;
-  }
+.bls-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--bls-radius-sm);
+  font-family: var(--bls-font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
 }
 
-/* SRS Review Section */
-.srs-review-section {
+.bls-btn__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.bls-btn--primary {
+  background: var(--bls-gradient);
+  color: #fff;
+}
+
+.bls-btn--primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.bls-btn--primary:disabled {
+  background: #d1d5db;
+  box-shadow: none;
+  cursor: not-allowed;
+  color: #9ca3af;
+  opacity: 1;
+  transform: none;
+}
+
+.bls-btn--outline {
+  background: var(--bls-surface);
+  color: var(--bls-text-muted);
+  border: 1.5px solid var(--bls-border);
+}
+
+.bls-btn--outline:hover {
+  background: var(--bls-surface-alt);
+  color: var(--bls-text);
+  border-color: #cbd5e1;
+}
+
+/* ── SRS Review Section ── */
+.bls-review {
   background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-  border-radius: var(--radius-lg);
-  padding: 1rem 1.5rem;
-  margin: 0 2rem 1rem;
+  border-radius: var(--bls-radius-sm);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
   border: 1px solid #ffcc80;
 }
 
-.review-header {
+.bls-review__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.review-info {
+.bls-review__info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.review-icon {
+.bls-review__icon {
   font-size: 1.25rem;
 }
 
-.review-title {
+.bls-review__title {
   font-weight: 600;
   color: #e65100;
 }
 
-.review-count {
+.bls-review__count {
   background: #ff9800;
   color: white;
   padding: 0.2rem 0.6rem;
@@ -284,33 +264,34 @@
   font-weight: 500;
 }
 
-.review-toggle-btn {
+.bls-review__toggle {
   background: #ff9800;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--bls-radius-sm);
   cursor: pointer;
+  font-family: var(--bls-font);
   font-weight: 500;
   transition: all 0.2s;
 }
 
-.review-toggle-btn:hover {
+.bls-review__toggle:hover {
   background: #f57c00;
 }
 
-.review-content {
+.bls-review__content {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(230, 81, 0, 0.2);
 }
 
-.review-card-container {
+.bls-review__card-wrap {
   perspective: 1000px;
   margin-bottom: 1rem;
 }
 
-.review-card {
+.bls-review__card {
   width: 100%;
   height: 150px;
   position: relative;
@@ -319,17 +300,13 @@
   cursor: pointer;
 }
 
-.review-card.flipped {
+.bls-review__card.flipped {
   transform: rotateY(180deg);
 }
 
-.review-card-front,
-.review-card-back {
+.bls-review__card-face {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0; width: 100%; height: 100%;
   backface-visibility: hidden;
   display: flex;
   flex-direction: column;
@@ -337,151 +314,223 @@
   justify-content: center;
   padding: 1rem;
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: var(--bls-radius-sm);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.review-card-back {
+.bls-review__card-face--back {
   transform: rotateY(180deg);
   background: #fff8e1;
 }
 
-.review-word {
+.bls-review__word {
   font-size: 1.5rem;
   font-weight: 600;
   color: #333;
 }
 
-.review-hint {
+.bls-review__hint {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--bls-text-muted);
   margin-top: 0.5rem;
 }
 
-.review-controls {
+.bls-review__controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.review-progress {
+.bls-review__progress {
   font-size: 0.875rem;
   color: #e65100;
   font-weight: 500;
 }
 
-.review-buttons {
+.bls-review__buttons {
   display: flex;
   gap: 0.5rem;
 }
 
-.review-btn {
+.bls-review__rate {
   padding: 0.4rem 1rem;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--bls-radius-sm);
   cursor: pointer;
+  font-family: var(--bls-font);
   font-size: 0.8rem;
   font-weight: 500;
   transition: all 0.2s;
 }
 
-.review-btn.hard {
-  background: #ffebee;
-  color: #c62828;
-}
+.bls-review__rate--hard { background: #ffebee; color: #c62828; }
+.bls-review__rate--hard:hover { background: #ffcdd2; }
+.bls-review__rate--good { background: #e8f5e9; color: #2e7d32; }
+.bls-review__rate--good:hover { background: #c8e6c9; }
+.bls-review__rate--easy { background: #e3f2fd; color: #1565c0; }
+.bls-review__rate--easy:hover { background: #bbdefb; }
 
-.review-btn.hard:hover {
-  background: #ffcdd2;
-}
-
-.review-btn.good {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.review-btn.good:hover {
-  background: #c8e6c9;
-}
-
-.review-btn.easy {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.review-btn.easy:hover {
-  background: #bbdefb;
-}
-
-.review-complete {
+.bls-review__complete {
   text-align: center;
   padding: 1rem;
   color: #2e7d32;
   font-weight: 500;
 }
 
-/* Common Footer Button Styles */
-.lesson-footer-actions {
+/* ── Lesson Results ── */
+.bls-results {
+  text-align: center;
+  padding: 2rem;
+  background: var(--bls-surface);
+  border-radius: var(--bls-radius);
+  border: 1px solid var(--bls-border);
+}
+
+.bls-results__icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.bls-results__score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--bls-primary);
+  margin-bottom: 0.5rem;
+}
+
+.bls-results__message {
+  color: var(--bls-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.bls-results__actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 1rem;
+  justify-content: center;
 }
 
-.btn-footer {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.2s;
+/* ── Legacy class support ── */
+.lesson-content {
+  flex: 1;
 }
 
-.btn-footer.btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.btn-footer.btn-secondary:hover {
-  background: #e5e7eb;
-  color: #1f2937;
-}
-
-.btn-footer.btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.btn-footer.btn-primary:disabled {
-  background: #d1d5db;
-  box-shadow: none;
-  cursor: not-allowed;
-  color: #9ca3af;
-}
-
-.btn-footer.btn-primary:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #5a6fd6, #6a42a0);
-  color: white;
-}
-
-@media (max-width: 768px) {
-  .lesson-footer-actions {
-    flex-direction: column;
-    gap: 0.75rem;
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .bls-page {
+    padding: 0 0.75rem 5.5rem;
   }
-  .btn-footer {
-    width: 100%;
-    justify-content: center;
+
+  .bls-header {
+    padding: 1rem 1.125rem;
+    border-radius: 12px;
+  }
+
+  .bls-title {
+    font-size: 1rem;
+  }
+
+  .bls-header__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .bls-footer {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .bls-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
   }
 }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="bls-page">
+
+  <!-- Compact Header -->
+  <div class="bls-header">
+    <div class="bls-header__top">
+      <div class="bls-header__left">
+        <span class="bls-badge">
+          <svg class="bls-badge__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 6 3 6 3s3 0 6-3v-5"/></svg>
+          {% block lesson_type %}Урок{% endblock %}
+        </span>
+        <h1 class="bls-title">{{ lesson.title or ('Урок ' ~ lesson_number) }}</h1>
+      </div>
+      <span class="bls-header__counter">{{ course.title }}</span>
+    </div>
+  </div>
+
+  <!-- SRS Review Section (if there are due cards) -->
+  {% if review_cards and review_cards|length > 0 %}
+  <div class="bls-review" id="srs-review-section">
+    <div class="bls-review__header">
+      <div class="bls-review__info">
+        <span class="bls-review__icon">🔄</span>
+        <span class="bls-review__title">Повторение слов</span>
+        <span class="bls-review__count">{{ review_cards|length }} слов</span>
+      </div>
+      <button class="bls-review__toggle" onclick="toggleReviewSection()">
+        <span id="review-toggle-text">Начать</span>
+      </button>
+    </div>
+
+    <div class="bls-review__content" id="review-content" style="display: none;">
+      <div class="bls-review__card-wrap">
+        <div class="bls-review__card" id="review-card" onclick="flipReviewCard()">
+          <div class="bls-review__card-face">
+            <div class="bls-review__word" id="review-front"></div>
+            <div class="bls-review__hint">Нажмите для перевода</div>
+          </div>
+          <div class="bls-review__card-face bls-review__card-face--back">
+            <div class="bls-review__word" id="review-back"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bls-review__controls">
+        <div class="bls-review__progress">
+          <span id="review-current">1</span> / <span id="review-total">{{ review_cards|length }}</span>
+        </div>
+        <div class="bls-review__buttons" id="review-buttons" style="display: none;">
+          <button class="bls-review__rate bls-review__rate--hard" onclick="rateReviewCard(1)">Не знаю</button>
+          <button class="bls-review__rate bls-review__rate--good" onclick="rateReviewCard(2)">Сомневаюсь</button>
+          <button class="bls-review__rate bls-review__rate--easy" onclick="rateReviewCard(3)">Знаю</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Main Content -->
+  <div class="bls-body lesson-content">
+    {% block lesson_content %}{% endblock %}
+  </div>
+
+  <!-- Navigation Footer -->
+  <div class="bls-footer" id="lesson-footer">
+    <div class="bls-footer__inner">
+    {% block lesson_footer %}
+      <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bls-btn bls-btn--outline">
+        <svg class="bls-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        К модулю
+      </a>
+
+      <button id="complete-btn" class="bls-btn bls-btn--primary btn-footer btn-primary" onclick="completeLesson()" disabled>
+        <svg class="bls-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Завершить урок
+      </button>
+    {% endblock %}
+    </div>
+  </div>
+
+</div>
+
+<!-- CSRF Token Meta -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
 <script>
 const courseId = {{ course.id }};
@@ -541,7 +590,7 @@ function completeLesson(score = 100) {
 
 function showResults(score) {
   const content = document.querySelector('.lesson-content');
-  const footer = document.querySelector('.lesson-footer');
+  const footer = document.querySelector('#lesson-footer');
 
   const emoji = score >= 90 ? '🎉' : score >= 70 ? '👍' : '💪';
   const message = score >= 90 ? 'Отличный результат!'
@@ -549,19 +598,19 @@ function showResults(score) {
     : 'Продолжайте практиковаться!';
 
   content.innerHTML = `
-    <div class="lesson-results">
-      <div class="results-icon">${emoji}</div>
-      <div class="results-score">${score}%</div>
-      <div class="results-message">${message}</div>
-      <div class="results-actions">
-        <a href="${document.referrer || '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}'}" class="btn btn-primary">
+    <div class="bls-results">
+      <div class="bls-results__icon">${emoji}</div>
+      <div class="bls-results__score">${score}%</div>
+      <div class="bls-results__message">${message}</div>
+      <div class="bls-results__actions">
+        <a href="${document.referrer || '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}'}" class="bls-btn bls-btn--primary">
           Продолжить
         </a>
       </div>
     </div>
   `;
 
-  footer.style.display = 'none';
+  if (footer) footer.style.display = 'none';
 }
 
 // SRS Review Section Functions
@@ -588,7 +637,7 @@ function showReviewCard(index) {
   if (index >= reviewCards.length) {
     // All cards reviewed
     document.getElementById('review-content').innerHTML = `
-      <div class="review-complete">
+      <div class="bls-review__complete">
         ✅ Отлично! Все слова повторены.
       </div>
     `;

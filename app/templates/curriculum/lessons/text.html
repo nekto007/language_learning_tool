@@ -779,7 +779,7 @@ function addWordToSentence(questionIndex, word, button) {
   const wordElement = document.createElement('span');
   wordElement.className = 'sentence-word';
   wordElement.textContent = word;
-  wordElement.style.cssText = 'padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.2s;';
+  wordElement.style.cssText = 'padding: 0.5rem 1rem; background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%); color: white; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.2s;';
   wordElement.onclick = () => removeWordFromSentence(wordElement, button);
 
   // Add word to sentence
@@ -1303,7 +1303,7 @@ function playNextAudio() {
   // Highlight current line with smooth animation
   if (currentItem.lineElement) {
     currentItem.lineElement.style.transition = 'all 0.3s ease';
-    currentItem.lineElement.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
+    currentItem.lineElement.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
     currentItem.lineElement.style.transform = 'translateX(8px)';
 
     // Scroll to current line smoothly

@@ -264,12 +264,6 @@ def add_topic_to_study(topic_id):
     try:
         db.session.commit()
 
-        # Синхронизация мастер-колод
-        if added_count > 0:
-            from app.study.routes import sync_master_decks
-            sync_master_decks(current_user.id)
-            db.session.commit()
-
         return jsonify({
             'success': True,
             'topic_id': topic_id,
@@ -580,12 +574,6 @@ def add_collection_to_study(collection_id):
 
     try:
         db.session.commit()
-
-        # Синхронизация мастер-колод
-        if added_count > 0:
-            from app.study.routes import sync_master_decks
-            sync_master_decks(current_user.id)
-            db.session.commit()
 
         return jsonify({
             'success': True,

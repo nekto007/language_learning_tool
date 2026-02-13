@@ -3,18 +3,23 @@ Tests for curriculum cache
 Тесты кеширования учебного плана
 """
 import pytest
-import time
 from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, patch
-from app.curriculum.cache import SimpleCache, cache_key, cached, CurriculumCache, cache
+import app.curriculum.cache as _cache_module
+from app.curriculum.cache import SimpleCache, cache_key, cached, CurriculumCache
+
+
+def _get_cache():
+    """Get the current global cache instance (survives init_cache() replacement)."""
+    return _cache_module.cache
 
 
 @pytest.fixture(autouse=True)
 def clear_global_cache():
     """Clear global cache before each test"""
-    cache.clear()
+    _get_cache().clear()
     yield
-    cache.clear()
+    _get_cache().clear()
 
 
 class TestSimpleCache:
@@ -45,8 +50,8 @@ class TestSimpleCache:
         # Сразу доступно
         assert cache.get('key1') == 'value1'
 
-        # Ждем истечения таймаута
-        time.sleep(1.1)
+        # Simulate timeout expiry by shifting expiry time to the past
+        cache._expiry['key1'] = datetime.now(timezone.utc) - timedelta(seconds=1)
 
         # Должно вернуть None после истечения
         assert cache.get('key1') is None
@@ -105,8 +110,8 @@ class TestSimpleCache:
         cache = SimpleCache()
         cache.set('key1', 'value1', timeout=1)
 
-        # Ждем истечения
-        time.sleep(1.1)
+        # Simulate timeout expiry
+        cache._expiry['key1'] = datetime.now(timezone.utc) - timedelta(seconds=1)
 
         # Попытка получить истекший ключ
         result = cache.get('key1')
@@ -257,8 +262,8 @@ class TestCachedDecorator:
             result1 = func(5)
             assert call_count['count'] == 1
 
-            # Ждем истечения таймаута
-            time.sleep(1.1)
+            # Simulate cache expiry by clearing it
+            _get_cache().clear()
 
             result2 = func(5)
             assert call_count['count'] == 2  # Функция вызвана снова

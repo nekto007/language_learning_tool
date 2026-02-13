@@ -29,6 +29,8 @@ def mock_word():
     word.russian_word = 'привет'
     word.get_download = 1
     word.listening = 'hello.mp3'
+    word.examples = None  # Prevent Mock from returning Mock object for 'in' check
+    word.sentences = None  # Accessed by _format_deck_for_session
     return word
 
 
@@ -53,7 +55,9 @@ def mock_card():
     card.ease_factor = 2.5
     card.interval = 7
     card.next_review = datetime.now(timezone.utc) - timedelta(days=1)
-    card.user_word = Mock(user_id=1, word=Mock(english_word='test', russian_word='тест'))
+    # Create word mock with examples=None, sentences=None to prevent 'in' check error
+    word_mock = Mock(english_word='test', russian_word='тест', examples=None, sentences=None)
+    card.user_word = Mock(user_id=1, word=word_mock)
     return card
 
 

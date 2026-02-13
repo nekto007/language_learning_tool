@@ -113,7 +113,7 @@ class TestEditDeck:
     def test_prevents_editing_auto_deck(self, authenticated_client, study_settings, db_session):
         """Test that auto decks cannot be edited"""
         auto_deck = QuizDeck(
-            title='Все мои слова',
+            title='Слова из чтения',
             user_id=authenticated_client.application.test_user.id,
             is_public=False
         )
@@ -234,7 +234,7 @@ class TestDeleteDeck:
     def test_prevents_deleting_auto_deck(self, authenticated_client, study_settings, db_session):
         """Test that auto decks cannot be deleted"""
         auto_deck = QuizDeck(
-            title='Выученные слова',
+            title='Слова из чтения',
             user_id=authenticated_client.application.test_user.id,
             is_public=False
         )

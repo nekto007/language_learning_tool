@@ -3,207 +3,1320 @@
 {% block title %}Редактировать: {{ deck.title }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">
-        <i class="fas fa-edit me-2"></i>Редактировать: {{ deck.title }}
-    </h2>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+/* ── Scoped Variables ── */
+.de-page {
+    --de-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+    --de-primary: #f59e0b;
+    --de-primary-dark: #d97706;
+    --de-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    --de-surface: #ffffff;
+    --de-surface-alt: #f8fafc;
+    --de-text: #0f172a;
+    --de-text-muted: #64748b;
+    --de-text-light: #94a3b8;
+    --de-border: #e2e8f0;
+    --de-radius: 16px;
+    --de-radius-sm: 10px;
+    --de-radius-xs: 8px;
+    --de-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --de-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    --de-blue: #3b82f6;
+    --de-green: #22c55e;
+    --de-green-dark: #16a34a;
+    --de-red: #ef4444;
+    --de-amber: #f59e0b;
+    --de-cyan: #06b6d4;
+    font-family: var(--de-font);
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+    color: var(--de-text);
+}
+
+/* ── Animations ── */
+@keyframes de-slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes de-float-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-20px, 15px) scale(1.08); }
+}
+
+@keyframes de-float-2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50%      { transform: translate(25px, -20px) rotate(10deg); }
+}
+
+@keyframes de-float-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-10px, -15px) scale(1.05); }
+}
+
+@keyframes de-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@keyframes de-toast-in {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes de-toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(40px); }
+}
+
+.de-slideUp {
+    animation: de-slideUp .5s ease both;
+}
+
+/* ── Hero ── */
+.de-hero {
+    position: relative;
+    background: var(--de-gradient);
+    border-radius: var(--de-radius);
+    padding: 2rem 2rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    color: #fff;
+    animation: de-slideUp .5s ease both;
+}
+
+.de-hero__shapes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.de-hero__circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+}
+
+.de-hero__circle--1 {
+    width: 160px;
+    height: 160px;
+    top: -50px;
+    right: -40px;
+    animation: de-float-1 18s ease-in-out infinite;
+}
+
+.de-hero__circle--2 {
+    width: 90px;
+    height: 90px;
+    bottom: -30px;
+    left: 10%;
+    animation: de-float-2 14s ease-in-out infinite;
+}
+
+.de-hero__circle--3 {
+    width: 50px;
+    height: 50px;
+    top: 40%;
+    left: 55%;
+    animation: de-float-3 12s ease-in-out infinite;
+}
+
+.de-hero__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.de-hero__icon {
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 255, 255, .2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+}
+
+.de-hero__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -.02em;
+    line-height: 1.2;
+}
+
+.de-hero__subtitle {
+    font-size: 0.875rem;
+    margin: 0.25rem 0 0;
+    opacity: 0.85;
+}
+
+/* ── Card ── */
+.de-card {
+    background: var(--de-surface);
+    border: 1px solid var(--de-border);
+    border-radius: var(--de-radius);
+    overflow: hidden;
+    box-shadow: var(--de-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.de-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--de-border);
+    background: var(--de-surface-alt);
+}
+
+.de-card__header-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.de-card__header-icon--primary {
+    background: rgba(245, 158, 11, .12);
+    color: var(--de-primary-dark);
+}
+
+.de-card__header-icon--green {
+    background: rgba(34, 197, 94, .12);
+    color: var(--de-green-dark);
+}
+
+.de-card__header-icon--amber {
+    background: rgba(245, 158, 11, .12);
+    color: var(--de-amber);
+}
+
+.de-card__header-icon--blue {
+    background: rgba(59, 130, 246, .12);
+    color: var(--de-blue);
+}
+
+.de-card__header-icon--cyan {
+    background: rgba(6, 182, 212, .12);
+    color: var(--de-cyan);
+}
+
+.de-card__header-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--de-text);
+    margin: 0;
+    letter-spacing: -.01em;
+}
+
+.de-card__header-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    background: var(--de-blue);
+    color: #fff;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.de-card__header--collapsible {
+    cursor: pointer;
+    user-select: none;
+    transition: background .2s;
+}
+
+.de-card__header--collapsible:hover {
+    background: #f1f5f9;
+}
+
+.de-card__header-chevron {
+    margin-left: auto;
+    color: var(--de-text-muted);
+    transition: transform .3s ease;
+    flex-shrink: 0;
+}
+
+.de-card__header-chevron--open {
+    transform: rotate(180deg);
+}
+
+.de-card__body {
+    padding: 1.5rem;
+}
+
+.de-card__body--hidden {
+    display: none;
+}
+
+/* ── Form ── */
+.de-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.de-form-row--three {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.de-form-row--wide-narrow {
+    grid-template-columns: 2fr 1fr;
+}
+
+.de-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.de-field__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--de-text);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.de-field__label-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.de-field__label-icon--green { color: var(--de-green); }
+.de-field__label-icon--blue { color: var(--de-blue); }
+
+.de-field__input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1.5px solid var(--de-border);
+    border-radius: var(--de-radius-xs);
+    font-family: var(--de-font);
+    font-size: 0.875rem;
+    color: var(--de-text);
+    background: var(--de-surface-alt);
+    transition: border-color .2s, box-shadow .2s, background .2s;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.de-field__input:focus {
+    border-color: var(--de-primary);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .12);
+    background: var(--de-surface);
+}
+
+.de-field__input::placeholder {
+    color: var(--de-text-light);
+}
+
+textarea.de-field__input {
+    resize: vertical;
+    min-height: 64px;
+}
+
+.de-field__hint {
+    font-size: 0.75rem;
+    color: var(--de-text-light);
+}
+
+/* ── Toggle Switch ── */
+.de-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.625rem 0;
+}
+
+.de-toggle__track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--de-border);
+    border-radius: 12px;
+    transition: background .2s;
+    flex-shrink: 0;
+}
+
+.de-toggle__input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.de-toggle__input:checked + .de-toggle__track {
+    background: var(--de-green);
+}
+
+.de-toggle__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+
+.de-toggle__input:checked ~ .de-toggle__track .de-toggle__thumb {
+    transform: translateX(20px);
+}
+
+.de-toggle__label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--de-text);
+}
+
+/* ── Share Alert ── */
+.de-share {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: rgba(34, 197, 94, .08);
+    border: 1px solid rgba(34, 197, 94, .25);
+    border-radius: var(--de-radius-sm);
+    margin-bottom: 1rem;
+}
+
+.de-share__icon {
+    color: var(--de-green);
+    flex-shrink: 0;
+}
+
+.de-share__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.de-share__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--de-text);
+    margin-bottom: 0.25rem;
+}
+
+.de-share__link {
+    font-size: 0.8125rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--de-text-muted);
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.de-share__copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 0.75rem;
+    background: var(--de-green);
+    color: #fff;
+    border: none;
+    border-radius: var(--de-radius-xs);
+    font-family: var(--de-font);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.de-share__copy-btn:hover {
+    background: var(--de-green-dark);
+}
+
+/* ── Buttons ── */
+.de-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.625rem 1.25rem;
+    border-radius: var(--de-radius-xs);
+    font-family: var(--de-font);
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .2s, transform .15s, box-shadow .2s;
+    white-space: nowrap;
+}
+
+.de-btn--primary {
+    background: var(--de-gradient);
+    color: #fff;
+}
+
+.de-btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, .3);
+    color: #fff;
+}
+
+.de-btn--green {
+    background: var(--de-green);
+    color: #fff;
+}
+
+.de-btn--green:hover {
+    background: var(--de-green-dark);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.de-btn--amber {
+    background: var(--de-amber);
+    color: #fff;
+}
+
+.de-btn--amber:hover {
+    background: var(--de-primary-dark);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.de-btn--blue {
+    background: var(--de-blue);
+    color: #fff;
+}
+
+.de-btn--blue:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.de-btn--secondary {
+    background: var(--de-surface);
+    color: var(--de-text-muted);
+    border: 1.5px solid var(--de-border);
+}
+
+.de-btn--secondary:hover {
+    color: var(--de-text);
+    border-color: #cbd5e1;
+    background: var(--de-surface-alt);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+}
+
+.de-btn--sm {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    border-radius: 6px;
+}
+
+.de-btn--icon {
+    padding: 0.375rem;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+}
+
+.de-btn--danger {
+    background: rgba(239, 68, 68, .08);
+    color: var(--de-red);
+    border: 1px solid rgba(239, 68, 68, .2);
+}
+
+.de-btn--danger:hover {
+    background: var(--de-red);
+    color: #fff;
+    border-color: var(--de-red);
+}
+
+.de-btn--outline-green {
+    background: rgba(34, 197, 94, .08);
+    color: var(--de-green-dark);
+    border: 1px solid rgba(34, 197, 94, .3);
+}
+
+.de-btn--outline-green:hover {
+    background: var(--de-green);
+    color: #fff;
+    border-color: var(--de-green);
+}
+
+.de-btn--outline-muted {
+    background: var(--de-surface);
+    color: var(--de-text-muted);
+    border: 1px solid var(--de-border);
+}
+
+.de-btn--outline-muted:hover {
+    background: var(--de-surface-alt);
+    color: var(--de-text);
+}
+
+.de-btn--loading .de-btn__spinner {
+    animation: de-spin .8s linear infinite;
+}
+
+/* ── Autocomplete ── */
+.de-autocomplete {
+    position: relative;
+}
+
+.de-autocomplete__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--de-surface);
+    border: 1px solid var(--de-border);
+    border-radius: var(--de-radius-xs);
+    box-shadow: var(--de-shadow-md);
+    max-height: 280px;
+    overflow-y: auto;
+    display: none;
+}
+
+.de-autocomplete__item {
+    display: block;
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--de-font);
+    font-size: 0.875rem;
+    color: var(--de-text);
+    transition: background .15s;
+}
+
+.de-autocomplete__item:last-child {
+    border-bottom: none;
+}
+
+.de-autocomplete__item:hover {
+    background: var(--de-surface-alt);
+}
+
+.de-autocomplete__item-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--de-text-light);
+    margin-top: 2px;
+}
+
+/* ── Bulk Add ── */
+.de-bulk-progress {
+    font-size: 0.8125rem;
+    color: var(--de-text-muted);
+    margin-left: 0.75rem;
+}
+
+/* ── Tabs ── */
+.de-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--de-border);
+    margin-bottom: 1rem;
+}
+
+.de-tabs__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.625rem 1rem;
+    border: none;
+    background: none;
+    font-family: var(--de-font);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--de-text-muted);
+    cursor: pointer;
+    position: relative;
+    transition: color .2s;
+}
+
+.de-tabs__tab::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: transparent;
+    border-radius: 1px 1px 0 0;
+    transition: background .2s;
+}
+
+.de-tabs__tab:hover {
+    color: var(--de-text);
+}
+
+.de-tabs__tab--active {
+    color: var(--de-primary-dark);
+}
+
+.de-tabs__tab--active::after {
+    background: var(--de-primary);
+}
+
+/* ── Search ── */
+.de-search {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.de-search__icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--de-text-light);
+    pointer-events: none;
+}
+
+.de-search__input {
+    width: 100%;
+    padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+    border: 1.5px solid var(--de-border);
+    border-radius: var(--de-radius-xs);
+    font-family: var(--de-font);
+    font-size: 0.875rem;
+    color: var(--de-text);
+    background: var(--de-surface-alt);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    box-sizing: border-box;
+}
+
+.de-search__input:focus {
+    border-color: var(--de-primary);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .12);
+}
+
+.de-search__input::placeholder {
+    color: var(--de-text-light);
+}
+
+/* ── Collection/Topic List ── */
+.de-ct-list {
+    border: 1px solid var(--de-border);
+    border-radius: var(--de-radius-xs);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.de-ct-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .15s;
+}
+
+.de-ct-item:last-child {
+    border-bottom: none;
+}
+
+.de-ct-item:hover {
+    background: var(--de-surface-alt);
+}
+
+.de-ct-item__info {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    flex: 1;
+    gap: 0.5rem;
+}
+
+.de-ct-item__name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--de-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.de-ct-item__count {
+    font-size: 0.75rem;
+    color: var(--de-text-light);
+    flex-shrink: 0;
+}
+
+.de-ct-empty {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--de-text-muted);
+    font-size: 0.875rem;
+}
+
+.de-ct-loading {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--de-text-muted);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.de-ct-loading__spinner {
+    animation: de-spin .8s linear infinite;
+}
+
+/* ── Table ── */
+.de-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.de-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.de-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--de-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--de-border);
+    white-space: nowrap;
+}
+
+.de-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--de-border);
+    font-size: 0.875rem;
+    color: var(--de-text);
+    vertical-align: middle;
+}
+
+.de-table tr:hover {
+    background: var(--de-surface-alt);
+}
+
+.de-table__num {
+    width: 48px;
+    color: var(--de-text-light);
+    font-weight: 500;
+}
+
+.de-table__english {
+    font-weight: 600;
+}
+
+.de-table__badge {
+    display: inline-flex;
+    padding: 0.125rem 0.4rem;
+    background: rgba(245, 158, 11, .12);
+    color: var(--de-primary-dark);
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    margin-left: 0.375rem;
+    vertical-align: middle;
+}
+
+.de-table__example {
+    font-size: 0.8125rem;
+    color: var(--de-text-muted);
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.de-table__example--empty {
+    font-style: italic;
+    color: var(--de-text-light);
+}
+
+.de-table__actions {
+    text-align: center;
+    white-space: nowrap;
+    width: 96px;
+}
+
+.de-table__actions-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+}
+
+.de-table__actions-wrap form {
+    display: contents;
+}
+
+/* ── Empty State ── */
+.de-empty {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(59, 130, 246, .06);
+    border: 1px solid rgba(59, 130, 246, .15);
+    border-radius: var(--de-radius-sm);
+}
+
+.de-empty__icon {
+    color: var(--de-blue);
+    flex-shrink: 0;
+}
+
+.de-empty__text {
+    font-size: 0.875rem;
+    color: var(--de-text-muted);
+}
+
+/* ── Bottom Actions ── */
+.de-bottom-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.de-bottom-actions__right {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* ── Toast ── */
+.de-toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* ── Modal ── */
+.de-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .25s, visibility .25s;
+}
+
+.de-modal-overlay--visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.de-modal {
+    background: var(--de-surface);
+    border-radius: var(--de-radius);
+    max-width: 560px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    transform: translateY(20px) scale(0.97);
+    transition: transform .25s ease;
+}
+
+.de-modal-overlay--visible .de-modal {
+    transform: translateY(0) scale(1);
+}
+
+.de-modal__header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--de-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.de-modal__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--de-text);
+    margin: 0;
+}
+
+.de-modal__close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--de-surface-alt);
+    border-radius: 8px;
+    color: var(--de-text-muted);
+    cursor: pointer;
+    transition: background .2s, color .2s;
+}
+
+.de-modal__close:hover {
+    background: var(--de-border);
+    color: var(--de-text);
+}
+
+.de-modal__body {
+    padding: 1.5rem;
+}
+
+.de-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--de-border);
+    background: var(--de-surface-alt);
+}
+
+/* ── Tab panels ── */
+.de-tab-panel {
+    display: none;
+}
+
+.de-tab-panel--active {
+    display: block;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .de-page {
+        padding: 0 0.75rem 2rem;
+    }
+
+    .de-hero {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .de-hero__title {
+        font-size: 1.25rem;
+    }
+
+    .de-hero__icon {
+        width: 44px;
+        height: 44px;
+    }
+
+    .de-card__body {
+        padding: 1rem;
+    }
+
+    .de-form-row,
+    .de-form-row--three,
+    .de-form-row--wide-narrow {
+        grid-template-columns: 1fr;
+    }
+
+    .de-bottom-actions {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+
+    .de-bottom-actions .de-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .de-bottom-actions__right {
+        width: 100%;
+    }
+
+    .de-bottom-actions__right .de-btn {
+        flex: 1;
+    }
+
+    .de-table th:nth-child(4),
+    .de-table td:nth-child(4) {
+        display: none;
+    }
+
+    .de-toast-container {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+    }
+
+    .de-share {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<div class="de-page">
+
+    <!-- Hero Section -->
+    <div class="de-hero">
+        <div class="de-hero__shapes">
+            <div class="de-hero__circle de-hero__circle--1"></div>
+            <div class="de-hero__circle de-hero__circle--2"></div>
+            <div class="de-hero__circle de-hero__circle--3"></div>
+        </div>
+        <div class="de-hero__content">
+            <div class="de-hero__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="de-hero__title">{{ deck.title }}</h1>
+                <p class="de-hero__subtitle">Редактирование колоды</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification container -->
+    <div id="toast-container" class="de-toast-container"></div>
 
     <!-- Deck Settings -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Настройки колоды</h5>
+    <div class="de-card de-slideUp" style="animation-delay: .1s">
+        <div class="de-card__header">
+            <div class="de-card__header-icon de-card__header-icon--primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            </div>
+            <h2 class="de-card__header-title">Настройки колоды</h2>
         </div>
-        <div class="card-body">
+        <div class="de-card__body">
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-                <div class="row">
-                    <div class="col-md-8 mb-3">
-                        <label for="title" class="form-label">Название *</label>
-                        <input type="text" class="form-control" id="title" name="title"
+                <div class="de-form-row de-form-row--wide-narrow">
+                    <div class="de-field">
+                        <label for="title" class="de-field__label">Название *</label>
+                        <input type="text" class="de-field__input" id="title" name="title"
                                value="{{ deck.title }}" required>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label d-block">Публичность</label>
-                        <div class="form-check form-switch mt-2">
-                            <input type="checkbox" class="form-check-input" id="is_public" name="is_public"
+                    <div class="de-field">
+                        <label class="de-field__label">Публичность</label>
+                        <label class="de-toggle">
+                            <input type="checkbox" class="de-toggle__input" id="is_public" name="is_public"
                                    {% if deck.is_public %}checked{% endif %}>
-                            <label class="form-check-label" for="is_public">
-                                Публичная колода
-                            </label>
-                        </div>
+                            <span class="de-toggle__track">
+                                <span class="de-toggle__thumb"></span>
+                            </span>
+                            <span class="de-toggle__label">Публичная колода</span>
+                        </label>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label for="description" class="form-label">Описание</label>
-                    <textarea class="form-control" id="description" name="description" rows="2">{{ deck.description or '' }}</textarea>
+                <div class="de-field" style="margin-bottom: 1rem;">
+                    <label for="description" class="de-field__label">Описание</label>
+                    <textarea class="de-field__input" id="description" name="description" rows="2">{{ deck.description or '' }}</textarea>
                 </div>
 
                 <!-- Per-deck limits -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="new_words_per_day" class="form-label">
-                            <i class="fas fa-plus-circle me-1 text-success"></i>Новых слов в день
+                <div class="de-form-row">
+                    <div class="de-field">
+                        <label for="new_words_per_day" class="de-field__label">
+                            <span class="de-field__label-icon de-field__label-icon--green">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                            </span>
+                            Новых слов в день
                         </label>
-                        <input type="number" class="form-control" id="new_words_per_day" name="new_words_per_day"
+                        <input type="number" class="de-field__input" id="new_words_per_day" name="new_words_per_day"
                                min="0" max="100"
                                value="{{ deck.new_words_per_day if deck.new_words_per_day is not none else '' }}"
                                placeholder="Глобальные настройки">
-                        <small class="text-muted">Оставьте пустым для глобальных настроек</small>
+                        <span class="de-field__hint">Оставьте пустым для глобальных настроек</span>
                     </div>
-                    <div class="col-md-6">
-                        <label for="reviews_per_day" class="form-label">
-                            <i class="fas fa-redo me-1 text-primary"></i>Повторений в день
+                    <div class="de-field">
+                        <label for="reviews_per_day" class="de-field__label">
+                            <span class="de-field__label-icon de-field__label-icon--blue">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+                            </span>
+                            Повторений в день
                         </label>
-                        <input type="number" class="form-control" id="reviews_per_day" name="reviews_per_day"
+                        <input type="number" class="de-field__input" id="reviews_per_day" name="reviews_per_day"
                                min="0" max="500"
                                value="{{ deck.reviews_per_day if deck.reviews_per_day is not none else '' }}"
                                placeholder="Глобальные настройки">
-                        <small class="text-muted">Оставьте пустым для глобальных настроек</small>
+                        <span class="de-field__hint">Оставьте пустым для глобальных настроек</span>
                     </div>
                 </div>
 
                 {% if deck.is_public and deck.share_code %}
-                <div class="alert alert-success">
-                    <i class="fas fa-share-alt me-2"></i>
-                    <strong>Ссылка для шаринга:</strong><br>
-                    <code id="share-link">{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}</code>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-2"
-                            onclick="navigator.clipboard.writeText(document.getElementById('share-link').textContent); alert('Ссылка скопирована!')">
-                        <i class="fas fa-copy"></i> Копировать
+                <div class="de-share">
+                    <div class="de-share__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    </div>
+                    <div class="de-share__text">
+                        <div class="de-share__label">Ссылка для шаринга:</div>
+                        <div class="de-share__link" id="share-link">{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}</div>
+                    </div>
+                    <button type="button" class="de-share__copy-btn"
+                            onclick="navigator.clipboard.writeText(document.getElementById('share-link').textContent); this.innerHTML='<svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;3&quot;><path d=&quot;M20 6L9 17l-5-5&quot;/></svg> Скопировано'; setTimeout(() => { this.innerHTML='<svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;><rect x=&quot;9&quot; y=&quot;9&quot; width=&quot;13&quot; height=&quot;13&quot; rx=&quot;2&quot;/><path d=&quot;M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1&quot;/></svg> Копировать'; }, 2000);">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        Копировать
                     </button>
                 </div>
                 {% endif %}
 
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-1"></i>Сохранить
+                <button type="submit" class="de-btn de-btn--primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Сохранить
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Toast notification container -->
-    <div id="toast-container" class="toast-container-fixed"></div>
-
     <!-- Add Word -->
-    <div class="card shadow-sm mb-4 deck-edit-card-elevated">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Добавить слово</h5>
+    <div class="de-card de-slideUp" style="animation-delay: .15s">
+        <div class="de-card__header">
+            <div class="de-card__header-icon de-card__header-icon--green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+            <h2 class="de-card__header-title">Добавить слово</h2>
         </div>
-        <div class="card-body deck-edit-card-body-overflow">
+        <div class="de-card__body">
             <form method="POST" action="{{ url_for('study.add_word_to_deck', deck_id=deck.id) }}" id="add-word-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="word_id" id="word-id-input" value="">
 
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="custom_english" class="form-label">English *</label>
-                        <div class="autocomplete-container">
-                            <input type="text" class="form-control" id="custom_english" name="custom_english"
+                <div class="de-form-row de-form-row--three">
+                    <div class="de-field">
+                        <label for="custom_english" class="de-field__label">English *</label>
+                        <div class="de-autocomplete">
+                            <input type="text" class="de-field__input" id="custom_english" name="custom_english"
                                    placeholder="Начните вводить..." required autocomplete="off">
-                            <div id="autocomplete-results" class="list-group position-absolute w-100 autocomplete-dropdown"></div>
+                            <div id="autocomplete-results" class="de-autocomplete__dropdown"></div>
                         </div>
-                        <small class="text-muted">Начните вводить для поиска в базе</small>
+                        <span class="de-field__hint">Начните вводить для поиска в базе</span>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="custom_russian" class="form-label">Русский *</label>
-                        <input type="text" class="form-control" id="custom_russian" name="custom_russian"
+                    <div class="de-field">
+                        <label for="custom_russian" class="de-field__label">Русский *</label>
+                        <input type="text" class="de-field__input" id="custom_russian" name="custom_russian"
                                placeholder="привет" required>
-                        <small class="text-muted">Перевод на русский</small>
+                        <span class="de-field__hint">Перевод на русский</span>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="custom_sentences" class="form-label">Примеры</label>
-                        <input type="text" class="form-control" id="custom_sentences" name="custom_sentences"
+                    <div class="de-field">
+                        <label for="custom_sentences" class="de-field__label">Примеры</label>
+                        <input type="text" class="de-field__input" id="custom_sentences" name="custom_sentences"
                                placeholder="Hello, world!">
-                        <small class="text-muted">Примеры использования</small>
+                        <span class="de-field__hint">Примеры использования</span>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-plus"></i> Добавить слово
-                        </button>
-                    </div>
-                </div>
+                <button type="submit" class="de-btn de-btn--green" id="add-word-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Добавить слово
+                </button>
             </form>
         </div>
     </div>
 
     <!-- Bulk Add Words -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-warning text-dark">
-            <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Добавить несколько слов</h5>
+    <div class="de-card de-slideUp" style="animation-delay: .2s">
+        <div class="de-card__header">
+            <div class="de-card__header-icon de-card__header-icon--amber">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            </div>
+            <h2 class="de-card__header-title">Добавить несколько слов</h2>
         </div>
-        <div class="card-body">
+        <div class="de-card__body">
             <form id="bulk-add-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-                <div class="mb-3">
-                    <label for="bulk_words" class="form-label">Вставьте слова построчно</label>
-                    <textarea class="form-control" id="bulk_words" name="bulk_words" rows="8"
+                <div class="de-field" style="margin-bottom: 1rem;">
+                    <label for="bulk_words" class="de-field__label">Вставьте слова построчно</label>
+                    <textarea class="de-field__input" id="bulk_words" name="bulk_words" rows="8"
                               placeholder="Вставьте слова в формате:&#10;hello - привет&#10;world - мир&#10;goodbye - до свидания"></textarea>
-                    <small class="text-muted">
-                        Формат: <code>english - русский</code> (одна пара на строку, разделитель: дефис, запятая или табуляция)
-                    </small>
+                    <span class="de-field__hint">
+                        Формат: <code style="background: var(--de-surface-alt); padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">english - русский</code> (одна пара на строку, разделитель: дефис, запятая или табуляция)
+                    </span>
                 </div>
 
-                <button type="submit" class="btn btn-warning" id="bulk-add-button">
-                    <i class="fas fa-upload me-1"></i>Добавить все слова
-                </button>
-                <span id="bulk-progress" class="ms-2 text-muted" style="display: none;"></span>
+                <div style="display: flex; align-items: center;">
+                    <button type="submit" class="de-btn de-btn--amber" id="bulk-add-button">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Добавить все слова
+                    </button>
+                    <span id="bulk-progress" class="de-bulk-progress" style="display: none;"></span>
+                </div>
             </form>
         </div>
     </div>
 
     <!-- Add from Collection/Topic -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-info text-white" style="cursor: pointer;" onclick="document.getElementById('coll-topic-section').classList.toggle('d-none')">
-            <h5 class="mb-0">
-                <i class="fas fa-folder-plus me-2"></i>Добавить из коллекции / темы
-                <i class="fas fa-chevron-down float-end mt-1"></i>
-            </h5>
+    <div class="de-card de-slideUp" style="animation-delay: .25s">
+        <div class="de-card__header de-card__header--collapsible" id="coll-topic-toggle">
+            <div class="de-card__header-icon de-card__header-icon--cyan">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><path d="M12 11v6M9 14h6"/></svg>
+            </div>
+            <h2 class="de-card__header-title">Добавить из коллекции / темы</h2>
+            <span class="de-card__header-chevron" id="coll-topic-chevron">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+            </span>
         </div>
-        <div class="card-body d-none" id="coll-topic-section">
+        <div class="de-card__body de-card__body--hidden" id="coll-topic-section">
             <!-- Tabs -->
-            <ul class="nav nav-tabs mb-3" id="collTopicTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="collections-tab" data-bs-toggle="tab"
-                            data-bs-target="#collections-panel" type="button" role="tab">
-                        <i class="fas fa-folder me-1"></i>Коллекции
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="topics-tab" data-bs-toggle="tab"
-                            data-bs-target="#topics-panel" type="button" role="tab">
-                        <i class="fas fa-tags me-1"></i>Темы
-                    </button>
-                </li>
-            </ul>
+            <div class="de-tabs" id="collTopicTabs">
+                <button type="button" class="de-tabs__tab de-tabs__tab--active" data-tab="collections">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                    Коллекции
+                </button>
+                <button type="button" class="de-tabs__tab" data-tab="topics">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    Темы
+                </button>
+            </div>
 
             <!-- Search -->
-            <div class="mb-3">
-                <input type="text" class="form-control" id="coll-topic-search"
+            <div class="de-search">
+                <svg class="de-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" class="de-search__input" id="coll-topic-search"
                        placeholder="Поиск..." autocomplete="off">
             </div>
 
             <!-- Tab Content -->
-            <div class="tab-content">
-                <!-- Collections Panel -->
-                <div class="tab-pane fade show active" id="collections-panel" role="tabpanel">
-                    <div id="collections-list" class="coll-topic-list" style="max-height: 300px; overflow-y: auto;">
-                        <div class="text-center text-muted py-3">
-                            <i class="fas fa-spinner fa-spin me-1"></i> Загрузка...
-                        </div>
+            <div class="de-tab-panel de-tab-panel--active" id="collections-panel">
+                <div id="collections-list" class="de-ct-list">
+                    <div class="de-ct-loading">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="de-ct-loading__spinner"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        Загрузка...
                     </div>
                 </div>
+            </div>
 
-                <!-- Topics Panel -->
-                <div class="tab-pane fade" id="topics-panel" role="tabpanel">
-                    <div id="topics-list" class="coll-topic-list" style="max-height: 300px; overflow-y: auto;">
-                        <div class="text-center text-muted py-3">
-                            <i class="fas fa-spinner fa-spin me-1"></i> Загрузка...
-                        </div>
+            <div class="de-tab-panel" id="topics-panel">
+                <div id="topics-list" class="de-ct-list">
+                    <div class="de-ct-loading">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="de-ct-loading__spinner"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        Загрузка...
                     </div>
                 </div>
             </div>
@@ -211,58 +1324,61 @@
     </div>
 
     <!-- Word List -->
-    <div class="card shadow-sm mb-4 deck-edit-card-low">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-list me-2"></i>Слова в колоде
-                <span class="badge bg-white text-info ms-2" id="words-count">{{ words|length }}</span>
-            </h5>
+    <div class="de-card de-slideUp" style="animation-delay: .3s">
+        <div class="de-card__header">
+            <div class="de-card__header-icon de-card__header-icon--blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </div>
+            <h2 class="de-card__header-title">Слова в колоде</h2>
+            <span class="de-card__header-badge" id="words-count">{{ words|length }}</span>
         </div>
-        <div class="card-body">
-            <div class="table-responsive" {% if not words %}style="display: none;"{% endif %} id="words-table-container">
-                <table class="table table-hover" id="words-table">
-                    <thead class="table-light">
+        <div class="de-card__body" style="padding: 0;">
+            <div class="de-table-wrap" {% if not words %}style="display: none;"{% endif %} id="words-table-container">
+                <table class="de-table" id="words-table">
+                    <thead>
                         <tr>
-                            <th class="deck-col-num">#</th>
-                            <th class="deck-col-english">English</th>
-                            <th class="deck-col-russian">Русский</th>
-                            <th class="deck-col-examples">Примеры</th>
-                            <th class="deck-col-actions text-center">Действия</th>
+                            <th class="de-table__num">#</th>
+                            <th>English</th>
+                            <th>Русский</th>
+                            <th>Примеры</th>
+                            <th style="text-align: center;">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for word in words %}
                         <tr>
-                            <td>{{ loop.index }}</td>
+                            <td class="de-table__num">{{ loop.index }}</td>
                             <td>
-                                <strong>{{ word.english_word }}</strong>
+                                <span class="de-table__english">{{ word.english_word }}</span>
                                 {% if word.custom_english %}
-                                <span class="badge bg-warning text-dark" title="Кастомный перевод">Custom</span>
+                                <span class="de-table__badge">Custom</span>
                                 {% endif %}
                             </td>
                             <td>{{ word.russian_word }}</td>
                             <td>
                                 {% if word.sentences %}
-                                <small class="text-muted sentence-example-text">
+                                <span class="de-table__example">
                                     {{ word.sentences[:150] }}{% if word.sentences|length > 150 %}...{% endif %}
-                                </small>
+                                </span>
                                 {% else %}
-                                <small class="text-muted fst-italic">Нет примеров</small>
+                                <span class="de-table__example de-table__example--empty">Нет примеров</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-primary btn-sm me-1"
-                                        onclick="editWord({{ word.id }}, '{{ word.english_word|replace("'", "\\'") }}', '{{ word.russian_word|replace("'", "\\'") }}', '{{ (word.sentences or '')|replace("'", "\\'")|replace("\n", " ") }}')"
-                                        title="Редактировать">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <form method="POST" action="{{ url_for('study.remove_word_from_deck', deck_id=deck.id, word_id=word.id) }}"
-                                      onsubmit="return confirm('Удалить это слово из колоды?')" class="form-inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <button type="submit" class="btn btn-danger btn-sm" title="Удалить">
-                                        <i class="fas fa-trash"></i>
+                            <td class="de-table__actions">
+                                <div class="de-table__actions-wrap">
+                                    <button type="button" class="de-btn de-btn--sm de-btn--blue de-btn--icon"
+                                            onclick="editWord({{ word.id }}, '{{ word.english_word|replace("'", "\\'") }}', '{{ word.russian_word|replace("'", "\\'") }}', '{{ (word.sentences or '')|replace("'", "\\'")|replace("\n", " ") }}')"
+                                            title="Редактировать">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                     </button>
-                                </form>
+                                    <form method="POST" action="{{ url_for('study.remove_word_from_deck', deck_id=deck.id, word_id=word.id) }}"
+                                          onsubmit="return confirm('Удалить это слово из колоды?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="de-btn de-btn--sm de-btn--danger de-btn--icon" title="Удалить">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -270,60 +1386,66 @@
                 </table>
             </div>
             {% if not words %}
-            <div class="alert alert-info mb-0" id="no-words-alert">
-                <i class="fas fa-info-circle me-2"></i>
-                В колоде пока нет слов. Добавьте первое слово используя форму выше!
+            <div class="de-empty" id="no-words-alert" style="margin: 1.5rem;">
+                <div class="de-empty__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <span class="de-empty__text">В колоде пока нет слов. Добавьте первое слово используя форму выше!</span>
             </div>
             {% endif %}
         </div>
     </div>
 
     <!-- Action Buttons -->
-    <div class="d-flex justify-content-between mb-4">
-        <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>Вернуться к списку
+    <div class="de-bottom-actions de-slideUp" style="animation-delay: .35s">
+        <a href="{{ url_for('study.index') }}" class="de-btn de-btn--secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Вернуться к списку
         </a>
-        <div>
-            <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary">
-                <i class="fas fa-brain me-1"></i>Пройти Quiz
+        <div class="de-bottom-actions__right">
+            <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="de-btn de-btn--blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 017 7c0 3-2 5-3.5 6.5L12 19l-3.5-3.5C7 14 5 12 5 9a7 7 0 017-7z"/></svg>
+                Пройти Quiz
             </a>
-            <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success">
-                <i class="fas fa-layer-group me-1"></i>Карточки
+            <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="de-btn de-btn--green">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                Карточки
             </a>
         </div>
     </div>
 
     <!-- Edit Word Modal -->
-    <div class="modal fade" id="editWordModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Редактировать слово</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="edit-word-form">
-                        <input type="hidden" id="edit-word-id">
-                        <div class="mb-3">
-                            <label for="edit-english" class="form-label">English *</label>
-                            <input type="text" class="form-control" id="edit-english" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-russian" class="form-label">Русский *</label>
-                            <input type="text" class="form-control" id="edit-russian" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-sentences" class="form-label">Примеры</label>
-                            <textarea class="form-control" id="edit-sentences" rows="3"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" onclick="saveWordEdit()">
-                        <i class="fas fa-save me-1"></i>Сохранить
-                    </button>
-                </div>
+    <div class="de-modal-overlay" id="editWordModal">
+        <div class="de-modal">
+            <div class="de-modal__header">
+                <h3 class="de-modal__title">Редактировать слово</h3>
+                <button type="button" class="de-modal__close" id="modal-close-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="de-modal__body">
+                <form id="edit-word-form">
+                    <input type="hidden" id="edit-word-id">
+                    <div class="de-field" style="margin-bottom: 1rem;">
+                        <label for="edit-english" class="de-field__label">English *</label>
+                        <input type="text" class="de-field__input" id="edit-english" required>
+                    </div>
+                    <div class="de-field" style="margin-bottom: 1rem;">
+                        <label for="edit-russian" class="de-field__label">Русский *</label>
+                        <input type="text" class="de-field__input" id="edit-russian" required>
+                    </div>
+                    <div class="de-field">
+                        <label for="edit-sentences" class="de-field__label">Примеры</label>
+                        <textarea class="de-field__input" id="edit-sentences" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="de-modal__footer">
+                <button type="button" class="de-btn de-btn--secondary" id="modal-cancel-btn">Отмена</button>
+                <button type="button" class="de-btn de-btn--primary" onclick="saveWordEdit()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Сохранить
+                </button>
             </div>
         </div>
     </div>
@@ -369,20 +1491,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Build results list
                     autocompleteResults.innerHTML = words.map(word => `
-                        <button type="button" class="list-group-item list-group-item-action"
+                        <button type="button" class="de-autocomplete__item"
                                 data-id="${word.id}"
                                 data-english="${word.english}"
                                 data-russian="${word.russian}"
                                 data-sentences="${word.sentences || ''}">
                             <strong>${word.english}</strong> — ${word.russian}
-                            ${word.sentences ? '<br><small class="text-muted">' + word.sentences.substring(0, 50) + (word.sentences.length > 50 ? '...' : '') + '</small>' : ''}
+                            ${word.sentences ? '<span class="de-autocomplete__item-hint">' + word.sentences.substring(0, 50) + (word.sentences.length > 50 ? '...' : '') + '</span>' : ''}
                         </button>
                     `).join('');
 
                     autocompleteResults.style.display = 'block';
 
                     // Add click handlers
-                    autocompleteResults.querySelectorAll('.list-group-item').forEach(item => {
+                    autocompleteResults.querySelectorAll('.de-autocomplete__item').forEach(item => {
                         item.addEventListener('click', function() {
                             const wordId = this.dataset.id;
                             const english = this.dataset.english;
@@ -418,7 +1540,7 @@ document.addEventListener('DOMContentLoaded', function() {
     englishInput.addEventListener('change', function() {
         if (wordIdInput.value) {
             // Check if the value matches the selected word
-            const selectedWord = autocompleteResults.querySelector('.list-group-item.active');
+            const selectedWord = autocompleteResults.querySelector('.de-autocomplete__item.active');
             if (!selectedWord || selectedWord.dataset.english !== this.value) {
                 wordIdInput.value = ''; // Clear word_id if manually edited
             }
@@ -437,12 +1559,13 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         const formData = new FormData(this);
-        const submitBtn = this.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById('add-word-btn');
         const originalBtnText = submitBtn.innerHTML;
 
         // Disable button and show loading
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Добавление...';
+        submitBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="de-btn__spinner"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Добавление...';
+        submitBtn.classList.add('de-btn--loading');
 
         fetch(this.action, {
             method: 'POST',
@@ -486,6 +1609,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Re-enable button
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
+            submitBtn.classList.remove('de-btn--loading');
         });
     });
 
@@ -616,33 +1740,35 @@ document.addEventListener('DOMContentLoaded', function() {
         // Format sentences
         let sentencesHtml = '';
         if (word.sentences) {
-            sentencesHtml = `<small class="text-muted sentence-example-text">${escapeHtml(word.sentences)}</small>`;
+            sentencesHtml = `<span class="de-table__example">${escapeHtml(word.sentences)}</span>`;
         } else {
-            sentencesHtml = '<small class="text-muted fst-italic">Нет примеров</small>';
+            sentencesHtml = '<span class="de-table__example de-table__example--empty">Нет примеров</span>';
         }
 
         newRow.innerHTML = `
-            <td>${rowCount + 1}</td>
+            <td class="de-table__num">${rowCount + 1}</td>
             <td>
-                <strong>${escapeHtml(word.english)}</strong>
-                ${word.has_custom ? '<span class="badge bg-warning text-dark" title="Кастомный перевод">Custom</span>' : ''}
+                <span class="de-table__english">${escapeHtml(word.english)}</span>
+                ${word.has_custom ? '<span class="de-table__badge">Custom</span>' : ''}
             </td>
             <td>${escapeHtml(word.russian)}</td>
             <td>${sentencesHtml}</td>
-            <td class="text-center">
-                <form method="POST" action="/study/my-decks/{{ deck.id }}/words/${word.id}/delete"
-                      onsubmit="return confirm('Удалить это слово из колоды?')" class="form-inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn btn-danger btn-sm" title="Удалить">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </form>
+            <td class="de-table__actions">
+                <div class="de-table__actions-wrap">
+                    <form method="POST" action="/study/my-decks/{{ deck.id }}/words/${word.id}/delete"
+                          onsubmit="return confirm('Удалить это слово из колоды?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="de-btn de-btn--sm de-btn--danger de-btn--icon" title="Удалить">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        </button>
+                    </form>
+                </div>
             </td>
         `;
         wordsTableBody.appendChild(newRow);
 
         // Add animation
-        newRow.style.backgroundColor = '#d4edda';
+        newRow.style.backgroundColor = '#dcfce7';
         setTimeout(() => {
             newRow.style.transition = 'background-color 1s';
             newRow.style.backgroundColor = '';
@@ -659,13 +1785,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function showMessage(message, type) {
         const toastContainer = document.getElementById('toast-container');
 
-        // Get CSS variables for colors
-        const styles = getComputedStyle(document.documentElement);
         const typeConfig = {
-            'success': { icon: '✓', color: styles.getPropertyValue('--success-500').trim() || '#22c55e', bg: styles.getPropertyValue('--success-100').trim() || '#dcfce7' },
-            'danger': { icon: '✗', color: styles.getPropertyValue('--danger-500').trim() || '#ef4444', bg: styles.getPropertyValue('--danger-100').trim() || '#fee2e2' },
-            'info': { icon: 'ℹ', color: styles.getPropertyValue('--info-500').trim() || '#3b82f6', bg: styles.getPropertyValue('--info-100').trim() || '#dbeafe' },
-            'warning': { icon: '⚠', color: styles.getPropertyValue('--warning-500').trim() || '#f59e0b', bg: styles.getPropertyValue('--warning-100').trim() || '#fef3c7' }
+            'success': { icon: '\u2713', color: '#22c55e', bg: '#dcfce7' },
+            'danger':  { icon: '\u2717', color: '#ef4444', bg: '#fee2e2' },
+            'info':    { icon: '\u2139', color: '#3b82f6', bg: '#dbeafe' },
+            'warning': { icon: '\u26A0', color: '#f59e0b', bg: '#fef3c7' }
         };
 
         const config = typeConfig[type] || typeConfig['info'];
@@ -673,31 +1797,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const toast = document.createElement('div');
         toast.style.cssText = `
             background: ${config.bg};
-            color: #000;
+            color: #0f172a;
             padding: 16px 20px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
             display: flex;
             align-items: center;
             gap: 12px;
             min-width: 300px;
-            animation: slideIn 0.3s ease-out;
+            animation: de-toast-in 0.3s ease-out;
             border-left: 4px solid ${config.color};
+            font-family: 'Onest', sans-serif;
             font-size: 14px;
             font-weight: 500;
         `;
 
         toast.innerHTML = `
-            <span class="toast-icon-lg" style="color: ${config.color};">${config.icon}</span>
-            <span class="toast-message">${message}</span>
+            <span style="color: ${config.color}; font-size: 18px; font-weight: bold;">${config.icon}</span>
+            <span>${message}</span>
         `;
 
         toastContainer.appendChild(toast);
 
         // Auto-dismiss after 3 seconds with fade out
         setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease-out';
+            toast.style.animation = 'de-toast-out 0.3s ease-out forwards';
             setTimeout(() => {
                 toast.remove();
             }, 300);
@@ -711,30 +1835,63 @@ document.addEventListener('DOMContentLoaded', function() {
         return div.innerHTML;
     }
 
+    // ===== Custom Modal Logic =====
+    const modalOverlay = document.getElementById('editWordModal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+    function openModal() {
+        modalOverlay.classList.add('de-modal-overlay--visible');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        modalOverlay.classList.remove('de-modal-overlay--visible');
+        document.body.style.overflow = '';
+    }
+
+    modalCloseBtn.addEventListener('click', closeModal);
+    modalCancelBtn.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', function(e) {
+        if (e.target === modalOverlay) closeModal();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modalOverlay.classList.contains('de-modal-overlay--visible')) {
+            closeModal();
+        }
+    });
+
     // Edit word function (global scope for onclick)
     window.editWord = function(wordId, english, russian, sentences) {
         document.getElementById('edit-word-id').value = wordId;
         document.getElementById('edit-english').value = english;
         document.getElementById('edit-russian').value = russian;
         document.getElementById('edit-sentences').value = sentences || '';
-
-        const modal = new bootstrap.Modal(document.getElementById('editWordModal'));
-        modal.show();
+        openModal();
     };
 
     // ===== Collection/Topic section =====
     let collTopicData = null;
+    let collTopicOpen = false;
 
-    // Load data when section is first opened
+    const collTopicToggle = document.getElementById('coll-topic-toggle');
     const collTopicSection = document.getElementById('coll-topic-section');
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (!collTopicSection.classList.contains('d-none') && !collTopicData) {
+    const collTopicChevron = document.getElementById('coll-topic-chevron');
+
+    collTopicToggle.addEventListener('click', function() {
+        collTopicOpen = !collTopicOpen;
+        if (collTopicOpen) {
+            collTopicSection.classList.remove('de-card__body--hidden');
+            collTopicChevron.classList.add('de-card__header-chevron--open');
+            if (!collTopicData) {
                 loadCollTopicData();
             }
-        });
+        } else {
+            collTopicSection.classList.add('de-card__body--hidden');
+            collTopicChevron.classList.remove('de-card__header-chevron--open');
+        }
     });
-    observer.observe(collTopicSection, { attributes: true, attributeFilter: ['class'] });
 
     function loadCollTopicData() {
         fetch('/study/api/collections-topics')
@@ -746,26 +1903,27 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => {
             console.error('Failed to load collections/topics:', err);
-            document.getElementById('collections-list').innerHTML = '<div class="text-center text-danger py-3">Ошибка загрузки</div>';
-            document.getElementById('topics-list').innerHTML = '<div class="text-center text-danger py-3">Ошибка загрузки</div>';
+            document.getElementById('collections-list').innerHTML = '<div class="de-ct-empty" style="color: #ef4444;">Ошибка загрузки</div>';
+            document.getElementById('topics-list').innerHTML = '<div class="de-ct-empty" style="color: #ef4444;">Ошибка загрузки</div>';
         });
     }
 
     function renderCollections(collections) {
         const container = document.getElementById('collections-list');
         if (!collections.length) {
-            container.innerHTML = '<div class="text-center text-muted py-3">Нет коллекций</div>';
+            container.innerHTML = '<div class="de-ct-empty">Нет коллекций</div>';
             return;
         }
         container.innerHTML = collections.map(c => `
-            <div class="coll-topic-item" data-name="${c.name.toLowerCase()}">
-                <div class="coll-topic-item__info">
-                    <strong>${escapeHtml(c.name)}</strong>
-                    <small class="text-muted ms-2">${c.word_count} слов</small>
+            <div class="de-ct-item" data-name="${c.name.toLowerCase()}">
+                <div class="de-ct-item__info">
+                    <span class="de-ct-item__name">${escapeHtml(c.name)}</span>
+                    <span class="de-ct-item__count">${c.word_count} слов</span>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-success coll-topic-add-btn"
+                <button type="button" class="de-btn de-btn--sm de-btn--outline-green de-ct-add-btn"
                         data-type="collection" data-id="${c.id}">
-                    <i class="fas fa-plus me-1"></i>Добавить
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Добавить
                 </button>
             </div>
         `).join('');
@@ -775,18 +1933,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderTopics(topics) {
         const container = document.getElementById('topics-list');
         if (!topics.length) {
-            container.innerHTML = '<div class="text-center text-muted py-3">Нет тем</div>';
+            container.innerHTML = '<div class="de-ct-empty">Нет тем</div>';
             return;
         }
         container.innerHTML = topics.map(t => `
-            <div class="coll-topic-item" data-name="${t.name.toLowerCase()}">
-                <div class="coll-topic-item__info">
-                    <strong>${escapeHtml(t.name)}</strong>
-                    <small class="text-muted ms-2">${t.word_count} слов</small>
+            <div class="de-ct-item" data-name="${t.name.toLowerCase()}">
+                <div class="de-ct-item__info">
+                    <span class="de-ct-item__name">${escapeHtml(t.name)}</span>
+                    <span class="de-ct-item__count">${t.word_count} слов</span>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-success coll-topic-add-btn"
+                <button type="button" class="de-btn de-btn--sm de-btn--outline-green de-ct-add-btn"
                         data-type="topic" data-id="${t.id}">
-                    <i class="fas fa-plus me-1"></i>Добавить
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Добавить
                 </button>
             </div>
         `).join('');
@@ -794,14 +1953,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachAddHandlers(container) {
-        container.querySelectorAll('.coll-topic-add-btn').forEach(btn => {
+        container.querySelectorAll('.de-ct-add-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const type = this.dataset.type;
                 const id = this.dataset.id;
                 const originalHtml = this.innerHTML;
 
                 this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                this.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="de-btn__spinner" style="animation: de-spin .8s linear infinite;"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
 
                 const url = type === 'collection'
                     ? `/study/api/decks/{{ deck.id }}/add-from-collection`
@@ -824,15 +1983,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.success) {
                         showMessage(data.message, data.added_count > 0 ? 'success' : 'info');
                         if (data.added_count > 0) {
-                            this.innerHTML = '<i class="fas fa-check me-1"></i>Добавлено';
-                            this.classList.remove('btn-outline-success');
-                            this.classList.add('btn-success');
+                            this.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Добавлено';
+                            this.style.background = '#22c55e';
+                            this.style.color = '#fff';
+                            this.style.borderColor = '#22c55e';
                             // Reload page to show new words
                             setTimeout(() => location.reload(), 1500);
                         } else {
-                            this.innerHTML = '<i class="fas fa-check me-1"></i>Уже в колоде';
-                            this.classList.remove('btn-outline-success');
-                            this.classList.add('btn-outline-secondary');
+                            this.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Уже в колоде';
+                            this.style.background = 'var(--de-surface-alt)';
+                            this.style.color = 'var(--de-text-muted)';
+                            this.style.borderColor = 'var(--de-border)';
                         }
                     } else {
                         showMessage(data.message || 'Ошибка', 'danger');
@@ -850,14 +2011,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ===== Tabs logic =====
+    const tabButtons = document.querySelectorAll('.de-tabs__tab');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+
+            // Update tab buttons
+            tabButtons.forEach(b => b.classList.remove('de-tabs__tab--active'));
+            this.classList.add('de-tabs__tab--active');
+
+            // Update panels
+            document.querySelectorAll('.de-tab-panel').forEach(p => p.classList.remove('de-tab-panel--active'));
+            document.getElementById(tabName + '-panel').classList.add('de-tab-panel--active');
+        });
+    });
+
     // Client-side search filter
     const searchInput = document.getElementById('coll-topic-search');
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
-            const activePanel = document.querySelector('.tab-pane.active');
+            const activePanel = document.querySelector('.de-tab-panel--active');
             if (!activePanel) return;
-            activePanel.querySelectorAll('.coll-topic-item').forEach(item => {
+            activePanel.querySelectorAll('.de-ct-item').forEach(item => {
                 const name = item.dataset.name || '';
                 item.style.display = name.includes(query) ? '' : 'none';
             });
@@ -901,15 +2078,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (editBtn) {
                         // Update row content
                         const cells = row.querySelectorAll('td');
-                        cells[1].innerHTML = `<strong>${escapeHtml(data.word.english)}</strong>` +
-                            (data.word.has_custom ? ' <span class="badge bg-warning text-dark" title="Кастомный перевод">Custom</span>' : '');
+                        cells[1].innerHTML = `<span class="de-table__english">${escapeHtml(data.word.english)}</span>` +
+                            (data.word.has_custom ? ' <span class="de-table__badge">Custom</span>' : '');
                         cells[2].textContent = data.word.russian;
 
                         // Update sentences cell
                         if (data.word.sentences) {
-                            cells[3].innerHTML = `<small class="text-muted sentence-example-text">${escapeHtml(data.word.sentences)}</small>`;
+                            cells[3].innerHTML = `<span class="de-table__example">${escapeHtml(data.word.sentences)}</span>`;
                         } else {
-                            cells[3].innerHTML = '<small class="text-muted fst-italic">Нет примеров</small>';
+                            cells[3].innerHTML = '<span class="de-table__example de-table__example--empty">Нет примеров</span>';
                         }
 
                         // Update onclick attribute
@@ -918,7 +2095,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('editWordModal')).hide();
+                closeModal();
             } else {
                 showMessage(data.message || 'Ошибка при обновлении', 'danger');
             }
@@ -930,60 +2107,4 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 });
 </script>
-
-<style>
-/* slideIn and slideOut animations moved to design-system.css */
-
-#autocomplete-results .list-group-item {
-    cursor: pointer;
-    border: none;
-    border-bottom: 1px solid #f0f0f0;
-    padding: 12px 16px;
-    transition: background-color 0.2s;
-}
-
-#autocomplete-results .list-group-item:hover {
-    background-color: #f8f9fa;
-}
-
-#autocomplete-results .list-group-item:last-child {
-    border-bottom: none;
-}
-
-/* Collection/Topic list items */
-.coll-topic-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background-color 0.15s;
-}
-
-.coll-topic-item:last-child {
-    border-bottom: none;
-}
-
-.coll-topic-item:hover {
-    background-color: #f8f9fa;
-}
-
-.coll-topic-item__info {
-    display: flex;
-    align-items: baseline;
-    min-width: 0;
-    flex: 1;
-}
-
-.coll-topic-item__info strong {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.coll-topic-list {
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-}
-</style>
 {% endblock %}

@@ -2,183 +2,742 @@
 
 {% block title %}{{ word.english_word }} - {{ _('Словарь') }}{% endblock %}
 
-{% block styles %}
-{{ super() }}
-{% endblock %}
-
 {% block content %}
-<div class="container py-4">
-    <!-- Navigation -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="{{ url_for('words.dashboard') }}">{{ _('Словарь') }}</a>
-            </li>
-            <li class="breadcrumb-item">
-                <a href="{{ url_for('words.word_list') }}">{{ _('Все слова') }}</a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">{{ word.english_word }}</li>
-        </ol>
-    </nav>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
 
-    <!-- Hero Section -->
-    <div class="card bg-primary text-white shadow-lg mb-4 word-details-hero">
-        <div class="card-body p-4 word-details-hero-body">
-            <div class="row align-items-center">
-                <div class="col-lg-8">
-                    <h1 class="display-3 fw-bold mb-2 word-title-lg">{{ word.english_word }}</h1>
-                    <div class="display-6 mb-3 opacity-90">{{ word.russian_word }}</div>
+/* ── Scoped Variables ── */
+.wdet-page {
+  --wdet-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --wdet-primary: #2563eb;
+  --wdet-primary-dark: #1d4ed8;
+  --wdet-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --wdet-surface: #ffffff;
+  --wdet-surface-alt: #f8fafc;
+  --wdet-text: #0f172a;
+  --wdet-text-muted: #64748b;
+  --wdet-text-light: #94a3b8;
+  --wdet-border: #e2e8f0;
+  --wdet-radius: 16px;
+  --wdet-radius-sm: 10px;
+  --wdet-radius-pill: 999px;
+  --wdet-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --wdet-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --wdet-success: #10b981;
+  --wdet-warning: #f59e0b;
+  --wdet-info: #06b6d4;
+  --wdet-danger: #ef4444;
+  font-family: var(--wdet-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
 
-                    <div class="d-flex gap-2 flex-wrap mb-3">
-                        {% if word.level %}
-                        <span class="badge rounded-pill px-3 py-2 badge-glass">
-                            <i class="fas fa-layer-group me-2"></i>{{ word.level }}
-                        </span>
-                        {% endif %}
+/* ── Animations ── */
+@keyframes wdetSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-                        {% if word.books %}
-                        <span class="badge rounded-pill px-3 py-2 badge-glass">
-                            <i class="fas fa-book me-2"></i>{{ word.books[0].title }}
-                        </span>
-                        {% endif %}
+@keyframes wdetFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-18px, 18px) scale(1.06); }
+}
 
-                        <span class="badge rounded-pill px-3 py-2 badge-glass">
-                            <i class="fas fa-{{ 'check' if word.is_mastered else 'plus' if word.user_status == 'learning' else 'clock' if word.user_status == 'review' else 'star' }} me-2"></i>
-                            {{ _('Выучено') if word.is_mastered else _('Изучается') if word.user_status == 'learning' else _('Повторение') if word.user_status == 'review' else _('Новое') }}
-                        </span>
-                    </div>
+@keyframes wdetFloat2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(22px, -16px) rotate(10deg); }
+}
 
-                    <div class="d-flex gap-2 flex-wrap">
-                        {% if word.get_download and word.listening %}
-                        <button class="btn text-white fw-semibold btn-glass" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')">
-                            <i class="fas fa-volume-up me-2"></i>{{ _('Произношение') }}
-                        </button>
-                        {% endif %}
+@keyframes wdetFloat3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-12px, 10px) scale(1.15); }
+}
 
-                        <a href="{{ url_for('study.index') }}" class="btn fw-semibold text-primary btn-white-rounded">
-                            <i class="fas fa-play me-2"></i>{{ _('Изучать') }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+.wdet-animate { animation: wdetSlideUp 0.4s ease-out both; }
+.wdet-animate--d1 { animation-delay: 0.05s; }
+.wdet-animate--d2 { animation-delay: 0.10s; }
+.wdet-animate--d3 { animation-delay: 0.15s; }
+.wdet-animate--d4 { animation-delay: 0.20s; }
+
+/* ── Breadcrumb ── */
+.wdet-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.8125rem;
+  color: var(--wdet-text-muted);
+}
+
+.wdet-breadcrumb a {
+  color: var(--wdet-text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.wdet-breadcrumb a:hover {
+  color: var(--wdet-primary);
+}
+
+.wdet-breadcrumb__sep {
+  color: var(--wdet-text-light);
+  font-size: 0.75rem;
+}
+
+.wdet-breadcrumb__current {
+  color: var(--wdet-text);
+  font-weight: 600;
+}
+
+/* ── Hero ── */
+.wdet-hero {
+  position: relative;
+  background: var(--wdet-gradient);
+  border-radius: var(--wdet-radius);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: #fff;
+}
+
+.wdet-hero__shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wdet-hero__circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wdet-hero__circle--1 {
+  width: 200px;
+  height: 200px;
+  top: -60px;
+  right: -40px;
+  animation: wdetFloat1 18s ease-in-out infinite;
+}
+
+.wdet-hero__circle--2 {
+  width: 120px;
+  height: 120px;
+  bottom: -40px;
+  left: 8%;
+  animation: wdetFloat2 14s ease-in-out infinite;
+}
+
+.wdet-hero__circle--3 {
+  width: 60px;
+  height: 60px;
+  top: 25%;
+  right: 30%;
+  animation: wdetFloat3 20s ease-in-out infinite;
+}
+
+.wdet-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.wdet-hero__word {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin: 0 0 0.25rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.wdet-hero__translation {
+  font-size: 1.35rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin: 0 0 1rem;
+}
+
+.wdet-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.wdet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--wdet-radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+  backdrop-filter: blur(5px);
+}
+
+.wdet-hero__actions {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.wdet-hero__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--wdet-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--wdet-font);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.wdet-hero__btn--glass {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  backdrop-filter: blur(5px);
+}
+
+.wdet-hero__btn--glass:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.wdet-hero__btn--white {
+  background: #fff;
+  color: var(--wdet-primary);
+}
+
+.wdet-hero__btn--white:hover {
+  background: #fff;
+  color: var(--wdet-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── Content Layout ── */
+.wdet-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* ── Cards ── */
+.wdet-card {
+  background: var(--wdet-surface);
+  border: 1px solid var(--wdet-border);
+  border-radius: var(--wdet-radius);
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.wdet-card + .wdet-card {
+  margin-top: 1.25rem;
+}
+
+.wdet-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
+}
+
+.wdet-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wdet-card__icon--audio {
+  background: #ede9fe;
+  color: var(--wdet-primary);
+}
+
+.wdet-card__icon--examples {
+  background: #fef3c7;
+  color: var(--wdet-warning);
+}
+
+.wdet-card__icon--related {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.wdet-card__icon--books {
+  background: #d1fae5;
+  color: var(--wdet-success);
+}
+
+.wdet-card__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--wdet-text);
+  margin: 0;
+}
+
+/* ── Audio Player ── */
+.wdet-audio {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--wdet-surface-alt);
+  border-radius: var(--wdet-radius-sm);
+}
+
+.wdet-audio__play {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--wdet-gradient);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.wdet-audio__play:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.wdet-audio__info-word {
+  font-weight: 600;
+  color: var(--wdet-text);
+  font-size: 0.95rem;
+}
+
+.wdet-audio__info-hint {
+  font-size: 0.8rem;
+  color: var(--wdet-text-muted);
+  margin-top: 0.125rem;
+}
+
+/* ── Examples ── */
+.wdet-examples {
+  padding: 1.25rem;
+  background: var(--wdet-surface-alt);
+  border-radius: var(--wdet-radius-sm);
+  border-left: 3px solid var(--wdet-warning);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--wdet-text);
+}
+
+.wdet-examples p {
+  margin: 0;
+}
+
+/* ── Related Words Grid ── */
+.wdet-related-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.625rem;
+}
+
+.wdet-related {
+  display: block;
+  padding: 0.875rem;
+  border: 1px solid var(--wdet-border);
+  border-radius: var(--wdet-radius-sm);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.wdet-related:hover {
+  border-color: var(--wdet-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+.wdet-related__en {
+  font-weight: 600;
+  color: var(--wdet-text);
+  font-size: 0.95rem;
+}
+
+.wdet-related__ru {
+  font-size: 0.8rem;
+  color: var(--wdet-text-muted);
+  margin-top: 0.125rem;
+}
+
+/* ── Status Card ── */
+.wdet-status {
+  background: var(--wdet-surface);
+  border: 1px solid var(--wdet-border);
+  border-radius: var(--wdet-radius);
+  padding: 1.75rem;
+  text-align: center;
+}
+
+.wdet-status__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  color: #fff;
+}
+
+.wdet-status__icon--mastered { background: var(--wdet-primary); }
+.wdet-status__icon--learning { background: var(--wdet-success); }
+.wdet-status__icon--review { background: var(--wdet-info); }
+.wdet-status__icon--new { background: var(--wdet-text-light); }
+
+.wdet-status__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--wdet-text);
+  margin: 0 0 0.375rem;
+}
+
+.wdet-status__desc {
+  font-size: 0.85rem;
+  color: var(--wdet-text-muted);
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+}
+
+.wdet-status__btns {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.wdet-status__btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--wdet-radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--wdet-font);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1.5px solid var(--wdet-border);
+  background: var(--wdet-surface);
+  color: var(--wdet-text-muted);
+}
+
+.wdet-status__btn:hover {
+  border-color: var(--wdet-primary);
+  color: var(--wdet-primary);
+}
+
+.wdet-status__btn--active {
+  background: var(--wdet-gradient);
+  color: #fff;
+  border-color: transparent;
+}
+
+.wdet-status__btn--active:hover {
+  color: #fff;
+  opacity: 0.9;
+}
+
+/* ── Books List ── */
+.wdet-book-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0;
+}
+
+.wdet-book-row + .wdet-book-row {
+  border-top: 1px solid var(--wdet-border);
+}
+
+.wdet-book-row a {
+  color: var(--wdet-text);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.wdet-book-row a:hover {
+  color: var(--wdet-primary);
+}
+
+.wdet-book-row__freq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0.2rem 0.5rem;
+  background: var(--wdet-primary);
+  color: #fff;
+  border-radius: var(--wdet-radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .wdet-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wdet-hero__word {
+    font-size: 2rem;
+  }
+
+  .wdet-hero__translation {
+    font-size: 1.1rem;
+  }
+
+  .wdet-related-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .wdet-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .wdet-hero {
+    padding: 1.5rem;
+  }
+
+  .wdet-hero__word {
+    font-size: 1.75rem;
+  }
+
+  .wdet-hero__actions {
+    flex-direction: column;
+  }
+
+  .wdet-hero__btn {
+    justify-content: center;
+  }
+
+  .wdet-status__btns {
+    flex-direction: column;
+  }
+}
+</style>
+
+<div class="wdet-page">
+
+  <!-- Breadcrumb -->
+  <nav class="wdet-breadcrumb wdet-animate">
+    <a href="{{ url_for('words.dashboard') }}">{{ _('Словарь') }}</a>
+    <span class="wdet-breadcrumb__sep">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <a href="{{ url_for('words.word_list') }}">{{ _('Все слова') }}</a>
+    <span class="wdet-breadcrumb__sep">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span class="wdet-breadcrumb__current">{{ word.english_word }}</span>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="wdet-hero wdet-animate wdet-animate--d1">
+    <div class="wdet-hero__shapes">
+      <div class="wdet-hero__circle wdet-hero__circle--1"></div>
+      <div class="wdet-hero__circle wdet-hero__circle--2"></div>
+      <div class="wdet-hero__circle wdet-hero__circle--3"></div>
     </div>
 
-    <div class="row">
-        <div class="col-lg-8">
-            <!-- Audio Section -->
-            {% if word.get_download and word.listening %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3 class="d-flex align-items-center gap-2 mb-3">
-                        <i class="fas fa-volume-up text-primary"></i>{{ _('Произношение') }}
-                    </h3>
-                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
-                        <button class="btn btn-primary rounded-circle btn-play-circle" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <div>
-                            <div class="fw-semibold">{{ word.english_word }}</div>
-                            <small class="text-muted">{{ _('Нажмите для воспроизведения') }}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+    <div class="wdet-hero__content">
+      <h1 class="wdet-hero__word">{{ word.english_word }}</h1>
+      <p class="wdet-hero__translation">{{ word.russian_word }}</p>
 
-            <!-- Examples Section -->
-            {% if word.sentences %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3 class="d-flex align-items-center gap-2 mb-3">
-                        <i class="fas fa-quote-left text-primary"></i>{{ _('Примеры использования') }}
-                    </h3>
-                    <div class="bg-light p-3 rounded fst-italic quote-box">
-                        {{ word.sentences|safe }}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+      <div class="wdet-hero__badges">
+        {% if word.level %}
+        <span class="wdet-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/></svg>
+          {{ word.level }}
+        </span>
+        {% endif %}
 
-            <!-- Related Words -->
-            {% if related_words %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3 class="d-flex align-items-center gap-2 mb-3">
-                        <i class="fas fa-link text-primary"></i>{{ _('Похожие слова') }}
-                    </h3>
-                    <div class="grid grid-cols-3 gap-3">
-                        {% for related in related_words[:6] %}
-                        <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="card hover-lift text-decoration-none related-word-card">
-                            <div class="card-body">
-                                <div class="fw-semibold text-dark">{{ related.english_word }}</div>
-                                <div class="text-sm text-secondary">{{ related.russian_word }}</div>
-                            </div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
+        {% if word.books %}
+        <span class="wdet-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          {{ word.books[0].title }}
+        </span>
+        {% endif %}
 
-        <div class="col-lg-4">
-            <!-- Status Section -->
-            <div class="card shadow-sm text-center mb-4 status-card-gradient">
-                <div class="card-body p-4">
-                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center text-white status-icon-circle" style="background-color: {% if word.is_mastered %}var(--primary-500){% elif word.user_status == 'review' %}var(--info-500){% elif word.user_status == 'learning' %}var(--success-500){% else %}var(--gray-500){% endif %};">
-                        <i class="fas fa-{{ 'check' if word.is_mastered else 'graduation-cap' if word.user_status == 'learning' else 'redo' if word.user_status == 'review' else 'star' }}"></i>
-                    </div>
+        <span class="wdet-badge">
+          {% if word.is_mastered %}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            {{ _('Выучено') }}
+          {% elif word.user_status == 'learning' %}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+            {{ _('Изучается') }}
+          {% elif word.user_status == 'review' %}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+            {{ _('Повторение') }}
+          {% else %}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            {{ _('Новое') }}
+          {% endif %}
+        </span>
+      </div>
 
-                    <h4 class="fw-semibold mb-2">
-                        {{ _('Выученное слово') if word.is_mastered else _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое слово') }}
-                    </h4>
+      <div class="wdet-hero__actions">
+        {% if word.get_download and word.listening %}
+        <button class="wdet-hero__btn wdet-hero__btn--glass" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+          {{ _('Произношение') }}
+        </button>
+        {% endif %}
 
-                    <p class="text-secondary mb-3">
-                        {{ _('Вы знаете это слово хорошо') if word.is_mastered else _('Это слово в процессе изучения') if word.user_status == 'learning' else _('Нужно повторить это слово') if word.user_status == 'review' else _('Начните изучение этого слова') }}
-                    </p>
-
-                    <div class="d-flex gap-2 justify-content-center flex-wrap">
-                        <button class="btn {{ 'btn-primary' if word.user_status == 'learning' else 'btn-outline-secondary' }} rounded-pill"
-                                onclick="changeStatus('learning')">
-                            {{ _('Изучаю') }}
-                        </button>
-                        <button class="btn {{ 'btn-primary' if word.user_status == 'review' else 'btn-outline-secondary' }} rounded-pill"
-                                onclick="changeStatus('review')">
-                            {{ _('Повторяю') }}
-                        </button>
-                        <button class="btn {{ 'btn-primary' if word.is_mastered else 'btn-outline-secondary' }} rounded-pill"
-                                onclick="changeStatus('mastered')">
-                            {{ _('Знаю') }}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Books Section -->
-            {% if books %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3 class="d-flex align-items-center gap-2 mb-3">
-                        <i class="fas fa-books text-primary"></i>{{ _('Встречается в книгах') }}
-                    </h3>
-                    {% for book, frequency in books %}
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-decoration-none">
-                            {{ book.title }}
-                        </a>
-                        <span class="badge bg-primary rounded-pill">{{ frequency }}x</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
+        <a href="{{ url_for('study.index') }}" class="wdet-hero__btn wdet-hero__btn--white">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          {{ _('Изучать') }}
+        </a>
+      </div>
     </div>
+  </div>
+
+  <!-- Content Grid -->
+  <div class="wdet-grid">
+    <!-- Left Column -->
+    <div>
+      <!-- Audio Section -->
+      {% if word.get_download and word.listening %}
+      <div class="wdet-card wdet-animate wdet-animate--d2">
+        <div class="wdet-card__header">
+          <div class="wdet-card__icon wdet-card__icon--audio">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+          </div>
+          <h3 class="wdet-card__title">{{ _('Произношение') }}</h3>
+        </div>
+        <div class="wdet-audio">
+          <button class="wdet-audio__play" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <div>
+            <div class="wdet-audio__info-word">{{ word.english_word }}</div>
+            <div class="wdet-audio__info-hint">{{ _('Нажмите для воспроизведения') }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Examples Section -->
+      {% if word.sentences %}
+      <div class="wdet-card wdet-animate wdet-animate--d3">
+        <div class="wdet-card__header">
+          <div class="wdet-card__icon wdet-card__icon--examples">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
+          </div>
+          <h3 class="wdet-card__title">{{ _('Примеры использования') }}</h3>
+        </div>
+        <div class="wdet-examples">
+          {{ word.sentences|safe }}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Related Words -->
+      {% if related_words %}
+      <div class="wdet-card wdet-animate wdet-animate--d4">
+        <div class="wdet-card__header">
+          <div class="wdet-card__icon wdet-card__icon--related">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          </div>
+          <h3 class="wdet-card__title">{{ _('Похожие слова') }}</h3>
+        </div>
+        <div class="wdet-related-grid">
+          {% for related in related_words[:6] %}
+          <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="wdet-related">
+            <div class="wdet-related__en">{{ related.english_word }}</div>
+            <div class="wdet-related__ru">{{ related.russian_word }}</div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Column -->
+    <div>
+      <!-- Status Card -->
+      <div class="wdet-status wdet-animate wdet-animate--d2">
+        <div class="wdet-status__icon wdet-status__icon--{{ 'mastered' if word.is_mastered else word.user_status or 'new' }}">
+          {% if word.is_mastered %}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {% elif word.user_status == 'learning' %}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          {% elif word.user_status == 'review' %}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+          {% else %}
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          {% endif %}
+        </div>
+
+        <h4 class="wdet-status__title">
+          {{ _('Выученное слово') if word.is_mastered else _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое слово') }}
+        </h4>
+
+        <p class="wdet-status__desc">
+          {{ _('Вы знаете это слово хорошо') if word.is_mastered else _('Это слово в процессе изучения') if word.user_status == 'learning' else _('Нужно повторить это слово') if word.user_status == 'review' else _('Начните изучение этого слова') }}
+        </p>
+
+        <div class="wdet-status__btns">
+          <button class="wdet-status__btn {{ 'wdet-status__btn--active' if word.user_status == 'learning' }}"
+                  onclick="changeStatus('learning')">
+            {{ _('Изучаю') }}
+          </button>
+          <button class="wdet-status__btn {{ 'wdet-status__btn--active' if word.user_status == 'review' }}"
+                  onclick="changeStatus('review')">
+            {{ _('Повторяю') }}
+          </button>
+          <button class="wdet-status__btn {{ 'wdet-status__btn--active' if word.is_mastered }}"
+                  onclick="changeStatus('mastered')">
+            {{ _('Знаю') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Books Section -->
+      {% if books %}
+      <div class="wdet-card wdet-animate wdet-animate--d3" style="margin-top: 1.25rem;">
+        <div class="wdet-card__header">
+          <div class="wdet-card__icon wdet-card__icon--books">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          </div>
+          <h3 class="wdet-card__title">{{ _('Встречается в книгах') }}</h3>
+        </div>
+        {% for book, frequency in books %}
+        <div class="wdet-book-row">
+          <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
+          <span class="wdet-book-row__freq">{{ frequency }}x</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 <!-- Audio Element -->
-<audio id="audioPlayer" class="audio-hidden"></audio>
+<audio id="audioPlayer" style="display:none;"></audio>
 
 <!-- Deck Select Modal JS -->
 <script src="{{ url_for('static', filename='js/deck-select-modal.js') }}"></script>
@@ -187,16 +746,13 @@
 const currentWordStatus = '{{ word.user_status or "new" }}';
 const wordId = {{ word.id }};
 
-// Cache for default deck
 let defaultDeckCache = null;
 let defaultDeckLoaded = false;
 
 function playAudio(audioUrl) {
     const audio = document.getElementById('audioPlayer');
     if (!audio) return;
-
     audio.src = audioUrl;
-
     const playPromise = audio.play();
     if (playPromise !== undefined) {
         playPromise.catch(error => {
@@ -207,15 +763,11 @@ function playAudio(audioUrl) {
 
 async function loadDefaultDeck() {
     if (defaultDeckLoaded) return defaultDeckCache;
-
     try {
         const response = await fetch('/study/api/default-deck');
         const data = await response.json();
         if (data.success) {
-            defaultDeckCache = {
-                id: data.default_deck_id,
-                name: data.default_deck_name
-            };
+            defaultDeckCache = { id: data.default_deck_id, name: data.default_deck_name };
             defaultDeckLoaded = true;
         }
     } catch (error) {
@@ -226,23 +778,15 @@ async function loadDefaultDeck() {
 
 async function saveDefaultDeck(deckId, deckName) {
     const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
-
     try {
         const response = await fetch('/study/api/default-deck', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken || ''
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken || '' },
             body: JSON.stringify({ deck_id: deckId })
         });
-
         const data = await response.json();
         if (data.success) {
-            defaultDeckCache = {
-                id: data.default_deck_id,
-                name: data.default_deck_name
-            };
+            defaultDeckCache = { id: data.default_deck_id, name: data.default_deck_name };
             defaultDeckLoaded = true;
         }
     } catch (error) {
@@ -251,34 +795,25 @@ async function saveDefaultDeck(deckId, deckName) {
 }
 
 async function changeStatus(newStatus) {
-    // For transitions from 'new' to 'learning' or 'mastered', ensure deck is selected
     if (currentWordStatus === 'new' && (newStatus === 'learning' || newStatus === 'mastered')) {
         const defaultDeck = await loadDefaultDeck();
-
-        // If default deck is set, use it directly
         if (defaultDeck && defaultDeck.id) {
             updateWordStatus(newStatus, defaultDeck.id);
             return;
         }
-
-        // No default deck — fetch user's decks
         try {
             const decksResponse = await fetch('/study/api/my-decks');
             const decksData = await decksResponse.json();
             const decks = (decksData.success && decksData.decks) ? decksData.decks : [];
-
             if (decks.length === 0) {
-                // 0 decks → show "create first deck" modal
                 deckSelectModal.showCreateFirst(async function(result) {
                     await saveDefaultDeck(result.deckId, result.deckName);
                     updateWordStatus(newStatus, result.deckId);
                 });
             } else if (decks.length === 1) {
-                // 1 deck → auto-set as default, add word immediately
                 await saveDefaultDeck(decks[0].id, decks[0].name);
                 updateWordStatus(newStatus, decks[0].id);
             } else {
-                // 2+ decks → show selection modal (without "study only")
                 deckSelectModal.showWithCallback(wordId, async function(result) {
                     await saveDefaultDeck(result.deckId, result.deckName);
                     updateWordStatus(newStatus, result.deckId);
@@ -291,17 +826,13 @@ async function changeStatus(newStatus) {
             }, { forceDecks: true });
         }
     } else {
-        // Direct status update without deck selection
         updateWordStatus(newStatus, null);
     }
 }
 
 function updateWordStatus(newStatus, deckId) {
     const payload = { status: newStatus };
-    if (deckId) {
-        payload.deck_id = deckId;
-    }
-
+    if (deckId) payload.deck_id = deckId;
     fetch(`/api/words/${wordId}/status`, {
         method: 'POST',
         headers: {

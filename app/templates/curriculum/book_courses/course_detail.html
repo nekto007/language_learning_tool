@@ -3,181 +3,284 @@
 {% block title %}{{ course.title }}{% endblock %}
 
 {% block content %}
-<div class="course-detail-page">
+<div class="cd-page">
   <!-- Breadcrumb -->
-  <nav class="breadcrumb-nav">
-    <a href="{{ url_for('book_courses.list_book_courses') }}" class="breadcrumb-link">
-      <i class="fas fa-book-reader"></i> Книжные курсы
+  <nav class="cd-breadcrumb">
+    <a href="{{ url_for('book_courses.list_book_courses') }}" class="cd-breadcrumb__link">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+      </svg>
+      <span>Книжные курсы</span>
     </a>
-    <i class="fas fa-chevron-right breadcrumb-sep"></i>
-    <span class="breadcrumb-current">{{ course.title }}</span>
+    <svg class="cd-breadcrumb__sep" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span class="cd-breadcrumb__current">{{ course.title }}</span>
   </nav>
 
   <!-- Course Hero -->
-  <div class="course-hero">
-    <div class="course-hero-bg"></div>
-    <div class="course-hero-content">
-      <div class="course-cover-wrapper">
+  <div class="cd-hero">
+    <div class="cd-hero__bg-shapes">
+      <div class="cd-shape cd-shape--1"></div>
+      <div class="cd-shape cd-shape--2"></div>
+      <div class="cd-shape cd-shape--3"></div>
+    </div>
+
+    <div class="cd-hero__content">
+      <div class="cd-hero__cover-wrapper">
         {% if book.cover_image %}
-          <div class="course-cover">
+          <div class="cd-hero__cover">
             <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ course.title }}">
           </div>
         {% else %}
-          <div class="course-cover course-cover-placeholder">
-            <i class="fas fa-book-open"></i>
+          <div class="cd-hero__cover cd-hero__cover--placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+            </svg>
           </div>
         {% endif %}
       </div>
 
-      <div class="course-info">
-        <div class="course-badges">
-          <span class="badge level-badge level-{{ course.level|lower }}">{{ course.level }}</span>
+      <div class="cd-hero__info">
+        <div class="cd-hero__badges">
+          <span class="cd-badge cd-badge--level cd-badge--{{ course.level|lower }}">{{ course.level }}</span>
           {% if course.is_featured %}
-            <span class="badge featured-badge"><i class="fas fa-star"></i> Рекомендуем</span>
+            <span class="cd-badge cd-badge--featured">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              Рекомендуем
+            </span>
           {% endif %}
         </div>
 
-        <h1 class="course-title">{{ course.title }}</h1>
-        <p class="course-author"><i class="fas fa-user-edit"></i> {{ book.author }}</p>
+        <h1 class="cd-hero__title">{{ course.title }}</h1>
 
-        <p class="course-description">{{ course.description }}</p>
+        <p class="cd-hero__author">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          {{ book.author }}
+        </p>
 
-        <div class="course-stats">
-          <div class="stat-item">
-            <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
-            <div class="stat-content">
-              <span class="stat-value">{{ total_modules }}</span>
-              <span class="stat-label">модулей</span>
-            </div>
-          </div>
-          {% if course.estimated_duration_weeks %}
-          <div class="stat-item">
-            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
-            <div class="stat-content">
-              <span class="stat-value">{{ course.estimated_duration_weeks }}</span>
-              <span class="stat-label">недель</span>
-            </div>
-          </div>
-          {% endif %}
-          {% if course.difficulty_score %}
-          <div class="stat-item">
-            <div class="stat-icon"><i class="fas fa-signal"></i></div>
-            <div class="stat-content">
-              <span class="stat-value">{{ course.difficulty_score|round(1) }}/10</span>
-              <span class="stat-label">сложность</span>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-
-        {% if not is_enrolled %}
-          <button id="enroll-btn" class="btn-enroll" onclick="enrollInCourse({{ course.id }})">
-            <i class="fas fa-plus-circle"></i> Записаться на курс
-          </button>
-        {% else %}
-          <div class="enrolled-section">
-            <div class="enrolled-badge">
-              <i class="fas fa-check-circle"></i> Вы записаны на курс
-            </div>
-            <div class="course-progress-section">
-              <div class="progress-header">
-                <span>Прогресс курса</span>
-                <span class="progress-percent">{{ enrollment.progress_percentage|round(1) }}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: {{ enrollment.progress_percentage }}%"></div>
-              </div>
-            </div>
-            {% if enrollment.current_module %}
-              <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=enrollment.current_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="btn-continue">
-                <i class="fas fa-play"></i> Продолжить обучение
-              </a>
-            {% endif %}
-          </div>
-        {% endif %}
+        <p class="cd-hero__desc">{{ course.description }}</p>
       </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="cd-hero__stats">
+      <div class="cd-stat">
+        <div class="cd-stat__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </div>
+        <div class="cd-stat__content">
+          <span class="cd-stat__value">{{ total_modules }}</span>
+          <span class="cd-stat__label">модулей</span>
+        </div>
+      </div>
+      {% if course.estimated_duration_weeks %}
+      <div class="cd-stat">
+        <div class="cd-stat__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div class="cd-stat__content">
+          <span class="cd-stat__value">{{ course.estimated_duration_weeks }}</span>
+          <span class="cd-stat__label">недель</span>
+        </div>
+      </div>
+      {% endif %}
+      {% if course.difficulty_score %}
+      <div class="cd-stat">
+        <div class="cd-stat__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </div>
+        <div class="cd-stat__content">
+          <span class="cd-stat__value">{{ course.difficulty_score|round(1) }}/10</span>
+          <span class="cd-stat__label">сложность</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Enroll / Progress -->
+    <div class="cd-hero__actions">
+      {% if not is_enrolled %}
+        <button id="enroll-btn" class="cd-btn cd-btn--enroll" onclick="enrollInCourse({{ course.id }})">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Записаться на курс
+        </button>
+      {% else %}
+        <div class="cd-enrolled">
+          <div class="cd-enrolled__badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+              <path d="M22 4L12 14.01l-3-3"/>
+            </svg>
+            Вы записаны на курс
+          </div>
+          <div class="cd-enrolled__progress">
+            <div class="cd-enrolled__progress-header">
+              <span>Прогресс курса</span>
+              <span class="cd-enrolled__progress-percent">{{ enrollment.progress_percentage|round(1) }}%</span>
+            </div>
+            <div class="cd-progress">
+              <div class="cd-progress__fill" style="width: {{ enrollment.progress_percentage }}%"></div>
+            </div>
+          </div>
+          {% if enrollment.current_module %}
+            <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=enrollment.current_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="cd-btn cd-btn--continue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Продолжить обучение
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
   </div>
 
   <!-- Course Content -->
-  <div class="content-section">
-    <div class="section-header">
-      <div class="section-title">
-        <i class="fas fa-list-ul"></i>
-        <h2>Содержание курса</h2>
+  <div class="cd-section cd-section--anim" style="--delay: 0.1s">
+    <div class="cd-section__header">
+      <div class="cd-section__title-group">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/>
+          <line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/>
+          <line x1="3" y1="12" x2="3.01" y2="12"/>
+          <line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        <h2 class="cd-section__title">Содержание курса</h2>
       </div>
-      <span class="section-badge">{{ total_modules }} модулей</span>
+      <span class="cd-section__badge">{{ total_modules }} модулей</span>
     </div>
 
-    <div class="modules-list">
+    <div class="cd-modules">
       {% for module_data in modules %}
         {% set module = module_data.module %}
         {% set progress = module_data.progress %}
         {% set is_unlocked = module_data.is_unlocked %}
         {% set status = module_data.status %}
 
-        <div class="module-card {{ status }} {{ 'locked' if not is_unlocked else '' }}">
-          <div class="module-number-badge {{ status }}">
+        <div class="cd-module cd-module--anim {% if status == 'completed' %}cd-module--completed{% elif status == 'in_progress' %}cd-module--in-progress{% endif %} {% if not is_unlocked %}cd-module--locked{% endif %}" style="--delay: {{ 0.15 + loop.index0 * 0.05 }}s">
+          <div class="cd-module__number {% if status == 'completed' %}cd-module__number--completed{% elif status == 'in_progress' %}cd-module__number--in-progress{% endif %}">
             {% if not is_unlocked %}
-              <i class="fas fa-lock"></i>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+              </svg>
             {% elif status == 'completed' %}
-              <i class="fas fa-check"></i>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
             {% else %}
               {{ module.module_number }}
             {% endif %}
           </div>
 
-          <div class="module-content">
-            <div class="module-header">
-              <h3 class="module-title">{{ module.title }}</h3>
-              <div class="module-meta">
+          <div class="cd-module__content">
+            <div class="cd-module__header">
+              <h3 class="cd-module__title">{{ module.title }}</h3>
+              <div class="cd-module__meta">
                 {% if module.estimated_reading_time %}
-                  <span class="meta-tag"><i class="fas fa-clock"></i> {{ module.estimated_reading_time }} мин</span>
+                  <span class="cd-module__tag">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    {{ module.estimated_reading_time }} мин
+                  </span>
                 {% endif %}
-                <span class="meta-tag"><i class="fas fa-book-open"></i> {{ module.total_lessons }} уроков</span>
+                <span class="cd-module__tag">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+                  </svg>
+                  {{ module.total_lessons }} уроков
+                </span>
               </div>
             </div>
 
             {% if module.description %}
-            <p class="module-description">{{ module.description }}</p>
+            <p class="cd-module__desc">{{ module.description }}</p>
             {% endif %}
 
             {% if module.learning_objectives %}
-            <div class="module-objectives">
+            <div class="cd-module__objectives">
               {% for objective in module.learning_objectives[:3] %}
-                <span class="objective-tag"><i class="fas fa-check-circle"></i> {{ objective }}</span>
+                <span class="cd-objective">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                    <path d="M22 4L12 14.01l-3-3"/>
+                  </svg>
+                  {{ objective }}
+                </span>
               {% endfor %}
             </div>
             {% endif %}
 
             {% if is_unlocked and is_enrolled %}
-              <div class="module-progress">
-                <div class="progress-bar small">
-                  <div class="progress-fill" style="width: {{ module_data.progress_percentage }}%"></div>
+              <div class="cd-module__progress-row">
+                <div class="cd-progress cd-progress--small">
+                  <div class="cd-progress__fill" style="width: {{ module_data.progress_percentage }}%"></div>
                 </div>
-                <span class="progress-text">{{ module_data.progress_percentage|round(0)|int }}%</span>
+                <span class="cd-module__progress-text">{{ module_data.progress_percentage|round(0)|int }}%</span>
               </div>
             {% endif %}
           </div>
 
-          <div class="module-action">
+          <div class="cd-module__action">
             {% if is_unlocked and is_enrolled %}
-              <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-module {{ status }}">
+              <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="cd-btn-module {% if status == 'completed' %}cd-btn-module--completed{% endif %}">
                 {% if status == 'completed' %}
-                  <i class="fas fa-redo"></i> Повторить
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+                  </svg>
+                  Повторить
                 {% elif status == 'in_progress' %}
-                  <i class="fas fa-play"></i> Продолжить
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                  Продолжить
                 {% else %}
-                  <i class="fas fa-arrow-right"></i> Начать
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                  </svg>
+                  Начать
                 {% endif %}
               </a>
             {% elif not is_enrolled %}
-              <span class="locked-message">
-                <i class="fas fa-lock"></i> Запишитесь
+              <span class="cd-module__locked-msg">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                </svg>
+                Запишитесь
               </span>
             {% else %}
-              <span class="locked-message">
-                <i class="fas fa-lock"></i> Заблокировано
+              <span class="cd-module__locked-msg">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                </svg>
+                Заблокировано
               </span>
             {% endif %}
           </div>
@@ -188,32 +291,41 @@
 
   <!-- Additional Info -->
   {% if course.author_info or course.literary_themes or course.language_features %}
-  <div class="info-section">
+  <div class="cd-info cd-section--anim" style="--delay: 0.3s">
     {% if course.author_info %}
-    <div class="info-card">
-      <div class="info-card-header">
-        <i class="fas fa-user"></i>
+    <div class="cd-info-card">
+      <div class="cd-info-card__header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
         <h3>Об авторе</h3>
       </div>
-      <div class="info-card-content">
-        <p class="author-name">{{ course.author_info.name }}</p>
+      <div class="cd-info-card__body">
+        <p class="cd-info-card__name">{{ course.author_info.name }}</p>
         {% if course.author_info.bio %}
-          <p class="author-bio">{{ course.author_info.bio }}</p>
+          <p class="cd-info-card__bio">{{ course.author_info.bio }}</p>
         {% endif %}
       </div>
     </div>
     {% endif %}
 
     {% if course.literary_themes %}
-    <div class="info-card">
-      <div class="info-card-header">
-        <i class="fas fa-palette"></i>
+    <div class="cd-info-card">
+      <div class="cd-info-card__header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/>
+          <circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/>
+          <circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/>
+          <circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/>
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+        </svg>
         <h3>Темы книги</h3>
       </div>
-      <div class="info-card-content">
-        <div class="tags-list">
+      <div class="cd-info-card__body">
+        <div class="cd-tags">
           {% for theme in course.literary_themes %}
-            <span class="theme-tag">{{ theme }}</span>
+            <span class="cd-tag">{{ theme }}</span>
           {% endfor %}
         </div>
       </div>
@@ -221,28 +333,31 @@
     {% endif %}
 
     {% if course.language_features %}
-    <div class="info-card">
-      <div class="info-card-header">
-        <i class="fas fa-language"></i>
+    <div class="cd-info-card">
+      <div class="cd-info-card__header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 7l5 5-5 5"/>
+          <line x1="13" y1="17" x2="19" y2="17"/>
+        </svg>
         <h3>Языковые особенности</h3>
       </div>
-      <div class="info-card-content">
+      <div class="cd-info-card__body">
         {% if course.language_features.grammar_points %}
-        <div class="feature-group">
-          <span class="feature-label">Грамматика:</span>
-          <div class="tags-list">
+        <div class="cd-feature-group">
+          <span class="cd-feature-group__label">Грамматика:</span>
+          <div class="cd-tags">
             {% for point in course.language_features.grammar_points %}
-              <span class="feature-tag">{{ point|replace('_', ' ') }}</span>
+              <span class="cd-tag cd-tag--feature">{{ point|replace('_', ' ') }}</span>
             {% endfor %}
           </div>
         </div>
         {% endif %}
         {% if course.language_features.vocabulary_themes %}
-        <div class="feature-group">
-          <span class="feature-label">Лексика:</span>
-          <div class="tags-list">
+        <div class="cd-feature-group">
+          <span class="cd-feature-group__label">Лексика:</span>
+          <div class="cd-tags">
             {% for theme in course.language_features.vocabulary_themes %}
-              <span class="feature-tag">{{ theme }}</span>
+              <span class="cd-tag cd-tag--feature">{{ theme }}</span>
             {% endfor %}
           </div>
         </div>
@@ -255,686 +370,820 @@
 </div>
 
 <style>
-/* Course Detail Page */
-.course-detail-page {
-  max-width: 1100px;
+/* ============================================
+   Course Detail Page — Premium Design
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.cd-page {
+  --cd-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --cd-primary: #10b981;
+  --cd-primary-dark: #059669;
+  --cd-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --cd-surface: #ffffff;
+  --cd-surface-alt: #f8fafc;
+  --cd-text: #0f172a;
+  --cd-text-muted: #64748b;
+  --cd-border: #e2e8f0;
+  --cd-radius: 16px;
+  --cd-radius-sm: 10px;
+  font-family: var(--cd-font);
+  max-width: 900px;
   margin: 0 auto;
-  padding: 0 1.5rem 3rem;
+  padding: 0 1rem 3rem;
 }
 
-/* Breadcrumb */
-.breadcrumb-nav {
+/* ---- Breadcrumb ---- */
+
+.cd-breadcrumb {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
   font-size: 0.875rem;
 }
 
-.breadcrumb-link {
-  display: flex;
+.cd-breadcrumb__link {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--accent-color, #3b82f6);
+  color: var(--cd-primary);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
 }
 
-.breadcrumb-link:hover {
-  color: var(--accent-hover, #2563eb);
+.cd-breadcrumb__link:hover {
+  color: var(--cd-primary-dark);
 }
 
-.breadcrumb-sep {
-  color: var(--text-secondary, #9ca3af);
-  font-size: 0.75rem;
+.cd-breadcrumb__sep {
+  color: var(--cd-text-muted);
+  opacity: 0.5;
 }
 
-.breadcrumb-current {
-  color: var(--text-secondary, #6b7280);
+.cd-breadcrumb__current {
+  color: var(--cd-text-muted);
 }
 
-/* Course Hero */
-.course-hero {
+/* ---- Hero Section ---- */
+
+.cd-hero {
   position: relative;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 24px;
-  overflow: hidden;
-  margin-bottom: 2rem;
-}
-
-.course-hero-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 120px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.course-hero-content {
-  position: relative;
-  display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 2rem;
+  background: var(--cd-gradient);
+  border-radius: var(--cd-radius);
   padding: 2rem;
-  padding-top: 60px;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  color: #fff;
 }
 
-.course-cover-wrapper {
+/* Floating Shapes */
+.cd-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cd-shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cd-shape--1 {
+  width: 300px;
+  height: 300px;
+  top: -100px;
+  right: -50px;
+  animation: cd-float-1 20s ease-in-out infinite;
+}
+
+.cd-shape--2 {
+  width: 200px;
+  height: 200px;
+  bottom: -80px;
+  left: -40px;
+  animation: cd-float-2 15s ease-in-out infinite;
+}
+
+.cd-shape--3 {
+  width: 100px;
+  height: 100px;
+  top: 50%;
+  right: 30%;
+  animation: cd-float-3 12s ease-in-out infinite;
+}
+
+@keyframes cd-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 20px) scale(1.05); }
+}
+
+@keyframes cd-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(30px, -20px) rotate(10deg); }
+}
+
+@keyframes cd-float-3 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.1; }
+  50% { transform: translate(-15px, 15px); opacity: 0.2; }
+}
+
+/* Hero Content */
+.cd-hero__content {
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
 }
 
-.course-cover {
-  width: 180px;
-  height: 260px;
+.cd-hero__cover-wrapper {
+  position: relative;
+}
+
+.cd-hero__cover {
+  width: 160px;
+  height: 230px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
 }
 
-.course-cover img {
+.cd-hero__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.course-cover-placeholder {
+.cd-hero__cover--placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
-  color: #9ca3af;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.course-info {
-  padding-top: 60px;
+.cd-hero__info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.course-badges {
+.cd-hero__badges {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.badge {
-  padding: 0.375rem 0.875rem;
+.cd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3rem 0.75rem;
   border-radius: 50px;
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.4;
 }
 
-.level-badge {
-  background: var(--bg-secondary, #f3f4f6);
+.cd-badge--level {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-.level-a1, .level-a2 { background: #dcfce7; color: #16a34a; }
-.level-b1, .level-b2 { background: #dbeafe; color: #2563eb; }
-.level-c1, .level-c2 { background: #fce7f3; color: #db2777; }
-
-.featured-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
+.cd-badge--featured {
   background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: white;
+  color: #fff;
 }
 
-.course-title {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary, #1f2937);
+.cd-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-.course-author {
+.cd-hero__author {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-secondary, #6b7280);
-  font-size: 1.125rem;
-  margin: 0 0 1rem 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  font-weight: 500;
 }
 
-.course-description {
-  color: var(--text-secondary, #6b7280);
-  line-height: 1.7;
-  margin: 0 0 1.5rem 0;
+.cd-hero__desc {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 0.9375rem;
 }
 
-.course-stats {
+/* Stats Row */
+.cd-hero__stats {
+  position: relative;
+  z-index: 1;
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.stat-item {
+.cd-stat {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.625rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.625rem 1rem;
+  border-radius: var(--cd-radius-sm);
 }
 
-.stat-icon {
-  width: 44px;
-  height: 44px;
+.cd-stat__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary, #f3f4f6);
-  border-radius: 12px;
-  color: var(--accent-color, #3b82f6);
-  font-size: 1rem;
+  opacity: 0.85;
 }
 
-.stat-content {
+.cd-stat__content {
   display: flex;
   flex-direction: column;
 }
 
-.stat-value {
-  font-size: 1.25rem;
+.cd-stat__value {
+  font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  line-height: 1.2;
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary, #6b7280);
+.cd-stat__label {
+  font-size: 0.6875rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-/* Enroll Button */
-.btn-enroll {
+/* Enroll / Enrolled Actions */
+.cd-hero__actions {
+  position: relative;
+  z-index: 1;
+}
+
+.cd-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
+  gap: 0.625rem;
   border: none;
-  border-radius: 12px;
-  font-size: 1.125rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  font-family: var(--cd-font);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
 
-.btn-enroll:hover {
+.cd-btn--enroll {
+  padding: 0.875rem 1.75rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--cd-primary-dark);
+  border-radius: var(--cd-radius-sm);
+  font-size: 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.cd-btn--enroll:hover {
+  background: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
-.btn-enroll:disabled {
+.cd-btn--enroll:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
 }
 
-/* Enrolled Section */
-.enrolled-section {
-  margin-top: 1rem;
+.cd-enrolled {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.enrolled-badge {
+.cd-enrolled__badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: #dcfce7;
-  color: #16a34a;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(5px);
   border-radius: 50px;
   font-weight: 600;
   font-size: 0.875rem;
-  margin-bottom: 1rem;
+  width: fit-content;
 }
 
-.course-progress-section {
-  margin-bottom: 1rem;
-  max-width: 300px;
+.cd-enrolled__progress {
+  max-width: 320px;
 }
 
-.progress-header {
+.cd-enrolled__progress-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary, #6b7280);
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  opacity: 0.9;
 }
 
-.progress-percent {
-  font-weight: 600;
-  color: var(--accent-color, #3b82f6);
+.cd-enrolled__progress-percent {
+  font-weight: 700;
 }
 
-.progress-bar {
+.cd-progress {
   height: 8px;
-  background: var(--bg-secondary, #f3f4f6);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   overflow: hidden;
 }
 
-.progress-bar.small {
+.cd-progress--small {
   height: 6px;
 }
 
-.progress-fill {
+.cd-progress__fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 4px;
-  transition: width 0.3s;
+  transition: width 0.4s ease;
 }
 
-.btn-continue {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  background: var(--accent-color, #3b82f6);
-  color: white;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s;
+.cd-btn--continue {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--cd-primary-dark);
+  border-radius: var(--cd-radius-sm);
+  font-size: 0.9375rem;
+  width: fit-content;
 }
 
-.btn-continue:hover {
-  background: var(--accent-hover, #2563eb);
+.cd-btn--continue:hover {
+  background: #fff;
   transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
-/* Content Section */
-.content-section {
+/* ---- slideUp Animation ---- */
+
+@keyframes cd-slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cd-section--anim {
+  animation: cd-slideUp 0.5s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+.cd-module--anim {
+  animation: cd-slideUp 0.45s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ---- Content Section ---- */
+
+.cd-section {
   margin-bottom: 2rem;
 }
 
-.section-header {
+.cd-section__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
-.section-title {
+.cd-section__title-group {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
-.section-title i {
-  font-size: 1.25rem;
-  color: var(--accent-color, #3b82f6);
-}
-
-.section-title h2 {
-  font-size: 1.5rem;
+.cd-section__title {
+  font-size: 1.375rem;
   font-weight: 700;
   margin: 0;
-  color: var(--text-primary, #1f2937);
+  color: var(--cd-text);
 }
 
-.section-badge {
-  padding: 0.375rem 0.875rem;
-  background: var(--accent-color, #3b82f6);
-  color: white;
+.cd-section__badge {
+  padding: 0.3rem 0.875rem;
+  background: var(--cd-gradient);
+  color: #fff;
   border-radius: 50px;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
-/* Modules List */
-.modules-list {
+/* ---- Modules List ---- */
+
+.cd-modules {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.module-card {
+.cd-module {
   display: flex;
   align-items: flex-start;
   gap: 1.25rem;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
-  padding: 1.5rem;
-  transition: all 0.2s;
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
+  padding: 1.25rem 1.5rem;
+  transition: all 0.2s ease;
 }
 
-.module-card:hover:not(.locked) {
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+.cd-module:hover:not(.cd-module--locked) {
+  border-color: var(--cd-primary);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
 }
 
-.module-card.locked {
-  opacity: 0.6;
+.cd-module--locked {
+  opacity: 0.55;
 }
 
-.module-card.completed {
-  border-left: 4px solid #16a34a;
+.cd-module--completed {
+  border-left: 4px solid var(--cd-primary);
 }
 
-.module-card.in_progress {
-  border-left: 4px solid var(--accent-color, #3b82f6);
+.cd-module--in-progress {
+  border-left: 4px solid #3b82f6;
 }
 
-.module-number-badge {
+/* Module Number Badge */
+.cd-module__number {
   width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--cd-surface-alt);
   border-radius: 12px;
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-secondary, #6b7280);
+  color: var(--cd-text-muted);
   flex-shrink: 0;
 }
 
-.module-number-badge.completed {
+.cd-module__number--completed {
   background: #dcfce7;
   color: #16a34a;
 }
 
-.module-number-badge.in_progress {
+.cd-module__number--in-progress {
   background: #dbeafe;
-  color: #2563eb;
+  color: #3b82f6;
 }
 
-.module-content {
+/* Module Content */
+.cd-module__content {
   flex: 1;
   min-width: 0;
 }
 
-.module-header {
+.cd-module__header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.375rem;
 }
 
-.module-title {
-  font-size: 1.125rem;
+.cd-module__title {
+  font-size: 1.0625rem;
   font-weight: 600;
   margin: 0;
-  color: var(--text-primary, #1f2937);
+  color: var(--cd-text);
+  line-height: 1.3;
 }
 
-.module-meta {
+.cd-module__meta {
   display: flex;
   gap: 0.75rem;
   flex-shrink: 0;
 }
 
-.meta-tag {
-  display: flex;
+.cd-module__tag {
+  display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.3rem;
   font-size: 0.8125rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--cd-text-muted);
+  white-space: nowrap;
 }
 
-.module-description {
+.cd-module__desc {
   font-size: 0.875rem;
-  color: var(--text-secondary, #6b7280);
-  margin: 0 0 0.75rem 0;
+  color: var(--cd-text-muted);
+  margin: 0 0 0.625rem;
   line-height: 1.5;
 }
 
-.module-objectives {
+/* Objectives */
+.cd-module__objectives {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 
-.objective-tag {
-  display: flex;
+.cd-objective {
+  display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   font-size: 0.75rem;
   padding: 0.25rem 0.625rem;
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--cd-surface-alt);
   border-radius: 50px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--cd-text-muted);
 }
 
-.objective-tag i {
-  color: #16a34a;
-  font-size: 0.625rem;
-}
-
-.module-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  max-width: 200px;
-}
-
-.module-progress .progress-bar {
-  flex: 1;
-}
-
-.progress-text {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--accent-color, #3b82f6);
-  white-space: nowrap;
-}
-
-.module-action {
+.cd-objective svg {
+  color: var(--cd-primary);
   flex-shrink: 0;
 }
 
-.btn-module {
+/* Module Progress Row */
+.cd-module__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 220px;
+}
+
+.cd-module__progress-row .cd-progress {
+  flex: 1;
+  background: var(--cd-surface-alt);
+}
+
+.cd-module__progress-row .cd-progress__fill {
+  background: var(--cd-gradient);
+}
+
+.cd-module__progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cd-primary);
+  white-space: nowrap;
+}
+
+/* Module Action */
+.cd-module__action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.cd-btn-module {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: var(--accent-color, #3b82f6);
-  color: white;
-  border-radius: 10px;
+  padding: 0.5rem 1.125rem;
+  background: var(--cd-gradient);
+  color: #fff;
+  border-radius: var(--cd-radius-sm);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  transition: all 0.2s;
+  font-family: var(--cd-font);
+  transition: all 0.2s ease;
 }
 
-.btn-module:hover {
-  background: var(--accent-hover, #2563eb);
+.cd-btn-module:hover {
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.btn-module.completed {
-  background: #16a34a;
+.cd-btn-module--completed {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
 }
 
-.btn-module.completed:hover {
-  background: #15803d;
+.cd-btn-module--completed:hover {
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
 }
 
-.locked-message {
-  display: flex;
+.cd-module__locked-msg {
+  display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.625rem 1rem;
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-secondary, #6b7280);
-  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  background: var(--cd-surface-alt);
+  color: var(--cd-text-muted);
+  border-radius: var(--cd-radius-sm);
   font-size: 0.8125rem;
   font-weight: 500;
 }
 
-/* Info Section */
-.info-section {
+/* ---- Info Section ---- */
+
+.cd-info {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
 }
 
-.info-card {
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
+.cd-info-card {
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
   overflow: hidden;
 }
 
-.info-card-header {
+.cd-info-card__header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  background: var(--bg-secondary, #f9fafb);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--cd-surface-alt);
+  border-bottom: 1px solid var(--cd-border);
 }
 
-.info-card-header i {
-  color: var(--accent-color, #3b82f6);
-}
-
-.info-card-header h3 {
-  font-size: 1rem;
+.cd-info-card__header h3 {
+  font-size: 0.9375rem;
   font-weight: 600;
   margin: 0;
-  color: var(--text-primary, #1f2937);
+  color: var(--cd-text);
 }
 
-.info-card-content {
-  padding: 1.5rem;
+.cd-info-card__body {
+  padding: 1.25rem;
 }
 
-.author-name {
+.cd-info-card__name {
   font-weight: 600;
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary, #1f2937);
+  margin: 0 0 0.375rem;
+  color: var(--cd-text);
 }
 
-.author-bio {
+.cd-info-card__bio {
   font-size: 0.875rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--cd-text-muted);
   line-height: 1.6;
   margin: 0;
 }
 
-.tags-list {
+/* Tags */
+.cd-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
-.theme-tag,
-.feature-tag {
-  padding: 0.375rem 0.875rem;
-  background: var(--bg-secondary, #f3f4f6);
+.cd-tag {
+  padding: 0.3rem 0.75rem;
+  background: var(--cd-surface-alt);
   border-radius: 50px;
   font-size: 0.8125rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--cd-text-muted);
+  border: 1px solid var(--cd-border);
 }
 
-.feature-group {
+.cd-tag--feature {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: var(--cd-primary-dark);
+}
+
+/* Feature Groups */
+.cd-feature-group {
   margin-bottom: 1rem;
 }
 
-.feature-group:last-child {
+.cd-feature-group:last-child {
   margin-bottom: 0;
 }
 
-.feature-label {
+.cd-feature-group__label {
   display: block;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--cd-text);
   margin-bottom: 0.5rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .course-detail-page {
-    padding: 0 1rem 2rem;
+/* ---- Responsive (640px) ---- */
+
+@media (max-width: 640px) {
+  .cd-page {
+    padding: 0 0.75rem 2rem;
   }
 
-  .course-hero-content {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  .cd-hero {
     padding: 1.5rem;
-    padding-top: 80px;
   }
 
-  .course-cover-wrapper {
+  .cd-hero__content {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .cd-hero__cover-wrapper {
     display: flex;
     justify-content: center;
   }
 
-  .course-cover {
-    width: 140px;
-    height: 200px;
+  .cd-hero__cover {
+    width: 130px;
+    height: 190px;
   }
 
-  .course-info {
-    padding-top: 0;
+  .cd-hero__info {
     text-align: center;
   }
 
-  .course-badges {
+  .cd-hero__badges {
     justify-content: center;
   }
 
-  .course-author {
+  .cd-hero__author {
     justify-content: center;
   }
 
-  .course-stats {
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 1rem;
+  .cd-hero__title {
+    font-size: 1.375rem;
   }
 
-  .enrolled-section {
-    display: flex;
-    flex-direction: column;
+  .cd-hero__stats {
+    justify-content: center;
+  }
+
+  .cd-enrolled {
     align-items: center;
   }
 
-  .course-progress-section {
+  .cd-enrolled__progress {
     max-width: 100%;
     width: 100%;
   }
 
-  .module-card {
+  .cd-module {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 1rem;
   }
 
-  .module-header {
+  .cd-module__header {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.375rem;
   }
 
-  .module-action {
+  .cd-module__action {
     width: 100%;
   }
 
-  .btn-module,
-  .locked-message {
+  .cd-btn-module,
+  .cd-module__locked-msg {
     width: 100%;
     justify-content: center;
   }
 
-  .info-section {
+  .cd-info {
     grid-template-columns: 1fr;
+  }
+
+  .cd-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
 </style>
+{% endblock %}
 
+{% block scripts %}
 <script>
 function enrollInCourse(courseId) {
   const btn = document.getElementById('enroll-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Записываем...';
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cd-spinner"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Записываем...';
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -959,15 +1208,25 @@ function enrollInCourse(courseId) {
     } else {
       alert(data.error || 'Ошибка при записи на курс');
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-plus-circle"></i> Записаться на курс';
+      btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Записаться на курс';
     }
   })
   .catch(error => {
     console.error('Error:', error);
     alert('Ошибка при записи на курс');
     btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-plus-circle"></i> Записаться на курс';
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Записаться на курс';
   });
 }
+
+/* Spinner animation for enroll button */
+(function() {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes cd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .cd-spinner { animation: cd-spin 1s linear infinite; }
+  `;
+  document.head.appendChild(style);
+})();
 </script>
 {% endblock %}

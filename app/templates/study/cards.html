@@ -3,87 +3,531 @@
 {% block title %}Карточки{% endblock %}
 
 {% block content %}
-<div class="container mt-4" id="flashcard-app">
-    <!-- Progress bar and stats -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h2 class="h5 fw-bold mb-1">Прогресс</h2>
-                    <p class="text-secondary mb-0 small" id="card-counter">Карточка 1 из 20</p>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="d-flex gap-2">
-                        <span class="badge bg-info" id="new-cards-counter" title="Новые карточки (ещё не отвечали)">Новых: 0</span>
-                        <span class="badge bg-warning text-dark" id="studied-cards-counter" title="Карточки в процессе изучения">В изучении: 0</span>
-                        <span class="badge bg-danger" id="review-cards-counter" title="Карточки на интервальном повторении">На повтор: 0</span>
-                    </div>
-                    <button id="end-session-btn" class="btn btn-outline-secondary btn-sm">Завершить</button>
-                </div>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+    .cards-page {
+        --cards-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+        --cards-primary: #f59e0b;
+        --cards-primary-dark: #d97706;
+        --cards-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+        --cards-surface: #ffffff;
+        --cards-surface-alt: #f8fafc;
+        --cards-text: #0f172a;
+        --cards-text-muted: #64748b;
+        --cards-border: #e2e8f0;
+        --cards-radius: 16px;
+        --cards-radius-sm: 10px;
+        font-family: var(--cards-font);
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 1rem 3rem;
+    }
+
+    /* ========================================
+       Header strip
+       ======================================== */
+    .cards-header {
+        background: var(--cards-gradient);
+        border-radius: var(--cards-radius);
+        padding: 0.875rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .cards-header__left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .cards-header__back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        text-decoration: none;
+        transition: background 0.2s;
+        flex-shrink: 0;
+    }
+
+    .cards-header__back:hover {
+        background: rgba(255, 255, 255, 0.35);
+        color: #fff;
+    }
+
+    .cards-header__back svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .cards-header__title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cards-header__end-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.4rem 0.875rem;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        border: none;
+        font-family: var(--cards-font);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+        flex-shrink: 0;
+    }
+
+    .cards-header__end-btn:hover {
+        background: rgba(255, 255, 255, 0.35);
+    }
+
+    .cards-header__end-btn svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* ========================================
+       Progress section (keeps .card.shadow-sm.mb-4 for JS selectors)
+       ======================================== */
+    .cards-page .cards-progress-section {
+        background: var(--cards-surface);
+        border: 1px solid var(--cards-border);
+        border-radius: var(--cards-radius);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        box-shadow: none;
+    }
+
+    .cards-progress__top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .cards-progress__counter {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--cards-text);
+    }
+
+    .cards-progress__badges {
+        display: flex;
+        gap: 0.375rem;
+        flex-wrap: wrap;
+    }
+
+    .cards-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.625rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1;
+    }
+
+    .cards-badge--new {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .cards-badge--learning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .cards-badge--review {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    /* Custom progress bar */
+    .cards-progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--cards-surface-alt);
+        border-radius: 99px;
+        overflow: hidden;
+    }
+
+    .cards-progress-bar__fill {
+        height: 100%;
+        background: var(--cards-gradient);
+        border-radius: 99px;
+        transition: width 0.35s ease;
+        width: 0%;
+    }
+
+    /* ========================================
+       Loading spinner
+       ======================================== */
+    .cards-loading {
+        text-align: center;
+        padding: 4rem 1rem;
+    }
+
+    .cards-loading__spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--cards-border);
+        border-top-color: var(--cards-primary);
+        border-radius: 50%;
+        animation: cards-spin 0.8s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes cards-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .cards-loading__text {
+        font-size: 0.9rem;
+        color: var(--cards-text-muted);
+    }
+
+    /* ========================================
+       Nothing to study / empty state
+       ======================================== */
+    .cards-empty {
+        background: var(--cards-surface);
+        border: 1px solid var(--cards-border);
+        border-radius: var(--cards-radius);
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+
+    .cards-empty__icon {
+        font-size: 4rem;
+        line-height: 1;
+        margin-bottom: 1rem;
+    }
+
+    .cards-empty__title {
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: var(--cards-text);
+        margin: 0 0 0.75rem;
+    }
+
+    .cards-empty__desc {
+        font-size: 1rem;
+        color: var(--cards-text-muted);
+        margin: 0 0 0.5rem;
+        line-height: 1.6;
+    }
+
+    .cards-empty__desc a {
+        color: var(--cards-primary-dark);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .cards-empty__desc a:hover {
+        text-decoration: underline;
+    }
+
+    .cards-empty__actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 1.5rem;
+    }
+
+    /* ========================================
+       Shell buttons (navigation, actions)
+       ======================================== */
+    .cards-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--cards-radius-sm);
+        font-family: var(--cards-font);
+        font-size: 0.9375rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
+        line-height: 1.2;
+    }
+
+    .cards-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .cards-btn:active {
+        transform: translateY(0);
+    }
+
+    .cards-btn--primary {
+        background: var(--cards-gradient);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+
+    .cards-btn--primary:hover {
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+        color: #fff;
+    }
+
+    .cards-btn--secondary {
+        background: var(--cards-surface);
+        color: var(--cards-text);
+        border: 1px solid var(--cards-border);
+    }
+
+    .cards-btn--secondary:hover {
+        background: var(--cards-surface-alt);
+        color: var(--cards-text);
+    }
+
+    .cards-btn svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+
+    /* ========================================
+       No cards / alert
+       ======================================== */
+    .cards-no-cards {
+        background: var(--cards-surface);
+        border: 1px solid var(--cards-border);
+        border-radius: var(--cards-radius);
+        padding: 2.5rem 2rem;
+        text-align: center;
+    }
+
+    .cards-no-cards__title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--cards-text);
+        margin: 0 0 0.5rem;
+    }
+
+    .cards-no-cards__desc {
+        font-size: 0.9375rem;
+        color: var(--cards-text-muted);
+        margin: 0 0 1rem;
+    }
+
+    /* ========================================
+       Daily limit message
+       ======================================== */
+    .cards-daily-limit {
+        background: var(--cards-surface);
+        border: 1px solid var(--cards-border);
+        border-radius: var(--cards-radius);
+        padding: 2.5rem 2rem;
+        text-align: center;
+    }
+
+    .cards-daily-limit__title {
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: #16a34a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin: 0 0 1rem;
+    }
+
+    .cards-daily-limit__title svg {
+        width: 24px;
+        height: 24px;
+        color: #16a34a;
+    }
+
+    .cards-daily-limit__desc {
+        font-size: 0.9375rem;
+        color: var(--cards-text-muted);
+        margin: 0 0 1.5rem;
+        line-height: 1.6;
+    }
+
+    .cards-daily-limit__stats {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cards-daily-limit__stat {
+        text-align: center;
+    }
+
+    .cards-daily-limit__stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--cards-text);
+        margin: 0 0 0.25rem;
+    }
+
+    .cards-daily-limit__stat-label {
+        font-size: 0.8125rem;
+        color: var(--cards-text-muted);
+    }
+
+    .cards-daily-limit__actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* ========================================
+       Responsive
+       ======================================== */
+    @media (max-width: 600px) {
+        .cards-header {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+        }
+
+        .cards-header__title {
+            font-size: 0.875rem;
+        }
+
+        .cards-progress__top {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .cards-empty {
+            padding: 2rem 1.25rem;
+        }
+
+        .cards-empty__actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .cards-btn {
+            justify-content: center;
+        }
+
+        .cards-daily-limit__stats {
+            flex-direction: column;
+            gap: 1rem;
+        }
+    }
+</style>
+
+<div class="cards-page" id="flashcard-app">
+    <!-- Header strip -->
+    <div class="cards-header">
+        <div class="cards-header__left">
+            <a href="{{ url_for('study.index') }}" class="cards-header__back" title="Назад">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            </a>
+            <span class="cards-header__title">
+                {% if deck_title is defined and deck_title %}{{ deck_title }}{% else %}Карточки{% endif %}
+            </span>
+        </div>
+        <button id="end-session-btn" class="cards-header__end-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+            Завершить
+        </button>
+    </div>
+
+    <!-- Progress bar and stats — keeps .card.shadow-sm.mb-4 classes for JS querySelector -->
+    <div class="card shadow-sm mb-4 cards-progress-section">
+        <div class="cards-progress__top">
+            <span class="cards-progress__counter" id="card-counter">Карточка 1 из 20</span>
+            <div class="cards-progress__badges">
+                <span class="cards-badge cards-badge--new" id="new-cards-counter" title="Новые карточки (ещё не отвечали)">Новых: 0</span>
+                <span class="cards-badge cards-badge--learning" id="studied-cards-counter" title="Карточки в процессе изучения">В изучении: 0</span>
+                <span class="cards-badge cards-badge--review" id="review-cards-counter" title="Карточки на интервальном повторении">На повтор: 0</span>
             </div>
-            <div class="progress progress-thin">
-                <div class="progress-bar bg-success progress-animated" id="progress-fill" style="width: 0%;"></div>
-            </div>
+        </div>
+        <div class="cards-progress-bar">
+            <div class="cards-progress-bar__fill" id="progress-fill" style="width: 0%;"></div>
         </div>
     </div>
 
     <!-- Loading spinner -->
-    <div id="loading-spinner" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Загрузка...</span>
-        </div>
-        <p class="mt-2 text-muted">Загрузка карточек...</p>
+    <div id="loading-spinner" class="cards-loading">
+        <div class="cards-loading__spinner"></div>
+        <p class="cards-loading__text">Загрузка карточек...</p>
     </div>
 
     <!-- Nothing to study message -->
     {% if nothing_to_study %}
-    <div id="nothing-to-study" class="card shadow-sm text-center nothing-to-study-card" style="display: none;">
-        <div class="card-body">
-            {% if limit_reached %}
-            <div class="celebration-icon">📚</div>
-            <h2 class="mb-3">Дневной лимит достигнут!</h2>
-            <p class="text-muted fs-5 mb-4">
-                Вы уже изучили <strong>{{ new_cards_today }}</strong> новых слов сегодня.<br>
-                Дневной лимит: <strong>{{ daily_limit }}</strong> слов.
-            </p>
-            <p class="text-secondary mb-4">
-                Можете изменить лимит в <a href="{{ url_for('study.settings') }}">настройках</a> или попробовать другие режимы обучения.
-            </p>
+    <div id="nothing-to-study" class="cards-empty" style="display: none;">
+        {% if limit_reached %}
+        <div class="cards-empty__icon">📚</div>
+        <h2 class="cards-empty__title">Дневной лимит достигнут!</h2>
+        <p class="cards-empty__desc">
+            Вы уже изучили <strong>{{ new_cards_today }}</strong> новых слов сегодня.<br>
+            Дневной лимит: <strong>{{ daily_limit }}</strong> слов.
+        </p>
+        <p class="cards-empty__desc">
+            Можете изменить лимит в <a href="{{ url_for('study.settings') }}">настройках</a> или попробовать другие режимы обучения.
+        </p>
+        {% else %}
+        <div class="cards-empty__icon">🎉</div>
+        <h2 class="cards-empty__title">Отлично! Все изучено на сегодня!</h2>
+        <p class="cards-empty__desc">
+            {% if deck_title %}
+            В колоде <strong>"{{ deck_title }}"</strong> сегодня нечего повторять.
             {% else %}
-            <div class="celebration-icon">🎉</div>
-            <h2 class="mb-3">Отлично! Все изучено на сегодня!</h2>
-            <p class="text-muted fs-5 mb-4">
-                {% if deck_title %}
-                В колоде <strong>"{{ deck_title }}"</strong> сегодня нечего повторять.
-                {% else %}
-                У вас нет слов для повторения на сегодня.
-                {% endif %}
-            </p>
-            <p class="text-secondary mb-4">
-                Вернитесь завтра, чтобы повторить изученные слова, или попробуйте другие режимы обучения.
-            </p>
+            У вас нет слов для повторения на сегодня.
             {% endif %}
+        </p>
+        <p class="cards-empty__desc">
+            Вернитесь завтра, чтобы повторить изученные слова, или попробуйте другие режимы обучения.
+        </p>
+        {% endif %}
 
-            <div class="d-flex gap-3 justify-content-center flex-wrap mt-4">
-                {% if deck_id %}
-                <a href="{{ url_for('study.quiz_deck', deck_id=deck_id) }}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-brain me-2"></i>Пройти Quiz
-                </a>
-                <a href="{{ url_for('study.edit_deck', deck_id=deck_id) }}" class="btn btn-outline-secondary btn-lg">
-                    <i class="fas fa-edit me-2"></i>Редактировать колоду
-                </a>
-                {% else %}
-                <a href="{{ url_for('study.quiz') }}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-brain me-2"></i>Пройти Quiz
-                </a>
-                <a href="{{ url_for('study.matching') }}" class="btn btn-outline-primary btn-lg">
-                    <i class="fas fa-puzzle-piece me-2"></i>Игра "Подбери пару"
-                </a>
-                {% endif %}
-                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary btn-lg">
-                    <i class="fas fa-arrow-left me-2"></i>На главную
-                </a>
-            </div>
+        <div class="cards-empty__actions">
+            {% if deck_id %}
+            <a href="{{ url_for('study.quiz_deck', deck_id=deck_id) }}" class="cards-btn cards-btn--primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M20.66 7A10 10 0 0 0 14 2.05V10h8.46"/></svg>
+                Пройти Quiz
+            </a>
+            <a href="{{ url_for('study.edit_deck', deck_id=deck_id) }}" class="cards-btn cards-btn--secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Редактировать колоду
+            </a>
+            {% else %}
+            <a href="{{ url_for('study.quiz') }}" class="cards-btn cards-btn--primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M20.66 7A10 10 0 0 0 14 2.05V10h8.46"/></svg>
+                Пройти Quiz
+            </a>
+            <a href="{{ url_for('study.matching') }}" class="cards-btn cards-btn--secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Игра "Подбери пару"
+            </a>
+            {% endif %}
+            <a href="{{ url_for('study.index') }}" class="cards-btn cards-btn--secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                На главную
+            </a>
         </div>
     </div>
     {% endif %}
@@ -156,46 +600,47 @@
         </div>
 
         <!-- Сообщение о завершении дневного лимита -->
-        <div id="daily-limit-message" class="card-container text-center" style="display: none;">
-            <h2 class="mb-4 text-success">
-                <i class="fas fa-check-circle text-success me-2"></i>
+        <div id="daily-limit-message" class="cards-daily-limit" style="display: none;">
+            <h2 class="cards-daily-limit__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                 Ура! На сегодня всё!
             </h2>
 
-            <div class="mb-4">Дневной лимит изучения достигнут. Ещё есть новые карточки, но дневной лимит исчерпан. Вы можете увеличить лимит в настройках, но имейте в виду, что чем больше новых карточек вы изучите, тем больше придётся повторять в ближайшее время.</div>
-            <div class="mt-4">
-                <div class="d-flex justify-content-center gap-3 mb-4">
-                    <div class="text-center">
-                        <h4 id="new-cards-stats" class="mb-2">0 / 0</h4>
-                        <p class="text-muted">Новые карточки</p>
-                    </div>
-                    <div class="text-center">
-                        <h4 id="reviews-stats" class="mb-2">0 / 0</h4>
-                        <p class="text-muted">Повторения</p>
-                    </div>
+            <p class="cards-daily-limit__desc">Дневной лимит изучения достигнут. Ещё есть новые карточки, но дневной лимит исчерпан. Вы можете увеличить лимит в настройках, но имейте в виду, что чем больше новых карточек вы изучите, тем больше придётся повторять в ближайшее время.</p>
+
+            <div class="cards-daily-limit__stats">
+                <div class="cards-daily-limit__stat">
+                    <div class="cards-daily-limit__stat-value" id="new-cards-stats">0 / 0</div>
+                    <div class="cards-daily-limit__stat-label">Новые карточки</div>
+                </div>
+                <div class="cards-daily-limit__stat">
+                    <div class="cards-daily-limit__stat-value" id="reviews-stats">0 / 0</div>
+                    <div class="cards-daily-limit__stat-label">Повторения</div>
                 </div>
             </div>
 
-            <div class="mt-4">
-                <a href="{{ url_for('study.cards', word_source='new') }}?extra_study=true" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i> Дополнительное занятие
+            <div class="cards-daily-limit__actions">
+                <a href="{{ url_for('study.cards', word_source='new') }}?extra_study=true" class="cards-btn cards-btn--primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Дополнительное занятие
                 </a>
 
-                <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
+                <a href="{{ url_for('study.index') }}" class="cards-btn cards-btn--secondary">
                     На главную
                 </a>
 
-                <a href="{{ url_for('study.settings') }}" class="btn btn-outline-secondary ms-2">
-                    <i class="fas fa-cog"></i> Настройки
+                <a href="{{ url_for('study.settings') }}" class="cards-btn cards-btn--secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1.08H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg>
+                    Настройки
                 </a>
             </div>
         </div>
 
         <!-- No cards message -->
-        <div id="no-cards-message" class="alert alert-info text-center" style="display: none;">
-            <h4>Нет карточек</h4>
-            <p>Нет слов, соответствующих вашим критериям обучения.</p>
-            <a href="{{ url_for('study.index') }}" class="btn btn-primary mt-2">
+        <div id="no-cards-message" class="cards-no-cards" style="display: none;">
+            <h4 class="cards-no-cards__title">Нет карточек</h4>
+            <p class="cards-no-cards__desc">Нет слов, соответствующих вашим критериям обучения.</p>
+            <a href="{{ url_for('study.index') }}" class="cards-btn cards-btn--primary">
                 Вернуться к обучению
             </a>
         </div>
@@ -222,7 +667,7 @@
                 </p>
 
                 <a href="{{ url_for('study.index') }}" class="session-done-back">
-                    <i class="fas fa-arrow-left me-2"></i>Вернуться к обучению
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.375rem;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Вернуться к обучению
                 </a>
             </div>
         </div>
@@ -241,12 +686,12 @@
             .session-done-title {
                 font-size: 1.75rem;
                 font-weight: 600;
-                color: var(--text-primary, #1f2937);
+                color: var(--cards-text, var(--text-primary, #1f2937));
                 margin-bottom: 1.5rem;
             }
 
             .session-done-stats {
-                background: var(--gray-50, #f9fafb);
+                background: var(--cards-surface-alt, var(--gray-50, #f9fafb));
                 border-radius: 12px;
                 padding: 1rem 1.25rem;
                 margin-bottom: 1.5rem;
@@ -254,7 +699,7 @@
 
             .session-stats-label {
                 font-size: 0.875rem;
-                color: var(--text-secondary, #6b7280);
+                color: var(--cards-text-muted, var(--text-secondary, #6b7280));
                 margin-bottom: 0.75rem;
             }
 
@@ -292,13 +737,13 @@
 
             .session-done-extra {
                 font-size: 0.95rem;
-                color: var(--text-secondary, #6b7280);
+                color: var(--cards-text-muted, var(--text-secondary, #6b7280));
                 margin-bottom: 2rem;
                 line-height: 1.6;
             }
 
             .extra-study-link {
-                color: var(--primary-600, #4f46e5);
+                color: var(--cards-primary-dark, var(--primary-600, #2563eb));
                 text-decoration: none;
                 font-weight: 500;
             }
@@ -310,14 +755,14 @@
             .session-done-back {
                 display: inline-flex;
                 align-items: center;
-                color: var(--text-secondary, #6b7280);
+                color: var(--cards-text-muted, var(--text-secondary, #6b7280));
                 text-decoration: none;
                 font-size: 0.9rem;
                 transition: color 0.2s;
             }
 
             .session-done-back:hover {
-                color: var(--text-primary, #1f2937);
+                color: var(--cards-text, var(--text-primary, #1f2937));
             }
         </style>
 
@@ -407,7 +852,7 @@
                     </a>
 
                     <a href="{{ url_for('study.index') }}" class="btn-back-home">
-                        <i class="fas fa-arrow-left"></i>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
                         <span>К обучению</span>
                     </a>
                 </div>
@@ -565,7 +1010,7 @@
             }
 
             .stat-cards-studied .stat-value {
-                color: #4f46e5;
+                color: #2563eb;
             }
 
             .stat-correct .stat-value {
@@ -710,10 +1155,6 @@
 
             .btn-back-home:hover {
                 color: #1f2937;
-            }
-
-            .btn-back-home i {
-                font-size: 0.875rem;
             }
 
             /* ============================================
@@ -1400,13 +1841,13 @@
                 if (card.audio_url) {
                     wordAudio.src = card.audio_url;
                 }
-                
+
                 // Логика показа кнопок аудио и автовоспроизведения
                 if (card.direction === 'eng-rus') {
                     // Для eng-rus карточек показываем кнопку на фронтальной стороне
                     frontAudioBtn.hidden = false;
                     backAudioBtn.hidden = false; // Также доступно на обратной стороне
-                    
+
                     // Автовоспроизведение для eng-rus карточек на фронтальной стороне
                     setTimeout(() => {
                         wordAudio.play().catch(error => {
@@ -1416,7 +1857,7 @@
                     // Для rus-eng карточек НЕ показываем кнопку на фронтальной стороне
                     frontAudioBtn.hidden = true;
                     backAudioBtn.hidden = false; // Показываем только на обратной стороне
-                    
+
                     // НЕТ автовоспроизведения на фронтальной стороне для rus-eng
                 }
             } else {

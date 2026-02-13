@@ -33,7 +33,7 @@ def upgrade():
         unique=False
     )
 
-    # QuizDeckWord composite for deck sync operations (sync_master_decks)
+    # QuizDeckWord composite for deck word lookup operations
     op.create_index(
         'idx_deck_word_deck_word_composite',
         'quiz_deck_words',

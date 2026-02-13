@@ -18,9 +18,18 @@ class TestImportModuleBasic:
     def test_import_valid_module(self, app, db_session):
         """Тест успешного импорта валидного модуля"""
         import uuid
+        import random
         with app.app_context():
-            # Create unique level code
-            level_code = uuid.uuid4().hex[:2].upper()
+            # Generate unique 2-char level code by checking what doesn't exist
+            # CEFR codes are 2 chars (A1, A2, B1, B2, C1, C2) - use non-standard codes
+            existing_codes = {level.code for level in CEFRLevel.query.all()}
+            for _ in range(100):
+                # Generate random 2-char code like X1, Y2, Z3
+                level_code = f"{random.choice('XYZWV')}{random.randint(0, 9)}"
+                if level_code not in existing_codes:
+                    break
+            else:
+                pytest.skip("Could not find unique level code")
             # Create unique module ID
             module_id = int(uuid.uuid4().hex[:6], 16) % 100000
 

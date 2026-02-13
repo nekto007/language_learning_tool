@@ -41,18 +41,24 @@
   <!-- Topic Filter -->
   {% if topics %}
   <div class="collections-filter">
-    <span class="collections-filter__label">Тема:</span>
-    <div class="collections-filter__buttons">
-      <a href="{{ url_for('study.collections') }}" class="collections-filter__btn {% if not selected_topic %}collections-filter__btn--active{% endif %}">
-        Все
-      </a>
+    <svg class="collections-filter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M4 6h16M7 12h10M10 18h4"/>
+    </svg>
+    <select class="collections-filter__select" onchange="if(this.value){window.location=this.value}">
+      <option value="{{ url_for('study.collections') }}" {% if not selected_topic %}selected{% endif %}>Все темы</option>
       {% for topic in topics %}
-      <a href="{{ url_for('study.collections', topic=topic.id) }}"
-         class="collections-filter__btn {% if selected_topic == topic.id %}collections-filter__btn--active{% endif %}">
+      <option value="{{ url_for('study.collections', topic=topic.id) }}" {% if selected_topic == topic.id %}selected{% endif %}>
         {{ topic.name }}
-      </a>
+      </option>
       {% endfor %}
-    </div>
+    </select>
+    {% if selected_topic %}
+    <a href="{{ url_for('study.collections') }}" class="collections-filter__clear" title="Сбросить фильтр">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+    </a>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -291,54 +297,65 @@
 .collections-filter {
   background: var(--coll-surface);
   border-radius: var(--coll-radius-sm);
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
   border: 1px solid var(--coll-border);
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.collections-filter__label {
-  font-size: 0.875rem;
-  font-weight: 500;
+.collections-filter__icon {
   color: var(--coll-text-muted);
+  flex-shrink: 0;
 }
 
-.collections-filter__buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.collections-filter__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
+.collections-filter__select {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
   background: var(--coll-surface-alt);
   border: 1px solid var(--coll-border);
   border-radius: 8px;
+  padding: 0.5rem 2.25rem 0.5rem 0.875rem;
+  font-family: var(--coll-font);
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--coll-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  max-width: 360px;
+}
+
+.collections-filter__select:hover {
+  border-color: var(--coll-primary);
+}
+
+.collections-filter__select:focus {
+  outline: none;
+  border-color: var(--coll-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.collections-filter__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
   text-decoration: none;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
-.collections-filter__btn:hover {
-  border-color: var(--coll-primary);
-  color: var(--coll-primary);
-}
-
-.collections-filter__btn--active {
-  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
-  border-color: var(--coll-primary);
-  color: white;
-}
-
-.collections-filter__btn--active:hover {
+.collections-filter__clear:hover {
+  background: #ef4444;
   color: white;
 }
 
@@ -603,19 +620,8 @@
     width: 100%;
   }
 
-  .collections-filter {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .collections-filter__buttons {
-    width: 100%;
-  }
-
-  .collections-filter__btn {
-    flex: 1;
-    justify-content: center;
-    min-width: 0;
+  .collections-filter__select {
+    max-width: none;
   }
 
   .collection-card {

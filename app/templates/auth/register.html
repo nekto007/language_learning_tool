@@ -3,52 +3,167 @@
 {% block title %}Регистрация - Изучение английского{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">Регистрация</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('auth.register') }}">
-                    {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.username.label(class="form-label") }}
-                        {{ form.username(class="form-control") }}
-                        {% for error in form.username.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {{ form.email(class="form-control") }}
-                        {% for error in form.email.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    <div class="mb-3">
-                        {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control") }}
-                        {% for error in form.password.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    <div class="mb-3">
-                        {{ form.password2.label(class="form-label") }}
-                        {{ form.password2(class="form-control") }}
-                        {% for error in form.password2.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary") }}
-                    </div>
-                </form>
-            </div>
-            <div class="card-footer text-center">
-                <p class="mb-0">Уже есть аккаунт? <a href="{{ url_for('auth.login') }}">Войти</a></p>
-            </div>
+<div class="auth-page">
+  <div class="auth-card">
+    <!-- Header -->
+    <div class="auth-card__header">
+      <div class="auth-card__bg-shapes">
+        <div class="shape shape--1"></div>
+        <div class="shape shape--2"></div>
+      </div>
+      <div class="auth-card__header-content">
+        <div class="auth-card__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4"/>
+            <line x1="20" y1="8" x2="20" y2="14"/>
+            <line x1="23" y1="11" x2="17" y2="11"/>
+          </svg>
         </div>
+        <h1 class="auth-card__title">Регистрация</h1>
+        <p class="auth-card__subtitle">Создайте аккаунт для начала обучения</p>
+      </div>
     </div>
+
+    <!-- Form -->
+    <div class="auth-card__body">
+      <form method="POST" action="{{ url_for('auth.register') }}">
+        {{ form.hidden_tag() }}
+
+        <div class="auth-field">
+          <label class="auth-field__label" for="{{ form.username.id }}">{{ form.username.label.text }}</label>
+          <input type="text" class="auth-field__input" id="{{ form.username.id }}" name="{{ form.username.name }}" value="{{ form.username.data or '' }}">
+          {% for error in form.username.errors %}
+            <span class="auth-field__error">{{ error }}</span>
+          {% endfor %}
+        </div>
+
+        <div class="auth-field">
+          <label class="auth-field__label" for="{{ form.email.id }}">{{ form.email.label.text }}</label>
+          <input type="email" class="auth-field__input" id="{{ form.email.id }}" name="{{ form.email.name }}" value="{{ form.email.data or '' }}">
+          {% for error in form.email.errors %}
+            <span class="auth-field__error">{{ error }}</span>
+          {% endfor %}
+        </div>
+
+        <div class="auth-field">
+          <label class="auth-field__label" for="{{ form.password.id }}">{{ form.password.label.text }}</label>
+          <input type="password" class="auth-field__input" id="{{ form.password.id }}" name="{{ form.password.name }}">
+          {% for error in form.password.errors %}
+            <span class="auth-field__error">{{ error }}</span>
+          {% endfor %}
+        </div>
+
+        <div class="auth-field">
+          <label class="auth-field__label" for="{{ form.password2.id }}">{{ form.password2.label.text }}</label>
+          <input type="password" class="auth-field__input" id="{{ form.password2.id }}" name="{{ form.password2.name }}">
+          {% for error in form.password2.errors %}
+            <span class="auth-field__error">{{ error }}</span>
+          {% endfor %}
+        </div>
+
+        <button type="submit" class="auth-btn">Зарегистрироваться</button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="auth-card__footer">
+      <p>Уже есть аккаунт? <a href="{{ url_for('auth.login') }}" class="auth-link">Войти</a></p>
+    </div>
+  </div>
 </div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.auth-page {
+  --auth-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --auth-primary: #2563eb;
+  --auth-primary-dark: #1d4ed8;
+  --auth-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --auth-surface: #ffffff;
+  --auth-surface-alt: #f8fafc;
+  --auth-text: #0f172a;
+  --auth-text-muted: #64748b;
+  --auth-border: #e2e8f0;
+  --auth-radius: 16px;
+  --auth-radius-sm: 10px;
+  --auth-error: #ef4444;
+
+  font-family: var(--auth-font);
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem 3rem;
+  min-height: 60vh;
+  align-items: flex-start;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--auth-surface);
+  border-radius: var(--auth-radius);
+  border: 1px solid var(--auth-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  animation: auth-slideUp 0.5s ease-out;
+}
+
+.auth-card__header {
+  position: relative;
+  background: var(--auth-gradient);
+  padding: 2rem 2rem 1.75rem;
+  overflow: hidden;
+  color: white;
+}
+
+.auth-card__bg-shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.auth-card__header .shape { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.1); }
+.auth-card__header .shape--1 { width: 120px; height: 120px; top: -40px; right: -20px; animation: auth-float-1 18s ease-in-out infinite; }
+.auth-card__header .shape--2 { width: 70px; height: 70px; bottom: -25px; left: 10%; animation: auth-float-2 14s ease-in-out infinite; }
+
+@keyframes auth-float-1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-10px, 10px) scale(1.05); } }
+@keyframes auth-float-2 { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(15px, -10px) rotate(8deg); } }
+
+.auth-card__header-content { position: relative; z-index: 1; text-align: center; }
+.auth-card__icon { width: 56px; height: 56px; background: rgba(255, 255, 255, 0.2); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; backdrop-filter: blur(10px); }
+.auth-card__title { font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+.auth-card__subtitle { font-size: 0.8125rem; margin: 0.375rem 0 0; opacity: 0.85; }
+
+.auth-card__body { padding: 2rem; }
+
+.auth-field { margin-bottom: 1.25rem; }
+.auth-field__label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--auth-text); margin-bottom: 0.5rem; }
+.auth-field__input {
+  width: 100%; padding: 0.75rem 1rem; border: 1.5px solid var(--auth-border); border-radius: var(--auth-radius-sm);
+  font-family: var(--auth-font); font-size: 0.9375rem; color: var(--auth-text); background: var(--auth-surface-alt);
+  transition: all 0.2s ease; box-sizing: border-box;
+}
+.auth-field__input::placeholder { color: var(--auth-text-muted); }
+.auth-field__input:focus { outline: none; border-color: var(--auth-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); background: white; }
+.auth-field__error { display: block; font-size: 0.75rem; color: var(--auth-error); margin-top: 0.375rem; font-weight: 500; }
+
+.auth-btn {
+  width: 100%; padding: 0.875rem; background: var(--auth-gradient); color: white; border: none;
+  border-radius: var(--auth-radius-sm); font-family: var(--auth-font); font-size: 1rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease; margin-top: 0.5rem;
+}
+.auth-btn:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+.auth-btn:active { transform: translateY(0); }
+
+.auth-link { font-size: 0.8125rem; font-weight: 500; color: var(--auth-primary); text-decoration: none; transition: color 0.2s ease; }
+.auth-link:hover { color: var(--auth-primary-dark); text-decoration: underline; }
+
+.auth-card__footer { padding: 1.25rem 2rem; border-top: 1px solid var(--auth-border); text-align: center; }
+.auth-card__footer p { margin: 0; font-size: 0.875rem; color: var(--auth-text-muted); }
+
+@keyframes auth-slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 640px) {
+  .auth-page { padding: 1rem 0.75rem 2rem; }
+  .auth-card__header { padding: 1.5rem 1.5rem 1.25rem; }
+  .auth-card__body { padding: 1.5rem; }
+  .auth-card__footer { padding: 1rem 1.5rem; }
+}
+</style>
 {% endblock %}

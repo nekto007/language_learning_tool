@@ -3,167 +3,779 @@
 {% block title %}Настройки модулей{% endblock %}
 
 {% block content %}
-<div class="container mt-4 mb-5">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h2">Настройки модулей</h1>
-            <p class="text-muted">Управляйте доступными разделами приложения</p>
+<div class="ms-page">
+
+    <!-- Hero Section -->
+    <div class="ms-hero">
+        <div class="ms-hero__bg-shapes">
+            <div class="ms-shape ms-shape--1"></div>
+            <div class="ms-shape ms-shape--2"></div>
+        </div>
+
+        <div class="ms-hero__content">
+            <div class="ms-hero__icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="ms-hero__title">Настройки модулей</h1>
+                <p class="ms-hero__subtitle">Управляйте доступными разделами приложения</p>
+            </div>
         </div>
     </div>
 
-    <!-- Info Alert -->
-    <div class="alert alert-info" role="alert">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Подсказка:</strong> Вы можете включать и отключать модули в соответствии с вашими потребностями. Отключенные модули не будут отображаться в навигации.
+    <!-- Info Tip -->
+    <div class="ms-tip">
+        <div class="ms-tip__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+        </div>
+        <p class="ms-tip__text"><strong>Подсказка:</strong> Вы можете включать и отключать модули в соответствии с вашими потребностями. Отключенные модули не будут отображаться в навигации.</p>
     </div>
 
-    <!-- Modules List -->
-    <div class="row">
+    <!-- Modules Grid -->
+    {% if all_modules %}
+    <div class="ms-grid">
         {% for module in all_modules %}
         {% set user_module = user_module_map.get(module.id) %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 {% if user_module and user_module.is_enabled %}border-primary{% else %}border-secondary{% endif %}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center mb-2">
-                                {% if module.icon %}
-                                <i class="fas fa-{{ module.icon }} fa-2x me-3 text-primary"></i>
-                                {% else %}
-                                <i class="fas fa-puzzle-piece fa-2x me-3 text-muted"></i>
-                                {% endif %}
-                                <div>
-                                    <h5 class="card-title mb-0">{{ module.name }}</h5>
-                                    <small class="text-muted"><code>{{ module.code }}</code></small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox"
-                                   id="module_{{ module.id }}"
-                                   {% if user_module and user_module.is_enabled %}checked{% endif %}
-                                   {% if not user_module %}disabled{% endif %}
-                                   onchange="toggleModule({{ module.id }}, this.checked)">
-                        </div>
-                    </div>
-
-                    <p class="card-text text-muted small">
-                        {% if module.description %}
-                        {{ module.description }}
-                        {% else %}
-                        Функциональный модуль приложения
-                        {% endif %}
-                    </p>
-
-                    <div class="mt-3">
-                        {% if user_module %}
-                            {% if user_module.is_enabled %}
-                            <span class="badge bg-success">
-                                <i class="fas fa-check-circle"></i> Включен
-                            </span>
-                            {% else %}
-                            <span class="badge bg-secondary">
-                                <i class="fas fa-times-circle"></i> Отключен
-                            </span>
-                            {% endif %}
-
-                            {% if user_module.granted_by_admin %}
-                            <span class="badge bg-warning text-dark">
-                                <i class="fas fa-user-shield"></i> Выдан админом
-                            </span>
-                            {% endif %}
-
-                            {% if module.is_default %}
-                            <span class="badge bg-info">
-                                <i class="fas fa-star"></i> По умолчанию
-                            </span>
-                            {% endif %}
-                        {% else %}
-                            <span class="badge bg-dark">
-                                <i class="fas fa-lock"></i> Недоступен
-                            </span>
-                            <p class="small text-muted mt-2 mb-0">
-                                Этот модуль не доступен для вашей учетной записи. Обратитесь к администратору для получения доступа.
-                            </p>
-                        {% endif %}
-                    </div>
-
-                    {% if user_module and user_module.granted_at %}
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="far fa-calendar"></i>
-                            Добавлен: {{ user_module.granted_at.strftime('%d.%m.%Y') }}
-                        </small>
-                    </div>
-                    {% endif %}
+        <div class="ms-card {% if not user_module %}ms-card--locked{% endif %}">
+            <div class="ms-card__header">
+                <div class="ms-card__icon {% if user_module and user_module.is_enabled %}ms-card__icon--active{% endif %}">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                    </svg>
                 </div>
+                <div class="ms-card__info">
+                    <h3 class="ms-card__name">{{ module.name }}</h3>
+                    <span class="ms-card__code">{{ module.code }}</span>
+                </div>
+                {% if user_module %}
+                <label class="ms-toggle" for="module_{{ module.id }}">
+                    <input class="ms-toggle__input"
+                           type="checkbox"
+                           id="module_{{ module.id }}"
+                           {% if user_module and user_module.is_enabled %}checked{% endif %}
+                           onchange="toggleModule({{ module.id }}, this.checked)">
+                    <span class="ms-toggle__slider"></span>
+                </label>
+                {% endif %}
             </div>
-        </div>
-        {% else %}
-        <div class="col-12">
-            <div class="alert alert-warning" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Нет доступных модулей. Обратитесь к администратору.
+
+            <p class="ms-card__desc">
+                {% if module.description %}
+                {{ module.description }}
+                {% else %}
+                Функциональный модуль приложения
+                {% endif %}
+            </p>
+
+            <div class="ms-card__badges">
+                {% if user_module %}
+                    {% if user_module.is_enabled %}
+                    <span class="ms-badge ms-badge--success">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <path d="M20 6L9 17l-5-5"/>
+                        </svg>
+                        Включен
+                    </span>
+                    {% else %}
+                    <span class="ms-badge ms-badge--muted">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                        Отключен
+                    </span>
+                    {% endif %}
+
+                    {% if user_module.granted_by_admin %}
+                    <span class="ms-badge ms-badge--warning">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        Выдан админом
+                    </span>
+                    {% endif %}
+
+                    {% if module.is_default %}
+                    <span class="ms-badge ms-badge--info">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                        По умолчанию
+                    </span>
+                    {% endif %}
+                {% else %}
+                    <span class="ms-badge ms-badge--locked">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0110 0v4"/>
+                        </svg>
+                        Недоступен
+                    </span>
+                    <p class="ms-card__locked-msg">Этот модуль не доступен для вашей учетной записи. Обратитесь к администратору для получения доступа.</p>
+                {% endif %}
             </div>
+
+            {% if user_module and user_module.granted_at %}
+            <div class="ms-card__date">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Добавлен: {{ user_module.granted_at.strftime('%d.%m.%Y') }}
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <div class="ms-empty">
+        <div class="ms-empty__icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+        </div>
+        <h3 class="ms-empty__title">Нет доступных модулей</h3>
+        <p class="ms-empty__desc">Обратитесь к администратору.</p>
+    </div>
+    {% endif %}
 
     <!-- Help Section -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Справка</h5>
-                </div>
-                <div class="card-body">
-                    <h6>Что такое модули?</h6>
-                    <p class="small text-muted">
-                        Модули - это функциональные разделы приложения. Вы можете включать и отключать их в зависимости от ваших потребностей.
-                    </p>
+    <div class="ms-help">
+        <div class="ms-help__header">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <h2 class="ms-help__title">Справка</h2>
+        </div>
 
-                    <h6 class="mt-3">Доступные модули:</h6>
-                    <ul class="small text-muted">
-                        <li><strong>Учебная программа</strong> - структурированные уроки по уровням</li>
-                        <li><strong>Словарь</strong> - коллекция слов для изучения</li>
-                        <li><strong>Книги</strong> - чтение книг с изучением слов</li>
-                        <li><strong>Повторение</strong> - система интервального повторения</li>
-                        <li><strong>Напоминания</strong> - уведомления о занятиях</li>
-                    </ul>
+        <div class="ms-help__body">
+            <div class="ms-help__section">
+                <h4 class="ms-help__heading">Что такое модули?</h4>
+                <p class="ms-help__text">Модули - это функциональные разделы приложения. Вы можете включать и отключать их в зависимости от ваших потребностей.</p>
+            </div>
 
-                    <h6 class="mt-3">Примечание:</h6>
-                    <p class="small text-muted mb-0">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Отключенные модули не будут отображаться в меню навигации. Вы можете в любой момент включить их снова.
-                    </p>
-                </div>
+            <div class="ms-help__section">
+                <h4 class="ms-help__heading">Доступные модули:</h4>
+                <ul class="ms-help__list">
+                    <li><strong>Учебная программа</strong> - структурированные уроки по уровням</li>
+                    <li><strong>Словарь</strong> - коллекция слов для изучения</li>
+                    <li><strong>Книги</strong> - чтение книг с изучением слов</li>
+                    <li><strong>Повторение</strong> - система интервального повторения</li>
+                    <li><strong>Напоминания</strong> - уведомления о занятиях</li>
+                </ul>
+            </div>
+
+            <div class="ms-help__section">
+                <h4 class="ms-help__heading">Примечание:</h4>
+                <p class="ms-help__text ms-help__text--note">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                    Отключенные модули не будут отображаться в меню навигации. Вы можете в любой момент включить их снова.
+                </p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Toast for notifications -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="successToast" class="toast" role="alert">
-        <div class="toast-header bg-success text-white">
-            <i class="fas fa-check-circle me-2"></i>
-            <strong class="me-auto">Успешно</strong>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body" id="successToastBody"></div>
-    </div>
+<!-- Toast Notifications -->
+<div class="ms-toast-container" id="msToastContainer"></div>
 
-    <div id="errorToast" class="toast" role="alert">
-        <div class="toast-header bg-danger text-white">
-            <i class="fas fa-exclamation-circle me-2"></i>
-            <strong class="me-auto">Ошибка</strong>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body" id="errorToastBody"></div>
-    </div>
-</div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
 
+/* Page Container */
+.ms-page {
+    --ms-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+    --ms-primary: #2563eb;
+    --ms-primary-dark: #1d4ed8;
+    --ms-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+    --ms-surface: #ffffff;
+    --ms-surface-alt: #f8fafc;
+    --ms-text: #0f172a;
+    --ms-text-muted: #64748b;
+    --ms-border: #e2e8f0;
+    --ms-radius: 16px;
+    --ms-radius-sm: 10px;
+    --ms-success: #22c55e;
+    --ms-warning: #f59e0b;
+    --ms-info: #06b6d4;
+    --ms-danger: #ef4444;
+    font-family: var(--ms-font);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+}
+
+/* ===== Hero ===== */
+.ms-hero {
+    position: relative;
+    background: var(--ms-gradient);
+    border-radius: var(--ms-radius);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    color: white;
+    animation: ms-slideUp 0.4s ease-out;
+}
+
+.ms-hero__bg-shapes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.ms-shape {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.ms-shape--1 {
+    width: 150px;
+    height: 150px;
+    top: -50px;
+    right: -30px;
+    animation: ms-float-1 18s ease-in-out infinite;
+}
+
+.ms-shape--2 {
+    width: 80px;
+    height: 80px;
+    bottom: -30px;
+    left: 10%;
+    animation: ms-float-2 14s ease-in-out infinite;
+}
+
+@keyframes ms-float-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes ms-float-2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+.ms-hero__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ms-hero__icon {
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+}
+
+.ms-hero__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.ms-hero__subtitle {
+    font-size: 0.875rem;
+    margin: 0.25rem 0 0;
+    opacity: 0.9;
+}
+
+/* ===== Info Tip ===== */
+.ms-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: rgba(37, 99, 235, 0.06);
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    border-radius: var(--ms-radius-sm);
+    margin-bottom: 1.5rem;
+    animation: ms-slideUp 0.4s ease-out 0.1s both;
+}
+
+.ms-tip__icon {
+    color: var(--ms-primary);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ms-tip__text {
+    font-size: 0.875rem;
+    color: var(--ms-text);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.ms-tip__text strong {
+    font-weight: 600;
+}
+
+/* ===== Modules Grid ===== */
+.ms-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    animation: ms-slideUp 0.4s ease-out 0.15s both;
+}
+
+/* ===== Module Card ===== */
+.ms-card {
+    background: var(--ms-surface);
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius);
+    padding: 1.25rem;
+    transition: all 0.25s ease;
+    animation: ms-slideUp 0.35s ease-out both;
+}
+
+.ms-card:nth-child(1) { animation-delay: 0.1s; }
+.ms-card:nth-child(2) { animation-delay: 0.15s; }
+.ms-card:nth-child(3) { animation-delay: 0.2s; }
+.ms-card:nth-child(4) { animation-delay: 0.25s; }
+.ms-card:nth-child(5) { animation-delay: 0.3s; }
+.ms-card:nth-child(6) { animation-delay: 0.35s; }
+.ms-card:nth-child(7) { animation-delay: 0.4s; }
+.ms-card:nth-child(8) { animation-delay: 0.45s; }
+
+.ms-card:hover {
+    border-color: var(--ms-primary);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.1);
+    transform: translateY(-2px);
+}
+
+.ms-card--locked {
+    opacity: 0.7;
+}
+
+.ms-card--locked:hover {
+    border-color: var(--ms-border);
+    box-shadow: none;
+    transform: none;
+}
+
+.ms-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.ms-card__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--ms-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ms-surface-alt);
+    color: var(--ms-text-muted);
+    flex-shrink: 0;
+    transition: all 0.25s ease;
+}
+
+.ms-card__icon--active {
+    background: var(--ms-gradient);
+    color: white;
+}
+
+.ms-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ms-card__name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ms-text);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.ms-card__code {
+    font-size: 0.75rem;
+    color: var(--ms-text-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    background: var(--ms-surface-alt);
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 2px;
+}
+
+.ms-card__desc {
+    font-size: 0.8125rem;
+    color: var(--ms-text-muted);
+    margin: 0 0 0.75rem;
+    line-height: 1.5;
+}
+
+/* ===== Toggle Switch ===== */
+.ms-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.ms-toggle__input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.ms-toggle__slider {
+    position: absolute;
+    inset: 0;
+    background: #cbd5e1;
+    border-radius: 24px;
+    transition: all 0.3s ease;
+}
+
+.ms-toggle__slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.ms-toggle__input:checked + .ms-toggle__slider {
+    background: var(--ms-primary);
+}
+
+.ms-toggle__input:checked + .ms-toggle__slider::before {
+    transform: translateX(20px);
+}
+
+.ms-toggle__input:focus-visible + .ms-toggle__slider {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+/* ===== Badges ===== */
+.ms-card__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.ms-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.ms-badge--success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+}
+
+.ms-badge--muted {
+    background: var(--ms-surface-alt);
+    color: var(--ms-text-muted);
+    border: 1px solid var(--ms-border);
+}
+
+.ms-badge--warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.ms-badge--info {
+    background: rgba(6, 182, 212, 0.1);
+    color: #0891b2;
+}
+
+.ms-badge--locked {
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--ms-text-muted);
+}
+
+.ms-card__locked-msg {
+    font-size: 0.75rem;
+    color: var(--ms-text-muted);
+    margin: 0.5rem 0 0;
+    line-height: 1.5;
+}
+
+.ms-card__date {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--ms-border);
+    font-size: 0.75rem;
+    color: var(--ms-text-muted);
+}
+
+/* ===== Empty State ===== */
+.ms-empty {
+    background: var(--ms-surface);
+    border-radius: var(--ms-radius);
+    border: 1px solid var(--ms-border);
+    padding: 4rem 2rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    animation: ms-slideUp 0.5s ease-out;
+}
+
+.ms-empty__icon {
+    color: var(--ms-border);
+    margin-bottom: 1rem;
+}
+
+.ms-empty__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--ms-text);
+    margin: 0 0 0.5rem;
+}
+
+.ms-empty__desc {
+    font-size: 0.875rem;
+    color: var(--ms-text-muted);
+    margin: 0;
+}
+
+/* ===== Help Section ===== */
+.ms-help {
+    background: var(--ms-surface);
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius);
+    overflow: hidden;
+    animation: ms-slideUp 0.4s ease-out 0.25s both;
+}
+
+.ms-help__header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--ms-border);
+    background: var(--ms-surface-alt);
+    color: var(--ms-text);
+}
+
+.ms-help__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.ms-help__body {
+    padding: 1.25rem;
+}
+
+.ms-help__section {
+    margin-bottom: 1.25rem;
+}
+
+.ms-help__section:last-child {
+    margin-bottom: 0;
+}
+
+.ms-help__heading {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ms-text);
+    margin: 0 0 0.375rem;
+}
+
+.ms-help__text {
+    font-size: 0.8125rem;
+    color: var(--ms-text-muted);
+    margin: 0;
+    line-height: 1.6;
+}
+
+.ms-help__text--note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.375rem;
+    padding: 0.625rem 0.875rem;
+    background: var(--ms-surface-alt);
+    border-radius: 8px;
+}
+
+.ms-help__text--note svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--ms-primary);
+}
+
+.ms-help__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ms-help__list li {
+    font-size: 0.8125rem;
+    color: var(--ms-text-muted);
+    padding: 0.375rem 0;
+    padding-left: 1.25rem;
+    position: relative;
+    line-height: 1.5;
+}
+
+.ms-help__list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.75rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ms-primary);
+    opacity: 0.5;
+}
+
+.ms-help__list li strong {
+    color: var(--ms-text);
+}
+
+/* ===== Toast ===== */
+.ms-toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ms-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    font-family: var(--ms-font, 'Onest', sans-serif);
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    animation: ms-slideUp 0.3s ease-out;
+    transition: opacity 0.3s ease;
+}
+
+.ms-toast--success {
+    background: #dcfce7;
+    border-left: 4px solid var(--ms-success, #22c55e);
+    color: #15803d;
+}
+
+.ms-toast--error {
+    background: #fef2f2;
+    border-left: 4px solid var(--ms-danger, #ef4444);
+    color: #b91c1c;
+}
+
+.ms-toast__icon {
+    flex-shrink: 0;
+}
+
+/* ===== Animations ===== */
+@keyframes ms-slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+    .ms-page {
+        padding: 0 0.75rem 2rem;
+    }
+
+    .ms-hero {
+        padding: 1.25rem;
+    }
+
+    .ms-hero__title {
+        font-size: 1.25rem;
+    }
+
+    .ms-hero__icon {
+        width: 44px;
+        height: 44px;
+    }
+
+    .ms-hero__icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .ms-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ms-card__header {
+        flex-wrap: wrap;
+    }
+
+    .ms-tip {
+        padding: 0.875rem 1rem;
+    }
+
+    .ms-tip__text {
+        font-size: 0.8125rem;
+    }
+
+    .ms-toast-container {
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+    }
+
+    .ms-toast {
+        font-size: 0.8125rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
 <script>
 function toggleModule(moduleId, enabled) {
     fetch(`/modules/api/modules/${moduleId}/toggle`, {
@@ -177,34 +789,42 @@ function toggleModule(moduleId, enabled) {
     .then(data => {
         if (data.success) {
             const status = data.enabled ? 'включен' : 'отключен';
-            showToast('success', `Модуль успешно ${status}`);
+            showMsToast('success', `Модуль успешно ${status}`);
 
             // Reload after a short delay to update navigation
             setTimeout(() => {
                 location.reload();
-            }, 1000);
+            }, 1500);
         } else {
-            showToast('error', data.error || 'Ошибка при изменении модуля');
+            showMsToast('error', data.error || 'Ошибка при изменении модуля');
             // Revert checkbox state
             document.getElementById(`module_${moduleId}`).checked = !enabled;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('error', 'Произошла ошибка при обновлении модуля');
+        showMsToast('error', 'Произошла ошибка при обновлении модуля');
         // Revert checkbox state
         document.getElementById(`module_${moduleId}`).checked = !enabled;
     });
 }
 
-function showToast(type, message) {
-    const toastId = type === 'success' ? 'successToast' : 'errorToast';
-    const toastBodyId = type === 'success' ? 'successToastBody' : 'errorToastBody';
+function showMsToast(type, message) {
+    const container = document.getElementById('msToastContainer');
+    const toast = document.createElement('div');
+    toast.className = `ms-toast ms-toast--${type}`;
 
-    document.getElementById(toastBodyId).textContent = message;
+    const iconSvg = type === 'success'
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>'
+        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
-    const toast = new bootstrap.Toast(document.getElementById(toastId));
-    toast.show();
+    toast.innerHTML = `<span class="ms-toast__icon">${iconSvg}</span><span>${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 </script>
 {% endblock %}

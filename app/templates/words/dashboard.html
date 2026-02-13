@@ -2,154 +2,808 @@
 
 {% block title %}{{ _('Словарь') }}{% endblock %}
 
-{% block styles %}
-{{ super() }}
-{% endblock %}
-
 {% block content %}
-<div class="container py-4">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
+
+/* ====== Root Variables ====== */
+.wd-page {
+    --wd-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+    --wd-primary: #0ea5e9;
+    --wd-primary-dark: #0284c7;
+    --wd-indigo: #2563eb;
+    --wd-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    --wd-surface: #ffffff;
+    --wd-surface-alt: #f8fafc;
+    --wd-text: #0f172a;
+    --wd-text-muted: #64748b;
+    --wd-text-light: #94a3b8;
+    --wd-border: #e2e8f0;
+    --wd-radius: 16px;
+    --wd-radius-sm: 10px;
+    --wd-radius-pill: 999px;
+    --wd-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --wd-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --wd-shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    --wd-success: #10b981;
+    --wd-warning: #f59e0b;
+    --wd-info: #06b6d4;
+    --wd-danger: #ef4444;
+    --wd-anim-duration: 0.5s;
+    --wd-anim-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: var(--wd-font);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+}
+
+/* ====== slideUp Animation ====== */
+@keyframes wdSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.wd-animate {
+    animation: wdSlideUp var(--wd-anim-duration) var(--wd-anim-ease) both;
+}
+
+.wd-animate--d1 { animation-delay: 0.05s; }
+.wd-animate--d2 { animation-delay: 0.10s; }
+.wd-animate--d3 { animation-delay: 0.15s; }
+.wd-animate--d4 { animation-delay: 0.20s; }
+.wd-animate--d5 { animation-delay: 0.25s; }
+.wd-animate--d6 { animation-delay: 0.30s; }
+
+/* ====== Floating circles animation ====== */
+@keyframes wdFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-12px) scale(1.05); }
+}
+
+/* ====== Hero Section ====== */
+.wd-hero {
+    position: relative;
+    background: var(--wd-gradient);
+    border-radius: var(--wd-radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    color: #fff;
+}
+
+.wd-hero__shapes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.wd-hero__circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.wd-hero__circle--1 {
+    width: 180px;
+    height: 180px;
+    top: -40px;
+    right: -30px;
+    animation: wdFloat 8s ease-in-out infinite;
+}
+
+.wd-hero__circle--2 {
+    width: 120px;
+    height: 120px;
+    bottom: -30px;
+    left: 10%;
+    animation: wdFloat 6s ease-in-out infinite reverse;
+}
+
+.wd-hero__circle--3 {
+    width: 80px;
+    height: 80px;
+    top: 20%;
+    right: 25%;
+    animation: wdFloat 10s ease-in-out infinite 1s;
+}
+
+.wd-hero__content {
+    position: relative;
+    z-index: 1;
+}
+
+.wd-hero__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.wd-hero__title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
+}
+
+.wd-hero__subtitle {
+    font-size: 0.95rem;
+    opacity: 0.85;
+    margin: 0;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.wd-hero__total {
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.wd-hero__total-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    display: block;
+}
+
+.wd-hero__total-label {
+    font-size: 0.85rem;
+    opacity: 0.75;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+/* ====== Stats Grid ====== */
+.wd-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.wd-stat {
+    background: var(--wd-surface);
+    border: 1px solid var(--wd-border);
+    border-radius: var(--wd-radius);
+    padding: 1.25rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.wd-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--wd-shadow-md);
+}
+
+.wd-stat__value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.wd-stat__value--new { color: var(--wd-primary); }
+.wd-stat__value--learning { color: var(--wd-success); }
+.wd-stat__value--review { color: var(--wd-info); }
+.wd-stat__value--mastered { color: var(--wd-warning); }
+
+.wd-stat__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--wd-text-muted);
+    margin-bottom: 0.625rem;
+}
+
+.wd-stat__bar {
+    height: 4px;
+    background: var(--wd-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.wd-stat__bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s var(--wd-anim-ease);
+}
+
+.wd-stat__bar-fill--new { background: var(--wd-primary); }
+.wd-stat__bar-fill--learning { background: var(--wd-success); }
+.wd-stat__bar-fill--review { background: var(--wd-info); }
+.wd-stat__bar-fill--mastered { background: var(--wd-warning); }
+
+/* ====== Progress & Achievements Card ====== */
+.wd-progress-card {
+    background: var(--wd-gradient);
+    border-radius: var(--wd-radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+}
+
+.wd-progress-card__bg-icon {
+    position: absolute;
+    right: -20px;
+    top: -20px;
+    font-size: 8rem;
+    opacity: 0.06;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.wd-progress-card__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* XP Progress Section */
+.wd-xp {
+    display: flex;
+    flex-direction: column;
+}
+
+.wd-xp__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.wd-xp__header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+}
+
+.wd-xp__header-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.wd-xp__body {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.wd-xp__level {
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.wd-xp__level-badge {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.wd-xp__level-label {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.wd-xp__bar-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.wd-xp__bar-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.wd-xp__bar-current {
+    font-weight: 700;
+}
+
+.wd-xp__bar-remaining {
+    opacity: 0.7;
+}
+
+.wd-xp__bar {
+    height: 8px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.wd-xp__bar-fill {
+    height: 100%;
+    background: rgba(255,255,255,0.9);
+    border-radius: 4px;
+    transition: width 0.6s var(--wd-anim-ease);
+}
+
+.wd-xp__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: var(--wd-radius-sm);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.wd-xp__action:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+/* Achievements Section */
+.wd-achievements {
+    display: flex;
+    flex-direction: column;
+}
+
+.wd-achievements__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.wd-achievements__header-icon {
+    font-size: 1.25rem;
+}
+
+.wd-achievements__header-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.wd-achievements__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.wd-achievement {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--wd-radius-pill);
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.wd-achievement:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+.wd-achievement__icon {
+    font-size: 1rem;
+}
+
+.wd-achievements__empty {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(255,255,255,0.1);
+    border-radius: var(--wd-radius-sm);
+    margin-bottom: 1rem;
+}
+
+.wd-achievements__empty-icon {
+    font-size: 1.5rem;
+}
+
+.wd-achievements__empty-text {
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+.wd-achievements__footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: auto;
+}
+
+.wd-achievements__count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(255,255,255,0.15);
+    border-radius: var(--wd-radius-pill);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.wd-achievements__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: var(--wd-radius-sm);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.wd-achievements__action:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+/* ====== Recent Words Card ====== */
+.wd-recent {
+    background: var(--wd-surface);
+    border: 1px solid var(--wd-border);
+    border-radius: var(--wd-radius);
+    padding: 1.5rem;
+}
+
+.wd-recent__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.wd-recent__title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--wd-text);
+    margin: 0;
+}
+
+.wd-recent__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--wd-primary);
+    border-radius: var(--wd-radius-sm);
+    color: var(--wd-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.wd-recent__link:hover {
+    background: var(--wd-primary);
+    color: #fff;
+}
+
+.wd-recent__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.wd-word {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--wd-radius-sm);
+    transition: background 0.15s;
+}
+
+.wd-word:hover {
+    background: var(--wd-surface-alt);
+}
+
+.wd-word__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.wd-word__en {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--wd-text);
+}
+
+.wd-word__ru {
+    font-size: 0.8rem;
+    color: var(--wd-text-muted);
+    margin-top: 0.1rem;
+}
+
+.wd-word__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+}
+
+.wd-word__dot--new { background: var(--wd-primary); }
+.wd-word__dot--learning { background: var(--wd-success); }
+.wd-word__dot--review { background: var(--wd-info); }
+.wd-word__dot--mastered { background: var(--wd-warning); }
+
+/* ====== Empty State ====== */
+.wd-empty {
+    background: var(--wd-surface);
+    border: 1px solid var(--wd-border);
+    border-radius: var(--wd-radius);
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.wd-empty__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    background: var(--wd-surface-alt);
+    border-radius: 50%;
+    color: var(--wd-text-light);
+}
+
+.wd-empty__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--wd-text-muted);
+    margin: 0 0 0.5rem;
+}
+
+.wd-empty__text {
+    font-size: 0.9rem;
+    color: var(--wd-text-light);
+    margin: 0 0 1.5rem;
+}
+
+.wd-empty__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.5rem;
+    background: var(--wd-gradient);
+    color: #fff;
+    border: none;
+    border-radius: var(--wd-radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.15s;
+}
+
+.wd-empty__btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+/* ====== Responsive ====== */
+@media (max-width: 640px) {
+    .wd-hero {
+        padding: 1.5rem;
+    }
+
+    .wd-hero__row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .wd-hero__total {
+        text-align: left;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
+    .wd-hero__total-value {
+        font-size: 2rem;
+    }
+
+    .wd-hero__title {
+        font-size: 1.35rem;
+    }
+
+    .wd-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .wd-progress-card {
+        padding: 1.5rem;
+    }
+
+    .wd-progress-card__grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .wd-recent__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-recent__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .wd-xp__body {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .wd-achievements__footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<div class="wd-page">
+
     <!-- Hero Section -->
-    <div class="card bg-primary text-white shadow-lg mb-4 dashboard-hero-card">
-        <div class="card-body p-4 dashboard-hero-content">
-            <div class="row align-items-center">
-                <div class="col-lg-8">
-                    <h1 class="display-5 fw-bold mb-3">{{ _('Ваш словарь') }}</h1>
-                    <p class="lead mb-0 opacity-90">{{ _('Изучайте новые слова, повторяйте изученные и отслеживайте свой прогресс') }}</p>
+    <div class="wd-hero wd-animate">
+        <div class="wd-hero__shapes">
+            <div class="wd-hero__circle wd-hero__circle--1"></div>
+            <div class="wd-hero__circle wd-hero__circle--2"></div>
+            <div class="wd-hero__circle wd-hero__circle--3"></div>
+        </div>
+        <div class="wd-hero__content">
+            <div class="wd-hero__row">
+                <div>
+                    <h1 class="wd-hero__title">{{ _('Ваш словарь') }}</h1>
+                    <p class="wd-hero__subtitle">{{ _('Изучайте новые слова, повторяйте изученные и отслеживайте свой прогресс') }}</p>
                 </div>
-                <div class="col-lg-4 text-end">
-                    <div class="d-flex flex-column align-items-end">
-                        <div class="fs-1 fw-bold">{{ total_words }}</div>
-                        <div class="opacity-75">{{ _('всего слов') }}</div>
-                    </div>
+                <div class="wd-hero__total">
+                    <span class="wd-hero__total-value">{{ total_words }}</span>
+                    <span class="wd-hero__total-label">{{ _('всего слов') }}</span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Statistics Grid -->
-    <div class="grid grid-cols-4 gap-4 mb-4">
-        <div class="card shadow-sm hover-lift">
-            <div class="card-body">
-                <div class="text-5xl fw-bold text-primary mb-2">{{ status_stats.new }}</div>
-                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Новые слова') }}</div>
-                <div class="progress progress-xs">
-                    <div class="progress-bar bg-primary" style="width: {{ (status_stats.new / total_words * 100) if total_words > 0 else 0 }}%"></div>
-                </div>
+    <div class="wd-stats wd-animate wd-animate--d1">
+        <div class="wd-stat">
+            <div class="wd-stat__value wd-stat__value--new">{{ status_stats.new }}</div>
+            <div class="wd-stat__label">{{ _('Новые слова') }}</div>
+            <div class="wd-stat__bar">
+                <div class="wd-stat__bar-fill wd-stat__bar-fill--new" style="width: {{ (status_stats.new / total_words * 100) if total_words > 0 else 0 }}%"></div>
             </div>
         </div>
 
-        <div class="card shadow-sm hover-lift">
-            <div class="card-body">
-                <div class="text-5xl fw-bold text-success mb-2">{{ status_stats.learning }}</div>
-                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Изучаемые') }}</div>
-                <div class="progress progress-xs">
-                    <div class="progress-bar bg-success" style="width: {{ (status_stats.learning / total_words * 100) if total_words > 0 else 0 }}%"></div>
-                </div>
+        <div class="wd-stat">
+            <div class="wd-stat__value wd-stat__value--learning">{{ status_stats.learning }}</div>
+            <div class="wd-stat__label">{{ _('Изучаемые') }}</div>
+            <div class="wd-stat__bar">
+                <div class="wd-stat__bar-fill wd-stat__bar-fill--learning" style="width: {{ (status_stats.learning / total_words * 100) if total_words > 0 else 0 }}%"></div>
             </div>
         </div>
 
-        <div class="card shadow-sm hover-lift">
-            <div class="card-body">
-                <div class="text-5xl fw-bold text-info mb-2">{{ status_stats.review }}</div>
-                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('На повторении') }}</div>
-                <div class="progress progress-xs">
-                    <div class="progress-bar bg-info" style="width: {{ (status_stats.review / total_words * 100) if total_words > 0 else 0 }}%"></div>
-                </div>
+        <div class="wd-stat">
+            <div class="wd-stat__value wd-stat__value--review">{{ status_stats.review }}</div>
+            <div class="wd-stat__label">{{ _('На повторении') }}</div>
+            <div class="wd-stat__bar">
+                <div class="wd-stat__bar-fill wd-stat__bar-fill--review" style="width: {{ (status_stats.review / total_words * 100) if total_words > 0 else 0 }}%"></div>
             </div>
         </div>
 
-        <div class="card shadow-sm hover-lift">
-            <div class="card-body">
-                <div class="text-5xl fw-bold text-warning mb-2">{{ status_stats.mastered }}</div>
-                <div class="text-secondary text-sm fw-semibold mb-2">{{ _('Выученные') }}</div>
-                <div class="progress progress-xs">
-                    <div class="progress-bar bg-warning" style="width: {{ (status_stats.mastered / total_words * 100) if total_words > 0 else 0 }}%"></div>
-                </div>
+        <div class="wd-stat">
+            <div class="wd-stat__value wd-stat__value--mastered">{{ status_stats.mastered }}</div>
+            <div class="wd-stat__label">{{ _('Выученные') }}</div>
+            <div class="wd-stat__bar">
+                <div class="wd-stat__bar-fill wd-stat__bar-fill--mastered" style="width: {{ (status_stats.mastered / total_words * 100) if total_words > 0 else 0 }}%"></div>
             </div>
         </div>
     </div>
 
     <!-- Achievements & XP Progress -->
-    <div class="card shadow-lg mb-4 hero-gradient-card dashboard-hero-card">
-        <div class="card-body p-4 position-relative">
-            <!-- Decorative background pattern -->
-            <div class="decorative-bg-icon">⚡</div>
+    <div class="wd-progress-card wd-animate wd-animate--d2">
+        <div class="wd-progress-card__bg-icon">&#9889;</div>
+        <div class="wd-progress-card__grid">
 
-            <div class="row position-relative">
-                <!-- XP Progress Section -->
-                <div class="col-md-6 mb-4 mb-md-0">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="me-2 section-icon">⚡</div>
-                        <h3 class="mb-0 fw-bold">Ваш прогресс</h3>
+            <!-- XP Progress Section -->
+            <div class="wd-xp">
+                <div class="wd-xp__header">
+                    <div class="wd-xp__header-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
                     </div>
+                    <h3 class="wd-xp__header-title">{{ _('Ваш прогресс') }}</h3>
+                </div>
 
-                    <div class="d-flex align-items-center mb-3 mt-3">
-                        <!-- Level badge -->
-                        <div class="me-3 text-center">
-                            <div class="dashboard-level-badge">{{ user_level or 1 }}</div>
-                            <div class="dashboard-level-label">уровень</div>
-                        </div>
-
-                        <!-- XP Progress -->
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="xp-current">{{ user_xp or 0 }} XP</span>
-                                <span class="xp-remaining">{{ xp_to_next_level or 100 }} до Ур.{{ (user_level or 1) + 1 }}</span>
-                            </div>
-                            <!-- Colorful progress bar -->
-                            <div class="progress xp-progress-bar">
-                                <div class="progress-bar xp-progress-fill" role="progressbar"
-                                     style="width: {{ xp_progress_percent or 0 }}%;"
-                                     aria-valuenow="{{ xp_progress_percent or 0 }}"
-                                     aria-valuemin="0"
-                                     aria-valuemax="100">
-                                </div>
-                            </div>
-                        </div>
+                <div class="wd-xp__body">
+                    <div class="wd-xp__level">
+                        <div class="wd-xp__level-badge">{{ user_level or 1 }}</div>
+                        <div class="wd-xp__level-label">{{ _('уровень') }}</div>
                     </div>
-
-                    <div class="mt-3">
-                        <a href="{{ url_for('study.index') }}" class="btn btn-light btn-sm fw-semibold shadow">
-                            <i class="fas fa-graduation-cap me-1 text-primary"></i>Изучение
-                        </a>
+                    <div class="wd-xp__bar-wrap">
+                        <div class="wd-xp__bar-labels">
+                            <span class="wd-xp__bar-current">{{ user_xp or 0 }} XP</span>
+                            <span class="wd-xp__bar-remaining">{{ xp_to_next_level or 100 }} {{ _('до Ур.') }}{{ (user_level or 1) + 1 }}</span>
+                        </div>
+                        <div class="wd-xp__bar">
+                            <div class="wd-xp__bar-fill" style="width: {{ xp_progress_percent or 0 }}%;"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Achievements Section -->
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center mb-2">
-                        <div class="me-2 section-icon">🏆</div>
-                        <h3 class="mb-0 fw-bold">Достижения</h3>
-                    </div>
+                <div>
+                    <a href="{{ url_for('study.index') }}" class="wd-xp__action">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a23.54 23.54 0 00-2.688 6.413A48.394 48.394 0 0112 23.364a48.394 48.394 0 0110.427-3.584 23.565 23.565 0 00-2.688-6.413M12 3v7m0 0l3-3m-3 3L9 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        {{ _('Изучение') }}
+                    </a>
+                </div>
+            </div>
 
-                    {% if user_achievements %}
-                    <div class="d-flex flex-wrap gap-2 mb-3 mt-3">
-                        {% for ach in user_achievements %}
-                        <div class="badge dashboard-achievement-badge" title="{{ ach.description }}">
-                            <span class="icon">{{ ach.icon }}</span>
-                            <span class="name">{{ ach.name }}</span>
-                        </div>
-                        {% endfor %}
+            <!-- Achievements Section -->
+            <div class="wd-achievements">
+                <div class="wd-achievements__header">
+                    <span class="wd-achievements__header-icon">&#127942;</span>
+                    <h3 class="wd-achievements__header-title">{{ _('Достижения') }}</h3>
+                </div>
+
+                {% if user_achievements %}
+                <div class="wd-achievements__list">
+                    {% for ach in user_achievements %}
+                    <div class="wd-achievement" title="{{ ach.description }}">
+                        <span class="wd-achievement__icon">{{ ach.icon }}</span>
+                        <span>{{ ach.name }}</span>
                     </div>
-                    {% else %}
-                    <div class="empty-achievement-box">
-                        <div class="empty-achievement-icon">🎯</div>
-                        <div class="empty-achievement-text">Учитесь и получайте достижения!</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="wd-achievements__empty">
+                    <span class="wd-achievements__empty-icon">&#127919;</span>
+                    <span class="wd-achievements__empty-text">{{ _('Учитесь и получайте достижения!') }}</span>
+                </div>
+                {% endif %}
+
+                <div class="wd-achievements__footer">
+                    {% if earned_count > 0 %}
+                    <div class="wd-achievements__count">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9H3V5h3M18 9h3V5h-3M12 15a6 6 0 006-6V4H6v5a6 6 0 006 6z"/><path d="M8 21h8M12 15v6"/></svg>
+                        <span>{{ _('Получено:') }} {{ earned_count }}/{{ total_achievements }}</span>
                     </div>
                     {% endif %}
-
-                    <div class="mt-3">
-                        {% if earned_count > 0 %}
-                        <div class="mb-2 achievement-count-badge">
-                            <i class="fas fa-trophy me-2"></i>
-                            <span>Получено: {{ earned_count }}/{{ total_achievements }}</span>
-                        </div>
-                        <br>
-                        {% endif %}
-                        <a href="{{ url_for('study.achievements') }}" class="btn btn-light btn-sm fw-semibold shadow">
-                            <i class="fas fa-trophy me-1 text-primary"></i>Все достижения
-                        </a>
-                    </div>
+                    <a href="{{ url_for('study.achievements') }}" class="wd-achievements__action">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 9H3V5h3M18 9h3V5h-3M12 15a6 6 0 006-6V4H6v5a6 6 0 006 6z"/><path d="M8 21h8M12 15v6"/></svg>
+                        {{ _('Все достижения') }}
+                    </a>
                 </div>
             </div>
         </div>
@@ -157,67 +811,39 @@
 
     <!-- Recent Words -->
     {% if recent_words %}
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">{{ _('Недавно изученные') }}</h3>
-                <a href="{{ url_for('words.word_list') }}" class="btn btn-outline-primary btn-sm">{{ _('Посмотреть все') }}</a>
-            </div>
-
-            <div class="row">
-                {% for word in recent_words[:8] %}
-                <div class="col-md-6 mb-2">
-                    <div class="d-flex align-items-center p-2 rounded recent-word-item">
-                        <div class="flex-grow-1">
-                            <div class="fw-semibold text-dark">{{ word.english_word }}</div>
-                            <div class="text-secondary text-sm">{{ word.russian_word }}</div>
-                        </div>
-                        <div class="status-dot-sm ms-3 status-dot-{{ word.user_status or 'new' }}"></div>
-                    </div>
+    <div class="wd-recent wd-animate wd-animate--d3">
+        <div class="wd-recent__header">
+            <h3 class="wd-recent__title">{{ _('Недавно изученные') }}</h3>
+            <a href="{{ url_for('words.word_list') }}" class="wd-recent__link">
+                {{ _('Посмотреть все') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+        </div>
+        <div class="wd-recent__grid">
+            {% for word in recent_words[:8] %}
+            <div class="wd-word">
+                <div class="wd-word__text">
+                    <div class="wd-word__en">{{ word.english_word }}</div>
+                    <div class="wd-word__ru">{{ word.russian_word }}</div>
                 </div>
-                {% endfor %}
+                <div class="wd-word__dot wd-word__dot--{{ word.user_status or 'new' }}"></div>
             </div>
+            {% endfor %}
         </div>
     </div>
     {% else %}
-    <div class="card shadow-sm">
-        <div class="card-body text-center py-5">
-            <i class="fas fa-book-open text-muted mb-3 empty-icon-md"></i>
-            <h4 class="text-secondary">{{ _('Начните изучение слов') }}</h4>
-            <p class="text-muted">{{ _('Добавьте слова в свой словарь и начните изучение') }}</p>
-            <a href="{{ url_for('words.word_list') }}" class="btn btn-primary">{{ _('Перейти к словам') }}</a>
+    <div class="wd-empty wd-animate wd-animate--d3">
+        <div class="wd-empty__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
+        <h4 class="wd-empty__title">{{ _('Начните изучение слов') }}</h4>
+        <p class="wd-empty__text">{{ _('Добавьте слова в свой словарь и начните изучение') }}</p>
+        <a href="{{ url_for('words.word_list') }}" class="wd-empty__btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 7l5 5m0 0l-5 5m5-5H6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            {{ _('Перейти к словам') }}
+        </a>
     </div>
     {% endif %}
-</div>
 
-<!-- Export Modal -->
-<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="exportModalLabel">{{ _('Экспорт в Anki') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-{#            <div class="modal-body">#}
-{#                <p>{{ _('Выберите слова для экспорта:') }}</p>#}
-{#                <form method="POST" action="{{ url_for('api_anki.export_words') }}">#}
-{#                    {{ export_form.hidden_tag() }}#}
-{#                    <div class="mb-3">#}
-{#                        {{ export_form.status.label(class="form-label") }}#}
-{#                        {{ export_form.status(class="form-select") }}#}
-{#                    </div>#}
-{#                    <div class="mb-3">#}
-{#                        {{ export_form.include_audio.label(class="form-check-label") }}#}
-{#                        {{ export_form.include_audio(class="form-check-input") }}#}
-{#                    </div>#}
-{#                    <div class="modal-footer">#}
-{#                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Отменить') }}</button>#}
-{#                        <button type="submit" class="btn btn-primary">{{ _('Экспортировать') }}</button>#}
-{#                    </div>#}
-{#                </form>#}
-{#            </div>#}
-        </div>
-    </div>
 </div>
 {% endblock %}

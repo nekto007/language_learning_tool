@@ -47,7 +47,7 @@
 
 .quiz-icon {
   font-size: 4rem;
-  color: #4f46e5;
+  color: #10b981;
   margin-bottom: 1.5rem;
 }
 
@@ -70,7 +70,7 @@
   padding: 1rem 2rem;
   font-size: 1.1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
   border: none;
   border-radius: 0.75rem;
   color: white;
@@ -83,7 +83,7 @@
 
 #start-quiz-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
 }
 
 /* Question cards */
@@ -151,8 +151,8 @@
 }
 
 .answer-option:hover:not(:disabled) {
-  border-color: #4f46e5;
-  background: #f5f3ff;
+  border-color: #10b981;
+  background: #ecfdf5;
   transform: translateX(5px);
 }
 
@@ -181,7 +181,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #4f46e5;
+  background: #10b981;
   color: white;
   border-radius: 50%;
   font-weight: 700;
@@ -274,7 +274,7 @@
 
 .quiz-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4f46e5, #6366f1);
+  background: linear-gradient(90deg, #10b981, #34d399);
   border-radius: 6px;
   transition: width 0.4s ease;
 }
@@ -290,7 +290,7 @@
   margin-bottom: 1.5rem;
   padding: 1rem;
   background: #f9fafb;
-  border-left: 4px solid #4f46e5;
+  border-left: 4px solid #10b981;
   border-radius: 0.5rem;
 }
 
@@ -310,7 +310,7 @@
 
 .match-left {
   padding: 1.25rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
   color: white;
   border-radius: 0.75rem;
   font-weight: 600;
@@ -320,7 +320,7 @@
   min-height: 70px;
   text-align: center;
   font-size: 1.1rem;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .match-right-select {
@@ -336,7 +336,7 @@
 }
 
 .match-right-select:hover:not(:disabled) {
-  border-color: #4f46e5;
+  border-color: #10b981;
 }
 
 .match-right-select:disabled {
@@ -358,7 +358,7 @@
   font-size: 1.2rem;
   font-weight: 600;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
   color: white;
   border-radius: 0.75rem;
   text-align: center;
@@ -380,8 +380,8 @@
 
 [id^="transformation-answer-"]:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 [id^="transformation-answer-"].is-invalid {
@@ -406,8 +406,8 @@
 
 .text-answer .form-control:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .text-submit-btn {
@@ -446,10 +446,10 @@
 }
 
 .word-button:hover:not(:disabled) {
-  border-color: #4f46e5;
-  background: #f5f3ff;
+  border-color: #10b981;
+  background: #ecfdf5;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
 }
 
 .word-button:disabled,
@@ -467,7 +467,7 @@
   min-height: 80px;
   padding: 1.5rem;
   background: white;
-  border: 2px solid #4f46e5;
+  border: 2px solid #10b981;
   border-radius: 0.75rem;
   display: flex;
   flex-wrap: wrap;
@@ -490,7 +490,7 @@
 
 .sentence-word {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
   color: white;
   border-radius: 0.375rem;
   font-weight: 500;
@@ -500,7 +500,7 @@
 
 .sentence-word:hover {
   transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
 }
 
 /* Matching question styles - paired rows layout */
@@ -548,15 +548,15 @@
 }
 
 .matching-item.right:hover:not(.matched) {
-  border-color: #c7d2fe;
+  border-color: #a7f3d0;
   background: #f9fafb;
   transform: scale(1.02);
 }
 
 .matching-item.selected {
-  border-color: #4f46e5;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
 }
 
 .matching-item.matched {
@@ -705,8 +705,8 @@
 }
 
 .stat-card.time {
-  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
-  border: 2px solid #a855f7;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 2px solid #10b981;
 }
 
 .stat-icon {
@@ -763,7 +763,7 @@
   gap: 1.5rem;
   margin: 2rem 0;
   padding: 2rem;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   border-radius: 1.25rem;
 }
 
@@ -782,9 +782,9 @@
 .score-value {
   font-size: 5rem;
   font-weight: 800;
-  color: #4f46e5;
+  color: #10b981;
   line-height: 1;
-  text-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  text-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .score-details {

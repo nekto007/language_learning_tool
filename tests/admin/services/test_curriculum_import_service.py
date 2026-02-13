@@ -344,7 +344,7 @@ class TestImportCurriculumData:
         assert result['module_id'] == 10
         assert result['lesson_id'] == 100
         mock_db.session.add.assert_called()
-        mock_db.session.commit.assert_called_once()
+        mock_db.session.commit.assert_called()  # Called multiple times: main commit + _reset_sequences
 
     @patch('app.admin.services.curriculum_import_service.current_user')
     @patch('app.admin.services.curriculum_import_service.db')

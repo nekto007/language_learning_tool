@@ -2,214 +2,622 @@
 
 {% block title %}Dashboard - LLT English{% endblock %}
 
-{% block styles %}
-{{ super() }}
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% block content %}
+<div class="dash-page">
+
+    <!-- Hero Section -->
+    <div class="dash-hero">
+        <div class="dash-hero__bg-shapes">
+            <div class="dash-shape dash-shape--1"></div>
+            <div class="dash-shape dash-shape--2"></div>
+        </div>
+
+        <div class="dash-hero__content">
+            <div class="dash-hero__greeting">
+                <span class="dash-hero__wave">👋</span>
+                <div>
+                    <h1 class="dash-hero__title">Привет, {{ current_user.username }}!</h1>
+                    <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
+                </div>
+            </div>
+
+            <div class="dash-hero__stats">
+                <div class="dash-hero-stat dash-hero-stat--words">
+                    <div class="dash-hero-stat__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </div>
+                    <div class="dash-hero-stat__data">
+                        <span class="dash-hero-stat__value">{{ words_total }}</span>
+                        <span class="dash-hero-stat__label">слов</span>
+                    </div>
+                </div>
+
+                <div class="dash-hero-stat dash-hero-stat--grammar">
+                    <div class="dash-hero-stat__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M12 3v7l-4.5 7.5a2 2 0 001.7 3h5.6a2 2 0 001.7-3L12 10"/></svg>
+                    </div>
+                    <div class="dash-hero-stat__data">
+                        <span class="dash-hero-stat__value">{{ grammar_studied }}/{{ grammar_total }}</span>
+                        <span class="dash-hero-stat__label">грамматика</span>
+                    </div>
+                </div>
+
+                <div class="dash-hero-stat dash-hero-stat--achievements">
+                    <div class="dash-hero-stat__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H3V5h3M18 9h3V5h-3M12 15a6 6 0 006-6V4H6v5a6 6 0 006 6z"/><path d="M8 21h8M12 15v6"/></svg>
+                    </div>
+                    <div class="dash-hero-stat__data">
+                        <span class="dash-hero-stat__value">{{ earned_achievements }}/{{ total_achievements }}</span>
+                        <span class="dash-hero-stat__label">достижения</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Module Grid -->
+    <div class="dash-modules">
+
+        <!-- КАРТОЧКИ -->
+        <div class="dash-card">
+            <div class="dash-card__header">
+                <div class="dash-card__icon dash-card__icon--cards">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </div>
+                <h2 class="dash-card__title">Карточки</h2>
+            </div>
+            <div class="dash-card__stat">
+                <span class="dash-card__stat-value">{{ words_total }}</span>
+            </div>
+            <div class="dash-card__stat-label">слов в коллекции</div>
+            <div class="dash-card__mini-stats">
+                <div class="dash-mini-stat">
+                    <div class="dash-mini-stat__value dash-mini-stat__value--warning">{{ words_stats.learning }}</div>
+                    <div class="dash-mini-stat__label">Учу</div>
+                </div>
+                <div class="dash-mini-stat">
+                    <div class="dash-mini-stat__value dash-mini-stat__value--accent">{{ words_stats.review }}</div>
+                    <div class="dash-mini-stat__label">Повтор</div>
+                </div>
+                <div class="dash-mini-stat">
+                    <div class="dash-mini-stat__value dash-mini-stat__value--success">{{ words_stats.mastered }}</div>
+                    <div class="dash-mini-stat__label">Выучено</div>
+                </div>
+            </div>
+            {% if words_total > 0 %}
+            <div class="dash-card__progress">
+                <div class="dash-card__progress-fill" style="width: {{ (words_stats.mastered / words_total * 100) | int }}%;"></div>
+            </div>
+            {% endif %}
+            <a href="{{ url_for('study.index') }}" class="dash-card__action">
+                Учить слова
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+
+        <!-- ГРАММАТИКА -->
+        <div class="dash-card">
+            <div class="dash-card__header">
+                <div class="dash-card__icon dash-card__icon--grammar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M12 3v7l-4.5 7.5a2 2 0 001.7 3h5.6a2 2 0 001.7-3L12 10"/></svg>
+                </div>
+                <h2 class="dash-card__title">Грамматика</h2>
+            </div>
+            <div class="dash-card__stat">
+                <span class="dash-card__stat-value">{{ grammar_studied }}</span>
+                <span class="dash-card__stat-total">/ {{ grammar_total }}</span>
+            </div>
+            <div class="dash-card__stat-label">тем изучено</div>
+            <div class="dash-card__mini-stats dash-card__mini-stats--cols-2">
+                <div class="dash-mini-stat">
+                    <div class="dash-mini-stat__value dash-mini-stat__value--success">{{ grammar_mastered }}</div>
+                    <div class="dash-mini-stat__label">Освоено</div>
+                </div>
+                <div class="dash-mini-stat">
+                    <div class="dash-mini-stat__value">{{ grammar_total - grammar_studied }}</div>
+                    <div class="dash-mini-stat__label">Осталось</div>
+                </div>
+            </div>
+            <a href="{{ url_for('grammar_lab.index') }}" class="dash-card__action">
+                Grammar Lab
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+
+        <!-- КУРСЫ -->
+        <div class="dash-card">
+            <div class="dash-card__header">
+                <div class="dash-card__icon dash-card__icon--courses">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10l-10-5L2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                </div>
+                <h2 class="dash-card__title">Курсы</h2>
+            </div>
+            {% if active_course %}
+            <div class="dash-card__stat">
+                <span class="dash-card__stat-value">{{ active_course.progress_percentage | int }}%</span>
+            </div>
+            <div class="dash-card__stat-label">{{ active_course.course.title }}</div>
+            <div class="dash-card__progress">
+                <div class="dash-card__progress-fill" style="width: {{ active_course.progress_percentage | int }}%;"></div>
+            </div>
+            {% else %}
+            <div class="dash-card__stat">
+                <span class="dash-card__stat-value">{{ courses_enrolled }}</span>
+            </div>
+            <div class="dash-card__stat-label">активных курсов</div>
+            <p class="dash-card__desc">Выберите курс и начните обучение по структурированной программе</p>
+            {% endif %}
+            <a href="{{ url_for('book_courses.list_book_courses') }}" class="dash-card__action">
+                {% if active_course %}Продолжить{% else %}Выбрать курс{% endif %}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+
+        <!-- КНИГИ -->
+        <div class="dash-card">
+            <div class="dash-card__header">
+                <div class="dash-card__icon dash-card__icon--books">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                </div>
+                <h2 class="dash-card__title">Книги</h2>
+            </div>
+            {% if recent_book %}
+            <div class="dash-card__stat">
+                <span class="dash-card__stat-value">{{ books_reading }}</span>
+            </div>
+            <div class="dash-card__stat-label">{{ recent_book.chapter.book.title }}</div>
+            {% else %}
+            <div class="dash-card__stat">
+                <span class="dash-card__stat-value">{{ books_reading }}</span>
+            </div>
+            <div class="dash-card__stat-label">книг читаете</div>
+            <p class="dash-card__desc">Читайте книги на английском и расширяйте словарный запас</p>
+            {% endif %}
+            <a href="{{ url_for('books.book_list') }}" class="dash-card__action">
+                {% if recent_book %}Читать{% else %}Найти книгу{% endif %}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Telegram Banner -->
+    {% include 'partials/telegram_banner.html' %}
+
+    <!-- Quick Actions -->
+    <div class="dash-quick">
+        <h3 class="dash-quick__title">Быстрые действия</h3>
+        <div class="dash-quick__grid">
+            <a href="{{ url_for('study.cards', word_source='all') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                Карточки
+            </a>
+            <a href="{{ url_for('study.quiz', word_source='all') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+                Тест
+            </a>
+            <a href="{{ url_for('study.matching', word_source='all') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                Подбери пару
+            </a>
+            <a href="{{ url_for('grammar_lab.practice') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11M6.5 17.5h11M3 10v4M21 10v4M6.5 6.5a2 2 0 00-2 2v7a2 2 0 002 2M17.5 6.5a2 2 0 012 2v7a2 2 0 01-2 2"/></svg>
+                Практика
+            </a>
+            <a href="{{ url_for('words.word_list') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+                Все слова
+            </a>
+            <a href="{{ url_for('study.topics') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                Темы
+            </a>
+            <a href="{{ url_for('study.stats') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
+                Статистика
+            </a>
+            <a href="{{ url_for('study.leaderboard') }}" class="dash-quick__btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H3V5h3M18 9h3V5h-3M12 15a6 6 0 006-6V4H6v5a6 6 0 006 6z"/><path d="M8 21h8M12 15v6"/></svg>
+                Лидеры
+            </a>
+        </div>
+    </div>
+
+    <!-- Bottom Stats -->
+    <div class="dash-bottom">
+        <div class="dash-bottom__card">
+            <div class="dash-bottom__icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H3V5h3M18 9h3V5h-3M12 15a6 6 0 006-6V4H6v5a6 6 0 006 6z"/><path d="M8 21h8M12 15v6"/></svg>
+            </div>
+            <div class="dash-bottom__value">{{ earned_achievements }}<span class="dash-bottom__value-total">/{{ total_achievements }}</span></div>
+            <div class="dash-bottom__label">Достижения</div>
+            <a href="{{ url_for('study.stats') }}" class="dash-bottom__action">
+                Смотреть
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </a>
+        </div>
+        <div class="dash-bottom__card">
+            <div class="dash-bottom__icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            </div>
+            {% if best_matching %}
+            <div class="dash-bottom__value">{{ best_matching.score }}</div>
+            {% else %}
+            <div class="dash-bottom__value">&mdash;</div>
+            {% endif %}
+            <div class="dash-bottom__label">Лучший матч</div>
+            <a href="{{ url_for('study.matching', word_source='all') }}" class="dash-bottom__action">
+                Играть
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </a>
+        </div>
+        <div class="dash-bottom__card">
+            <div class="dash-bottom__icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+            </div>
+            {% if best_quiz %}
+            <div class="dash-bottom__value">{{ best_quiz.score }}%</div>
+            {% else %}
+            <div class="dash-bottom__value">&mdash;</div>
+            {% endif %}
+            <div class="dash-bottom__label">Лучший тест</div>
+            <a href="{{ url_for('study.quiz', word_source='all') }}" class="dash-bottom__action">
+                Играть
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </a>
+        </div>
+    </div>
+
+</div>
+
 <style>
-:root {
-    --d-bg: #fafbfc;
-    --d-surface: #ffffff;
-    --d-border: #e8ecf0;
-    --d-text: #1a1f36;
-    --d-text-soft: #525f7f;
-    --d-accent: #5046e5;
-    --d-accent-soft: rgba(80, 70, 229, 0.08);
-    --d-accent-medium: rgba(80, 70, 229, 0.15);
-    --d-success: #10b981;
-    --d-warning: #f59e0b;
-    --d-radius: 16px;
-    --d-radius-sm: 10px;
-    --d-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
-    --d-shadow-hover: 0 4px 20px rgba(80, 70, 229, 0.12);
+/* ============================================
+   Dashboard Page - Unified Design System
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
+
+.dash-page {
+    --dash-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+    --dash-bg: #fafbfc;
+    --dash-surface: #ffffff;
+    --dash-surface-alt: #f8fafc;
+    --dash-border: #e2e8f0;
+    --dash-text: #0f172a;
+    --dash-text-muted: #64748b;
+    --dash-accent: #5046e5;
+    --dash-accent-soft: rgba(80, 70, 229, 0.08);
+    --dash-accent-medium: rgba(80, 70, 229, 0.15);
+    --dash-success: #10b981;
+    --dash-warning: #f59e0b;
+    --dash-radius: 16px;
+    --dash-radius-sm: 10px;
+    --dash-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+    --dash-shadow-hover: 0 4px 20px rgba(80, 70, 229, 0.12);
+
+    font-family: var(--dash-font);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
 }
 
-.dash {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--d-bg);
-    min-height: 100vh;
-    padding: 2rem 0 4rem;
-}
+/* ============================================
+   Hero Section
+   ============================================ */
 
-/* Header */
-.dash-header {
+.dash-hero {
+    position: relative;
+    background: linear-gradient(135deg, #5046e5 0%, #7c3aed 100%);
+    border-radius: var(--dash-radius);
+    padding: 2rem;
     margin-bottom: 2rem;
+    overflow: hidden;
+    color: white;
+    animation: dashSlideUp 0.5s ease-out;
 }
 
-.dash-greeting {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--d-text);
+.dash-hero__bg-shapes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.dash-shape {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dash-shape--1 {
+    width: 250px;
+    height: 250px;
+    top: -80px;
+    right: -40px;
+    animation: dashFloat1 20s ease-in-out infinite;
+}
+
+.dash-shape--2 {
+    width: 150px;
+    height: 150px;
+    bottom: -50px;
+    left: -30px;
+    animation: dashFloat2 15s ease-in-out infinite;
+}
+
+@keyframes dashFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-20px, 20px) scale(1.05); }
+}
+
+@keyframes dashFloat2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(30px, -20px) rotate(10deg); }
+}
+
+.dash-hero__content {
+    position: relative;
+    z-index: 1;
+}
+
+.dash-hero__greeting {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.dash-hero__wave {
+    font-size: 2.5rem;
+    animation: dashWave 2s ease-in-out infinite;
+    transform-origin: 70% 70%;
+}
+
+@keyframes dashWave {
+    0%, 100% { transform: rotate(0deg); }
+    10%, 30% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    40% { transform: rotate(0deg); }
+}
+
+.dash-hero__title {
+    font-size: 1.5rem;
+    font-weight: 700;
     margin: 0;
-    letter-spacing: -0.03em;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
 }
 
-.dash-subtitle {
-    color: var(--d-text-soft);
-    font-size: 1rem;
-    margin-top: 0.5rem;
+.dash-hero__subtitle {
+    font-size: 0.9375rem;
+    margin: 0.25rem 0 0;
+    opacity: 0.9;
+}
+
+/* Hero Stats Row */
+.dash-hero__stats {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.dash-hero-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: var(--dash-radius-sm);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dash-hero-stat__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-hero-stat--words .dash-hero-stat__icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.dash-hero-stat--grammar .dash-hero-stat__icon {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+}
+
+.dash-hero-stat--achievements .dash-hero-stat__icon {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.dash-hero-stat__data {
+    display: flex;
+    flex-direction: column;
+}
+
+.dash-hero-stat__value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.dash-hero-stat__label {
+    font-size: 0.6875rem;
     font-weight: 500;
+    opacity: 0.8;
+    margin-top: 0.125rem;
 }
 
-/* Module Grid - 2x2 */
-.module-grid {
+/* ============================================
+   Module Cards Grid
+   ============================================ */
+
+.dash-modules {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
     margin-bottom: 2rem;
 }
 
-/* Universal Module Card */
-.module-card {
-    background: var(--d-surface);
-    border: 1px solid var(--d-border);
-    border-radius: var(--d-radius);
+.dash-card {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
     padding: 1.5rem;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--d-shadow);
+    box-shadow: var(--dash-shadow);
     display: flex;
     flex-direction: column;
+    animation: dashSlideUp 0.4s ease-out both;
 }
 
-.module-card:hover {
-    border-color: var(--d-accent);
-    box-shadow: var(--d-shadow-hover);
+.dash-card:nth-child(1) { animation-delay: 0.1s; }
+.dash-card:nth-child(2) { animation-delay: 0.15s; }
+.dash-card:nth-child(3) { animation-delay: 0.2s; }
+.dash-card:nth-child(4) { animation-delay: 0.25s; }
+
+.dash-card:hover {
+    border-color: var(--dash-accent);
+    box-shadow: var(--dash-shadow-hover);
     transform: translateY(-2px);
 }
 
-/* Card Header - Icon + Title */
-.module-header {
+/* Card Header */
+.dash-card__header {
     display: flex;
     align-items: center;
     gap: 0.875rem;
     margin-bottom: 1.25rem;
 }
 
-.module-icon {
+.dash-card__icon {
     width: 44px;
     height: 44px;
-    border-radius: var(--d-radius-sm);
-    background: var(--d-accent-soft);
-    color: var(--d-accent);
+    border-radius: var(--dash-radius-sm);
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
     flex-shrink: 0;
 }
 
-.module-title {
+.dash-card__title {
     font-size: 0.75rem;
     font-weight: 700;
-    color: var(--d-text-soft);
+    color: var(--dash-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin: 0;
 }
 
-/* Main Stat */
-.module-stat {
+/* Card Stat */
+.dash-card__stat {
     display: flex;
     align-items: baseline;
     gap: 0.25rem;
     margin-bottom: 0.25rem;
 }
 
-.module-stat-value {
+.dash-card__stat-value {
     font-size: 2.75rem;
     font-weight: 800;
-    color: var(--d-text);
+    color: var(--dash-text);
     line-height: 1;
     letter-spacing: -0.03em;
 }
 
-.module-stat-total {
+.dash-card__stat-total {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--d-text-soft);
+    color: var(--dash-text-muted);
 }
 
-.module-stat-label {
+.dash-card__stat-label {
     font-size: 0.875rem;
-    color: var(--d-text-soft);
+    color: var(--dash-text-muted);
     font-weight: 500;
     margin-bottom: 1rem;
 }
 
-/* Secondary Stats Row */
-.module-stats-row {
+/* Mini Stats Row */
+.dash-card__mini-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     margin-bottom: 1rem;
 }
 
-.module-stats-row.cols-2 {
+.dash-card__mini-stats--cols-2 {
     grid-template-columns: repeat(2, 1fr);
 }
 
-.stat-box {
-    background: var(--d-bg);
-    border-radius: var(--d-radius-sm);
+.dash-mini-stat {
+    background: var(--dash-surface-alt);
+    border-radius: var(--dash-radius-sm);
     padding: 0.75rem;
     text-align: center;
 }
 
-.stat-box-value {
+.dash-mini-stat__value {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--d-text);
+    color: var(--dash-text);
     line-height: 1.2;
 }
 
-.stat-box-value.accent { color: var(--d-accent); }
-.stat-box-value.success { color: var(--d-success); }
-.stat-box-value.warning { color: var(--d-warning); }
+.dash-mini-stat__value--accent { color: var(--dash-accent); }
+.dash-mini-stat__value--success { color: var(--dash-success); }
+.dash-mini-stat__value--warning { color: var(--dash-warning); }
 
-.stat-box-label {
+.dash-mini-stat__label {
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--d-text-soft);
+    color: var(--dash-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-top: 0.25rem;
 }
 
 /* Progress Bar */
-.module-progress {
+.dash-card__progress {
     height: 6px;
-    background: var(--d-bg);
+    background: var(--dash-surface-alt);
     border-radius: 3px;
     overflow: hidden;
     margin-bottom: 1rem;
 }
 
-.module-progress-fill {
+.dash-card__progress-fill {
     height: 100%;
-    background: var(--d-accent);
+    background: linear-gradient(90deg, var(--dash-accent) 0%, #7c3aed 100%);
     border-radius: 3px;
     transition: width 0.5s ease;
 }
 
 /* Description */
-.module-desc {
-    color: var(--d-text-soft);
+.dash-card__desc {
+    color: var(--dash-text-muted);
     font-size: 0.875rem;
     line-height: 1.5;
-    margin-bottom: 1rem;
+    margin: 0 0 1rem;
     flex-grow: 1;
 }
 
-/* Action Button - Unified */
-.module-action {
+/* Action Button */
+.dash-card__action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     width: 100%;
     padding: 0.875rem 1.25rem;
-    background: var(--d-accent);
+    background: var(--dash-accent);
     color: white;
-    border-radius: var(--d-radius-sm);
+    border-radius: var(--dash-radius-sm);
     font-weight: 600;
     font-size: 0.9rem;
     text-decoration: none;
@@ -217,347 +625,236 @@
     margin-top: auto;
 }
 
-.module-action:hover {
+.dash-card__action:hover {
     background: #4338ca;
     color: white;
     transform: scale(1.02);
 }
 
-.module-action i {
-    font-size: 0.75rem;
+.dash-card__action svg {
     transition: transform 0.2s;
 }
 
-.module-action:hover i {
+.dash-card__action:hover svg {
     transform: translateX(3px);
 }
 
-/* Quick Actions Section */
-.quick-section {
-    background: var(--d-surface);
-    border: 1px solid var(--d-border);
-    border-radius: var(--d-radius);
+/* ============================================
+   Quick Actions Section
+   ============================================ */
+
+.dash-quick {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
     padding: 1.5rem;
-    box-shadow: var(--d-shadow);
+    box-shadow: var(--dash-shadow);
     margin-bottom: 2rem;
+    animation: dashSlideUp 0.5s ease-out both;
+    animation-delay: 0.3s;
 }
 
-.quick-title {
+.dash-quick__title {
     font-size: 0.75rem;
     font-weight: 700;
-    color: var(--d-text-soft);
+    color: var(--dash-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin: 0 0 1rem;
 }
 
-.quick-grid {
+.dash-quick__grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
 }
 
-.quick-btn {
+.dash-quick__btn {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.625rem;
     padding: 1rem;
-    background: var(--d-bg);
-    border: 1px solid var(--d-border);
-    border-radius: var(--d-radius-sm);
-    color: var(--d-text);
+    background: var(--dash-surface-alt);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+    color: var(--dash-text);
     font-size: 0.875rem;
     font-weight: 600;
     text-decoration: none;
     transition: all 0.2s;
 }
 
-.quick-btn:hover {
-    background: var(--d-accent-soft);
-    border-color: var(--d-accent);
-    color: var(--d-accent);
-}
-
-.quick-btn i {
-    font-size: 1rem;
+.dash-quick__btn svg {
     opacity: 0.7;
+    flex-shrink: 0;
 }
 
-/* Stats Row - Bottom */
-.stats-row {
+.dash-quick__btn:hover {
+    background: var(--dash-accent-soft);
+    border-color: var(--dash-accent);
+    color: var(--dash-accent);
+}
+
+.dash-quick__btn:hover svg {
+    opacity: 1;
+}
+
+/* ============================================
+   Bottom Stats Row
+   ============================================ */
+
+.dash-bottom {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
+    animation: dashSlideUp 0.5s ease-out both;
+    animation-delay: 0.4s;
 }
 
-.stats-card {
-    background: var(--d-surface);
-    border: 1px solid var(--d-border);
-    border-radius: var(--d-radius);
+.dash-bottom__card {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
     padding: 1.25rem;
-    box-shadow: var(--d-shadow);
+    box-shadow: var(--dash-shadow);
     text-align: center;
     transition: all 0.2s;
 }
 
-.stats-card:hover {
-    border-color: var(--d-accent);
+.dash-bottom__card:hover {
+    border-color: var(--dash-accent);
 }
 
-.stats-card-icon {
+.dash-bottom__icon {
     width: 40px;
     height: 40px;
-    border-radius: var(--d-radius-sm);
-    background: var(--d-accent-soft);
-    color: var(--d-accent);
+    border-radius: var(--dash-radius-sm);
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
     margin: 0 auto 0.75rem;
 }
 
-.stats-card-value {
+.dash-bottom__value {
     font-size: 1.75rem;
     font-weight: 800;
-    color: var(--d-text);
+    color: var(--dash-text);
     line-height: 1;
 }
 
-.stats-card-label {
+.dash-bottom__value-total {
+    font-size: 0.875rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-bottom__label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--d-text-soft);
+    color: var(--dash-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-top: 0.375rem;
 }
 
-.stats-card-action {
+.dash-bottom__action {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
     margin-top: 0.75rem;
-    color: var(--d-accent);
+    color: var(--dash-accent);
     font-size: 0.8rem;
     font-weight: 600;
     text-decoration: none;
 }
 
-.stats-card-action:hover {
+.dash-bottom__action:hover {
     text-decoration: underline;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-    .quick-grid { grid-template-columns: repeat(2, 1fr); }
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes dashSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-@media (max-width: 768px) {
-    .module-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: 1fr; }
-    .quick-grid { grid-template-columns: 1fr; }
-    .dash-greeting { font-size: 1.5rem; }
-    .module-stat-value { font-size: 2.25rem; }
+/* ============================================
+   Responsive - 640px single breakpoint
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .dash-quick__grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .dash-page {
+        padding: 0 0.75rem 2rem;
+    }
+
+    .dash-hero {
+        padding: 1.5rem;
+    }
+
+    .dash-hero__greeting {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .dash-hero__wave {
+        font-size: 2rem;
+    }
+
+    .dash-hero__title {
+        font-size: 1.25rem;
+    }
+
+    .dash-hero__stats {
+        gap: 0.5rem;
+    }
+
+    .dash-hero-stat {
+        flex: 1 1 calc(50% - 0.25rem);
+        padding: 0.5rem 0.75rem;
+    }
+
+    .dash-hero-stat__icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .dash-hero-stat__value {
+        font-size: 1rem;
+    }
+
+    .dash-modules {
+        grid-template-columns: 1fr;
+    }
+
+    .dash-card__stat-value {
+        font-size: 2.25rem;
+    }
+
+    .dash-quick__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dash-bottom {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
-{% endblock %}
-
-{% block content %}
-<div class="dash">
-    <div class="container" style="max-width: 900px;">
-
-        <!-- Header -->
-        <div class="dash-header">
-            <h1 class="dash-greeting">Привет, {{ current_user.username }} 👋</h1>
-            <p class="dash-subtitle">Выбери, чем хочешь заняться сегодня</p>
-        </div>
-
-        <!-- Main Module Grid -->
-        <div class="module-grid">
-
-            <!-- КАРТОЧКИ -->
-            <div class="module-card">
-                <div class="module-header">
-                    <div class="module-icon"><i class="fas fa-clone"></i></div>
-                    <h2 class="module-title">Карточки</h2>
-                </div>
-                <div class="module-stat">
-                    <span class="module-stat-value">{{ words_total }}</span>
-                </div>
-                <div class="module-stat-label">слов в коллекции</div>
-                <div class="module-stats-row">
-                    <div class="stat-box">
-                        <div class="stat-box-value warning">{{ words_stats.learning }}</div>
-                        <div class="stat-box-label">Учу</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-box-value accent">{{ words_stats.review }}</div>
-                        <div class="stat-box-label">Повтор</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-box-value success">{{ words_stats.mastered }}</div>
-                        <div class="stat-box-label">Выучено</div>
-                    </div>
-                </div>
-                {% if words_total > 0 %}
-                <div class="module-progress">
-                    <div class="module-progress-fill" style="width: {{ (words_stats.mastered / words_total * 100) | int }}%;"></div>
-                </div>
-                {% endif %}
-                <a href="{{ url_for('study.index') }}" class="module-action">
-                    Учить слова <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <!-- ГРАММАТИКА -->
-            <div class="module-card">
-                <div class="module-header">
-                    <div class="module-icon"><i class="fas fa-flask"></i></div>
-                    <h2 class="module-title">Грамматика</h2>
-                </div>
-                <div class="module-stat">
-                    <span class="module-stat-value">{{ grammar_studied }}</span>
-                    <span class="module-stat-total">/ {{ grammar_total }}</span>
-                </div>
-                <div class="module-stat-label">тем изучено</div>
-                <div class="module-stats-row cols-2">
-                    <div class="stat-box">
-                        <div class="stat-box-value success">{{ grammar_mastered }}</div>
-                        <div class="stat-box-label">Освоено</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-box-value">{{ grammar_total - grammar_studied }}</div>
-                        <div class="stat-box-label">Осталось</div>
-                    </div>
-                </div>
-                <a href="{{ url_for('grammar_lab.index') }}" class="module-action">
-                    Grammar Lab <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <!-- КУРСЫ -->
-            <div class="module-card">
-                <div class="module-header">
-                    <div class="module-icon"><i class="fas fa-graduation-cap"></i></div>
-                    <h2 class="module-title">Курсы</h2>
-                </div>
-                {% if active_course %}
-                <div class="module-stat">
-                    <span class="module-stat-value">{{ active_course.progress_percentage | int }}%</span>
-                </div>
-                <div class="module-stat-label">{{ active_course.course.title }}</div>
-                <div class="module-progress">
-                    <div class="module-progress-fill" style="width: {{ active_course.progress_percentage | int }}%;"></div>
-                </div>
-                {% else %}
-                <div class="module-stat">
-                    <span class="module-stat-value">{{ courses_enrolled }}</span>
-                </div>
-                <div class="module-stat-label">активных курсов</div>
-                <p class="module-desc">Выберите курс и начните обучение по структурированной программе</p>
-                {% endif %}
-                <a href="{{ url_for('book_courses.list_book_courses') }}" class="module-action">
-                    {% if active_course %}Продолжить{% else %}Выбрать курс{% endif %} <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <!-- КНИГИ -->
-            <div class="module-card">
-                <div class="module-header">
-                    <div class="module-icon"><i class="fas fa-book-open"></i></div>
-                    <h2 class="module-title">Книги</h2>
-                </div>
-                {% if recent_book %}
-                <div class="module-stat">
-                    <span class="module-stat-value">{{ books_reading }}</span>
-                </div>
-                <div class="module-stat-label">{{ recent_book.chapter.book.title }}</div>
-                {% else %}
-                <div class="module-stat">
-                    <span class="module-stat-value">{{ books_reading }}</span>
-                </div>
-                <div class="module-stat-label">книг читаете</div>
-                <p class="module-desc">Читайте книги на английском и расширяйте словарный запас</p>
-                {% endif %}
-                <a href="{{ url_for('books.book_list') }}" class="module-action">
-                    {% if recent_book %}Читать{% else %}Найти книгу{% endif %} <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-        </div>
-
-        <!-- Telegram Banner -->
-        {% include 'partials/telegram_banner.html' %}
-
-        <!-- Quick Actions -->
-        <div class="quick-section">
-            <h3 class="quick-title">Быстрые действия</h3>
-            <div class="quick-grid">
-                <a href="{{ url_for('study.cards', word_source='all') }}" class="quick-btn">
-                    <i class="fas fa-clone"></i> Карточки
-                </a>
-                <a href="{{ url_for('study.quiz', word_source='all') }}" class="quick-btn">
-                    <i class="fas fa-question-circle"></i> Тест
-                </a>
-                <a href="{{ url_for('study.matching', word_source='all') }}" class="quick-btn">
-                    <i class="fas fa-th"></i> Подбери пару
-                </a>
-                <a href="{{ url_for('grammar_lab.practice') }}" class="quick-btn">
-                    <i class="fas fa-dumbbell"></i> Практика
-                </a>
-                <a href="{{ url_for('words.word_list') }}" class="quick-btn">
-                    <i class="fas fa-list"></i> Все слова
-                </a>
-                <a href="{{ url_for('study.topics') }}" class="quick-btn">
-                    <i class="fas fa-layer-group"></i> Темы
-                </a>
-                <a href="{{ url_for('study.stats') }}" class="quick-btn">
-                    <i class="fas fa-chart-bar"></i> Статистика
-                </a>
-                <a href="{{ url_for('study.leaderboard') }}" class="quick-btn">
-                    <i class="fas fa-trophy"></i> Лидеры
-                </a>
-            </div>
-        </div>
-
-        <!-- Bottom Stats -->
-        <div class="stats-row">
-            <div class="stats-card">
-                <div class="stats-card-icon"><i class="fas fa-trophy"></i></div>
-                <div class="stats-card-value">{{ earned_achievements }}<span style="font-size: 0.5em; color: var(--d-text-soft);">/{{ total_achievements }}</span></div>
-                <div class="stats-card-label">Достижения</div>
-                <a href="{{ url_for('study.stats') }}" class="stats-card-action">
-                    Смотреть <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
-                </a>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon"><i class="fas fa-th"></i></div>
-                {% if best_matching %}
-                <div class="stats-card-value">{{ best_matching.score }}</div>
-                {% else %}
-                <div class="stats-card-value">—</div>
-                {% endif %}
-                <div class="stats-card-label">Лучший матч</div>
-                <a href="{{ url_for('study.matching', word_source='all') }}" class="stats-card-action">
-                    Играть <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
-                </a>
-            </div>
-            <div class="stats-card">
-                <div class="stats-card-icon"><i class="fas fa-question-circle"></i></div>
-                {% if best_quiz %}
-                <div class="stats-card-value">{{ best_quiz.score }}%</div>
-                {% else %}
-                <div class="stats-card-value">—</div>
-                {% endif %}
-                <div class="stats-card-label">Лучший тест</div>
-                <a href="{{ url_for('study.quiz', word_source='all') }}" class="stats-card-action">
-                    Играть <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
-                </a>
-            </div>
-        </div>
-
-    </div>
-</div>
 {% endblock %}

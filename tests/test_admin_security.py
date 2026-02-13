@@ -103,7 +103,7 @@ class TestUserStatusToggleSecurity:
         """Test toggling status of non-existent user"""
         from app.admin.services.user_management_service import UserManagementService
 
-        result = UserManagementService.toggle_user_status(99999)
+        result = UserManagementService.toggle_user_status(999999999)
 
         assert result is None
 
@@ -186,7 +186,7 @@ class TestAdminStatusToggleSecurity:
         from app.admin.services.user_management_service import UserManagementService
 
         success, message = UserManagementService.toggle_admin_status(
-            99999,
+            999999999,
             admin_user.id
         )
 
@@ -285,7 +285,7 @@ class TestUserManagementAccessControl:
         """Test statistics for non-existent user"""
         from app.admin.services.user_management_service import UserManagementService
 
-        stats = UserManagementService.get_user_statistics(99999)
+        stats = UserManagementService.get_user_statistics(999999999)
 
         assert stats is None
 
@@ -311,7 +311,7 @@ class TestUserDeletionSecurity:
         """Test deleting non-existent user"""
         from app.admin.services.user_management_service import UserManagementService
 
-        result = UserManagementService.delete_user(99999)
+        result = UserManagementService.delete_user(999999999)
 
         assert result is False
 

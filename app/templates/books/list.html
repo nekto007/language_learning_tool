@@ -3,459 +3,1285 @@
 {% block title %}{{ _('Книги') }} - {{ _('Изучение английского') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-8">
-        <h1>{{ _('Books Collection') }}</h1>
-        <p class="text-muted">{{ _('Browse books and texts for learning English vocabulary.') }}</p>
+<div class="bklist-page">
+
+  <!-- Hero -->
+  <div class="bklist-hero">
+    <div class="bklist-hero__shapes">
+      <div class="bklist-shape bklist-shape--1"></div>
+      <div class="bklist-shape bklist-shape--2"></div>
+      <div class="bklist-shape bklist-shape--3"></div>
     </div>
 
-    <!-- Add Book button - only visible to admins -->
-    {% if current_user.is_authenticated and current_user.is_admin %}
-    <div class="col-md-4 text-end">
-        <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> {{ _('Add New Book') }}
+    <div class="bklist-hero__content">
+      <div class="bklist-hero__left">
+        <div class="bklist-hero__header">
+          <div class="bklist-hero__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          </div>
+          <div>
+            <h1 class="bklist-hero__title">{{ _('Библиотека') }}</h1>
+            <p class="bklist-hero__subtitle">{{ books|length }} {{ _('книг') }}</p>
+          </div>
+        </div>
+
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <a href="{{ url_for('books.add_book_redirect') }}" class="bklist-hero__admin-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          {{ _('Add New Book') }}
         </a>
-    </div>
-    {% endif %}
-</div>
+        {% endif %}
+      </div>
 
-<!-- Search and Filter Section -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" action="{{ url_for('books.book_list') }}" class="mb-3">
-            <div class="row g-3 align-items-center">
-                <!-- Search Box -->
-                <div class="col-12 col-md-6">
-                    <div class="input-group">
-                        <input type="text" name="search" class="form-control" placeholder="{{ _('Search by title or author...') }}"
-                               value="{{ request.args.get('search', '') }}">
-                        <button class="btn btn-outline-primary" type="submit">
-                            <i class="fas fa-search"></i> {{ _('Search') }}
-                        </button>
-                        {% if request.args.get('search') %}
-                        <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
-                           class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Clear
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Level Filter -->
-                <div class="col-12 col-md-6">
-                    <div class="d-flex justify-content-end">
-                        <div class="btn-group" role="group">
-                            <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
-                               class="btn btn-outline-secondary {{ 'active' if not request.args.get('level') else '' }}">
-                                {{ _('All Levels') }}
-                            </a>
-                            {% for level_value, level_name in [
-                                ('A1', 'A1'), ('A2', 'A2'),
-                                ('B1', 'B1'), ('B2', 'B2'),
-                                ('C1', 'C1'), ('C2', 'C2')
-                            ] %}
-                            <a href="{{ url_for('books.book_list', level=level_value, search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
-                               class="btn btn-outline-{{ 'primary' if level_value.startswith('A') else 'info' if level_value.startswith('B') else 'warning' }} {{ 'active' if request.args.get('level') == level_value else '' }}">
-                                {{ level_name }}
-                            </a>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <div class="bklist-hero__search">
+        <form method="GET" action="{{ url_for('books.book_list') }}" class="bklist-hero__search-form">
+          {# Preserve active filters when searching #}
+          {% if request.args.get('level') %}
+          <input type="hidden" name="level" value="{{ request.args.get('level') }}">
+          {% endif %}
+          {% if request.args.get('letter') %}
+          <input type="hidden" name="letter" value="{{ request.args.get('letter') }}">
+          {% endif %}
+          <svg class="bklist-hero__search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" name="search" value="{{ request.args.get('search', '') }}" placeholder="{{ _('Search by title or author...') }}" class="bklist-hero__search-input">
+          {% if request.args.get('search') %}
+          <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}" class="bklist-hero__search-clear">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </a>
+          {% endif %}
         </form>
-
-        <!-- Alphabetical Index -->
-        <div class="alpha-index mb-0">
-            <div class="d-flex flex-wrap justify-content-center">
-                <!-- Show all option -->
-                <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
-                   class="btn btn-sm {{ 'btn-primary' if not request.args.get('letter') else 'btn-outline-secondary' }} m-1">
-                    {{ _('All') }}
-                </a>
-
-                <!-- Letter buttons -->
-                {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
-                <a href="{{ url_for('books.book_list', letter=letter, search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
-                   class="btn btn-sm {{ 'btn-primary' if request.args.get('letter') == letter else 'btn-outline-secondary' }} m-1">
-                    {{ letter }}
-                </a>
-                {% endfor %}
-            </div>
-        </div>
+      </div>
     </div>
-</div>
+  </div>
 
-<!-- Active Filters Display -->
-{% if request.args.get('search') or request.args.get('level') or request.args.get('letter') %}
-<div class="mb-3">
-    <h6>Active filters:</h6>
-    <div class="d-flex flex-wrap">
-        {% if request.args.get('search') %}
-        <span class="badge bg-primary m-1 p-2">
-            Search: "{{ request.args.get('search') }}"
-            <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
-               class="text-white ms-1 text-decoration-none">
-                <i class="fas fa-times-circle"></i>
-            </a>
-        </span>
-        {% endif %}
-
-        {% if request.args.get('level') %}
-        <span class="badge bg-{{ 'success' if request.args.get('level').startswith('A') else 'info' if request.args.get('level').startswith('B') else 'warning' }} m-1 p-2">
-            Level: {{ request.args.get('level') }}
-            <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
-               class="text-white ms-1 text-decoration-none">
-                <i class="fas fa-times-circle"></i>
-            </a>
-        </span>
-        {% endif %}
-
-        {% if request.args.get('letter') %}
-        <span class="badge bg-secondary m-1 p-2">
-            Starting with: {{ request.args.get('letter') }}
-            <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
-               class="text-white ms-1 text-decoration-none">
-                <i class="fas fa-times-circle"></i>
-            </a>
-        </span>
-        {% endif %}
-
-        <a href="{{ url_for('books.book_list') }}" class="btn btn-sm btn-outline-danger m-1">
-            <i class="fas fa-times"></i> {{ _('Clear All Filters') }}
-        </a>
+  <!-- Level Filter -->
+  <div class="bklist-filter">
+    <span class="bklist-filter__label">{{ _('Level') }}:</span>
+    <div class="bklist-filter__buttons">
+      <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
+         class="bklist-filter__btn {% if not request.args.get('level') %}bklist-filter__btn--active{% endif %}">
+        {{ _('Все') }}
+      </a>
+      {% for level_value in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+      <a href="{{ url_for('books.book_list', level=level_value, search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
+         class="bklist-filter__btn {% if request.args.get('level') == level_value %}bklist-filter__btn--active{% endif %}">
+        {{ level_value }}
+      </a>
+      {% endfor %}
     </div>
-</div>
-{% endif %}
+  </div>
 
-<!-- Book List -->
-<div class="card">
-    <div class="card-body">
-        {% if books %}
-        <!-- Desktop table view -->
-        <div class="table-responsive d-none d-lg-block">
-            <table class="table table-hover">
-                <thead>
-                  <tr>
-                      <th style="width: 100px;" class="align-middle">{{ _('COVER') }}</th>
-                      <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='title', order='asc' if sort_by != 'title' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
-                             class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">{{ _('TITLE') }}</span>
-                              {% if sort_by == 'title' %}
-                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                              {% else %}
-                                  <i class="fas fa-sort text-muted"></i>
-                              {% endif %}
-                          </a>
-                      </th>
-                      <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='author', order='asc' if sort_by != 'author' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
-                             class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">{{ _('AUTHOR') }}</span>
-                              {% if sort_by == 'author' %}
-                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                              {% else %}
-                                  <i class="fas fa-sort text-muted"></i>
-                              {% endif %}
-                          </a>
-                      </th>
-                      <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='level', order='asc' if sort_by != 'level' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
-                             class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">{{ _('LEVEL') }}</span>
-                              {% if sort_by == 'level' %}
-                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                              {% else %}
-                                  <i class="fas fa-sort text-muted"></i>
-                              {% endif %}
-                          </a>
-                      </th>
-                      <th class="align-middle">
-                          <a href="{{ url_for('books.book_list', sort='unique_words', order='asc' if sort_by != 'unique_words' or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
-                             class="d-flex align-items-center text-decoration-none">
-                              <span class="me-1">{{ _('WORDS') }}</span>
-                              {% if sort_by == 'unique_words' %}
-                                  <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
-                              {% else %}
-                                  <i class="fas fa-sort text-muted"></i>
-                              {% endif %}
-                          </a>
-                      </th>
-                      <th class="align-middle">{{ _('PROGRESS') }}</th>
-                      <th class="align-middle">{{ _('ACTIONS') }}</th>
-                  </tr>
-              </thead>
-                <tbody>
-                    {% for book in books %}
-                    <tr>
-                        <td>
-                            <div class="book-cover-thumbnail">
-                                {% if book.cover_image %}
-                                <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="Cover for {{ book.title }}" class="img-thumbnail">
-                                {% else %}
-                                <div class="no-cover">
-                                    <i class="fas fa-book"></i>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
+  <!-- Letter Filter -->
+  <div class="bklist-letters">
+    <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
+       class="bklist-letters__btn {% if not request.args.get('letter') %}bklist-letters__btn--active{% endif %}">
+      {{ _('All') }}
+    </a>
+    {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+    <a href="{{ url_for('books.book_list', letter=letter, search=request.args.get('search', ''), level=request.args.get('level', '')) }}"
+       class="bklist-letters__btn {% if request.args.get('letter') == letter %}bklist-letters__btn--active{% endif %}">
+      {{ letter }}
+    </a>
+    {% endfor %}
+  </div>
 
-                            {# Добавляем индикатор последнего чтения и кнопку продолжения #}
-                            {% if current_user.is_authenticated %}
-                                {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-                                {% if chapter_progress %}
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">{{ _('Last read') }}: {{ chapter_progress.updated_at.strftime('%d.%m.%Y') }}</small>
-                                    {% if chapter_counts.get(book.id, 0) > 0 %}
-                                        {% if book.slug %}
-                                        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" 
-                                           class="btn btn-xs btn-outline-primary">{{ _('Continue') }}</a>
-                                        {% else %}
-                                        <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" 
-                                           class="btn btn-xs btn-outline-primary">{{ _('Continue') }}</a>
-                                        {% endif %}
-                                    {% else %}
-                                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" 
-                                           class="btn btn-xs btn-outline-primary">{{ _('Continue') }}</a>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                        </td>
-                        <td>{{ book.author or '-' }}</td>
-                        <td>
-                            {% if book.level %}
-                                <span class="badge bg-{{ 'success' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }}">{{ book.level }}</span>
-                            {% else %}
-                                -
-                            {% endif %}
-                            {% if chapter_counts.get(book.id, 0) > 0 %}
-                                <br><small class="text-muted">
-                                    <i class="fas fa-book-open"></i> {{ chapter_counts[book.id] }} {{ _('chapters') }}
-                                </small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <span class="me-2">{{ book.unique_words }} {{ _('unique words') }}</span>
-                                <small class="text-muted">({{ book.words_total }} {{ _('words') }})</small>
-                            </div>
-                        </td>
-                        <td>
-                            {% set stats = book_stats[book.id] %}
-                            {% set progress = ((stats['mastered']) / stats['total'] * 100) | int if stats['total'] > 0 else 0 %}
-                            <div class="progress" style="width: 100%; height: 10px;">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ (stats['mastered'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (stats['learning'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%"></div>
-                            </div>
-                            <div class="d-flex justify-content-between mt-1">
-                                <small class="text-muted">{{ progress }}% {{ _('learned') }}</small>
-                                <small class="text-muted">{{ stats['mastered'] }}/{{ stats['total'] }}</small>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">{{ _('Details') }}</a>
-                                
-                                {# Умная кнопка чтения - продолжить или начать #}
-                                {% if current_user.is_authenticated %}
-                                    {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-                                    {% if chapter_progress %}
-                                        {# Кнопка "Продолжить" #}
-                                        {% if chapter_counts.get(book.id, 0) > 0 %}
-                                            {% if book.slug %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" 
-                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
-                                            {% else %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" 
-                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
-                                            {% endif %}
-                                        {% else %}
-                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-success">{{ _('Continue') }}</a>
-                                        {% endif %}
-                                    {% else %}
-                                        {# Кнопка "Читать" для новых книг #}
-                                        {% if chapter_counts.get(book.id, 0) > 0 %}
-                                            {% if book.slug %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                            {% else %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                            {% endif %}
-                                        {% else %}
-                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                        {% endif %}
-                                    {% endif %}
-                                {% else %}
-                                    {# Для неавторизованных пользователей #}
-                                    {% if chapter_counts.get(book.id, 0) > 0 %}
-                                        {% if book.slug %}
-                                        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                        {% else %}
-                                        <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                        {% endif %}
-                                    {% else %}
-                                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                    {% endif %}
-                                {% endif %}
-                                
-                                {% if current_user.is_authenticated and current_user.is_admin %}
-                                <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="btn btn-sm btn-outline-secondary">{{ _('Edit') }}</a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Mobile card view -->
-        <div class="d-lg-none">
-            {% for book in books %}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-3">
-                            <div class="book-cover-thumbnail">
-                                {% if book.cover_image %}
-                                <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="Cover for {{ book.title }}" class="img-thumbnail w-100">
-                                {% else %}
-                                <div class="no-cover text-center p-2 bg-light rounded">
-                                    <i class="fas fa-book"></i>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-9">
-                            <h6 class="card-title mb-1">
-                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="text-decoration-none">{{ book.title }}</a>
-                            </h6>
-                            
-                            {% if book.author %}
-                            <p class="text-muted mb-1"><small>{{ book.author }}</small></p>
-                            {% endif %}
-                            
-                            <div class="d-flex align-items-center mb-2">
-                                {% if book.level %}
-                                <span class="badge bg-{{ 'success' if book.level.startswith('A') else 'info' if book.level.startswith('B') else 'warning' }} me-2">{{ book.level }}</span>
-                                {% endif %}
-                                {% if chapter_counts.get(book.id, 0) > 0 %}
-                                <small class="text-muted">
-                                    <i class="fas fa-book-open"></i> {{ chapter_counts[book.id] }} {{ _('chapters') }}
-                                </small>
-                                {% endif %}
-                            </div>
-                            
-                            {% if current_user.is_authenticated %}
-                                {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-                                {% if chapter_progress %}
-                                <div class="mb-2">
-                                    <small class="text-muted">{{ _('Last read') }}: {{ chapter_progress.updated_at.strftime('%d.%m.%Y') }}</small>
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                            
-                            <div class="d-flex gap-1">
-                                <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">{{ _('Details') }}</a>
-                                
-                                {% if current_user.is_authenticated %}
-                                    {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-                                    {% if chapter_progress %}
-                                        {% if chapter_counts.get(book.id, 0) > 0 %}
-                                            {% if book.slug %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" 
-                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
-                                            {% else %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" 
-                                               class="btn btn-sm btn-success">{{ _('Continue') }}</a>
-                                            {% endif %}
-                                        {% else %}
-                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-success">{{ _('Continue') }}</a>
-                                        {% endif %}
-                                    {% else %}
-                                        {% if chapter_counts.get(book.id, 0) > 0 %}
-                                            {% if book.slug %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                            {% else %}
-                                            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                            {% endif %}
-                                        {% else %}
-                                            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                        {% endif %}
-                                    {% endif %}
-                                {% else %}
-                                    {% if chapter_counts.get(book.id, 0) > 0 %}
-                                        {% if book.slug %}
-                                        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                        {% else %}
-                                        <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                        {% endif %}
-                                    {% else %}
-                                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-sm btn-primary">{{ _('Read') }}</a>
-                                    {% endif %}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+  <!-- Active Filters -->
+  {% if request.args.get('search') or request.args.get('level') or request.args.get('letter') %}
+  <div class="bklist-tags">
+    {% if request.args.get('search') %}
+    <a href="{{ url_for('books.book_list', level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}" class="bklist-tags__item">
+      {{ _('Search') }}: "{{ request.args.get('search') }}"
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </a>
+    {% endif %}
 
-        <!-- Pagination -->
-        <nav>
-          <ul class="pagination justify-content-center">
-              {% if pagination.has_prev %}
-              <li class="page-item">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">{{ _('Previous') }}</a>
-              </li>
-              {% else %}
-              <li class="page-item disabled">
-                  <span class="page-link">{{ _('Previous') }}</span>
-              </li>
-              {% endif %}
+    {% if request.args.get('level') %}
+    <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}" class="bklist-tags__item">
+      {{ _('Level') }}: {{ request.args.get('level') }}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </a>
+    {% endif %}
 
-              {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-              {% if page_num %}
-              <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=page_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">{{ page_num }}</a>
-              </li>
-              {% else %}
-              <li class="page-item disabled">
-                  <span class="page-link">…</span>
-              </li>
-              {% endif %}
-              {% endfor %}
+    {% if request.args.get('letter') %}
+    <a href="{{ url_for('books.book_list', search=request.args.get('search', ''), level=request.args.get('level', '')) }}" class="bklist-tags__item">
+      {{ _('Starting with') }}: {{ request.args.get('letter') }}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </a>
+    {% endif %}
 
-              {% if pagination.has_next %}
-              <li class="page-item">
-                  <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">{{ _('Next') }}</a>
-              </li>
-              {% else %}
-              <li class="page-item disabled">
-                  <span class="page-link">{{ _('Next') }}</span>
-              </li>
-              {% endif %}
-          </ul>
-      </nav>
+    <a href="{{ url_for('books.book_list') }}" class="bklist-tags__clear">{{ _('Clear All Filters') }}</a>
+  </div>
+  {% endif %}
+
+  <!-- Book Cards -->
+  {% if books %}
+  <div class="bklist-cards">
+    {% for book in books %}
+    <div class="bklist-card">
+
+      <!-- Cover -->
+      <div class="bklist-card__cover">
+        {% if book.cover_image %}
+        <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ book.title }}" class="bklist-card__cover-img">
         {% else %}
-        <div class="text-center py-5">
-            <p class="text-muted mb-3">{{ _('No books found matching your criteria.') }}</p>
-            <div class="d-flex justify-content-center">
-                <a href="{{ url_for('books.book_list') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-undo"></i> {{ _('Clear Filters') }}
-                </a>
-                {% if current_user.is_authenticated and current_user.is_admin %}
-                <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-primary ms-2">
-                    <i class="fas fa-plus"></i> {{ _('Add Book') }}
-                </a>
-                {% endif %}
-            </div>
+        <div class="bklist-card__cover-placeholder">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
         </div>
         {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div class="bklist-card__info">
+        <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="bklist-card__title">{{ book.title }}</a>
+        {% if book.author %}
+        <span class="bklist-card__author">{{ book.author }}</span>
+        {% endif %}
+
+        {% if current_user.is_authenticated %}
+          {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+          {% if chapter_progress %}
+          <span class="bklist-card__last-read">{{ _('Last read') }}: {{ chapter_progress.updated_at.strftime('%d.%m.%Y') }}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <!-- Meta: level + chapters -->
+      <div class="bklist-card__meta">
+        {% if book.level %}
+        <span class="bklist-card__level bklist-card__level--{{ book.level[0] | lower }}">{{ book.level }}</span>
+        {% endif %}
+        {% if chapter_counts.get(book.id, 0) > 0 %}
+        <span class="bklist-card__chapters">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          {{ chapter_counts[book.id] }}
+        </span>
+        {% endif %}
+      </div>
+
+      <!-- Words + Progress -->
+      <div class="bklist-card__progress-area">
+        <span class="bklist-card__words">{{ book.unique_words }} {{ _('words') }}</span>
+        {% set stats = book_stats[book.id] %}
+        {% set progress = ((stats['mastered']) / stats['total'] * 100) | int if stats['total'] > 0 else 0 %}
+        <div class="bklist-card__progress-bar">
+          <div class="bklist-card__progress-fill bklist-card__progress-fill--mastered" style="width: {{ (stats['mastered'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%;"></div>
+          <div class="bklist-card__progress-fill bklist-card__progress-fill--learning" style="width: {{ (stats['learning'] / stats['total'] * 100) | int if stats['total'] > 0 else 0 }}%;"></div>
+        </div>
+        <span class="bklist-card__progress-text">{{ progress }}% &middot; {{ stats['mastered'] }}/{{ stats['total'] }}</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="bklist-card__actions">
+        <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="bklist-card__btn bklist-card__btn--outline">{{ _('Details') }}</a>
+
+        {# Smart read/continue button #}
+        {% if current_user.is_authenticated %}
+          {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
+          {% if chapter_progress %}
+            {# Continue button #}
+            {% if chapter_counts.get(book.id, 0) > 0 %}
+              {% if book.slug %}
+              <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" class="bklist-card__btn bklist-card__btn--continue">
+                {{ _('Continue') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              {% else %}
+              <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" class="bklist-card__btn bklist-card__btn--continue">
+                {{ _('Continue') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              {% endif %}
+            {% else %}
+              <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="bklist-card__btn bklist-card__btn--continue">
+                {{ _('Continue') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            {% endif %}
+          {% else %}
+            {# Read button for new books #}
+            {% if chapter_counts.get(book.id, 0) > 0 %}
+              {% if book.slug %}
+              <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="bklist-card__btn bklist-card__btn--read">
+                {{ _('Read') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              {% else %}
+              <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="bklist-card__btn bklist-card__btn--read">
+                {{ _('Read') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              {% endif %}
+            {% else %}
+              <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="bklist-card__btn bklist-card__btn--read">
+                {{ _('Read') }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          {# Unauthenticated users #}
+          {% if chapter_counts.get(book.id, 0) > 0 %}
+            {% if book.slug %}
+            <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=1) }}" class="bklist-card__btn bklist-card__btn--read">
+              {{ _('Read') }}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            {% else %}
+            <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="bklist-card__btn bklist-card__btn--read">
+              {{ _('Read') }}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            {% endif %}
+          {% else %}
+            <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="bklist-card__btn bklist-card__btn--read">
+              {{ _('Read') }}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+          {% endif %}
+        {% endif %}
+
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <a href="{{ url_for('books.edit_book_info', book_id=book.id) }}" class="bklist-card__btn bklist-card__btn--icon" title="{{ _('Edit') }}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </a>
+        {% endif %}
+      </div>
+
     </div>
+    {% endfor %}
+  </div>
+
+  <!-- Sorting Row -->
+  <div class="bklist-sort">
+    <span class="bklist-sort__label">{{ _('Sort') }}:</span>
+    {% for col, label in [('title', _('Title')), ('author', _('Author')), ('level', _('Level')), ('unique_words', _('Words'))] %}
+    <a href="{{ url_for('books.book_list', sort=col, order='asc' if sort_by != col or sort_order == 'desc' else 'desc', search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
+       class="bklist-sort__btn {% if sort_by == col %}bklist-sort__btn--active{% endif %}">
+      {{ label }}
+      {% if sort_by == col %}
+        {% if sort_order == 'asc' %}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        {% else %}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        {% endif %}
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.has_prev or pagination.has_next %}
+  <nav class="bklist-pagination">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}" class="bklist-pagination__btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      {{ _('Previous') }}
+    </a>
+    {% else %}
+    <span class="bklist-pagination__btn bklist-pagination__btn--disabled">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      {{ _('Previous') }}
+    </span>
+    {% endif %}
+
+    <div class="bklist-pagination__pages">
+      {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page_num %}
+        <a href="{{ url_for('books.book_list', page=page_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}"
+           class="bklist-pagination__page {% if page_num == pagination.page %}bklist-pagination__page--active{% endif %}">
+          {{ page_num }}
+        </a>
+        {% else %}
+        <span class="bklist-pagination__ellipsis">&hellip;</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {% if pagination.has_next %}
+    <a href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}" class="bklist-pagination__btn">
+      {{ _('Next') }}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    </a>
+    {% else %}
+    <span class="bklist-pagination__btn bklist-pagination__btn--disabled">
+      {{ _('Next') }}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    </span>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <!-- Empty State -->
+  <div class="bklist-empty">
+    <div class="bklist-empty__icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+    </div>
+    <h3 class="bklist-empty__title">{{ _('No books found matching your criteria.') }}</h3>
+    <p class="bklist-empty__desc">{{ _('Try changing your filters or search query') }}</p>
+    <div class="bklist-empty__actions">
+      <a href="{{ url_for('books.book_list') }}" class="bklist-card__btn bklist-card__btn--outline">{{ _('Clear Filters') }}</a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <a href="{{ url_for('books.add_book_redirect') }}" class="bklist-card__btn bklist-card__btn--read">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        {{ _('Add Book') }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+/* ── Scoped Variables ── */
+.bklist-page {
+  --bklist-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bklist-gradient-start: #ec4899;
+  --bklist-gradient-end: #2563eb;
+  --bklist-surface: #ffffff;
+  --bklist-surface-alt: #f8fafc;
+  --bklist-text: #0f172a;
+  --bklist-text-muted: #64748b;
+  --bklist-border: #e2e8f0;
+  --bklist-radius: 16px;
+  --bklist-radius-sm: 10px;
+  --bklist-green: #22c55e;
+  --bklist-green-dark: #16a34a;
+
+  font-family: var(--bklist-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ── Hero ── */
+.bklist-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--bklist-gradient-start) 0%, var(--bklist-gradient-end) 100%);
+  border-radius: var(--bklist-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: #fff;
+}
+
+.bklist-hero__shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bklist-shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bklist-shape--1 {
+  width: 160px;
+  height: 160px;
+  top: -60px;
+  right: -40px;
+  animation: bklist-float-1 18s ease-in-out infinite;
+}
+
+.bklist-shape--2 {
+  width: 90px;
+  height: 90px;
+  bottom: -35px;
+  left: 8%;
+  animation: bklist-float-2 14s ease-in-out infinite;
+}
+
+.bklist-shape--3 {
+  width: 50px;
+  height: 50px;
+  top: 30%;
+  right: 25%;
+  animation: bklist-float-3 20s ease-in-out infinite;
+}
+
+@keyframes bklist-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-18px, 18px) scale(1.06); }
+}
+
+@keyframes bklist-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(22px, -16px) rotate(10deg); }
+}
+
+@keyframes bklist-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-12px, 10px) scale(1.15); }
+}
+
+.bklist-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.bklist-hero__left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.bklist-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bklist-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.bklist-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.bklist-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+.bklist-hero__admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--bklist-font);
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease;
+}
+
+.bklist-hero__admin-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+/* Hero Search */
+.bklist-hero__search {
+  flex-shrink: 0;
+}
+
+.bklist-hero__search-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.bklist-hero__search-icon {
+  position: absolute;
+  left: 12px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.bklist-hero__search-input {
+  padding: 0.625rem 2.25rem 0.625rem 2.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.9375rem;
+  font-family: var(--bklist-font);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  width: 240px;
+  transition: all 0.2s ease;
+}
+
+.bklist-hero__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bklist-hero__search-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+  width: 280px;
+}
+
+.bklist-hero__search-clear {
+  position: absolute;
+  right: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.bklist-hero__search-clear:hover {
+  color: #fff;
+}
+
+/* ── Level Filter ── */
+.bklist-filter {
+  background: var(--bklist-surface);
+  border-radius: var(--bklist-radius-sm);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--bklist-border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bklist-filter__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--bklist-text-muted);
+}
+
+.bklist-filter__buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bklist-filter__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.875rem;
+  background: var(--bklist-surface-alt);
+  border: 1px solid var(--bklist-border);
+  border-radius: 8px;
+  color: var(--bklist-text);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--bklist-font);
+  transition: all 0.2s ease;
+}
+
+.bklist-filter__btn:hover {
+  border-color: var(--bklist-gradient-start);
+  color: var(--bklist-gradient-start);
+}
+
+.bklist-filter__btn--active {
+  background: linear-gradient(135deg, var(--bklist-gradient-start) 0%, var(--bklist-gradient-end) 100%);
+  border-color: var(--bklist-gradient-start);
+  color: #fff;
+}
+
+.bklist-filter__btn--active:hover {
+  color: #fff;
+}
+
+/* ── Letter Filter ── */
+.bklist-letters {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.25rem;
+}
+
+.bklist-letters__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 0.375rem;
+  background: var(--bklist-surface);
+  border: 1px solid var(--bklist-border);
+  border-radius: 6px;
+  color: var(--bklist-text);
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--bklist-font);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.bklist-letters__btn:hover {
+  border-color: var(--bklist-gradient-end);
+  color: var(--bklist-gradient-end);
+}
+
+.bklist-letters__btn--active {
+  background: linear-gradient(135deg, var(--bklist-gradient-start) 0%, var(--bklist-gradient-end) 100%);
+  border-color: var(--bklist-gradient-start);
+  color: #fff;
+}
+
+.bklist-letters__btn--active:hover {
+  color: #fff;
+}
+
+/* ── Active Filters / Tags ── */
+.bklist-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.bklist-tags__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--bklist-surface-alt);
+  border: 1px solid var(--bklist-border);
+  border-radius: 20px;
+  color: var(--bklist-text);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: var(--bklist-font);
+  transition: all 0.2s ease;
+}
+
+.bklist-tags__item:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.bklist-tags__item svg {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.bklist-tags__item:hover svg {
+  opacity: 1;
+}
+
+.bklist-tags__clear {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #ef4444;
+  text-decoration: none;
+  margin-left: 0.25rem;
+  transition: opacity 0.2s ease;
+}
+
+.bklist-tags__clear:hover {
+  opacity: 0.7;
+}
+
+/* ── Sort Row ── */
+.bklist-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.bklist-sort__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--bklist-text-muted);
+}
+
+.bklist-sort__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--bklist-surface);
+  border: 1px solid var(--bklist-border);
+  border-radius: 6px;
+  color: var(--bklist-text-muted);
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: var(--bklist-font);
+  transition: all 0.15s ease;
+}
+
+.bklist-sort__btn:hover {
+  border-color: var(--bklist-gradient-end);
+  color: var(--bklist-gradient-end);
+}
+
+.bklist-sort__btn--active {
+  border-color: var(--bklist-gradient-start);
+  color: var(--bklist-gradient-start);
+  background: rgba(236, 72, 153, 0.06);
+}
+
+/* ── Book Cards ── */
+.bklist-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bklist-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--bklist-surface);
+  border: 1px solid var(--bklist-border);
+  border-radius: var(--bklist-radius-sm);
+  transition: all 0.25s ease;
+}
+
+.bklist-card:hover {
+  border-color: var(--bklist-gradient-start);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Cover */
+.bklist-card__cover {
+  width: 56px;
+  height: 72px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.bklist-card__cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bklist-card__cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--bklist-surface-alt);
+  border: 1px solid var(--bklist-border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bklist-text-muted);
+}
+
+/* Info */
+.bklist-card__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.bklist-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--bklist-text);
+  text-decoration: none;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bklist-card__title:hover {
+  color: var(--bklist-gradient-start);
+}
+
+.bklist-card__author {
+  font-size: 0.8125rem;
+  color: var(--bklist-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bklist-card__last-read {
+  font-size: 0.6875rem;
+  color: var(--bklist-text-muted);
+  opacity: 0.75;
+}
+
+/* Meta */
+.bklist-card__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  min-width: 44px;
+}
+
+.bklist-card__level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.bklist-card__level--a {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.bklist-card__level--b {
+  background: rgba(6, 182, 212, 0.1);
+  color: #0891b2;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+.bklist-card__level--c {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.bklist-card__chapters {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--bklist-text-muted);
+}
+
+/* Progress */
+.bklist-card__progress-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.bklist-card__words {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bklist-text-muted);
+}
+
+.bklist-card__progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+.bklist-card__progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.bklist-card__progress-fill--mastered {
+  background: var(--bklist-green);
+}
+
+.bklist-card__progress-fill--learning {
+  background: var(--bklist-gradient-end);
+}
+
+.bklist-card__progress-text {
+  font-size: 0.6875rem;
+  color: var(--bklist-text-muted);
+}
+
+/* Actions */
+.bklist-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.bklist-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--bklist-font);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.bklist-card__btn--outline {
+  background: var(--bklist-surface);
+  border-color: var(--bklist-border);
+  color: var(--bklist-text-muted);
+}
+
+.bklist-card__btn--outline:hover {
+  border-color: var(--bklist-gradient-end);
+  color: var(--bklist-gradient-end);
+}
+
+.bklist-card__btn--read {
+  background: linear-gradient(135deg, var(--bklist-gradient-start) 0%, var(--bklist-gradient-end) 100%);
+  color: #fff;
+}
+
+.bklist-card__btn--read:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.bklist-card__btn--continue {
+  background: var(--bklist-green);
+  color: #fff;
+}
+
+.bklist-card__btn--continue:hover {
+  background: var(--bklist-green-dark);
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.bklist-card__btn--icon {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bklist-surface);
+  border-color: var(--bklist-border);
+  color: var(--bklist-text-muted);
+}
+
+.bklist-card__btn--icon:hover {
+  border-color: var(--bklist-gradient-end);
+  color: var(--bklist-gradient-end);
+}
+
+/* ── Pagination ── */
+.bklist-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.bklist-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--bklist-surface);
+  border: 1px solid var(--bklist-border);
+  border-radius: 8px;
+  color: var(--bklist-text);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: var(--bklist-font);
+  transition: all 0.2s ease;
+}
+
+.bklist-pagination__btn:hover {
+  border-color: var(--bklist-gradient-start);
+  color: var(--bklist-gradient-start);
+}
+
+.bklist-pagination__btn--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.bklist-pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bklist-pagination__page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: var(--bklist-font);
+  color: var(--bklist-text);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.bklist-pagination__page:hover {
+  background: var(--bklist-surface-alt);
+  color: var(--bklist-gradient-start);
+}
+
+.bklist-pagination__page--active {
+  background: linear-gradient(135deg, var(--bklist-gradient-start) 0%, var(--bklist-gradient-end) 100%);
+  color: #fff;
+}
+
+.bklist-pagination__page--active:hover {
+  color: #fff;
+}
+
+.bklist-pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 0.875rem;
+  color: var(--bklist-text-muted);
+}
+
+/* ── Empty State ── */
+.bklist-empty {
+  background: var(--bklist-surface);
+  border: 1px solid var(--bklist-border);
+  border-radius: var(--bklist-radius);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.bklist-empty__icon {
+  color: var(--bklist-border);
+  margin-bottom: 1rem;
+}
+
+.bklist-empty__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--bklist-text);
+  margin: 0 0 0.5rem;
+}
+
+.bklist-empty__desc {
+  font-size: 0.875rem;
+  color: var(--bklist-text-muted);
+  margin: 0 0 1.5rem;
+}
+
+.bklist-empty__actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* ── Animations ── */
+@keyframes bklist-slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bklist-hero   { animation: bklist-slideUp 0.4s ease-out; }
+.bklist-filter { animation: bklist-slideUp 0.4s ease-out 0.08s both; }
+.bklist-letters { animation: bklist-slideUp 0.4s ease-out 0.12s both; }
+.bklist-tags   { animation: bklist-slideUp 0.4s ease-out 0.14s both; }
+.bklist-cards  { animation: bklist-slideUp 0.4s ease-out 0.16s both; }
+.bklist-sort   { animation: bklist-slideUp 0.4s ease-out 0.18s both; }
+.bklist-empty  { animation: bklist-slideUp 0.5s ease-out; }
+
+.bklist-card {
+  animation: bklist-slideUp 0.35s ease-out both;
+}
+
+.bklist-card:nth-child(1)  { animation-delay: 0.10s; }
+.bklist-card:nth-child(2)  { animation-delay: 0.15s; }
+.bklist-card:nth-child(3)  { animation-delay: 0.20s; }
+.bklist-card:nth-child(4)  { animation-delay: 0.25s; }
+.bklist-card:nth-child(5)  { animation-delay: 0.30s; }
+.bklist-card:nth-child(6)  { animation-delay: 0.35s; }
+.bklist-card:nth-child(7)  { animation-delay: 0.40s; }
+.bklist-card:nth-child(8)  { animation-delay: 0.45s; }
+.bklist-card:nth-child(9)  { animation-delay: 0.50s; }
+.bklist-card:nth-child(10) { animation-delay: 0.55s; }
+.bklist-card:nth-child(11) { animation-delay: 0.60s; }
+.bklist-card:nth-child(12) { animation-delay: 0.65s; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .bklist-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .bklist-hero {
+    padding: 1.25rem;
+  }
+
+  .bklist-hero__content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bklist-hero__left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .bklist-hero__search {
+    width: 100%;
+  }
+
+  .bklist-hero__search-form {
+    width: 100%;
+  }
+
+  .bklist-hero__search-input {
+    width: 100%;
+  }
+
+  .bklist-hero__search-input:focus {
+    width: 100%;
+  }
+
+  .bklist-filter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bklist-filter__buttons {
+    width: 100%;
+  }
+
+  .bklist-filter__btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    padding: 0.5rem 0.5rem;
+  }
+
+  .bklist-letters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .bklist-letters::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Card stacks vertically */
+  .bklist-card {
+    flex-wrap: wrap;
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .bklist-card__cover {
+    width: 48px;
+    height: 62px;
+  }
+
+  .bklist-card__info {
+    flex: 1 1 calc(100% - 68px);
+    order: 1;
+  }
+
+  .bklist-card__cover {
+    order: 0;
+  }
+
+  .bklist-card__meta {
+    order: 2;
+    flex-direction: row;
+    gap: 0.5rem;
+    width: auto;
+  }
+
+  .bklist-card__progress-area {
+    order: 3;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .bklist-card__progress-bar {
+    flex: 1;
+  }
+
+  .bklist-card__words {
+    white-space: nowrap;
+  }
+
+  .bklist-card__actions {
+    order: 4;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .bklist-card__btn--outline {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .bklist-card__btn--read,
+  .bklist-card__btn--continue {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .bklist-sort {
+    gap: 0.375rem;
+  }
+
+  .bklist-pagination {
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .bklist-pagination__pages {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+  }
+}
+</style>
 {% endblock %}

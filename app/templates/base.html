@@ -168,7 +168,7 @@
     <!-- XP Progress Bar -->
     {% set progress_pct = ((user_xp % 1000) / 1000 * 100) | int %}
     <div class="container">
-        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 0 0 8px 8px; padding: 8px 20px; font-size: 0.85rem; color: white; display: flex; align-items: center; justify-content: center; gap: 20px;">
+        <div style="background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%); border-radius: 0 0 8px 8px; padding: 8px 20px; font-size: 0.85rem; color: white; display: flex; align-items: center; justify-content: center; gap: 20px;">
             <span style="font-weight: 600;">⚡ Уровень {{ user_level }}</span>
             <div style="width: 150px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden;">
                 <div style="height: 100%; width: {{ progress_pct }}%; background: white; border-radius: 4px;"></div>

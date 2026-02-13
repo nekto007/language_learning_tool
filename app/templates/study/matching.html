@@ -2,26 +2,518 @@
 
 {% block title %}Подбери пару{% endblock %}
 
+{% block styles %}
+{{ super() }}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.match-page {
+  --match-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --match-primary: #f59e0b;
+  --match-primary-dark: #d97706;
+  --match-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --match-surface: #ffffff;
+  --match-surface-alt: #f8fafc;
+  --match-text: #0f172a;
+  --match-text-muted: #64748b;
+  --match-border: #e2e8f0;
+  --match-radius: 16px;
+  --match-radius-sm: 10px;
+  font-family: var(--match-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ── Hero strip ── */
+.match-hero {
+  background: var(--match-gradient);
+  border-radius: 0 0 var(--match-radius) var(--match-radius);
+  padding: 1.25rem 1.5rem;
+  margin: 0 -1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+}
+
+.match-hero__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.match-hero__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  text-decoration: none;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.match-hero__back:hover {
+  background: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+.match-hero__title {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.match-hero__subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.8rem;
+  margin: 2px 0 0;
+  font-weight: 400;
+}
+
+/* ── Progress bar (shell restyle) ── */
+.match-progress {
+  background: var(--match-surface);
+  border: 1px solid var(--match-border);
+  border-radius: var(--match-radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.match-progress__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.match-progress__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--match-text);
+  margin: 0;
+}
+
+.match-progress__stats {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.match-progress__stat {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--match-text-muted);
+}
+
+.match-progress__stat svg {
+  color: var(--match-primary);
+  flex-shrink: 0;
+}
+
+.match-progress__stat-value {
+  font-weight: 700;
+  color: var(--match-text);
+}
+
+.match-progress__end-btn {
+  background: var(--match-surface);
+  border: 1px solid var(--match-border);
+  border-radius: var(--match-radius-sm);
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--match-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--match-font);
+}
+
+.match-progress__end-btn:hover {
+  background: var(--match-surface-alt);
+  border-color: #cbd5e1;
+  color: var(--match-text);
+}
+
+/* ── Loading spinner ── */
+.match-loading {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.match-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--match-border);
+  border-top-color: var(--match-primary);
+  border-radius: 50%;
+  animation: match-spin 0.7s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes match-spin {
+  to { transform: rotate(360deg); }
+}
+
+.match-loading__text {
+  color: var(--match-text-muted);
+  font-size: 0.9rem;
+}
+
+/* ── Setup screen (shell restyle) ── */
+.match-setup__title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--match-text);
+  margin-bottom: 0.75rem;
+}
+
+.match-setup__desc {
+  text-align: center;
+  color: var(--match-text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+.match-setup__start-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--match-gradient);
+  color: #fff;
+  border: none;
+  border-radius: var(--match-radius-sm);
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+  font-family: var(--match-font);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.match-setup__start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+}
+
+.match-setup__start-btn:active {
+  transform: translateY(0);
+}
+
+/* ── Game header restyle ── */
+.match-game__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.match-game__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--match-text);
+  margin: 0;
+}
+
+.match-game__level {
+  display: inline-block;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--match-primary-dark);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.match-game__timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--match-surface-alt);
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--match-border);
+}
+
+.match-game__timer svg {
+  color: var(--match-primary);
+}
+
+.match-game__timer-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--match-text);
+  min-width: 50px;
+  text-align: center;
+}
+
+/* ── Controls ── */
+.match-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.match-hint-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  border: 2px solid #fcd34d;
+  color: #92400e;
+  cursor: pointer;
+  border-radius: var(--match-radius-sm);
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-family: var(--match-font);
+}
+
+.match-hint-btn:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+/* ── Results card ── */
+.match-results {
+  text-align: center;
+  display: none;
+}
+
+.match-results__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 1.5rem;
+}
+
+.match-results__xp-banner {
+  background: var(--match-gradient);
+  border-radius: var(--match-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+}
+
+.match-results__xp-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.match-results__xp-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fef3c7;
+}
+
+.match-results__xp-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.35rem;
+}
+
+.match-results__score-card {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-radius: var(--match-radius);
+  padding: 1.5rem;
+  max-width: 340px;
+  margin: 0 auto 1.5rem;
+}
+
+.match-results__score-title {
+  font-size: 1rem;
+  color: var(--match-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.match-results__score-value {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--match-primary-dark);
+  margin: 0;
+}
+
+.match-results__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 500px;
+  margin: 1.5rem auto;
+}
+
+.match-results__stat {
+  background: var(--match-surface);
+  border: 1px solid var(--match-border);
+  border-radius: var(--match-radius-sm);
+  padding: 1rem;
+  text-align: center;
+}
+
+.match-results__stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--match-text);
+  margin-bottom: 0.25rem;
+}
+
+.match-results__stat-label {
+  color: var(--match-text-muted);
+  font-size: 0.8rem;
+}
+
+.match-results__actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.match-results__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--match-radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--match-font);
+  border: none;
+}
+
+.match-results__btn--primary {
+  background: var(--match-gradient);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.match-results__btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+  color: #fff;
+}
+
+.match-results__btn--secondary {
+  background: var(--match-surface);
+  color: var(--match-text-muted);
+  border: 1px solid var(--match-border);
+}
+
+.match-results__btn--secondary:hover {
+  background: var(--match-surface-alt);
+  color: var(--match-text);
+  border-color: #cbd5e1;
+}
+
+/* ── Responsive ── */
+@media (max-width: 576px) {
+  .match-hero {
+    flex-direction: column;
+    text-align: center;
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+
+  .match-hero__left {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .match-progress__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .match-game__header {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .match-results__stats {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .match-results__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .match-results__btn {
+    justify-content: center;
+  }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4" id="matching-game-app">
-    <!-- Progress and stats bar -->
-    <div class="progress-container">
-        <div class="progress-header">
+<div class="match-page" id="matching-game-app">
+    <!-- Hero strip -->
+    <div class="match-hero">
+        <div class="match-hero__left">
+            <a href="{{ url_for('study.index') }}" class="match-hero__back" title="Назад">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+            </a>
             <div>
-                <h2 class="progress-title">Прогресс игры</h2>
+                <h1 class="match-hero__title">Подбери пару</h1>
+                <p class="match-hero__subtitle">Соедини слово с переводом</p>
             </div>
-            <div class="game-stats">
-                <div class="stat-counter">
-                    <i class="fas fa-th stat-icon"></i>
-                    <span class="stat-label">Пар:</span>
-                    <span class="stat-value" id="pairs-counter">0/0</span>
+        </div>
+    </div>
+
+    <!-- Progress and stats bar -->
+    <div class="match-progress">
+        <div class="match-progress__header">
+            <h2 class="match-progress__title">Прогресс игры</h2>
+            <div class="match-progress__stats">
+                <div class="match-progress__stat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                    <span>Пар:</span>
+                    <span class="match-progress__stat-value" id="pairs-counter">0/0</span>
                 </div>
-                <div class="stat-counter">
-                    <i class="fas fa-mouse-pointer stat-icon"></i>
-                    <span class="stat-label">Ходов:</span>
-                    <span class="stat-value" id="moves-counter">0</span>
+                <div class="match-progress__stat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+                    </svg>
+                    <span>Ходов:</span>
+                    <span class="match-progress__stat-value" id="moves-counter">0</span>
                 </div>
-                <button id="end-game-btn" class="end-game-btn">Завершить</button>
+                <button id="end-game-btn" class="match-progress__end-btn">Завершить</button>
             </div>
         </div>
         <div class="progress-bar">
@@ -30,18 +522,16 @@
     </div>
 
     <!-- Loading spinner -->
-    <div id="loading-spinner" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Загрузка...</span>
-        </div>
-        <p class="mt-2 text-muted">Загрузка игры...</p>
+    <div id="loading-spinner" class="match-loading">
+        <div class="match-spinner"></div>
+        <p class="match-loading__text">Загрузка игры...</p>
     </div>
 
     <!-- Game setup (shown first) -->
     <div id="game-setup" class="game-container" style="display: none;">
-        <h2 class="text-center mb-4">Подбери пару - Слова</h2>
+        <h2 class="match-setup__title">Подбери пару - Слова</h2>
 
-        <p class="text-center mb-4">
+        <p class="match-setup__desc">
             Соедините английские слова с их русскими переводами. Чем быстрее вы найдёте все пары, тем выше ваш счёт!
         </p>
 
@@ -51,8 +541,11 @@
             <button class="difficulty-btn" data-difficulty="hard">Сложно</button>
         </div>
 
-        <div class="text-center">
-            <button id="start-game-btn" class="btn btn-primary px-4 py-2">
+        <div style="text-align: center;">
+            <button id="start-game-btn" class="match-setup__start-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
                 Начать игру
             </button>
         </div>
@@ -60,14 +553,16 @@
 
     <!-- Game area -->
     <div id="game-container" class="game-container" style="display: none;">
-        <div class="game-header">
+        <div class="match-game__header">
             <div>
-                <h2 class="game-title">Подбери пару</h2>
-                <div class="game-level" id="game-level">Уровень: <span class="level-easy">Легко</span></div>
+                <h2 class="match-game__title">Подбери пару</h2>
+                <div class="match-game__level" id="game-level">Уровень: <span class="level-easy">Легко</span></div>
             </div>
-            <div class="timer-container">
-                <i class="fas fa-stopwatch timer-icon"></i>
-                <span class="timer-value" id="timer-value">00:00</span>
+            <div class="match-game__timer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span class="match-game__timer-value" id="timer-value">00:00</span>
             </div>
         </div>
 
@@ -76,55 +571,73 @@
             <!-- Cards will be inserted here by JavaScript -->
         </div>
 
-        <div class="controls-container">
-            <button id="hint-btn" class="hint-btn">
-                <i class="fas fa-lightbulb me-1"></i> Подсказка
+        <div class="match-controls">
+            <button id="hint-btn" class="match-hint-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18h6"/><path d="M10 22h4"/>
+                    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 019 14"/>
+                </svg>
+                Подсказка
             </button>
         </div>
     </div>
 
     <!-- Game completion screen -->
-    <div id="game-complete" class="game-container game-complete">
-        <h2 class="game-complete-header">
-            <i class="fas fa-trophy me-2"></i>Игра завершена!
-        </h2>
+    <div id="game-complete" class="game-container match-results">
+        <div class="match-results__header">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/>
+                <path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/>
+                <path d="M4 22h16"/>
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/>
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/>
+                <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+            </svg>
+            Игра завершена!
+        </div>
 
         <!-- XP Earned Banner -->
-        <div id="matching-xp-banner" class="mb-4 hero-gradient-card matching-xp-banner">
-            <div class="matching-xp-icon">⚡</div>
-            <div class="matching-xp-value">
+        <div id="matching-xp-banner" class="match-results__xp-banner">
+            <div class="match-results__xp-icon">&#9889;</div>
+            <div class="match-results__xp-value">
                 +<span id="matching-xp-amount">0</span> XP
             </div>
-            <div class="matching-xp-label">
-                Уровень <span id="matching-level">1</span> • <span id="matching-total-xp">0</span> XP
+            <div class="match-results__xp-label">
+                Уровень <span id="matching-level">1</span> &bull; <span id="matching-total-xp">0</span> XP
             </div>
         </div>
 
-        <div class="score-display">
-            <p class="score-title">Ваш счёт</p>
-            <p class="score-value" id="final-score">850</p>
+        <div class="match-results__score-card">
+            <p class="match-results__score-title">Ваш счёт</p>
+            <p class="match-results__score-value" id="final-score">850</p>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-block">
-                <div class="stat-block-value" id="stat-pairs">8</div>
-                <div class="stat-block-label">Пар найдено</div>
+        <div class="match-results__stats">
+            <div class="match-results__stat">
+                <div class="match-results__stat-value" id="stat-pairs">8</div>
+                <div class="match-results__stat-label">Пар найдено</div>
             </div>
-            <div class="stat-block">
-                <div class="stat-block-value" id="stat-moves">16</div>
-                <div class="stat-block-label">Ходов</div>
+            <div class="match-results__stat">
+                <div class="match-results__stat-value" id="stat-moves">16</div>
+                <div class="match-results__stat-label">Ходов</div>
             </div>
-            <div class="stat-block">
-                <div class="stat-block-value" id="stat-time">01:23</div>
-                <div class="stat-block-label">Время</div>
+            <div class="match-results__stat">
+                <div class="match-results__stat-value" id="stat-time">01:23</div>
+                <div class="match-results__stat-label">Время</div>
             </div>
         </div>
 
-        <div class="mt-5 text-center">
-            <a href="{{ url_for('study.matching') }}" class="btn btn-primary">
+        <div class="match-results__actions">
+            <a href="{{ url_for('study.matching') }}" class="match-results__btn match-results__btn--primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                </svg>
                 Играть снова
             </a>
-            <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary ms-2">
+            <a href="{{ url_for('study.index') }}" class="match-results__btn match-results__btn--secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
                 Вернуться к обучению
             </a>
         </div>
@@ -136,12 +649,15 @@
         <div class="flashcard-translation" id="flashcard-translation">Привет</div>
 
         <button id="flashcard-audio-btn" class="audio-btn">
-            <i class="fas fa-volume-up"></i> Произношение
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/>
+            </svg>
+            Произношение
         </button>
 
         <div class="flashcard-example" id="flashcard-example">
             Hello, how are you today?
-            <div class="text-muted mt-1">Привет, как ты сегодня?</div>
+            <div style="color: var(--match-text-muted); margin-top: 0.25rem;">Привет, как ты сегодня?</div>
         </div>
 
         <div class="flashcard-buttons">
@@ -729,7 +1245,7 @@
                     rankDisplay.innerHTML = rankHTML;
 
                     // Insert before the existing buttons
-                    const buttonsContainer = document.querySelector('#game-complete .mt-5');
+                    const buttonsContainer = document.querySelector('#game-complete .match-results__actions');
                     buttonsContainer.parentNode.insertBefore(rankDisplay, buttonsContainer);
                 }
 

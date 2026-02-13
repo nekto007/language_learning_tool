@@ -3,214 +3,937 @@
 {% block title %}{{ book.title }} - {{ _('Chapter') }} {{ current_chapter.chap_num }}/{{ chapters|length }}{% endblock %}
 
 {% block content %}
-<div class="reader-wrapper">
-    <!-- Progress bar -->
-    <div class="progress-bar-container">
-        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
+
+/* ── Variables ── */
+.rdr-wrap {
+  --rdr-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --rdr-primary: #6366f1;
+  --rdr-primary-dark: #5046e5;
+  --rdr-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --rdr-surface: #ffffff;
+  --rdr-surface-alt: #f8fafc;
+  --rdr-text: #1e293b;
+  --rdr-text-muted: #64748b;
+  --rdr-text-light: #94a3b8;
+  --rdr-border: #e2e8f0;
+  --rdr-radius: 12px;
+  --rdr-radius-sm: 8px;
+  --rdr-success: #10b981;
+  --rdr-warning: #f59e0b;
+  font-family: var(--rdr-font);
+}
+
+/* ── Dark theme ── */
+body.dark-theme .rdr-wrap {
+  --rdr-surface: #1e1e2e;
+  --rdr-surface-alt: #181825;
+  --rdr-text: #cdd6f4;
+  --rdr-text-muted: #a6adc8;
+  --rdr-text-light: #6c7086;
+  --rdr-border: #313244;
+}
+
+body.dark-theme .rdr-header {
+  background: #1e1e2e;
+  border-color: #313244;
+}
+
+body.dark-theme .rdr-content {
+  background: #181825;
+}
+
+body.dark-theme .rdr-sidebar {
+  background: #1e1e2e;
+  border-color: #313244;
+}
+
+body.dark-theme .rdr-sidebar__section-title {
+  color: #cdd6f4;
+}
+
+body.dark-theme #translationPopup {
+  background: #1e1e2e;
+  border-color: #313244;
+  color: #cdd6f4;
+}
+
+body.dark-theme .rdr-nav-btn {
+  background: #313244;
+  border-color: #45475a;
+  color: #cdd6f4;
+}
+
+body.dark-theme .rdr-nav-btn:hover {
+  background: #45475a;
+}
+
+body.dark-theme .rdr-chapter-select {
+  background: #313244;
+  border-color: #45475a;
+  color: #cdd6f4;
+}
+
+body.dark-theme .rdr-bottom-nav {
+  border-color: #313244;
+}
+
+/* ── Layout ── */
+.rdr-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ── Progress Bar ── */
+.rdr-progress {
+  height: 3px;
+  background: var(--rdr-border);
+  flex-shrink: 0;
+}
+
+.rdr-progress__bar {
+  height: 100%;
+  background: var(--rdr-gradient);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* ── Header ── */
+.rdr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: var(--rdr-surface);
+  border-bottom: 1px solid var(--rdr-border);
+  flex-shrink: 0;
+  gap: 0.75rem;
+}
+
+.rdr-header__left,
+.rdr-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.rdr-header__center {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.rdr-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--rdr-radius-sm);
+  color: var(--rdr-text-muted);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.rdr-back-btn:hover {
+  background: var(--rdr-surface-alt);
+  color: var(--rdr-text);
+}
+
+.rdr-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--rdr-surface-alt);
+  border: 1px solid var(--rdr-border);
+  border-radius: var(--rdr-radius-sm);
+  color: var(--rdr-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: var(--rdr-font);
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.rdr-nav-btn:hover {
+  border-color: var(--rdr-primary);
+  color: var(--rdr-primary);
+}
+
+.rdr-chapter-select {
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--rdr-border);
+  border-radius: var(--rdr-radius-sm);
+  font-family: var(--rdr-font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rdr-text);
+  background: var(--rdr-surface-alt);
+  cursor: pointer;
+  max-width: 200px;
+}
+
+.rdr-progress-text {
+  font-size: 0.75rem;
+  color: var(--rdr-text-light);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rdr-progress-text__saved {
+  color: var(--rdr-success);
+  display: none;
+  margin-left: 0.25rem;
+}
+
+.rdr-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--rdr-radius-sm);
+  border: 1px solid var(--rdr-border);
+  background: var(--rdr-surface-alt);
+  color: var(--rdr-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--rdr-font);
+}
+
+.rdr-menu-btn:hover {
+  border-color: var(--rdr-primary);
+  color: var(--rdr-primary);
+}
+
+/* ── Scrollable Content ── */
+.rdr-body {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--rdr-surface-alt);
+  -webkit-overflow-scrolling: touch;
+}
+
+.rdr-content {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  background: var(--rdr-surface);
+  min-height: 100%;
+  border-left: 1px solid var(--rdr-border);
+  border-right: 1px solid var(--rdr-border);
+}
+
+.rdr-content h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--rdr-text);
+  margin: 0 0 1.5rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.rdr-content #chapterContent {
+  color: var(--rdr-text);
+  line-height: 1.85;
+}
+
+.rdr-content #chapterContent p {
+  margin: 0 0 1.25rem;
+}
+
+/* Font sizes */
+.text-size-14 { font-size: 14px; }
+.text-size-16 { font-size: 16px; }
+.text-size-18 { font-size: 18px; }
+.text-size-20 { font-size: 20px; }
+.text-size-22 { font-size: 22px; }
+
+/* ── Bottom Navigation ── */
+.rdr-bottom-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rdr-border);
+  gap: 0.75rem;
+}
+
+.rdr-bottom-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--rdr-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--rdr-font);
+  text-decoration: none;
+  transition: all 0.2s;
+  border: 1px solid var(--rdr-border);
+  background: var(--rdr-surface);
+  color: var(--rdr-text-muted);
+}
+
+.rdr-bottom-btn:hover {
+  border-color: var(--rdr-primary);
+  color: var(--rdr-primary);
+}
+
+.rdr-bottom-btn--primary {
+  background: var(--rdr-gradient);
+  border-color: transparent;
+  color: #fff;
+}
+
+.rdr-bottom-btn--primary:hover {
+  opacity: 0.9;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.rdr-bottom-btn--success {
+  background: var(--rdr-success);
+  border-color: transparent;
+  color: #fff;
+}
+
+.rdr-bottom-btn--success:hover {
+  opacity: 0.9;
+  color: #fff;
+}
+
+/* ── Sidebar Overlay ── */
+.rdr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.rdr-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Sidebar ── */
+.rdr-sidebar {
+  position: fixed;
+  top: 0;
+  right: -340px;
+  width: 320px;
+  height: 100vh;
+  background: var(--rdr-surface);
+  border-left: 1px solid var(--rdr-border);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.08);
+}
+
+.rdr-sidebar.active {
+  right: 0;
+}
+
+.rdr-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--rdr-border);
+}
+
+.rdr-sidebar__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--rdr-text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.rdr-sidebar__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--rdr-radius-sm);
+  border: 1px solid var(--rdr-border);
+  background: transparent;
+  color: var(--rdr-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.rdr-sidebar__close:hover {
+  background: var(--rdr-surface-alt);
+  color: var(--rdr-text);
+}
+
+.rdr-sidebar__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.rdr-sidebar__section {
+  margin-bottom: 1.5rem;
+}
+
+.rdr-sidebar__section:last-child {
+  margin-bottom: 0;
+}
+
+.rdr-sidebar__section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rdr-text-muted);
+  margin: 0 0 0.75rem;
+}
+
+/* Chapter info */
+.rdr-chapter-info {
+  padding: 1rem;
+  background: var(--rdr-surface-alt);
+  border-radius: var(--rdr-radius-sm);
+  margin-bottom: 1.5rem;
+}
+
+.rdr-chapter-info__num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--rdr-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.25rem;
+}
+
+.rdr-chapter-info__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--rdr-text);
+  margin: 0;
+}
+
+/* Progress circle */
+.rdr-sidebar-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rdr-progress-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: conic-gradient(var(--rdr-primary) 0deg, var(--rdr-border) 0deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rdr-progress-ring__inner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--rdr-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--rdr-text);
+}
+
+.rdr-progress-details {
+  font-size: 0.8125rem;
+  color: var(--rdr-text-muted);
+  line-height: 1.6;
+}
+
+/* Font controls */
+.rdr-font-controls {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--rdr-border);
+  border-radius: var(--rdr-radius-sm);
+  overflow: hidden;
+}
+
+.rdr-font-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  background: var(--rdr-surface-alt);
+  border: none;
+  color: var(--rdr-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--rdr-font);
+}
+
+.rdr-font-btn:hover {
+  background: var(--rdr-primary);
+  color: #fff;
+}
+
+.rdr-font-display {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rdr-text);
+  border-left: 1px solid var(--rdr-border);
+  border-right: 1px solid var(--rdr-border);
+  padding: 0 0.5rem;
+  line-height: 36px;
+}
+
+/* Theme toggle */
+.rdr-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rdr-theme-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--rdr-text);
+}
+
+.rdr-toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--rdr-border);
+  cursor: pointer;
+  transition: background 0.3s;
+  position: relative;
+}
+
+.rdr-toggle::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.rdr-toggle.dark {
+  background: var(--rdr-primary);
+}
+
+.rdr-toggle.dark::after {
+  transform: translateX(20px);
+}
+
+/* Sidebar nav */
+.rdr-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rdr-sidebar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem;
+  border-radius: var(--rdr-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--rdr-font);
+  text-decoration: none;
+  transition: all 0.2s;
+  border: 1px solid var(--rdr-border);
+  color: var(--rdr-text-muted);
+  background: transparent;
+}
+
+.rdr-sidebar-nav-btn:hover {
+  border-color: var(--rdr-primary);
+  color: var(--rdr-primary);
+}
+
+.rdr-sidebar-nav-btn--primary {
+  background: var(--rdr-gradient);
+  border-color: transparent;
+  color: #fff;
+}
+
+.rdr-sidebar-nav-btn--primary:hover {
+  opacity: 0.9;
+  color: #fff;
+}
+
+.rdr-sidebar-nav-btn--success {
+  background: var(--rdr-success);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Sidebar chapter list */
+.rdr-sidebar-chapters {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--rdr-border);
+  border-radius: var(--rdr-radius-sm);
+  font-family: var(--rdr-font);
+  font-size: 0.8125rem;
+  color: var(--rdr-text);
+  background: var(--rdr-surface-alt);
+  cursor: pointer;
+}
+
+/* ── Translation Popup ── */
+#translationPopup {
+  display: none;
+  position: absolute;
+  z-index: 500;
+  background: var(--rdr-surface);
+  border: 1px solid var(--rdr-border);
+  border-radius: var(--rdr-radius);
+  padding: 1rem;
+  min-width: 220px;
+  max-width: 300px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-family: var(--rdr-font);
+}
+
+#translationPopup .word-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--rdr-text);
+  margin-bottom: 0.375rem;
+}
+
+#translationPopup .word-translation {
+  font-size: 0.875rem;
+  color: var(--rdr-primary);
+  font-weight: 500;
+  margin-bottom: 0.625rem;
+}
+
+#translationPopup .word-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+#translationPopup .word-actions button {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--rdr-font);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.rdr-popup-btn--audio {
+  background: #ede9fe;
+  color: var(--rdr-primary);
+}
+
+.rdr-popup-btn--audio:hover {
+  background: #ddd6fe;
+}
+
+.rdr-popup-btn--add {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.rdr-popup-btn--add:hover {
+  background: #a7f3d0;
+}
+
+.rdr-popup-badge {
+  display: inline-flex;
+  padding: 0.25rem 0.625rem;
+  background: var(--rdr-surface-alt);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rdr-text-muted);
+}
+
+/* Clickable words */
+.word-clickable {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s;
+}
+
+.word-clickable:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--rdr-primary);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .rdr-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .rdr-content {
+    padding: 1.25rem 1rem 3rem;
+    border: none;
+  }
+
+  .rdr-nav-btn span {
+    display: none;
+  }
+
+  .rdr-sidebar {
+    width: 290px;
+    right: -310px;
+  }
+
+  .rdr-bottom-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+  }
+}
+</style>
+
+<div class="rdr-wrap">
+  <!-- Progress bar -->
+  <div class="rdr-progress">
+    <div class="rdr-progress__bar" id="progressBar"></div>
+  </div>
+
+  <!-- Header -->
+  <div class="rdr-header">
+    <div class="rdr-header__left">
+      <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}" class="rdr-back-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+
+      {% if current_chapter.chap_num > 1 %}
+      <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
+         class="rdr-nav-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>{{ _('Previous') }}</span>
+      </a>
+      {% endif %}
     </div>
-    
-    <!-- Header -->
-    <div class="reader-header">
-        <div class="d-flex align-items-center justify-content-between">
-            <!-- Left: Back and Previous -->
-            <div class="d-flex align-items-center gap-2">
-                <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}" class="text-muted">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
-                
-                {% if current_chapter.chap_num > 1 %}
-                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}" 
-                   class="nav-btn btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-chevron-left"></i>
-                    <span class="d-none d-sm-inline">{{ _('Previous') }}</span>
-                </a>
-                {% endif %}
-            </div>
-            
-            <!-- Center: Chapter info -->
-            <div class="text-center">
-                <select class="form-select form-select-sm d-inline-block w-auto" 
-                        onchange="window.location.href=this.value">
-                    {% for ch in chapters %}
-                    <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
-                            {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
-                        {{ _('Chapter') }} {{ ch.chap_num }}
-                    </option>
-                    {% endfor %}
-                </select>
-                <small class="text-muted ms-2">
-                    <span id="readingProgress">0</span>%
-                    <span id="savingIndicator" class="text-success ms-1" style="display: none;">
-                        <i class="fas fa-check-circle"></i>
-                    </span>
-                </small>
-            </div>
-            
-            <!-- Right: Menu button -->
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-sm btn-outline-secondary" onclick="toggleSidebar()" title="{{ _('Settings') }}">
-                    <i class="fas fa-bars"></i>
-                </button>
-            </div>
-        </div>
+
+    <div class="rdr-header__center">
+      <select class="rdr-chapter-select" onchange="window.location.href=this.value">
+        {% for ch in chapters %}
+        <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
+                {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
+          {{ _('Chapter') }} {{ ch.chap_num }}
+        </option>
+        {% endfor %}
+      </select>
+      <span class="rdr-progress-text">
+        <span id="readingProgress">0</span>%
+        <span class="rdr-progress-text__saved" id="savingIndicator">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </span>
     </div>
-    
-    <!-- Scrollable content -->
-    <div class="reader-body" id="readerBody">
-        <div class="reader-content">
-            <h1 class="h3 mb-3">{{ _('Chapter') }} {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
-            
-            <div id="chapterContent" class="text-size-18">
-                {{ current_chapter.text_raw | format_chapter_text }}
-            </div>
-            
-            <!-- Chapter navigation at bottom -->
-            <div class="d-flex justify-content-between align-items-center mt-5 pt-4 border-top">
-                {% if current_chapter.chap_num > 1 %}
-                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}" 
-                   class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-chevron-left me-1"></i> {{ _('Previous Chapter') }}
-                </a>
-                {% else %}
-                <div></div>
-                {% endif %}
-                
-                <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}" 
-                   class="btn btn-outline-secondary btn-sm">
-                    {{ _('Back to Book') }}
-                </a>
-                
-                {% if current_chapter.chap_num < chapters|length %}
-                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}" 
-                   class="btn btn-primary btn-sm">
-                    {{ _('Next Chapter') }} <i class="fas fa-chevron-right ms-1"></i>
-                </a>
-                {% else %}
-                <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}" 
-                   class="btn btn-success btn-sm">
-                    <i class="fas fa-check me-1"></i> {{ _('Finish Reading') }}
-                </a>
-                {% endif %}
-            </div>
-        </div>
+
+    <div class="rdr-header__right">
+      <button class="rdr-menu-btn" onclick="toggleSidebar()" title="{{ _('Settings') }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
+  </div>
+
+  <!-- Scrollable content -->
+  <div class="rdr-body" id="readerBody">
+    <div class="rdr-content">
+      <h1>{{ _('Chapter') }} {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
+
+      <div id="chapterContent" class="text-size-18">
+        {{ current_chapter.text_raw | format_chapter_text }}
+      </div>
+
+      <!-- Chapter navigation at bottom -->
+      <div class="rdr-bottom-nav">
+        {% if current_chapter.chap_num > 1 %}
+        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
+           class="rdr-bottom-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {{ _('Previous Chapter') }}
+        </a>
+        {% else %}
+        <div></div>
+        {% endif %}
+
+        <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
+           class="rdr-bottom-btn">
+          {{ _('Back to Book') }}
+        </a>
+
+        {% if current_chapter.chap_num < chapters|length %}
+        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
+           class="rdr-bottom-btn rdr-bottom-btn--primary">
+          {{ _('Next Chapter') }}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        {% else %}
+        <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
+           class="rdr-bottom-btn rdr-bottom-btn--success">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {{ _('Finish Reading') }}
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Sidebar overlay -->
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="rdr-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-<!-- Sidebar modal -->
-<div class="sidebar-modal" id="sidebarModal">
-    <div class="sidebar-header">
-        <h2>{{ book.title }}</h2>
-        <button class="btn btn-sm btn-outline-secondary" onclick="closeSidebar()">
-            <i class="fas fa-times"></i>
-        </button>
+<!-- Sidebar -->
+<div class="rdr-sidebar" id="sidebarModal">
+  <div class="rdr-sidebar__header">
+    <h2 class="rdr-sidebar__title">{{ book.title }}</h2>
+    <button class="rdr-sidebar__close" onclick="closeSidebar()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="rdr-sidebar__body">
+    <!-- Chapter Info -->
+    <div class="rdr-chapter-info">
+      <div class="rdr-chapter-info__num">{{ _('Chapter') }} {{ current_chapter.chap_num }}</div>
+      <div class="rdr-chapter-info__title">{{ current_chapter.title }}</div>
     </div>
-    
-    <div class="sidebar-content">
-        <!-- Chapter Info -->
-        <div class="chapter-info">
-            <div class="chapter-title">{{ _('Chapter') }} {{ current_chapter.chap_num }}</div>
-            <div class="chapter-subtitle">{{ current_chapter.title }}</div>
+
+    <!-- Reading Progress -->
+    <div class="rdr-sidebar__section">
+      <div class="rdr-sidebar__section-title">{{ _('Reading Progress') }}</div>
+      <div class="rdr-sidebar-progress">
+        <div class="rdr-progress-ring" id="sidebarProgressCircle">
+          <div class="rdr-progress-ring__inner" id="sidebarProgressText">0%</div>
         </div>
-        
-        <!-- Reading Progress -->
-        <div class="sidebar-section">
-            <h3>{{ _('Reading Progress') }}</h3>
-            <div class="progress-circle-container">
-                <div class="progress-circle" id="sidebarProgressCircle">
-                    <div class="progress-percentage" id="sidebarProgressText">0%</div>
-                </div>
-                <div class="progress-info">
-                    <div>{{ _('Position') }}: <span id="sidebarPosition">{{ current_chapter.chap_num }}</span></div>
-                    <div>{{ _('Total words') }}: {{ current_chapter.words }}</div>
-                </div>
-            </div>
+        <div class="rdr-progress-details">
+          <div>{{ _('Position') }}: <span id="sidebarPosition">{{ current_chapter.chap_num }}</span></div>
+          <div>{{ _('Total words') }}: {{ current_chapter.words }}</div>
         </div>
-        
-        <!-- Quick Settings -->
-        <div class="sidebar-section">
-            <h3>{{ _('Quick Settings') }}</h3>
-            
-            <!-- Font Size -->
-            <div class="sidebar-section-spacing">
-                <label class="form-label">{{ _('Font Size') }}</label>
-                <div class="font-controls">
-                    <div class="font-control-btn" onclick="changeFontSize(-2)">
-                        <i class="fas fa-minus"></i>
-                    </div>
-                    <div class="font-size-display" id="sidebarFontSize">18px</div>
-                    <div class="font-control-btn" onclick="changeFontSize(2)">
-                        <i class="fas fa-plus"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Dark Theme -->
-            <div class="sidebar-section-spacing">
-                <div class="sidebar-flex-between">
-                    <label class="form-label label-no-margin">{{ _('Dark Theme') }}</label>
-                    <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()"></div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Navigation -->
-        <div class="sidebar-section">
-            <h3>{{ _('Navigation') }}</h3>
-            
-            <div class="d-grid gap-2">
-                {% if current_chapter.chap_num > 1 %}
-                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}" 
-                   class="btn btn-outline-secondary">
-                    <i class="fas fa-chevron-left me-2"></i>{{ _('Previous Chapter') }}
-                </a>
-                {% endif %}
-                
-                {% if current_chapter.chap_num < chapters|length %}
-                <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}" 
-                   class="btn btn-primary">
-                    {{ _('Next Chapter') }}<i class="fas fa-chevron-right ms-2"></i>
-                </a>
-                {% else %}
-                <a href="{{ url_for('books.book_details', book_id=book.id) }}" 
-                   class="btn btn-success">
-                    <i class="fas fa-check me-2"></i>{{ _('Finish Reading') }}
-                </a>
-                {% endif %}
-                
-                <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}" 
-                   class="btn btn-outline-secondary">
-                    {{ _('Back to Book') }}
-                </a>
-            </div>
-        </div>
-        
-        <!-- Chapter Selection -->
-        <div class="sidebar-section">
-            <h3>{{ _('All Chapters') }}</h3>
-            <select class="form-select" onchange="window.location.href=this.value">
-                {% for ch in chapters %}
-                <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
-                        {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
-                    {{ _('Chapter') }} {{ ch.chap_num }}: {{ ch.title }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
+      </div>
     </div>
+
+    <!-- Quick Settings -->
+    <div class="rdr-sidebar__section">
+      <div class="rdr-sidebar__section-title">{{ _('Quick Settings') }}</div>
+
+      <!-- Font Size -->
+      <div style="margin-bottom: 1rem;">
+        <div class="rdr-font-controls">
+          <button class="rdr-font-btn" onclick="changeFontSize(-2)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="rdr-font-display" id="sidebarFontSize">18px</div>
+          <button class="rdr-font-btn" onclick="changeFontSize(2)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dark Theme -->
+      <div class="rdr-theme-row">
+        <span class="rdr-theme-label">{{ _('Dark Theme') }}</span>
+        <div class="rdr-toggle" id="themeToggle" onclick="toggleTheme()"></div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="rdr-sidebar__section">
+      <div class="rdr-sidebar__section-title">{{ _('Navigation') }}</div>
+      <div class="rdr-sidebar-nav">
+        {% if current_chapter.chap_num > 1 %}
+        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
+           class="rdr-sidebar-nav-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+          {{ _('Previous Chapter') }}
+        </a>
+        {% endif %}
+
+        {% if current_chapter.chap_num < chapters|length %}
+        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
+           class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--primary">
+          {{ _('Next Chapter') }}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        {% else %}
+        <a href="{{ url_for('books.book_details', book_id=book.id) }}"
+           class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--success">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          {{ _('Finish Reading') }}
+        </a>
+        {% endif %}
+
+        <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
+           class="rdr-sidebar-nav-btn">
+          {{ _('Back to Book') }}
+        </a>
+      </div>
+    </div>
+
+    <!-- Chapter Selection -->
+    <div class="rdr-sidebar__section">
+      <div class="rdr-sidebar__section-title">{{ _('All Chapters') }}</div>
+      <select class="rdr-sidebar-chapters" onchange="window.location.href=this.value">
+        {% for ch in chapters %}
+        <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
+                {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
+          {{ _('Chapter') }} {{ ch.chap_num }}: {{ ch.title }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
 </div>
 
 <!-- Translation popup -->
 <div id="translationPopup">
-    <div class="word-title" id="popupWord"></div>
-    <div class="word-translation" id="popupTranslation">
-        <div class="spinner-border spinner-border-sm" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
+  <div class="word-title" id="popupWord"></div>
+  <div class="word-translation" id="popupTranslation">
+    <div class="spinner-border spinner-border-sm" role="status">
+      <span class="visually-hidden">Loading...</span>
     </div>
-    <div class="word-actions" id="popupActions"></div>
+  </div>
+  <div class="word-actions" id="popupActions"></div>
 </div>
 
 <script>
@@ -220,7 +943,6 @@ const fontSizeValue = document.getElementById('fontSizeValue');
 const sidebarFontSize = document.getElementById('sidebarFontSize');
 let currentFontSize = parseInt(localStorage.getItem('readerFontSize') || '18');
 
-// Initialize font size
 chapterContent.className = 'text-size-' + currentFontSize;
 if (fontSizeValue) fontSizeValue.textContent = currentFontSize + 'px';
 if (sidebarFontSize) sidebarFontSize.textContent = currentFontSize + 'px';
@@ -243,14 +965,12 @@ function updateProgress() {
     const scrollTop = readerBody.scrollTop;
     const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
     const progress = Math.min((scrollTop / scrollHeight) || 0, 1);
-    
+
     progressBar.style.width = (progress * 100) + '%';
     progressText.textContent = Math.round(progress * 100);
-    
-    // Update sidebar progress circle
+
     updateSidebarProgress(progress);
-    
-    // Save progress with debounce
+
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
         saveProgress(progress);
@@ -261,19 +981,18 @@ function updateSidebarProgress(progress) {
     const progressPercentage = Math.round(progress * 100);
     const sidebarProgressText = document.getElementById('sidebarProgressText');
     const sidebarProgressCircle = document.getElementById('sidebarProgressCircle');
-    
+
     if (sidebarProgressText) {
         sidebarProgressText.textContent = progressPercentage + '%';
     }
-    
+
     if (sidebarProgressCircle) {
         const degrees = progress * 360;
-        sidebarProgressCircle.style.background = `conic-gradient(#3b82f6 ${degrees}deg, #e5e7eb ${degrees}deg)`;
+        sidebarProgressCircle.style.background = `conic-gradient(#6366f1 ${degrees}deg, #e2e8f0 ${degrees}deg)`;
     }
 }
 
 function saveProgress(offsetPct) {
-    
     fetch('/api/progress', {
         method: 'PATCH',
         headers: {
@@ -287,19 +1006,14 @@ function saveProgress(offsetPct) {
         })
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save progress');
-        }
+        if (!response.ok) throw new Error('Failed to save progress');
         return response.json();
     })
     .then(data => {
-        // Show save indicator
         const indicator = document.getElementById('savingIndicator');
         if (indicator) {
             indicator.style.display = 'inline';
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 2000);
+            setTimeout(() => { indicator.style.display = 'none'; }, 2000);
         }
     })
     .catch(error => {
@@ -319,25 +1033,21 @@ window.addEventListener('load', () => {
 });
 {% endif %}
 
-// Listen for scroll events
 readerBody.addEventListener('scroll', updateProgress);
 window.addEventListener('resize', updateProgress);
-
-// Initial progress update
 setTimeout(updateProgress, 100);
 
-// Word translation functionality
+// Word translation
 function makeWordsClickable() {
     const paragraphs = chapterContent.getElementsByTagName('p');
     const wordRegex = /\b([a-zA-Z]+(?:['-][a-zA-Z]+)*)\b/g;
-    
+
     Array.from(paragraphs).forEach(p => {
         const text = p.textContent;
         const html = text.replace(wordRegex, '<span class="word-clickable" data-word="$1">$1</span>');
         p.innerHTML = html;
     });
-    
-    // Add click handlers
+
     document.querySelectorAll('.word-clickable').forEach(span => {
         span.addEventListener('click', handleWordClick);
     });
@@ -348,66 +1058,47 @@ function handleWordClick(e) {
     const word = e.target.dataset.word;
     const rect = e.target.getBoundingClientRect();
     const popup = document.getElementById('translationPopup');
-    
-    // Position popup
+
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-    
+
     popup.style.left = Math.min(rect.left + scrollLeft, window.innerWidth - 320) + 'px';
     popup.style.top = (rect.bottom + scrollTop + 5) + 'px';
     popup.style.display = 'block';
-    
-    // Update popup content
+
     document.getElementById('popupWord').textContent = word;
-    document.getElementById('popupTranslation').innerHTML = `
-        <div class="spinner-border spinner-border-sm" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-    `;
+    document.getElementById('popupTranslation').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
     document.getElementById('popupActions').innerHTML = '';
-    
-    // Fetch translation
+
     fetch(`/api/word-translation/${word}`)
         .then(response => response.json())
         .then(data => {
             const translationDiv = document.getElementById('popupTranslation');
             const actionsDiv = document.getElementById('popupActions');
-            
+
             if (data.translation) {
                 translationDiv.textContent = data.translation;
-                
-                // Add actions
+
                 let actionsHTML = '';
-                
+
                 if (data.has_audio) {
-                    actionsHTML += `
-                        <button class="btn btn-sm btn-outline-primary" onclick="playWordAudio('${data.audio_url}')">
-                            <i class="fas fa-volume-up"></i>
-                        </button>
-                    `;
+                    actionsHTML += `<button class="rdr-popup-btn--audio" onclick="playWordAudio('${data.audio_url}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></button>`;
                 }
-                
+
                 if (!data.in_reading_deck) {
-                    actionsHTML += `
-                        <button class="btn btn-sm btn-success" onclick="addToLearning(${data.id}, '${word}')">
-                            <i class="fas fa-plus"></i> {{ _('Add') }}
-                        </button>
-                    `;
+                    actionsHTML += `<button class="rdr-popup-btn--add" onclick="addToLearning(${data.id}, '${word}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> {{ _('Add') }}</button>`;
                 } else {
-                    actionsHTML += `
-                        <span class="badge bg-secondary">{{ _('In reading deck') }}</span>
-                    `;
+                    actionsHTML += `<span class="rdr-popup-badge">{{ _('In reading deck') }}</span>`;
                 }
-                
+
                 actionsDiv.innerHTML = actionsHTML;
             } else {
-                translationDiv.innerHTML = '<em class="text-muted">{{ _("Translation not found") }}</em>';
+                translationDiv.innerHTML = '<em style="color: var(--rdr-text-light);">{{ _("Translation not found") }}</em>';
             }
         })
         .catch(error => {
             console.error('Error fetching translation:', error);
-            document.getElementById('popupTranslation').innerHTML = 
-                '<em class="text-danger">{{ _("Error loading translation") }}</em>';
+            document.getElementById('popupTranslation').innerHTML = '<em style="color: #ef4444;">{{ _("Error loading translation") }}</em>';
         });
 }
 
@@ -428,11 +1119,8 @@ function addToLearning(wordId, word) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Update popup to show word was added
             const actionsDiv = document.getElementById('popupActions');
-            actionsDiv.innerHTML = '<span class="badge bg-success">✓ {{ _("Added to learning") }}</span>';
-            
-            // Hide popup after 2 seconds
+            actionsDiv.innerHTML = '<span class="rdr-popup-badge" style="background: #d1fae5; color: #059669;">{{ _("Added to learning") }}</span>';
             setTimeout(() => {
                 document.getElementById('translationPopup').style.display = 'none';
             }, 2000);
@@ -451,18 +1139,14 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Initialize words
 makeWordsClickable();
 
-// Sidebar functionality
+// Sidebar
 function toggleSidebar() {
     const overlay = document.getElementById('sidebarOverlay');
     const modal = document.getElementById('sidebarModal');
-    
     overlay.classList.add('active');
     modal.classList.add('active');
-    
-    // Update progress in sidebar when opened
     const currentProgress = (readerBody.scrollTop / (readerBody.scrollHeight - readerBody.clientHeight)) || 0;
     updateSidebarProgress(currentProgress);
 }
@@ -470,18 +1154,16 @@ function toggleSidebar() {
 function closeSidebar() {
     const overlay = document.getElementById('sidebarOverlay');
     const modal = document.getElementById('sidebarModal');
-    
     overlay.classList.remove('active');
     modal.classList.remove('active');
 }
 
-// Theme functionality
+// Theme
 let isDarkTheme = localStorage.getItem('readerDarkTheme') === 'true';
 
 function initializeTheme() {
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
-    
     if (isDarkTheme) {
         themeToggle.classList.add('dark');
         body.classList.add('dark-theme');
@@ -491,10 +1173,8 @@ function initializeTheme() {
 function toggleTheme() {
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
-    
     isDarkTheme = !isDarkTheme;
     localStorage.setItem('readerDarkTheme', isDarkTheme);
-    
     if (isDarkTheme) {
         themeToggle.classList.add('dark');
         body.classList.add('dark-theme');
@@ -504,13 +1184,11 @@ function toggleTheme() {
     }
 }
 
-// Initialize theme on page load
 initializeTheme();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
     switch(e.key) {
         case 'ArrowLeft':
             {% if current_chapter.chap_num > 1 %}

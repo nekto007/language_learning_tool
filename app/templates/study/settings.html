@@ -7,228 +7,1171 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+/* ── Scoped Variables ── */
+.ss-page {
+    --ss-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+    --ss-primary: #f59e0b;
+    --ss-primary-dark: #d97706;
+    --ss-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    --ss-surface: #ffffff;
+    --ss-surface-alt: #f8fafc;
+    --ss-text: #0f172a;
+    --ss-text-muted: #64748b;
+    --ss-border: #e2e8f0;
+    --ss-radius: 16px;
+    --ss-radius-sm: 10px;
+    --ss-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --ss-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    --ss-success: #22c55e;
+    --ss-success-bg: #dcfce7;
+    --ss-danger: #ef4444;
+    --ss-danger-bg: #fef2f2;
+    --ss-info: #3b82f6;
+    --ss-info-bg: #eff6ff;
+    font-family: var(--ss-font);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+    color: var(--ss-text);
+}
+
+/* ── Animations ── */
+@keyframes ss-slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ss-float-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-20px, 15px) scale(1.08); }
+}
+
+@keyframes ss-float-2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50%      { transform: translate(25px, -20px) rotate(10deg); }
+}
+
+@keyframes ss-float-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-10px, -15px) scale(1.05); }
+}
+
+@keyframes ss-spin {
+    to { transform: rotate(360deg); }
+}
+
+.slideUp {
+    animation: ss-slideUp .5s ease both;
+}
+
+/* ── Hero ── */
+.ss-hero {
+    position: relative;
+    background: var(--ss-gradient);
+    border-radius: var(--ss-radius);
+    padding: 2rem 2rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    color: #fff;
+}
+
+.ss-hero__shapes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.ss-hero__circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+}
+
+.ss-hero__circle--1 {
+    width: 160px;
+    height: 160px;
+    top: -50px;
+    right: -40px;
+    animation: ss-float-1 18s ease-in-out infinite;
+}
+
+.ss-hero__circle--2 {
+    width: 90px;
+    height: 90px;
+    bottom: -30px;
+    left: 10%;
+    animation: ss-float-2 14s ease-in-out infinite;
+}
+
+.ss-hero__circle--3 {
+    width: 60px;
+    height: 60px;
+    top: 20%;
+    left: 50%;
+    animation: ss-float-3 20s ease-in-out infinite;
+}
+
+.ss-hero__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ss-hero__back {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, .18);
+    border-radius: 10px;
+    color: #fff;
+    text-decoration: none;
+    transition: background .2s ease;
+    flex-shrink: 0;
+    backdrop-filter: blur(10px);
+}
+
+.ss-hero__back:hover {
+    background: rgba(255, 255, 255, .3);
+}
+
+.ss-hero__icon {
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 255, 255, .2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+}
+
+.ss-hero__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.ss-hero__subtitle {
+    font-size: 0.9375rem;
+    margin: 0.25rem 0 0;
+    opacity: 0.9;
+}
+
+/* ── Card ── */
+.ss-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: var(--ss-radius);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--ss-shadow);
+}
+
+.ss-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.125rem 1.5rem;
+    border-bottom: 1px solid var(--ss-border);
+    background: var(--ss-surface-alt);
+}
+
+.ss-card__header-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--ss-gradient);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.ss-card__header-icon--telegram {
+    background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+}
+
+.ss-card__header-icon--info {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+.ss-card__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.ss-card__body {
+    padding: 1.5rem;
+}
+
+.ss-card__desc {
+    font-size: 0.9375rem;
+    color: var(--ss-text-muted);
+    line-height: 1.6;
+    margin: 0 0 1.5rem;
+}
+
+/* ── Section Heading ── */
+.ss-section-heading {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ss-text-muted);
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--ss-border);
+}
+
+.ss-section-heading--no-top {
+    margin-top: 0;
+}
+
+.ss-section-heading--spaced {
+    margin-top: 2rem;
+}
+
+/* ── Form ── */
+.ss-form__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.ss-form__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ss-form__label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ss-text);
+}
+
+.ss-form__input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-family: var(--ss-font);
+    font-size: 0.9375rem;
+    color: var(--ss-text);
+    background: var(--ss-surface);
+    border: 1.5px solid var(--ss-border);
+    border-radius: var(--ss-radius-sm);
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+.ss-form__input::-webkit-outer-spin-button,
+.ss-form__input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.ss-form__input::placeholder {
+    color: #94a3b8;
+}
+
+.ss-form__input:focus {
+    border-color: var(--ss-primary);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+}
+
+.ss-form__input:hover:not(:focus) {
+    border-color: #cbd5e1;
+}
+
+.ss-form__select {
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    font-family: var(--ss-font);
+    font-size: 0.9375rem;
+    color: var(--ss-text);
+    background: var(--ss-surface);
+    border: 1.5px solid var(--ss-border);
+    border-radius: var(--ss-radius-sm);
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease;
+    box-sizing: border-box;
+}
+
+.ss-form__select:focus {
+    border-color: var(--ss-primary);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+}
+
+.ss-form__select:hover:not(:focus) {
+    border-color: #cbd5e1;
+}
+
+.ss-form__hint {
+    font-size: 0.8125rem;
+    color: var(--ss-text-muted);
+    line-height: 1.4;
+}
+
+/* ── Toggle Switch ── */
+.ss-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    background: var(--ss-surface-alt);
+    border: 1.5px solid var(--ss-border);
+    border-radius: var(--ss-radius-sm);
+    cursor: pointer;
+    transition: border-color .2s ease, background .2s ease;
+    margin-bottom: 0.75rem;
+}
+
+.ss-toggle:last-child {
+    margin-bottom: 0;
+}
+
+.ss-toggle:hover {
+    border-color: var(--ss-primary);
+    background: #fffbeb;
+}
+
+.ss-toggle__track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #cbd5e1;
+    border-radius: 12px;
+    flex-shrink: 0;
+    transition: background .2s ease;
+    margin-top: 1px;
+}
+
+.ss-toggle__track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    transition: transform .2s ease;
+}
+
+.ss-toggle__checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.ss-toggle__checkbox:checked + .ss-toggle__track {
+    background: var(--ss-primary);
+}
+
+.ss-toggle__checkbox:checked + .ss-toggle__track::after {
+    transform: translateX(20px);
+}
+
+.ss-toggle__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+}
+
+.ss-toggle__label {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--ss-text);
+    cursor: pointer;
+}
+
+.ss-toggle__hint {
+    font-size: 0.8125rem;
+    color: var(--ss-text-muted);
+    line-height: 1.4;
+}
+
+/* ── Buttons ── */
+.ss-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-family: var(--ss-font);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: var(--ss-radius-sm);
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .2s ease;
+    line-height: 1.4;
+}
+
+.ss-btn--primary {
+    background: var(--ss-gradient);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, .25);
+}
+
+.ss-btn--primary:hover {
+    box-shadow: 0 4px 14px rgba(245, 158, 11, .35);
+    transform: translateY(-1px);
+}
+
+.ss-btn--primary:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(245, 158, 11, .2);
+}
+
+.ss-btn--secondary {
+    background: var(--ss-surface);
+    color: var(--ss-text-muted);
+    border: 1.5px solid var(--ss-border);
+}
+
+.ss-btn--secondary:hover {
+    background: var(--ss-surface-alt);
+    color: var(--ss-text);
+    border-color: #cbd5e1;
+}
+
+.ss-btn--telegram {
+    background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(42, 171, 238, .25);
+}
+
+.ss-btn--telegram:hover {
+    box-shadow: 0 4px 14px rgba(42, 171, 238, .35);
+    transform: translateY(-1px);
+}
+
+.ss-btn--telegram:active {
+    transform: translateY(0);
+}
+
+.ss-btn--danger-outline {
+    background: transparent;
+    color: var(--ss-danger);
+    border: 1.5px solid var(--ss-danger);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.ss-btn--danger-outline:hover {
+    background: var(--ss-danger-bg);
+}
+
+.ss-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.ss-form__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+}
+
+/* ── Telegram Section ── */
+.ss-telegram-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    color: var(--ss-text-muted);
+    font-size: 0.9375rem;
+}
+
+.ss-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2.5px solid var(--ss-border);
+    border-top-color: var(--ss-primary);
+    border-radius: 50%;
+    animation: ss-spin .7s linear infinite;
+}
+
+.ss-telegram-state {
+    display: none;
+}
+
+.ss-telegram-state--visible {
+    display: block;
+}
+
+.ss-telegram-linked {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--ss-success-bg);
+    border: 1px solid #bbf7d0;
+    border-radius: var(--ss-radius-sm);
+    margin-bottom: 1rem;
+}
+
+.ss-telegram-linked__icon {
+    width: 40px;
+    height: 40px;
+    background: var(--ss-success);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.ss-telegram-linked__info {
+    flex: 1;
+}
+
+.ss-telegram-linked__username {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--ss-text);
+}
+
+.ss-telegram-linked__date {
+    font-size: 0.8125rem;
+    color: var(--ss-text-muted);
+    margin-top: 0.125rem;
+}
+
+.ss-telegram-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.25rem;
+    counter-reset: steps;
+}
+
+.ss-telegram-steps__item {
+    counter-increment: steps;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.625rem 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--ss-text);
+}
+
+.ss-telegram-steps__item::before {
+    content: counter(steps);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--ss-gradient);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ss-telegram-steps__item a {
+    color: var(--ss-info);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.ss-telegram-steps__item a:hover {
+    text-decoration: underline;
+}
+
+.ss-telegram-steps__item code {
+    background: var(--ss-surface-alt);
+    border: 1px solid var(--ss-border);
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    color: var(--ss-primary-dark);
+}
+
+.ss-telegram-note {
+    font-size: 0.8125rem;
+    color: var(--ss-text-muted);
+    line-height: 1.5;
+    margin: 0 0 1.25rem;
+}
+
+.ss-telegram-note code {
+    background: var(--ss-surface-alt);
+    border: 1px solid var(--ss-border);
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    color: var(--ss-primary-dark);
+}
+
+.ss-telegram-code {
+    display: none;
+    padding: 1rem 1.25rem;
+    background: var(--ss-info-bg);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--ss-radius-sm);
+    margin-bottom: 1rem;
+}
+
+.ss-telegram-code--visible {
+    display: block;
+}
+
+.ss-telegram-code__label {
+    font-size: 0.875rem;
+    color: var(--ss-text-muted);
+    margin: 0 0 0.25rem;
+}
+
+.ss-telegram-code__value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    letter-spacing: 0.15em;
+    color: var(--ss-text);
+}
+
+.ss-telegram-code__ttl {
+    font-size: 0.8125rem;
+    color: var(--ss-text-muted);
+    margin-top: 0.375rem;
+}
+
+/* ── SRS Info ── */
+.ss-srs-text {
+    font-size: 0.9375rem;
+    color: var(--ss-text);
+    line-height: 1.7;
+    margin: 0 0 1rem;
+}
+
+.ss-srs-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--ss-border);
+    border-radius: var(--ss-radius-sm);
+    overflow: hidden;
+}
+
+.ss-srs-table th {
+    background: var(--ss-surface-alt);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ss-text-muted);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--ss-border);
+}
+
+.ss-srs-table td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: var(--ss-text);
+    border-bottom: 1px solid var(--ss-border);
+    vertical-align: middle;
+}
+
+.ss-srs-table tr:last-child td {
+    border-bottom: none;
+}
+
+.ss-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ss-badge--danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.ss-badge--warning {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.ss-badge--primary {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+.ss-badge--success {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.ss-srs-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ss-text);
+    margin: 1.5rem 0 0.75rem;
+}
+
+.ss-srs-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+}
+
+.ss-srs-list__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 0.5rem 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--ss-text);
+}
+
+.ss-srs-list__item::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--ss-primary);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+}
+
+.ss-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--ss-info-bg);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--ss-radius-sm);
+    margin-top: 0.5rem;
+}
+
+.ss-tip__icon {
+    flex-shrink: 0;
+    color: var(--ss-info);
+    margin-top: 1px;
+}
+
+.ss-tip__text {
+    font-size: 0.875rem;
+    color: #1e40af;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ss-tip__text strong {
+    font-weight: 600;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .ss-page {
+        padding: 0 0.75rem 2rem;
+    }
+
+    .ss-hero {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .ss-hero__title {
+        font-size: 1.25rem;
+    }
+
+    .ss-hero__icon {
+        width: 44px;
+        height: 44px;
+    }
+
+    .ss-hero__back {
+        width: 36px;
+        height: 36px;
+    }
+
+    .ss-card__header {
+        padding: 1rem 1.25rem;
+    }
+
+    .ss-card__body {
+        padding: 1.25rem;
+    }
+
+    .ss-form__row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .ss-form__actions {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+
+    .ss-form__actions .ss-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ss-srs-table {
+        font-size: 0.8125rem;
+    }
+
+    .ss-srs-table th,
+    .ss-srs-table td {
+        padding: 0.5rem 0.625rem;
+    }
+
+    .ss-telegram-linked {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .ss-telegram-code__value {
+        font-size: 1.5rem;
+    }
+}
+</style>
+
+<div class="ss-page">
+
     <!-- Hero Section -->
-    <div class="card bg-primary text-white shadow-lg mb-4 text-center" style="border-radius: var(--radius-lg);">
-        <div class="card-body p-4">
-            <h1 class="display-6 fw-bold mb-2">{{ _('Настройки изучения') }}</h1>
-            <p class="lead mb-0 opacity-90">{{ _('Персонализируйте свой опыт изучения') }}</p>
+    <div class="ss-hero slideUp">
+        <div class="ss-hero__shapes">
+            <div class="ss-hero__circle ss-hero__circle--1"></div>
+            <div class="ss-hero__circle ss-hero__circle--2"></div>
+            <div class="ss-hero__circle ss-hero__circle--3"></div>
+        </div>
+        <div class="ss-hero__content">
+            <a href="{{ url_for('study.index') }}" class="ss-hero__back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div class="ss-hero__icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="ss-hero__title">{{ _('Настройки изучения') }}</h1>
+                <p class="ss-hero__subtitle">{{ _('Персонализируйте свой опыт изучения') }}</p>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 class="mb-0">{{ _('Основные настройки') }}</h2>
-                    <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> {{ _('Назад') }}
-                    </a>
-                </div>
-                <form method="POST" action="{{ url_for('study.settings') }}">
-                    {{ form.csrf_token }}
+    <!-- Main Settings Card -->
+    <div class="ss-card slideUp" style="animation-delay: .1s">
+        <div class="ss-card__header">
+            <div class="ss-card__header-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="4" y1="21" x2="4" y2="14"/>
+                    <line x1="4" y1="10" x2="4" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12" y2="3"/>
+                    <line x1="20" y1="21" x2="20" y2="16"/>
+                    <line x1="20" y1="12" x2="20" y2="3"/>
+                    <line x1="1" y1="14" x2="7" y2="14"/>
+                    <line x1="9" y1="8" x2="15" y2="8"/>
+                    <line x1="17" y1="16" x2="23" y2="16"/>
+                </svg>
+            </div>
+            <h2 class="ss-card__title">{{ _('Основные настройки') }}</h2>
+        </div>
+        <div class="ss-card__body">
+            <form method="POST" action="{{ url_for('study.settings') }}">
+                {{ form.csrf_token }}
 
-                    <h4 class="mb-3">{{ _('Ежедневные лимиты') }}</h4>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label class="form-label">{{ form.new_words_per_day.label }}</label>
-                                    {{ form.new_words_per_day(class="form-control") }}
-                                    <small class="form-text text-muted">
-                                        {{ _('Максимальное количество новых слов в день') }}
-                                    </small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label class="form-label">{{ form.reviews_per_day.label }}</label>
-                                    {{ form.reviews_per_day(class="form-control") }}
-                                    <small class="form-text text-muted">
-                                        {{ _('Максимальное количество повторений в день') }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-
-                    <h4 class="mt-4 mb-3">{{ _('Настройки обучения') }}</h4>
-                        <div class="form-check mb-3">
-                            {{ form.include_translations(class="form-check-input") }}
-                            <label class="form-check-label">
-                                {{ form.include_translations.label }}
-                            </label>
-                            <small class="form-text text-muted d-block">
-                                {{ _('Показывать переводы слов во время изучения') }}
-                            </small>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            {{ form.include_examples(class="form-check-input") }}
-                            <label class="form-check-label">
-                                {{ form.include_examples.label }}
-                            </label>
-                            <small class="form-text text-muted d-block">
-                                {{ _('Показывать примеры предложений во время изучения') }}
-                            </small>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            {{ form.include_audio(class="form-check-input") }}
-                            <label class="form-check-label">
-                                {{ form.include_audio.label }}
-                            </label>
-                            <small class="form-text text-muted d-block">
-                                {{ _('Автоматически воспроизводить произношение слов при показе карточек') }}
-                            </small>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label class="form-label">{{ form.show_hint_time.label }}</label>
-                            {{ form.show_hint_time(class="form-control") }}
-                            <small class="form-text text-muted">
-                                {{ _('Время в секундах до появления подсказок (0 для отключения)') }}
-                            </small>
-                        </div>
-
-                    <div class="mt-4">
-                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                <!-- Daily Limits -->
+                <h3 class="ss-section-heading ss-section-heading--no-top">{{ _('Ежедневные лимиты') }}</h3>
+                <div class="ss-form__row">
+                    <div class="ss-form__group">
+                        <label class="ss-form__label" for="{{ form.new_words_per_day.id }}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="16"/>
+                                <line x1="8" y1="12" x2="16" y2="12"/>
+                            </svg>
+                            {{ form.new_words_per_day.label }}
+                        </label>
+                        {{ form.new_words_per_day(class="ss-form__input") }}
+                        <span class="ss-form__hint">
+                            {{ _('Максимальное количество новых слов в день') }}
+                        </span>
                     </div>
-                </form>
+                    <div class="ss-form__group">
+                        <label class="ss-form__label" for="{{ form.reviews_per_day.id }}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                            </svg>
+                            {{ form.reviews_per_day.label }}
+                        </label>
+                        {{ form.reviews_per_day(class="ss-form__input") }}
+                        <span class="ss-form__hint">
+                            {{ _('Максимальное количество повторений в день') }}
+                        </span>
+                    </div>
                 </div>
+
+                <!-- Learning Settings -->
+                <h3 class="ss-section-heading ss-section-heading--spaced">{{ _('Настройки обучения') }}</h3>
+
+                <label class="ss-toggle">
+                    {{ form.include_translations(class="ss-toggle__checkbox") }}
+                    <span class="ss-toggle__track"></span>
+                    <span class="ss-toggle__body">
+                        <span class="ss-toggle__label">{{ form.include_translations.label }}</span>
+                        <span class="ss-toggle__hint">{{ _('Показывать переводы слов во время изучения') }}</span>
+                    </span>
+                </label>
+
+                <label class="ss-toggle">
+                    {{ form.include_examples(class="ss-toggle__checkbox") }}
+                    <span class="ss-toggle__track"></span>
+                    <span class="ss-toggle__body">
+                        <span class="ss-toggle__label">{{ form.include_examples.label }}</span>
+                        <span class="ss-toggle__hint">{{ _('Показывать примеры предложений во время изучения') }}</span>
+                    </span>
+                </label>
+
+                <label class="ss-toggle">
+                    {{ form.include_audio(class="ss-toggle__checkbox") }}
+                    <span class="ss-toggle__track"></span>
+                    <span class="ss-toggle__body">
+                        <span class="ss-toggle__label">{{ form.include_audio.label }}</span>
+                        <span class="ss-toggle__hint">{{ _('Автоматически воспроизводить произношение слов при показе карточек') }}</span>
+                    </span>
+                </label>
+
+                <div class="ss-form__group" style="margin-top: 1rem;">
+                    <label class="ss-form__label" for="{{ form.show_hint_time.id }}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        {{ form.show_hint_time.label }}
+                    </label>
+                    {{ form.show_hint_time(class="ss-form__input") }}
+                    <span class="ss-form__hint">
+                        {{ _('Время в секундах до появления подсказок (0 для отключения)') }}
+                    </span>
+                </div>
+
+                <div class="ss-form__actions" style="margin-top: 1.5rem;">
+                    {{ form.submit(class="ss-btn ss-btn--primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Telegram Integration -->
+    <div class="ss-card slideUp" style="animation-delay: .2s" id="telegram-section">
+        <div class="ss-card__header">
+            <div class="ss-card__header-icon ss-card__header-icon--telegram">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+            </div>
+            <h2 class="ss-card__title">Telegram-бот</h2>
+        </div>
+        <div class="ss-card__body">
+            <p class="ss-card__desc">
+                Бот напоминает о занятиях, присылает сводку дня и защищает стрик.
+            </p>
+
+            <!-- Loading State -->
+            <div id="telegram-loading" class="ss-telegram-loading">
+                <span class="ss-spinner"></span>
+                Загрузка...
             </div>
 
-            <!-- Telegram Integration -->
-            <div class="card shadow-sm mb-4" id="telegram-section">
-                <div class="card-body">
-                    <h3 class="mb-3">Telegram-бот</h3>
-                    <p class="text-muted mb-3">
-                        Бот напоминает о занятиях, присылает сводку дня и защищает стрик.
-                    </p>
-
-                    <div>
-                        <div id="telegram-loading" class="text-center py-3">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                            Загрузка...
-                        </div>
-
-                        <!-- Linked state -->
-                        <div id="telegram-linked" class="d-none">
-                            <div class="alert alert-success d-flex align-items-center mb-3">
-                                <i class="fab fa-telegram fa-lg me-2"></i>
-                                <div>
-                                    Привязан: <strong id="telegram-username"></strong>
-                                    <small class="text-muted d-block" id="telegram-linked-at"></small>
-                                </div>
-                            </div>
-                            <button class="btn btn-outline-danger btn-sm" onclick="unlinkTelegram()">
-                                Отвязать Telegram
-                            </button>
-                        </div>
-
-                        <!-- Not linked state -->
-                        <div id="telegram-not-linked" class="d-none">
-                            <ol class="mb-3">
-                                <li>Нажмите кнопку «Получить код привязки» ниже</li>
-                                <li>Откройте бота <a href="https://t.me/{{ telegram_bot_username }}" target="_blank">@{{ telegram_bot_username }}</a> в Telegram</li>
-                                <li>Отправьте боту команду <code>/link</code> и затем полученный 6-значный код</li>
-                            </ol>
-
-                            <p class="text-muted small mb-3">
-                                После привязки бот будет присылать утреннее напоминание, вечернюю сводку дня
-                                и предупреждение о потере стрика. Всё можно настроить командой <code>/settings</code> в боте.
-                            </p>
-
-                            <div id="telegram-code-area" class="d-none mb-3">
-                                <div class="alert alert-info">
-                                    Ваш код: <strong id="telegram-code" class="fs-4 font-monospace"></strong>
-                                    <br>
-                                    <small>Действителен <span id="telegram-code-ttl"></span> минут</small>
-                                </div>
-                            </div>
-
-                            <button class="btn btn-primary" id="btn-generate-code" onclick="generateCode()">
-                                <i class="fab fa-telegram me-1"></i> Получить код привязки
-                            </button>
-                        </div>
+            <!-- Linked State -->
+            <div id="telegram-linked" class="ss-telegram-state">
+                <div class="ss-telegram-linked">
+                    <div class="ss-telegram-linked__icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                    <div class="ss-telegram-linked__info">
+                        <div class="ss-telegram-linked__username">Привязан: <span id="telegram-username"></span></div>
+                        <div class="ss-telegram-linked__date" id="telegram-linked-at"></div>
                     </div>
                 </div>
+                <button class="ss-btn ss-btn--danger-outline" onclick="unlinkTelegram()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18.36 5.64a9 9 0 11-12.73 0"/>
+                        <line x1="12" y1="2" x2="12" y2="12"/>
+                    </svg>
+                    Отвязать Telegram
+                </button>
             </div>
 
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h3 class="mb-4">{{ _('О методе интервального повторения') }}</h3>
-                <p>
-                    {{ _('Это приложение использует улучшенный алгоритм SM-2 (похожий на Anki) для эффективного запоминания словаря. Система корректирует интервалы между повторениями на основе того, насколько хорошо вы знаете каждое слово.') }}
+            <!-- Not Linked State -->
+            <div id="telegram-not-linked" class="ss-telegram-state">
+                <ol class="ss-telegram-steps">
+                    <li class="ss-telegram-steps__item">Нажмите кнопку «Получить код привязки» ниже</li>
+                    <li class="ss-telegram-steps__item">Откройте бота <a href="https://t.me/{{ telegram_bot_username }}" target="_blank">@{{ telegram_bot_username }}</a> в Telegram</li>
+                    <li class="ss-telegram-steps__item">Отправьте боту команду <code>/link</code> и затем полученный 6-значный код</li>
+                </ol>
+
+                <p class="ss-telegram-note">
+                    После привязки бот будет присылать утреннее напоминание, вечернюю сводку дня
+                    и предупреждение о потере стрика. Всё можно настроить командой <code>/settings</code> в боте.
                 </p>
 
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>{{ _('Кнопка') }}</th>
-                                    <th>{{ _('Качество') }}</th>
-                                    <th>{{ _('Значение') }}</th>
-                                    <th>{{ _('Влияние на следующий повтор') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><span class="badge bg-danger">{{ _('Повторить') }}</span></td>
-                                    <td>0-2</td>
-                                    <td>{{ _('Неправильный ответ или полная потеря памяти') }}</td>
-                                    <td>{{ _('Сброс интервала до 0, снижение коэффициента легкости на 0.20') }}</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge bg-warning text-dark">{{ _('Трудно') }}</span></td>
-                                    <td>3</td>
-                                    <td>{{ _('Правильно, но с большими трудностями') }}</td>
-                                    <td>{{ _('Применяет 20%% штраф к расчету интервала') }}</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge bg-primary">{{ _('Хорошо') }}</span></td>
-                                    <td>4</td>
-                                    <td>{{ _('Правильно с небольшими колебаниями') }}</td>
-                                    <td>{{ _('Стандартное увеличение интервала на основе коэффициента легкости') }}</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge bg-success">{{ _('Легко') }}</span></td>
-                                    <td>5</td>
-                                    <td>{{ _('Перфектное воспоминание, без колебаний') }}</td>
-                                    <td>{{ _('Применяет 30%% бонус к расчету интервала') }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                <h5 class="mt-4">{{ _('Как работает алгоритм') }}</h5>
-                <p>
-                    {{ _('Для каждой карточки система отслеживает:') }}
-                </p>
-                <ul>
-                    <li>{{ _('Коэффициент легкости (EF) - начинается с 2.5 и корректируется на основе вашей эффективности') }}</li>
-                    <li>{{ _('Интервал - количество дней до следующего повторения') }}</li>
-                    <li>{{ _('Повторения - количество раз, когда вы успешно повторили карточку') }}</li>
-                </ul>
-
-                <p>
-                    {{ _('Когда вы впервые изучаете карточку и отвечаете правильно:') }}
-                </p>
-                <ul>
-                    <li>{{ _('1-е правильное повторение: Следующий интервал = 1 день') }}</li>
-                    <li>{{ _('2-е правильное повторение: Следующий интервал = 6 дней') }}</li>
-                    <li>{{ _('Последующие повторения: Интервал рассчитывается на основе предыдущего интервала, коэффициента легкости и качества вашего ответа') }}</li>
-                </ul>
-
-                <p>
-                    {{ _('Слово считается "изученным", когда его интервал достигает 30 дней или больше.') }}
-                </p>
-
-                    <div class="alert alert-info mt-3">
-                        <strong>{{ _('Совет') }}:</strong> {{ _('Будьте честны в оценках для лучших результатов. Постоянное использование "Легко" для слов, которые вы считаете сложными, приведет к забыванию.') }}
-                    </div>
+                <div id="telegram-code-area" class="ss-telegram-code">
+                    <div class="ss-telegram-code__label">Ваш код привязки:</div>
+                    <div class="ss-telegram-code__value" id="telegram-code"></div>
+                    <div class="ss-telegram-code__ttl">Действителен <span id="telegram-code-ttl"></span> минут</div>
                 </div>
+
+                <button class="ss-btn ss-btn--telegram" id="btn-generate-code" onclick="generateCode()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                    </svg>
+                    Получить код привязки
+                </button>
             </div>
         </div>
     </div>
+
+    <!-- SRS Info Card -->
+    <div class="ss-card slideUp" style="animation-delay: .3s">
+        <div class="ss-card__header">
+            <div class="ss-card__header-icon ss-card__header-icon--info">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+            </div>
+            <h2 class="ss-card__title">{{ _('О методе интервального повторения') }}</h2>
+        </div>
+        <div class="ss-card__body">
+            <p class="ss-srs-text">
+                {{ _('Это приложение использует улучшенный алгоритм SM-2 (похожий на Anki) для эффективного запоминания словаря. Система корректирует интервалы между повторениями на основе того, насколько хорошо вы знаете каждое слово.') }}
+            </p>
+
+            <table class="ss-srs-table">
+                <thead>
+                    <tr>
+                        <th>{{ _('Кнопка') }}</th>
+                        <th>{{ _('Качество') }}</th>
+                        <th>{{ _('Значение') }}</th>
+                        <th>{{ _('Влияние на следующий повтор') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="ss-badge ss-badge--danger">{{ _('Повторить') }}</span></td>
+                        <td>0-2</td>
+                        <td>{{ _('Неправильный ответ или полная потеря памяти') }}</td>
+                        <td>{{ _('Сброс интервала до 0, снижение коэффициента легкости на 0.20') }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ss-badge ss-badge--warning">{{ _('Трудно') }}</span></td>
+                        <td>3</td>
+                        <td>{{ _('Правильно, но с большими трудностями') }}</td>
+                        <td>{{ _('Применяет 20%% штраф к расчету интервала') }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ss-badge ss-badge--primary">{{ _('Хорошо') }}</span></td>
+                        <td>4</td>
+                        <td>{{ _('Правильно с небольшими колебаниями') }}</td>
+                        <td>{{ _('Стандартное увеличение интервала на основе коэффициента легкости') }}</td>
+                    </tr>
+                    <tr>
+                        <td><span class="ss-badge ss-badge--success">{{ _('Легко') }}</span></td>
+                        <td>5</td>
+                        <td>{{ _('Перфектное воспоминание, без колебаний') }}</td>
+                        <td>{{ _('Применяет 30%% бонус к расчету интервала') }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 class="ss-srs-heading">{{ _('Как работает алгоритм') }}</h4>
+            <p class="ss-srs-text">
+                {{ _('Для каждой карточки система отслеживает:') }}
+            </p>
+            <ul class="ss-srs-list">
+                <li class="ss-srs-list__item">{{ _('Коэффициент легкости (EF) - начинается с 2.5 и корректируется на основе вашей эффективности') }}</li>
+                <li class="ss-srs-list__item">{{ _('Интервал - количество дней до следующего повторения') }}</li>
+                <li class="ss-srs-list__item">{{ _('Повторения - количество раз, когда вы успешно повторили карточку') }}</li>
+            </ul>
+
+            <p class="ss-srs-text">
+                {{ _('Когда вы впервые изучаете карточку и отвечаете правильно:') }}
+            </p>
+            <ul class="ss-srs-list">
+                <li class="ss-srs-list__item">{{ _('1-е правильное повторение: Следующий интервал = 1 день') }}</li>
+                <li class="ss-srs-list__item">{{ _('2-е правильное повторение: Следующий интервал = 6 дней') }}</li>
+                <li class="ss-srs-list__item">{{ _('Последующие повторения: Интервал рассчитывается на основе предыдущего интервала, коэффициента легкости и качества вашего ответа') }}</li>
+            </ul>
+
+            <p class="ss-srs-text">
+                {{ _('Слово считается "изученным", когда его интервал достигает 30 дней или больше.') }}
+            </p>
+
+            <div class="ss-tip">
+                <svg class="ss-tip__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <p class="ss-tip__text">
+                    <strong>{{ _('Совет') }}:</strong> {{ _('Будьте честны в оценках для лучших результатов. Постоянное использование "Легко" для слов, которые вы считаете сложными, приведет к забыванию.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -241,29 +1184,29 @@ function checkTelegramStatus() {
     fetch('/telegram/status')
         .then(r => r.json())
         .then(data => {
-            document.getElementById('telegram-loading').classList.add('d-none');
+            document.getElementById('telegram-loading').style.display = 'none';
             if (data.linked) {
-                document.getElementById('telegram-linked').classList.remove('d-none');
-                document.getElementById('telegram-username').textContent = '@' + (data.username || '—');
+                document.getElementById('telegram-linked').classList.add('ss-telegram-state--visible');
+                document.getElementById('telegram-username').textContent = '@' + (data.username || '\u2014');
                 if (data.linked_at) {
                     const d = new Date(data.linked_at);
                     document.getElementById('telegram-linked-at').textContent =
                         'Привязан ' + d.toLocaleDateString('ru-RU');
                 }
             } else {
-                document.getElementById('telegram-not-linked').classList.remove('d-none');
+                document.getElementById('telegram-not-linked').classList.add('ss-telegram-state--visible');
             }
         })
         .catch(() => {
             document.getElementById('telegram-loading').innerHTML =
-                '<span class="text-danger">Ошибка загрузки</span>';
+                '<span style="color: var(--ss-danger);">Ошибка загрузки</span>';
         });
 }
 
 function generateCode() {
     const btn = document.getElementById('btn-generate-code');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Генерация...';
+    btn.innerHTML = '<span class="ss-spinner" style="width:16px;height:16px;border-width:2px;"></span> Генерация...';
 
     fetch('/telegram/generate-code', {
         method: 'POST',
@@ -277,8 +1220,8 @@ function generateCode() {
         if (data.success) {
             document.getElementById('telegram-code').textContent = data.code;
             document.getElementById('telegram-code-ttl').textContent = data.expires_in_minutes;
-            document.getElementById('telegram-code-area').classList.remove('d-none');
-            btn.textContent = 'Получить новый код';
+            document.getElementById('telegram-code-area').classList.add('ss-telegram-code--visible');
+            btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Получить новый код';
         } else {
             alert(data.error || 'Ошибка');
         }
@@ -287,7 +1230,7 @@ function generateCode() {
     .catch(() => {
         alert('Ошибка сети');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fab fa-telegram me-1"></i> Получить код привязки';
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> Получить код привязки';
     });
 }
 
@@ -301,8 +1244,8 @@ function unlinkTelegram() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            document.getElementById('telegram-linked').classList.add('d-none');
-            document.getElementById('telegram-not-linked').classList.remove('d-none');
+            document.getElementById('telegram-linked').classList.remove('ss-telegram-state--visible');
+            document.getElementById('telegram-not-linked').classList.add('ss-telegram-state--visible');
         } else {
             alert(data.error || 'Ошибка');
         }

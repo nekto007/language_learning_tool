@@ -3,27 +3,39 @@
 {% block title %}Книжные курсы{% endblock %}
 
 {% block content %}
-<div class="book-courses-page">
+<div class="bcl-page">
   <!-- Hero Section -->
-  <div class="hero-section">
-    <div class="hero-content">
-      <h1><i class="fas fa-book-reader"></i> Учите английский через книги</h1>
-      <p class="hero-subtitle">Погружайтесь в увлекательные истории и улучшайте свой английский с интерактивными упражнениями</p>
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <span class="stat-number">{{ total_courses }}</span>
-          <span class="stat-label">курсов</span>
+  <div class="bcl-hero">
+    <div class="bcl-hero__bg-shapes">
+      <div class="bcl-hero__shape bcl-hero__shape--1"></div>
+      <div class="bcl-hero__shape bcl-hero__shape--2"></div>
+      <div class="bcl-hero__shape bcl-hero__shape--3"></div>
+    </div>
+
+    <div class="bcl-hero__content">
+      <div class="bcl-hero__header">
+        <div class="bcl-hero__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-        <div class="hero-stat">
-          <span class="stat-number">{{ courses|selectattr('is_enrolled')|list|length }}</span>
-          <span class="stat-label">активных</span>
+        <div>
+          <h1 class="bcl-hero__title">Учите английский через книги</h1>
+          <p class="bcl-hero__subtitle">Погружайтесь в увлекательные истории и улучшайте свой английский</p>
         </div>
       </div>
-    </div>
-    <div class="hero-decoration">
-      <div class="floating-book book-1"><i class="fas fa-book"></i></div>
-      <div class="floating-book book-2"><i class="fas fa-bookmark"></i></div>
-      <div class="floating-book book-3"><i class="fas fa-graduation-cap"></i></div>
+
+      <div class="bcl-hero__stats">
+        <div class="bcl-hero__stat">
+          <span class="bcl-hero__stat-value">{{ total_courses }}</span>
+          <span class="bcl-hero__stat-label">курсов</span>
+        </div>
+        <div class="bcl-hero__stat-divider"></div>
+        <div class="bcl-hero__stat">
+          <span class="bcl-hero__stat-value">{{ courses|selectattr('is_enrolled')|list|length }}</span>
+          <span class="bcl-hero__stat-label">активных</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -31,73 +43,84 @@
   {% include 'partials/telegram_banner.html' %}
 
   <!-- Filter Bar -->
-  <div class="filter-section">
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label><i class="fas fa-layer-group"></i> Уровень</label>
-        <select id="level-filter" class="filter-select" onchange="filterCourses()">
-          <option value="">Все уровни</option>
-          <option value="A1">A1 - Начальный</option>
-          <option value="A2">A2 - Элементарный</option>
-          <option value="B1">B1 - Средний</option>
-          <option value="B2">B2 - Выше среднего</option>
-          <option value="C1">C1 - Продвинутый</option>
-          <option value="C2">C2 - Профессиональный</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label><i class="fas fa-filter"></i> Статус</label>
-        <select id="status-filter" class="filter-select" onchange="filterCourses()">
-          <option value="">Все курсы</option>
-          <option value="enrolled">Мои курсы</option>
-          <option value="not-enrolled">Доступные</option>
-        </select>
-      </div>
-      <div class="filter-results">
-        <i class="fas fa-search"></i>
-        <span id="courses-count">{{ total_courses }}</span> курсов
-      </div>
+  <div class="bcl-filter">
+    <div class="bcl-filter__group">
+      <svg class="bcl-filter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 6h16M7 12h10M10 18h4"/>
+      </svg>
+      <select id="level-filter" class="bcl-filter__select" onchange="filterCourses()">
+        <option value="">Все уровни</option>
+        <option value="A1">A1 - Начальный</option>
+        <option value="A2">A2 - Элементарный</option>
+        <option value="B1">B1 - Средний</option>
+        <option value="B2">B2 - Выше среднего</option>
+        <option value="C1">C1 - Продвинутый</option>
+        <option value="C2">C2 - Профессиональный</option>
+      </select>
+    </div>
+    <div class="bcl-filter__group">
+      <svg class="bcl-filter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+      </svg>
+      <select id="status-filter" class="bcl-filter__select" onchange="filterCourses()">
+        <option value="">Все курсы</option>
+        <option value="enrolled">Мои курсы</option>
+        <option value="not-enrolled">Доступные</option>
+      </select>
+    </div>
+    <div class="bcl-filter__results">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <span id="courses-count">{{ total_courses }}</span> курсов
     </div>
   </div>
 
   <!-- My Courses (if enrolled) -->
   {% set my_courses = courses | selectattr('is_enrolled') | list %}
   {% if my_courses %}
-  <div class="section my-courses-section">
-    <div class="section-header">
-      <div class="section-title">
-        <i class="fas fa-play-circle"></i>
-        <h2>Мои курсы</h2>
+  <div class="bcl-section">
+    <div class="bcl-section__header">
+      <div class="bcl-section__title-row">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <h2 class="bcl-section__title">Мои курсы</h2>
       </div>
-      <span class="section-badge">{{ my_courses|length }}</span>
+      <span class="bcl-section__badge">{{ my_courses|length }}</span>
     </div>
-    <div class="my-courses-grid">
+    <div class="bcl-my-grid">
       {% for course_data in my_courses %}
-      <div class="my-course-card" data-level="{{ course_data.course.level }}" data-enrolled="true">
-        <div class="my-course-cover">
+      <div class="bcl-my-card" data-level="{{ course_data.course.level }}" data-enrolled="true">
+        <div class="bcl-my-card__cover">
           {% if course_data.book.cover_image %}
             <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
           {% else %}
-            <div class="cover-placeholder small">
-              <i class="fas fa-book"></i>
+            <div class="bcl-placeholder bcl-placeholder--small">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
           {% endif %}
-          <div class="course-level-badge level-{{ course_data.course.level|lower }}">{{ course_data.course.level }}</div>
+          <div class="bcl-level-badge bcl-level-badge--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</div>
         </div>
-        <div class="my-course-info">
-          <h3 class="course-title">{{ course_data.course.title }}</h3>
-          <p class="course-author">{{ course_data.book.author }}</p>
-          <div class="course-progress">
-            <div class="progress-info">
+        <div class="bcl-my-card__info">
+          <h3 class="bcl-my-card__title">{{ course_data.course.title }}</h3>
+          <p class="bcl-my-card__author">{{ course_data.book.author }}</p>
+          <div class="bcl-my-card__progress">
+            <div class="bcl-my-card__progress-info">
               <span>Прогресс</span>
-              <span class="progress-percent">{{ course_data.progress_percentage|round(0)|int }}%</span>
+              <span class="bcl-my-card__progress-pct">{{ course_data.progress_percentage|round(0)|int }}%</span>
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: {{ course_data.progress_percentage }}%"></div>
+            <div class="bcl-my-card__progress-bar">
+              <div class="bcl-my-card__progress-fill" style="width: {{ course_data.progress_percentage }}%"></div>
             </div>
           </div>
-          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-continue">
-            <i class="fas fa-play"></i> Продолжить
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-btn bcl-btn--continue">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Продолжить
           </a>
         </div>
       </div>
@@ -109,39 +132,61 @@
   <!-- Featured Courses -->
   {% set featured_courses = courses | selectattr('course.is_featured') | rejectattr('is_enrolled') | list %}
   {% if featured_courses %}
-  <div class="section featured-section">
-    <div class="section-header">
-      <div class="section-title">
-        <i class="fas fa-star"></i>
-        <h2>Рекомендуем</h2>
+  <div class="bcl-section">
+    <div class="bcl-section__header">
+      <div class="bcl-section__title-row">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+        <h2 class="bcl-section__title">Рекомендуем</h2>
       </div>
     </div>
-    <div class="featured-grid">
+    <div class="bcl-featured-grid">
       {% for course_data in featured_courses[:3] %}
-      <div class="featured-card" data-level="{{ course_data.course.level }}" data-enrolled="false">
-        <div class="featured-badge"><i class="fas fa-crown"></i> Популярный</div>
-        <div class="featured-cover">
+      <div class="bcl-featured" data-level="{{ course_data.course.level }}" data-enrolled="false">
+        <div class="bcl-featured__badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+          Популярный
+        </div>
+        <div class="bcl-featured__cover">
           {% if course_data.book.cover_image %}
             <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
           {% else %}
-            <div class="cover-placeholder large">
-              <i class="fas fa-book-open"></i>
-              <span class="placeholder-title">{{ course_data.book.title[:25] }}{% if course_data.book.title|length > 25 %}...{% endif %}</span>
+            <div class="bcl-placeholder bcl-placeholder--large">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+              </svg>
+              <span class="bcl-placeholder__title">{{ course_data.book.title[:25] }}{% if course_data.book.title|length > 25 %}...{% endif %}</span>
             </div>
           {% endif %}
         </div>
-        <div class="featured-info">
-          <div class="course-meta">
-            <span class="course-level level-{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
+        <div class="bcl-featured__info">
+          <div class="bcl-meta">
+            <span class="bcl-level-badge bcl-level-badge--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
             {% if course_data.course.estimated_duration_weeks %}
-            <span class="course-duration"><i class="fas fa-clock"></i> {{ course_data.course.estimated_duration_weeks }} нед.</span>
+            <span class="bcl-meta__duration">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              {{ course_data.course.estimated_duration_weeks }} нед.
+            </span>
             {% endif %}
           </div>
-          <h3 class="course-title">{{ course_data.course.title }}</h3>
-          <p class="course-author"><i class="fas fa-user-edit"></i> {{ course_data.book.author }}</p>
-          <p class="course-description">{{ course_data.course.description[:120] }}{% if course_data.course.description|length > 120 %}...{% endif %}</p>
-          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-explore">
-            Подробнее <i class="fas fa-arrow-right"></i>
+          <h3 class="bcl-featured__title">{{ course_data.course.title }}</h3>
+          <p class="bcl-featured__author">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            {{ course_data.book.author }}
+          </p>
+          <p class="bcl-featured__desc">{{ course_data.course.description[:120] }}{% if course_data.course.description|length > 120 %}...{% endif %}</p>
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-btn bcl-btn--explore">
+            Подробнее
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
           </a>
         </div>
       </div>
@@ -151,43 +196,51 @@
   {% endif %}
 
   <!-- All Courses -->
-  <div class="section all-courses-section">
-    <div class="section-header">
-      <div class="section-title">
-        <i class="fas fa-th-large"></i>
-        <h2>Все курсы</h2>
+  <div class="bcl-section">
+    <div class="bcl-section__header">
+      <div class="bcl-section__title-row">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <h2 class="bcl-section__title">Все курсы</h2>
       </div>
     </div>
     {% if courses %}
-    <div class="courses-grid" id="courses-grid">
+    <div class="bcl-courses-grid" id="courses-grid">
       {% for course_data in courses %}
       {% if not course_data.is_enrolled %}
-      <div class="course-card" data-level="{{ course_data.course.level }}" data-enrolled="false">
-        <div class="course-cover">
+      <div class="bcl-course-card" data-level="{{ course_data.course.level }}" data-enrolled="false">
+        <div class="bcl-course-card__cover">
           {% if course_data.book.cover_image %}
             <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
           {% else %}
-            <div class="cover-placeholder">
-              <i class="fas fa-book"></i>
-              <span class="placeholder-title">{{ course_data.book.title[:20] }}{% if course_data.book.title|length > 20 %}...{% endif %}</span>
+            <div class="bcl-placeholder">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="bcl-placeholder__title">{{ course_data.book.title[:20] }}{% if course_data.book.title|length > 20 %}...{% endif %}</span>
             </div>
           {% endif %}
-          <div class="course-overlay">
-            <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="overlay-btn">
-              <i class="fas fa-eye"></i> Подробнее
+          <div class="bcl-course-card__overlay">
+            <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-course-card__overlay-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              Подробнее
             </a>
           </div>
         </div>
-        <div class="course-info">
-          <div class="course-meta">
-            <span class="course-level level-{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
+        <div class="bcl-course-card__info">
+          <div class="bcl-meta">
+            <span class="bcl-level-badge bcl-level-badge--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
             {% if course_data.course.estimated_duration_weeks %}
-            <span class="course-duration">{{ course_data.course.estimated_duration_weeks }} нед.</span>
+            <span class="bcl-meta__duration">{{ course_data.course.estimated_duration_weeks }} нед.</span>
             {% endif %}
           </div>
-          <h3 class="course-title">{{ course_data.course.title }}</h3>
-          <p class="course-author">{{ course_data.book.author }}</p>
-          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="btn-view">
+          <h3 class="bcl-course-card__title">{{ course_data.course.title }}</h3>
+          <p class="bcl-course-card__author">{{ course_data.book.author }}</p>
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-btn bcl-btn--view">
             Смотреть курс
           </a>
         </div>
@@ -196,543 +249,692 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state">
-      <div class="empty-icon">
-        <i class="fas fa-books"></i>
+    <div class="bcl-empty">
+      <div class="bcl-empty__icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
-      <h3>Курсы пока не созданы</h3>
-      <p>Скоро здесь появятся интересные книжные курсы для изучения английского</p>
+      <h3 class="bcl-empty__title">Курсы пока не созданы</h3>
+      <p class="bcl-empty__desc">Скоро здесь появятся интересные книжные курсы для изучения английского</p>
     </div>
     {% endif %}
   </div>
 </div>
 
 <style>
-/* Book Courses Page */
-.book-courses-page {
-  max-width: 1200px;
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+/* ── Page Container ── */
+.bcl-page {
+  --bcl-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bcl-primary: #10b981;
+  --bcl-primary-dark: #059669;
+  --bcl-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --bcl-surface: #ffffff;
+  --bcl-surface-alt: #f8fafc;
+  --bcl-text: #0f172a;
+  --bcl-text-muted: #64748b;
+  --bcl-text-light: #94a3b8;
+  --bcl-border: #e2e8f0;
+  --bcl-radius: 16px;
+  --bcl-radius-sm: 10px;
+  --bcl-radius-xs: 8px;
+  --bcl-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --bcl-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+
+  font-family: var(--bcl-font);
+  max-width: 900px;
   margin: 0 auto;
-  padding: 0 1.5rem 3rem;
+  padding: 0 1rem 3rem;
+  color: var(--bcl-text);
 }
 
-/* Hero Section */
-.hero-section {
-  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #3a7ca5 100%);
-  border-radius: 24px;
-  padding: 3rem;
-  margin-bottom: 2rem;
-  color: white;
+/* ── Animations ── */
+@keyframes bcl-slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bcl-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-20px, 15px) scale(1.08); }
+}
+
+@keyframes bcl-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50%      { transform: translate(25px, -20px) rotate(10deg); }
+}
+
+@keyframes bcl-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-10px, -15px) scale(1.05); }
+}
+
+/* ── Hero ── */
+.bcl-hero {
   position: relative;
+  background: var(--bcl-gradient);
+  border-radius: var(--bcl-radius);
+  padding: 2rem 1.5rem;
+  margin-bottom: 1.5rem;
   overflow: hidden;
+  color: #fff;
+  animation: bcl-slideUp 0.4s ease-out;
 }
 
-.hero-content {
-  position: relative;
-  z-index: 2;
-  max-width: 600px;
-}
-
-.hero-section h1 {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin: 0 0 1rem 0;
-  line-height: 1.2;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.hero-subtitle {
-  font-size: 1.125rem;
-  margin: 0 0 1.5rem 0;
-  line-height: 1.6;
-  color: rgba(255,255,255,0.95);
-}
-
-.hero-stats {
-  display: flex;
-  gap: 2rem;
-}
-
-.hero-stat {
-  display: flex;
-  flex-direction: column;
-  background: rgba(255,255,255,0.15);
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-.hero-stat .stat-number {
-  font-size: 2rem;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.hero-stat .stat-label {
-  font-size: 0.875rem;
-  color: rgba(255,255,255,0.9);
-}
-
-/* Floating Books Animation */
-.hero-decoration {
+.bcl-hero__bg-shapes {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 40%;
+  inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
-.floating-book {
+.bcl-hero__shape {
   position: absolute;
-  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.bcl-hero__shape--1 {
+  width: 160px;
+  height: 160px;
+  top: -50px;
+  right: -40px;
+  animation: bcl-float-1 18s ease-in-out infinite;
+}
+
+.bcl-hero__shape--2 {
+  width: 90px;
+  height: 90px;
+  bottom: -30px;
+  left: 10%;
+  animation: bcl-float-2 14s ease-in-out infinite;
+}
+
+.bcl-hero__shape--3 {
+  width: 50px;
+  height: 50px;
+  top: 40%;
+  left: 55%;
+  animation: bcl-float-3 12s ease-in-out infinite;
+}
+
+.bcl-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.bcl-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.bcl-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(5px);
-  animation: float 6s ease-in-out infinite;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
 }
 
-.floating-book i {
+.bcl-hero__title {
   font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.bcl-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.bcl-hero__stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bcl-hero__stat {
+  text-align: center;
+}
+
+.bcl-hero__stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bcl-hero__stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   opacity: 0.8;
+  margin-top: 2px;
 }
 
-.book-1 {
-  width: 60px;
-  height: 60px;
-  top: 20%;
-  right: 20%;
-  animation-delay: 0s;
+.bcl-hero__stat-divider {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.25);
 }
 
-.book-2 {
-  width: 50px;
-  height: 50px;
-  top: 50%;
-  right: 10%;
-  animation-delay: 2s;
-}
-
-.book-3 {
-  width: 70px;
-  height: 70px;
-  bottom: 20%;
-  right: 25%;
-  animation-delay: 4s;
-}
-
-/* float animation moved to design-system.css */
-
-/* Filter Section */
-.filter-section {
-  margin-bottom: 2rem;
-}
-
-.filter-bar {
+/* ── Filter Bar ── */
+.bcl-filter {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
+  gap: 1.25rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--bcl-surface);
+  border: 1px solid var(--bcl-border);
+  border-radius: var(--bcl-radius);
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
+  box-shadow: var(--bcl-shadow);
+  animation: bcl-slideUp 0.4s ease-out 0.1s both;
 }
 
-.filter-group {
+.bcl-filter__group {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
-.filter-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.bcl-filter__icon {
+  color: var(--bcl-text-muted);
+  flex-shrink: 0;
+}
+
+.bcl-filter__select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.5rem 2.25rem 0.5rem 0.875rem;
+  border: 1px solid var(--bcl-border);
+  border-radius: var(--bcl-radius-xs);
+  background: var(--bcl-surface-alt);
+  color: var(--bcl-text);
+  font-family: var(--bcl-font);
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary, #6b7280);
-  font-size: 0.875rem;
-}
-
-.filter-select {
-  padding: 0.625rem 1rem;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 10px;
-  background: var(--bg-primary, #ffffff);
-  color: var(--text-primary, #1f2937);
-  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
 }
 
-.filter-select:hover {
-  border-color: var(--accent-color, #3b82f6);
+.bcl-filter__select:hover {
+  border-color: var(--bcl-primary);
 }
 
-.filter-select:focus {
+.bcl-filter__select:focus {
   outline: none;
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--bcl-primary);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 }
 
-.filter-results {
+.bcl-filter__results {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--bcl-text-muted);
   font-size: 0.875rem;
+  font-weight: 500;
 }
 
-/* Sections */
-.section {
-  margin-bottom: 2.5rem;
+/* ── Sections ── */
+.bcl-section {
+  margin-bottom: 2rem;
+  animation: bcl-slideUp 0.4s ease-out 0.15s both;
 }
 
-.section-header {
+.bcl-section:nth-child(5) { animation-delay: 0.2s; }
+.bcl-section:nth-child(6) { animation-delay: 0.25s; }
+.bcl-section:nth-child(7) { animation-delay: 0.3s; }
+
+.bcl-section__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
-.section-title {
+.bcl-section__title-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  color: var(--bcl-text-muted);
 }
 
-.section-title i {
-  font-size: 1.25rem;
-  color: var(--accent-color, #3b82f6);
-}
-
-.section-title h2 {
-  font-size: 1.5rem;
+.bcl-section__title {
+  font-size: 1.1rem;
   font-weight: 700;
   margin: 0;
-  color: var(--text-primary, #1f2937);
+  color: var(--bcl-text);
+  letter-spacing: -0.01em;
 }
 
-.section-badge {
-  padding: 0.375rem 0.875rem;
-  background: var(--accent-color, #3b82f6);
-  color: white;
-  border-radius: 50px;
-  font-size: 0.875rem;
+.bcl-section__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--bcl-primary);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
-/* My Courses Grid */
-.my-courses-grid {
+/* ── My Courses Grid ── */
+.bcl-my-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
-.my-course-card {
+.bcl-my-card {
   display: flex;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
+  background: var(--bcl-surface);
+  border: 1px solid var(--bcl-border);
+  border-radius: var(--bcl-radius);
   overflow: hidden;
-  transition: all 0.3s;
+  box-shadow: var(--bcl-shadow);
+  transition: all 0.25s ease;
+  animation: bcl-slideUp 0.35s ease-out both;
 }
 
-.my-course-card:hover {
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+.bcl-my-card:nth-child(1) { animation-delay: 0.1s; }
+.bcl-my-card:nth-child(2) { animation-delay: 0.15s; }
+.bcl-my-card:nth-child(3) { animation-delay: 0.2s; }
+.bcl-my-card:nth-child(4) { animation-delay: 0.25s; }
+
+.bcl-my-card:hover {
+  border-color: var(--bcl-primary);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.12);
   transform: translateY(-2px);
 }
 
-.my-course-cover {
+.bcl-my-card__cover {
   width: 120px;
   flex-shrink: 0;
   position: relative;
-  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
 }
 
-.my-course-cover img {
+.bcl-my-card__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.my-course-cover .cover-placeholder {
-  width: 100%;
-  height: 100%;
-}
-
-.course-level-badge {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-}
-
-.my-course-info {
+.bcl-my-card__info {
   flex: 1;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
 }
 
-.my-course-info .course-title {
+.bcl-my-card__title {
   font-size: 1rem;
   font-weight: 600;
-  margin: 0 0 0.25rem 0;
-  color: var(--text-primary, #1f2937);
+  margin: 0 0 0.25rem;
+  color: var(--bcl-text);
+  line-height: 1.3;
 }
 
-.my-course-info .course-author {
+.bcl-my-card__author {
   font-size: 0.8125rem;
-  color: var(--text-secondary, #6b7280);
-  margin: 0 0 1rem 0;
+  color: var(--bcl-text-muted);
+  margin: 0 0 1rem;
 }
 
-.course-progress {
+.bcl-my-card__progress {
   margin-bottom: 1rem;
 }
 
-.progress-info {
+.bcl-my-card__progress-info {
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
   margin-bottom: 0.5rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--bcl-text-muted);
 }
 
-.progress-percent {
+.bcl-my-card__progress-pct {
   font-weight: 600;
-  color: var(--accent-color, #3b82f6);
+  color: var(--bcl-primary);
 }
 
-.progress-bar {
+.bcl-my-card__progress-bar {
   height: 6px;
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--bcl-surface-alt);
   border-radius: 3px;
   overflow: hidden;
 }
 
-.progress-fill {
+.bcl-my-card__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: var(--bcl-gradient);
   border-radius: 3px;
-  transition: width 0.3s;
+  transition: width 0.4s ease;
 }
 
-.btn-continue {
+/* ── Level Badges ── */
+.bcl-level-badge {
+  display: inline-flex;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bcl-level-badge--a1, .bcl-level-badge--a2 { background: #dcfce7; color: #16a34a; }
+.bcl-level-badge--b1, .bcl-level-badge--b2 { background: #dbeafe; color: #2563eb; }
+.bcl-level-badge--c1, .bcl-level-badge--c2 { background: #fce7f3; color: #db2777; }
+
+.bcl-my-card__cover .bcl-level-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 0.6875rem;
+}
+
+/* ── Buttons ── */
+.bcl-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  background: var(--accent-color, #3b82f6);
-  color: white;
-  border-radius: 10px;
-  text-decoration: none;
-  font-size: 0.875rem;
+  border: none;
+  border-radius: var(--bcl-radius-sm);
+  font-family: var(--bcl-font);
   font-weight: 600;
-  transition: all 0.2s;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bcl-btn--continue {
+  padding: 0.625rem 1rem;
+  background: var(--bcl-primary);
+  color: #fff;
+  font-size: 0.875rem;
   margin-top: auto;
 }
 
-.btn-continue:hover {
-  background: var(--accent-hover, #2563eb);
+.bcl-btn--continue:hover {
+  background: var(--bcl-primary-dark);
+  color: #fff;
   transform: translateY(-1px);
 }
 
-/* Featured Grid */
-.featured-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1.5rem;
+.bcl-btn--explore {
+  padding: 0.75rem 1.25rem;
+  background: var(--bcl-primary);
+  color: #fff;
+  font-size: 0.9375rem;
 }
 
-.featured-card {
-  background: var(--card-bg, #ffffff);
-  border: 2px solid var(--accent-color, #3b82f6);
-  border-radius: 20px;
+.bcl-btn--explore:hover {
+  background: var(--bcl-primary-dark);
+  color: #fff;
+  gap: 0.75rem;
+}
+
+.bcl-btn--view {
+  display: block;
+  text-align: center;
+  padding: 0.625rem 1rem;
+  background: var(--bcl-surface-alt);
+  color: var(--bcl-text);
+  font-size: 0.875rem;
+}
+
+.bcl-btn--view:hover {
+  background: var(--bcl-primary);
+  color: #fff;
+}
+
+/* ── Featured Grid ── */
+.bcl-featured-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.bcl-featured {
+  background: var(--bcl-surface);
+  border: 2px solid var(--bcl-primary);
+  border-radius: var(--bcl-radius);
   overflow: hidden;
   position: relative;
-  transition: all 0.3s;
+  box-shadow: var(--bcl-shadow);
+  transition: all 0.25s ease;
+  animation: bcl-slideUp 0.35s ease-out both;
 }
 
-.featured-card:hover {
-  box-shadow: 0 20px 60px rgba(59, 130, 246, 0.15);
+.bcl-featured:nth-child(1) { animation-delay: 0.1s; }
+.bcl-featured:nth-child(2) { animation-delay: 0.15s; }
+.bcl-featured:nth-child(3) { animation-delay: 0.2s; }
+
+.bcl-featured:hover {
+  box-shadow: 0 16px 50px rgba(16, 185, 129, 0.15);
   transform: translateY(-4px);
 }
 
-.featured-badge {
+.bcl-featured__badge {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 0.75rem;
+  right: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.375rem 0.875rem;
+  padding: 0.375rem 0.75rem;
   background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: white;
+  color: #fff;
   border-radius: 50px;
   font-size: 0.75rem;
   font-weight: 600;
   z-index: 2;
 }
 
-.featured-cover {
+.bcl-featured__cover {
   height: 200px;
-  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
   overflow: hidden;
 }
 
-.featured-cover img {
+.bcl-featured__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.cover-placeholder.large {
-  font-size: 3.5rem;
-  background: linear-gradient(145deg, #1e3a5f 0%, #3a7ca5 100%);
+.bcl-featured__info {
+  padding: 1.25rem;
 }
 
-.featured-info {
-  padding: 1.5rem;
+.bcl-featured__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--bcl-text);
+  line-height: 1.3;
 }
 
-.course-meta {
+.bcl-featured__author {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--bcl-text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.bcl-featured__desc {
+  font-size: 0.875rem;
+  color: var(--bcl-text-muted);
+  line-height: 1.6;
+  margin: 0 0 1.25rem;
+}
+
+/* ── Course Meta ── */
+.bcl-meta {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
 
-.course-level {
-  padding: 0.25rem 0.625rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.level-a1, .level-a2 { background: #dcfce7; color: #16a34a; }
-.level-b1, .level-b2 { background: #dbeafe; color: #2563eb; }
-.level-c1, .level-c2 { background: #fce7f3; color: #db2777; }
-
-.course-duration {
+.bcl-meta__duration {
   display: flex;
   align-items: center;
   gap: 0.25rem;
   font-size: 0.8125rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--bcl-text-muted);
 }
 
-.featured-info .course-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary, #1f2937);
-}
-
-.featured-info .course-author {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary, #6b7280);
-  margin: 0 0 0.75rem 0;
-}
-
-.course-description {
-  font-size: 0.875rem;
-  color: var(--text-secondary, #6b7280);
-  line-height: 1.6;
-  margin: 0 0 1.25rem 0;
-}
-
-.btn-explore {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--accent-color, #3b82f6);
-  color: white;
-  border-radius: 10px;
-  text-decoration: none;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.btn-explore:hover {
-  background: var(--accent-hover, #2563eb);
-  gap: 0.75rem;
-}
-
-/* All Courses Grid */
-.courses-grid {
+/* ── All Courses Grid ── */
+.bcl-courses-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
-.course-card {
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
+.bcl-course-card {
+  background: var(--bcl-surface);
+  border: 1px solid var(--bcl-border);
+  border-radius: var(--bcl-radius);
   overflow: hidden;
-  transition: all 0.3s;
+  box-shadow: var(--bcl-shadow);
+  transition: all 0.25s ease;
+  animation: bcl-slideUp 0.35s ease-out both;
 }
 
-.course-card:hover {
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+.bcl-course-card:nth-child(1) { animation-delay: 0.1s; }
+.bcl-course-card:nth-child(2) { animation-delay: 0.15s; }
+.bcl-course-card:nth-child(3) { animation-delay: 0.2s; }
+.bcl-course-card:nth-child(4) { animation-delay: 0.25s; }
+.bcl-course-card:nth-child(5) { animation-delay: 0.3s; }
+.bcl-course-card:nth-child(6) { animation-delay: 0.35s; }
+
+.bcl-course-card:hover {
+  border-color: var(--bcl-primary);
+  box-shadow: var(--bcl-shadow-md);
   transform: translateY(-4px);
 }
 
-.course-cover {
+.bcl-course-card__cover {
   height: 410px;
-  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
   overflow: hidden;
   position: relative;
 }
 
-.course-cover img {
+.bcl-course-card__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s;
+  transition: transform 0.3s ease;
 }
 
-.course-card:hover .course-cover img {
+.bcl-course-card:hover .bcl-course-card__cover img {
   transform: scale(1.05);
 }
 
-.cover-placeholder {
+.bcl-course-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.bcl-course-card:hover .bcl-course-card__overlay {
+  opacity: 1;
+}
+
+.bcl-course-card__overlay-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: #fff;
+  color: var(--bcl-text);
+  border-radius: var(--bcl-radius-sm);
+  text-decoration: none;
+  font-family: var(--bcl-font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transform: translateY(10px);
+  transition: transform 0.3s ease;
+}
+
+.bcl-course-card:hover .bcl-course-card__overlay-btn {
+  transform: translateY(0);
+}
+
+.bcl-course-card__info {
+  padding: 1.25rem;
+}
+
+.bcl-course-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.375rem;
+  color: var(--bcl-text);
+  line-height: 1.4;
+}
+
+.bcl-course-card__author {
+  font-size: 0.8125rem;
+  color: var(--bcl-text-muted);
+  margin: 0 0 1rem;
+}
+
+/* ── Placeholders ── */
+.bcl-placeholder {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 0.5rem;
-  font-size: 2.5rem;
-  background: linear-gradient(145deg, #4f46e5 0%, #7c3aed 100%);
-  color: rgba(255,255,255,0.9);
+  gap: 0.75rem;
+  background: linear-gradient(145deg, #059669 0%, #10b981 100%);
+  color: rgba(255, 255, 255, 0.9);
   padding: 1rem;
   text-align: center;
 }
 
-.cover-placeholder.small {
-  font-size: 2rem;
+.bcl-placeholder--small {
+  width: 100%;
+  height: 100%;
 }
 
-.cover-placeholder .placeholder-title {
+.bcl-placeholder--large {
+  background: linear-gradient(145deg, #059669 0%, #10b981 100%);
+}
+
+.bcl-placeholder__title {
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.3;
@@ -740,168 +942,108 @@
   word-wrap: break-word;
 }
 
-.cover-placeholder.large .placeholder-title {
+.bcl-placeholder--large .bcl-placeholder__title {
   font-size: 1rem;
 }
 
-.course-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.course-card:hover .course-overlay {
-  opacity: 1;
-}
-
-.overlay-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: white;
-  color: var(--text-primary, #1f2937);
-  border-radius: 10px;
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transform: translateY(10px);
-  transition: transform 0.3s;
-}
-
-.course-card:hover .overlay-btn {
-  transform: translateY(0);
-}
-
-.course-info {
-  padding: 1.25rem;
-}
-
-.course-info .course-meta {
-  margin-bottom: 0.75rem;
-}
-
-.course-info .course-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.375rem 0;
-  color: var(--text-primary, #1f2937);
-  line-height: 1.4;
-}
-
-.course-info .course-author {
-  font-size: 0.8125rem;
-  color: var(--text-secondary, #6b7280);
-  margin: 0 0 1rem 0;
-}
-
-.btn-view {
-  display: block;
-  text-align: center;
-  padding: 0.625rem 1rem;
-  background: var(--bg-secondary, #f3f4f6);
-  color: var(--text-primary, #1f2937);
-  border-radius: 10px;
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.btn-view:hover {
-  background: var(--accent-color, #3b82f6);
-  color: white;
-}
-
-/* Empty State */
-.empty-state {
-  text-align: center;
+/* ── Empty State ── */
+.bcl-empty {
+  background: var(--bcl-surface);
+  border: 1px solid var(--bcl-border);
+  border-radius: var(--bcl-radius);
   padding: 4rem 2rem;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
+  text-align: center;
+  animation: bcl-slideUp 0.5s ease-out;
 }
 
-.empty-icon {
-  font-size: 4rem;
-  color: #d1d5db;
+.bcl-empty__icon {
+  color: var(--bcl-border);
   margin-bottom: 1rem;
 }
 
-.empty-state h3 {
-  font-size: 1.25rem;
+.bcl-empty__title {
+  font-size: 1.125rem;
   font-weight: 600;
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary, #1f2937);
+  margin: 0 0 0.5rem;
+  color: var(--bcl-text);
 }
 
-.empty-state p {
-  color: var(--text-secondary, #6b7280);
+.bcl-empty__desc {
+  font-size: 0.875rem;
+  color: var(--bcl-text-muted);
   margin: 0;
 }
 
-/* Hidden (for filtering) */
-.course-card.hidden,
-.my-course-card.hidden,
-.featured-card.hidden {
+/* ── Hidden (for filtering) ── */
+.bcl-course-card.hidden,
+.bcl-my-card.hidden,
+.bcl-featured.hidden {
   display: none;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .book-courses-page {
-    padding: 0 1rem 2rem;
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .bcl-page {
+    padding: 0 0.75rem 2rem;
   }
 
-  .hero-section {
-    padding: 2rem 1.5rem;
-    border-radius: 16px;
+  .bcl-hero {
+    padding: 1.25rem;
   }
 
-  .hero-section h1 {
-    font-size: 1.75rem;
+  .bcl-hero__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
   }
 
-  .hero-decoration {
+  .bcl-hero__title {
+    font-size: 1.25rem;
+  }
+
+  .bcl-hero__stats {
+    justify-content: space-around;
+    width: 100%;
+  }
+
+  .bcl-hero__shape--3 {
     display: none;
   }
 
-  .filter-bar {
+  .bcl-filter {
     flex-direction: column;
     align-items: stretch;
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 1rem;
   }
 
-  .filter-results {
+  .bcl-filter__results {
     margin-left: 0;
     justify-content: center;
   }
 
-  .my-courses-grid {
+  .bcl-my-grid {
     grid-template-columns: 1fr;
   }
 
-  .my-course-card {
+  .bcl-my-card {
     flex-direction: column;
   }
 
-  .my-course-cover {
+  .bcl-my-card__cover {
     width: 100%;
     height: 140px;
   }
 
-  .featured-grid,
-  .courses-grid {
+  .bcl-featured-grid,
+  .bcl-courses-grid {
     grid-template-columns: 1fr;
   }
 }
 </style>
+{% endblock %}
 
+{% block scripts %}
 <script>
 function filterCourses() {
   const levelFilter = document.getElementById('level-filter').value;

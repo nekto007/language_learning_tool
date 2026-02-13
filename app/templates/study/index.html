@@ -3,48 +3,59 @@
 {% block title %}Изучение слов{% endblock %}
 
 {% block content %}
-<div class="container container-xl">
-    <!-- Заголовок -->
-    <div class="mb-4">
-        <h1 class="h2 fw-bold mb-2">📚 Изучение слов</h1>
-        <p class="text-muted">Выберите колоду или коллекцию для изучения</p>
-    </div>
+<div class="decks-page">
 
     <!-- Telegram Banner -->
     {% include 'partials/telegram_banner.html' %}
 
-    <!-- XP Progress Card -->
+    <!-- Hero Section -->
     {% if user_level %}
-    <div class="card mb-4 shadow-sm hero-gradient-card">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <div class="icon-lg">⚡</div>
-                        <div>
-                            <h4 class="mb-1 level-title">Уровень {{ user_level }}</h4>
-                            <p class="mb-0 xp-info">{{ user_xp }} XP • {{ xp_to_next_level }} XP до следующего уровня</p>
-                        </div>
+    <div class="decks-hero">
+        <div class="decks-hero__shapes">
+            <div class="decks-hero__circle decks-hero__circle--1"></div>
+            <div class="decks-hero__circle decks-hero__circle--2"></div>
+            <div class="decks-hero__circle decks-hero__circle--3"></div>
+        </div>
+        <div class="decks-hero__content">
+            <div class="decks-hero__top">
+                <div class="decks-hero__level">
+                    <div class="decks-hero__level-badge">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
                     </div>
-                    <!-- Progress bar -->
-                    <div class="study-xp-progress">
-                        <div class="study-xp-progress-fill" style="width: {{ xp_progress_percent }}%;"></div>
+                    <div>
+                        <div class="decks-hero__level-title">Уровень {{ user_level }}</div>
+                        <div class="decks-hero__level-xp">{{ user_xp }} XP &middot; {{ xp_to_next_level }} XP до следующего</div>
                     </div>
                 </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-flex flex-column gap-2">
-                        <a href="{{ url_for('study.quiz') }}" class="btn btn-light btn-sm">
-                            <i class="fas fa-bolt me-1"></i>Заработать XP
-                        </a>
-                        <small class="xp-hint">+10 XP за правильный ответ</small>
-                    </div>
+                <a href="{{ url_for('study.quiz') }}" class="decks-hero__xp-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
+                    Заработать XP
+                </a>
+            </div>
+            <div class="decks-hero__progress">
+                <div class="decks-hero__progress-bar" style="width: {{ xp_progress_percent }}%;"></div>
+            </div>
+            <div class="decks-hero__stats">
+                <div class="decks-hero__stat">
+                    <span class="decks-hero__stat-value">{{ due_items_count }}</span>
+                    <span class="decks-hero__stat-label">к повторению</span>
+                </div>
+                <div class="decks-hero__stat-divider"></div>
+                <div class="decks-hero__stat">
+                    <span class="decks-hero__stat-value">{{ total_items }}</span>
+                    <span class="decks-hero__stat-label">в изучении</span>
+                </div>
+                <div class="decks-hero__stat-divider"></div>
+                <div class="decks-hero__stat">
+                    <span class="decks-hero__stat-value">{{ mastered_count }}</span>
+                    <span class="decks-hero__stat-label">выучено</span>
                 </div>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Welcome Block - показываем пока нет пользовательских колод -->
+    <!-- Welcome Block -->
     {% set ns = namespace(custom_count=0) %}
     {% for deck in my_decks %}
         {% if not deck.is_auto %}
@@ -52,292 +63,190 @@
         {% endif %}
     {% endfor %}
     {% if ns.custom_count == 0 %}
-    <div class="welcome-hero mb-4">
-        <div class="welcome-hero-inner">
-            <div class="welcome-hero-glow"></div>
-            <div class="welcome-hero-content">
-                <div class="welcome-hero-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+    <div class="decks-welcome slideUp" style="animation-delay: .1s">
+        <div class="decks-welcome__inner">
+            <div class="decks-welcome__glow"></div>
+            <div class="decks-welcome__body">
+                <div class="decks-welcome__icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <div class="welcome-hero-text">
-                    <h2 class="welcome-hero-title">Начните изучать слова</h2>
-                    <p class="welcome-hero-subtitle">Создайте свою первую колоду из слов, которые хотите выучить</p>
+                <div class="decks-welcome__text">
+                    <h2 class="decks-welcome__title">Начните изучать слова</h2>
+                    <p class="decks-welcome__subtitle">Создайте свою первую колоду из слов, которые хотите выучить</p>
                 </div>
-                <a href="{{ url_for('study.create_deck') }}" class="welcome-hero-btn">
-                    <i class="fas fa-plus"></i>
+                <a href="{{ url_for('study.create_deck') }}" class="decks-welcome__btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
                     <span>Создать колоду</span>
                 </a>
             </div>
-            <div class="welcome-hero-steps">
-                <div class="welcome-step">
-                    <div class="welcome-step-num">1</div>
-                    <div class="welcome-step-text">Создайте колоду</div>
+            <div class="decks-welcome__steps">
+                <div class="decks-welcome__step">
+                    <div class="decks-welcome__step-num">1</div>
+                    <div class="decks-welcome__step-text">Создайте колоду</div>
                 </div>
-                <div class="welcome-step-arrow">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="decks-welcome__step-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M13 7l5 5m0 0l-5 5m5-5H6" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <div class="welcome-step">
-                    <div class="welcome-step-num">2</div>
-                    <div class="welcome-step-text">Добавьте слова</div>
+                <div class="decks-welcome__step">
+                    <div class="decks-welcome__step-num">2</div>
+                    <div class="decks-welcome__step-text">Добавьте слова</div>
                 </div>
-                <div class="welcome-step-arrow">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="decks-welcome__step-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M13 7l5 5m0 0l-5 5m5-5H6" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <div class="welcome-step">
-                    <div class="welcome-step-num">3</div>
-                    <div class="welcome-step-text">Учите и повторяйте</div>
+                <div class="decks-welcome__step">
+                    <div class="decks-welcome__step-num">3</div>
+                    <div class="decks-welcome__step-text">Учите и повторяйте</div>
                 </div>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Быстрый старт - Карточки для повторения -->
+    <!-- Quick Start / Review Block -->
     {% if due_items_count > 0 or total_items > 0 %}
-    <div class="card mb-4 border-primary shadow-sm">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h5 class="card-title mb-2">
-                        <i class="fas fa-bolt text-warning"></i> Быстрый старт - Повторение
-                    </h5>
-                    <p class="text-muted mb-2">
+    <div class="decks-review slideUp" style="animation-delay: .15s">
+        <div class="decks-review__body">
+            <div class="decks-review__info">
+                <div class="decks-review__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
+                </div>
+                <div>
+                    <h3 class="decks-review__title">Быстрый старт &mdash; Повторение</h3>
+                    <p class="decks-review__desc">
                         {% if due_items_count > 0 %}
-                        <strong class="text-primary">{{ due_items_count }}</strong> слов ожидают повторения
+                        <strong>{{ due_items_count }}</strong> слов ожидают повторения
                         {% else %}
                         Все слова повторены! Добавьте новые или продолжайте изучение.
                         {% endif %}
                     </p>
-                    <small class="text-muted">
-                        В изучении: <strong>{{ total_items }}</strong> |
-                        Выучено: <strong>{{ mastered_count }}</strong>
-                    </small>
-                </div>
-                <div class="col-md-4 text-end">
-                    <a href="{{ url_for('study.cards') }}" class="btn btn-primary btn-lg px-4">
-                        <i class="fas fa-play me-2"></i>Начать повторение
-                    </a>
+                    <div class="decks-review__meta">
+                        В изучении: <strong>{{ total_items }}</strong> &nbsp;|&nbsp; Выучено: <strong>{{ mastered_count }}</strong>
+                    </div>
                 </div>
             </div>
+            <a href="{{ url_for('study.cards') }}" class="decks-review__btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Начать повторение
+            </a>
         </div>
     </div>
     {% endif %}
 
-    <!-- Мои колоды -->
+    <!-- My Decks Section -->
     {% if my_decks %}
-    <div class="mb-4">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
-            <h4 class="fw-bold mb-0">
-                <i class="fas fa-user-circle text-primary"></i> Мои колоды
-                <span class="badge bg-primary" id="deck-count">{{ my_decks|length }}</span>
-            </h4>
-            <div class="d-flex gap-2 w-100 w-md-auto">
-                <div class="input-group search-input-group flex-grow-1">
-                    <span class="input-group-text bg-white">
-                        <i class="fas fa-search text-muted"></i>
-                    </span>
-                    <input type="text" class="form-control" id="deck-search" placeholder="Поиск...">
-                    <button class="btn btn-outline-secondary" type="button" id="clear-search" style="display: none;">
-                        <i class="fas fa-times"></i>
+    <div class="decks-section slideUp" style="animation-delay: .2s">
+        <div class="decks-section__header">
+            <div class="decks-section__title-row">
+                <h2 class="decks-section__title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                    Мои колоды
+                </h2>
+                <span class="decks-section__count" id="deck-count">{{ my_decks|length }}</span>
+            </div>
+            <div class="decks-section__actions">
+                <div class="decks-search">
+                    <svg class="decks-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод...">
+                    <button class="decks-search__clear" type="button" id="clear-search" style="display: none;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <a href="{{ url_for('study.create_deck') }}" class="btn btn-sm btn-primary text-nowrap">
-                    <i class="fas fa-plus"></i><span class="d-none d-sm-inline ms-1">Создать</span>
+                <a href="{{ url_for('study.create_deck') }}" class="decks-section__add-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    <span class="decks-section__add-label">Создать</span>
                 </a>
             </div>
         </div>
 
-        <!-- Desktop/Tablet: Table view -->
-        <div class="card shadow-sm deck-table-view">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="deck-col-name">Название</th>
-                            <th class="text-center deck-col-count">Всего</th>
-                            <th class="text-center deck-col-count">
-                                <span class="text-info" title="Новые слова">
-                                    <i class="fas fa-star"></i> Новые
-                                </span>
-                            </th>
-                            <th class="text-center deck-col-count deck-col-learning">
-                                <span class="text-warning" title="Изучаемые слова">
-                                    <i class="fas fa-graduation-cap"></i> Изучаю
-                                </span>
-                            </th>
-                            <th class="text-center deck-col-count deck-col-review">
-                                <span class="text-danger" title="К повторению">
-                                    <i class="fas fa-redo"></i> Повтор
-                                </span>
-                            </th>
-                            <th class="text-center deck-col-count">
-                                <span class="text-success" title="Выученные слова">
-                                    <i class="fas fa-check-circle"></i> Выучено
-                                </span>
-                            </th>
-                            <th class="text-center deck-col-count deck-col-played">Сыграно</th>
-                            <th class="text-center">Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for deck in my_decks %}
-                        <tr>
-                            <td>
-                                <div class="fw-bold">{{ deck.title }}</div>
-                                {% if deck.description %}
-                                <small class="text-muted">{{ deck.description[:60] }}{% if deck.description|length > 60 %}...{% endif %}</small>
-                                {% endif %}
-                                {% if deck.total_cards > 0 %}
-                                <div class="progress mt-2 progress-slim">
-                                    {% set total = deck.total_cards %}
-                                    {% set mastered_pct = (deck.mastered_count / total * 100)|round(1) %}
-                                    {% set learning_pct = (deck.learning_count / total * 100)|round(1) %}
-                                    {% set review_pct = (deck.review_count / total * 100)|round(1) %}
-                                    {% set new_pct = (deck.new_count / total * 100)|round(1) %}
-
-                                    {% if mastered_pct > 0 %}
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ mastered_pct }}%"
-                                         title="Выучено: {{ deck.mastered_count }} ({{ mastered_pct }}%)"></div>
-                                    {% endif %}
-                                    {% if learning_pct > 0 %}
-                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ learning_pct }}%"
-                                         title="Изучаю: {{ deck.learning_count }} ({{ learning_pct }}%)"></div>
-                                    {% endif %}
-                                    {% if review_pct > 0 %}
-                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ review_pct }}%"
-                                         title="К повторению: {{ deck.review_count }} ({{ review_pct }}%)"></div>
-                                    {% endif %}
-                                    {% if new_pct > 0 %}
-                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ new_pct }}%"
-                                         title="Новые: {{ deck.new_count }} ({{ new_pct }}%)"></div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark">{{ deck.total_cards }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-info">{{ deck.new_count }}</span>
-                            </td>
-                            <td class="text-center deck-col-learning">
-                                <span class="badge bg-warning text-dark">{{ deck.learning_count }}</span>
-                            </td>
-                            <td class="text-center deck-col-review">
-                                <span class="badge bg-danger">{{ deck.review_count }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-success">{{ deck.mastered_count }}</span>
-                            </td>
-                            <td class="text-center deck-col-played">
-                                <small class="text-muted">{{ deck.times_played }}</small>
-                            </td>
-                            <td class="text-center deck-actions">
-                                <div class="d-flex flex-column gap-1 align-items-center">
-                                    <!-- Квиз и Карточки -->
-                                    {% if deck.total_cards > 0 %}
-                                    <div class="btn-group btn-group-sm deck-study-buttons" role="group">
-                                        <button type="button" class="btn btn-primary btn-quiz-modal" title="Пройти квиз"
-                                                data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}">
-                                            <i class="fas fa-brain me-1"></i>Квиз
-                                        </button>
-                                        <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success" title="Интервальное повторение">
-                                            <i class="fas fa-layer-group me-1"></i>Карточки
-                                        </a>
-                                    </div>
-                                    {% endif %}
-
-                                    <!-- Кнопки управления колодой -->
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <!-- Настройки лимитов - для всех колод -->
-                                        <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Настройки лимитов">
-                                            <i class="fas fa-cog"></i>
-                                        </a>
-                                        {% if not deck.is_auto %}
-                                        <!-- Редактировать и Удалить - только для обычных колод -->
-                                        <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary" title="Редактировать">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-outline-danger btn-delete-deck" data-deck-id="{{ deck.id }}" data-deck-title="{{ deck.title }}" title="Удалить">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Mobile: Card view (phones only) -->
-        <div class="deck-cards-view">
+        <div class="decks-list" id="decks-list">
             {% for deck in my_decks %}
-            <div class="card shadow-sm mb-3 deck-mobile-card">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="fw-bold mb-0">{{ deck.title }}</h6>
-                        <div class="btn-group btn-group-sm">
-                            <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="btn btn-outline-secondary btn-sm" title="Настройки">
-                                <i class="fas fa-cog"></i>
-                            </a>
-                            {% if not deck.is_auto %}
-                            <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="btn btn-outline-secondary btn-sm" title="Редактировать">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <button type="button" class="btn btn-outline-danger btn-sm btn-delete-deck" data-deck-id="{{ deck.id }}" data-deck-title="{{ deck.title }}" title="Удалить">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            {% endif %}
-                        </div>
-                    </div>
+            <div class="decks-card">
+                <div class="decks-card__icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                </div>
+
+                <div class="decks-card__body">
+                    <div class="decks-card__title">{{ deck.title }}</div>
                     {% if deck.description %}
-                    <p class="text-muted small mb-2">{{ deck.description[:80] }}{% if deck.description|length > 80 %}...{% endif %}</p>
+                    <div class="decks-card__desc">{{ deck.description[:80] }}{% if deck.description|length > 80 %}...{% endif %}</div>
                     {% endif %}
-
-                    <!-- Stats badges -->
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge bg-light text-dark"><i class="fas fa-layer-group me-1"></i>{{ deck.total_cards }}</span>
-                        <span class="badge bg-info"><i class="fas fa-star me-1"></i>{{ deck.new_count }}</span>
-                        <span class="badge bg-warning text-dark"><i class="fas fa-graduation-cap me-1"></i>{{ deck.learning_count }}</span>
-                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{{ deck.mastered_count }}</span>
-                    </div>
-
-                    <!-- Progress bar -->
                     {% if deck.total_cards > 0 %}
-                    <div class="progress mb-3 progress-slim">
+                    <div class="decks-card__progress">
                         {% set total = deck.total_cards %}
                         {% set mastered_pct = (deck.mastered_count / total * 100)|round(1) %}
                         {% set learning_pct = (deck.learning_count / total * 100)|round(1) %}
                         {% set review_pct = (deck.review_count / total * 100)|round(1) %}
                         {% set new_pct = (deck.new_count / total * 100)|round(1) %}
-                        {% if mastered_pct > 0 %}<div class="progress-bar bg-success" style="width: {{ mastered_pct }}%"></div>{% endif %}
-                        {% if learning_pct > 0 %}<div class="progress-bar bg-warning" style="width: {{ learning_pct }}%"></div>{% endif %}
-                        {% if review_pct > 0 %}<div class="progress-bar bg-danger" style="width: {{ review_pct }}%"></div>{% endif %}
-                        {% if new_pct > 0 %}<div class="progress-bar bg-info" style="width: {{ new_pct }}%"></div>{% endif %}
+                        {% if mastered_pct > 0 %}<div class="decks-card__progress-seg decks-card__progress-seg--mastered" style="width: {{ mastered_pct }}%" title="Выучено: {{ deck.mastered_count }}"></div>{% endif %}
+                        {% if learning_pct > 0 %}<div class="decks-card__progress-seg decks-card__progress-seg--learning" style="width: {{ learning_pct }}%" title="Изучаю: {{ deck.learning_count }}"></div>{% endif %}
+                        {% if review_pct > 0 %}<div class="decks-card__progress-seg decks-card__progress-seg--review" style="width: {{ review_pct }}%" title="К повторению: {{ deck.review_count }}"></div>{% endif %}
+                        {% if new_pct > 0 %}<div class="decks-card__progress-seg decks-card__progress-seg--new" style="width: {{ new_pct }}%" title="Новые: {{ deck.new_count }}"></div>{% endif %}
                     </div>
                     {% endif %}
+                </div>
 
-                    <!-- Action buttons -->
-                    {% if deck.total_cards > 0 %}
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary flex-fill btn-quiz-modal"
-                                data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}">
-                            <i class="fas fa-brain me-1"></i>Квиз
-                        </button>
-                        <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="btn btn-success flex-fill">
-                            <i class="fas fa-layer-group me-1"></i>Карточки
-                        </a>
+                <div class="decks-card__stats">
+                    <div class="decks-card__stat" title="Всего">
+                        <span class="decks-card__stat-value">{{ deck.total_cards }}</span>
+                        <span class="decks-card__stat-label">всего</span>
                     </div>
+                    <div class="decks-card__stat decks-card__stat--new" title="Новые">
+                        <span class="decks-card__stat-value">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            {{ deck.new_count }}
+                        </span>
+                        <span class="decks-card__stat-label">новые</span>
+                    </div>
+                    <div class="decks-card__stat decks-card__stat--learning" title="Изучаю">
+                        <span class="decks-card__stat-value">{{ deck.learning_count }}</span>
+                        <span class="decks-card__stat-label">изучаю</span>
+                    </div>
+                    <div class="decks-card__stat decks-card__stat--review" title="Повтор">
+                        <span class="decks-card__stat-value">{{ deck.review_count }}</span>
+                        <span class="decks-card__stat-label">повтор</span>
+                    </div>
+                    <div class="decks-card__stat decks-card__stat--mastered" title="Выучено">
+                        <span class="decks-card__stat-value">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+                            {{ deck.mastered_count }}
+                        </span>
+                        <span class="decks-card__stat-label">выучено</span>
+                    </div>
+                </div>
+
+                <div class="decks-card__actions">
+                    {% if deck.total_cards > 0 %}
+                    <button type="button" class="decks-card__btn decks-card__btn--quiz btn-quiz-modal"
+                            data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}" title="Квиз">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 017 7c0 3-2 5-3.5 6.5L12 19l-3.5-3.5C7 14 5 12 5 9a7 7 0 017-7z"/></svg>
+                        <span class="decks-card__btn-label">Квиз</span>
+                    </button>
+                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--cards" title="Карточки">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                        <span class="decks-card__btn-label">Карточки</span>
+                    </a>
                     {% endif %}
+                    <div class="decks-card__manage">
+                        <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="decks-card__manage-btn" title="Настройки лимитов">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                        </a>
+                        {% if not deck.is_auto %}
+                        <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="decks-card__manage-btn" title="Редактировать">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </a>
+                        <button type="button" class="decks-card__manage-btn decks-card__manage-btn--danger btn-delete-deck"
+                                data-deck-id="{{ deck.id }}" data-deck-title="{{ deck.title }}" title="Удалить">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -345,150 +254,1286 @@
     </div>
     {% endif %}
 
-    <!-- Публичные колоды -->
+    <!-- Public Decks Section -->
     {% if public_decks %}
-    <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0">
-                <i class="fas fa-globe text-success"></i> Публичные колоды
-                <span class="badge bg-success">{{ public_decks|length }}</span>
-            </h4>
-            <a href="{{ url_for('study.quiz') }}" class="btn btn-sm btn-outline-success">
-                <i class="fas fa-eye me-1"></i>Все колоды
+    <div class="decks-section slideUp" style="animation-delay: .25s">
+        <div class="decks-section__header">
+            <div class="decks-section__title-row">
+                <h2 class="decks-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                    Публичные колоды
+                </h2>
+                <span class="decks-section__count decks-section__count--green">{{ public_decks|length }}</span>
+            </div>
+        </div>
+
+        <div class="decks-list">
+            {% for deck in public_decks[:8] %}
+            <div class="decks-card decks-card--public">
+                <div class="decks-card__icon decks-card__icon--public">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                </div>
+
+                <div class="decks-card__body">
+                    <div class="decks-card__title">{{ deck.title }}</div>
+                    {% if deck.description %}
+                    <div class="decks-card__desc">{{ deck.description[:80] }}{% if deck.description|length > 80 %}...{% endif %}</div>
+                    {% endif %}
+                    {% if deck.word_count > 0 %}
+                    <div class="decks-card__progress">
+                        <div class="decks-card__progress-seg decks-card__progress-seg--public" style="width: 100%"></div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="decks-card__stats decks-card__stats--compact">
+                    <div class="decks-card__stat" title="Слов">
+                        <span class="decks-card__stat-value">{{ deck.word_count }}</span>
+                        <span class="decks-card__stat-label">слов</span>
+                    </div>
+                    {% if deck.times_played > 0 %}
+                    <div class="decks-card__stat" title="Сыграно">
+                        <span class="decks-card__stat-value">{{ deck.times_played }}</span>
+                        <span class="decks-card__stat-label">сыграно</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="decks-card__actions">
+                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--quiz" title="Квиз">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span class="decks-card__btn-label">Квиз</span>
+                    </a>
+                    <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" class="decks-card__copy-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="decks-card__btn decks-card__btn--copy" title="Копировать">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            <span class="decks-card__btn-label">Копировать</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Study Modes Section -->
+    <div class="decks-modes slideUp" style="animation-delay: .3s">
+        <h2 class="decks-section__title" style="margin-bottom: 1rem;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            Другие режимы обучения
+        </h2>
+        <div class="decks-modes__grid">
+            <a href="{{ url_for('study.cards') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Карточки</div>
+                    <div class="decks-mode__desc">Интервальное повторение</div>
+                </div>
+            </a>
+            <a href="{{ url_for('study.quiz_auto') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--green">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Автоквиз</div>
+                    <div class="decks-mode__desc">Случайные вопросы</div>
+                </div>
+            </a>
+            <a href="{{ url_for('study.matching') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--amber">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-3a2 2 0 01-2-2V2"/><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Совпадения</div>
+                    <div class="decks-mode__desc">Игра на сопоставление</div>
+                </div>
             </a>
         </div>
-        <div class="row g-3">
-            {% for deck in public_decks[:8] %}
-            <div class="col-md-6 col-lg-4 col-xl-3">
-                <div class="card h-100 shadow-sm hover-card deck-card-public">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="card-title fw-bold mb-0 text-truncate flex-grow-1" title="{{ deck.title }}">
-                                {{ deck.title }}
-                            </h6>
-                            <span class="badge bg-success ms-1 badge-xs">Публ.</span>
-                        </div>
-                        {% if deck.description %}
-                        <p class="card-text text-muted small mb-2 card-description-clamp">
-                            {{ deck.description[:80] }}{% if deck.description|length > 80 %}...{% endif %}
-                        </p>
-                        {% else %}
-                        <p class="card-text text-muted small mb-2 card-description-clamp">&nbsp;</p>
-                        {% endif %}
-                        <div class="d-flex gap-1 mb-3 flex-wrap align-items-center">
-                            <span class="badge bg-light text-dark badge-sm">
-                                <i class="fas fa-book"></i> {{ deck.word_count }} слов
-                            </span>
-                            {% if deck.times_played > 0 %}
-                            <span class="badge bg-light text-dark badge-sm">
-                                <i class="fas fa-users"></i> {{ deck.times_played }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        {% if deck.word_count > 0 %}
-                        <div class="mb-2">
-                            <div class="progress progress-xs">
-                                <div class="progress-bar bg-success progress-bar-full" role="progressbar"
-                                     title="{{ deck.word_count }} слов в колоде"></div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        <div class="d-grid gap-1">
-                            <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-success btn-sm">
-                                <i class="fas fa-play me-1"></i>Квиз
-                            </a>
-                            <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" class="form-compact">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn btn-outline-primary btn-sm w-100">
-                                    <i class="fas fa-copy me-1"></i>Копировать
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-
-    <!-- Другие режимы обучения -->
-    <div class="mb-4">
-        <h4 class="fw-bold mb-3">
-            <i class="fas fa-gamepad text-secondary"></i> Другие режимы обучения
-        </h4>
-        <div class="row g-3">
-            <div class="col-md-4">
-                <a href="{{ url_for('study.cards') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body text-center p-3">
-                        <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2 study-mode-icon">
-                            <i class="fas fa-layer-group text-primary fs-3"></i>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">Карточки</h6>
-                        <p class="text-muted small mb-0">Интервальное повторение</p>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4">
-                <a href="{{ url_for('study.quiz_auto') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body text-center p-3">
-                        <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2 study-mode-icon">
-                            <i class="fas fa-question-circle text-success fs-3"></i>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">Автоквиз</h6>
-                        <p class="text-muted small mb-0">Случайные вопросы</p>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-4">
-                <a href="{{ url_for('study.matching') }}" class="card h-100 shadow-sm hover-card text-decoration-none">
-                    <div class="card-body text-center p-3">
-                        <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2 study-mode-icon">
-                            <i class="fas fa-puzzle-piece text-warning fs-3"></i>
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1">Совпадения</h6>
-                        <p class="text-muted small mb-0">Игра на сопоставление</p>
-                    </div>
-                </a>
-            </div>
-        </div>
     </div>
 
-    <!-- Modal выбора количества слов для квиза -->
+    <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Настройки квиза</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-content decks-modal">
+                <div class="decks-modal__header">
+                    <h3 class="decks-modal__title">Настройки квиза</h3>
+                    <button type="button" class="decks-modal__close" data-bs-dismiss="modal">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
                 </div>
-                <div class="modal-body">
-                    <p>Колода: <strong id="modal-deck-title"></strong></p>
-                    <p>Всего слов в колоде: <strong id="modal-deck-count"></strong></p>
-                    <hr>
-                    <div class="mb-3">
-                        <label for="quiz-limit" class="form-label">Сколько слов хотите пройти?</label>
-                        <input type="number" class="form-control" id="quiz-limit" min="5" max="1000" value="20">
-                        <small class="text-muted">Рекомендуется: 10-30 слов за один квиз</small>
+                <div class="decks-modal__body">
+                    <p class="decks-modal__info">Колода: <strong id="modal-deck-title"></strong></p>
+                    <p class="decks-modal__info">Всего слов в колоде: <strong id="modal-deck-count"></strong></p>
+                    <div class="decks-modal__divider"></div>
+                    <div class="decks-modal__field">
+                        <label for="quiz-limit" class="decks-modal__label">Сколько слов хотите пройти?</label>
+                        <input type="number" class="decks-modal__input" id="quiz-limit" min="5" max="1000" value="20">
+                        <span class="decks-modal__hint">Рекомендуется: 10-30 слов за один квиз</span>
                     </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="quiz-all-words">
-                        <label class="form-check-label" for="quiz-all-words">
-                            Пройти все слова из колоды
-                        </label>
-                    </div>
+                    <label class="decks-modal__checkbox">
+                        <input type="checkbox" id="quiz-all-words">
+                        <span class="decks-modal__checkbox-mark"></span>
+                        Пройти все слова из колоды
+                    </label>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" onclick="startQuiz()">
-                        <i class="fas fa-play me-1"></i>Начать квиз
+                <div class="decks-modal__footer">
+                    <button type="button" class="decks-modal__btn decks-modal__btn--cancel" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="decks-modal__btn decks-modal__btn--start" onclick="startQuiz()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Начать квиз
                     </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+/* ── Scoped Variables ── */
+.decks-page {
+    --decks-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+    --decks-primary: #f59e0b;
+    --decks-primary-dark: #d97706;
+    --decks-accent: #ef4444;
+    --decks-blue: #3b82f6;
+    --decks-green: #22c55e;
+    --decks-green-dark: #16a34a;
+    --decks-cyan: #06b6d4;
+    --decks-amber: #f59e0b;
+    --decks-red: #ef4444;
+    --decks-surface: #ffffff;
+    --decks-surface-alt: #f8fafc;
+    --decks-text: #0f172a;
+    --decks-text-muted: #64748b;
+    --decks-text-light: #94a3b8;
+    --decks-border: #e2e8f0;
+    --decks-radius: 16px;
+    --decks-radius-sm: 10px;
+    --decks-radius-xs: 8px;
+    --decks-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --decks-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+
+    font-family: var(--decks-font);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+    color: var(--decks-text);
+}
+
+/* ── Animations ── */
+@keyframes decks-slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes decks-float-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-20px, 15px) scale(1.08); }
+}
+
+@keyframes decks-float-2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50%      { transform: translate(25px, -20px) rotate(10deg); }
+}
+
+@keyframes decks-float-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-10px, -15px) scale(1.05); }
+}
+
+.slideUp {
+    animation: decks-slideUp .5s ease both;
+}
+
+/* ── Hero ── */
+.decks-hero {
+    position: relative;
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    border-radius: var(--decks-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    color: #fff;
+    animation: decks-slideUp .5s ease both;
+}
+
+.decks-hero__shapes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.decks-hero__circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+}
+
+.decks-hero__circle--1 {
+    width: 160px;
+    height: 160px;
+    top: -50px;
+    right: -40px;
+    animation: decks-float-1 18s ease-in-out infinite;
+}
+
+.decks-hero__circle--2 {
+    width: 90px;
+    height: 90px;
+    bottom: -30px;
+    left: 10%;
+    animation: decks-float-2 14s ease-in-out infinite;
+}
+
+.decks-hero__circle--3 {
+    width: 50px;
+    height: 50px;
+    top: 40%;
+    left: 55%;
+    animation: decks-float-3 12s ease-in-out infinite;
+}
+
+.decks-hero__content {
+    position: relative;
+    z-index: 1;
+}
+
+.decks-hero__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.decks-hero__level {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.decks-hero__level-badge {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, .2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    color: #fff;
+}
+
+.decks-hero__level-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.decks-hero__level-xp {
+    font-size: .8rem;
+    opacity: .85;
+    margin-top: 2px;
+}
+
+.decks-hero__xp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: .5rem 1rem;
+    background: rgba(255, 255, 255, .2);
+    color: #fff;
+    border-radius: var(--decks-radius-xs);
+    font-size: .85rem;
+    font-weight: 600;
+    font-family: var(--decks-font);
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+    transition: background .2s;
+}
+
+.decks-hero__xp-btn:hover {
+    background: rgba(255, 255, 255, .3);
+    color: #fff;
+}
+
+.decks-hero__progress {
+    height: 6px;
+    background: rgba(255, 255, 255, .2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.decks-hero__progress-bar {
+    height: 100%;
+    background: #fff;
+    border-radius: 3px;
+    transition: width .4s ease;
+}
+
+.decks-hero__stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.decks-hero__stat {
+    text-align: center;
+}
+
+.decks-hero__stat-value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.decks-hero__stat-label {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    opacity: .8;
+    margin-top: 2px;
+}
+
+.decks-hero__stat-divider {
+    width: 1px;
+    height: 28px;
+    background: rgba(255, 255, 255, .25);
+}
+
+/* ── Welcome Block ── */
+.decks-welcome {
+    margin-bottom: 1.5rem;
+}
+
+.decks-welcome__inner {
+    position: relative;
+    background: var(--decks-surface);
+    border: 1px solid var(--decks-border);
+    border-radius: var(--decks-radius);
+    padding: 2rem 1.5rem;
+    overflow: hidden;
+    box-shadow: var(--decks-shadow);
+}
+
+.decks-welcome__glow {
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(245,158,11,.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.decks-welcome__body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.decks-welcome__icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, rgba(245,158,11,.1), rgba(239,68,68,.1));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--decks-primary-dark);
+}
+
+.decks-welcome__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -.02em;
+    color: var(--decks-text);
+}
+
+.decks-welcome__subtitle {
+    font-size: .9rem;
+    color: var(--decks-text-muted);
+    margin: 0;
+}
+
+.decks-welcome__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: .65rem 1.5rem;
+    background: linear-gradient(135deg, var(--decks-primary), var(--decks-accent));
+    color: #fff;
+    border: none;
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .9rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+}
+
+.decks-welcome__btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(245,158,11,.3);
+    color: #fff;
+}
+
+.decks-welcome__steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+}
+
+.decks-welcome__step {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.decks-welcome__step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--decks-surface-alt);
+    border: 1px solid var(--decks-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--decks-primary-dark);
+}
+
+.decks-welcome__step-text {
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--decks-text-muted);
+}
+
+.decks-welcome__step-arrow {
+    color: var(--decks-text-light);
+    display: flex;
+}
+
+/* ── Review Block ── */
+.decks-review {
+    margin-bottom: 1.5rem;
+}
+
+.decks-review__body {
+    background: var(--decks-surface);
+    border: 1px solid var(--decks-border);
+    border-radius: var(--decks-radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--decks-shadow);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.decks-review__info {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.decks-review__icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(239,68,68,.1));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--decks-primary-dark);
+}
+
+.decks-review__title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -.01em;
+    color: var(--decks-text);
+}
+
+.decks-review__desc {
+    font-size: .85rem;
+    color: var(--decks-text-muted);
+    margin: 4px 0 0;
+}
+
+.decks-review__desc strong {
+    color: var(--decks-blue);
+    font-weight: 600;
+}
+
+.decks-review__meta {
+    font-size: .75rem;
+    color: var(--decks-text-light);
+    margin-top: 4px;
+}
+
+.decks-review__meta strong {
+    color: var(--decks-text-muted);
+}
+
+.decks-review__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: .6rem 1.25rem;
+    background: var(--decks-blue);
+    color: #fff;
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .2s, transform .15s;
+    white-space: nowrap;
+}
+
+.decks-review__btn:hover {
+    background: #2563eb;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+/* ── Section ── */
+.decks-section {
+    margin-bottom: 2rem;
+}
+
+.decks-section__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.decks-section__title-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.decks-section__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    color: var(--decks-text);
+    letter-spacing: -.01em;
+}
+
+.decks-section__title svg {
+    color: var(--decks-text-muted);
+}
+
+.decks-section__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    background: var(--decks-blue);
+    color: #fff;
+    border-radius: 12px;
+    font-size: .75rem;
+    font-weight: 600;
+}
+
+.decks-section__count--green {
+    background: var(--decks-green);
+}
+
+.decks-section__actions {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 1;
+    max-width: 400px;
+    min-width: 0;
+}
+
+/* ── Search ── */
+.decks-search {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.decks-search__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--decks-text-light);
+    pointer-events: none;
+}
+
+.decks-search__input {
+    width: 100%;
+    padding: .5rem .5rem .5rem 36px;
+    border: 1px solid var(--decks-border);
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .85rem;
+    color: var(--decks-text);
+    background: var(--decks-surface);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.decks-search__input:focus {
+    border-color: var(--decks-blue);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+
+.decks-search__input::placeholder {
+    color: var(--decks-text-light);
+}
+
+.decks-search__clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--decks-text-light);
+    display: flex;
+    align-items: center;
+    transition: color .2s;
+}
+
+.decks-search__clear:hover {
+    color: var(--decks-text);
+}
+
+.decks-section__add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: .5rem .75rem;
+    background: var(--decks-blue);
+    color: #fff;
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .8rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .2s;
+}
+
+.decks-section__add-btn:hover {
+    background: #2563eb;
+    color: #fff;
+}
+
+/* ── Deck Cards ── */
+.decks-list {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.decks-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--decks-surface);
+    border: 1px solid var(--decks-border);
+    border-radius: var(--decks-radius);
+    padding: 1rem 1.25rem;
+    box-shadow: var(--decks-shadow);
+    transition: box-shadow .2s, border-color .2s;
+}
+
+.decks-card:hover {
+    box-shadow: var(--decks-shadow-md);
+    border-color: #cbd5e1;
+}
+
+.decks-card__icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    background: var(--decks-surface-alt);
+    border: 1px solid var(--decks-border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--decks-blue);
+}
+
+.decks-card__icon--public {
+    color: var(--decks-green);
+    background: rgba(34,197,94,.06);
+    border-color: rgba(34,197,94,.15);
+}
+
+.decks-card__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.decks-card__title {
+    font-size: .9rem;
+    font-weight: 600;
+    color: var(--decks-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.decks-card__desc {
+    font-size: .78rem;
+    color: var(--decks-text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.decks-card__progress {
+    display: flex;
+    height: 4px;
+    background: var(--decks-surface-alt);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.decks-card__progress-seg {
+    height: 100%;
+    min-width: 2px;
+}
+
+.decks-card__progress-seg--mastered { background: var(--decks-green); }
+.decks-card__progress-seg--learning { background: var(--decks-amber); }
+.decks-card__progress-seg--review   { background: var(--decks-red); }
+.decks-card__progress-seg--new      { background: var(--decks-cyan); }
+.decks-card__progress-seg--public   { background: var(--decks-green); opacity: .4; }
+
+/* Stats */
+.decks-card__stats {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-shrink: 0;
+}
+
+.decks-card__stat {
+    text-align: center;
+    min-width: 40px;
+}
+
+.decks-card__stat-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--decks-text);
+    line-height: 1;
+}
+
+.decks-card__stat-label {
+    display: block;
+    font-size: .65rem;
+    color: var(--decks-text-light);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-top: 2px;
+}
+
+.decks-card__stat--new .decks-card__stat-value { color: var(--decks-cyan); }
+.decks-card__stat--new svg { color: var(--decks-cyan); }
+.decks-card__stat--learning .decks-card__stat-value { color: var(--decks-amber); }
+.decks-card__stat--review .decks-card__stat-value { color: var(--decks-red); }
+.decks-card__stat--mastered .decks-card__stat-value { color: var(--decks-green); }
+.decks-card__stat--mastered svg { color: var(--decks-green); }
+
+/* Actions */
+.decks-card__actions {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-shrink: 0;
+}
+
+.decks-card__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: .4rem .75rem;
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .78rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background .2s, transform .15s;
+    white-space: nowrap;
+}
+
+.decks-card__btn--quiz {
+    background: var(--decks-blue);
+    color: #fff;
+}
+.decks-card__btn--quiz:hover {
+    background: #2563eb;
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.decks-card__btn--cards {
+    background: var(--decks-green);
+    color: #fff;
+}
+.decks-card__btn--cards:hover {
+    background: var(--decks-green-dark);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.decks-card__btn--copy {
+    background: var(--decks-surface-alt);
+    color: var(--decks-text-muted);
+    border: 1px solid var(--decks-border);
+}
+.decks-card__btn--copy:hover {
+    background: var(--decks-border);
+    color: var(--decks-text);
+}
+
+.decks-card__copy-form {
+    display: contents;
+}
+
+.decks-card__manage {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--decks-border);
+}
+
+.decks-card__manage-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    color: var(--decks-text-light);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color .2s, background .2s;
+}
+
+.decks-card__manage-btn:hover {
+    color: var(--decks-text);
+    background: var(--decks-surface-alt);
+}
+
+.decks-card__manage-btn--danger:hover {
+    color: var(--decks-red);
+    background: rgba(239,68,68,.08);
+}
+
+/* ── Study Modes ── */
+.decks-modes {
+    margin-bottom: 2rem;
+}
+
+.decks-modes__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .75rem;
+}
+
+.decks-mode {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 1rem;
+    background: var(--decks-surface);
+    border: 1px solid var(--decks-border);
+    border-radius: var(--decks-radius);
+    text-decoration: none;
+    box-shadow: var(--decks-shadow);
+    transition: box-shadow .2s, border-color .2s, transform .15s;
+}
+
+.decks-mode:hover {
+    box-shadow: var(--decks-shadow-md);
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+}
+
+.decks-mode__icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.decks-mode__icon--blue {
+    background: rgba(59,130,246,.1);
+    color: var(--decks-blue);
+}
+
+.decks-mode__icon--green {
+    background: rgba(34,197,94,.1);
+    color: var(--decks-green);
+}
+
+.decks-mode__icon--amber {
+    background: rgba(245,158,11,.1);
+    color: var(--decks-amber);
+}
+
+.decks-mode__name {
+    font-size: .9rem;
+    font-weight: 600;
+    color: var(--decks-text);
+}
+
+.decks-mode__desc {
+    font-size: .75rem;
+    color: var(--decks-text-muted);
+    margin-top: 2px;
+}
+
+/* ── Modal Overrides ── */
+.decks-modal {
+    border: none;
+    border-radius: var(--decks-radius) !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    overflow: hidden;
+    font-family: var(--decks-font);
+}
+
+.decks-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--decks-border);
+}
+
+.decks-modal__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--decks-text);
+}
+
+.decks-modal__close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--decks-surface-alt);
+    border-radius: 8px;
+    color: var(--decks-text-muted);
+    cursor: pointer;
+    transition: background .2s, color .2s;
+}
+
+.decks-modal__close:hover {
+    background: var(--decks-border);
+    color: var(--decks-text);
+}
+
+.decks-modal__body {
+    padding: 1.25rem 1.5rem;
+}
+
+.decks-modal__info {
+    font-size: .9rem;
+    color: var(--decks-text-muted);
+    margin: 0 0 .5rem;
+}
+
+.decks-modal__info strong {
+    color: var(--decks-text);
+}
+
+.decks-modal__divider {
+    height: 1px;
+    background: var(--decks-border);
+    margin: 1rem 0;
+}
+
+.decks-modal__field {
+    margin-bottom: 1rem;
+}
+
+.decks-modal__label {
+    display: block;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--decks-text);
+    margin-bottom: .4rem;
+}
+
+.decks-modal__input {
+    width: 100%;
+    padding: .55rem .75rem;
+    border: 1px solid var(--decks-border);
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .9rem;
+    color: var(--decks-text);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.decks-modal__input:focus {
+    border-color: var(--decks-blue);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+
+.decks-modal__hint {
+    display: block;
+    font-size: .75rem;
+    color: var(--decks-text-light);
+    margin-top: .35rem;
+}
+
+.decks-modal__checkbox {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .85rem;
+    color: var(--decks-text);
+    cursor: pointer;
+    user-select: none;
+}
+
+.decks-modal__checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--decks-blue);
+    cursor: pointer;
+}
+
+.decks-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--decks-border);
+    background: var(--decks-surface-alt);
+}
+
+.decks-modal__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: .55rem 1.25rem;
+    border-radius: var(--decks-radius-xs);
+    font-family: var(--decks-font);
+    font-size: .85rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.decks-modal__btn--cancel {
+    background: var(--decks-surface);
+    color: var(--decks-text-muted);
+    border: 1px solid var(--decks-border);
+}
+
+.decks-modal__btn--cancel:hover {
+    background: var(--decks-border);
+}
+
+.decks-modal__btn--start {
+    background: var(--decks-blue);
+    color: #fff;
+}
+
+.decks-modal__btn--start:hover {
+    background: #2563eb;
+}
+
+/* Override Bootstrap modal backdrop and dialog */
+#quizLimitModal .modal-dialog {
+    max-width: 440px;
+}
+
+#quizLimitModal .modal-content {
+    border: none;
+}
+
+/* ── No results ── */
+.decks-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--decks-text-muted);
+    font-size: .9rem;
+}
+
+.decks-empty svg {
+    display: block;
+    margin: 0 auto .75rem;
+    opacity: .4;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .decks-hero__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .decks-hero__xp-btn {
+        align-self: stretch;
+        justify-content: center;
+    }
+
+    .decks-hero__stats {
+        justify-content: space-around;
+        width: 100%;
+    }
+
+    .decks-section__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .decks-section__actions {
+        max-width: none;
+    }
+
+    .decks-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .75rem;
+        padding: 1rem;
+    }
+
+    .decks-card__icon {
+        display: none;
+    }
+
+    .decks-card__body {
+        order: 1;
+    }
+
+    .decks-card__title {
+        white-space: normal;
+    }
+
+    .decks-card__stats {
+        order: 2;
+        justify-content: space-between;
+        padding: .5rem 0;
+        border-top: 1px solid var(--decks-border);
+        border-bottom: 1px solid var(--decks-border);
+    }
+
+    .decks-card__actions {
+        order: 3;
+        flex-wrap: wrap;
+    }
+
+    .decks-card__btn {
+        flex: 1;
+        justify-content: center;
+        padding: .5rem;
+    }
+
+    .decks-card__manage {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--decks-border);
+        padding-left: 0;
+        padding-top: .5rem;
+        margin-left: 0;
+        margin-top: .25rem;
+        justify-content: center;
+        gap: .5rem;
+    }
+
+    .decks-card__manage-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .decks-review__body {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .decks-review__btn {
+        text-align: center;
+        justify-content: center;
+    }
+
+    .decks-modes__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .decks-welcome__steps {
+        flex-direction: column;
+        gap: .5rem;
+    }
+
+    .decks-welcome__step-arrow {
+        transform: rotate(90deg);
+    }
+
+    .decks-section__add-label {
+        display: none;
+    }
+}
+</style>
 
 {% endblock %}
 
@@ -584,39 +1629,39 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('deck-search');
     const clearButton = document.getElementById('clear-search');
-    const deckTable = document.querySelector('.table tbody');
+    const decksList = document.getElementById('decks-list');
     const deckCountBadge = document.getElementById('deck-count');
 
-    if (searchInput && deckTable) {
-        const rows = Array.from(deckTable.querySelectorAll('tr'));
-        const totalDecks = rows.length;
+    if (searchInput && decksList) {
+        const cards = Array.from(decksList.querySelectorAll('.decks-card'));
+        const totalDecks = cards.length;
 
         searchInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
 
             // Show/hide clear button
             if (query) {
-                clearButton.style.display = 'block';
+                clearButton.style.display = 'flex';
             } else {
                 clearButton.style.display = 'none';
             }
 
             let visibleCount = 0;
 
-            rows.forEach(row => {
+            cards.forEach(card => {
                 // Get deck title and description
-                const titleElement = row.querySelector('td:first-child .fw-bold');
-                const descElement = row.querySelector('td:first-child .text-muted');
+                const titleElement = card.querySelector('.decks-card__title');
+                const descElement = card.querySelector('.decks-card__desc');
 
                 const title = titleElement ? titleElement.textContent.toLowerCase() : '';
                 const description = descElement ? descElement.textContent.toLowerCase() : '';
 
                 // Check if query matches title or description
                 if (title.includes(query) || description.includes(query)) {
-                    row.style.display = '';
+                    card.style.display = '';
                     visibleCount++;
                 } else {
-                    row.style.display = 'none';
+                    card.style.display = 'none';
                 }
             });
 
@@ -630,15 +1675,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show "no results" message if needed
             if (visibleCount === 0 && query) {
                 if (!document.getElementById('no-results-message')) {
-                    const noResultsRow = document.createElement('tr');
-                    noResultsRow.id = 'no-results-message';
-                    noResultsRow.innerHTML = `
-                        <td colspan="8" class="text-center text-muted py-4">
-                            <i class="fas fa-search fa-2x mb-2"></i>
-                            <p class="mb-0">Колоды не найдены по запросу: "<strong>${query}</strong>"</p>
-                        </td>
+                    const noResultsDiv = document.createElement('div');
+                    noResultsDiv.id = 'no-results-message';
+                    noResultsDiv.className = 'decks-empty';
+                    noResultsDiv.innerHTML = `
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                        <p>Колоды не найдены по запросу: "<strong>${query}</strong>"</p>
                     `;
-                    deckTable.appendChild(noResultsRow);
+                    decksList.appendChild(noResultsDiv);
                 }
             } else {
                 const noResultsMsg = document.getElementById('no-results-message');

@@ -329,29 +329,6 @@ class TestUpdateStudyItem:
         db_session.refresh(study_session)
         assert study_session.incorrect_answers == initial_incorrect + 1
 
-    def test_syncs_master_decks(self, authenticated_client, user_words, user_card_directions, db_session):
-        """Test that master decks are synced after update"""
-        direction = user_card_directions[0]
-
-        response = authenticated_client.post('/study/api/update-study-item', json={
-            'word_id': direction.user_word.word_id,
-            'direction': direction.direction,
-            'quality': 4,
-            'is_new': False
-        })
-
-        assert response.status_code == 200
-
-        # Check that master decks exist
-        from app.study.models import QuizDeck
-        learning_deck = QuizDeck.query.filter_by(
-            user_id=authenticated_client.application.test_user.id,
-            title='Все мои слова'
-        ).first()
-
-        # Deck should be created/updated
-        assert learning_deck is not None
-
     def test_requires_authentication(self, client):
         """Test that authentication is required"""
         response = client.post('/study/api/update-study-item', json={

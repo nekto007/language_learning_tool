@@ -3,148 +3,702 @@
 {% block title %}Выбор колоды для квиза{% endblock %}
 
 {% block content %}
-<div class="container container-quiz-decks">
-    <!-- Header -->
-    <div class="mb-5 py-3">
-        <a href="{{ url_for('study.index') }}" class="btn btn-outline-secondary mb-3">
-            <i class="fas fa-arrow-left me-2"></i>Назад к обучению
+<div class="qds-page">
+
+  <!-- Hero -->
+  <div class="qds-hero">
+    <div class="qds-hero__bg-shapes">
+      <div class="qds-shape qds-shape--1"></div>
+      <div class="qds-shape qds-shape--2"></div>
+    </div>
+    <div class="qds-hero__content">
+      <a href="{{ url_for('study.index') }}" class="qds-hero__back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        <span>Назад</span>
+      </a>
+      <div class="qds-hero__header">
+        <div class="qds-hero__icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="qds-hero__title">Quiz колоды</h1>
+          <p class="qds-hero__subtitle">Выберите тематическую колоду или создайте свою</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mode Selection -->
+  <div class="qds-modes">
+    <a href="{{ url_for('study.quiz_auto') }}" class="qds-mode-card">
+      <div class="qds-mode-card__icon qds-mode-card__icon--auto">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M12.2 11.8L11 13M12.2 6.2L11 5"/>
+          <circle cx="15" cy="9" r="3"/>
+          <path d="M6 21l3-9 3 9"/>
+          <path d="M6.5 18h5"/>
+        </svg>
+      </div>
+      <h3 class="qds-mode-card__title">Автоматический квиз</h3>
+      <p class="qds-mode-card__desc">Случайные вопросы из ваших слов для изучения</p>
+      <span class="qds-mode-card__arrow">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </span>
+    </a>
+
+    <div class="qds-mode-card qds-mode-card--active">
+      <div class="qds-mode-card__icon qds-mode-card__icon--themed">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
+        </svg>
+      </div>
+      <h3 class="qds-mode-card__title">Тематические колоды</h3>
+      <p class="qds-mode-card__desc">Специально подобранные наборы слов по темам</p>
+    </div>
+  </div>
+
+  <!-- My Decks -->
+  {% if my_decks %}
+  <div class="qds-section">
+    <div class="qds-section__header">
+      <h2 class="qds-section__title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        Мои колоды
+      </h2>
+      <span class="qds-section__badge">{{ my_decks|length }}</span>
+    </div>
+    <div class="qds-deck-grid">
+      {% for deck in my_decks %}
+      <div class="qds-deck-card">
+        <div class="qds-deck-card__body">
+          <h4 class="qds-deck-card__title">{{ deck.title }}</h4>
+          {% if deck.description %}
+          <p class="qds-deck-card__desc">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
+          {% endif %}
+          <div class="qds-deck-card__tags">
+            <span class="qds-deck-card__tag">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+              </svg>
+              {{ deck.word_count }} слов
+            </span>
+            {% if deck.times_played > 0 %}
+            <span class="qds-deck-card__tag qds-deck-card__tag--info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              {{ deck.times_played }} раз
+            </span>
+            {% endif %}
+          </div>
+        </div>
+        <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="qds-deck-card__btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Начать квиз
         </a>
-        <h1 class="display-5 fw-bold mb-2">
-            <i class="fas fa-layer-group me-2 text-success"></i>Quiz колоды
-        </h1>
-        <p class="lead text-secondary">Выберите тематическую колоду или создайте свою</p>
+      </div>
+      {% endfor %}
     </div>
+  </div>
+  {% endif %}
 
-    <!-- Mode Selection -->
-    <div class="row g-4 mb-5">
-        <div class="col-md-6">
-            <a href="{{ url_for('study.quiz_auto') }}" class="text-decoration-none">
-                <div class="card h-100 shadow-sm hover-lift">
-                    <div class="card-body text-center p-4">
-                        <div class="rounded-4 bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3 icon-box-lg">
-                            <i class="fas fa-magic text-primary icon-size-xl"></i>
-                        </div>
-                        <h4 class="fw-bold text-dark mb-2">Автоматический квиз</h4>
-                        <p class="text-muted mb-0">Случайные вопросы из ваших слов для изучения</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100 shadow-sm border-success card-border-thick">
-                <div class="card-body text-center p-4">
-                    <div class="rounded-4 bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3 icon-box-lg">
-                        <i class="fas fa-layer-group text-success icon-size-xl"></i>
-                    </div>
-                    <h4 class="fw-bold text-success mb-2">Тематические колоды</h4>
-                    <p class="text-muted mb-0">Специально подобранные наборы слов по темам</p>
-                </div>
-            </div>
-        </div>
+  <!-- Public Decks -->
+  {% if public_decks %}
+  <div class="qds-section">
+    <div class="qds-section__header">
+      <h2 class="qds-section__title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+        </svg>
+        Публичные колоды
+      </h2>
+      <span class="qds-section__badge qds-section__badge--green">{{ public_decks|length }}</span>
     </div>
-
-    <!-- My Decks -->
-    {% if my_decks %}
-    <div class="mb-5">
-        <h3 class="fw-bold mb-4">
-            <i class="fas fa-user me-2 text-primary"></i>Мои колоды
-            <span class="badge bg-primary ms-2">{{ my_decks|length }}</span>
-        </h3>
-        <div class="row g-4">
-            {% for deck in my_decks %}
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm hover-lift">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold text-dark">{{ deck.title }}</h5>
-                        {% if deck.description %}
-                        <p class="card-text text-muted small">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
-                        {% endif %}
-
-                        <div class="mt-3 d-flex flex-wrap gap-2">
-                            <span class="badge bg-primary rounded-pill">
-                                <i class="fas fa-book me-1"></i>{{ deck.word_count }} слов
-                            </span>
-                            {% if deck.times_played > 0 %}
-                            <span class="badge bg-info rounded-pill">
-                                <i class="fas fa-play me-1"></i>{{ deck.times_played }} раз
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="card-footer bg-white border-top">
-                        <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-primary w-100">
-                            <i class="fas fa-play me-2"></i>Начать квиз
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+    <div class="qds-deck-grid">
+      {% for deck in public_decks %}
+      <div class="qds-deck-card qds-deck-card--public">
+        <div class="qds-deck-card__body">
+          <div class="qds-deck-card__top">
+            <h4 class="qds-deck-card__title">{{ deck.title }}</h4>
+            <span class="qds-deck-card__label">Публичная</span>
+          </div>
+          {% if deck.description %}
+          <p class="qds-deck-card__desc">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
+          {% endif %}
+          <div class="qds-deck-card__tags">
+            <span class="qds-deck-card__tag">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+              </svg>
+              {{ deck.word_count }} слов
+            </span>
+            {% if deck.times_played > 0 %}
+            <span class="qds-deck-card__tag qds-deck-card__tag--info">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+                <path d="M16 3.13a4 4 0 010 7.75"/>
+              </svg>
+              {{ deck.times_played }} раз сыграно
+            </span>
+            {% endif %}
+          </div>
         </div>
+        <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="qds-deck-card__btn qds-deck-card__btn--green">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Начать квиз
+        </a>
+      </div>
+      {% endfor %}
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 
-    <!-- Public Decks -->
-    {% if public_decks %}
-    <div class="mb-5">
-        <h3 class="fw-bold mb-4">
-            <i class="fas fa-globe me-2 text-success"></i>Публичные колоды
-            <span class="badge bg-success ms-2">{{ public_decks|length }}</span>
-        </h3>
-        <div class="row g-4">
-            {% for deck in public_decks %}
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm hover-lift card-accent-left-success">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title fw-bold text-dark mb-0">{{ deck.title }}</h5>
-                            <span class="badge bg-success rounded-pill">Публичная</span>
-                        </div>
-                        {% if deck.description %}
-                        <p class="card-text text-muted small">{{ deck.description[:100] }}{% if deck.description|length > 100 %}...{% endif %}</p>
-                        {% endif %}
-
-                        <div class="mt-3 d-flex flex-wrap gap-2">
-                            <span class="badge bg-primary rounded-pill">
-                                <i class="fas fa-book me-1"></i>{{ deck.word_count }} слов
-                            </span>
-                            {% if deck.times_played > 0 %}
-                            <span class="badge bg-info rounded-pill">
-                                <i class="fas fa-users me-1"></i>{{ deck.times_played }} раз сыграно
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="card-footer bg-white border-top">
-                        <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="btn btn-success w-100">
-                            <i class="fas fa-play me-2"></i>Начать квиз
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+  <!-- No Decks Message -->
+  {% if not my_decks and not public_decks %}
+  <div class="qds-empty">
+    <div class="qds-empty__icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
     </div>
-    {% endif %}
-
-    <!-- No Decks Message -->
-    {% if not my_decks and not public_decks %}
-    <div class="alert alert-warning shadow-sm" role="alert">
-        <div class="d-flex align-items-center">
-            <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
-                <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
-            </div>
-            <div>
-                <h5 class="alert-heading mb-1">Пока нет доступных колод</h5>
-                <p class="mb-0">
-                    {% if current_user.is_admin %}
-                    <a href="{{ url_for('admin.quiz_deck_create') }}" class="alert-link fw-bold">Создайте первую колоду</a> в админ-панели
-                    {% else %}
-                    Обратитесь к администратору для создания колод
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
+    <h3 class="qds-empty__title">Пока нет доступных колод</h3>
+    <p class="qds-empty__desc">
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('admin.quiz_deck_create') }}" class="qds-empty__link">Создайте первую колоду</a> в админ-панели
+      {% else %}
+      Обратитесь к администратору для создания колод
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
 </div>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
+.qds-page {
+  --qds-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --qds-primary: #f59e0b;
+  --qds-primary-dark: #d97706;
+  --qds-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --qds-surface: #ffffff;
+  --qds-surface-alt: #f8fafc;
+  --qds-text: #0f172a;
+  --qds-text-muted: #64748b;
+  --qds-border: #e2e8f0;
+  --qds-radius: 16px;
+  --qds-radius-sm: 10px;
+  --qds-green: #22c55e;
+  --qds-green-dark: #16a34a;
+  font-family: var(--qds-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ── Hero ────────────────────────────────── */
+.qds-hero {
+  position: relative;
+  background: var(--qds-gradient);
+  border-radius: var(--qds-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  color: #fff;
+}
+
+.qds-hero__bg-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.qds-shape {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.qds-shape--1 {
+  width: 150px;
+  height: 150px;
+  top: -50px;
+  right: -30px;
+  animation: qds-float-1 18s ease-in-out infinite;
+}
+
+.qds-shape--2 {
+  width: 80px;
+  height: 80px;
+  bottom: -30px;
+  left: 10%;
+  animation: qds-float-2 14s ease-in-out infinite;
+}
+
+@keyframes qds-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-15px, 15px) scale(1.05); }
+}
+
+@keyframes qds-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(20px, -15px) rotate(8deg); }
+}
+
+.qds-hero__content {
+  position: relative;
+  z-index: 1;
+}
+
+.qds-hero__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease;
+}
+
+.qds-hero__back:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.qds-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.qds-hero__icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.qds-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.qds-hero__subtitle {
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+  opacity: 0.9;
+}
+
+/* ── Mode Cards ──────────────────────────── */
+.qds-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.qds-mode-card {
+  position: relative;
+  background: var(--qds-surface);
+  border: 1px solid var(--qds-border);
+  border-radius: var(--qds-radius);
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+  text-decoration: none;
+  color: var(--qds-text);
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+a.qds-mode-card:hover {
+  border-color: var(--qds-primary);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.12);
+  transform: translateY(-2px);
+}
+
+.qds-mode-card--active {
+  border-color: var(--qds-primary);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.04) 0%, rgba(239, 68, 68, 0.04) 100%);
+}
+
+.qds-mode-card__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.qds-mode-card__icon--auto {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.qds-mode-card__icon--themed {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(239, 68, 68, 0.15) 100%);
+  color: var(--qds-primary-dark);
+}
+
+.qds-mode-card__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  margin: 0 0 0.375rem;
+  line-height: 1.3;
+}
+
+.qds-mode-card--active .qds-mode-card__title {
+  color: var(--qds-primary-dark);
+}
+
+.qds-mode-card__desc {
+  font-size: 0.8125rem;
+  color: var(--qds-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.qds-mode-card__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--qds-primary);
+  margin-top: 1rem;
+  transition: all 0.2s ease;
+}
+
+a.qds-mode-card:hover .qds-mode-card__arrow {
+  background: var(--qds-primary);
+  color: #fff;
+  transform: translateX(3px);
+}
+
+/* ── Section Headers ─────────────────────── */
+.qds-section {
+  margin-bottom: 2rem;
+}
+
+.qds-section__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.qds-section__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--qds-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qds-section__title svg {
+  color: var(--qds-primary);
+  flex-shrink: 0;
+}
+
+.qds-section__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 0.5rem;
+  background: var(--qds-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+.qds-section__badge--green {
+  background: var(--qds-green);
+}
+
+/* ── Deck Grid ───────────────────────────── */
+.qds-deck-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+/* ── Deck Cards ──────────────────────────── */
+.qds-deck-card {
+  background: var(--qds-surface);
+  border: 1px solid var(--qds-border);
+  border-radius: var(--qds-radius);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.qds-deck-card:hover {
+  border-color: var(--qds-primary);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1);
+  transform: translateY(-2px);
+}
+
+.qds-deck-card--public:hover {
+  border-color: var(--qds-green);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+}
+
+.qds-deck-card__body {
+  padding: 1.25rem;
+  flex: 1;
+}
+
+.qds-deck-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.qds-deck-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--qds-text);
+  margin: 0 0 0.375rem;
+  line-height: 1.3;
+}
+
+.qds-deck-card__top .qds-deck-card__title {
+  margin-bottom: 0;
+}
+
+.qds-deck-card__label {
+  display: inline-flex;
+  padding: 0.1875rem 0.5rem;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--qds-green-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.qds-deck-card__desc {
+  font-size: 0.8125rem;
+  color: var(--qds-text-muted);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.qds-deck-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.qds-deck-card__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--qds-surface-alt);
+  border: 1px solid var(--qds-border);
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--qds-primary-dark);
+}
+
+.qds-deck-card__tag svg {
+  flex-shrink: 0;
+}
+
+.qds-deck-card__tag--info {
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.06);
+  border-color: rgba(14, 165, 233, 0.2);
+}
+
+.qds-deck-card__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--qds-gradient);
+  color: #fff;
+  font-family: var(--qds-font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.qds-deck-card__btn:hover {
+  filter: brightness(1.1);
+}
+
+.qds-deck-card__btn--green {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+/* ── Empty State ─────────────────────────── */
+.qds-empty {
+  background: var(--qds-surface);
+  border: 1px solid var(--qds-border);
+  border-radius: var(--qds-radius);
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.qds-empty__icon {
+  color: var(--qds-primary);
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.qds-empty__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--qds-text);
+  margin: 0 0 0.5rem;
+}
+
+.qds-empty__desc {
+  font-size: 0.875rem;
+  color: var(--qds-text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.qds-empty__link {
+  color: var(--qds-primary-dark);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--qds-primary);
+  transition: all 0.2s ease;
+}
+
+.qds-empty__link:hover {
+  color: var(--qds-primary);
+  border-bottom-style: solid;
+}
+
+/* ── Animations ──────────────────────────── */
+@keyframes qds-slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.qds-hero { animation: qds-slideUp 0.4s ease-out; }
+.qds-modes { animation: qds-slideUp 0.4s ease-out 0.1s both; }
+
+.qds-section:nth-of-type(1) { animation: qds-slideUp 0.4s ease-out 0.15s both; }
+.qds-section:nth-of-type(2) { animation: qds-slideUp 0.4s ease-out 0.2s both; }
+
+.qds-deck-card { animation: qds-slideUp 0.35s ease-out both; }
+.qds-deck-card:nth-child(1) { animation-delay: 0.15s; }
+.qds-deck-card:nth-child(2) { animation-delay: 0.2s; }
+.qds-deck-card:nth-child(3) { animation-delay: 0.25s; }
+.qds-deck-card:nth-child(4) { animation-delay: 0.3s; }
+.qds-deck-card:nth-child(5) { animation-delay: 0.35s; }
+.qds-deck-card:nth-child(6) { animation-delay: 0.4s; }
+
+.qds-empty { animation: qds-slideUp 0.5s ease-out 0.1s both; }
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 640px) {
+  .qds-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .qds-hero {
+    padding: 1.25rem;
+  }
+
+  .qds-hero__icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .qds-hero__icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .qds-hero__title {
+    font-size: 1.25rem;
+  }
+
+  .qds-modes {
+    grid-template-columns: 1fr;
+  }
+
+  .qds-mode-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .qds-deck-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qds-deck-card__body {
+    padding: 1rem;
+  }
+}
+</style>
 {% endblock %}
