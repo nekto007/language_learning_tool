@@ -2053,36 +2053,27 @@ def sync_lesson_cards_to_words(lesson):
 
                 # Update sentences if we have examples
                 if card.get('example') and card.get('example_translation'):
-                    try:
-                        sentences_data = json.loads(word.sentences) if word.sentences else []
-                    except:
-                        sentences_data = []
-
-                    # Add example if not already present
-                    new_example = {
-                        'en': card.get('example'),
-                        'ru': card.get('example_translation')
-                    }
-                    if new_example not in sentences_data:
-                        sentences_data.append(new_example)
-                        word.sentences = json.dumps(sentences_data, ensure_ascii=False)
+                    en = card.get('example', '')
+                    ru = card.get('example_translation', '')
+                    sentences_text = f"{en}<br>{ru}"
+                    if not word.sentences or sentences_text not in word.sentences:
+                        word.sentences = sentences_text
 
                 updated_count += 1
                 logger.info(f"Updated word: {english} (ID: {word.id})")
             else:
                 # Create new word
-                sentences_data = []
+                sentences_text = None
                 if card.get('example') and card.get('example_translation'):
-                    sentences_data.append({
-                        'en': card.get('example'),
-                        'ru': card.get('example_translation')
-                    })
+                    en = card.get('example', '')
+                    ru = card.get('example_translation', '')
+                    sentences_text = f"{en}<br>{ru}"
 
                 word = CollectionWords(
                     english_word=english,
                     russian_word=russian,
                     listening=card.get('audio', ''),
-                    sentences=json.dumps(sentences_data, ensure_ascii=False) if sentences_data else None,
+                    sentences=sentences_text,
                     level='A0',  # Default level
                     get_download=1 if card.get('audio') else 0
                 )
