@@ -71,9 +71,17 @@ def index():
         func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
     ).count()
 
-    # Total items = all words that are not mastered (still being learned/reviewed)
+    # Слова в фазе изучения (learning/relearning)
+    learning_total = UserWord.query.filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status == 'learning'
+    ).count()
+
+    # Все слова пользователя (для условия показа блока)
     all_words_count = UserWord.query.filter_by(user_id=current_user.id).count()
-    total_items = max(0, all_words_count - mastered_count)
+
+    # Слова на повторении (review, но не mastered)
+    review_total = max(0, all_words_count - learning_total - mastered_count)
 
     # Мои колоды
     my_decks = QuizDeck.query.filter_by(
@@ -216,8 +224,10 @@ def index():
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
-        total_items=total_items,
+        learning_total=learning_total,
+        review_total=review_total,
         mastered_count=mastered_count,
+        all_words_count=all_words_count,
         my_decks=my_decks,
         public_decks=public_decks,
         telegram_linked=telegram_linked,

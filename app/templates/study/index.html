@@ -42,8 +42,13 @@
                 </div>
                 <div class="decks-hero__stat-divider"></div>
                 <div class="decks-hero__stat">
-                    <span class="decks-hero__stat-value">{{ total_items }}</span>
+                    <span class="decks-hero__stat-value">{{ learning_total }}</span>
                     <span class="decks-hero__stat-label">в изучении</span>
+                </div>
+                <div class="decks-hero__stat-divider"></div>
+                <div class="decks-hero__stat">
+                    <span class="decks-hero__stat-value">{{ review_total }}</span>
+                    <span class="decks-hero__stat-label">на повторении</span>
                 </div>
                 <div class="decks-hero__stat-divider"></div>
                 <div class="decks-hero__stat">
@@ -110,7 +115,7 @@
     {% endif %}
 
     <!-- Quick Start / Review Block -->
-    {% if due_items_count > 0 or total_items > 0 %}
+    {% if due_items_count > 0 or all_words_count > 0 %}
     <div class="decks-review slideUp" style="animation-delay: .15s">
         <div class="decks-review__body">
             <div class="decks-review__info">
@@ -127,7 +132,7 @@
                         {% endif %}
                     </p>
                     <div class="decks-review__meta">
-                        В изучении: <strong>{{ total_items }}</strong> &nbsp;|&nbsp; Выучено: <strong>{{ mastered_count }}</strong>
+                        В изучении: <strong>{{ learning_total }}</strong> &nbsp;|&nbsp; На повторении: <strong>{{ review_total }}</strong> &nbsp;|&nbsp; Выучено: <strong>{{ mastered_count }}</strong>
                     </div>
                 </div>
             </div>
