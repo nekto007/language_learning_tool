@@ -4,7 +4,7 @@
 Сервис для импорта и обработки учебной программы (Curriculum Import Service)
 Обрабатывает JSON данные и создает структуру уроков
 """
-import json
+
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -68,13 +68,12 @@ class CurriculumImportService:
             english_word = (word_data.get('word') or word_data.get('english', '')).lower()
             translation = word_data.get('translation') or word_data.get('russian', '')
 
-            # Формируем sentences из example/example_translation
-            sentences_json = None
+            # Формируем sentences как plain text (en\nru) для фронтенда
+            sentences_text = None
             if word_data.get('example'):
-                sentences_json = json.dumps([{
-                    'en': word_data.get('example', ''),
-                    'ru': word_data.get('example_translation', '')
-                }])
+                en = word_data.get('example', '')
+                ru = word_data.get('example_translation', '')
+                sentences_text = f"{en}<br>{ru}" if ru else en
 
             # Find or create the word
             word = CollectionWords.query.filter_by(english_word=english_word).first()
@@ -85,7 +84,7 @@ class CurriculumImportService:
                     level=level_code,
                     frequency_rank=word_data.get('frequency_rank', 0),
                     listening=word_data.get('audio', ''),
-                    sentences=sentences_json
+                    sentences=sentences_text
                 )
                 db.session.add(word)
                 db.session.flush()
@@ -99,8 +98,8 @@ class CurriculumImportService:
                 # Update listening and sentences if provided
                 if word_data.get('audio'):
                     word.listening = word_data['audio']
-                if sentences_json:
-                    word.sentences = sentences_json
+                if sentences_text:
+                    word.sentences = sentences_text
 
             # Link the word to the collection
             existing = CollectionWordLink.query.filter_by(
