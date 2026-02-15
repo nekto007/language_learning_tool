@@ -913,7 +913,10 @@ function initReadingProgress() {
     const correctQuestions = document.querySelectorAll('.question-block.answered-correct').length;
     const allQuestionsAnswered = hasQuestions && (correctQuestions === totalQuestions);
 
-    if (hasScrolledToBottom || allQuestionsAnswered) {
+    // Если есть вопросы — требуем ответить на все; если нет — достаточно прокрутки
+    const canComplete = hasQuestions ? allQuestionsAnswered : hasScrolledToBottom;
+
+    if (canComplete) {
       markReadBtn.disabled = false;
       completionHint.style.display = 'none';
 
