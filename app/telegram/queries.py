@@ -174,39 +174,105 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                         'level_code': level_code,
                     }
 
-    # Grammar topic to practice
+    # Grammar topic to practice — prefer topic from current module
     grammar_topic = None
-    active_status = UserGrammarTopicStatus.query.filter(
-        UserGrammarTopicStatus.user_id == user_id,
-        UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing']),
-    ).first()
-    if active_status:
-        topic = GrammarTopic.query.get(active_status.topic_id)
-        # Count due exercises
-        due_exercises = UserGrammarExercise.query.filter(
-            UserGrammarExercise.user_id == user_id,
-            UserGrammarExercise.exercise_id.in_(
-                db.session.query(UserGrammarExercise.exercise_id).filter(
-                    UserGrammarExercise.user_id == user_id,
-                )
-            ),
-            UserGrammarExercise.next_review <= now,
-        ).count()
-        if topic:
-            grammar_topic = {
-                'title': topic.title,
-                'status': active_status.status,
-                'due_exercises': due_exercises,
-                'topic_id': topic.id,
-                'telegram_summary': topic.telegram_summary,
-            }
+    current_module_id = None
+    if next_lesson and next_lesson.get('lesson_id'):
+        planned_lesson = Lessons.query.get(next_lesson['lesson_id'])
+        if planned_lesson:
+            current_module_id = planned_lesson.module_id
 
-    # Words due for SRS review
-    words_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
+    # Collect grammar topic IDs linked to current module's lessons
+    module_topic_ids: list[int] = []
+    if current_module_id:
+        module_topic_ids = [
+            row[0] for row in db.session.query(Lessons.grammar_topic_id).filter(
+                Lessons.module_id == current_module_id,
+                Lessons.grammar_topic_id.isnot(None),
+            ).all()
+        ]
+
+    def _build_grammar_dict(topic: GrammarTopic, status_str: str) -> dict[str, Any]:
+        due = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.next_review <= now,
+        ).count() if status_str != 'not_started' else 0
+        return {
+            'title': topic.title,
+            'status': status_str,
+            'due_exercises': due,
+            'topic_id': topic.id,
+            'telegram_summary': topic.telegram_summary,
+        }
+
+    # 1) Active topic from current module
+    if module_topic_ids:
+        module_active = UserGrammarTopicStatus.query.filter(
+            UserGrammarTopicStatus.user_id == user_id,
+            UserGrammarTopicStatus.topic_id.in_(module_topic_ids),
+            UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing']),
+        ).first()
+        if module_active:
+            topic = GrammarTopic.query.get(module_active.topic_id)
+            if topic:
+                grammar_topic = _build_grammar_dict(topic, module_active.status)
+        else:
+            # 2) Not-started topic from current module
+            started_ids = {
+                row[0] for row in db.session.query(UserGrammarTopicStatus.topic_id).filter(
+                    UserGrammarTopicStatus.user_id == user_id,
+                    UserGrammarTopicStatus.topic_id.in_(module_topic_ids),
+                ).all()
+            }
+            for tid in module_topic_ids:
+                if tid not in started_ids:
+                    topic = GrammarTopic.query.get(tid)
+                    if topic:
+                        grammar_topic = _build_grammar_dict(topic, 'not_started')
+                    break
+
+    # 3) Fallback: any active topic ordered by GrammarTopic.order
+    if not grammar_topic:
+        fallback_status = UserGrammarTopicStatus.query.join(
+            GrammarTopic, GrammarTopic.id == UserGrammarTopicStatus.topic_id,
+        ).filter(
+            UserGrammarTopicStatus.user_id == user_id,
+            UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing']),
+        ).order_by(GrammarTopic.order).first()
+        if fallback_status:
+            topic = GrammarTopic.query.get(fallback_status.topic_id)
+            if topic:
+                grammar_topic = _build_grammar_dict(topic, fallback_status.status)
+
+    # Words due for SRS review (capped by daily limits)
+    # Count only eng-rus direction (1 card per word) — matches display semantics
+    from app.study.models import StudySettings
+    user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+    raw_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
         UserWord.user_id == user_id,
         UserCardDirection.next_review <= now,
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
+
+    # Apply daily limits: count studied today in eng-rus only (consistent with raw_due)
+    settings = StudySettings.get_settings(user_id)
+    today_start_utc = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    new_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(user_word_subq),
+        UserCardDirection.direction == 'eng-rus',
+        UserCardDirection.first_reviewed >= today_start_utc,
+        UserCardDirection.first_reviewed.isnot(None),
+    ).scalar() or 0
+    reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(user_word_subq),
+        UserCardDirection.direction == 'eng-rus',
+        UserCardDirection.last_reviewed >= today_start_utc,
+        UserCardDirection.first_reviewed < today_start_utc,
+        UserCardDirection.first_reviewed.isnot(None),
+    ).scalar() or 0
+    remaining_new = max(0, settings.new_words_per_day - new_today)
+    remaining_reviews = max(0, settings.reviews_per_day - reviews_today)
+    words_due = min(raw_due, remaining_new + remaining_reviews)
 
     # Book reading — find active book not read today
     today_start, today_end = _user_day_boundaries(tz)
@@ -300,6 +366,33 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         if not has_any_words:
             onboarding['no_words'] = True
 
+    # Bonus task: extra lesson or extra reading
+    bonus: dict[str, Any] = {}
+    if next_lesson and next_lesson.get('lesson_id'):
+        planned = Lessons.query.get(next_lesson['lesson_id'])
+        if planned:
+            extra = Lessons.query.filter(
+                Lessons.module_id == planned.module_id,
+                Lessons.order > planned.order,
+            ).order_by(Lessons.order).first()
+            if not extra:
+                next_mod = Module.query.filter(
+                    Module.number == (Module.query.get(planned.module_id).number + 1 if Module.query.get(planned.module_id) else 0),
+                ).first()
+                if next_mod:
+                    extra = Lessons.query.filter(
+                        Lessons.module_id == next_mod.id,
+                    ).order_by(Lessons.order).first()
+            if extra:
+                extra_module = Module.query.get(extra.module_id)
+                bonus['extra_lesson'] = {
+                    'title': extra.title,
+                    'lesson_id': extra.id,
+                    'module_number': extra_module.number if extra_module else None,
+                    'lesson_type': extra.type,
+                }
+    bonus['extra_reading'] = book_to_read is not None or bool(started_book_ids)
+
     return {
         'next_lesson': next_lesson,
         'grammar_topic': grammar_topic,
@@ -308,6 +401,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'book_to_read': book_to_read,
         'suggested_books': suggested_books,
         'onboarding': onboarding,
+        'bonus': bonus,
     }
 
 
