@@ -130,7 +130,22 @@
         {% endif %}
 
         {# Step: Reading #}
-        {% if daily_plan.book_to_read %}
+        {% if plan_completion.books and not daily_plan.book_to_read %}
+        {# Book was read today but no more unread books — show completed step #}
+        <div class="dash-step dash-step--book dash-step--completed" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">&#10003;</div>
+            <div class="dash-step__body">
+                <div class="dash-step__icon">&#128213;</div>
+                <div class="dash-step__info">
+                    <div class="dash-step__title">{{ daily_summary.books_read[0] if daily_summary.books_read else '&#1063;&#1090;&#1077;&#1085;&#1080;&#1077;' }}</div>
+                    <div class="dash-step__meta">&#1055;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1086; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103;</div>
+                </div>
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+            </div>
+        </div>
+        {% set ns.step = ns.step + 1 %}
+
+        {% elif daily_plan.book_to_read %}
         <div class="dash-step dash-step--book {% if plan_completion.books %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{% if plan_completion.books %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
