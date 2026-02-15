@@ -38,15 +38,19 @@
 
         {# Step: Next Lesson #}
         {% if daily_plan.next_lesson %}
-        <div class="dash-step dash-step--lesson" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
+        <div class="dash-step dash-step--lesson {% if plan_completion.lesson %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">{% if plan_completion.lesson %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#127919;</div>
                 <div class="dash-step__info">
                     <div class="dash-step__title">&#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.next_lesson.module_number }} &mdash; {{ daily_plan.next_lesson.title }}</div>
                     <div class="dash-step__meta">~{{ lesson_minutes }} &#1084;&#1080;&#1085;</div>
                 </div>
-                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.next_lesson.lesson_id) }}" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                {% if plan_completion.lesson %}
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+                {% else %}
+                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.next_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                {% endif %}
             </div>
         </div>
         {% set ns.step = ns.step + 1 %}
@@ -68,8 +72,8 @@
 
         {# Step: Grammar #}
         {% if daily_plan.grammar_topic %}
-        <div class="dash-step dash-step--grammar" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
+        <div class="dash-step dash-step--grammar {% if plan_completion.grammar %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">{% if plan_completion.grammar %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#129504;</div>
                 <div class="dash-step__info">
@@ -80,7 +84,13 @@
                         {% endif %}
                     </div>
                 </div>
-                <a href="{{ url_for('grammar_lab.practice', topic_id=daily_plan.grammar_topic.topic_id) }}" class="dash-step__btn">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072;</a>
+                {% if plan_completion.grammar %}
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+                {% elif daily_plan.grammar_topic.status == 'not_started' %}
+                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=daily_plan.grammar_topic.topic_id) }}?from=daily_plan" class="dash-step__btn">&#1058;&#1077;&#1086;&#1088;&#1080;&#1103;</a>
+                {% else %}
+                <a href="{{ url_for('grammar_lab.practice', topic_id=daily_plan.grammar_topic.topic_id) }}?from=daily_plan" class="dash-step__btn">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072;</a>
+                {% endif %}
             </div>
         </div>
         {% set ns.step = ns.step + 1 %}
@@ -88,12 +98,15 @@
 
         {# Step: Words #}
         {% if daily_plan.words_due > 0 or daily_plan.has_any_words or (daily_plan.onboarding and daily_plan.onboarding.get('no_words')) %}
-        <div class="dash-step dash-step--words" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
+        <div class="dash-step dash-step--words {% if plan_completion.words %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">{% if plan_completion.words %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128214;</div>
                 <div class="dash-step__info">
-                    {% if daily_plan.words_due > 0 %}
+                    {% if plan_completion.words %}
+                    <div class="dash-step__title">&#1042;&#1089;&#1105; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;&#1077;&#1085;&#1086;! &#10003;</div>
+                    <div class="dash-step__meta">&#1047;&#1072;&#1074;&#1090;&#1088;&#1072; &#1073;&#1091;&#1076;&#1091;&#1090; &#1085;&#1086;&#1074;&#1099;&#1077;</div>
+                    {% elif daily_plan.words_due > 0 %}
                     <div class="dash-step__title">{{ daily_plan.words_due }} &#1089;&#1083;&#1086;&#1074; &#1085;&#1072; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;</div>
                     <div class="dash-step__meta">~{{ words_minutes }} &#1084;&#1080;&#1085;</div>
                     {% elif daily_plan.has_any_words %}
@@ -104,8 +117,10 @@
                     <div class="dash-step__meta">&#1057;&#1086;&#1079;&#1076;&#1072;&#1081; &#1082;&#1086;&#1083;&#1086;&#1076;&#1091; &#1080; &#1076;&#1086;&#1073;&#1072;&#1074;&#1100; 5&ndash;10 &#1089;&#1083;&#1086;&#1074;</div>
                     {% endif %}
                 </div>
-                {% if daily_plan.words_due > 0 %}
-                <a href="{{ cards_url }}" class="dash-step__btn">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100;</a>
+                {% if plan_completion.words %}
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+                {% elif daily_plan.words_due > 0 %}
+                <a href="{{ cards_url }}?from=daily_plan" class="dash-step__btn">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100;</a>
                 {% elif not daily_plan.has_any_words %}
                 <a href="{{ url_for('words.word_list') }}" class="dash-step__btn">&#1057;&#1083;&#1086;&#1074;&#1072;</a>
                 {% endif %}
@@ -116,15 +131,19 @@
 
         {# Step: Reading #}
         {% if daily_plan.book_to_read %}
-        <div class="dash-step dash-step--book" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
+        <div class="dash-step dash-step--book {% if plan_completion.books %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">{% if plan_completion.books %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128213;</div>
                 <div class="dash-step__info">
                     <div class="dash-step__title">{{ daily_plan.book_to_read.title }}</div>
                     <div class="dash-step__meta">5&ndash;10 &#1084;&#1080;&#1085; &#1095;&#1090;&#1077;&#1085;&#1080;&#1103;</div>
                 </div>
-                <a href="{{ url_for('books.book_details', book_id=daily_plan.book_to_read.id) }}" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
+                {% if plan_completion.books %}
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+                {% else %}
+                <a href="{{ url_for('books.read_book_chapters', book_id=daily_plan.book_to_read.id) }}?from=daily_plan" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
+                {% endif %}
             </div>
         </div>
         {% set ns.step = ns.step + 1 %}
@@ -161,6 +180,34 @@
                     </div>
                 </div>
                 <a href="{{ url_for('books.book_list') }}" class="dash-step__btn">&#1050;&#1085;&#1080;&#1075;&#1080;</a>
+            </div>
+        </div>
+        {% set ns.step = ns.step + 1 %}
+        {% endif %}
+
+        {# Bonus step: shown when >=2 main tasks are done #}
+        {% set done = [plan_completion.lesson, plan_completion.grammar, plan_completion.words, plan_completion.books] | select | list | length %}
+        {% if done >= 2 and daily_plan.bonus and (daily_plan.bonus.extra_lesson or daily_plan.bonus.extra_reading) %}
+        <div class="dash-step dash-step--bonus" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">&#11088;</div>
+            <div class="dash-step__body">
+                <div class="dash-step__icon">&#128640;</div>
+                <div class="dash-step__info">
+                    {% if daily_plan.bonus.extra_lesson %}
+                    <div class="dash-step__title">&#1041;&#1086;&#1085;&#1091;&#1089;: &#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.bonus.extra_lesson.module_number }} &mdash; {{ daily_plan.bonus.extra_lesson.title }}</div>
+                    <div class="dash-step__meta">&#1044;&#1086;&#1087;&#1086;&#1083;&#1085;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1099;&#1081; &#1091;&#1088;&#1086;&#1082;</div>
+                    {% elif daily_plan.bonus.extra_reading %}
+                    <div class="dash-step__title">&#1041;&#1086;&#1085;&#1091;&#1089;: &#1055;&#1086;&#1095;&#1080;&#1090;&#1072;&#1081; &#1077;&#1097;&#1105;</div>
+                    <div class="dash-step__meta">&#1044;&#1086;&#1087;&#1086;&#1083;&#1085;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1086;&#1077; &#1095;&#1090;&#1077;&#1085;&#1080;&#1077;</div>
+                    {% endif %}
+                </div>
+                {% if daily_plan.bonus.extra_lesson %}
+                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.bonus.extra_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                {% elif daily_plan.bonus.extra_reading and daily_plan.book_to_read %}
+                <a href="{{ url_for('books.read_book_chapters', book_id=daily_plan.book_to_read.id) }}?from=daily_plan" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
+                {% else %}
+                <a href="{{ url_for('books.book_list') }}?from=daily_plan" class="dash-step__btn">&#1050;&#1085;&#1080;&#1075;&#1080;</a>
+                {% endif %}
             </div>
         </div>
         {% set ns.step = ns.step + 1 %}
@@ -416,6 +463,23 @@
 .dash-step--words .dash-step__body { border-left: 3px solid #f59e0b; }
 .dash-step--book .dash-step__body { border-left: 3px solid #10b981; }
 .dash-step--done .dash-step__body { border-left: 3px solid #94a3b8; }
+.dash-step--bonus .dash-step__body { border-left: 3px solid #f97316; }
+
+/* Completed step */
+.dash-step--completed .dash-step__body {
+    opacity: 0.6;
+    border-left-color: #10b981 !important;
+}
+.dash-step--completed .dash-step__num {
+    background: #10b981;
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+}
+.dash-step--completed .dash-step__btn {
+    background: #10b981;
+    pointer-events: none;
+}
 
 .dash-step__body:hover {
     border-color: var(--dash-accent);

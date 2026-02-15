@@ -789,7 +789,7 @@ body.dark-theme .rdr-bottom-nav {
       <div class="rdr-bottom-nav">
         {% if current_chapter.chap_num > 1 %}
         <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
-           class="rdr-bottom-btn">
+           class="rdr-bottom-btn" id="prev-chapter-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           {{ _('Previous Chapter') }}
         </a>
@@ -804,17 +804,18 @@ body.dark-theme .rdr-bottom-nav {
 
         {% if current_chapter.chap_num < chapters|length %}
         <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
-           class="rdr-bottom-btn rdr-bottom-btn--primary">
+           class="rdr-bottom-btn rdr-bottom-btn--primary" id="next-chapter-link">
           {{ _('Next Chapter') }}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
         {% else %}
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
-           class="rdr-bottom-btn rdr-bottom-btn--success">
+           class="rdr-bottom-btn rdr-bottom-btn--success" id="finish-reading-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           {{ _('Finish Reading') }}
         </a>
         {% endif %}
+        <div id="daily-plan-next-step" style="grid-column: 1 / -1;"></div>
       </div>
     </div>
   </div>
@@ -1210,5 +1211,24 @@ document.addEventListener('keydown', (e) => {
             break;
     }
 });
+
+// Daily plan: preserve ?from=daily_plan on chapter navigation links
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('from') !== 'daily_plan') return;
+
+  ['prev-chapter-link', 'next-chapter-link'].forEach(function(id) {
+    var link = document.getElementById(id);
+    if (link) {
+      var sep = link.href.indexOf('?') === -1 ? '?' : '&';
+      link.href += sep + 'from=daily_plan';
+    }
+  });
+})();
+</script>
+<script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
+<script>
+// Dispatch after daily-plan-next.js has loaded its listener
+document.dispatchEvent(new Event('dailyPlanStepComplete'));
 </script>
 {% endblock %}

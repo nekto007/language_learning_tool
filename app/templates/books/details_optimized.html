@@ -218,5 +218,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Propagate ?from=daily_plan to chapter reader links
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('from') !== 'daily_plan') return;
+    document.querySelectorAll('.chapter-item a[href]').forEach(function(link) {
+        var sep = link.href.indexOf('?') === -1 ? '?' : '&';
+        link.href += sep + 'from=daily_plan';
+    });
+})();
+
 </script>
 {% endblock %}

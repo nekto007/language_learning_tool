@@ -387,6 +387,7 @@
         </button>
       {% endif %}
     {% endblock %}
+      <div id="daily-plan-next-step"></div>
     </div>
   </div>
 
@@ -394,4 +395,21 @@
 
 <!-- CSRF Token Meta -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
+<script>
+// Dispatch daily plan event when lesson completion buttons become visible
+(function() {
+  var completeBtn = document.getElementById('complete-exercise') || document.getElementById('complete-module');
+  if (!completeBtn) return;
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      if (m.attributeName === 'style' && completeBtn.style.display !== 'none') {
+        document.dispatchEvent(new Event('dailyPlanStepComplete'));
+        observer.disconnect();
+      }
+    });
+  });
+  observer.observe(completeBtn, { attributes: true, attributeFilter: ['style'] });
+})();
+</script>
 {% endblock %}

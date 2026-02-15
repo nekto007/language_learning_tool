@@ -1,4 +1,4 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import func, or_
@@ -28,6 +28,14 @@ def dashboard():
     streak = get_current_streak(current_user.id)
     daily_plan = get_daily_plan(current_user.id)
     daily_summary = get_daily_summary(current_user.id)
+
+    # Completion flags: compare daily_summary with daily_plan
+    plan_completion = {
+        'lesson': daily_summary['lessons_count'] > 0,
+        'grammar': daily_summary['grammar_exercises'] > 0,
+        'words': daily_summary['words_reviewed'] > 0,
+        'books': len(daily_summary.get('books_read', [])) > 0,
+    }
 
     # Cards URL (user's default deck or generic)
     cards_url = url_for('study.cards')
@@ -116,6 +124,7 @@ def dashboard():
         streak=streak,
         daily_plan=daily_plan,
         daily_summary=daily_summary,
+        plan_completion=plan_completion,
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
         words_minutes=words_minutes,
@@ -398,3 +407,96 @@ def phrasal_verb_list():
     args = request.args.to_dict()
     args['type'] = 'phrasal_verb'
     return redirect(url_for('words.word_list', **args))
+
+
+@words.route('/api/daily-plan/next-step')
+@login_required
+def daily_plan_next_step() -> tuple:
+    """Return the next incomplete step from today's daily plan."""
+    from app.telegram.queries import get_daily_plan, get_daily_summary
+
+    daily_plan = get_daily_plan(current_user.id)
+    daily_summary = get_daily_summary(current_user.id)
+
+    plan_completion = {
+        'lesson': daily_summary['lessons_count'] > 0,
+        'grammar': daily_summary['grammar_exercises'] > 0,
+        'words': daily_summary['words_reviewed'] > 0,
+        'books': len(daily_summary.get('books_read', [])) > 0,
+    }
+
+    # Build ordered list of steps that exist in today's plan
+    steps: list[dict] = []
+
+    if daily_plan.get('next_lesson'):
+        lesson = daily_plan['next_lesson']
+        steps.append({
+            'type': 'lesson',
+            'title': f"\u041c\u043e\u0434\u0443\u043b\u044c {lesson['module_number']} \u2014 {lesson['title']}",
+            'url': url_for('curriculum_lessons.lesson_detail',
+                           lesson_id=lesson['lesson_id']) + '?from=daily_plan',
+            'icon': '\U0001f3af',
+            'done': plan_completion['lesson'],
+        })
+
+    if daily_plan.get('grammar_topic'):
+        gt = daily_plan['grammar_topic']
+        if gt['status'] == 'not_started':
+            grammar_url = url_for('grammar_lab.topic_detail', topic_id=gt['topic_id'])
+        else:
+            grammar_url = url_for('grammar_lab.practice', topic_id=gt['topic_id'])
+        steps.append({
+            'type': 'grammar',
+            'title': f"Grammar Lab \u2014 {gt['title']}",
+            'url': grammar_url + '?from=daily_plan',
+            'icon': '\U0001f9e0',
+            'done': plan_completion['grammar'],
+        })
+
+    if daily_plan.get('words_due', 0) > 0 or daily_plan.get('has_any_words'):
+        cards_url = url_for('study.cards')
+        if current_user.default_study_deck_id:
+            cards_url = url_for('study.cards_deck',
+                                deck_id=current_user.default_study_deck_id)
+        steps.append({
+            'type': 'words',
+            'title': f"{daily_plan.get('words_due', 0)} \u0441\u043b\u043e\u0432 \u043d\u0430 \u043f\u043e\u0432\u0442\u043e\u0440",
+            'url': cards_url + '?from=daily_plan',
+            'icon': '\U0001f4d6',
+            'done': plan_completion['words'],
+        })
+
+    if daily_plan.get('book_to_read'):
+        book = daily_plan['book_to_read']
+        steps.append({
+            'type': 'books',
+            'title': book['title'],
+            'url': url_for('books.read_book_chapters',
+                           book_id=book['id']) + '?from=daily_plan',
+            'icon': '\U0001f4d5',
+            'done': plan_completion['books'],
+        })
+
+    steps_done = sum(1 for s in steps if s['done'])
+    steps_total = len(steps)
+
+    # Find first incomplete step
+    next_step = next((s for s in steps if not s['done']), None)
+
+    if not next_step:
+        return jsonify({
+            'has_next': False,
+            'all_done': True,
+            'steps_done': steps_done,
+            'steps_total': steps_total,
+        })
+
+    return jsonify({
+        'has_next': True,
+        'step_type': next_step['type'],
+        'step_title': next_step['title'],
+        'step_url': next_step['url'],
+        'step_icon': next_step['icon'],
+        'steps_done': steps_done,
+        'steps_total': steps_total,
+    })

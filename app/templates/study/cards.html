@@ -845,6 +845,7 @@
 
                 <!-- Action buttons -->
                 <div class="celebration-actions">
+                    <div id="daily-plan-next-step"></div>
                     <!-- Extra study button (shown conditionally) -->
                     <a href="#" id="session-extra-study-link" class="btn-extra-study" style="display: none;">
                         <span class="btn-icon">🔥</span>
@@ -2196,6 +2197,9 @@
 
                     // Launch confetti!
                     launchConfetti();
+
+                    // Notify daily plan module
+                    document.dispatchEvent(new Event('dailyPlanStepComplete'));
                 }
 
             } catch (error) {
@@ -2368,4 +2372,5 @@
         initApp();
     });
 </script>
+<script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
 {% endblock %}
