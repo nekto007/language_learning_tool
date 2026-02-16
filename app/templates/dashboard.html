@@ -338,8 +338,6 @@
    Dashboard Page
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
-
 .dash-page {
     --dash-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
     --dash-bg: #fafbfc;
@@ -451,13 +449,17 @@
 .dash-step__num {
     width: 32px;
     min-width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--dash-text-muted);
-    padding-top: 1rem;
+    margin-top: 1rem;
+    background: var(--dash-surface-alt);
+    border: 1px solid var(--dash-border);
+    border-radius: 50%;
 }
 
 .dash-step__body {
@@ -480,6 +482,12 @@
 .dash-step--done .dash-step__body { border-left: 3px solid #94a3b8; }
 .dash-step--bonus .dash-step__body { border-left: 3px solid #f97316; }
 
+.dash-step--lesson .dash-step__num { color: #5046e5; border-color: rgba(80, 70, 229, 0.2); background: rgba(80, 70, 229, 0.06); }
+.dash-step--grammar .dash-step__num { color: #06b6d4; border-color: rgba(6, 182, 212, 0.2); background: rgba(6, 182, 212, 0.06); }
+.dash-step--words .dash-step__num { color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.06); }
+.dash-step--book .dash-step__num { color: #10b981; border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.06); }
+.dash-step--bonus .dash-step__num { color: #f97316; border-color: rgba(249, 115, 22, 0.2); background: rgba(249, 115, 22, 0.06); }
+
 /* Completed step */
 .dash-step--completed .dash-step__body {
     opacity: 0.6;
@@ -488,7 +496,7 @@
 .dash-step--completed .dash-step__num {
     background: #10b981;
     color: white;
-    border-radius: 50%;
+    border-color: #10b981;
     font-size: 0.75rem;
 }
 .dash-step--completed .dash-step__btn {
@@ -783,7 +791,7 @@
     .dash-hero__wave { font-size: 2rem; }
     .dash-hero__title { font-size: 1.25rem; }
 
-    .dash-step__num { width: 24px; min-width: 24px; font-size: 0.75rem; }
+    .dash-step__num { width: 26px; min-width: 26px; height: 26px; font-size: 0.7rem; }
     .dash-step__body { flex-wrap: wrap; padding: 0.875rem 1rem; gap: 0.75rem; }
     .dash-step__btn { width: 100%; text-align: center; }
 

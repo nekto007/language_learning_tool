@@ -5,7 +5,6 @@
 {% block styles %}
 {{ super() }}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
 
 /* ── Scoped Book Lesson Variables ── */
 .bls-page {
@@ -449,6 +448,17 @@
 
 {% block content %}
 <div class="bls-page">
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb-nav" aria-label="Навигация">
+    <a href="{{ url_for('book_courses.list_book_courses') }}">Курсы</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    <a href="{{ url_for('book_courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}">Модуль {{ module.module_number }}</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    <span class="breadcrumb-nav__current">{{ lesson.title or ('Урок ' ~ lesson_number) }}</span>
+  </nav>
 
   <!-- Compact Header -->
   <div class="bls-header">

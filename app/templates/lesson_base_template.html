@@ -3,7 +3,6 @@
 {% block styles %}
 {{ super() }}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
 
 /* ── Scoped Lesson Variables ── */
 .lsn-page {
@@ -297,6 +296,21 @@
 
 {% block content %}
 <div class="lsn-page">
+
+  <!-- Breadcrumb -->
+  {% if lesson.module %}
+  <nav class="breadcrumb-nav" aria-label="Навигация">
+    <a href="/learn/">Курсы</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    {% if lesson.module.level %}
+    <a href="/learn/{{ lesson.module.level.code|lower }}/">{{ lesson.module.level.code }}</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    {% endif %}
+    <a href="/learn/{{ lesson.module.level.code|lower }}/#module-{{ lesson.module.number }}">Модуль {{ lesson.module.number }}</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    <span class="breadcrumb-nav__current">{{ lesson.title }}</span>
+  </nav>
+  {% endif %}
 
   <!-- Compact Header -->
   <div class="lsn-header">

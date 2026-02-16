@@ -157,6 +157,7 @@
             </div>
             <div class="decks-section__actions">
                 <div class="decks-search">
+                    <label for="deck-search" class="visually-hidden">Поиск колод</label>
                     <svg class="decks-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод...">
                     <button class="decks-search__clear" type="button" id="clear-search" style="display: none;">
@@ -229,25 +230,25 @@
                 <div class="decks-card__actions">
                     {% if deck.total_cards > 0 %}
                     <button type="button" class="decks-card__btn decks-card__btn--quiz btn-quiz-modal"
-                            data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}" title="Квиз">
+                            data-deck-id="{{ deck.id }}" data-word-count="{{ deck.word_count }}" data-deck-title="{{ deck.title }}" title="Квиз" aria-label="Квиз для колоды {{ deck.title }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 017 7c0 3-2 5-3.5 6.5L12 19l-3.5-3.5C7 14 5 12 5 9a7 7 0 017-7z"/></svg>
                         <span class="decks-card__btn-label">Квиз</span>
                     </button>
-                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--cards" title="Карточки">
+                    <a href="{{ url_for('study.cards_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--cards" title="Карточки" aria-label="Карточки для колоды {{ deck.title }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
                         <span class="decks-card__btn-label">Карточки</span>
                     </a>
                     {% endif %}
                     <div class="decks-card__manage">
-                        <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="decks-card__manage-btn" title="Настройки лимитов">
+                        <a href="{{ url_for('study.deck_settings', deck_id=deck.id) }}" class="decks-card__manage-btn" title="Настройки лимитов" aria-label="Настройки колоды {{ deck.title }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                         </a>
                         {% if not deck.is_auto %}
-                        <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="decks-card__manage-btn" title="Редактировать">
+                        <a href="{{ url_for('study.edit_deck', deck_id=deck.id) }}" class="decks-card__manage-btn" title="Редактировать" aria-label="Редактировать колоду {{ deck.title }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </a>
                         <button type="button" class="decks-card__manage-btn decks-card__manage-btn--danger btn-delete-deck"
-                                data-deck-id="{{ deck.id }}" data-deck-title="{{ deck.title }}" title="Удалить">
+                                data-deck-id="{{ deck.id }}" data-deck-title="{{ deck.title }}" title="Удалить" aria-label="Удалить колоду {{ deck.title }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                         </button>
                         {% endif %}
@@ -398,8 +399,6 @@
 </div>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
-
 /* ── Scoped Variables ── */
 .decks-page {
     --decks-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
