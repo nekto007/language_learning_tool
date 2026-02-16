@@ -223,9 +223,13 @@
                   <rect x="3" y="3" width="18" height="18" rx="2"/>
                   <path d="M3 9h18M9 21V9"/>
                 </svg>
-                {{ summary.title or 'Сводная таблица' }}
+                {% if summary is mapping %}{{ summary.title or 'Сводная таблица' }}{% else %}Сводная таблица{% endif %}
               </div>
-              {% if summary.table %}
+              {% if summary is mapping and summary.table %}
+              {# DICT с table: стандартная или динамическая таблица #}
+              {% set first_row = summary.table[0] %}
+              {% set keys = first_row.keys()|list %}
+              {% if 'affirmative' in keys %}
               <div class="theory-table-wrapper">
                 <table class="theory-table theory-table--summary">
                   <thead>
@@ -250,6 +254,36 @@
               </div>
               {% else %}
               <div class="theory-table-wrapper">
+                <table class="theory-table theory-table--summary">
+                  <thead>
+                    <tr>
+                      {% for key in keys %}<th>{{ key|replace('_', ' ')|capitalize }}</th>{% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for row in summary.table %}
+                  <tr>
+                    {% for key in keys %}<td>{{ row[key]|unescape }}</td>{% endfor %}
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% endif %}
+              {% elif summary is mapping and summary.rules %}
+              {# DICT с rules: список правил #}
+              <div class="theory-table-wrapper">
+                <table class="theory-table">
+                  <tbody>
+                  {% for rule in summary.rules %}
+                  <tr><td>{{ rule|unescape }}</td></tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% elif summary is mapping %}
+              {# DICT простой: affirmative/negative/question #}
+              <div class="theory-table-wrapper">
                 <table class="theory-table">
                   <tbody>
                   {% if summary.affirmative %}
@@ -261,6 +295,26 @@
                   {% if summary.question %}
                   <tr><td class="theory-table__pronoun">?</td><td>{{ summary.question|unescape }}</td></tr>
                   {% endif %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              {# LIST: динамическая таблица из списка словарей #}
+              {% set first_row = summary[0] %}
+              {% set keys = first_row.keys()|list %}
+              <div class="theory-table-wrapper">
+                <table class="theory-table theory-table--summary">
+                  <thead>
+                    <tr>
+                      {% for key in keys %}<th>{{ key|replace('_', ' ')|capitalize }}</th>{% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for row in summary %}
+                  <tr>
+                    {% for key in keys %}<td>{{ row[key]|unescape }}</td>{% endfor %}
+                  </tr>
+                  {% endfor %}
                   </tbody>
                 </table>
               </div>
