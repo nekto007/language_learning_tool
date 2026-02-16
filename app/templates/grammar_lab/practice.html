@@ -1537,6 +1537,18 @@ function setupExerciseHandlers(exercise) {
   const input = document.getElementById('user-answer');
   if (input && input.type === 'text') {
     input.focus();
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const checkBtn = document.getElementById('check-btn');
+        const nextBtn = document.getElementById('next-btn');
+        if (checkBtn.style.display !== 'none') {
+          checkBtn.click();
+        } else if (nextBtn.style.display !== 'none') {
+          nextBtn.click();
+        }
+      }
+    });
   }
 }
 

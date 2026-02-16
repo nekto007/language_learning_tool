@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Импорт упражнений из JSON{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Импорт упражнений из JSON</h1>
+            <p class="text-muted mb-0">Загрузите JSON-файл, сгенерированный скриптом generate_grammar_exercises.py</p>
+        </div>
+        <a href="{{ url_for('grammar_lab_admin.grammar_lab_index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Назад
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="mb-3">
+                    <label for="json_file" class="form-label">JSON-файл с упражнениями</label>
+                    <input type="file" class="form-control" id="json_file" name="json_file" accept=".json" required>
+                    <div class="form-text">
+                        Файл должен содержать поля: module_id, grammar_topic_slug, grammar_topic, sessions.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>
+                    Загрузить
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">Формат JSON-файла</h6>
+        </div>
+        <div class="card-body">
+<pre class="mb-0"><code>{
+  "module_id": 1,
+  "grammar_topic_slug": "to-be",
+  "grammar_topic": "Глагол TO BE - Быть",
+  "level": "A1",
+  "sessions": [
+    {
+      "exercises": [
+        {
+          "exercise_type": "fill_blank",
+          "content": { "question": "...", "correct_answer": "..." },
+          "order": 1,
+          "difficulty": 1
+        }
+      ]
+    }
+  ]
+}</code></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1753,6 +1753,17 @@ window.QuizApp = {
     document.querySelectorAll('.text-submit-btn').forEach(btn => {
       btn.addEventListener('click', () => this.submitTextAnswer(parseInt(btn.dataset.question)));
     });
+
+    // Enter key for text inputs
+    document.querySelectorAll('input.form-control').forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const submitBtn = input.closest('.text-answer, .transformation-answer')?.querySelector('button');
+          if (submitBtn) submitBtn.click();
+        }
+      });
+    });
   },
 
   startQuiz() {

@@ -266,7 +266,15 @@ async function finishLesson() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', function() {
+  init();
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.classList.contains('transform-input') && !isChecked) {
+      e.preventDefault();
+      checkAnswers();
+    }
+  });
+});
 </script>
 
 <style>
