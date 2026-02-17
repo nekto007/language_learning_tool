@@ -257,7 +257,7 @@
                 <table class="theory-table theory-table--summary">
                   <thead>
                     <tr>
-                      {% for key in keys %}<th>{{ key|replace('_', ' ')|capitalize }}</th>{% endfor %}
+                      {% set col_names = {'usage': 'Использование', 'article': 'Артикль', 'examples': 'Примеры', 'form': 'Форма', 'example': 'Пример', 'pronoun': 'Местоимение', 'translation': 'Перевод', 'rule': 'Правило', 'case': 'Случай', 'signal_words': 'Слова-маркеры', 'structure': 'Структура', 'tense': 'Время', 'type': 'Тип', 'positive': 'Утверждение', 'negative': 'Отрицание', 'question': 'Вопрос', 'subject': 'Подлежащее', 'verb': 'Глагол', 'meaning': 'Значение', 'description': 'Описание', 'note': 'Примечание', 'word': 'Слово', 'phrase': 'Фраза', 'difference': 'Различие', 'correct': 'Правильно', 'incorrect': 'Неправильно', 'preposition': 'Предлог', 'conjunction': 'Союз', 'category': 'Категория', 'singular': 'Единственное', 'plural': 'Множественное', 'affirmative': 'Утверждение'} %}{% for key in keys %}<th>{{ col_names.get(key, key|replace('_', ' ')|capitalize) }}</th>{% endfor %}
                     </tr>
                   </thead>
                   <tbody>
@@ -306,7 +306,7 @@
                 <table class="theory-table theory-table--summary">
                   <thead>
                     <tr>
-                      {% for key in keys %}<th>{{ key|replace('_', ' ')|capitalize }}</th>{% endfor %}
+                      {% set col_names = {'usage': 'Использование', 'article': 'Артикль', 'examples': 'Примеры', 'form': 'Форма', 'example': 'Пример', 'pronoun': 'Местоимение', 'translation': 'Перевод', 'rule': 'Правило', 'case': 'Случай', 'signal_words': 'Слова-маркеры', 'structure': 'Структура', 'tense': 'Время', 'type': 'Тип', 'positive': 'Утверждение', 'negative': 'Отрицание', 'question': 'Вопрос', 'subject': 'Подлежащее', 'verb': 'Глагол', 'meaning': 'Значение', 'description': 'Описание', 'note': 'Примечание', 'word': 'Слово', 'phrase': 'Фраза', 'difference': 'Различие', 'correct': 'Правильно', 'incorrect': 'Неправильно', 'preposition': 'Предлог', 'conjunction': 'Союз', 'category': 'Категория', 'singular': 'Единственное', 'plural': 'Множественное', 'affirmative': 'Утверждение'} %}{% for key in keys %}<th>{{ col_names.get(key, key|replace('_', ' ')|capitalize) }}</th>{% endfor %}
                     </tr>
                   </thead>
                   <tbody>
