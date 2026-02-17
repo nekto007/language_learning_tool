@@ -5,8 +5,11 @@
 {% block content %}
 <style>
 
-/* ── Variables ── */
-.rdr-wrap {
+/* ── Variables (scoped to all reader components) ── */
+.rdr-wrap,
+.rdr-overlay,
+.rdr-sidebar,
+#translationPopup {
   --rdr-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
   --rdr-primary: #6366f1;
   --rdr-primary-dark: #5046e5;
@@ -21,11 +24,16 @@
   --rdr-radius-sm: 8px;
   --rdr-success: #10b981;
   --rdr-warning: #f59e0b;
+}
+
+.rdr-wrap {
   font-family: var(--rdr-font);
 }
 
 /* ── Dark theme ── */
-body.dark-theme .rdr-wrap {
+body.dark-theme .rdr-wrap,
+body.dark-theme .rdr-sidebar,
+body.dark-theme #translationPopup {
   --rdr-surface: #1e1e2e;
   --rdr-surface-alt: #181825;
   --rdr-text: #cdd6f4;
