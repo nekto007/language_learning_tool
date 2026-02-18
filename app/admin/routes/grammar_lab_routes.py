@@ -309,9 +309,9 @@ def import_from_modules():
                 if not title:
                     continue
 
-                # Generate slug
+                # Generate slug: {level}-{number}-{topic-slug}
                 slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-                slug = f"module-{module.number}-{slug}"[:100]
+                slug = f"{level_code.lower()}-{module.number}-{slug}"[:100]
 
                 # Check if already exists
                 existing = GrammarTopic.query.filter_by(slug=slug).first()
@@ -504,7 +504,7 @@ def import_from_modules():
 
         # Check if exists
         slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-        slug = f"module-{module.number}-{slug}"[:100]
+        slug = f"{level_code.lower()}-{module.number}-{slug}"[:100]
         exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
 
         # Упражнения находятся в quiz уроках в content['exercises']
@@ -568,8 +568,9 @@ def import_exercises_json():
 
         # Build full slug matching the pattern used by import_from_modules
         import re
+        level = data.get('level', '').lower()
         full_slug = re.sub(r'[^a-z0-9]+', '-', topic_name.lower()).strip('-')
-        full_slug = f"module-{module_id}-{full_slug}"[:100]
+        full_slug = f"{level}-{module_id}-{full_slug}"[:100]
 
         topic = GrammarTopic.query.filter_by(slug=full_slug).first()
         if not topic:
