@@ -1170,11 +1170,15 @@ window.FinalTestApp = {
         btn.classList.remove('selected', 'correct', 'incorrect');
         btn.disabled = false;
       });
-      const textarea = currentCard.querySelector('input[type="text"]');
-      if (textarea) {
-        textarea.value = '';
-        textarea.disabled = false;
-      }
+      currentCard.querySelectorAll('input, textarea, select').forEach(input => {
+        input.value = '';
+        input.disabled = false;
+        input.classList.remove('is-invalid');
+      });
+      // Re-enable all submit buttons (text, reorder, matching, transformation)
+      currentCard.querySelectorAll('button[type="button"]').forEach(btn => {
+        btn.disabled = false;
+      });
       const feedbackElement = document.getElementById(`feedback-${index}`);
       if (feedbackElement) {
         feedbackElement.style.display = 'none';
