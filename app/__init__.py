@@ -196,6 +196,16 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(has_module=has_module)
     app.jinja_env.globals.update(get_user_modules=get_user_modules)
 
+    # CSRF token refresh endpoint (for long-lived pages like quizzes)
+    from flask_login import login_required as _login_required
+    from flask import jsonify as _jsonify
+
+    @app.route('/csrf-token', methods=['GET'])
+    @_login_required
+    def refresh_csrf_token():
+        from flask_wtf.csrf import generate_csrf
+        return _jsonify({'csrf_token': generate_csrf()})
+
     # Add CSRF error handler for AJAX requests
     from flask_wtf.csrf import CSRFError
 
@@ -208,7 +218,7 @@ def create_app(config_class=Config):
         accepts_json = 'application/json' in request.headers.get('Accept', '')
 
         if is_ajax or is_api or accepts_json:
-            return jsonify({'success': False, 'error': 'CSRF token missing or invalid'}), 400
+            return jsonify({'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True}), 400
         return e.description, 400
 
     @login_manager.user_loader

@@ -295,6 +295,23 @@
         navigator.serviceWorker.register('/static/js/reader-sw.js')
             .catch(error => console.error('Reader SW registration failed:', error));
     }
+
+    // Auto-refresh CSRF token every 45 min to prevent expiration on long pages
+    (function() {
+        var REFRESH_INTERVAL = 45 * 60 * 1000;
+        function refreshCsrfToken() {
+            fetch('/csrf-token', {credentials: 'same-origin'})
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (data && data.csrf_token) {
+                        var meta = document.querySelector('meta[name="csrf-token"]');
+                        if (meta) meta.setAttribute('content', data.csrf_token);
+                    }
+                })
+                .catch(function() {});
+        }
+        setInterval(refreshCsrfToken, REFRESH_INTERVAL);
+    })();
 </script>
 </body>
 </html>
