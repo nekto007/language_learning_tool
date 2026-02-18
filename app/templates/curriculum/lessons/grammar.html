@@ -597,6 +597,21 @@
 // Глобальная переменная для упражнений
 const exercises = {{ exercises|tojson|safe }};
 
+// Enter key for text inputs — submit or move to next field
+document.querySelectorAll('#grammarForm input.form-control').forEach((input, idx, inputs) => {
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const nextInput = inputs[idx + 1];
+      if (nextInput) {
+        nextInput.focus();
+      } else {
+        checkAnswers();
+      }
+    }
+  });
+});
+
 function checkAnswers() {
   let allAnswered = true;
 
