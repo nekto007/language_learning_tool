@@ -3817,12 +3817,28 @@ body.dark-theme #translationPopup {
     margin-bottom: var(--space-4);
 }
 
+.retries-section {
+    margin-bottom: var(--space-4);
+}
+
 .error-item {
     background: var(--danger-50);
     border-left: 3px solid var(--danger-500);
     border-radius: var(--radius-sm);
     padding: var(--space-3);
     margin-bottom: var(--space-2);
+}
+
+.retry-item {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.retry-item .q-num {
+    color: #d97706;
 }
 
 .error-header {
@@ -3928,6 +3944,10 @@ body.dark-theme #translationPopup {
 
 .answer-item.correct .status {
     color: var(--success-500);
+}
+
+.answer-item.retry .status {
+    color: #f59e0b;
 }
 
 .answer-item.incorrect .status {

@@ -1020,13 +1020,16 @@
         {% endif %}
       </div>
 
-      <!-- Только ошибки по умолчанию -->
+      <!-- Ошибки и повторные попытки -->
       {% set errors = [] %}
+      {% set retries = [] %}
       {% for question in questions %}
         {% set q_idx = loop.index0|string %}
         {% set feedback = previous_feedback.get(q_idx, {}) %}
         {% if feedback.status != 'correct' %}
           {% set _ = errors.append((loop.index, question, feedback)) %}
+        {% elif feedback.get('attempts', 1) > 1 %}
+          {% set _ = retries.append((loop.index, question, feedback)) %}
         {% endif %}
       {% endfor %}
 
@@ -1046,7 +1049,26 @@
           </div>
         {% endfor %}
       </div>
-      {% else %}
+      {% endif %}
+
+      {% if retries|length > 0 %}
+      <div class="retries-section">
+        <h3 class="section-title">🔄 Исправлено со 2-й попытки ({{ retries|length }})</h3>
+        {% for idx, question, feedback in retries %}
+          <div class="retry-item">
+            <div class="error-header">
+              <span class="q-num">№{{ idx }}</span>
+              <span class="q-text">{{ (question.get('text') or question.get('question') or question.get('prompt', ''))[:80] }}{% if (question.get('text') or question.get('question') or question.get('prompt', ''))|length > 80 %}...{% endif %}</span>
+            </div>
+            <div class="error-answers">
+              <div class="correct">✓ {{ format_answer(feedback.correct_answer, question) }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if errors|length == 0 and retries|length == 0 %}
         <div class="perfect-score">🎉 Отлично! Все ответы правильные!</div>
       {% endif %}
 
@@ -1057,9 +1079,9 @@
           {% for question in questions %}
             {% set q_idx = loop.index0|string %}
             {% set feedback = previous_feedback.get(q_idx, {}) %}
-            <div class="answer-item {% if feedback.status == 'correct' %}correct{% else %}incorrect{% endif %}">
+            <div class="answer-item {% if feedback.status == 'correct' and feedback.get('attempts', 1) == 1 %}correct{% elif feedback.status == 'correct' and feedback.get('attempts', 1) > 1 %}retry{% else %}incorrect{% endif %}">
               <span class="num">{{ loop.index }}.</span>
-              <span class="status">{% if feedback.status == 'correct' %}✓{% else %}❌{% endif %}</span>
+              <span class="status">{% if feedback.status == 'correct' and feedback.get('attempts', 1) == 1 %}✓{% elif feedback.status == 'correct' and feedback.get('attempts', 1) > 1 %}🔄{% else %}❌{% endif %}</span>
               <span class="question">{{ question.get('text') or question.get('question') or question.get('prompt', '') }}</span>
               <span class="your-answer">{{ format_answer(feedback.user_answer, question) }}</span>
             </div>

@@ -459,14 +459,14 @@
 }
 
 /* Matching game styles */
-.matching-word-btn:hover:not(:disabled):not(.matched) {
+.final-test-matching-btn:hover:not(:disabled):not(.matched) {
   border-color: #dc2626 !important;
   background: #fef2f2 !important;
   transform: translateX(5px);
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
 }
 
-.matching-word-btn.selected {
+.final-test-matching-btn.selected {
   border-color: #dc2626 !important;
   background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
   color: white !important;
@@ -474,14 +474,14 @@
   box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
 }
 
-.matching-word-btn.matched {
+.final-test-matching-btn.matched {
   opacity: 0.4;
   cursor: not-allowed !important;
   background: #f3f4f6 !important;
   border-color: #d1d5db !important;
 }
 
-.matching-word-btn.correct-match {
+.final-test-matching-btn.correct-match {
   border-color: #10b981 !important;
   background: #d1fae5 !important;
   color: #065f46 !important;
@@ -989,8 +989,16 @@ function selectLeftWord(questionIndex, pairId, button) {
 function selectRightWord(questionIndex, pairId, button) {
   if (button.classList.contains('matched')) return;
 
+  // Initialize state if needed (in case right is clicked before left)
+  if (!matchingState[questionIndex]) {
+    matchingState[questionIndex] = {
+      selectedLeft: null,
+      selectedRight: null,
+      matchedPairs: []
+    };
+  }
+
   const state = matchingState[questionIndex];
-  if (!state) return;
 
   // Deselect previous right selection
   document.querySelectorAll(`.right-word[data-question="${questionIndex}"]`).forEach(btn => {
