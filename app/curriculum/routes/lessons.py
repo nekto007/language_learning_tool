@@ -86,6 +86,8 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
             match = re.search(r'\[sound:([^\]]+)\]', word.listening)
             if match:
                 audio_file = match.group(1)
+            else:
+                audio_file = word.listening.strip()
         elif word.get_download == 1:
             audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
 
@@ -217,6 +219,8 @@ def render_vocabulary_lesson(lesson):
 
             if word:
                 user_word = user_words_dict.get(word.id)
+                # Audio: prefer DB listening, fall back to JSON audio
+                audio_url = word.listening if hasattr(word, 'listening') and word.listening else word_data.get('audio', '')
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
@@ -226,12 +230,13 @@ def render_vocabulary_lesson(lesson):
                     'usage': sanitize_html(word_data.get('usage', word_data.get('example_translation', ''))),
                     'hint': sanitize_html(word_data.get('hint', '')),
                     'status': user_word.status if user_word else 'new',
-                    'audio_url': word.listening if hasattr(word, 'listening') else None,
+                    'audio_url': audio_url or None,
                     'get_download': 1 if word.get_download == 1 else 0
                 }
                 words.append(word_dict)
             else:
                 russian_word = word_data.get('russian', word_data.get('translation', word_data.get('back', '')))
+                audio_from_json = word_data.get('audio', '')
                 word_dict = {
                     'id': 10000 + idx,
                     'english': sanitize_html(english_word),
@@ -241,8 +246,7 @@ def render_vocabulary_lesson(lesson):
                     'usage': sanitize_html(word_data.get('usage', word_data.get('example_translation', ''))),
                     'hint': sanitize_html(word_data.get('hint', '')),
                     'status': word_data.get('status', 'new'),
-                    'audio': word_data.get('audio', ''),
-                    'audio_url': None,
+                    'audio_url': audio_from_json or None,
                     'get_download': 0
                 }
                 words.append(word_dict)
