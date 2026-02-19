@@ -679,7 +679,9 @@ def audio_stats():
     if os.path.exists(audio_dir):
         for f in os.listdir(audio_dir):
             if f.endswith('.mp3'):
-                existing_files.add(f)
+                filepath = os.path.join(audio_dir, f)
+                if os.path.getsize(filepath) > 0:
+                    existing_files.add(f)
 
     module_stats = []
     modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
@@ -722,7 +724,32 @@ def audio_stats():
             if fn:
                 _add_ref(f'Урок: {lesson.title}', fn, 'lesson')
 
-            # --- 3. Card lessons → CollectionWords.listening ---
+            # --- 3. Exercises with audio (listening_quiz, etc.) ---
+            exercises = content.get('exercises', [])
+            if isinstance(exercises, list):
+                for ex in exercises:
+                    if not isinstance(ex, dict):
+                        continue
+                    audio_val = ex.get('audio', '')
+                    fn = _extract_sound_filename(str(audio_val))
+                    if fn:
+                        label = ex.get('correct', '') or ex.get('question', '')
+                        _add_ref(label, fn, 'exercise')
+
+            # --- 4. Reading lines with audio ---
+            text_obj = content.get('text', {})
+            if isinstance(text_obj, dict):
+                lines = text_obj.get('lines', [])
+                if isinstance(lines, list):
+                    for line in lines:
+                        if not isinstance(line, dict):
+                            continue
+                        audio_val = line.get('audio', '')
+                        fn = _extract_sound_filename(str(audio_val))
+                        if fn:
+                            _add_ref(line.get('text', '')[:40], fn, 'reading')
+
+            # --- 5. Card lessons → CollectionWords.listening ---
             if lesson.type in ('card', 'flashcards', 'anki_cards'):
                 coll_id = lesson.collection_id or content.get('collection_id')
                 word_ids: list[int] = []
