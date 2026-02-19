@@ -487,7 +487,7 @@ def import_curriculum_data(data):
         module_data = data['module']
         data = {
             'level': module_data.get('level'),
-            'module': module_data.get('id') or module_data.get('number'),
+            'module': module_data.get('order') or module_data.get('number') or module_data.get('id'),
             'title': module_data.get('title'),
             'description': module_data.get('description', ''),
             'lessons': module_data.get('lessons', [])

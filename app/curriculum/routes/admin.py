@@ -123,8 +123,8 @@ def import_curriculum():
 
                     # Import modules
                     for module_data in level_data.get('modules', []):
-                        # Поддержка обоих форматов: 'number' (старый) и 'id' (новый)
-                        module_number = module_data.get('number') or module_data.get('id')
+                        # Поддержка всех форматов: 'order' (per-level), 'number' (старый), 'id' (fallback)
+                        module_number = module_data.get('order') or module_data.get('number') or module_data.get('id')
 
                         if not module_number:
                             logger.error("Module missing both 'number' and 'id' fields")
