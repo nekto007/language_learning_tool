@@ -183,27 +183,8 @@ def check_lesson_access(lesson_id: int) -> bool:
     if module_progress:
         return True
 
-    # Check if this is the first lesson of the first module in a level
-    module = Module.query.get(lesson.module_id)
-    if not module:
-        return False
-
-    # Get first module in this level
-    first_module = Module.query.filter_by(
-        level_id=module.level_id
-    ).order_by(Module.number).first()
-
-    # If this is the first module
-    if module.id == first_module.id:
-        # Check if this is the first lesson
-        first_lesson = Lessons.query.filter_by(
-            module_id=module.id
-        ).order_by(Lessons.number).first()
-
-        if lesson.id == first_lesson.id:
-            return True
-
-    return False
+    # Fall back to module-level access check (handles previous module completion)
+    return check_module_access(lesson.module_id)
 
 
 def check_module_access(module_id: int) -> bool:
