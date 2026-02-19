@@ -402,7 +402,6 @@
             <i class="fas fa-star"></i>
             <span>{{ _('Новая') }}</span>
           </span>
-            <span class="card-direction" id="card-direction">ENG → RUS</span>
           </div>
 
           <div class="card-body">
@@ -433,7 +432,6 @@
             <i class="fas fa-star"></i>
             <span>{{ _('Новая') }}</span>
           </span>
-            <span class="card-direction" id="card-direction-back">ENG → RUS</span>
           </div>
 
           <div class="card-body">
@@ -636,8 +634,7 @@
           exampleTranslation: document.getElementById('example-translation'),
           cardTypeBadge: document.getElementById('card-type-badge'),
           cardTypeBadgeBack: document.getElementById('card-type-badge-back'),
-          cardDirection: document.getElementById('card-direction'),
-          cardDirectionBack: document.getElementById('card-direction-back'),
+
 
           // Кнопки
           showAnswerBtn: document.getElementById('show-answer-btn'),
@@ -839,9 +836,6 @@
               badge.className = 'card-badge review';
           }
 
-          // Обновляем направление
-          elements.cardDirection.textContent = card.direction === 'eng-rus' ? 'ENG → RUS' : 'RUS → ENG';
-
           // Устанавливаем содержимое
           elements.frontWord.textContent = card.front || card.word;
           elements.translationText.textContent = card.back || card.translation;
@@ -933,8 +927,6 @@
           badge.querySelector('i').className = frontBadge.querySelector('i').className;
           badge.querySelector('span').textContent = frontBadge.querySelector('span').textContent;
           badge.className = frontBadge.className;
-          elements.cardDirectionBack.textContent = elements.cardDirection.textContent;
-
           elements.backWord.textContent = elements.frontWord.textContent;
 
           // Аудио на обратной стороне - показываем всегда, если есть аудио
