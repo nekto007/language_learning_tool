@@ -217,10 +217,18 @@
           {% else %}
             <!-- Обычный текст без диалога -->
             {% if text_content.translation %}
-              <!-- Есть перевод - показываем ТОЛЬКО русский текст -->
+              <!-- Английский текст -->
+              <div class="listening-content-block english mb-4">
+                <h4 class="listening-section-header english">
+                  <i class="fas fa-language"></i> English Text
+                </h4>
+                <div class="listening-content-text">{{ text_content.text }}</div>
+              </div>
+
+              <!-- Русский перевод -->
               <div class="listening-content-block translation">
                 <h4 class="listening-section-header translation">
-                  <i class="fas fa-language"></i> Текст диалога
+                  <i class="fas fa-language"></i> Перевод
                 </h4>
                 <div class="listening-content-text">{{ text_content.translation }}</div>
               </div>
