@@ -81,6 +81,11 @@ def get_or_create_book_course_deck(user_id: int, course: BookCourse) -> QuizDeck
     db.session.add(deck)
     db.session.flush()  # Получаем ID без полного коммита
 
+    from app.auth.models import User
+    user = User.query.get(user_id)
+    if not user.default_study_deck_id:
+        user.default_study_deck_id = deck.id
+
     logger.info(f"Created book course deck '{deck_title}' for user {user_id}")
     return deck
 
@@ -286,6 +291,9 @@ class BookSRSIntegration:
 
             # Создаем или получаем UserWord
             user_word = UserWord.get_or_create(user_id, word.id)
+
+            from app.study.deck_utils import ensure_word_in_default_deck
+            ensure_word_in_default_deck(user_id, word.id, user_word.id)
 
             # Создаем или получаем карточки для обоих направлений
             eng_rus_card = self._get_or_create_card_direction(user_word, 'eng-rus')

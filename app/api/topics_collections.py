@@ -241,6 +241,9 @@ def add_topic_to_study(topic_id):
             db.session.add(topic_deck)
             db.session.flush()
 
+            if not current_user.default_study_deck_id:
+                current_user.default_study_deck_id = topic_deck.id
+
         # Add all new words to deck
         for word_id in words_to_add:
             # Check if word already in deck
@@ -551,6 +554,9 @@ def add_collection_to_study(collection_id):
             )
             db.session.add(collection_deck)
             db.session.flush()
+
+            if not current_user.default_study_deck_id:
+                current_user.default_study_deck_id = collection_deck.id
 
         # Add all new words to deck
         for word_id in words_to_add:

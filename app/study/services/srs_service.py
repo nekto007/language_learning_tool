@@ -621,6 +621,9 @@ class SRSService:
                     db.session.add(user_word)
                     db.session.flush()
 
+                    from app.study.deck_utils import ensure_word_in_default_deck
+                    ensure_word_in_default_deck(user_id, word_id, user_word.id)
+
                     # Create cards with NEW state
                     forward, backward = cls.get_or_create_card_directions(user_word.id)
 

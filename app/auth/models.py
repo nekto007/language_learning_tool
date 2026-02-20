@@ -110,6 +110,9 @@ class User(db.Model, UserMixin):
             db.session.add(user_word)
             db.session.flush()  # Чтобы получить ID
 
+            from app.study.deck_utils import ensure_word_in_default_deck
+            ensure_word_in_default_deck(self.id, word_id, user_word.id)
+
             # Создаём направления для слова
             for direction_str in ['eng-rus', 'rus-eng']:
                 direction = UserCardDirection(

@@ -51,6 +51,8 @@ class SRSService:
             user_words = []
             for word_id in word_ids:
                 user_word = UserWord.get_or_create(user_id, word_id)
+                from app.study.deck_utils import ensure_word_in_default_deck
+                ensure_word_in_default_deck(user_id, word_id, user_word.id)
                 user_words.append(user_word)
 
             # Get due cards

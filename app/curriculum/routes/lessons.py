@@ -78,30 +78,11 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
     if needs_flush:
         db.session.flush()
 
-        # Add new words to user's default study deck
-        from app.study.models import QuizDeck, QuizDeckWord
-        from flask_login import current_user as cu
-
-        deck_id = cu.default_study_deck_id if hasattr(cu, 'default_study_deck_id') else None
-        deck = QuizDeck.query.get(deck_id) if deck_id else None
-
-        # Auto-create deck if user doesn't have one
-        if not deck or deck.user_id != user_id:
-            deck = QuizDeck(user_id=user_id, title='Слова из курса')
-            db.session.add(deck)
-            db.session.flush()
-            cu.default_study_deck_id = deck.id
-
-        existing_deck_word_ids = {dw.word_id for dw in deck.words.all()}
+        from app.study.deck_utils import ensure_word_in_default_deck
         for word in word_objects:
-            if word.id not in existing_word_ids and word.id not in existing_deck_word_ids:
+            if word.id not in existing_word_ids:
                 uw = user_word_map.get(word.id)
-                dw = QuizDeckWord(
-                    deck_id=deck.id,
-                    word_id=word.id,
-                    user_word_id=uw.id if uw else None,
-                )
-                db.session.add(dw)
+                ensure_word_in_default_deck(user_id, word.id, uw.id if uw else None)
         db.session.flush()
 
     # Build card dicts

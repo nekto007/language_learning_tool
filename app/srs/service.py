@@ -1113,6 +1113,9 @@ class UnifiedSRSService:
             db.session.add(user_word)
             db.session.flush()
 
+            from app.study.deck_utils import ensure_word_in_default_deck
+            ensure_word_in_default_deck(user_id, word_id, user_word.id)
+
         cards = []
 
         for direction in directions:

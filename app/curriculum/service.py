@@ -1564,6 +1564,9 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
     # Получаем или создаем UserWord
     user_word = UserWord.get_or_create(user_id, word_id)
 
+    from app.study.deck_utils import ensure_word_in_default_deck
+    ensure_word_in_default_deck(user_id, word_id, user_word.id)
+
     # Получаем или создаем направление
     card_direction = UserCardDirection.query.filter_by(
         user_word_id=user_word.id,

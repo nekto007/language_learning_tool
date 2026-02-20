@@ -173,6 +173,13 @@ class DeckService:
             deck.generate_share_code()
 
         db.session.add(deck)
+        db.session.flush()
+
+        from app.auth.models import User
+        user = User.query.get(user_id)
+        if not user.default_study_deck_id:
+            user.default_study_deck_id = deck.id
+
         db.session.commit()
         return deck
 
