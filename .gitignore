@@ -368,3 +368,6 @@ docs/
 # Tests documentation
 tests/README.md
 tests/TEST_SAFETY.md
+
+# Test config with credentials
+tests/conftest.py
