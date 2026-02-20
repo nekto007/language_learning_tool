@@ -61,6 +61,18 @@ def index():
         UserCardDirection.next_review <= datetime.now(timezone.utc)
     ).count()
 
+    # Новые карточки (state='new', ещё не начаты)
+    new_items_count = UserCardDirection.query \
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+        .filter(
+        UserWord.user_id == current_user.id,
+        UserCardDirection.state == 'new',
+        or_(
+            UserCardDirection.next_review.is_(None),
+            UserCardDirection.next_review <= datetime.now(timezone.utc)
+        )
+    ).count()
+
     # Mastered = review status + min_interval >= 180 days
     mastered_count = db.session.query(func.count(UserWord.id)).filter(
         UserWord.user_id == current_user.id,
@@ -224,6 +236,7 @@ def index():
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
+        new_items_count=new_items_count,
         learning_total=learning_total,
         review_total=review_total,
         mastered_count=mastered_count,

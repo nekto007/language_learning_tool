@@ -115,7 +115,7 @@
     {% endif %}
 
     <!-- Quick Start / Review Block -->
-    {% if due_items_count > 0 or all_words_count > 0 %}
+    {% if due_items_count > 0 or new_items_count > 0 or all_words_count > 0 %}
     <div class="decks-review slideUp" style="animation-delay: .15s">
         <div class="decks-review__body">
             <div class="decks-review__info">
@@ -123,10 +123,11 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
                 </div>
                 <div>
-                    <h3 class="decks-review__title">Быстрый старт &mdash; Повторение</h3>
+                    <h3 class="decks-review__title">Быстрый старт</h3>
                     <p class="decks-review__desc">
-                        {% if due_items_count > 0 %}
-                        <strong>{{ due_items_count }}</strong> слов ожидают повторения
+                        {% if due_items_count + new_items_count > 0 %}
+                        <strong>{{ due_items_count + new_items_count }}</strong> слов к изучению
+                        {% if new_items_count > 0 %}<span style="margin-left: 8px; opacity: .7;">Новых: {{ new_items_count }}</span>{% endif %}
                         {% else %}
                         Все слова повторены! Добавьте новые или продолжайте изучение.
                         {% endif %}
@@ -138,7 +139,7 @@
             </div>
             <a href="{{ url_for('study.cards') }}" class="decks-review__btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Начать повторение
+                Начать изучение
             </a>
         </div>
     </div>

@@ -1055,8 +1055,10 @@
 
           if (rating === 0) {
               // "Снова" - добавляем в очередь повтора с перетасовкой
+              // isNew: false — при возврате из repeatQueue карточка не должна считаться новой
               sessionState.repeatQueue.push({
                   ...card,
+                  isNew: false,
                   repeatAttempt: (card.repeatAttempt || 0) + 1
               });
               sessionState.totalAnswers++;
