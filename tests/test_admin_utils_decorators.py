@@ -43,7 +43,7 @@ class TestHandleAdminErrors:
             result = response.get_json() if hasattr(response, 'get_json') else response
 
         assert result['success'] is False
-        assert 'Test error' in result['error']
+        assert result['error'] == 'Внутренняя ошибка сервера'
         assert result['operation'] == 'failing_func'
         assert status_code == 500
 
@@ -109,10 +109,9 @@ class TestHandleAdminErrors:
                     with patch('app.admin.utils.decorators.url_for', return_value='/admin/dashboard'):
                         result = failing_func()
 
-            mock_flash.assert_called_once()
-            flash_message = mock_flash.call_args[0][0]
-            assert 'failing_func' in flash_message
-            assert 'Test error' in flash_message
+            mock_flash.assert_called_once_with(
+                'Произошла внутренняя ошибка. Попробуйте позже.', 'danger'
+            )
             mock_redirect.assert_called_once()
 
     def test_preserves_function_metadata(self):

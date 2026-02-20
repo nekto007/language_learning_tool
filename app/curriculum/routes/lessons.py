@@ -89,14 +89,9 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
     cards_list = []
     for word in word_objects:
         # Parse audio
-        audio_file = None
-        if word.listening:
-            match = re.search(r'\[sound:([^\]]+)\]', word.listening)
-            if match:
-                audio_file = match.group(1)
-            else:
-                audio_file = word.listening.strip()
-        elif word.get_download == 1:
+        from app.utils.audio import parse_audio_filename
+        audio_file = parse_audio_filename(word.listening) if word.listening else None
+        if not audio_file and word.get_download == 1:
             audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
 
         # Parse examples
@@ -865,7 +860,7 @@ def render_card_lesson(lesson):
                         for card in prev_content['cards']:
                             if isinstance(card, dict) and 'word_id' in card:
                                 word_ids.append(card['word_id'])
-                except:
+                except Exception:
                     pass
 
         word_ids = list(set(word_ids))
@@ -2168,7 +2163,7 @@ def card_lesson(lesson_id):
                         for card in prev_content['cards']:
                             if isinstance(card, dict) and 'word_id' in card:
                                 word_ids.append(card['word_id'])
-                except:
+                except Exception:
                     pass
 
         word_ids = list(set(word_ids))
@@ -2273,7 +2268,7 @@ def complete_srs_session(lesson_id):
     except Exception as e:
         logger.error(f"Error completing SRS session: {str(e)}")
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
 
 
 # API endpoints for lesson interactions

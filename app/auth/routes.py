@@ -56,7 +56,7 @@ def verify_reset_token(token, expiration=3600):
             max_age=expiration
         )
         return user_id
-    except:
+    except Exception:
         return None
 
 
@@ -217,7 +217,9 @@ def register():
                 return redirect(url_for('auth.login'))
             except Exception as e:
                 db.session.rollback()
-                flash(f'Регистрация не удалась. Ошибка: {str(e)}', 'danger')
+                import logging
+                logging.getLogger(__name__).error(f"Registration failed: {e}")
+                flash('Регистрация не удалась. Попробуйте позже.', 'danger')
 
         return render_template('auth/register.html', form=form)
     

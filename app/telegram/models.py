@@ -45,6 +45,9 @@ class TelegramUser(db.Model):
         Index('idx_telegram_users_v2_user_id', 'user_id'),
     )
 
+    def __repr__(self):
+        return f"<TelegramUser {self.telegram_id} -> user={self.user_id}>"
+
     def to_dict(self) -> dict:
         return {
             'id': self.id,
@@ -73,6 +76,9 @@ class TelegramLinkCode(db.Model):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     user = relationship('User')
+
+    def __repr__(self):
+        return f"<TelegramLinkCode user={self.user_id} code={self.code}>"
 
     CODE_TTL_MINUTES = 15
 

@@ -47,13 +47,33 @@ class SRSService:
             ).all()
             word_ids = [link.word_id for link in word_links]
 
-            # Get or create UserWord entries
+            # Batch-load existing UserWord entries
+            existing_user_words = UserWord.query.filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(word_ids)
+            ).all()
+            existing_map = {uw.word_id: uw for uw in existing_user_words}
+
+            # Create missing UserWord entries
             user_words = []
+            from app.study.deck_utils import ensure_word_in_default_deck
             for word_id in word_ids:
-                user_word = UserWord.get_or_create(user_id, word_id)
-                from app.study.deck_utils import ensure_word_in_default_deck
+                user_word = existing_map.get(word_id)
+                if not user_word:
+                    user_word = UserWord(user_id=user_id, word_id=word_id)
+                    db.session.add(user_word)
+                    db.session.flush()
                 ensure_word_in_default_deck(user_id, word_id, user_word.id)
                 user_words.append(user_word)
+
+            # Batch-load existing UserCardDirection entries
+            user_word_ids = [uw.id for uw in user_words]
+            existing_dirs = UserCardDirection.query.filter(
+                UserCardDirection.user_word_id.in_(user_word_ids)
+            ).all()
+            dir_map = {}
+            for d in existing_dirs:
+                dir_map.setdefault(d.user_word_id, {})[d.direction] = d
 
             # Get due cards
             now = datetime.now(UTC)
@@ -62,12 +82,9 @@ class SRSService:
             review_cards = 0
 
             for user_word in user_words:
-                # Check each direction
+                word_dirs = dir_map.get(user_word.id, {})
                 for direction in ['eng-rus', 'rus-eng']:
-                    card_dir = UserCardDirection.query.filter_by(
-                        user_word_id=user_word.id,
-                        direction=direction
-                    ).first()
+                    card_dir = word_dirs.get(direction)
 
                     if not card_dir:
                         # New card
@@ -228,8 +245,7 @@ class SRSService:
             old_interval = card_dir.interval
             new_interval = card_dir.update_after_review(quality)
 
-            # Increment session attempts
-            card_dir.session_attempts += 1
+            # Note: session_attempts is already incremented inside update_after_review()
 
             db.session.commit()
 

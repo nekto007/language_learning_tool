@@ -1,16 +1,17 @@
 """
-Tests for Utils Decorators (app/utils/decorators.py)
+Tests for admin_required decorator (app/admin/utils/decorators.py)
 
-Tests admin_required decorator:
+Tests:
 - Allows admin users
 - Blocks non-admin users
 - Blocks unauthenticated users
-- Shows flash message and redirects
+- Shows flash message and redirects to auth.login
+- Preserves function metadata
 
-Coverage target: 100% for app/utils/decorators.py
+Coverage target: 100% for admin_required in app/admin/utils/decorators.py
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 
 class TestAdminRequired:
@@ -18,91 +19,93 @@ class TestAdminRequired:
 
     def test_allows_admin_user(self, app):
         """Test allows authenticated admin user"""
-        from app.utils.decorators import admin_required
+        with patch('app.admin.utils.decorators.login_required', lambda f: f):
+            from app.admin.utils.decorators import admin_required
 
-        @admin_required
-        def test_view():
-            return 'Success'
+            @admin_required
+            def test_view():
+                return 'Success'
 
-        with app.test_request_context():
-            with patch('app.utils.decorators.current_user') as mock_user:
-                mock_user.is_authenticated = True
-                mock_user.is_admin = True
-
-                result = test_view()
+            with app.test_request_context():
+                with patch('app.admin.utils.decorators.current_user') as mock_user:
+                    mock_user.is_authenticated = True
+                    mock_user.is_admin = True
+                    result = test_view()
 
         assert result == 'Success'
 
     def test_blocks_non_admin_user(self, app):
         """Test blocks authenticated non-admin user"""
-        from app.utils.decorators import admin_required
-        from flask import url_for
+        with patch('app.admin.utils.decorators.login_required', lambda f: f):
+            from app.admin.utils.decorators import admin_required
 
-        @admin_required
-        def test_view():
-            return 'Success'
+            @admin_required
+            def test_view():
+                return 'Success'
 
-        with app.test_request_context():
-            with patch('app.utils.decorators.current_user') as mock_user:
-                mock_user.is_authenticated = True
-                mock_user.is_admin = False
+            with app.test_request_context():
+                with patch('app.admin.utils.decorators.current_user') as mock_user:
+                    mock_user.is_authenticated = True
+                    mock_user.is_admin = False
 
-                with patch('app.utils.decorators.flash') as mock_flash:
-                    with patch('app.utils.decorators.redirect') as mock_redirect:
-                        with patch('app.utils.decorators.url_for', return_value='/dashboard'):
-                            result = test_view()
+                    with patch('app.admin.utils.decorators.flash') as mock_flash:
+                        with patch('app.admin.utils.decorators.redirect') as mock_redirect:
+                            with patch('app.admin.utils.decorators.url_for', return_value='/login'):
+                                test_view()
 
-                mock_flash.assert_called_once_with(
-                    'You need administrator privileges to access this page.',
-                    'danger'
-                )
-                mock_redirect.assert_called_once()
+                    mock_flash.assert_called_once_with(
+                        'У вас нет прав для доступа к этой странице.',
+                        'danger'
+                    )
+                    mock_redirect.assert_called_once()
 
     def test_blocks_unauthenticated_user(self, app):
         """Test blocks unauthenticated user"""
-        from app.utils.decorators import admin_required
+        with patch('app.admin.utils.decorators.login_required', lambda f: f):
+            from app.admin.utils.decorators import admin_required
 
-        @admin_required
-        def test_view():
-            return 'Success'
+            @admin_required
+            def test_view():
+                return 'Success'
 
-        with app.test_request_context():
-            with patch('app.utils.decorators.current_user') as mock_user:
-                mock_user.is_authenticated = False
+            with app.test_request_context():
+                with patch('app.admin.utils.decorators.current_user') as mock_user:
+                    mock_user.is_authenticated = False
 
-                with patch('app.utils.decorators.flash') as mock_flash:
-                    with patch('app.utils.decorators.redirect'):
-                        with patch('app.utils.decorators.url_for', return_value='/dashboard'):
-                            test_view()
+                    with patch('app.admin.utils.decorators.flash') as mock_flash:
+                        with patch('app.admin.utils.decorators.redirect'):
+                            with patch('app.admin.utils.decorators.url_for', return_value='/login'):
+                                test_view()
 
-                mock_flash.assert_called_once_with(
-                    'You need administrator privileges to access this page.',
-                    'danger'
-                )
+                    mock_flash.assert_called_once_with(
+                        'У вас нет прав для доступа к этой странице.',
+                        'danger'
+                    )
 
-    def test_redirects_to_dashboard(self, app):
-        """Test redirects to words.dashboard"""
-        from app.utils.decorators import admin_required
+    def test_redirects_to_login(self, app):
+        """Test redirects to auth.login"""
+        with patch('app.admin.utils.decorators.login_required', lambda f: f):
+            from app.admin.utils.decorators import admin_required
 
-        @admin_required
-        def test_view():
-            return 'Success'
+            @admin_required
+            def test_view():
+                return 'Success'
 
-        with app.test_request_context():
-            with patch('app.utils.decorators.current_user') as mock_user:
-                mock_user.is_authenticated = False
+            with app.test_request_context():
+                with patch('app.admin.utils.decorators.current_user') as mock_user:
+                    mock_user.is_authenticated = False
 
-                with patch('app.utils.decorators.flash'):
-                    with patch('app.utils.decorators.redirect') as mock_redirect:
-                        with patch('app.utils.decorators.url_for', return_value='/dashboard') as mock_url_for:
-                            test_view()
+                    with patch('app.admin.utils.decorators.flash'):
+                        with patch('app.admin.utils.decorators.redirect') as mock_redirect:
+                            with patch('app.admin.utils.decorators.url_for', return_value='/login') as mock_url_for:
+                                test_view()
 
-                mock_url_for.assert_called_once_with('words.dashboard')
-                mock_redirect.assert_called_once_with('/dashboard')
+                    mock_url_for.assert_called_once_with('auth.login')
+                    mock_redirect.assert_called_once_with('/login')
 
     def test_preserves_function_name(self):
         """Test decorator preserves function name and metadata"""
-        from app.utils.decorators import admin_required
+        from app.admin.utils.decorators import admin_required
 
         @admin_required
         def my_view_function():

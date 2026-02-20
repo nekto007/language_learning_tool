@@ -438,7 +438,7 @@ def cleanup_books():
                         try:
                             os.remove(os.path.join(temp_dir, filename))
                             removed_files += 1
-                        except:
+                        except Exception:
                             pass
                 results['details'].append(f"Удалено {removed_files} временных файлов")
 

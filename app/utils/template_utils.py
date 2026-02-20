@@ -268,6 +268,19 @@ def init_template_utils(app):
             return listening[7:-1]
         return listening
 
+    @app.template_filter('sanitize')
+    def sanitize_filter(text):
+        """
+        Jinja filter to sanitize HTML content for safe rendering.
+        Strips dangerous tags/attributes while preserving safe formatting HTML.
+
+        Usage: {{ content|sanitize }} (instead of {{ content|safe }})
+        """
+        if not text:
+            return Markup('')
+        from app.curriculum.security import sanitize_html
+        return Markup(sanitize_html(str(text)))
+
     @app.template_filter('unescape')
     def unescape_filter(text):
         """

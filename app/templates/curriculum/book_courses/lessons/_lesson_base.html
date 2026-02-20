@@ -567,10 +567,14 @@ function completeLesson(score = 100) {
     ? {}
     : { lesson_number: lessonNumber, score: score };
 
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
   fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
     },
     body: JSON.stringify(body)
   })

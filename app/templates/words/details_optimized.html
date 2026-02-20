@@ -647,7 +647,7 @@
           <h3 class="wdet-card__title">{{ _('Примеры использования') }}</h3>
         </div>
         <div class="wdet-examples">
-          {{ word.sentences|safe }}
+          {{ word.sentences|sanitize }}
         </div>
       </div>
       {% endif %}

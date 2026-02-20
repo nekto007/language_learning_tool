@@ -79,26 +79,29 @@ class TestGetCardsForLesson:
         assert result['new_cards'] == 0
         assert result['review_cards'] == 0
 
+    @patch('app.study.deck_utils.ensure_word_in_default_deck')
     @patch('app.curriculum.services.srs_service.db.session')
     @patch('app.curriculum.services.srs_service.UserCardDirection')
     @patch('app.curriculum.services.srs_service.UserWord')
     @patch('app.curriculum.services.srs_service.CollectionWordLink')
-    def test_creates_new_cards_for_new_words(self, mock_link, mock_user_word_model, mock_card_dir_model, mock_session, card_lesson, mock_user_word):
+    def test_creates_new_cards_for_new_words(self, mock_link, mock_user_word_model, mock_card_dir_model, mock_session, mock_ensure_deck, card_lesson, mock_user_word):
         """Test creating new card directions for new words"""
         # Mock word links
         link = Mock(word_id=1)
         mock_link.query.filter_by.return_value.all.return_value = [link]
 
-        # Mock user word
-        mock_user_word_model.get_or_create.return_value = mock_user_word
+        # Mock no existing user words (batch query returns empty)
+        mock_user_word_model.query.filter.return_value.all.return_value = []
+        # Mock UserWord constructor for creating new ones
+        mock_user_word_model.return_value = mock_user_word
 
         # Create mock new card direction instances
         new_card = Mock()
         new_card.repetitions = 0
         mock_card_dir_model.return_value = new_card
 
-        # Mock no existing card direction (so new ones get created)
-        mock_card_dir_model.query.filter_by.return_value.first.return_value = None
+        # Mock no existing card directions (batch query returns empty)
+        mock_card_dir_model.query.filter.return_value.all.return_value = []
 
         result = SRSService.get_cards_for_lesson(card_lesson, 1)
 
@@ -107,44 +110,53 @@ class TestGetCardsForLesson:
         assert result['review_cards'] == 0
         assert len(result['cards']) == 2
 
+    @patch('app.study.deck_utils.ensure_word_in_default_deck')
     @patch('app.curriculum.services.srs_service.db.session')
     @patch('app.curriculum.services.srs_service.UserCardDirection')
     @patch('app.curriculum.services.srs_service.UserWord')
     @patch('app.curriculum.services.srs_service.CollectionWordLink')
-    def test_identifies_due_review_cards(self, mock_link, mock_user_word_model, mock_card_dir_model, mock_session, card_lesson, mock_user_word, mock_card_direction):
+    def test_identifies_due_review_cards(self, mock_link, mock_user_word_model, mock_card_dir_model, mock_session, mock_ensure_deck, card_lesson, mock_user_word, mock_card_direction):
         """Test identifying cards due for review"""
         link = Mock(word_id=1)
         mock_link.query.filter_by.return_value.all.return_value = [link]
 
-        mock_user_word_model.get_or_create.return_value = mock_user_word
+        # Mock existing user word found by batch query
+        mock_user_word_model.query.filter.return_value.all.return_value = [mock_user_word]
 
-        # Mock existing card direction that's due
-        mock_card_direction.next_review = datetime.now(UTC) - timedelta(hours=1)
-        mock_card_dir_model.query.filter_by.return_value.first.return_value = mock_card_direction
+        # Mock existing card directions that are due for both directions
+        dir_eng = Mock(user_word_id=1, direction='eng-rus',
+                       next_review=datetime.now(UTC) - timedelta(hours=1),
+                       repetitions=5)
+        dir_rus = Mock(user_word_id=1, direction='rus-eng',
+                       next_review=datetime.now(UTC) - timedelta(hours=1),
+                       repetitions=3)
+        mock_card_dir_model.query.filter.return_value.all.return_value = [dir_eng, dir_rus]
 
         result = SRSService.get_cards_for_lesson(card_lesson, 1)
 
         assert result['review_cards'] == 2  # Both directions due
 
+    @patch('app.study.deck_utils.ensure_word_in_default_deck')
     @patch('app.curriculum.services.srs_service.db.session')
     @patch('app.curriculum.services.srs_service.UserCardDirection')
     @patch('app.curriculum.services.srs_service.UserWord')
     @patch('app.curriculum.services.srs_service.CollectionWordLink')
-    def test_respects_new_cards_limit(self, mock_link, mock_user_word_model, mock_card_dir_model, mock_session, card_lesson):
+    def test_respects_new_cards_limit(self, mock_link, mock_user_word_model, mock_card_dir_model, mock_session, mock_ensure_deck, card_lesson):
         """Test that new cards limit is respected"""
         # Create 10 words (20 cards total - 2 directions each)
         links = [Mock(word_id=i) for i in range(1, 11)]
         mock_link.query.filter_by.return_value.all.return_value = links
 
+        # Mock existing user words for all 10 words
         user_words = [Mock(id=i, user_id=1, word_id=i) for i in range(1, 11)]
-        mock_user_word_model.get_or_create.side_effect = user_words
+        mock_user_word_model.query.filter.return_value.all.return_value = user_words
 
         # Create mock new card instances
         new_card = Mock(repetitions=0)
         mock_card_dir_model.return_value = new_card
 
-        # All new cards (no existing directions)
-        mock_card_dir_model.query.filter_by.return_value.first.return_value = None
+        # No existing card directions (batch query returns empty)
+        mock_card_dir_model.query.filter.return_value.all.return_value = []
 
         card_lesson.get_srs_settings.return_value = {'new_cards_limit': 5}
 

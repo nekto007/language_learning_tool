@@ -1077,11 +1077,10 @@ class UnifiedSRSService:
             return None
 
         if hasattr(word, 'listening') and word.listening:
-            filename = word.listening
-            # Извлекаем имя файла из Anki формата если нужно
-            if filename.startswith('[sound:') and filename.endswith(']'):
-                filename = filename[7:-1]
-            return f"/static/audio/{filename}"
+            from app.utils.audio import parse_audio_filename
+            filename = parse_audio_filename(word.listening)
+            if filename:
+                return f"/static/audio/{filename}"
 
         return None
 

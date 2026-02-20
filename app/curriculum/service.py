@@ -20,12 +20,8 @@ def get_audio_filename(word):
     if not hasattr(word, 'get_download') or word.get_download != 1 or not word.listening:
         return None
 
-    filename = word.listening
-    # Извлекаем имя файла из Anki формата если нужно
-    if filename.startswith('[sound:') and filename.endswith(']'):
-        filename = filename[7:-1]  # Remove [sound: and ]
-
-    return filename
+    from app.utils.audio import parse_audio_filename
+    return parse_audio_filename(word.listening)
 
 
 def get_user_level_progress(user_id):

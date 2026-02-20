@@ -26,7 +26,7 @@ from app.books.parsers import process_uploaded_book
 from app.books.processors import enqueue_book_processing
 from app.study.models import UserWord
 from app.utils.db import db
-from app.utils.decorators import admin_required
+from app.admin.utils.decorators import admin_required
 from app.words.models import CollectionWords, word_book_link
 from app.modules.decorators import module_required
 

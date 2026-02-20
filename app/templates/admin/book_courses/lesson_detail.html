@@ -646,7 +646,7 @@
             </div>
             <div class="section-content">
                 <div class="text-content">
-                    {{ lesson.slice_text|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}
+                    {{ lesson.slice_text|replace('\n\n', '</p><p>')|replace('\n', '<br>')|sanitize }}
                 </div>
             </div>
         </div>

@@ -12,7 +12,7 @@ from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import (safe_int, sanitize_json_content, validate_file_upload)
 from app.curriculum.validators import ImportDataSchema, validate_request_data
 from app.utils.db import db
-from app.utils.decorators import admin_required
+from app.admin.utils.decorators import admin_required
 from app.words.models import Collection
 
 logger = logging.getLogger(__name__)
@@ -653,15 +653,8 @@ def delete_lesson(lesson_id):
 
 def _extract_sound_filename(value: str) -> str | None:
     """Extract filename from '[sound:name.mp3]' or plain 'name.mp3'."""
-    import re
-    if not value:
-        return None
-    m = re.search(r'\[sound:([^\]]+)\]', value)
-    if m:
-        return m.group(1)
-    if value.endswith('.mp3'):
-        return value
-    return None
+    from app.utils.audio import parse_audio_filename
+    return parse_audio_filename(value)
 
 
 @admin_bp.route('/admin/audio-stats')

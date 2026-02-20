@@ -253,7 +253,7 @@ def update_chapter_progress():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating chapter progress: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @api_books.route('/books/<int:book_id>/progress', methods=['GET'])
@@ -537,7 +537,7 @@ def get_book_content(book_id):
 
     except Exception as e:
         logger.error(f"Error getting book content: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @api_books.route('/tasks/<int:task_id>', methods=['GET'])
@@ -568,7 +568,7 @@ def get_task(task_id):
 
     except Exception as e:
         logger.error(f"Error getting task {task_id}: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @api_books.route('/blocks/<int:block_id>/tasks', methods=['GET'])
@@ -605,7 +605,7 @@ def get_block_tasks(block_id):
 
     except Exception as e:
         logger.error(f"Error getting tasks for block {block_id}: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @api_books.route('/blocks/<int:block_id>', methods=['GET'])
@@ -641,7 +641,7 @@ def get_block(block_id):
 
     except Exception as e:
         logger.error(f"Error getting block {block_id}: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
 
 
 @api_books.route('/chapters/<int:chapter_id>', methods=['GET'])
@@ -674,4 +674,4 @@ def get_chapter_by_id(chapter_id):
 
     except Exception as e:
         logger.error(f"Error getting chapter {chapter_id}: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500

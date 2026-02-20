@@ -157,7 +157,7 @@
           {% for line in text_content.text.lines %}
             <div class="reading-line">
               <div class="reading-line-text">
-                {{ line.text|safe }}
+                {{ line.text|sanitize }}
                 {% if line.audio %}
                   {% set audio_file = line.audio.replace('[sound:', '').replace(']', '') if '[sound:' in line.audio else line.audio %}
                   <button class="reading-audio-btn" onclick="playAudio('{{ audio_file }}', this)">
@@ -334,7 +334,7 @@
         {% for question in questions_list %}
           {% set question_index = loop.index0 %}
           <div class="question-block" data-question-index="{{ question_index }}">
-            <p class="question-text">{{ loop.index }}. {{ (question.question or question.instruction)|safe }}</p>
+            <p class="question-text">{{ loop.index }}. {{ (question.question or question.instruction)|sanitize }}</p>
 
             {% if question.type == 'true_false' %}
               {# True/False question #}
@@ -352,7 +352,7 @@
               <div class="answer-options answer-options-grid">
                 {% for option in question.options %}
                   <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
-                    {{ option|safe }}
+                    {{ option|sanitize }}
                   </button>
                 {% endfor %}
               </div>
@@ -362,7 +362,7 @@
               <div class="answer-options answer-options-grid-2col">
                 {% for option in question.options %}
                   <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
-                    {{ option|safe }}
+                    {{ option|sanitize }}
                   </button>
                 {% endfor %}
               </div>

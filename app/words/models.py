@@ -45,6 +45,9 @@ class CollectionWords(db.Model):
         Index('idx_collection_words_item_type', 'item_type'),
     )
 
+    def __repr__(self):
+        return f"<CollectionWords {self.id}: {self.english_word}>"
+
 
 class Topic(db.Model):
     __tablename__ = 'topics'
@@ -73,6 +76,9 @@ class TopicWord(db.Model):
         Index('idx_topic_words_topic_id', 'topic_id'),
         Index('idx_topic_words_word_id', 'word_id'),
     )
+
+    def __repr__(self):
+        return f"<TopicWord topic={self.topic_id} word={self.word_id}>"
 
 
 class Collection(db.Model):
@@ -126,6 +132,9 @@ class CollectionWordLink(db.Model):
         Index('idx_collection_words_link_collection_id', 'collection_id'),
         Index('idx_collection_words_link_word_id', 'word_id'),
     )
+
+    def __repr__(self):
+        return f"<CollectionWordLink collection={self.collection_id} word={self.word_id}>"
 
 
 # PhrasalVerb model has been deprecated.

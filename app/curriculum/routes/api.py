@@ -6,6 +6,8 @@ from datetime import UTC, datetime, timedelta
 from flask import Blueprint, jsonify
 from flask_login import current_user, login_required
 
+from sqlalchemy.orm import joinedload
+
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import check_lesson_access, check_module_access
 from app.curriculum.service import get_card_session_for_lesson, get_cards_for_lesson
@@ -252,7 +254,9 @@ def api_get_user_progress():
         # Get total statistics
         total_lessons = Lessons.query.count()
 
-        user_progress = LessonProgress.query.filter_by(
+        user_progress = LessonProgress.query.options(
+            joinedload(LessonProgress.lesson).joinedload(Lessons.module).joinedload(Module.level)
+        ).filter_by(
             user_id=current_user.id
         ).all()
 

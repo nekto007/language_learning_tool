@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy import func, or_
@@ -6,6 +8,8 @@ from app import csrf
 from app.api.auth import api_login_required
 from app.utils.db import db
 from app.words.models import CollectionWords
+
+logger = logging.getLogger(__name__)
 
 api_words = Blueprint('api_words', __name__)
 
@@ -21,7 +25,7 @@ def get_words():
     letter = request.args.get('letter')
     search = request.args.get('search')
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 200)
 
     # Base query
     query = db.select(CollectionWords)
@@ -221,9 +225,10 @@ def update_word_status():
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error updating word status: {e}")
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': 'Внутренняя ошибка сервера',
             'status_code': 500
         }), 500
 
@@ -325,12 +330,11 @@ def batch_update_status():
 
     except Exception as e:
         db.session.rollback()
-        import traceback
-        error_msg = str(e)
+        logger.error(f"Database error in batch update: {e}")
 
         return jsonify({
             'success': False,
-            'error': f'Database error: {error_msg}',
+            'error': 'Ошибка базы данных',
             'status_code': 500
         }), 500
 
@@ -365,8 +369,8 @@ def search_words():
 
         return jsonify(result)
     except Exception as e:
-        # Вместо простого повторного вызова исключения, отправляем понятный ответ с ошибкой
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error searching words: {e}")
+        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
 
 
 # Добавьте этот endpoint в файл app/api/words.py

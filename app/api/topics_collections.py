@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy import func, or_
@@ -8,6 +10,8 @@ from app.study.models import UserWord
 from app.study.services.srs_service import get_user_word_ids
 from app.utils.db import db
 from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
+
+logger = logging.getLogger(__name__)
 
 api_topics_collections = Blueprint('api_topics_collections', __name__)
 
@@ -20,7 +24,7 @@ def get_topics():
     # Параметры запроса
     search = request.args.get('search')
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 200)
 
     # Базовый запрос
     query = db.select(Topic)
@@ -45,23 +49,42 @@ def get_topics():
     # Выполнение запроса
     topics = db.session.execute(query).scalars().all()
 
-    # Получение дополнительной информации для каждой темы
+    # Batch-load word counts and user study counts (avoid N+1)
+    topic_ids = [t.id for t in topics]
+
+    # Word counts per topic in a single query
+    word_counts = {}
+    if topic_ids:
+        wc_rows = db.session.query(
+            TopicWord.topic_id,
+            func.count(TopicWord.id)
+        ).filter(
+            TopicWord.topic_id.in_(topic_ids)
+        ).group_by(TopicWord.topic_id).all()
+        word_counts = dict(wc_rows)
+
+    # User study counts per topic in a single query
+    study_counts = {}
+    if topic_ids:
+        sc_rows = db.session.query(
+            TopicWord.topic_id,
+            func.count(UserWord.id)
+        ).join(
+            UserWord,
+            (UserWord.word_id == TopicWord.word_id) & (UserWord.user_id == current_user.id)
+        ).filter(
+            TopicWord.topic_id.in_(topic_ids)
+        ).group_by(TopicWord.topic_id).all()
+        study_counts = dict(sc_rows)
+
     topics_list = []
     for topic in topics:
-        # Количество слов в теме
-        word_count = db.session.query(func.count(TopicWord.id)).filter_by(topic_id=topic.id).scalar()
-
-        # Проверка, сколько слов из темы уже изучается пользователем
-        topic_word_ids = [id[0] for id in db.session.query(TopicWord.word_id).filter_by(topic_id=topic.id).all()]
-        user_word_ids = get_user_word_ids(current_user.id, topic_word_ids) if topic_word_ids else set()
-        words_in_study = len(user_word_ids)
-
         topics_list.append({
             'id': topic.id,
             'name': topic.name,
             'description': topic.description,
-            'word_count': word_count,
-            'words_in_study': words_in_study
+            'word_count': word_counts.get(topic.id, 0),
+            'words_in_study': study_counts.get(topic.id, 0)
         })
 
     # Расчет общего количества страниц
@@ -276,9 +299,10 @@ def add_topic_to_study(topic_id):
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in topics/collections API: {e}")
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': 'Внутренняя ошибка сервера',
             'status_code': 500
         }), 500
 
@@ -292,7 +316,7 @@ def get_collections():
     search = request.args.get('search')
     topic_id = request.args.get('topic_id', type=int)
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 200)
 
     # Базовый запрос
     query = db.select(Collection)
@@ -590,9 +614,10 @@ def add_collection_to_study(collection_id):
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error in topics/collections API: {e}")
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': 'Внутренняя ошибка сервера',
             'status_code': 500
         }), 500
 

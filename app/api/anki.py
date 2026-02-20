@@ -80,7 +80,7 @@ def export_anki():
         if 'temp_path' in locals():
             try:
                 os.unlink(temp_path)
-            except:
+            except Exception:
                 pass
 
         return jsonify({

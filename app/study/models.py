@@ -26,6 +26,9 @@ class StudySession(db.Model):
     # Relationship
     user = db.relationship('User', backref=db.backref('study_sessions', lazy='dynamic', cascade='all, delete-orphan'))
 
+    def __repr__(self):
+        return f"<StudySession {self.id}: {self.session_type} user={self.user_id}>"
+
     def complete_session(self):
         """Mark the session as complete"""
         self.end_time = datetime.now(timezone.utc)
@@ -85,6 +88,9 @@ class StudySettings(db.Model):
     # Relationship
     user = db.relationship('User', backref=db.backref('study_settings', uselist=False, cascade='all, delete-orphan'))
 
+    def __repr__(self):
+        return f"<StudySettings user={self.user_id}>"
+
     @classmethod
     def get_settings(cls, user_id, lock_for_update=False):
         """Get or create settings for user
@@ -128,6 +134,9 @@ class GameScore(db.Model):
 
     # Relationship
     user = db.relationship('User', backref=db.backref('game_scores', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"<GameScore {self.id}: {self.game_type} score={self.score}>"
 
     @classmethod
     def get_leaderboard(cls, game_type, difficulty=None, limit=10):
@@ -200,14 +209,17 @@ class UserWord(db.Model):
         self.word_id = word_id
         self.status = 'new'
 
+    def __repr__(self):
+        return f"<UserWord {self.id}: user={self.user_id} word={self.word_id} status={self.status}>"
+
     @classmethod
-    def get_or_create(cls, user_id, word_id):
+    def get_or_create(cls, user_id: int, word_id: int) -> 'UserWord':
         """Get existing user_word or create a new one"""
         user_word = cls.query.filter_by(user_id=user_id, word_id=word_id).first()
         if not user_word:
             user_word = cls(user_id=user_id, word_id=word_id)
             db.session.add(user_word)
-            db.session.commit()
+            db.session.flush()
         return user_word
 
     def recalculate_status(self):
@@ -347,6 +359,9 @@ class UserCardDirection(db.Model):
         Index('idx_card_direction_state', 'state'),
         Index('idx_card_direction_buried_until', 'buried_until'),
     )
+
+    def __repr__(self):
+        return f"<UserCardDirection {self.id}: word={self.user_word_id} {self.direction} state={self.state}>"
 
     def __init__(self, user_word_id, direction):
         self.user_word_id = user_word_id
@@ -591,7 +606,7 @@ class UserCardDirection(db.Model):
 
         elif rating == RATING_DOUBT:
             # Hard: small interval increase, ease decrease
-            self.ease_factor = max(min_ef, old_ef - 0.05)
+            self.ease_factor = max(min_ef, old_ef - ef_hard)
             new_interval = max(old_interval + 1, round(old_interval * mult_hard))
             self.interval = new_interval
 

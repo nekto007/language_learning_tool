@@ -16,7 +16,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from app.utils.db import db
-from app.utils.decorators import admin_required
+from app.admin.utils.decorators import admin_required
 from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
@@ -48,9 +48,9 @@ def handle_admin_errors(return_json=True):
                 # Откатываем изменения в базе данных
                 try:
                     db.session.rollback()
-                except:
+                except Exception:
                     pass
-                
+
                 if return_json:
                     return jsonify({
                         'success': False,

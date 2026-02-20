@@ -38,10 +38,10 @@ def get_audio_url_for_word(word):
     if not hasattr(word, 'get_download') or word.get_download != 1 or not word.listening:
         return None
 
-    filename = word.listening
-    # Извлекаем имя файла из Anki формата если нужно
-    if filename.startswith('[sound:') and filename.endswith(']'):
-        filename = filename[7:-1]  # Remove [sound: and ]
+    from app.utils.audio import parse_audio_filename
+    filename = parse_audio_filename(word.listening)
+    if not filename:
+        return None
 
     return url_for('static', filename=f'audio/{filename}')
 
@@ -1548,7 +1548,7 @@ def complete_matching_game():
 
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Внутренняя ошибка сервера'
         }), 500
 
 

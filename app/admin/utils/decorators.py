@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 def admin_required(view_func):
     """Декоратор для проверки прав администратора"""
 
+    @wraps(view_func)
     def wrapped_view(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
             flash('У вас нет прав для доступа к этой странице.', 'danger')
             return redirect(url_for('auth.login'))
         return view_func(*args, **kwargs)
 
-    wrapped_view.__name__ = view_func.__name__
     return login_required(wrapped_view)
 
 
@@ -42,17 +42,17 @@ def handle_admin_errors(return_json=True):
                 # Откатываем изменения в базе данных
                 try:
                     db.session.rollback()
-                except:
+                except Exception:
                     pass
 
                 if return_json:
                     return jsonify({
                         'success': False,
-                        'error': f'Внутренняя ошибка сервера: {str(e)}',
+                        'error': 'Внутренняя ошибка сервера',
                         'operation': func.__name__
                     }), 500
                 else:
-                    flash(f'Ошибка в операции {func.__name__}: {str(e)}', 'danger')
+                    flash('Произошла внутренняя ошибка. Попробуйте позже.', 'danger')
                     return redirect(url_for('admin.dashboard'))
 
         return wrapper

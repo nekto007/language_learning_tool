@@ -149,7 +149,7 @@ class NotificationService:
                 html_content = render_template(template_name,
                                                notification=notification,
                                                user=user)
-            except:
+            except Exception:
                 # Fallback to generic template
                 html_content = render_template('emails/curriculum/generic.html',
                                                notification=notification,

@@ -29,7 +29,7 @@ jwt = JWTManager()
 limiter = Limiter(
     key_func=get_remote_address_key,
     default_limits=["10000 per hour", "100 per second"],  # More generous limits
-    storage_uri="memory://",
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
     # Customizable error messages
     headers_enabled=True,  # Enable X-RateLimit headers
     swallow_errors=False,  # Raise errors in development

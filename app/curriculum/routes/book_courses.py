@@ -7,7 +7,6 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, r
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
-from app import csrf
 
 from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress, generate_slug)
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
@@ -208,7 +207,6 @@ def view_course(course_id):
 
 
 @book_courses_bp.route('/book-courses/<int:course_id>/enroll', methods=['POST'])
-@csrf.exempt
 @login_required
 def enroll_in_course(course_id):
     """Enroll user in a book course"""
@@ -1508,7 +1506,6 @@ def get_lesson_api(lesson_id):
 
 
 @book_courses_bp.route('/api/v1/lesson/<int:lesson_id>/complete', methods=['POST'])
-@csrf.exempt
 @login_required
 def complete_lesson_api_v1(lesson_id):
     """Complete lesson according to specification"""
@@ -1897,7 +1894,6 @@ def view_course_by_slug(course_slug):
 
 
 @book_courses_bp.route('/courses/<course_slug>/enroll', methods=['POST'])
-@csrf.exempt
 @login_required
 def enroll_by_slug(course_slug):
     """Enroll in course by slug"""

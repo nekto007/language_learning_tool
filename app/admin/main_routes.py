@@ -134,7 +134,7 @@ def handle_admin_errors(return_json=True):
                 # Откатываем изменения в базе данных
                 try:
                     db.session.rollback()
-                except:
+                except Exception:
                     pass
 
                 if return_json:
@@ -152,18 +152,8 @@ def handle_admin_errors(return_json=True):
     return decorator
 
 
-# Декоратор для проверки прав администратора
-def admin_required(view_func):
-    """Декоратор для проверки прав администратора"""
-
-    def wrapped_view(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('У вас нет прав для доступа к этой странице.', 'danger')
-            return redirect(url_for('auth.login'))
-        return view_func(*args, **kwargs)
-
-    wrapped_view.__name__ = view_func.__name__
-    return login_required(wrapped_view)
+# Импорт декоратора из единого места
+from app.admin.utils.decorators import admin_required
 
 
 @cache_result('dashboard_stats', timeout=180)  # Кэш на 3 минуты

@@ -46,6 +46,9 @@ class Book(db.Model):
     chapters = relationship("Chapter", back_populates="book", cascade="all, delete-orphan")
     blocks = relationship("Block", back_populates="book", cascade="all, delete-orphan")
 
+    def __repr__(self):
+        return f"<Book {self.id}: {self.title}>"
+
 
 class Chapter(db.Model):
     """One chapter of a book"""
@@ -70,6 +73,9 @@ class Chapter(db.Model):
         UniqueConstraint('book_id', 'chap_num', name='uix_book_chapter'),
         Index('idx_chapter_fts', 'ts_idx', postgresql_using='gin'),
     )
+
+    def __repr__(self):
+        return f"<Chapter {self.chap_num} of Book {self.book_id}>"
 
 
 # Модель для отслеживания прогресса чтения
@@ -99,6 +105,9 @@ class Bookmark(db.Model):
         Index('idx_bookmarks_user_book', 'user_id', 'book_id'),
     )
 
+    def __repr__(self):
+        return f"<Bookmark {self.id}: {self.name}>"
+
 
 class Block(db.Model):
     """Examination block = 2-3 chapters"""
@@ -122,6 +131,9 @@ class Block(db.Model):
         UniqueConstraint('book_id', 'block_num', name='uix_book_block'),
     )
 
+    def __repr__(self):
+        return f"<Block {self.block_num} of Book {self.book_id}>"
+
 
 class BlockChapter(db.Model):
     """N:M relationship between blocks and chapters"""
@@ -129,6 +141,9 @@ class BlockChapter(db.Model):
 
     block_id = Column(Integer, ForeignKey('block.id', ondelete='CASCADE'), primary_key=True)
     chapter_id = Column(Integer, ForeignKey('chapter.id', ondelete='CASCADE'), primary_key=True)
+
+    def __repr__(self):
+        return f"<BlockChapter block={self.block_id} chapter={self.chapter_id}>"
 
 
 class Task(db.Model):
@@ -153,6 +168,9 @@ class Task(db.Model):
         Index('idx_task_type', 'task_type'),
     )
 
+    def __repr__(self):
+        return f"<Task {self.id}: {self.task_type}>"
+
 
 class BlockVocab(db.Model):
     """15-20 'new' words for a block"""
@@ -165,6 +183,9 @@ class BlockVocab(db.Model):
     # Relationships
     block = relationship("Block", back_populates="vocabulary")
     word = relationship("CollectionWords", backref="block_vocab_entries")
+
+    def __repr__(self):
+        return f"<BlockVocab block={self.block_id} word={self.word_id}>"
 
 
 class UserChapterProgress(db.Model):
@@ -185,6 +206,9 @@ class UserChapterProgress(db.Model):
         Index('idx_progress_user', 'user_id'),
     )
 
+    def __repr__(self):
+        return f"<UserChapterProgress user={self.user_id} chapter={self.chapter_id} {self.offset_pct:.0%}>"
+
 
 class UserBlockProgress(db.Model):
     """Block test results"""
@@ -199,6 +223,9 @@ class UserBlockProgress(db.Model):
     # Relationships
     user = relationship("User", backref="block_progress")
     block = relationship("Block", back_populates="progress")
+
+    def __repr__(self):
+        return f"<UserBlockProgress user={self.user_id} block={self.block_id} score={self.score_pct}>"
 
 
 class UserTaskAnswer(db.Model):
@@ -218,3 +245,6 @@ class UserTaskAnswer(db.Model):
     __table_args__ = (
         Index('idx_task_answer_user', 'user_id'),
     )
+
+    def __repr__(self):
+        return f"<UserTaskAnswer user={self.user_id} task={self.task_id}>"

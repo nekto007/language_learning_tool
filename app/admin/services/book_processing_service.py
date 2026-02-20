@@ -121,9 +121,9 @@ class BookProcessingService:
                 if file_ext.lower() == '.fb2':
                     logger.info("[CHAPTER_PROCESS] Converting FB2 to TXT format")
                     txt_file = temp_path / "book.txt"
-                    cmd = f'python convert_fb2_to_txt.py "{input_file}" "{txt_file}"'
+                    cmd = ['python', 'convert_fb2_to_txt.py', str(input_file), str(txt_file)]
                     logger.info(f"[CHAPTER_PROCESS] Running conversion command: {cmd}")
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(cmd, capture_output=True, text=True)
                     if result.returncode != 0:
                         logger.error(
                             f"[CHAPTER_PROCESS] FB2 conversion failed with return code {result.returncode}")
@@ -191,9 +191,9 @@ with DST.open("w", encoding="utf-8") as out:
 
                 # Run the prepare script
                 logger.info("[CHAPTER_PROCESS] Running text preparation script")
-                cmd = f'python "{prepare_script}"'
+                cmd = ['python', str(prepare_script)]
                 logger.info(f"[CHAPTER_PROCESS] Executing command: {cmd}")
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode != 0:
                     logger.error(
                         f"[CHAPTER_PROCESS] Text preparation failed with return code {result.returncode}")

@@ -73,7 +73,7 @@
         </div>
       {% else %}
         <div class="passage-text">
-          {{ lesson.slice_text | safe }}
+          {{ lesson.slice_text | sanitize }}
         </div>
       {% endif %}
     </div>

@@ -40,7 +40,7 @@ class WordFilterForm(FlaskForm):
                 db.select(Book).order_by(Book.title.asc())
             ).scalars().all()
             books.extend([(b.id, b.title) for b in all_books])
-        except:
+        except Exception:
             pass
 
         self.book_id.choices = books
