@@ -114,39 +114,23 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <div class="card border-left-info h-100">
                                 <div class="card-body">
                                     <h5 class="card-title">
-                                        <i class="fas fa-sync-alt text-info"></i> Обновить статус загрузки
+                                        <i class="fas fa-magic text-info"></i> Исправить все
                                     </h5>
                                     <p class="card-text small">
-                                        Проверить существование аудио файлов в папке медиа и обновить статус get_download
+                                        Обновить статус загрузки, исправить HTTP URL и нормализовать формат [sound:...]
                                     </p>
-                                    <button class="btn btn-info btn-sm" onclick="updateDownloadStatus()">
-                                        <i class="fas fa-sync-alt"></i> Обновить статус
+                                    <button class="btn btn-info btn-sm" onclick="fixAll()">
+                                        <i class="fas fa-magic"></i> Запустить
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-4 mb-3">
-                            <div class="card border-left-warning h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-wrench text-warning"></i> Исправить поля listening
-                                    </h5>
-                                    <p class="card-text small">
-                                        Заменить HTTP URL на чистое имя файла (pronunciation_en_word.mp3)
-                                    </p>
-                                    <button class="btn btn-warning btn-sm" onclick="fixListeningFields()">
-                                        <i class="fas fa-wrench"></i> Исправить HTTP
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <div class="card border-left-success h-100">
                                 <div class="card-body">
                                     <h5 class="card-title">
@@ -163,24 +147,6 @@
                                             CSV
                                         </a>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <div class="card border-left-primary h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-broom text-primary"></i> Нормализовать формат
-                                    </h5>
-                                    <p class="card-text small">
-                                        Убрать обертку [sound:...] и оставить чистые имена файлов для веб-приложения
-                                    </p>
-                                    <button class="btn btn-primary btn-sm" onclick="normalizeListeningFields()">
-                                        <i class="fas fa-broom"></i> Нормализовать
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -348,58 +314,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function updateDownloadStatus() {
-    showProgressModal('Обновление статуса загрузки аудио файлов...');
-    
-    fetch('{{ url_for("audio_admin.update_audio_download_status") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-        },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideProgressModal();
-        
-        if (data.success) {
-            showResultsModal(
-                `<div class="alert alert-success">
-                    <h5>Операция завершена успешно!</h5>
-                    <p>Обновлено записей: <strong>${data.updated_count}</strong></p>
-                    <p>Таблица: <strong>${data.table_name}</strong></p>
-                </div>`
-            );
-            
-            // Refresh page after 2 seconds
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            showResultsModal(
-                `<div class="alert alert-danger">
-                    <h5>Ошибка при обновлении</h5>
-                    <p>${data.error}</p>
-                </div>`
-            );
-        }
-    })
-    .catch(error => {
-        hideProgressModal();
-        showResultsModal(
-            `<div class="alert alert-danger">
-                <h5>Сетевая ошибка</h5>
-                <p>${error.message}</p>
-            </div>`
-        );
-    });
-}
+function fixAll() {
+    showProgressModal('Исправление аудио: обновление статуса, HTTP URL, формат...');
 
-function fixListeningFields() {
-    showProgressModal('Исправление полей listening (HTTP → Clean)...');
-
-    fetch('{{ url_for("audio_admin.fix_audio_listening_fields") }}', {
+    fetch('{{ url_for("audio_admin.fix_all_audio") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -411,75 +329,21 @@ function fixListeningFields() {
     .then(data => {
         hideProgressModal();
 
-        if (data.success) {
-            showResultsModal(
-                `<div class="alert alert-success">
-                    <h5>Операция завершена!</h5>
-                    <p>${data.message}</p>
-                    <p>Исправлено записей: <strong>${data.fixed_count}</strong></p>
-                </div>`
-            );
-
-            // Refresh page after 2 seconds
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            showResultsModal(
-                `<div class="alert alert-danger">
-                    <h5>Ошибка при исправлении</h5>
-                    <p>${data.error}</p>
-                </div>`
-            );
+        let html = '';
+        for (const r of data.results) {
+            if (r.success) {
+                html += `<div class="alert alert-success py-2 mb-2">
+                    <strong>${r.step}</strong> — ${r.count} записей
+                </div>`;
+            } else {
+                html += `<div class="alert alert-danger py-2 mb-2">
+                    <strong>${r.step}</strong> — ошибка: ${r.error}
+                </div>`;
+            }
         }
-    })
-    .catch(error => {
-        hideProgressModal();
-        showResultsModal(
-            `<div class="alert alert-danger">
-                <h5>Сетевая ошибка</h5>
-                <p>${error.message}</p>
-            </div>`
-        );
-    });
-}
+        showResultsModal(html);
 
-function normalizeListeningFields() {
-    showProgressModal('Нормализация полей listening ([sound:] → Clean)...');
-
-    fetch('{{ url_for("audio_admin.normalize_audio_listening_fields") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-        },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideProgressModal();
-
-        if (data.success) {
-            showResultsModal(
-                `<div class="alert alert-success">
-                    <h5>Нормализация завершена!</h5>
-                    <p>${data.message}</p>
-                    <p>Нормализовано записей: <strong>${data.fixed_count}</strong></p>
-                </div>`
-            );
-
-            // Refresh page after 2 seconds
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            showResultsModal(
-                `<div class="alert alert-danger">
-                    <h5>Ошибка при нормализации</h5>
-                    <p>${data.error}</p>
-                </div>`
-            );
-        }
+        setTimeout(() => { location.reload(); }, 2000);
     })
     .catch(error => {
         hideProgressModal();

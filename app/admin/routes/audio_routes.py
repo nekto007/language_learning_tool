@@ -150,6 +150,54 @@ def normalize_audio_listening_fields():
         }), 500
 
 
+@audio_bp.route('/audio/fix-all', methods=['POST'])
+@admin_required
+def fix_all_audio():
+    """Комбинированная операция: обновить статус + исправить HTTP + нормализовать формат"""
+    results: list[dict] = []
+
+    # 1. Обновить статус загрузки
+    try:
+        from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE
+        column_name = "english_word"
+        updated_count = AudioManagementService.update_download_status(
+            COLLECTIONS_TABLE, column_name, MEDIA_FOLDER
+        )
+        results.append({'step': 'Обновление статуса загрузки', 'success': True, 'count': updated_count})
+        logger.info(f"Audio download status updated by {current_user.username}: {updated_count} records")
+    except Exception as e:
+        logger.error(f"Error updating download status in fix-all: {e}")
+        results.append({'step': 'Обновление статуса загрузки', 'success': False, 'error': str(e)})
+
+    # 2. Исправить HTTP URL → чистое имя файла
+    try:
+        success, fixed_count, message = AudioManagementService.fix_listening_fields()
+        results.append({'step': 'Исправление HTTP URL', 'success': success, 'count': fixed_count if success else 0})
+        if success:
+            logger.info(f"Audio listening fields fixed by {current_user.username}: {fixed_count} records")
+    except Exception as e:
+        logger.error(f"Error fixing listening fields in fix-all: {e}")
+        results.append({'step': 'Исправление HTTP URL', 'success': False, 'error': str(e)})
+
+    # 3. Нормализовать [sound:...] → чистое имя файла
+    try:
+        success, fixed_count, message = AudioManagementService.normalize_listening_fields()
+        results.append({'step': 'Нормализация формата', 'success': success, 'count': fixed_count if success else 0})
+        if success:
+            logger.info(f"Audio listening fields normalized by {current_user.username}: {fixed_count} records")
+    except Exception as e:
+        logger.error(f"Error normalizing listening fields in fix-all: {e}")
+        results.append({'step': 'Нормализация формата', 'success': False, 'error': str(e)})
+
+    clear_admin_cache()
+
+    all_success = all(r['success'] for r in results)
+    return jsonify({
+        'success': all_success,
+        'results': results
+    }), 200 if all_success else 207
+
+
 @audio_bp.route('/audio/get-download-list')
 @admin_required
 def get_audio_download_list():
