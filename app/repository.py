@@ -538,29 +538,37 @@ class DatabaseRepository:
         import os
 
         # Get list of words/phrases for which files are not downloaded
-        query = f"SELECT {column_name} FROM {table_name} WHERE (get_download = 0 or get_download isnull)"
+        query = f"SELECT {column_name}, listening FROM {table_name} WHERE (get_download = 0 or get_download isnull)"
 
         try:
             result = self.execute_query(query, fetch=True)
             if not result:
                 return 0
 
-            words = [row[0] for row in result]
             updated_count = 0
 
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
                     # Check file presence and update status for each word
-                    for word in words:
-                        word_modified = word.replace(" ", "_").lower()
-                        file_path = os.path.join(media_folder, f"pronunciation_en_{word_modified}.mp3")
+                    for row in result:
+                        word = row[0]
+                        existing_listening = row[1] or ""
 
-                        status = 1 if os.path.isfile(file_path) else 0
-                        if status == 1:
-                            # Update status in database
-                            listening = f"[sound:pronunciation_en_{word_modified}.mp3]"
+                        # Use existing listening filename if it's already a clean filename,
+                        # otherwise construct from english_word (handles special chars like wi-fi)
+                        if (existing_listening
+                                and not existing_listening.startswith("http")
+                                and not existing_listening.startswith("[sound:")):
+                            filename = existing_listening
+                        else:
+                            word_modified = word.replace(" ", "_").lower()
+                            filename = f"pronunciation_en_{word_modified}.mp3"
+
+                        file_path = os.path.join(media_folder, filename)
+
+                        if os.path.isfile(file_path):
                             update_query = f"UPDATE {table_name} SET get_download = %s, listening = %s WHERE {column_name} = %s"
-                            cursor.execute(update_query, (status, listening, word))
+                            cursor.execute(update_query, (1, filename, word))
                             updated_count += 1
 
             return updated_count
