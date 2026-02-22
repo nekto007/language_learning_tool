@@ -210,7 +210,7 @@ def init_template_utils(app):
         """Inject user XP and level data into templates (cached for 60 seconds)"""
         from flask_login import current_user
         from app.study.models import UserXP
-        from app.utils.cache import cache
+        from app.curriculum.cache import cache
 
         if not current_user.is_authenticated:
             return {}

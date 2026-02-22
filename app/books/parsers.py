@@ -454,14 +454,14 @@ def parse_pdf(file_path, format_type):
     """
     Парсит PDF-файл
 
-    Требует установки библиотеки PyPDF2:
-    pip install PyPDF2
+    Требует установки библиотеки pypdf:
+    pip install pypdf
     """
     try:
-        import PyPDF2
+        from pypdf import PdfReader
 
         with open(file_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
+            reader = PdfReader(file)
 
             # Извлекаем текст из всех страниц
             text = ""
@@ -514,7 +514,7 @@ def parse_pdf(file_path, format_type):
         return html_content, word_count, unique_words
 
     except ImportError:
-        logger.error("PyPDF2 not installed. Install with: pip install PyPDF2")
+        logger.error("pypdf not installed. Install with: pip install pypdf")
         return parse_txt(file_path, format_type)
     except Exception as e:
         logger.error(f"Error parsing PDF file: {str(e)}")

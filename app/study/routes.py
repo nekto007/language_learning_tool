@@ -1092,7 +1092,7 @@ def stats():
 @login_required
 def leaderboard():
     """Leaderboard showing top users by XP and achievements (cached for 5 minutes)"""
-    from app.utils.cache import cache
+    from app.curriculum.cache import cache
 
     # Try to get leaderboard data from cache
     cache_key_xp = 'leaderboard_xp_top100'

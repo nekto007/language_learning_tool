@@ -27,10 +27,6 @@ def init_curriculum_module(app):
     init_metrics(app)
     setup_database_monitoring()
 
-    # Initialize notification system
-    from app.curriculum.notifications import init_notifications
-    init_notifications(app)
-
     # Initialize backup system
     from app.curriculum.backup import init_backup_system
     init_backup_system(app)

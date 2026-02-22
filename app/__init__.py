@@ -11,7 +11,6 @@ from flask_migrate import Migrate
 from app.utils.db import db
 from app.utils.db_init import init_db, optimize_db
 from app.utils.i18n import init_babel
-from app.utils.cache import init_cache
 from app.utils.rate_limit_helpers import get_remote_address_key
 from config.settings import Config
 
@@ -59,7 +58,6 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     jwt.init_app(app)
     init_babel(app)
-    init_cache(app)
 
     # Import all models in dependency order - MUST happen before any blueprint that uses models
     from app.auth import models as auth_models

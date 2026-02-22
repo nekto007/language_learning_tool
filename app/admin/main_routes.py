@@ -81,44 +81,6 @@ def cleanup_old_imports():
                 os.remove(file_path)
 
 
-# Простое in-memory кэширование для статистики
-_cache = {}
-_cache_timeout = 300  # 5 минут
-
-
-def cache_result(key, timeout=_cache_timeout):
-    """Декоратор для кэширования результатов функций"""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            cache_key = f"{key}_{hash(str(args) + str(kwargs))}"
-
-            # Проверяем кэш
-            if cache_key in _cache:
-                cached_data, cached_time = _cache[cache_key]
-                if (datetime.now(timezone.utc) - cached_time).seconds < timeout:
-                    logger.debug(f"Cache hit for {cache_key}")
-                    return cached_data
-
-            # Выполняем функцию и кэшируем результат
-            result = func(*args, **kwargs)
-            _cache[cache_key] = (result, datetime.now(timezone.utc))
-            logger.debug(f"Cache miss for {cache_key}, result cached")
-
-            return result
-
-        return wrapper
-
-    return decorator
-
-
-def clear_admin_cache():
-    """Очищает административный кэш"""
-    global _cache
-    _cache.clear()
-    logger.info("Admin cache cleared")
-
 
 def handle_admin_errors(return_json=True):
     """Декоратор для обработки ошибок в админ операциях"""
@@ -153,7 +115,7 @@ def handle_admin_errors(return_json=True):
 
 
 # Импорт декоратора из единого места
-from app.admin.utils.decorators import admin_required
+from app.admin.utils.decorators import admin_required, cache_result
 
 
 @cache_result('dashboard_stats', timeout=180)  # Кэш на 3 минуты

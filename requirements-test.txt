@@ -1,0 +1,35 @@
+# Testing requirements for language learning tool
+
+# Core testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-flask>=1.2.0
+pytest-mock>=3.11.1
+
+# JSON schema validation
+jsonschema>=4.19.0
+
+# Coverage reporting
+coverage>=7.3.0
+
+# Test utilities
+faker>=19.6.0
+freezegun>=1.2.2
+
+# Performance testing
+pytest-benchmark>=4.0.0
+
+# Parallel testing
+pytest-xdist>=3.3.1
+
+# Better assertions
+pytest-clarity>=1.0.1
+
+# HTML reports
+pytest-html>=3.2.0
+
+# Timeout for long tests
+pytest-timeout>=2.1.0
+
+# Linting
+ruff>=0.4.0
