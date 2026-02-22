@@ -1386,6 +1386,8 @@ window.FinalTestApp = {
           const index = parseInt(correctAnswer);
           if (index >= 0 && index < question.options.length) {
             correctText = question.options[index];
+          } else if (index >= 1 && index <= question.options.length) {
+            correctText = question.options[index - 1];  // 1-indexed fallback
           } else {
             correctText = correctAnswer;
           }

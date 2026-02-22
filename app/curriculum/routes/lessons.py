@@ -567,6 +567,25 @@ def render_quiz_lesson(lesson):
                             for p in question['pairs']
                         )
 
+                    # Convert index-based answers to text for multiple_choice
+                    q_type = question.get('type', '')
+                    if q_type in ('multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion') and 'options' in question:
+                        opts = question['options']
+                        if isinstance(correct_answer, int) and 0 <= correct_answer < len(opts):
+                            correct_answer = opts[correct_answer]
+                        elif isinstance(correct_answer, str) and correct_answer.isdigit():
+                            ca_idx = int(correct_answer)
+                            if 0 <= ca_idx < len(opts):
+                                correct_answer = opts[ca_idx]
+                            elif 1 <= ca_idx <= len(opts):
+                                correct_answer = opts[ca_idx - 1]
+                        if isinstance(user_answer, str) and user_answer.isdigit():
+                            ua_idx = int(user_answer)
+                            if 0 <= ua_idx < len(opts):
+                                user_answer = opts[ua_idx]
+                            elif 1 <= ua_idx <= len(opts):
+                                user_answer = opts[ua_idx - 1]
+
                     if is_correct:
                         feedback[str(q_idx)] = {
                             'status': 'correct',
@@ -1594,6 +1613,25 @@ def quiz_lesson(lesson_id):
                             f"{p.get('left', '')} → {p.get('right', '')}"
                             for p in question['pairs']
                         )
+
+                    # Convert index-based answers to text for multiple_choice
+                    q_type = question.get('type', '')
+                    if q_type in ('multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion') and 'options' in question:
+                        opts = question['options']
+                        if isinstance(correct_answer, int) and 0 <= correct_answer < len(opts):
+                            correct_answer = opts[correct_answer]
+                        elif isinstance(correct_answer, str) and correct_answer.isdigit():
+                            ca_idx = int(correct_answer)
+                            if 0 <= ca_idx < len(opts):
+                                correct_answer = opts[ca_idx]
+                            elif 1 <= ca_idx <= len(opts):
+                                correct_answer = opts[ca_idx - 1]
+                        if isinstance(user_answer, str) and user_answer.isdigit():
+                            ua_idx = int(user_answer)
+                            if 0 <= ua_idx < len(opts):
+                                user_answer = opts[ua_idx]
+                            elif 1 <= ua_idx <= len(opts):
+                                user_answer = opts[ua_idx - 1]
 
                     if is_correct:
                         feedback[str(q_idx)] = {

@@ -905,45 +905,43 @@ def process_quiz_submission(questions, answers):
                 is_correct = False
 
 
+        # Конвертируем индексы в текст для отображения (общая логика для correct/incorrect)
+        display_user = user_answer
+        display_correct = correct_answer
+        if question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice') and 'options' in question:
+            opts = question['options']
+            # correct_answer → text
+            if isinstance(correct_answer, int) and 0 <= correct_answer < len(opts):
+                display_correct = opts[correct_answer]
+            elif isinstance(correct_answer, str) and correct_answer.isdigit():
+                idx = int(correct_answer)
+                if 0 <= idx < len(opts):
+                    display_correct = opts[idx]
+                elif 1 <= idx <= len(opts):
+                    display_correct = opts[idx - 1]
+            # user_answer → text
+            if isinstance(user_answer, str) and user_answer.isdigit():
+                uidx = int(user_answer)
+                if 0 <= uidx < len(opts):
+                    display_user = opts[uidx]
+                elif 1 <= uidx <= len(opts):
+                    display_user = opts[uidx - 1]
+
         # Формируем обратную связь
         if is_correct:
             correct_count += 1
             feedback[str(i)] = {
                 'status': 'correct',
                 'message': 'Правильно!',
-                'user_answer': user_answer,
-                'correct_answer': correct_answer
+                'user_answer': display_user,
+                'correct_answer': display_correct
             }
         else:
             # Определяем текст правильного ответа для отображения
-            if question_type == 'multiple_choice' and 'options' in question:
-                # Получаем правильный текст ответа
-                if isinstance(correct_answer, int) and 0 <= correct_answer < len(question['options']):
-                    # correct_answer is an index
-                    correct_text = question['options'][correct_answer]
-                elif isinstance(correct_answer, str) and correct_answer.isdigit():
-                    # correct_answer is a string index
-                    idx = int(correct_answer)
-                    if 0 <= idx < len(question['options']):
-                        correct_text = question['options'][idx]
-                    elif 1 <= idx <= len(question['options']):
-                        correct_text = question['options'][idx - 1]  # 1-indexed fallback
-                    else:
-                        correct_text = str(correct_answer)
-                else:
-                    # correct_answer is the actual text
-                    correct_text = str(correct_answer)
-
-                if isinstance(user_answer, str) and user_answer.isdigit():
-                    user_idx = int(user_answer)
-                    if 0 <= user_idx < len(question['options']):
-                        user_text = question['options'][user_idx]
-                    elif 1 <= user_idx <= len(question['options']):
-                        user_text = question['options'][user_idx - 1]  # 1-indexed fallback
-                    else:
-                        user_text = user_answer
-                else:
-                    user_text = str(user_answer)
+            if question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice') and 'options' in question:
+                # Уже сконвертировано выше в display_correct / display_user
+                correct_text = str(display_correct)
+                user_text = str(display_user)
 
             elif question_type == 'true_false':
                 correct_text = 'Правда' if correct_answer else 'Ложь'

@@ -957,8 +957,10 @@
     {# Если ответ - индекс, преобразуем в текст опции #}
     {% if answer is number or (answer|string).isdigit() %}
       {% set idx = answer|int %}
-      {% if idx < question.options|length %}
+      {% if idx >= 0 and idx < question.options|length %}
         {{ question.options[idx] }}
+      {% elif idx >= 1 and idx <= question.options|length %}
+        {{ question.options[idx - 1] }}
       {% else %}
         {{ answer }}
       {% endif %}
