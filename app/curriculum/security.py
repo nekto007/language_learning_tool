@@ -172,19 +172,40 @@ def check_lesson_access(lesson_id: int) -> bool:
     if not lesson:
         return False
 
-    # Check if user has started any lesson in this module
-    module_progress = LessonProgress.query.filter_by(
-        user_id=current_user.id
-    ).join(Lessons).filter(
-        Lessons.module_id == lesson.module_id
+    # Already completed lessons are always accessible (for review)
+    own_progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson_id,
     ).first()
-
-    # If user has progress in this module, they can access it
-    if module_progress:
+    if own_progress and own_progress.status == 'completed':
         return True
 
-    # Fall back to module-level access check (handles previous module completion)
-    return check_module_access(lesson.module_id)
+    # First lesson in module — check module-level access
+    module_lessons = Lessons.query.filter_by(
+        module_id=lesson.module_id,
+    ).order_by(Lessons.order).all()
+
+    if not module_lessons:
+        return False
+
+    if lesson.id == module_lessons[0].id:
+        return check_module_access(lesson.module_id)
+
+    # Otherwise, previous lesson in order must be completed
+    prev_lesson = None
+    for ml in module_lessons:
+        if ml.id == lesson.id:
+            break
+        prev_lesson = ml
+
+    if prev_lesson is None:
+        return check_module_access(lesson.module_id)
+
+    prev_progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=prev_lesson.id,
+    ).first()
+    return prev_progress is not None and prev_progress.status == 'completed'
 
 
 def check_module_access(module_id: int) -> bool:

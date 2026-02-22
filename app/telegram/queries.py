@@ -384,13 +384,21 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                         Lessons.module_id == next_mod.id,
                     ).order_by(Lessons.order).first()
             if extra:
-                extra_module = Module.query.get(extra.module_id)
-                bonus['extra_lesson'] = {
-                    'title': extra.title,
-                    'lesson_id': extra.id,
-                    'module_number': extra_module.number if extra_module else None,
-                    'lesson_type': extra.type,
-                }
+                bonus_completed_today = LessonProgress.query.filter(
+                    LessonProgress.user_id == user_id,
+                    LessonProgress.lesson_id == extra.id,
+                    LessonProgress.status == 'completed',
+                    LessonProgress.completed_at >= today_start,
+                    LessonProgress.completed_at < today_end,
+                ).first()
+                if not bonus_completed_today:
+                    extra_module = Module.query.get(extra.module_id)
+                    bonus['extra_lesson'] = {
+                        'title': extra.title,
+                        'lesson_id': extra.id,
+                        'module_number': extra_module.number if extra_module else None,
+                        'lesson_type': extra.type,
+                    }
     bonus['extra_reading'] = book_to_read is not None or bool(started_book_ids)
 
     return {

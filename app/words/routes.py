@@ -441,10 +441,7 @@ def daily_plan_next_step() -> tuple:
 
     if daily_plan.get('grammar_topic'):
         gt = daily_plan['grammar_topic']
-        if gt['status'] == 'not_started':
-            grammar_url = url_for('grammar_lab.topic_detail', topic_id=gt['topic_id'])
-        else:
-            grammar_url = url_for('grammar_lab.practice', topic_id=gt['topic_id'])
+        grammar_url = url_for('grammar_lab.topic_detail', topic_id=gt['topic_id'])
         steps.append({
             'type': 'grammar',
             'title': f"Grammar Lab \u2014 {gt['title']}",

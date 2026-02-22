@@ -86,10 +86,10 @@
                 </div>
                 {% if plan_completion.grammar %}
                 <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% elif daily_plan.grammar_topic.status == 'not_started' %}
-                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=daily_plan.grammar_topic.topic_id) }}?from=daily_plan" class="dash-step__btn">&#1058;&#1077;&#1086;&#1088;&#1080;&#1103;</a>
                 {% else %}
-                <a href="{{ url_for('grammar_lab.practice', topic_id=daily_plan.grammar_topic.topic_id) }}?from=daily_plan" class="dash-step__btn">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072;</a>
+                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=daily_plan.grammar_topic.topic_id) }}?from=daily_plan" class="dash-step__btn">
+                    {% if daily_plan.grammar_topic.status == 'not_started' %}&#1058;&#1077;&#1086;&#1088;&#1080;&#1103;{% else %}&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100;{% endif %}
+                </a>
                 {% endif %}
             </div>
         </div>

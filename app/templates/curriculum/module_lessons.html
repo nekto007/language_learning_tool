@@ -103,22 +103,19 @@
           {% set is_completed = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
           {% set is_in_progress = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'in_progress' %}
 
-          {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок завершён #}
+          {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок в списке завершён #}
           {% set is_available = false %}
-          {% if lesson.number == 1 %}
+          {% if loop.first %}
             {% set is_available = true %}
           {% elif is_completed %}
             {# Завершённые уроки всегда доступны для повторения #}
             {% set is_available = true %}
           {% else %}
-            {# Проверяем, завершён ли предыдущий урок #}
-            {% for l in lessons %}
-              {% if l.number == lesson.number - 1 %}
-                {% if l.id in user_lesson_progress and user_lesson_progress[l.id].status == 'completed' %}
-                  {% set is_available = true %}
-                {% endif %}
-              {% endif %}
-            {% endfor %}
+            {# Проверяем, завершён ли предыдущий урок по позиции в списке #}
+            {% set prev_lesson = lessons[loop.index0 - 1] %}
+            {% if prev_lesson.id in user_lesson_progress and user_lesson_progress[prev_lesson.id].status == 'completed' %}
+              {% set is_available = true %}
+            {% endif %}
           {% endif %}
 
           {# Текущий урок - первый доступный незавершённый #}

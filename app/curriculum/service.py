@@ -926,6 +926,8 @@ def process_quiz_submission(questions, answers):
                     idx = int(correct_answer)
                     if 0 <= idx < len(question['options']):
                         correct_text = question['options'][idx]
+                    elif 1 <= idx <= len(question['options']):
+                        correct_text = question['options'][idx - 1]  # 1-indexed fallback
                     else:
                         correct_text = str(correct_answer)
                 else:
@@ -936,6 +938,8 @@ def process_quiz_submission(questions, answers):
                     user_idx = int(user_answer)
                     if 0 <= user_idx < len(question['options']):
                         user_text = question['options'][user_idx]
+                    elif 1 <= user_idx <= len(question['options']):
+                        user_text = question['options'][user_idx - 1]  # 1-indexed fallback
                     else:
                         user_text = user_answer
                 else:
