@@ -2,12 +2,11 @@
 """
 Unified SRS Statistics Service.
 
-Provides consistent statistics across all SRS-enabled modules:
+Single source of truth for SRS statistics across all modules:
 - Words/Cards (via UserCardDirection)
 - Grammar (via UserGrammarExercise)
-- Curriculum (future)
 
-This ensures a unified format for counters displayed across the app.
+Uses count_srs_states() utility for all state counting.
 """
 
 from datetime import datetime, timezone
@@ -21,14 +20,19 @@ from app.study.models import UserWord, UserCardDirection, QuizDeck, QuizDeckWord
 from app.grammar_lab.models import (
     UserGrammarExercise, GrammarExercise, GrammarTopic, UserGrammarTopicStatus
 )
-from app.srs.constants import CardState
+from app.srs.utils import count_srs_states, count_srs_states_with_accuracy
+from app.srs.mixins import SRSFieldsMixin
 
 logger = logging.getLogger(__name__)
 
 
-# Thresholds for mastered status (in days) — canonical source: app/srs/constants.py
-from app.srs.constants import MASTERED_THRESHOLD_DAYS as MASTERED_INTERVAL_THRESHOLD
-from app.srs.constants import MATURE_THRESHOLD_DAYS as MATURE_INTERVAL_THRESHOLD
+class _NewPlaceholder(SRSFieldsMixin):
+    """Represents an exercise/card with no user progress (= new)."""
+    state = 'new'
+    interval = 0
+    next_review = None
+    correct_count = 0
+    incorrect_count = 0
 
 
 class SRSStatsService:
@@ -63,8 +67,6 @@ class SRSStatsService:
         Returns:
             Dict with stats (new_count, learning_count, review_count, mastered_count, total, due_today)
         """
-        now = datetime.now(timezone.utc)
-
         # Build base query for UserCardDirection
         base_query = (
             db.session.query(UserCardDirection)
@@ -87,43 +89,8 @@ class SRSStatsService:
         # Only count one direction to avoid double counting words
         base_query = base_query.filter(UserCardDirection.direction == 'eng-rus')
 
-        # Get all cards for counting
         cards = base_query.all()
-
-        new_count = 0
-        learning_count = 0
-        review_count = 0
-        mastered_count = 0
-        due_today = 0
-
-        for card in cards:
-            state = card.state or CardState.NEW.value
-
-            if state == CardState.NEW.value:
-                new_count += 1
-            elif state in (CardState.LEARNING.value, CardState.RELEARNING.value):
-                learning_count += 1
-                if card.next_review and card.next_review <= now:
-                    due_today += 1
-            elif state == CardState.REVIEW.value:
-                if card.interval and card.interval >= MASTERED_INTERVAL_THRESHOLD:
-                    mastered_count += 1
-                else:
-                    review_count += 1
-                if card.next_review and card.next_review <= now:
-                    due_today += 1
-
-        # Add new cards to due_today (they're always due)
-        due_today += new_count
-
-        return {
-            'new_count': new_count,
-            'learning_count': learning_count,
-            'review_count': review_count,
-            'mastered_count': mastered_count,
-            'total': new_count + learning_count + review_count + mastered_count,
-            'due_today': due_today
-        }
+        return count_srs_states(cards)
 
     @staticmethod
     def get_grammar_stats(
@@ -142,8 +109,6 @@ class SRSStatsService:
         Returns:
             Dict with stats (new_count, learning_count, review_count, mastered_count, total, due_today)
         """
-        now = datetime.now(timezone.utc)
-
         # Get exercise IDs based on filters
         exercise_query = GrammarExercise.query
 
@@ -164,55 +129,20 @@ class SRSStatsService:
                 'due_today': 0
             }
 
-        # Get user progress for these exercises
         progress_records = UserGrammarExercise.query.filter(
             UserGrammarExercise.user_id == user_id,
             UserGrammarExercise.exercise_id.in_(exercise_ids)
         ).all()
 
-        # Create lookup for quick access
         progress_map = {p.exercise_id: p for p in progress_records}
 
-        new_count = 0
-        learning_count = 0
-        review_count = 0
-        mastered_count = 0
-        due_today = 0
-
+        # Build list: real progress or placeholder for unstarted exercises
+        items = []
         for exercise_id in exercise_ids:
             progress = progress_map.get(exercise_id)
+            items.append(progress if progress else _NewPlaceholder())
 
-            if not progress:
-                # No progress = new exercise
-                new_count += 1
-                due_today += 1  # New items are always due
-                continue
-
-            state = progress.state or CardState.NEW.value
-
-            if state == CardState.NEW.value:
-                new_count += 1
-                due_today += 1
-            elif state in (CardState.LEARNING.value, CardState.RELEARNING.value):
-                learning_count += 1
-                if progress.next_review and progress.next_review <= now:
-                    due_today += 1
-            elif state == CardState.REVIEW.value:
-                if progress.interval and progress.interval >= MASTERED_INTERVAL_THRESHOLD:
-                    mastered_count += 1
-                else:
-                    review_count += 1
-                if progress.next_review and progress.next_review <= now:
-                    due_today += 1
-
-        return {
-            'new_count': new_count,
-            'learning_count': learning_count,
-            'review_count': review_count,
-            'mastered_count': mastered_count,
-            'total': len(exercise_ids),
-            'due_today': due_today
-        }
+        return count_srs_states(items)
 
     @staticmethod
     def get_stats(
