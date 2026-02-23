@@ -49,9 +49,18 @@
                                 {% for option in question.options %}
                                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                         {{ option }}
-                                        {% if question.correct_answer and option == question.correct_answer %}
-                                            <span class="badge bg-success">Правильный</span>
-                                        {% elif question.correct_answers and option in question.correct_answers %}
+                                        {% if question.correct_answer is not none %}
+                                            {% if option == question.correct_answer %}
+                                                <span class="badge bg-success">Правильный</span>
+                                            {% elif question.correct_answer is number and question.correct_answer == loop.index0 %}
+                                                <span class="badge bg-success">Правильный</span>
+                                            {% elif (question.correct_answer|string).isdigit() and (question.correct_answer|int) == loop.index0 %}
+                                                <span class="badge bg-success">Правильный</span>
+                                            {% elif (question.correct_answer|string).isdigit() and (question.correct_answer|int) == loop.index %}
+                                                <span class="badge bg-success">Правильный</span>
+                                            {% endif %}
+                                        {% endif %}
+                                        {% if question.correct_answers and option in question.correct_answers %}
                                             <span class="badge bg-success">Правильный</span>
                                         {% endif %}
                                     </li>
