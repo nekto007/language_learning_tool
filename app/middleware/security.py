@@ -2,44 +2,52 @@
 Security middleware for Flask application.
 Adds security headers to all responses.
 """
-from flask import Flask, request
+import secrets
+
+from flask import Flask, g, request
 
 
 def add_security_headers(app: Flask):
     """
     Add security headers to all HTTP responses.
-    
+
     Args:
         app (Flask): Flask application instance
     """
-    
+
+    @app.before_request
+    def _generate_csp_nonce():
+        """Generate a per-request nonce for CSP script-src."""
+        g.csp_nonce = secrets.token_urlsafe(16)
+
     @app.after_request
     def set_security_headers(response):
         """Set security headers on all responses."""
-        
+
         # Prevent clickjacking attacks
         response.headers['X-Frame-Options'] = 'DENY'
-        
+
         # Prevent MIME type sniffing
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        
+
         # Enable XSS protection (legacy browsers)
         response.headers['X-XSS-Protection'] = '1; mode=block'
-        
+
         # Force HTTPS in production
         if app.config.get('ENV') == 'production':
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
-        
-        # Content Security Policy - restrictive but functional
+
+        # Content Security Policy
         # Allow iframe embedding for email template preview routes
         if request.path.startswith('/admin/reminders/preview/'):
             frame_ancestors = "'self'"
         else:
             frame_ancestors = "'none'"
 
+        nonce = getattr(g, 'csp_nonce', '')
         csp_policy = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+            f"script-src 'self' 'unsafe-inline' 'nonce-{nonce}' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com; "
             "font-src 'self' data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "

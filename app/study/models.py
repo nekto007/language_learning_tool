@@ -202,6 +202,7 @@ class UserWord(db.Model):
         Index('idx_user_word_user_id', 'user_id'),
         Index('idx_user_word_word_id', 'word_id'),
         Index('idx_user_word_status', 'status'),
+        Index('idx_user_word_user_status', 'user_id', 'status'),
     )
 
     def __init__(self, user_id, word_id):
@@ -358,6 +359,7 @@ class UserCardDirection(db.Model):
         Index('idx_card_direction_next_review', 'next_review'),
         Index('idx_card_direction_state', 'state'),
         Index('idx_card_direction_buried_until', 'buried_until'),
+        Index('idx_card_direction_state_review', 'state', 'next_review'),
     )
 
     def __repr__(self):

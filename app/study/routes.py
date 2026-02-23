@@ -881,10 +881,17 @@ def update_study_item():
     """Update study item after review with Anki-like state machine."""
     from app.srs.constants import CardState
 
-    data = request.json
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+    data = request.json or {}
     word_id = data.get('word_id')
+    if not word_id:
+        return jsonify({'success': False, 'error': 'word_id is required'}), 400
     direction_str = data.get('direction', 'eng-rus')
-    quality = int(data.get('quality', 0))  # 1-3 rating
+    try:
+        quality = int(data.get('quality', 0))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid quality value'}), 400
     session_id = data.get('session_id')
     is_new = data.get('is_new', False)
     deck_id = data.get('deck_id')  # Optional deck_id for per-deck limits
@@ -1414,7 +1421,9 @@ def _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken
 @login_required
 def complete_matching_game():
     """Process a completed matching game with server-side score validation"""
-    data = request.json
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+    data = request.json or {}
     session_id = data.get('session_id')
     difficulty = data.get('difficulty', 'easy')
 
@@ -1566,7 +1575,9 @@ def complete_quiz():
     from app.study.models import QuizDeck, QuizResult
     from app.study.xp_service import XPService
 
-    data = request.json
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+    data = request.json or {}
     session_id = data.get('session_id')
     deck_id = data.get('deck_id')
     score = data.get('score', 0)
@@ -1791,8 +1802,17 @@ def edit_deck(deck_id):
         reviews_limit_str = request.form.get('reviews_per_day', '').strip()
 
         # Convert to int or 0 (which means use global settings)
-        new_words_per_day = int(new_words_limit_str) if new_words_limit_str else 0
-        reviews_per_day = int(reviews_limit_str) if reviews_limit_str else 0
+        try:
+            new_words_per_day = int(new_words_limit_str) if new_words_limit_str else 0
+            reviews_per_day = int(reviews_limit_str) if reviews_limit_str else 0
+        except (ValueError, TypeError):
+            flash('Лимиты должны быть числами', 'danger')
+            words = deck.words.order_by(QuizDeckWord.order_index).all()
+            return render_template('study/deck_edit.html', deck=deck, words=words)
+
+        # Clamp to reasonable range
+        new_words_per_day = max(0, min(new_words_per_day, 1000))
+        reviews_per_day = max(0, min(reviews_per_day, 10000))
 
         if not title:
             flash('Название колоды обязательно', 'danger')
@@ -1841,8 +1861,21 @@ def deck_settings(deck_id):
         reviews_limit_str = request.form.get('reviews_per_day', '').strip()
 
         # Convert to int or None (None means use global settings)
-        deck.new_words_per_day = int(new_words_limit_str) if new_words_limit_str else None
-        deck.reviews_per_day = int(reviews_limit_str) if reviews_limit_str else None
+        try:
+            new_words_val = int(new_words_limit_str) if new_words_limit_str else None
+            reviews_val = int(reviews_limit_str) if reviews_limit_str else None
+        except (ValueError, TypeError):
+            flash('Лимиты должны быть числами', 'danger')
+            return redirect(url_for('study.deck_settings', deck_id=deck_id))
+
+        # Clamp to reasonable range
+        if new_words_val is not None:
+            new_words_val = max(0, min(new_words_val, 1000))
+        if reviews_val is not None:
+            reviews_val = max(0, min(reviews_val, 10000))
+
+        deck.new_words_per_day = new_words_val
+        deck.reviews_per_day = reviews_val
 
         db.session.commit()
         flash('Настройки колоды сохранены!', 'success')
