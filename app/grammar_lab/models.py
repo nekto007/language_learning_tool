@@ -12,6 +12,7 @@ Models:
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
+from app.srs.constants import MASTERED_THRESHOLD_DAYS as _MASTERED_DAYS, MATURE_THRESHOLD_DAYS as _MATURE_DAYS
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 from app.utils.types import JSONBCompat
@@ -315,9 +316,9 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
     """
     __tablename__ = 'user_grammar_exercises'
 
-    # Thresholds for mature/mastered — keep in sync with app/srs/constants.py
-    MATURE_THRESHOLD_DAYS = 21
-    MASTERED_THRESHOLD_DAYS = 180
+    # Thresholds for mature/mastered — canonical source: app/srs/constants.py
+    MATURE_THRESHOLD_DAYS = _MATURE_DAYS
+    MASTERED_THRESHOLD_DAYS = _MASTERED_DAYS
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import Index, func
 from sqlalchemy.ext.hybrid import hybrid_property
 
+from app.srs.constants import MASTERED_THRESHOLD_DAYS as _MASTERED_DAYS, MATURE_THRESHOLD_DAYS as _MATURE_DAYS
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 
@@ -180,8 +181,8 @@ class UserWord(db.Model):
     __tablename__ = 'user_words'
 
     # Thresholds for mature/mastered (in days) — canonical source: app/srs/constants.py
-    MATURE_THRESHOLD_DAYS = 21
-    MASTERED_THRESHOLD_DAYS = 180
+    MATURE_THRESHOLD_DAYS = _MATURE_DAYS
+    MASTERED_THRESHOLD_DAYS = _MASTERED_DAYS
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)

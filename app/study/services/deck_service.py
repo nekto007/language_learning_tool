@@ -8,10 +8,9 @@ Responsibilities:
 """
 from typing import List, Dict, Tuple, Optional
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 
 from app.utils.db import db
-from app.study.models import QuizDeck, QuizDeckWord, UserWord, UserCardDirection
+from app.study.models import QuizDeck, QuizDeckWord, UserWord
 from app.words.models import CollectionWords
 
 
@@ -49,114 +48,6 @@ class DeckService:
     def get_deck_with_words(cls, deck_id: int) -> Optional[QuizDeck]:
         """Get deck with words (words use lazy='dynamic' so no eager loading needed)"""
         return QuizDeck.query.get(deck_id)
-
-    @classmethod
-    def get_deck_statistics(cls, deck_id: int, user_id: int) -> Dict:
-        """
-        Get detailed statistics for a deck.
-
-        Uses direct user_word relationship when available for efficiency.
-        Falls back to word_id lookup for legacy records without user_word_id.
-        """
-        from sqlalchemy.orm import joinedload
-
-        deck = cls.get_deck_with_words(deck_id)
-        if not deck:
-            return None
-
-        # Load deck words with user_word relationship eagerly
-        deck_words = deck.words.options(
-            joinedload(QuizDeckWord.user_word)
-        ).all()
-
-        if not deck_words:
-            return {
-                'total': 0,
-                'new': 0,
-                'learning': 0,
-                'review': 0,
-                'mastered': 0
-            }
-
-        # Collect word_ids that need fallback lookup (no user_word_id set)
-        fallback_word_ids = []
-        for dw in deck_words:
-            if dw.word_id and not dw.user_word_id:
-                fallback_word_ids.append(dw.word_id)
-
-        # Fallback: load UserWords for deck_words without user_word_id
-        fallback_user_words = {}
-        if fallback_word_ids:
-            user_words = UserWord.query.filter(
-                UserWord.user_id == user_id,
-                UserWord.word_id.in_(fallback_word_ids)
-            ).all()
-            fallback_user_words = {uw.word_id: uw for uw in user_words}
-
-        # Get min intervals for mastered calculation
-        # Collect all user_word_ids we need to check
-        user_word_ids_to_check = []
-        for dw in deck_words:
-            if dw.user_word and dw.user_word.status == 'review':
-                user_word_ids_to_check.append(dw.user_word.id)
-        for word_id, uw in fallback_user_words.items():
-            if uw.status == 'review':
-                user_word_ids_to_check.append(uw.id)
-
-        min_intervals = {}
-        if user_word_ids_to_check:
-            interval_data = db.session.query(
-                UserCardDirection.user_word_id,
-                func.min(UserCardDirection.interval).label('min_interval')
-            ).filter(
-                UserCardDirection.user_word_id.in_(user_word_ids_to_check)
-            ).group_by(UserCardDirection.user_word_id).all()
-            min_intervals = {uw_id: min_int for uw_id, min_int in interval_data}
-
-        # Count by status
-        new_count = 0
-        learning_count = 0
-        review_count = 0
-        mastered_count = 0
-        total_with_word_id = 0
-
-        for dw in deck_words:
-            if not dw.word_id:
-                # Custom word without word_id - count as new
-                new_count += 1
-                continue
-
-            total_with_word_id += 1
-
-            # Get user_word: prefer direct relationship, fallback to lookup
-            user_word = dw.user_word
-            if not user_word and dw.word_id in fallback_user_words:
-                user_word = fallback_user_words[dw.word_id]
-
-            if not user_word:
-                new_count += 1
-            else:
-                status = user_word.status
-                if status == 'new':
-                    new_count += 1
-                elif status == 'learning':
-                    learning_count += 1
-                elif status == 'review':
-                    min_int = min_intervals.get(user_word.id, 0)
-                    if min_int >= UserWord.MASTERED_THRESHOLD_DAYS:
-                        mastered_count += 1
-                    else:
-                        review_count += 1
-                elif status == 'mastered':
-                    mastered_count += 1
-
-        return {
-            'total': len(deck_words),
-            'new': new_count,
-            'learning': learning_count,
-            'review': review_count,
-            'mastered': mastered_count
-        }
 
     @classmethod
     def create_deck(cls, user_id: int, title: str, description: str = "", is_public: bool = False) -> QuizDeck:
