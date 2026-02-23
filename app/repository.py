@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import os
 
 from config.settings import DB_CONFIG
+from app.utils.audio import get_clean_audio_filename
 from app.words.models import CollectionWords as Word
 from app.books.models import Book
 
@@ -149,7 +150,7 @@ class DatabaseRepository:
                     if words_to_update:
                         update_query = """
                             UPDATE collection_words
-                            SET listening = COALESCE(%s, listening),
+                            SET listening = COALESCE(listening, %s),
                                 russian_word = COALESCE(%s, russian_word),
                                 sentences = COALESCE(%s, sentences),
                                 level = COALESCE(%s, level),
@@ -610,8 +611,7 @@ class DatabaseRepository:
                                 english_word, russian_translate, english_sentence, russian_sentence, level = parts
 
                                 # Form path to audio file
-                                sound_file = english_word.replace(" ", "_").lower()
-                                listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
+                                listening = get_clean_audio_filename(english_word)
 
                                 # Update information in database
                                 update_query = f"""
@@ -684,8 +684,7 @@ class DatabaseRepository:
                                 base_word_id = result[0] if result else None
 
                                 # Form path to audio file
-                                sound_file = phrasal_verb.lower().replace(" ", "_")
-                                listening = f"[sound:pronunciation_en_{sound_file}.mp3]"
+                                listening = get_clean_audio_filename(phrasal_verb)
                                 sentences = f"{english_sentence}<br>{russian_sentence}"
 
                                 # Insert/update phrasal verb in collection_words

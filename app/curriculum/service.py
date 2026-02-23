@@ -6,6 +6,7 @@ from sqlalchemy import Date, cast, func
 
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.study.models import UserCardDirection, UserWord
+from app.utils.audio import normalize_listening
 from app.utils.db import db
 from app.utils.normalization import normalize_text
 from app.words.models import CollectionWords
@@ -2018,7 +2019,7 @@ def sync_lesson_cards_to_words(lesson):
                 if russian and not word.russian_word:
                     word.russian_word = russian
                 if card.get('audio') and not word.listening:
-                    word.listening = card.get('audio')
+                    word.listening = normalize_listening(card.get('audio'), english)
 
                 # Update sentences if we have examples
                 if card.get('example') and card.get('example_translation'):
@@ -2041,7 +2042,7 @@ def sync_lesson_cards_to_words(lesson):
                 word = CollectionWords(
                     english_word=english,
                     russian_word=russian,
-                    listening=card.get('audio', ''),
+                    listening=normalize_listening(card.get('audio', ''), english),
                     sentences=sentences_text,
                     level='A0',  # Default level
                     get_download=1 if card.get('audio') else 0

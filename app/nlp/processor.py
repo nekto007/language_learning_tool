@@ -638,9 +638,10 @@ def prepare_word_data(words: List[str], brown_words: Set[str]) -> List[Tuple]:
         word_counts[word] = word_counts.get(word, 0) + 1
 
     # Form data
+    from app.utils.audio import get_clean_audio_filename
     for word, frequency in word_counts.items():
         in_brown = word in brown_words
-        listening_link = f"https://forvo.com/word/{word}/#en"
+        listening_link = get_clean_audio_filename(word)
         data.append((word, listening_link, int(in_brown), frequency))
 
     return data

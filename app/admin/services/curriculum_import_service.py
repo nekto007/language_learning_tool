@@ -16,6 +16,7 @@ from app.auth.models import User
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.study.models import UserWord
+from app.utils.audio import normalize_listening
 from app.utils.db import db
 from app.words.models import Collection, CollectionWordLink, CollectionWords
 
@@ -83,7 +84,7 @@ class CurriculumImportService:
                     russian_word=translation,
                     level=level_code,
                     frequency_rank=word_data.get('frequency_rank', 0),
-                    listening=word_data.get('audio', ''),
+                    listening=normalize_listening(word_data.get('audio', ''), english_word),
                     sentences=sentences_text
                 )
                 db.session.add(word)
@@ -97,7 +98,7 @@ class CurriculumImportService:
                 word.russian_word = translation
                 # Update listening and sentences if provided
                 if word_data.get('audio'):
-                    word.listening = word_data['audio']
+                    word.listening = normalize_listening(word_data['audio'], english_word)
                 if sentences_text:
                     word.sentences = sentences_text
 

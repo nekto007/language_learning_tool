@@ -7,6 +7,7 @@
 import logging
 
 from app.words.models import CollectionWords
+from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -86,20 +87,8 @@ class AudioManagementService:
             logger.error(f"Error updating audio download status: {str(e)}")
             raise
 
-    @staticmethod
-    def _get_clean_audio_filename(english_word: str) -> str:
-        """
-        Генерирует чистое имя аудио файла для слова
-
-        Args:
-            english_word: Английское слово
-
-        Returns:
-            str: Имя файла вида pronunciation_en_word.mp3
-        """
-        # Заменяем пробелы на подчеркивания для составных слов (breaking news -> breaking_news)
-        word_slug = english_word.lower().replace(' ', '_')
-        return f"pronunciation_en_{word_slug}.mp3"
+    # Backward-compatible alias
+    _get_clean_audio_filename = staticmethod(get_clean_audio_filename)
 
     @staticmethod
     def fix_listening_fields():

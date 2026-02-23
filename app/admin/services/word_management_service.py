@@ -10,6 +10,7 @@ from sqlalchemy import func
 from app.auth.models import User
 from app.books.models import Book
 from app.study.models import UserWord
+from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -292,7 +293,7 @@ class WordManagementService:
                     word.russian_word = word_data['russian_translate']
                     word.sentences = f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}"
                     word.level = word_data['level']
-                    word.listening = f"[sound:pronunciation_en_{word_data['english_word'].replace(' ', '_').lower()}.mp3]"
+                    word.listening = get_clean_audio_filename(word_data['english_word'])
                     updated_count += 1
 
             # Добавляем новые слова (если выбраны)
@@ -304,7 +305,7 @@ class WordManagementService:
                         russian_word=word_data['russian_translate'],
                         sentences=f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}",
                         level=word_data['level'],
-                        listening=f"[sound:pronunciation_en_{english_word_normalized.replace(' ', '_')}.mp3]"
+                        listening=get_clean_audio_filename(english_word_normalized)
                     )
                     db.session.add(new_word)
                     added_count += 1

@@ -24,6 +24,7 @@ from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter
 from app.books.parsers import extract_file_metadata, process_uploaded_book
+from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -258,7 +259,7 @@ def process_phrasal_verbs():
                     usage_context=using.strip(),
                     sentences=f"{english_sentence.strip()}<br>{russian_sentence.strip()}",
                     base_word_id=base_word.id,
-                    listening=f"[sound:pronunciation_en_{phrasal_verb_text.lower().replace(' ', '_')}.mp3]",
+                    listening=get_clean_audio_filename(phrasal_verb_text),
                     get_download=0,
                     item_type='phrasal_verb',
                     level='B1'
