@@ -12,6 +12,7 @@ Models:
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
+from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 from app.utils.types import JSONBCompat
 
@@ -304,7 +305,7 @@ class GrammarAttempt(db.Model):
         return f"<GrammarAttempt user={self.user_id} exercise={self.exercise_id} correct={self.is_correct}>"
 
 
-class UserGrammarExercise(db.Model):
+class UserGrammarExercise(SRSFieldsMixin, db.Model):
     """
     SRS state for a specific exercise per user.
     Analogous to UserCardDirection for words.
@@ -392,17 +393,6 @@ class UserGrammarExercise(db.Model):
         return progress
 
     @property
-    def is_due(self) -> bool:
-        """Check if this exercise is due for review"""
-        if not self.next_review:
-            return True
-        if self.next_review.tzinfo is None:
-            next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
-        else:
-            next_review_aware = self.next_review
-        return datetime.now(timezone.utc) >= next_review_aware
-
-    @property
     def is_buried(self) -> bool:
         """Check if this exercise is currently buried"""
         if not self.buried_until:
@@ -417,19 +407,6 @@ class UserGrammarExercise(db.Model):
     def is_mature(self) -> bool:
         """Exercise is mature if in review state with interval >= 21 days"""
         return self.state == 'review' and self.interval >= self.MATURE_THRESHOLD_DAYS
-
-    @property
-    def is_mastered(self) -> bool:
-        """Exercise is mastered if in review state with interval >= 180 days"""
-        return self.state == 'review' and self.interval >= self.MASTERED_THRESHOLD_DAYS
-
-    @property
-    def accuracy(self) -> float:
-        """Calculate accuracy percentage"""
-        total = self.correct_count + self.incorrect_count
-        if total == 0:
-            return 0.0
-        return round((self.correct_count / total) * 100, 1)
 
     def bury(self, hours: int = 24):
         """Bury this exercise - it won't be shown until the specified time"""

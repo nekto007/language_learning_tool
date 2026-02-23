@@ -161,10 +161,10 @@ def index():
                 UserCardDirection.state == 'review',
                 UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS
             ), 'mastered'),
-            # REVIEW: review + not mastered (interval < 180 or NULL)
+            # REVIEW: review + not mastered (interval < MASTERED_THRESHOLD_DAYS or NULL)
             (and_(
                 UserCardDirection.state == 'review',
-                or_(UserCardDirection.interval.is_(None), UserCardDirection.interval < 180)
+                or_(UserCardDirection.interval.is_(None), UserCardDirection.interval < UserWord.MASTERED_THRESHOLD_DAYS)
             ), 'review'),
             else_='new'
         ).label('category')

@@ -15,10 +15,7 @@ from app.srs.constants import (
     REQUEUE_RANGE_DONT_KNOW,
     REQUEUE_RANGE_DOUBT,
 )
-from app.srs.service import UnifiedSRSService
-
 __all__ = [
-    'UnifiedSRSService',
     'RATING_DONT_KNOW',
     'RATING_DOUBT',
     'RATING_KNOW',

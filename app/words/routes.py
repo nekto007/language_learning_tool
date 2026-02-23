@@ -50,34 +50,16 @@ def dashboard():
     words_minutes = _words_minutes(daily_plan.get('words_due', 0))
 
     # === WORDS STATS ===
-    from app.study.models import UserCardDirection
-
-    status_counts = db.session.query(
-        UserWord.status,
-        func.count(UserWord.id).label('count')
-    ).filter(
-        UserWord.user_id == current_user.id
-    ).group_by(UserWord.status).all()
-
-    words_stats = {'new': 0, 'learning': 0, 'review': 0, 'mastered': 0}
-    for status, count in status_counts:
-        if status in words_stats:
-            words_stats[status] = count
-
-    mastered_count = db.session.query(func.count(func.distinct(UserWord.id))).filter(
-        UserWord.user_id == current_user.id,
-        UserWord.status == 'review'
-    ).join(
-        UserCardDirection, UserCardDirection.user_word_id == UserWord.id
-    ).group_by(UserWord.id).having(
-        func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
-    ).count()
-
-    words_stats['mastered'] = mastered_count
-    words_stats['review'] = max(0, words_stats['review'] - mastered_count)
-
-    words_total = sum(words_stats.values())
-    words_in_progress = words_stats['learning'] + words_stats['review']
+    from app.srs.stats_service import srs_stats_service
+    _wstats = srs_stats_service.get_words_stats(current_user.id)
+    words_stats = {
+        'new': _wstats['new_count'],
+        'learning': _wstats['learning_count'],
+        'review': _wstats['review_count'],
+        'mastered': _wstats['mastered_count'],
+    }
+    words_total = _wstats['total']
+    words_in_progress = _wstats['learning_count'] + _wstats['review_count']
 
     # === BOOKS STATS ===
     books_reading = current_user.get_reading_progress_count() if hasattr(current_user, 'get_reading_progress_count') else 0

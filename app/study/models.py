@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import Index, func
 from sqlalchemy.ext.hybrid import hybrid_property
 
+from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 
 
@@ -314,7 +315,7 @@ class UserWord(db.Model):
         )
 
 
-class UserCardDirection(db.Model):
+class UserCardDirection(SRSFieldsMixin, db.Model):
     """
     Represents a specific direction (eng→rus or rus→eng) for a user's word.
     Tracks spaced repetition parameters for each direction separately.

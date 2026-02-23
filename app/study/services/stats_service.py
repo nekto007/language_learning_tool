@@ -71,40 +71,15 @@ class StatsService:
 
     @staticmethod
     def get_user_word_stats(user_id: int) -> Dict:
-        """Get user's word learning statistics"""
-        from app.study.models import UserCardDirection
-
-        # Count words by status
-        stats = db.session.query(
-            UserWord.status,
-            func.count(UserWord.id)
-        ).filter(
-            UserWord.user_id == user_id
-        ).group_by(
-            UserWord.status
-        ).all()
-
-        status_counts = {status: count for status, count in stats}
-
-        # Mastered = review status + min_interval >= 180 days
-        mastered_count = db.session.query(func.count(UserWord.id)).filter(
-            UserWord.user_id == user_id,
-            UserWord.status == 'review'
-        ).join(
-            UserCardDirection, UserCardDirection.user_word_id == UserWord.id
-        ).group_by(UserWord.id).having(
-            func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
-        ).count()
-
-        # Review count should exclude mastered words
-        review_count = status_counts.get('review', 0) - mastered_count
-
+        """Get user's word learning statistics. Delegates to SRSStatsService."""
+        from app.srs.stats_service import srs_stats_service
+        stats = srs_stats_service.get_words_stats(user_id)
         return {
-            'new': status_counts.get('new', 0),
-            'learning': status_counts.get('learning', 0),
-            'review': max(0, review_count),  # Exclude mastered from review
-            'mastered': mastered_count,
-            'total': sum(status_counts.values())
+            'new': stats['new_count'],
+            'learning': stats['learning_count'],
+            'review': stats['review_count'],
+            'mastered': stats['mastered_count'],
+            'total': stats['total'],
         }
 
     @staticmethod
