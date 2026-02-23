@@ -83,10 +83,28 @@ class GrammarExerciseGrader:
         # correct_value can be index (int) or string (actual answer)
         if isinstance(correct_value, int):
             correct_index = correct_value
-            correct_answer_text = options[correct_index] if 0 <= correct_index < len(options) else str(correct_value)
+            if 0 <= correct_index < len(options):
+                correct_answer_text = options[correct_index]
+            elif 1 <= correct_index <= len(options):
+                correct_answer_text = options[correct_index - 1]  # 1-indexed fallback
+                correct_index = correct_index - 1
+            else:
+                correct_answer_text = str(correct_value)
         elif isinstance(correct_value, str) and correct_value in options:
             correct_index = options.index(correct_value)
             correct_answer_text = correct_value
+        elif isinstance(correct_value, str) and correct_value.isdigit():
+            # String index like "2" or "3"
+            ci = int(correct_value)
+            if 0 <= ci < len(options):
+                correct_index = ci
+                correct_answer_text = options[ci]
+            elif 1 <= ci <= len(options):
+                correct_index = ci - 1
+                correct_answer_text = options[ci - 1]
+            else:
+                correct_index = None
+                correct_answer_text = correct_value
         else:
             # Fallback: treat as string answer
             correct_index = None
@@ -106,15 +124,21 @@ class GrammarExerciseGrader:
                 'user_answer': user_answer_text
             }
 
+        # Resolve user_index to text (with 1-indexed fallback)
+        if 0 <= user_index < len(options):
+            user_answer_text = options[user_index]
+        elif 1 <= user_index <= len(options):
+            user_answer_text = options[user_index - 1]
+            user_index = user_index - 1  # normalize for comparison
+        else:
+            user_answer_text = str(answer)
+
         # User sent index
         if correct_index is not None:
             is_correct = user_index == correct_index
         else:
             # Compare by text
-            user_answer_text = options[user_index] if 0 <= user_index < len(options) else ''
             is_correct = self._normalize_answer(user_answer_text) == self._normalize_answer(correct_answer_text)
-
-        user_answer_text = options[user_index] if 0 <= user_index < len(options) else str(answer)
 
         return {
             'is_correct': is_correct,
