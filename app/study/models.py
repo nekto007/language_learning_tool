@@ -178,7 +178,7 @@ class UserWord(db.Model):
     """
     __tablename__ = 'user_words'
 
-    # Thresholds for mature/mastered (in days)
+    # Thresholds for mature/mastered (in days) — canonical source: app/srs/constants.py
     MATURE_THRESHOLD_DAYS = 21
     MASTERED_THRESHOLD_DAYS = 180
 

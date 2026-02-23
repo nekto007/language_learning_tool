@@ -314,7 +314,7 @@ class UserGrammarExercise(db.Model):
     """
     __tablename__ = 'user_grammar_exercises'
 
-    # Thresholds for mature/mastered (in days)
+    # Thresholds for mature/mastered — keep in sync with app/srs/constants.py
     MATURE_THRESHOLD_DAYS = 21
     MASTERED_THRESHOLD_DAYS = 180
 

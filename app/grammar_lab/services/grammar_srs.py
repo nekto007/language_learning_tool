@@ -128,7 +128,7 @@ class GrammarSRS:
             elif progress.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
                 learning_count += 1
             elif progress.state == CardState.REVIEW.value:
-                if progress.interval >= 180:
+                if progress.interval >= UserGrammarExercise.MASTERED_THRESHOLD_DAYS:
                     mastered_count += 1
                 else:
                     review_count += 1
@@ -204,7 +204,7 @@ class GrammarSRS:
                 elif progress.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
                     learning_count += 1
                 elif progress.state == CardState.REVIEW.value:
-                    if progress.interval >= 180:
+                    if progress.interval >= UserGrammarExercise.MASTERED_THRESHOLD_DAYS:
                         mastered_count += 1
                     else:
                         review_count += 1

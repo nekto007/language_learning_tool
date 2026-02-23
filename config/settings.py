@@ -3,6 +3,7 @@ Settings module for application configuration.
 """
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy.pool import NullPool
@@ -216,7 +217,12 @@ class Config:
 
     # Security
     SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    PERMANENT_SESSION_LIFETIME = timedelta(days=30)
     REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_DURATION = timedelta(days=30)
     
     # CSRF Protection
     WTF_CSRF_ENABLED = True

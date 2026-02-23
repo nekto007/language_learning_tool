@@ -228,7 +228,7 @@ def word_list():
                 )
             )
         elif status == 'mastered':
-            # Mastered = review status + min_interval >= 180 days
+            # Mastered = review status + min_interval >= MASTERED_THRESHOLD_DAYS
             # Используем подзапрос для фильтрации
             from app.study.models import UserCardDirection
             mastered_subquery = db.session.query(UserWord.word_id).filter(

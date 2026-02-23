@@ -199,7 +199,7 @@ class GrammarLabService:
                         UserGrammarExercise.user_id == user_id,
                         UserGrammarExercise.exercise_id.in_(exercise_ids),
                         UserGrammarExercise.state == CardState.REVIEW.value,
-                        UserGrammarExercise.interval >= 180
+                        UserGrammarExercise.interval >= UserGrammarExercise.MASTERED_THRESHOLD_DAYS
                     ).count()
 
                     level_data['exercises_total'] = len(exercise_ids)
@@ -407,7 +407,7 @@ class GrammarLabService:
 
             # Mastery bonus
             if srs_result.get('success') and srs_result.get('state') == CardState.REVIEW.value:
-                if srs_result.get('interval', 0) >= 180:
+                if srs_result.get('interval', 0) >= UserGrammarExercise.MASTERED_THRESHOLD_DAYS:
                     xp_earned += GRAMMAR_XP['exercise_mastered']
 
         if xp_earned > 0:
@@ -475,7 +475,7 @@ class GrammarLabService:
                 topic_status.transition_to('practicing')
                 return True
 
-        # Check for mastery: ALL exercises must be mastered (interval >= 180d)
+        # Check for mastery: ALL exercises must be mastered (interval >= MASTERED_THRESHOLD_DAYS)
         if topic_status.status == 'practicing' and len(progress_records) == len(exercises):
             all_mastered = all(p.is_mastered for p in progress_records)
             if all_mastered:

@@ -168,7 +168,7 @@ def login():
     from app import limiter
     
     # Apply rate limiting to login attempts
-    @limiter.limit("15 per minute")
+    @limiter.limit("10 per minute")
     def _login():
         if current_user.is_authenticated:
             return redirect(url_for('words.dashboard'))

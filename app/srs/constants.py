@@ -116,8 +116,14 @@ DIRECTION_RUS_ENG = 'rus-eng'
 # THRESHOLDS
 # =============================================================================
 
-# Threshold for "mastered" word (both directions must have interval >= this)
+# Threshold for "learned" word (both directions must have interval >= this)
 LEARNED_INTERVAL_THRESHOLD = 35  # days
 
 # Threshold for LEARNING → REVIEW transition
 REVIEW_THRESHOLD_REPETITIONS = 3  # After 3 successful repetitions
+
+# Mature: word is well-known but still being reviewed
+MATURE_THRESHOLD_DAYS = 21
+
+# Mastered: word is fully learned and needs only rare reviews
+MASTERED_THRESHOLD_DAYS = 180

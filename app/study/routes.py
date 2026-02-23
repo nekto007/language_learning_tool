@@ -76,7 +76,7 @@ def index():
         )
     ).count()
 
-    # Mastered = review status + min_interval >= 180 days
+    # Mastered = review status + min_interval >= MASTERED_THRESHOLD_DAYS
     mastered_count = db.session.query(func.count(UserWord.id)).filter(
         UserWord.user_id == current_user.id,
         UserWord.status == 'review'
@@ -156,10 +156,10 @@ def index():
             (or_(UserCardDirection.state == 'new', UserCardDirection.state.is_(None)), 'new'),
             # LEARNING: learning/relearning
             (UserCardDirection.state.in_(['learning', 'relearning']), 'learning'),
-            # MASTERED: review + interval >= 180 days
+            # MASTERED: review + interval >= MASTERED_THRESHOLD_DAYS
             (and_(
                 UserCardDirection.state == 'review',
-                UserCardDirection.interval >= 180
+                UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS
             ), 'mastered'),
             # REVIEW: review + not mastered (interval < 180 or NULL)
             (and_(

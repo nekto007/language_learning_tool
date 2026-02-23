@@ -26,9 +26,9 @@ from app.srs.constants import CardState
 logger = logging.getLogger(__name__)
 
 
-# Thresholds for mastered status (in days)
-MASTERED_INTERVAL_THRESHOLD = 180
-MATURE_INTERVAL_THRESHOLD = 21
+# Thresholds for mastered status (in days) — canonical source: app/srs/constants.py
+from app.srs.constants import MASTERED_THRESHOLD_DAYS as MASTERED_INTERVAL_THRESHOLD
+from app.srs.constants import MATURE_THRESHOLD_DAYS as MATURE_INTERVAL_THRESHOLD
 
 
 class SRSStatsService:
