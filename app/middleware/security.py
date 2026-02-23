@@ -2,9 +2,7 @@
 Security middleware for Flask application.
 Adds security headers to all responses.
 """
-import secrets
-
-from flask import Flask, g, request
+from flask import Flask, request
 
 
 def add_security_headers(app: Flask):
@@ -14,11 +12,6 @@ def add_security_headers(app: Flask):
     Args:
         app (Flask): Flask application instance
     """
-
-    @app.before_request
-    def _generate_csp_nonce():
-        """Generate a per-request nonce for CSP script-src."""
-        g.csp_nonce = secrets.token_urlsafe(16)
 
     @app.after_request
     def set_security_headers(response):
@@ -38,16 +31,17 @@ def add_security_headers(app: Flask):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
 
         # Content Security Policy
-        # Allow iframe embedding for email template preview routes
+        # Note: 'unsafe-inline' is required because the app uses 33+ inline
+        # <script> blocks across templates. A nonce-based approach would require
+        # adding nonce attributes to every inline script tag.
         if request.path.startswith('/admin/reminders/preview/'):
             frame_ancestors = "'self'"
         else:
             frame_ancestors = "'none'"
 
-        nonce = getattr(g, 'csp_nonce', '')
         csp_policy = (
             "default-src 'self'; "
-            f"script-src 'self' 'unsafe-inline' 'nonce-{nonce}' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com; "
             "font-src 'self' data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
