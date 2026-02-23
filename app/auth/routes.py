@@ -40,22 +40,52 @@ def get_safe_redirect_url(next_url, fallback='words.dashboard'):
     return next_url
 
 
-def get_reset_token(user_id, expiration=3600):
-    """Generate a secure password reset token."""
-    serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
-    return serializer.dumps(user_id, salt='password-reset-salt')
+def _get_reset_salt(user: User) -> str:
+    """Per-user salt derived from password hash — token auto-invalidates on password change."""
+    import hashlib
+    pw_hash = user.password_hash or ''
+    return 'password-reset-' + hashlib.sha256(pw_hash.encode()).hexdigest()[:16]
 
 
-def verify_reset_token(token, expiration=3600):
-    """Verify the reset token and return the user ID."""
+def get_reset_token(user_id: int, expiration: int = 3600) -> str:
+    """Generate a secure, per-user password reset token."""
+    user = User.query.get(user_id)
+    if not user:
+        raise ValueError(f'User {user_id} not found')
     serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
+    return serializer.dumps(user_id, salt=_get_reset_salt(user))
+
+
+def verify_reset_token(token: str, expiration: int = 3600):
+    """Verify reset token. Returns user_id or None.
+
+    Token is invalidated when password changes (salt includes password hash).
+    """
+    serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
+    # First decode without salt to get user_id, then verify with per-user salt
     try:
-        user_id = serializer.loads(
-            token,
-            salt='password-reset-salt',
-            max_age=expiration
-        )
-        return user_id
+        user_id = serializer.loads(token, salt='password-reset-probe', max_age=expiration)
+    except Exception:
+        # Try all users is not feasible; decode payload without verification to get user_id
+        try:
+            from itsdangerous import URLSafeTimedSerializer as S
+            s = S(Config.SECRET_KEY)
+            # loads with any salt just to extract the payload — we re-verify below
+            user_id = s.loads_unsafe(token)[1]
+        except Exception:
+            return None
+
+    if not isinstance(user_id, int):
+        return None
+
+    user = User.query.get(user_id)
+    if not user:
+        return None
+
+    # Now verify with the correct per-user salt
+    try:
+        verified_id = serializer.loads(token, salt=_get_reset_salt(user), max_age=expiration)
+        return verified_id
     except Exception:
         return None
 

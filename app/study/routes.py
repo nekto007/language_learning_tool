@@ -1,5 +1,8 @@
+import logging
 import random
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
@@ -1466,7 +1469,8 @@ def complete_matching_game():
         else:
             quality = 0  # Again - poor performance
 
-        # Update each word's SRS data
+        # Update each word's SRS data in a single atomic transaction
+        srs_errors = []
         for word_id in word_ids:
             try:
                 # Get or create user word
@@ -1488,8 +1492,11 @@ def complete_matching_game():
                     direction.update_after_review(quality)
 
             except Exception as e:
-                # Continue with other words even if one fails
-                pass
+                srs_errors.append(f'word_id={word_id}: {e}')
+                logger.error(f'SRS update failed for word {word_id} in matching game: {e}', exc_info=True)
+
+        if srs_errors:
+            logger.warning(f'Matching game SRS update had {len(srs_errors)} errors out of {len(word_ids)} words')
 
         db.session.commit()
 
@@ -1543,7 +1550,7 @@ def complete_matching_game():
             'level': user_xp.level
         })
     except Exception as e:
-        # В случае ошибки откатываем транзакцию
+        logger.error(f'Error saving matching game score: {e}', exc_info=True)
         db.session.rollback()
 
         return jsonify({

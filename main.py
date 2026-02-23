@@ -395,9 +395,9 @@ def update_word_status(args: argparse.Namespace) -> None:
         # Update status for words matching pattern
         query = f"""
             SELECT english_word FROM {COLLECTIONS_TABLE}
-            WHERE english_word LIKE '{pattern}'
+            WHERE english_word LIKE %s
         """
-        result = repo.execute_query(query, fetch=True)
+        result = repo.execute_query(query, (pattern,), fetch=True)
 
         if not result:
             logger.warning(f"No words found matching pattern: {pattern}")

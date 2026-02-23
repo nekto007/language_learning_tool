@@ -28,8 +28,8 @@ def start_polling(app) -> None:
             f'https://api.telegram.org/bot{token}/deleteWebhook',
             timeout=10,
         )
-    except requests.RequestException:
-        pass
+    except requests.RequestException as e:
+        logger.warning('Failed to delete webhook: %s', e)
 
     # Register bot commands menu
     _set_bot_commands(token)
@@ -67,8 +67,8 @@ def _set_bot_commands(token: str) -> None:
         )
         if resp.ok:
             logger.info('Bot commands registered')
-    except requests.RequestException:
-        pass
+    except requests.RequestException as e:
+        logger.warning('Failed to set bot commands: %s', e)
 
 
 def _poll_loop(app, token: str) -> None:

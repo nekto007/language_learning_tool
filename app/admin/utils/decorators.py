@@ -7,22 +7,36 @@ import logging
 from functools import wraps
 from datetime import datetime, timezone
 
-from flask import flash, redirect, url_for, jsonify
+from flask import abort, flash, redirect, request, url_for, jsonify
 from flask_login import current_user, login_required
 
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+audit_logger = logging.getLogger('audit.admin')
 
 
 def admin_required(view_func):
-    """Декоратор для проверки прав администратора"""
+    """Декоратор для проверки прав администратора с аудит-логированием."""
 
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
+            if current_user.is_authenticated:
+                audit_logger.warning(
+                    'Unauthorized admin access attempt: user_id=%s, username=%s, path=%s, ip=%s',
+                    current_user.id, current_user.username, request.path, request.remote_addr
+                )
             flash('У вас нет прав для доступа к этой странице.', 'danger')
             return redirect(url_for('auth.login'))
+
+        # Audit log for state-changing admin actions
+        if request.method in ('POST', 'PUT', 'DELETE', 'PATCH'):
+            audit_logger.info(
+                'Admin action: %s %s by user_id=%s (%s), ip=%s',
+                request.method, request.path, current_user.id,
+                current_user.username, request.remote_addr
+            )
         return view_func(*args, **kwargs)
 
     return login_required(wrapped_view)

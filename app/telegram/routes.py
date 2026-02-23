@@ -66,11 +66,16 @@ def webhook():
     """Receive updates from Telegram Bot API."""
     from app.telegram.bot import handle_update
 
+    # SECURITY: fail-closed — reject if secret not configured
     secret = current_app.config.get('TELEGRAM_WEBHOOK_SECRET')
-    if secret:
-        token = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-        if token != secret:
-            return '', 403
+    if not secret:
+        logger.error('TELEGRAM_WEBHOOK_SECRET not configured — rejecting webhook')
+        return '', 500
+
+    token = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    if not token or token != secret:
+        logger.warning('Webhook request with invalid or missing secret token')
+        return '', 403
 
     data = request.get_json(silent=True)
     if not data:
