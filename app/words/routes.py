@@ -212,8 +212,8 @@ def word_list():
         search_term = f"%{search}%"
         query = query.filter(
             or_(
-                CollectionWords.english_word.like(search_term),
-                CollectionWords.russian_word.like(search_term)
+                CollectionWords.english_word.ilike(search_term),
+                CollectionWords.russian_word.ilike(search_term)
             )
         )
 

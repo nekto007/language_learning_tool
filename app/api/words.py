@@ -66,14 +66,14 @@ def get_words():
         ).where(CollectionWordLink.collection_id == collection_id)
 
     if letter:
-        query = query.where(CollectionWords.english_word.like(f"{letter}%"))
+        query = query.where(CollectionWords.english_word.ilike(f"{letter}%"))
 
     if search:
         search_term = f"%{search}%"
         query = query.where(
             or_(
-                CollectionWords.english_word.like(search_term),
-                CollectionWords.russian_word.like(search_term)
+                CollectionWords.english_word.ilike(search_term),
+                CollectionWords.russian_word.ilike(search_term)
             )
         )
 
@@ -354,8 +354,8 @@ def search_words():
         search_term = f"%{term}%"
         words = CollectionWords.query.filter(
             or_(
-                CollectionWords.english_word.like(search_term),
-                CollectionWords.russian_word.like(search_term)
+                CollectionWords.english_word.ilike(search_term),
+                CollectionWords.russian_word.ilike(search_term)
             )
         ).order_by(CollectionWords.english_word).limit(50).all()
 
