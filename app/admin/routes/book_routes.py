@@ -467,7 +467,7 @@ def edit_book(book_id):
         book.title = request.form.get('title', book.title).strip()
         book.author = request.form.get('author', book.author).strip()
         book.level = request.form.get('level', book.level)
-        book.description = request.form.get('description', book.description)
+        book.summary = request.form.get('description', book.summary)
 
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
