@@ -1478,27 +1478,25 @@ def complete_matching_game():
         else:
             quality = 0  # Again - poor performance
 
-        # Update each word's SRS data in a single atomic transaction
+        # Update each word's SRS data with savepoints for isolation
         srs_errors = []
         for word_id in word_ids:
             try:
-                # Get or create user word
-                user_word = UserWord.get_or_create(current_user.id, word_id)
+                with db.session.begin_nested():
+                    user_word = UserWord.get_or_create(current_user.id, word_id)
 
-                # Update both directions (eng-rus and rus-eng)
-                for direction_str in ['eng-rus', 'rus-eng']:
-                    direction = UserCardDirection.query.filter_by(
-                        user_word_id=user_word.id,
-                        direction=direction_str
-                    ).first()
+                    for direction_str in ['eng-rus', 'rus-eng']:
+                        direction = UserCardDirection.query.filter_by(
+                            user_word_id=user_word.id,
+                            direction=direction_str
+                        ).first()
 
-                    if not direction:
-                        direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
-                        db.session.add(direction)
-                        db.session.flush()
+                        if not direction:
+                            direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
+                            db.session.add(direction)
+                            db.session.flush()
 
-                    # Update with calculated quality
-                    direction.update_after_review(quality)
+                        direction.update_after_review(quality)
 
             except Exception as e:
                 srs_errors.append(f'word_id={word_id}: {e}')

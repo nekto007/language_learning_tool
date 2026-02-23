@@ -7,6 +7,7 @@ from sqlalchemy import Date, cast, func
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
+from app.utils.normalization import normalize_text
 from app.words.models import CollectionWords
 
 
@@ -775,16 +776,6 @@ def process_quiz_submission(questions, answers):
             elif isinstance(correct_answer, list):
                 # Если правильный ответ - массив вариантов
 
-                def normalize_text(text):
-                    """Нормализация текста для сравнения"""
-                    if not text:
-                        return ""
-                    import re
-                    # Приводим к нижнему регистру, убираем лишние пробелы и знаки препинания
-                    normalized = re.sub(r'[^\w\s]', '', str(text).lower().strip())
-                    normalized = re.sub(r'\s+', ' ', normalized)
-                    return normalized
-
                 user_normalized = normalize_text(user_answer)
 
                 # Проверяем совпадение с любым из правильных ответов
@@ -820,15 +811,6 @@ def process_quiz_submission(questions, answers):
                 acceptable_answers = question.get('acceptable_answers', [])
                 all_possible_answers = [correct_answer] + alternative_answers + acceptable_answers
 
-
-                def normalize_text(text):
-                    """Нормализация текста для сравнения"""
-                    if not text:
-                        return ""
-                    import re
-                    normalized = re.sub(r'[^\w\s]', '', str(text).lower().strip())
-                    normalized = re.sub(r'\s+', ' ', normalized)
-                    return normalized
 
                 user_normalized = normalize_text(user_answer)
 
@@ -1198,20 +1180,6 @@ def process_final_test_submission(questions, user_answers):
         'passed': passed,
         'feedback': feedback
     }
-
-
-def normalize_text(text):
-    """Нормализует текст для сравнения ответов"""
-    if not text:
-        return ""
-    # Удаляем знаки препинания и лишние пробелы, приводим к нижнему регистру
-    import re
-    text = text.lower().strip()
-    # Удаляем знаки препинания
-    text = re.sub(r'[^\w\s]', '', text)
-    # Заменяем множественные пробелы на один
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
 
 
 def get_lesson_statistics():

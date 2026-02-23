@@ -117,17 +117,24 @@ def get_topic(topic_id):
 
     words = db.session.execute(topic_words_query).scalars().all()
 
-    # Получение статусов слов для пользователя
-    words_list = []
-    for word in words:
-        status = current_user.get_word_status(word.id)
-        words_list.append({
-            'id': word.id,
-            'english_word': word.english_word,
-            'russian_word': word.russian_word,
-            'level': word.level,
-            'status': status
-        })
+    # Batch load word statuses (single query instead of N+1)
+    from app.utils.db import string_to_status
+    word_ids = [w.id for w in words]
+    status_map = {}
+    if word_ids:
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        status_map = {uw.word_id: string_to_status(uw.status) for uw in user_words}
+
+    words_list = [{
+        'id': word.id,
+        'english_word': word.english_word,
+        'russian_word': word.russian_word,
+        'level': word.level,
+        'status': status_map.get(word.id, 0)
+    } for word in words]
 
     # Получение связанных коллекций
     related_collections_query = db.select(Collection).join(
@@ -195,17 +202,24 @@ def get_topic_words(topic_id):
     # Выполнение запроса
     words = db.session.execute(query).scalars().all()
 
-    # Форматирование ответа
-    words_list = []
-    for word in words:
-        status = current_user.get_word_status(word.id)
-        words_list.append({
-            'id': word.id,
-            'english_word': word.english_word,
-            'russian_word': word.russian_word,
-            'level': word.level,
-            'status': status
-        })
+    # Batch load word statuses (single query instead of N+1)
+    from app.utils.db import string_to_status
+    word_ids = [w.id for w in words]
+    status_map = {}
+    if word_ids:
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        status_map = {uw.word_id: string_to_status(uw.status) for uw in user_words}
+
+    words_list = [{
+        'id': word.id,
+        'english_word': word.english_word,
+        'russian_word': word.russian_word,
+        'level': word.level,
+        'status': status_map.get(word.id, 0)
+    } for word in words]
 
     # Расчет общего количества страниц
     total_pages = (total + per_page - 1) // per_page
@@ -416,31 +430,33 @@ def get_collection(collection_id):
 
     words = db.session.execute(collection_words_query).scalars().all()
 
-    # Получение статусов слов
-    words_list = []
-    for word in words:
-        status = current_user.get_word_status(word.id)
-
-        # Получение тем для каждого слова
-        word_topics = Topic.query.join(
-            TopicWord, Topic.id == TopicWord.topic_id
-        ).filter(
-            TopicWord.word_id == word.id
+    # Batch load word statuses and topics (single queries instead of N+1)
+    from app.utils.db import string_to_status
+    word_ids = [w.id for w in words]
+    status_map = {}
+    topics_map = {}
+    if word_ids:
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
         ).all()
+        status_map = {uw.word_id: string_to_status(uw.status) for uw in user_words}
 
-        word_topics_list = [{
-            'id': topic.id,
-            'name': topic.name
-        } for topic in word_topics]
+        # Batch load topics for all words
+        topic_links = db.session.query(TopicWord.word_id, Topic.id, Topic.name).join(
+            Topic, TopicWord.topic_id == Topic.id
+        ).filter(TopicWord.word_id.in_(word_ids)).all()
+        for wid, tid, tname in topic_links:
+            topics_map.setdefault(wid, []).append({'id': tid, 'name': tname})
 
-        words_list.append({
-            'id': word.id,
-            'english_word': word.english_word,
-            'russian_word': word.russian_word,
-            'level': word.level,
-            'status': status,
-            'topics': word_topics_list
-        })
+    words_list = [{
+        'id': word.id,
+        'english_word': word.english_word,
+        'russian_word': word.russian_word,
+        'level': word.level,
+        'status': status_map.get(word.id, 0),
+        'topics': topics_map.get(word.id, [])
+    } for word in words]
 
     # Получение связанных тем
     topic_ids = db.session.query(TopicWord.topic_id).join(
@@ -510,17 +526,24 @@ def get_collection_words(collection_id):
     # Выполнение запроса
     words = db.session.execute(query).scalars().all()
 
-    # Форматирование ответа
-    words_list = []
-    for word in words:
-        status = current_user.get_word_status(word.id)
-        words_list.append({
-            'id': word.id,
-            'english_word': word.english_word,
-            'russian_word': word.russian_word,
-            'level': word.level,
-            'status': status
-        })
+    # Batch load word statuses (single query instead of N+1)
+    from app.utils.db import string_to_status
+    word_ids = [w.id for w in words]
+    status_map = {}
+    if word_ids:
+        user_words = UserWord.query.filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id.in_(word_ids)
+        ).all()
+        status_map = {uw.word_id: string_to_status(uw.status) for uw in user_words}
+
+    words_list = [{
+        'id': word.id,
+        'english_word': word.english_word,
+        'russian_word': word.russian_word,
+        'level': word.level,
+        'status': status_map.get(word.id, 0)
+    } for word in words]
 
     # Расчет общего количества страниц
     total_pages = (total + per_page - 1) // per_page

@@ -514,9 +514,9 @@ class UnifiedSRSService:
             }
 
         except Exception as e:
-            logger.error(f"Error grading card {card_id}: {str(e)}")
+            logger.error(f"Error grading card {card_id}: {e}", exc_info=True)
             db.session.rollback()
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'SRS update failed'}
 
     def _update_user_word_status(self, card: UserCardDirection) -> None:
         """
@@ -660,9 +660,9 @@ class UnifiedSRSService:
             }
 
         except Exception as e:
-            logger.error(f"Error grading grammar exercise {exercise_id}: {str(e)}")
+            logger.error(f"Error grading grammar exercise {exercise_id}: {e}", exc_info=True)
             db.session.rollback()
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': 'Grammar SRS update failed'}
 
     def get_due_grammar_exercises(
         self,
@@ -892,13 +892,13 @@ class UnifiedSRSService:
             }
 
         except Exception as e:
-            logger.error(f"Error creating SRS session: {str(e)}")
+            logger.error(f"Error creating SRS session: {e}", exc_info=True)
             return {
                 'session_key': None,
                 'cards': [],
                 'studied_today': 0,
                 'total_due': 0,
-                'error': str(e)
+                'error': 'Failed to create SRS session'
             }
 
     def _get_due_cards(

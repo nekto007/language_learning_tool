@@ -113,12 +113,14 @@ class Collection(db.Model):
 
     @property
     def topics(self):
-        """Возвращает список уникальных тем из слов коллекции"""
-        topics_set = set()
-        for word in self.words:
-            for topic in word.topics:
-                topics_set.add(topic)
-        return list(topics_set)
+        """Возвращает список уникальных тем из слов коллекции (single query)"""
+        return Topic.query.join(
+            TopicWord, Topic.id == TopicWord.topic_id
+        ).join(
+            CollectionWordLink, TopicWord.word_id == CollectionWordLink.word_id
+        ).filter(
+            CollectionWordLink.collection_id == self.id
+        ).distinct().all()
 
 
 class CollectionWordLink(db.Model):

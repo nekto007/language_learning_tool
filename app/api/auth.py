@@ -1,4 +1,5 @@
 import functools
+import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
@@ -7,6 +8,8 @@ from flask_login import current_user, login_user
 from app import csrf
 from app.auth.models import User
 from app.utils.db import db
+
+logger = logging.getLogger(__name__)
 
 api_auth = Blueprint('api_auth', __name__)
 
@@ -145,8 +148,9 @@ def refresh():
             **new_token
         })
     except Exception as e:
+        logger.error(f'Token refresh error: {e}', exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': 'Token refresh failed',
             'status_code': 401
         }), 401

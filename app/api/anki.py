@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 
@@ -8,6 +9,8 @@ from app import csrf
 from app.api.auth import api_login_required
 from app.utils.anki_export import create_anki_package
 from app.words.models import CollectionWords
+
+logger = logging.getLogger(__name__)
 
 api_anki = Blueprint('api_anki', __name__)
 
@@ -83,8 +86,9 @@ def export_anki():
             except Exception:
                 pass
 
+        logger.error(f'Anki export error: {e}', exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e),
+            'error': 'Export failed',
             'status_code': 500
         }), 500

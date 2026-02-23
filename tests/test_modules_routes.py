@@ -262,4 +262,4 @@ class TestToggleModule:
         assert response.status_code == 500
         data = response.get_json()
         assert data['success'] is False
-        assert 'Service error' in data['error']
+        assert 'error' in data

@@ -116,28 +116,38 @@ class GrammarLabService:
             except Exception as e:
                 logger.warning(f"Curriculum progress sync error: {e}")
 
+        # Batch load statuses and SRS stats (2-3 queries instead of 2*N)
+        topic_ids = [t.id for t in topics]
+        statuses_map = {}
+        srs_stats_map = {}
+        if user_id and topic_ids:
+            statuses = UserGrammarTopicStatus.query.filter(
+                UserGrammarTopicStatus.user_id == user_id,
+                UserGrammarTopicStatus.topic_id.in_(topic_ids)
+            ).all()
+            statuses_map = {s.topic_id: s for s in statuses}
+            srs_stats_map = self.srs.get_topics_stats_batch(user_id, topic_ids)
+
+        STATUS_PROGRESS = {
+            'new': 0, 'theory_completed': 33,
+            'practicing': 66, 'mastered': 100,
+        }
+
         result = []
         for topic in topics:
             data = topic.to_dict()
 
             if user_id:
-                # Get topic status
-                status = UserGrammarTopicStatus.query.filter_by(
-                    user_id=user_id, topic_id=topic.id
-                ).first()
-
-                # Get SRS stats from exercises
-                srs_stats = self.srs.get_topic_stats(user_id, topic.id)
+                status = statuses_map.get(topic.id)
+                srs_stats = srs_stats_map.get(topic.id, {
+                    'new_count': 0, 'learning_count': 0, 'review_count': 0,
+                    'mastered_count': 0, 'total': 0, 'accuracy': 0,
+                })
 
                 data['status'] = status.to_dict() if status else None
                 data['srs_stats'] = srs_stats
 
-                # Build progress object for template (bug fix: was missing)
                 topic_status = status.status if status else 'new'
-                STATUS_PROGRESS = {
-                    'new': 0, 'theory_completed': 33,
-                    'practicing': 66, 'mastered': 100,
-                }
                 total = srs_stats.get('total', 0)
                 mastered = srs_stats.get('mastered_count', 0)
                 mastery_level = min(5, int((mastered / total * 5) if total > 0 else 0))

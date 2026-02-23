@@ -1,9 +1,13 @@
+import logging
+
 from flask import render_template, jsonify, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 
 from app.modules import modules_bp
 from app.modules.service import ModuleService
 from app.modules.decorators import module_required
+
+logger = logging.getLogger(__name__)
 
 
 @modules_bp.route('/api/modules/user')
@@ -68,7 +72,8 @@ def toggle_module(module_id):
             'enabled': new_state
         })
     except Exception as e:
+        logger.error(f'Module toggle error: {e}', exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Не удалось переключить модуль'
         }), 500

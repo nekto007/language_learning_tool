@@ -542,7 +542,8 @@ def api_translate():
             })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f'Error looking up word: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to look up word'}), 500
 
 
 @books.route('/api/add-word-to-learning', methods=['POST'])
@@ -662,7 +663,8 @@ def get_bookmarks(book_id):
         return jsonify(bookmarks_data)
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f'Error loading bookmarks for book {book_id}: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to load bookmarks'}), 500
 
 
 @books.route('/api/bookmarks', methods=['POST'])
@@ -697,7 +699,8 @@ def save_bookmark():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f'Error saving bookmark: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to save bookmark'}), 500
 
 
 # Legacy save progress API removed - using chapter-based progress only

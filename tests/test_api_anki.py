@@ -143,7 +143,7 @@ class TestExportAnki:
         assert response.status_code == 500
         data = response.get_json()
         assert data['success'] is False
-        assert 'Package creation failed' in data['error']
+        assert 'error' in data
 
     @patch('app.api.anki.create_anki_package')
     @patch('app.api.anki.send_file')

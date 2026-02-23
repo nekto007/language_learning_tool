@@ -149,6 +149,80 @@ class GrammarSRS:
             'accuracy': accuracy,
         }
 
+    def get_topics_stats_batch(self, user_id: int, topic_ids: List[int]) -> Dict[int, Dict]:
+        """
+        Batch version of get_topic_stats — 2 queries instead of 2*N.
+
+        Returns:
+            Dict mapping topic_id to stats dict.
+        """
+        if not topic_ids:
+            return {}
+
+        empty_stats = {
+            'new_count': 0, 'learning_count': 0, 'review_count': 0,
+            'mastered_count': 0, 'total': 0, 'accuracy': 0,
+        }
+
+        # Load all exercises for all topics at once
+        exercises = GrammarExercise.query.filter(
+            GrammarExercise.topic_id.in_(topic_ids)
+        ).all()
+
+        if not exercises:
+            return {tid: dict(empty_stats) for tid in topic_ids}
+
+        # Group exercises by topic
+        exercises_by_topic = {}
+        all_exercise_ids = []
+        for ex in exercises:
+            exercises_by_topic.setdefault(ex.topic_id, []).append(ex.id)
+            all_exercise_ids.append(ex.id)
+
+        # Load all progress records at once
+        progress_records = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.exercise_id.in_(all_exercise_ids)
+        ).all()
+        progress_map = {p.exercise_id: p for p in progress_records}
+
+        # Compute stats per topic
+        result = {}
+        for tid in topic_ids:
+            ex_ids = exercises_by_topic.get(tid, [])
+            if not ex_ids:
+                result[tid] = dict(empty_stats)
+                continue
+
+            new_count = learning_count = review_count = mastered_count = 0
+            total_correct = total_incorrect = 0
+
+            for eid in ex_ids:
+                progress = progress_map.get(eid)
+                if not progress or progress.state == CardState.NEW.value:
+                    new_count += 1
+                elif progress.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
+                    learning_count += 1
+                elif progress.state == CardState.REVIEW.value:
+                    if progress.interval >= 180:
+                        mastered_count += 1
+                    else:
+                        review_count += 1
+                if progress:
+                    total_correct += progress.correct_count or 0
+                    total_incorrect += progress.incorrect_count or 0
+
+            total_attempts = total_correct + total_incorrect
+            accuracy = round((total_correct / total_attempts * 100), 1) if total_attempts > 0 else 0
+
+            result[tid] = {
+                'new_count': new_count, 'learning_count': learning_count,
+                'review_count': review_count, 'mastered_count': mastered_count,
+                'total': len(ex_ids), 'accuracy': accuracy,
+            }
+
+        return result
+
     def get_user_stats(self, user_id: int) -> Dict:
         """
         Get overall grammar stats for a user.

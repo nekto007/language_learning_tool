@@ -12,7 +12,7 @@ from sqlalchemy import func, or_
 
 from app.utils.db import db
 from app.study.models import UserWord
-from app.words.models import CollectionWords, Collection, Topic
+from app.words.models import CollectionWords, Collection, CollectionWordLink, Topic, TopicWord
 from app.study.services.srs_service import get_user_word_ids
 
 
@@ -62,19 +62,51 @@ class CollectionTopicService:
 
         collections = query.order_by(Collection.name).all()
 
-        # Bulk load user word statuses
-        user_word_ids = get_user_word_ids(user_id)
+        collection_ids = [c.id for c in collections]
+        if not collection_ids:
+            return []
 
-        # Add stats to each collection
+        # Batch load word counts per collection (single GROUP BY query)
+        count_rows = db.session.query(
+            CollectionWordLink.collection_id,
+            func.count(CollectionWordLink.id)
+        ).filter(
+            CollectionWordLink.collection_id.in_(collection_ids)
+        ).group_by(CollectionWordLink.collection_id).all()
+        word_counts = dict(count_rows)
+
+        # Batch load words_in_study per collection (single query)
+        user_word_ids = get_user_word_ids(user_id)
+        study_rows = db.session.query(
+            CollectionWordLink.collection_id,
+            func.count(CollectionWordLink.id)
+        ).filter(
+            CollectionWordLink.collection_id.in_(collection_ids),
+            CollectionWordLink.word_id.in_(user_word_ids) if user_word_ids else False
+        ).group_by(CollectionWordLink.collection_id).all()
+        study_counts = dict(study_rows)
+
+        # Batch load topics per collection (single query)
+        topic_rows = db.session.query(
+            CollectionWordLink.collection_id, Topic
+        ).join(
+            TopicWord, CollectionWordLink.word_id == TopicWord.word_id
+        ).join(
+            Topic, TopicWord.topic_id == Topic.id
+        ).filter(
+            CollectionWordLink.collection_id.in_(collection_ids)
+        ).distinct().all()
+        topics_map = {}
+        for cid, topic in topic_rows:
+            topics_map.setdefault(cid, []).append(topic)
+
         result = []
         for collection in collections:
-            words_in_study = sum(1 for word in collection.words if word.id in user_word_ids)
-
             result.append({
                 'collection': collection,
-                'word_count': len(collection.words),
-                'words_in_study': words_in_study,
-                'topics': collection.topics
+                'word_count': word_counts.get(collection.id, 0),
+                'words_in_study': study_counts.get(collection.id, 0),
+                'topics': topics_map.get(collection.id, [])
             })
 
         return result
