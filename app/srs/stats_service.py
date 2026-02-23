@@ -126,7 +126,8 @@ class SRSStatsService:
                 'review_count': 0,
                 'mastered_count': 0,
                 'total': 0,
-                'due_today': 0
+                'due_today': 0,
+                'accuracy': 0,
             }
 
         progress_records = UserGrammarExercise.query.filter(
@@ -142,7 +143,142 @@ class SRSStatsService:
             progress = progress_map.get(exercise_id)
             items.append(progress if progress else _NewPlaceholder())
 
-        return count_srs_states(items)
+        return count_srs_states_with_accuracy(items)
+
+    @staticmethod
+    def get_grammar_stats_batch(
+        user_id: int,
+        topic_ids: List[int]
+    ) -> Dict[int, Dict]:
+        """
+        Batch SRS stats for multiple grammar topics. 2 queries instead of 2*N.
+
+        Returns:
+            Dict mapping topic_id to stats dict.
+        """
+        if not topic_ids:
+            return {}
+
+        empty_stats = {
+            'new_count': 0, 'learning_count': 0, 'review_count': 0,
+            'mastered_count': 0, 'total': 0, 'due_today': 0, 'accuracy': 0,
+        }
+
+        exercises = GrammarExercise.query.filter(
+            GrammarExercise.topic_id.in_(topic_ids)
+        ).all()
+
+        if not exercises:
+            return {tid: dict(empty_stats) for tid in topic_ids}
+
+        exercises_by_topic = {}
+        all_exercise_ids = []
+        for ex in exercises:
+            exercises_by_topic.setdefault(ex.topic_id, []).append(ex.id)
+            all_exercise_ids.append(ex.id)
+
+        progress_records = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.exercise_id.in_(all_exercise_ids)
+        ).all()
+        progress_map = {p.exercise_id: p for p in progress_records}
+
+        result = {}
+        for tid in topic_ids:
+            ex_ids = exercises_by_topic.get(tid, [])
+            if not ex_ids:
+                result[tid] = dict(empty_stats)
+                continue
+
+            items = []
+            for eid in ex_ids:
+                progress = progress_map.get(eid)
+                items.append(progress if progress else _NewPlaceholder())
+
+            result[tid] = count_srs_states_with_accuracy(items)
+
+        return result
+
+    @staticmethod
+    def get_grammar_user_stats(user_id: int) -> Dict:
+        """
+        Get overall grammar stats for a user.
+
+        Returns:
+            Dict with aggregated stats, topics progress, and by-level breakdown.
+        """
+        from app.srs.constants import CardState, MASTERED_THRESHOLD_DAYS
+
+        statuses = UserGrammarTopicStatus.query.filter_by(user_id=user_id).all()
+        all_progress = UserGrammarExercise.query.filter_by(user_id=user_id).all()
+
+        total_topics = GrammarTopic.query.count()
+        total_xp = sum(s.xp_earned or 0 for s in statuses)
+        theory_completed_count = sum(1 for s in statuses if s.theory_completed)
+
+        topics_with_progress = set(p.exercise.topic_id for p in all_progress if p.exercise)
+        topics_started = len(topics_with_progress)
+
+        # Count topics mastered (all exercises in topic are mastered)
+        mastered_exercises_by_topic = {}
+        for p in all_progress:
+            if p.exercise and p.is_mastered:
+                topic_id = p.exercise.topic_id
+                mastered_exercises_by_topic.setdefault(topic_id, set()).add(p.exercise_id)
+
+        all_topics = GrammarTopic.query.all()
+        topics_mastered = 0
+        for topic in all_topics:
+            topic_exercise_ids = {e.id for e in topic.exercises}
+            if topic_exercise_ids and topic.id in mastered_exercises_by_topic:
+                if mastered_exercises_by_topic[topic.id] >= topic_exercise_ids:
+                    topics_mastered += 1
+
+        # Use count_srs_states for aggregated counting
+        stats = count_srs_states_with_accuracy(all_progress)
+
+        # Stats by level
+        by_level = {}
+        for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']:
+            level_topics = GrammarTopic.query.filter_by(level=level).all()
+            level_topic_ids = [t.id for t in level_topics]
+
+            if not level_topic_ids:
+                by_level[level] = {'total': 0, 'mastered': 0, 'progress_pct': 0}
+                continue
+
+            level_exercises = GrammarExercise.query.filter(
+                GrammarExercise.topic_id.in_(level_topic_ids)
+            ).all()
+            level_exercise_ids = set(e.id for e in level_exercises)
+
+            level_mastered = sum(
+                1 for p in all_progress
+                if p.exercise_id in level_exercise_ids and p.is_mastered
+            )
+
+            by_level[level] = {
+                'total': len(level_exercise_ids),
+                'mastered': level_mastered,
+                'progress_pct': round(level_mastered / len(level_exercise_ids) * 100, 1) if level_exercise_ids else 0
+            }
+
+        return {
+            'total_topics': total_topics,
+            'topics_started': topics_started,
+            'topics_mastered': topics_mastered,
+            'theory_completed': theory_completed_count,
+            'total_xp': total_xp,
+            'total_exercises': len(all_progress),
+            'new_count': stats['new_count'],
+            'learning_count': stats['learning_count'],
+            'review_count': stats['review_count'],
+            'mastered_count': stats['mastered_count'],
+            'total_attempts': sum((p.correct_count or 0) + (p.incorrect_count or 0) for p in all_progress),
+            'accuracy': stats.get('accuracy', 0),
+            'overall_accuracy': stats.get('accuracy', 0),
+            'by_level': by_level
+        }
 
     @staticmethod
     def get_stats(

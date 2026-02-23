@@ -43,6 +43,12 @@ def _get_unified_srs_service():
     return unified_srs_service
 
 
+def _get_srs_stats_service():
+    """Lazy import to avoid circular dependency."""
+    from app.srs.stats_service import srs_stats_service
+    return srs_stats_service
+
+
 # XP rewards
 GRAMMAR_XP = {
     'theory_completed': 20,
@@ -126,7 +132,7 @@ class GrammarLabService:
                 UserGrammarTopicStatus.topic_id.in_(topic_ids)
             ).all()
             statuses_map = {s.topic_id: s for s in statuses}
-            srs_stats_map = self.srs.get_topics_stats_batch(user_id, topic_ids)
+            srs_stats_map = _get_srs_stats_service().get_grammar_stats_batch(user_id, topic_ids)
 
         STATUS_PROGRESS = {
             'new': 0, 'theory_completed': 33,
@@ -184,27 +190,12 @@ class GrammarLabService:
             }
 
             if user_id and topic_count > 0:
-                # Get exercise counts for this level
-                level_topics = GrammarTopic.query.filter_by(level=level).all()
-                level_topic_ids = [t.id for t in level_topics]
-
-                exercises = GrammarExercise.query.filter(
-                    GrammarExercise.topic_id.in_(level_topic_ids)
-                ).all()
-                exercise_ids = [e.id for e in exercises]
-
-                if exercise_ids:
-                    # Count mastered exercises
-                    mastered = UserGrammarExercise.query.filter(
-                        UserGrammarExercise.user_id == user_id,
-                        UserGrammarExercise.exercise_id.in_(exercise_ids),
-                        UserGrammarExercise.state == CardState.REVIEW.value,
-                        UserGrammarExercise.interval >= UserGrammarExercise.MASTERED_THRESHOLD_DAYS
-                    ).count()
-
-                    level_data['exercises_total'] = len(exercise_ids)
-                    level_data['exercises_mastered'] = mastered
-                    level_data['progress_pct'] = round((mastered / len(exercise_ids)) * 100, 1)
+                stats = _get_srs_stats_service().get_grammar_stats(user_id, level=level)
+                level_data['exercises_total'] = stats['total']
+                level_data['exercises_mastered'] = stats['mastered_count']
+                level_data['progress_pct'] = round(
+                    (stats['mastered_count'] / stats['total']) * 100, 1
+                ) if stats['total'] > 0 else 0
 
             result.append(level_data)
 
@@ -233,7 +224,7 @@ class GrammarLabService:
             data['status'] = status.to_dict() if status else None
 
             # Get SRS stats
-            srs_stats = self.srs.get_topic_stats(user_id, topic_id)
+            srs_stats = _get_srs_stats_service().get_grammar_stats(user_id, topic_id=topic_id)
             data['srs_stats'] = srs_stats
 
             # Build progress object for template compatibility
@@ -365,7 +356,7 @@ class GrammarLabService:
             'all_exercises_count': len(all_exercises),
             'exercises': exercises_data,
             'status': status.to_dict(),
-            'srs_stats': self.srs.get_topic_stats(user_id, topic_id)
+            'srs_stats': _get_srs_stats_service().get_grammar_stats(user_id, topic_id=topic_id)
         }
 
     def submit_answer(self, exercise_id: int, user_id: int, answer: Any,
@@ -486,7 +477,7 @@ class GrammarLabService:
 
     def get_user_stats(self, user_id: int) -> Dict:
         """Get comprehensive stats for a user."""
-        return self.srs.get_user_stats(user_id)
+        return _get_srs_stats_service().get_grammar_user_stats(user_id)
 
     def get_practice_session(self, user_id: int, topic_ids: List[int] = None,
                                count: int = 10, include_new: bool = True) -> Dict:
