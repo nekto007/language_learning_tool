@@ -52,14 +52,14 @@ class TestBookCoursesDirectFunctions:
         assert result2 == 10
         assert call_count == 1  # Should only be called once due to caching
 
-    @patch('app.admin.book_courses.logger')
-    @patch('app.admin.book_courses.db')
-    @patch('app.admin.book_courses.jsonify')
+    @patch('app.admin.utils.decorators.logger')
+    @patch('app.admin.utils.decorators.db')
+    @patch('app.admin.utils.decorators.jsonify')
     def test_handle_admin_errors_with_exception(self, mock_jsonify, mock_db, mock_logger):
-        """Test handle_admin_errors decorator handles exceptions"""
+        """Test handle_admin_errors decorator handles exceptions (canonical version)"""
         from app.admin.book_courses import handle_admin_errors
 
-        mock_jsonify.return_value = {'success': False, 'error': 'Test error'}
+        mock_jsonify.return_value = {'success': False, 'error': 'Внутренняя ошибка сервера'}
 
         @handle_admin_errors(return_json=True)
         def failing_func():
@@ -69,6 +69,9 @@ class TestBookCoursesDirectFunctions:
 
         assert isinstance(result, tuple)
         mock_logger.error.assert_called_once()
+        # Canonical version does NOT leak str(e) in response
+        call_args = mock_jsonify.call_args[1] if mock_jsonify.call_args[1] else mock_jsonify.call_args[0][0]
+        assert 'Test error' not in str(call_args.get('error', ''))
 
     @pytest.mark.xfail(reason="Test database missing 'slug' column - migration required")
     @patch('app.admin.book_courses.BookCourse')
@@ -208,16 +211,16 @@ class TestCacheExpiration:
 class TestErrorHandlerReturnTypes:
     """Test different return types of error handler"""
 
-    @patch('app.admin.book_courses.logger')
-    @patch('app.admin.book_courses.db')
-    @patch('app.admin.book_courses.flash')
-    @patch('app.admin.book_courses.redirect')
-    @patch('app.admin.book_courses.url_for')
+    @patch('app.admin.utils.decorators.logger')
+    @patch('app.admin.utils.decorators.db')
+    @patch('app.admin.utils.decorators.flash')
+    @patch('app.admin.utils.decorators.redirect')
+    @patch('app.admin.utils.decorators.url_for')
     def test_handle_admin_errors_redirect_mode(self, mock_url_for, mock_redirect, mock_flash, mock_db, mock_logger):
-        """Test handle_admin_errors with return_json=False"""
+        """Test handle_admin_errors with return_json=False (canonical version)"""
         from app.admin.book_courses import handle_admin_errors
 
-        mock_url_for.return_value = '/admin/book-courses'
+        mock_url_for.return_value = '/admin/dashboard'
         mock_redirect.return_value = 'redirect_response'
 
         @handle_admin_errors(return_json=False)

@@ -82,37 +82,6 @@ def cleanup_old_imports():
 
 
 
-def handle_admin_errors(return_json=True):
-    """Декоратор для обработки ошибок в админ операциях"""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Error in {func.__name__}: {str(e)}", exc_info=True)
-
-                # Откатываем изменения в базе данных
-                try:
-                    db.session.rollback()
-                except Exception:
-                    pass
-
-                if return_json:
-                    return jsonify({
-                        'success': False,
-                        'error': f'Внутренняя ошибка сервера: {str(e)}',
-                        'operation': func.__name__
-                    }), 500
-                else:
-                    flash(f'Ошибка в операции {func.__name__}: {str(e)}', 'danger')
-                    return redirect(url_for('admin.dashboard'))
-
-        return wrapper
-
-    return decorator
-
 
 # Импорт декоратора из единого места
 from app.admin.utils.decorators import admin_required, cache_result

@@ -205,6 +205,12 @@ def send_reminders():
     reminder_template = request.form.get('reminder_template', 'default')
     custom_subject = request.form.get('custom_subject', 'Пора вернуться к изучению английского!')
 
+    # Защита от path traversal — только безопасные имена шаблонов
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', reminder_template):
+        flash('Недопустимое имя шаблона.', 'danger')
+        return redirect(url_for('reminders.reminder_dashboard'))
+
     if not user_ids:
         flash('Не выбрано ни одного пользователя для отправки напоминаний.', 'warning')
         return redirect(url_for('reminders.reminder_dashboard'))
@@ -242,11 +248,13 @@ def send_reminders():
     else:
         flash('Не удалось отправить напоминания. Проверьте настройки SMTP.', 'danger')
 
-    # Возвращаемся на исходную страницу, если она указана
-    next_url = request.form.get('next') or request.referrer
-    if next_url:
-        return redirect(next_url)
-    return redirect(url_for('reminders.reminder_dashboard'))
+    # Возвращаемся на исходную страницу, если она указана (с проверкой безопасности)
+    from app.auth.routes import get_safe_redirect_url
+    next_url = get_safe_redirect_url(
+        request.form.get('next') or request.referrer,
+        fallback='reminders.reminder_dashboard'
+    )
+    return redirect(next_url)
 
 
 def generate_unsubscribe_token(user):
@@ -294,6 +302,11 @@ def preview_template(template_name):
     if not current_user.is_admin:
         flash('Доступ запрещен. Требуются права администратора.', 'danger')
         return redirect(url_for('main.index'))
+
+    # Защита от path traversal — только безопасные имена шаблонов
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', template_name):
+        abort(400, 'Недопустимое имя шаблона')
 
     try:
         now = datetime.now(timezone.utc)

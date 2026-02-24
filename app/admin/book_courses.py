@@ -16,7 +16,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from app.utils.db import db
-from app.admin.utils.decorators import admin_required
+from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
@@ -34,34 +34,6 @@ except ImportError:
     logger.warning("BookCourseGenerator not available")
     BookCourseGenerator = None
 
-# Import handle_admin_errors from admin.routes
-def handle_admin_errors(return_json=True):
-    """Декоратор для обработки ошибок в админ операциях"""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Error in {func.__name__}: {str(e)}", exc_info=True)
-                
-                # Откатываем изменения в базе данных
-                try:
-                    db.session.rollback()
-                except Exception:
-                    pass
-
-                if return_json:
-                    return jsonify({
-                        'success': False,
-                        'error': f'Внутренняя ошибка сервера: {str(e)}',
-                        'operation': func.__name__
-                    }), 500
-                else:
-                    flash(f'Ошибка в операции {func.__name__}: {str(e)}', 'danger')
-                    return redirect(url_for('admin.dashboard'))
-        return wrapper
-    return decorator
 
 def get_difficulty_score(level):
     """Get difficulty score based on CEFR level"""
@@ -100,30 +72,6 @@ def cache_result(key, timeout=_cache_timeout):
 
     return decorator
 
-
-def handle_admin_errors(return_json=True):
-    """Decorator for handling admin operation errors"""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Error in {func.__name__}: {str(e)}", exc_info=True)
-
-                if return_json:
-                    return jsonify({
-                        'success': False,
-                        'error': str(e)
-                    }), 500
-                else:
-                    flash(f'Ошибка: {str(e)}', 'danger')
-                    return redirect(url_for('admin.book_courses'))
-
-        return wrapper
-
-    return decorator
 
 
 # Register blueprint from main admin routes

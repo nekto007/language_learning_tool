@@ -136,8 +136,8 @@ class TestCacheResult:
 class TestHandleAdminErrors:
     """Tests for handle_admin_errors decorator"""
 
-    @patch('app.admin.book_courses.logger')
-    @patch('app.admin.book_courses.db')
+    @patch('app.admin.utils.decorators.logger')
+    @patch('app.admin.utils.decorators.db')
     def test_handle_admin_errors_success(self, mock_db, mock_logger):
         """Test decorator with successful function execution"""
         @handle_admin_errors(return_json=True)
@@ -148,12 +148,12 @@ class TestHandleAdminErrors:
         assert result == {'success': True, 'data': 'test'}
         mock_logger.error.assert_not_called()
 
-    @patch('app.admin.book_courses.logger')
-    @patch('app.admin.book_courses.db')
-    @patch('app.admin.book_courses.jsonify')
+    @patch('app.admin.utils.decorators.logger')
+    @patch('app.admin.utils.decorators.db')
+    @patch('app.admin.utils.decorators.jsonify')
     def test_handle_admin_errors_exception_json(self, mock_jsonify, mock_db, mock_logger):
-        """Test decorator handles exception with JSON response"""
-        mock_jsonify.return_value = {'success': False, 'error': 'Test error'}
+        """Test decorator handles exception with JSON response (canonical version)"""
+        mock_jsonify.return_value = {'success': False, 'error': 'Внутренняя ошибка сервера'}
 
         @handle_admin_errors(return_json=True)
         def test_func():
@@ -165,23 +165,22 @@ class TestHandleAdminErrors:
         assert isinstance(result, tuple)
         assert len(result) == 2
         json_response, status = result
-        assert json_response == {'success': False, 'error': 'Test error'}
         assert status == 500
         mock_logger.error.assert_called_once()
+        # Canonical version does NOT leak str(e)
+        mock_jsonify.assert_called_once()
+        call_kwargs = mock_jsonify.call_args[1]
+        assert 'Test error' not in call_kwargs.get('error', '')
 
-        # db.session.rollback might fail, so it's wrapped in try/except
-        # Just verify it was attempted
-        assert mock_db.session.rollback.called or True
-
-    @patch('app.admin.book_courses.logger')
-    @patch('app.admin.book_courses.db')
-    @patch('app.admin.book_courses.flash')
-    @patch('app.admin.book_courses.redirect')
-    @patch('app.admin.book_courses.url_for')
+    @patch('app.admin.utils.decorators.logger')
+    @patch('app.admin.utils.decorators.db')
+    @patch('app.admin.utils.decorators.flash')
+    @patch('app.admin.utils.decorators.redirect')
+    @patch('app.admin.utils.decorators.url_for')
     def test_handle_admin_errors_exception_redirect(self, mock_url_for, mock_redirect,
                                                     mock_flash, mock_db, mock_logger):
         """Test decorator handles exception with redirect"""
-        mock_url_for.return_value = '/admin/book-courses'
+        mock_url_for.return_value = '/admin/dashboard'
         mock_redirect.return_value = 'redirect_response'
 
         @handle_admin_errors(return_json=False)
@@ -192,10 +191,8 @@ class TestHandleAdminErrors:
 
         mock_logger.error.assert_called_once()
         mock_flash.assert_called_once()
-        assert 'Test error' in mock_flash.call_args[0][0]
-
-        # db.session.rollback might fail in try/except block
-        # Just verify the function executed and returned redirect
+        # Canonical version does NOT leak str(e) in flash messages
+        assert 'Test error' not in mock_flash.call_args[0][0]
         assert result == 'redirect_response'
 
 

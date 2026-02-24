@@ -375,8 +375,12 @@ def update_word_status(word_id, status):
 
     flash(f'Status for word \"{word.english_word}\" updated successfully.', 'success')
 
-    # Перенаправляем обратно на страницу, с которой пришел запрос
-    next_page = request.args.get('next') or request.referrer or url_for('words.word_list')
+    # Перенаправляем обратно на страницу, с которой пришел запрос (с проверкой безопасности)
+    from app.auth.routes import get_safe_redirect_url
+    next_page = get_safe_redirect_url(
+        request.args.get('next') or request.referrer,
+        fallback='words.word_list'
+    )
     return redirect(next_page)
 
 

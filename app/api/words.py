@@ -340,6 +340,7 @@ def batch_update_status():
 
 
 @api_words.route('/search')
+@api_login_required
 def search_words():
     """API для поиска слов (используется в административном интерфейсе)"""
     term = request.args.get('term', '')
