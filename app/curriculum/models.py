@@ -177,43 +177,6 @@ class Lessons(db.Model):
 
         return settings
 
-    # def migrate_content_to_latest(self):
-    #     """
-    #     Migrate content to the latest schema version.
-    #
-    #     Returns:
-    #         bool: True if migration was performed, False if already at latest version
-    #     """
-    #     from app.curriculum.services.content_migration_service import ContentMigrationService
-    #
-    #     current_version = self.content_version or 1
-    #     latest_version = ContentMigrationService.LATEST_VERSION
-    #
-    #     if current_version >= latest_version:
-    #         return False
-    #
-    #     try:
-    #         # Migrate content
-    #         migrated_content = ContentMigrationService.migrate_content(
-    #             self.type,
-    #             self.content,
-    #             from_version=current_version,
-    #             to_version=latest_version
-    #         )
-    #
-    #         if migrated_content:
-    #             self.content = migrated_content
-    #             self.content_version = latest_version
-    #             self.updated_at = datetime.now(timezone.utc)
-    #             return True
-    #
-    #         return False
-    #
-    #     except Exception as e:
-    #         import logging
-    #         logger = logging.getLogger(__name__)
-    #         logger.error(f"Failed to migrate content for lesson {self.id}: {str(e)}")
-    #         return False
 
     def validate_content_schema(self) -> tuple[bool, str]:
         """
@@ -394,80 +357,6 @@ class LessonAttempt(db.Model):
             delta = completed - started
             self.time_spent_seconds = int(delta.total_seconds())
 
-
-class ModuleSkipTest(db.Model):
-    """Model for skip tests that allow users to bypass modules"""
-    __tablename__ = 'module_skip_tests'
-
-    id = Column(Integer, primary_key=True)
-    module_id = Column(Integer, ForeignKey('modules.id', ondelete='CASCADE'), nullable=False, unique=True)
-    title = Column(String(200), nullable=False)
-    description = Column(Text)
-
-    # Test content
-    content = Column(JSON, nullable=False)  # Quiz-like format with questions
-    passing_score = Column(Integer, default=80, nullable=False)
-    time_limit_minutes = Column(Integer, default=30)
-
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
-
-    # Relationships
-    module = relationship('Module', backref='skip_test')
-    attempts = relationship('SkipTestAttempt', back_populates='skip_test', cascade='all, delete-orphan')
-
-    __table_args__ = (
-        Index('idx_skip_tests_module', 'module_id'),
-    )
-
-    def __repr__(self):
-        return f"<ModuleSkipTest: Module {self.module_id} - {self.title}>"
-
-
-class SkipTestAttempt(db.Model):
-    """Model tracking skip test attempts"""
-    __tablename__ = 'skip_test_attempts'
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    module_id = Column(Integer, ForeignKey('modules.id', ondelete='CASCADE'), nullable=False)
-    skip_test_id = Column(Integer, ForeignKey('module_skip_tests.id', ondelete='CASCADE'), nullable=False)
-
-    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    completed_at = Column(DateTime)
-    score = Column(Float)
-    passed = Column(Boolean)
-
-    # Detailed results
-    answers = Column(JSON)  # User's answers
-    time_spent_seconds = Column(Integer)
-
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    # Relationships
-    user = relationship('User', backref='skip_test_attempts')
-    module = relationship('Module', backref='skip_test_attempts_rel')
-    skip_test = relationship('ModuleSkipTest', back_populates='attempts')
-
-    __table_args__ = (
-        Index('idx_skip_attempts_user_module', 'user_id', 'module_id'),
-        Index('idx_skip_attempts_passed', 'passed'),
-    )
-
-    def __repr__(self):
-        return f"<SkipTestAttempt: User {self.user_id} - Module {self.module_id}>"
-
-    def complete(self, score: float, answers: dict):
-        """Mark attempt as completed."""
-        self.completed_at = datetime.now(timezone.utc)
-        self.score = score
-        self.passed = score >= (self.skip_test.passing_score if self.skip_test else 80)
-        self.answers = answers
-
-        if self.started_at and self.completed_at:
-            delta = self.completed_at - self.started_at
-            self.time_spent_seconds = int(delta.total_seconds())
 
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports

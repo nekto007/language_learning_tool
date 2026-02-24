@@ -5,9 +5,6 @@
 """
 import json
 import logging
-import os
-import subprocess
-import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
@@ -28,60 +25,6 @@ admin = Blueprint('admin', __name__, url_prefix='/admin')
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
-
-# Директория для временных файлов импорта
-IMPORT_TEMP_DIR = 'app/temp/import_translations'
-os.makedirs(IMPORT_TEMP_DIR, exist_ok=True)
-
-
-def save_import_data(data):
-    """Сохраняет данные импорта во временный файл"""
-    import_id = str(uuid.uuid4())
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
-
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    # Удаляем старые файлы (старше 1 часа)
-    cleanup_old_imports()
-
-    return import_id
-
-
-def load_import_data(import_id):
-    """Загружает данные импорта из временного файла"""
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
-
-    if not os.path.exists(file_path):
-        return None
-
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def delete_import_data(import_id):
-    """Удаляет временный файл импорта"""
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
-
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-
-def cleanup_old_imports():
-    """Удаляет старые файлы импорта"""
-    current_time = datetime.now().timestamp()
-
-    for filename in os.listdir(IMPORT_TEMP_DIR):
-        if filename.endswith('.json'):
-            file_path = os.path.join(IMPORT_TEMP_DIR, filename)
-            file_time = os.path.getmtime(file_path)
-
-            # Удаляем файлы старше 1 часа
-            if current_time - file_time > 3600:
-                os.remove(file_path)
-
-
-
 
 # Импорт декоратора из единого места
 from app.admin.utils.decorators import admin_required, cache_result
@@ -656,94 +599,6 @@ def get_level_order(level_code):
         'C2': 6
     }
     return level_orders.get(level_code, 99)
-
-
-# Функции экспорта слов
-
-def export_words_json(words, status=None):
-    """Экспорт слов в формате JSON"""
-    from flask import make_response
-    import json
-
-    words_data = []
-    for word in words:
-        word_dict = {
-            'english_word': word.english_word,
-            'russian_word': word.russian_word,
-            'level': word.level if hasattr(word, 'level') else None
-        }
-        if hasattr(word, 'status'):
-            word_dict['status'] = word.status
-        words_data.append(word_dict)
-
-    response_data = {
-        'export_date': datetime.now(timezone.utc).isoformat(),
-        'words_total': len(words_data),
-        'status_filter': status,
-        'words': words_data
-    }
-
-    response = make_response(json.dumps(response_data, ensure_ascii=False, indent=2))
-    response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
-    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-
-    return response
-
-
-def export_words_csv(words, status=None):
-    """Экспорт слов в формате CSV"""
-    from flask import make_response
-    import csv
-    import io
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # Заголовки
-    headers = ['English', 'Russian', 'Level']
-    if words and hasattr(words[0], 'status'):
-        headers.append('Status')
-    writer.writerow(headers)
-
-    # Данные
-    for word in words:
-        row = [word.english_word, word.russian_word, word.level if hasattr(word, 'level') else '']
-        if hasattr(word, 'status'):
-            row.append(word.status)
-        writer.writerow(row)
-
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
-    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-
-    return response
-
-
-def export_words_txt(words, status=None):
-    """Экспорт слов в текстовом формате"""
-    from flask import make_response
-
-    lines = [f"# Words Export - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"]
-    if status:
-        lines.append(f"# Status filter: {status}")
-    lines.append(f"# Total words: {len(words)}")
-    lines.append("")
-
-    for word in words:
-        if hasattr(word, 'status'):
-            lines.append(f"{word.english_word} | {word.russian_word} | {word.status}")
-        else:
-            lines.append(f"{word.english_word} | {word.russian_word}")
-
-    content = '\n'.join(lines)
-    response = make_response(content)
-    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.txt"
-    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-
-    return response
 
 
 try:

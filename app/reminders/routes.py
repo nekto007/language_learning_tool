@@ -257,26 +257,6 @@ def send_reminders():
     return redirect(next_url)
 
 
-def generate_unsubscribe_token(user):
-    """
-    Генерирует токен для отписки от рассылки.
-    В реальном приложении вы бы использовали более сложную логику
-    с секретным ключом для создания подписанного токена.
-
-    Args:
-        user (User): Пользователь, для которого генерируется токен
-
-    Returns:
-        str: Токен для отписки
-    """
-    # Простая реализация для примера
-    import hashlib
-    from time import time
-
-    token_data = f"{user.id}:{user.email}:{int(time())}"
-    return hashlib.sha256(token_data.encode()).hexdigest()
-
-
 @reminders.route('/templates', methods=['GET'])
 @login_required
 def list_templates():
