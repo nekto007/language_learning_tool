@@ -26,28 +26,27 @@ def api_get_levels():
     try:
         levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
 
+        # Batch: total lessons per level (2 queries instead of 2*N)
+        total_by_level = dict(db.session.query(
+            Module.level_id,
+            db.func.count(Lessons.id)
+        ).join(Lessons, Lessons.module_id == Module.id
+        ).group_by(Module.level_id).all())
+
+        completed_by_level = dict(db.session.query(
+            Module.level_id,
+            db.func.count(LessonProgress.id)
+        ).join(Lessons, Lessons.module_id == Module.id
+        ).join(LessonProgress, LessonProgress.lesson_id == Lessons.id
+        ).filter(
+            LessonProgress.user_id == current_user.id,
+            LessonProgress.status == 'completed'
+        ).group_by(Module.level_id).all())
+
         result = []
         for level in levels:
-            # Get modules for level
-            modules = Module.query.filter_by(level_id=level.id).all()
-            module_ids = [m.id for m in modules]
-
-            # Calculate progress
-            total_lessons = 0
-            completed_lessons = 0
-
-            if module_ids:
-                total_lessons = db.session.query(db.func.count(Lessons.id)).filter(
-                    Lessons.module_id.in_(module_ids)
-                ).scalar() or 0
-
-                completed_lessons = db.session.query(db.func.count(LessonProgress.id)).join(
-                    Lessons, Lessons.id == LessonProgress.lesson_id
-                ).filter(
-                    Lessons.module_id.in_(module_ids),
-                    LessonProgress.user_id == current_user.id,
-                    LessonProgress.status == 'completed'
-                ).scalar() or 0
+            total_lessons = total_by_level.get(level.id, 0)
+            completed_lessons = completed_by_level.get(level.id, 0)
 
             result.append({
                 'id': level.id,
@@ -79,19 +78,29 @@ def api_get_level_modules(level_code):
             return jsonify({'success': False, 'error': 'Level not found'}), 404
 
         modules = Module.query.filter_by(level_id=level.id).order_by(Module.number).all()
+        module_ids = [m.id for m in modules]
+
+        # Batch: lesson counts and completed counts (2 queries instead of 2*N)
+        total_by_module = dict(db.session.query(
+            Lessons.module_id,
+            db.func.count(Lessons.id)
+        ).filter(Lessons.module_id.in_(module_ids)
+        ).group_by(Lessons.module_id).all()) if module_ids else {}
+
+        completed_by_module = dict(db.session.query(
+            Lessons.module_id,
+            db.func.count(LessonProgress.id)
+        ).join(LessonProgress, LessonProgress.lesson_id == Lessons.id
+        ).filter(
+            Lessons.module_id.in_(module_ids),
+            LessonProgress.user_id == current_user.id,
+            LessonProgress.status == 'completed'
+        ).group_by(Lessons.module_id).all()) if module_ids else {}
 
         result = []
         for module in modules:
-            # Get lesson count and progress
-            total_lessons = Lessons.query.filter_by(module_id=module.id).count()
-
-            completed_lessons = db.session.query(db.func.count(LessonProgress.id)).join(
-                Lessons, Lessons.id == LessonProgress.lesson_id
-            ).filter(
-                Lessons.module_id == module.id,
-                LessonProgress.user_id == current_user.id,
-                LessonProgress.status == 'completed'
-            ).scalar() or 0
+            total_lessons = total_by_module.get(module.id, 0)
+            completed_lessons = completed_by_module.get(module.id, 0)
 
             result.append({
                 'id': module.id,
@@ -136,13 +145,31 @@ def api_get_module_lessons(module_id):
             module_id=module_id
         ).order_by(Lessons.order, Lessons.number).all()
 
+        # Batch: pre-load all progress for this module (1 query instead of N)
+        lesson_ids = [l.id for l in lessons]
+        progress_records = LessonProgress.query.filter(
+            LessonProgress.user_id == current_user.id,
+            LessonProgress.lesson_id.in_(lesson_ids)
+        ).all() if lesson_ids else []
+        progress_by_lesson = {p.lesson_id: p for p in progress_records}
+
+        # Compute lesson access in-memory (avoids N * check_lesson_access calls)
+        module_accessible = check_module_access(module_id)
+
         result = []
-        for lesson in lessons:
-            # Get progress
-            progress = LessonProgress.query.filter_by(
-                user_id=current_user.id,
-                lesson_id=lesson.id
-            ).first()
+        for i, lesson in enumerate(lessons):
+            progress = progress_by_lesson.get(lesson.id)
+
+            # Inline access check using pre-loaded data
+            if current_user.is_admin:
+                accessible = True
+            elif progress and progress.status == 'completed':
+                accessible = True
+            elif i == 0:
+                accessible = module_accessible
+            else:
+                prev_progress = progress_by_lesson.get(lessons[i - 1].id)
+                accessible = prev_progress is not None and prev_progress.status == 'completed'
 
             result.append({
                 'id': lesson.id,
@@ -153,7 +180,7 @@ def api_get_module_lessons(module_id):
                 'status': progress.status if progress else 'not_started',
                 'score': progress.score if progress else None,
                 'completed_at': progress.completed_at.isoformat() if progress and progress.completed_at else None,
-                'is_accessible': check_lesson_access(lesson.id)
+                'is_accessible': accessible
             })
 
         return jsonify({
