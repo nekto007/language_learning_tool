@@ -7,6 +7,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from app.admin.utils.decorators import admin_required
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.utils.db import db
 
@@ -780,12 +781,10 @@ def init_backup_system(app):
     migration_manager = CurriculumMigrationManager(backup_manager)
 
     @app.route('/curriculum/admin/backup/create', methods=['POST'])
+    @admin_required
     def create_backup():
         """Create curriculum backup (admin only)"""
-        from flask import request, current_user
-
-        if not current_user.is_authenticated or not current_user.is_admin:
-            return {'error': 'Admin access required'}, 403
+        from flask import request
 
         data = request.get_json() or {}
         include_progress = data.get('include_progress', True)
@@ -798,13 +797,9 @@ def init_backup_system(app):
             return {'success': False, 'error': str(e)}, 500
 
     @app.route('/curriculum/admin/backup/list')
+    @admin_required
     def list_backups():
         """List available backups (admin only)"""
-        from flask import current_user
-
-        if not current_user.is_authenticated or not current_user.is_admin:
-            return {'error': 'Admin access required'}, 403
-
         try:
             backups = backup_manager.list_backups()
             return {'backups': backups}
@@ -812,12 +807,10 @@ def init_backup_system(app):
             return {'error': str(e)}, 500
 
     @app.route('/curriculum/admin/backup/restore', methods=['POST'])
+    @admin_required
     def restore_backup():
         """Restore from backup (admin only)"""
-        from flask import request, current_user
-
-        if not current_user.is_authenticated or not current_user.is_admin:
-            return {'error': 'Admin access required'}, 403
+        from flask import request
 
         data = request.get_json() or {}
         backup_id = data.get('backup_id')
@@ -834,12 +827,10 @@ def init_backup_system(app):
             return {'success': False, 'error': str(e)}, 500
 
     @app.route('/curriculum/admin/backup/cleanup', methods=['POST'])
+    @admin_required
     def cleanup_backups():
         """Clean up old backups (admin only)"""
-        from flask import request, current_user
-
-        if not current_user.is_authenticated or not current_user.is_admin:
-            return {'error': 'Admin access required'}, 403
+        from flask import request
 
         data = request.get_json() or {}
         keep_count = data.get('keep_count', 10)

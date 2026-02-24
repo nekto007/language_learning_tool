@@ -14,9 +14,10 @@ from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
 
 from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 from sqlalchemy import desc
 
+from app.admin.utils.decorators import admin_required
 from app.auth.models import User
 from app.reminders.models import ReminderLog
 from app.utils.db import db
@@ -162,15 +163,11 @@ def get_inactive_users(days=7):
 
 
 @reminders.route('/', methods=['GET'])
-@login_required
+@admin_required
 def reminder_dashboard():
     """
     Панель управления напоминаниями для администраторов.
     """
-    if not current_user.is_admin:
-        flash('Доступ запрещен. Требуются права администратора.', 'danger')
-        return redirect(url_for('main.index'))
-
     # Получаем параметры фильтрации из запроса
     inactive_days = request.args.get('inactive_days', 7, type=int)
 
@@ -192,15 +189,11 @@ def reminder_dashboard():
 
 
 @reminders.route('/send', methods=['POST'])
-@login_required
+@admin_required
 def send_reminders():
     """
     Отправляет напоминания выбранным пользователям.
     """
-    if not current_user.is_admin:
-        flash('Доступ запрещен. Требуются права администратора.', 'danger')
-        return redirect(url_for('main.index'))
-
     user_ids = request.form.getlist('user_ids')
     reminder_template = request.form.get('reminder_template', 'default')
     custom_subject = request.form.get('custom_subject', 'Пора вернуться к изучению английского!')
@@ -258,15 +251,11 @@ def send_reminders():
 
 
 @reminders.route('/templates', methods=['GET'])
-@login_required
+@admin_required
 def list_templates():
     """
     Отображает список доступных шаблонов напоминаний.
     """
-    if not current_user.is_admin:
-        flash('Доступ запрещен. Требуются права администратора.', 'danger')
-        return redirect(url_for('main.index'))
-
     templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../templates/emails/reminders')
     template_files = [f.replace('.html', '') for f in os.listdir(templates_dir) if f.endswith('.html')]
 
@@ -274,15 +263,11 @@ def list_templates():
 
 
 @reminders.route('/preview/<template_name>', methods=['GET'])
-@login_required
+@admin_required
 def preview_template(template_name):
     """
     Предварительный просмотр шаблона напоминания.
     """
-    if not current_user.is_admin:
-        flash('Доступ запрещен. Требуются права администратора.', 'danger')
-        return redirect(url_for('main.index'))
-
     # Защита от path traversal — только безопасные имена шаблонов
     import re
     if not re.match(r'^[a-zA-Z0-9_-]+$', template_name):

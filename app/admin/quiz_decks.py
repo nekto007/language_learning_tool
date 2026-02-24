@@ -2,23 +2,20 @@
 Quiz Decks management routes for admin panel
 """
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 from sqlalchemy import func
 
 from app.admin.main_routes import admin
+from app.admin.utils.decorators import admin_required
 from app.study.models import QuizDeck, QuizDeckWord, QuizResult
 from app.utils.db import db
 from app.words.models import CollectionWords
 
 
 @admin.route('/quiz-decks')
-@login_required
+@admin_required
 def quiz_decks_list():
     """List all quiz decks"""
-    if not current_user.is_admin:
-        flash('У вас нет прав для доступа к этой странице', 'danger')
-        return redirect(url_for('main.index'))
-
     page = request.args.get('page', 1, type=int)
     per_page = 20
 
@@ -46,13 +43,9 @@ def quiz_decks_list():
 
 
 @admin.route('/quiz-decks/create', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def quiz_deck_create():
     """Create new quiz deck"""
-    if not current_user.is_admin:
-        flash('У вас нет прав для доступа к этой странице', 'danger')
-        return redirect(url_for('main.index'))
-
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
@@ -82,13 +75,9 @@ def quiz_deck_create():
 
 
 @admin.route('/quiz-decks/<int:deck_id>')
-@login_required
+@admin_required
 def quiz_deck_view(deck_id):
     """View quiz deck details"""
-    if not current_user.is_admin:
-        flash('У вас нет прав для доступа к этой странице', 'danger')
-        return redirect(url_for('main.index'))
-
     deck = QuizDeck.query.get_or_404(deck_id)
     words = deck.words.order_by(QuizDeckWord.order_index).all()
 
@@ -108,13 +97,9 @@ def quiz_deck_view(deck_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/edit', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def quiz_deck_edit(deck_id):
     """Edit quiz deck"""
-    if not current_user.is_admin:
-        flash('У вас нет прав для доступа к этой странице', 'danger')
-        return redirect(url_for('main.index'))
-
     deck = QuizDeck.query.get_or_404(deck_id)
 
     if request.method == 'POST':
@@ -151,12 +136,9 @@ def quiz_deck_edit(deck_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/delete', methods=['POST'])
-@login_required
+@admin_required
 def quiz_deck_delete(deck_id):
     """Delete quiz deck"""
-    if not current_user.is_admin:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     deck = QuizDeck.query.get_or_404(deck_id)
     title = deck.title
 
@@ -175,12 +157,9 @@ def quiz_deck_delete(deck_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/words/add', methods=['POST'])
-@login_required
+@admin_required
 def quiz_deck_add_word(deck_id):
     """Add word to quiz deck - supports both existing words and custom translations"""
-    if not current_user.is_admin:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     deck = QuizDeck.query.get_or_404(deck_id)
 
     word_id = request.form.get('word_id', type=int)
@@ -279,12 +258,9 @@ def quiz_deck_add_word(deck_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/words/<int:word_id>/update', methods=['POST'])
-@login_required
+@admin_required
 def quiz_deck_update_word(deck_id, word_id):
     """Update word in quiz deck - saves custom override for this deck"""
-    if not current_user.is_admin:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
 
     custom_english = request.form.get('custom_english', '').strip()
@@ -321,12 +297,9 @@ def quiz_deck_update_word(deck_id, word_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/words/<int:word_id>/reset', methods=['POST'])
-@login_required
+@admin_required
 def quiz_deck_reset_word(deck_id, word_id):
     """Reset custom override to original translation"""
-    if not current_user.is_admin:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
 
     # Only reset if this is a word from collection (has word_id)
@@ -345,12 +318,9 @@ def quiz_deck_reset_word(deck_id, word_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/words/<int:word_id>/delete', methods=['POST'])
-@login_required
+@admin_required
 def quiz_deck_remove_word(deck_id, word_id):
     """Remove word from quiz deck"""
-    if not current_user.is_admin:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
 
     db.session.delete(deck_word)
@@ -368,12 +338,9 @@ def quiz_deck_remove_word(deck_id, word_id):
 
 
 @admin.route('/quiz-decks/<int:deck_id>/words/reorder', methods=['POST'])
-@login_required
+@admin_required
 def quiz_deck_reorder_words(deck_id):
     """Reorder words in deck"""
-    if not current_user.is_admin:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-
     deck = QuizDeck.query.get_or_404(deck_id)
     word_ids = request.json.get('word_ids', [])
 
@@ -388,12 +355,9 @@ def quiz_deck_reorder_words(deck_id):
 
 
 @admin.route('/api/words/search')
-@login_required
+@admin_required
 def api_words_search():
     """API endpoint to search words for autocomplete in quiz deck editor"""
-    if not current_user.is_admin:
-        return jsonify({'error': 'Access denied'}), 403
-
     query = request.args.get('q', '').strip()
     limit = min(int(request.args.get('limit', 10)), 50)  # Max 50 for autocomplete
 
