@@ -256,37 +256,37 @@ class TestBatchUpdateStatus:
 class TestSearchWords:
     """Test GET /api/search endpoint"""
 
-    def test_search_words_by_english(self, client, test_words, db_session):
+    def test_search_words_by_english(self, authenticated_client, test_words, db_session):
         """Test searching words by English text"""
         search_term = test_words[0].english_word[:6]
-        response = client.get(f'/api/search?term={search_term}')
+        response = authenticated_client.get(f'/api/search?term={search_term}')
 
         assert response.status_code == 200
         data = response.get_json()
 
         assert isinstance(data, list)
 
-    def test_search_words_by_russian(self, client, test_words):
+    def test_search_words_by_russian(self, authenticated_client, test_words):
         """Test searching words by Russian text"""
-        response = client.get('/api/search?term=апислово')
+        response = authenticated_client.get('/api/search?term=апислово')
 
         assert response.status_code == 200
         data = response.get_json()
 
         assert isinstance(data, list)
 
-    def test_search_words_too_short(self, client):
+    def test_search_words_too_short(self, authenticated_client):
         """Test search with term too short returns empty"""
-        response = client.get('/api/search?term=a')
+        response = authenticated_client.get('/api/search?term=a')
 
         assert response.status_code == 200
         data = response.get_json()
 
         assert data == []
 
-    def test_search_words_no_term(self, client):
+    def test_search_words_no_term(self, authenticated_client):
         """Test search with no term returns empty"""
-        response = client.get('/api/search')
+        response = authenticated_client.get('/api/search')
 
         assert response.status_code == 200
         data = response.get_json()

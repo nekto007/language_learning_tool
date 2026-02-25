@@ -335,14 +335,14 @@ class TestPrepareWordData:
         rare_data = [item for item in result if item[0] == 'rare'][0]
         assert rare_data[2] == 0  # in_brown = False
 
-    def test_prepare_word_data_forvo_link(self):
-        """Тест генерации ссылок Forvo"""
+    def test_prepare_word_data_audio_link(self):
+        """Тест генерации ссылки на аудио файл"""
         words = ['hello']
         brown_words = set()
 
         result = prepare_word_data(words, brown_words)
 
-        assert result[0][1] == 'https://forvo.com/word/hello/#en'
+        assert result[0][1] == 'pronunciation_en_hello.mp3'
 
     def test_prepare_word_data_empty_list(self):
         """Тест с пустым списком слов"""

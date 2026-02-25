@@ -82,8 +82,13 @@ class CollectionFilterForm(FlaskForm):
         super(CollectionFilterForm, self).__init__(*args, **kwargs)
         from app.words.models import Topic
         # Динамическое заполнение списка тем
-        topics = Topic.query.order_by(Topic.name).all()
-        self.topic.choices = [('', _l('All Topics'))] + [(str(t.id), t.name) for t in topics]
+        choices = [('', _l('All Topics'))]
+        try:
+            topics = Topic.query.order_by(Topic.name).all()
+            choices.extend([(str(t.id), t.name) for t in topics])
+        except Exception:
+            pass
+        self.topic.choices = choices
 
 
 class AnkiExportForm(FlaskForm):

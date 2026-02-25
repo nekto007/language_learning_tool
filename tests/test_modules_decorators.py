@@ -26,11 +26,12 @@ class TestModuleRequired:
 
         assert callable(my_view)
 
+    @patch('app.modules.decorators.flash')
     @patch('app.modules.decorators.redirect')
     @patch('app.modules.decorators.url_for')
     @patch('app.modules.decorators.current_user')
     @patch('app.modules.decorators.ModuleService.is_module_enabled_for_user')
-    def test_module_required_checks_authentication(self, mock_service, mock_user, mock_url_for, mock_redirect):
+    def test_module_required_checks_authentication(self, mock_service, mock_user, mock_url_for, mock_redirect, mock_flash):
         """Тест проверки аутентификации"""
         mock_user.is_authenticated = False
         mock_url_for.return_value = '/auth/login'
@@ -40,7 +41,11 @@ class TestModuleRequired:
         def view():
             return 'Success'
 
-        result = view()
+        # Need request context for url_for with next=request.url
+        from flask import Flask
+        test_app = Flask(__name__)
+        with test_app.test_request_context('/test'):
+            result = view()
 
         # Should redirect when not authenticated
         assert result == 'redirect_response'
@@ -87,10 +92,11 @@ class TestAdminOrModuleOwner:
 
         assert callable(my_view)
 
+    @patch('app.modules.decorators.flash')
     @patch('app.modules.decorators.redirect')
     @patch('app.modules.decorators.url_for')
     @patch('app.modules.decorators.current_user')
-    def test_admin_or_module_owner_checks_authentication(self, mock_user, mock_url_for, mock_redirect):
+    def test_admin_or_module_owner_checks_authentication(self, mock_user, mock_url_for, mock_redirect, mock_flash):
         """Тест проверки аутентификации"""
         mock_user.is_authenticated = False
         mock_url_for.return_value = '/auth/login'
@@ -100,7 +106,11 @@ class TestAdminOrModuleOwner:
         def view():
             return 'Success'
 
-        result = view()
+        # Need request context for url_for with next=request.url
+        from flask import Flask
+        test_app = Flask(__name__)
+        with test_app.test_request_context('/test'):
+            result = view()
 
         # Should redirect when not authenticated
         assert result == 'redirect_response'

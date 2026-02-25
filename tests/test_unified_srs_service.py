@@ -911,10 +911,12 @@ class TestGetOrCreateCardsForWord:
         new_card = MagicMock()
         mock_card.return_value = new_card
 
-        result = service.get_or_create_cards_for_word(
-            user_id=1,
-            word_id=100
-        )
+        # Mock ensure_word_in_default_deck which uses real DB queries
+        with patch('app.study.deck_utils.ensure_word_in_default_deck'):
+            result = service.get_or_create_cards_for_word(
+                user_id=1,
+                word_id=100
+            )
 
         mock_db.session.add.assert_called()
         mock_db.session.flush.assert_called()

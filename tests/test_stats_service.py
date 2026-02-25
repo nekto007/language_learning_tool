@@ -183,6 +183,7 @@ class TestGetUserStats:
 
         Note: 'mastered' status is now calculated based on UserCardDirection.interval >= 180 days,
         not stored directly. The mastery_percentage is based on mastered/total.
+        Stats are now calculated from UserCardDirection records (eng-rus direction only).
         """
         from app.study.services.stats_service import StatsService
         from app.study.models import UserWord, UserCardDirection
@@ -190,6 +191,7 @@ class TestGetUserStats:
         import uuid
 
         # Create 10 words - 3 will be mastered (have interval >= 180), 7 in learning
+        # ALL words need UserCardDirection records to be counted by SRSStatsService
         for i in range(10):
             word = CollectionWords(
                 english_word=f'test_{i}_{uuid.uuid4().hex[:4]}',
@@ -200,22 +202,25 @@ class TestGetUserStats:
 
             user_word = UserWord(user_id=test_user.id, word_id=word.id)
             if i < 3:
-                # Mastered words need 'review' status AND interval >= 180 days
                 user_word.status = 'review'
             else:
                 user_word.status = 'learning'
             db_session.add(user_word)
             db_session.flush()
 
+            # Create UserCardDirection for ALL words (required for SRS stats counting)
+            direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
             if i < 3:
-                # Create UserCardDirection with interval >= 180 for mastered words
-                # Note: UserCardDirection.__init__ only takes user_word_id and direction,
-                # other fields must be set after creation
-                direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+                # Mastered words: state='review' AND interval >= 180
                 direction.state = 'review'
-                direction.interval = 200  # >= 180 days threshold
+                direction.interval = 200
                 direction.ease_factor = 2.5
-                db_session.add(direction)
+            else:
+                # Learning words
+                direction.state = 'learning'
+                direction.interval = 0
+                direction.ease_factor = 2.5
+            db_session.add(direction)
 
         db_session.commit()
 

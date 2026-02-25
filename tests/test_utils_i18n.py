@@ -7,6 +7,17 @@ from flask import g
 from app.utils.i18n import get_locale, init_babel
 
 
+@pytest.fixture(autouse=True)
+def _reset_db_session(app):
+    """Roll back any pending transaction to prevent PendingRollbackError
+    when client.get() triggers DB queries in before_request hooks."""
+    from app.utils.db import db
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+
+
 class TestGetLocale:
     """Тесты функции get_locale"""
 

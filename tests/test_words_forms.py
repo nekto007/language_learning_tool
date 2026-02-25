@@ -9,6 +9,17 @@ from app.words.forms import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _reset_db_session(app):
+    """Roll back any pending transaction to prevent PendingRollbackError
+    when form __init__ queries the DB for dynamic choices."""
+    from app.utils.db import db
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+
+
 class TestWordSearchForm:
     """Тесты формы WordSearchForm"""
 

@@ -48,9 +48,11 @@ class TestQuizService:
         result = quiz_service.generate_quiz_questions(sample_words, -1)
         assert result == []
 
-    def test_generate_quiz_questions_returns_list(self, quiz_service, sample_words):
+    @patch('app.study.services.quiz_service.CollectionWords')
+    def test_generate_quiz_questions_returns_list(self, mock_cw, quiz_service, sample_words):
         """Test that questions are returned as list"""
         random.seed(42)  # For reproducibility
+        mock_cw.query.filter.return_value.limit.return_value.all.return_value = sample_words
         result = quiz_service.generate_quiz_questions(sample_words, 3)
         assert isinstance(result, list)
         assert len(result) <= 3
