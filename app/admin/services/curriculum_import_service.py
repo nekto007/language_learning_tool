@@ -185,25 +185,22 @@ class CurriculumImportService:
         # Нормализация формата JSON (поддержка двух форматов)
         # Формат 1 (старый): {"level": "A1", "module": 6, "lessons": [...]}
         # Формат 2 (новый): {"module": {"id": 6, "level": "A1", "lessons": [...]}}
-        explicit_module_id = None
         if 'module' in data and isinstance(data['module'], dict):
             module_data = data['module']
-            explicit_module_id = module_data.get('id')  # Сохраняем ID из файла
             data = {
                 'level': module_data.get('level'),
                 'module': module_data.get('order') or module_data.get('id') or module_data.get('number'),
-                'module_id': explicit_module_id,  # Передаём явный ID
                 'title': module_data.get('title'),
-                'title_en': module_data.get('title_en'),  # Английское название
+                'title_en': module_data.get('title_en'),
                 'description': module_data.get('description', ''),
-                'input_mode': module_data.get('input_mode', 'selection_only'),  # Режим ввода
-                'prerequisites': module_data.get('prerequisites', []),  # Предварительные требования
-                'skills_learned': module_data.get('skills_learned', []),  # Навыки для сохранения в raw_content
-                'total_xp': module_data.get('total_xp'),  # Всего XP
-                'estimated_time': module_data.get('estimated_time'),  # Примерное время
+                'input_mode': module_data.get('input_mode', 'selection_only'),
+                'prerequisites': module_data.get('prerequisites', []),
+                'skills_learned': module_data.get('skills_learned', []),
+                'total_xp': module_data.get('total_xp'),
+                'estimated_time': module_data.get('estimated_time'),
                 'lessons': module_data.get('lessons', [])
             }
-            logger.info(f"Обнаружен новый формат JSON, module_id={explicit_module_id}, input_mode={data.get('input_mode')}")
+            logger.info(f"Обнаружен новый формат JSON, level={data.get('level')}, module={data.get('module')}, input_mode={data.get('input_mode')}")
 
         # Проверяем наличие обязательных полей
         if 'level' not in data or 'module' not in data:
@@ -229,12 +226,10 @@ class CurriculumImportService:
         # 2. Создаем или находим модуль
         module_number = data['module']
         module_description = data.get('description', '')
-        explicit_module_id = data.get('module_id')
 
-        # Сначала ищем по level_id + number (надёжнее), затем по явному ID
+        # Ищем модуль по level_id + number (единственный надёжный способ)
+        # НЕ используем explicit_module_id для поиска — id в JSON относительный, не DB PK
         module = Module.query.filter_by(level_id=level.id, number=module_number).first()
-        if not module and explicit_module_id:
-            module = Module.query.get(explicit_module_id)
 
         # Получаем prerequisites из JSON
         module_prerequisites = data.get('prerequisites', [])
@@ -251,9 +246,7 @@ class CurriculumImportService:
                 input_mode=data.get('input_mode', 'selection_only'),
                 prerequisites=module_prerequisites if module_prerequisites else None
             )
-            # Устанавливаем явный ID если указан
-            if explicit_module_id:
-                module.id = explicit_module_id
+            # НЕ используем explicit_module_id как PK — пусть БД генерирует ID
             db.session.add(module)
             db.session.flush()
             logger.info(f"Создан новый модуль: id={module.id}, number={module.number}")
