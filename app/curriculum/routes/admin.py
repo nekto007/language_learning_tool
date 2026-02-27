@@ -8,6 +8,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from sqlalchemy import or_
 
+from app.admin.services.curriculum_import_service import CurriculumImportService
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import (safe_int, sanitize_json_content, validate_file_upload)
 from app.curriculum.validators import ImportDataSchema, validate_request_data
@@ -25,288 +26,75 @@ admin_bp = Blueprint('curriculum_admin', __name__)
 @login_required
 @admin_required
 def import_curriculum():
-    """Import curriculum from JSON file with validation and sanitization"""
+    """Import curriculum from JSON file(s) using CurriculumImportService"""
     if request.method == 'POST':
         logger.info("=== Import curriculum POST request received ===")
-        logger.info(f"Request files: {list(request.files.keys())}")
-        logger.info(f"Request form: {list(request.form.keys())}")
 
-        try:
-            # Check if file was uploaded
-            if 'file' not in request.files:
-                logger.error("No 'file' in request.files")
-                flash('Файл не выбран', 'error')
-                return redirect(request.url)
+        # Collect datasets: list of (data_dict, source_name)
+        datasets: list[tuple[dict, str]] = []
+        errors: list[str] = []
 
-            file = request.files['file']
-            if file.filename == '':
-                flash('Файл не выбран', 'error')
-                return redirect(request.url)
-
-            # Validate file
+        # 1. Try files first (supports multiple)
+        files = request.files.getlist('file')
+        for file in files:
+            if not file or not file.filename:
+                continue
             is_valid, error_msg = validate_file_upload(
-                file,
-                max_size_mb=10,
-                allowed_extensions={'json'}
+                file, max_size_mb=10, allowed_extensions={'json'}
             )
-
             if not is_valid:
-                flash(error_msg, 'error')
-                return redirect(request.url)
-
-            # Read and parse JSON
+                errors.append(f'{file.filename}: {error_msg}')
+                continue
             try:
                 data = json.load(file)
+                datasets.append((data, file.filename))
             except json.JSONDecodeError as e:
-                flash(f'Ошибка при чтении JSON: {str(e)}', 'error')
-                return redirect(request.url)
+                errors.append(f'{file.filename}: ошибка JSON — {e}')
 
-            # Проверяем формат JSON - поддерживаем два формата:
-            # 1. Новый формат: {"module": {...}} - один модуль
-            # 2. Старый формат: {"levels": [{...}]} - полная структура с уровнями
+        # 2. If no files, try pasted JSON text
+        if not datasets:
+            json_text = request.form.get('json_text', '').strip()
+            if json_text:
+                try:
+                    data = json.loads(json_text)
+                    datasets.append((data, 'JSON текст'))
+                except json.JSONDecodeError as e:
+                    errors.append(f'JSON текст: ошибка — {e}')
 
-            if 'module' in data:
-                # Новый формат - преобразуем в старый формат для совместимости
-                module_data = data['module']
-                logger.info(f"Detected new format with module: {module_data.get('title')}")
+        # Nothing to import?
+        if not datasets and not errors:
+            flash('Файл не выбран', 'error')
+            return redirect(request.url)
 
-                # Используем уровень из JSON, если указан, иначе A0
-                level_code = module_data.get('level', 'A0')
-                logger.info(f"Using level from JSON: {level_code}")
-
-                # Преобразуем в старый формат с правильным уровнем
-                cleaned_data = {
-                    'levels': [{
-                        'code': level_code,
-                        'name': level_code,
-                        'modules': [module_data]
-                    }]
-                }
-                logger.info(f"Converted to old format with level {level_code}, modules count: {len(cleaned_data['levels'][0]['modules'])}")
-            else:
-                # Старый формат - валидируем как обычно
-                is_valid, error_msg, cleaned_data = validate_request_data(
-                    ImportDataSchema, data
-                )
-
-                if not is_valid:
-                    flash(f'Ошибка валидации данных: {error_msg}', 'error')
-                    return redirect(request.url)
-
-            # Process import in transaction
-            imported_stats = {
-                'levels': 0,
-                'modules': 0,
-                'lessons': 0
-            }
-
+        # 3. Import each dataset independently
+        results: list[tuple[str, dict | None, str | None]] = []
+        for data, source_name in datasets:
             try:
-                # Import levels
-                for level_data in cleaned_data['levels']:
-                    # Check if level exists
-                    level = CEFRLevel.query.filter_by(
-                        code=level_data['code']
-                    ).first()
-
-                    if not level:
-                        level = CEFRLevel(
-                            code=level_data['code'],
-                            name=level_data.get('name', level_data['code']),
-                            description=sanitize_json_content(
-                                level_data.get('description', '')
-                            ),
-                            order=level_data.get('order', 0)
-                        )
-                        db.session.add(level)
-                        db.session.flush()
-                        imported_stats['levels'] += 1
-
-                    # Import modules
-                    for module_data in level_data.get('modules', []):
-                        # Поддержка всех форматов: 'order' (per-level), 'number' (старый), 'id' (fallback)
-                        module_number = module_data.get('order') or module_data.get('number') or module_data.get('id')
-
-                        if not module_number:
-                            logger.error("Module missing both 'number' and 'id' fields")
-                            continue
-
-                        # Check if module exists
-                        module = Module.query.filter_by(
-                            level_id=level.id,
-                            number=module_number
-                        ).first()
-
-                        if not module:
-                            module = Module(
-                                level_id=level.id,
-                                number=module_number,
-                                title=sanitize_json_content(
-                                    module_data.get('title', f'Module {module_number}')
-                                ),
-                                description=sanitize_json_content(
-                                    module_data.get('description', '')
-                                )
-                            )
-                            db.session.add(module)
-                            db.session.flush()
-                            imported_stats['modules'] += 1
-                        else:
-                            # Обновляем существующий модуль
-                            if module_data.get('title'):
-                                module.title = sanitize_json_content(module_data.get('title'))
-                            if module_data.get('description'):
-                                module.description = sanitize_json_content(module_data.get('description'))
-                            if module_data.get('input_mode'):
-                                module.input_mode = module_data.get('input_mode')
-                            imported_stats['modules'] += 1
-
-                        # Import lessons
-                        for lesson_data in module_data.get('lessons', []):
-                            # Поддержка обоих форматов: 'number' и 'order'
-                            lesson_number = lesson_data.get('number') or lesson_data.get('order', 0)
-
-                            # Check if lesson exists
-                            existing_lesson = Lessons.query.filter_by(
-                                module_id=module.id,
-                                number=lesson_number
-                            ).first()
-
-                            # Маппинг типов уроков из JSON в типы БД
-                            type_mapping = {
-                                'vocabulary': 'vocabulary',
-                                'grammar': 'grammar',
-                                'quiz': 'quiz',
-                                'flashcards': 'card',
-                                'listening': 'matching',
-                                'reading': 'text',
-                                'listening_immersion': 'text',
-                                'test': 'final_test',
-                                'final_test': 'final_test',
-                                'dialogue_completion': 'quiz',  # Диалоги как quiz
-                                'ordering': 'quiz',  # Упорядочивание как quiz
-                                'translation': 'quiz',  # Перевод как quiz
-                                'card': 'card'  # Карточки
-                            }
-
-                            # Получаем тип урока и преобразуем его
-                            original_type = lesson_data.get('type', 'text')
-                            mapped_type = type_mapping.get(original_type, 'quiz')
-
-                            # Sanitize and normalize lesson content
-                            content = lesson_data.get('content', {})
-                            if isinstance(content, dict):
-                                # Normalize content structure for different lesson types
-                                if mapped_type == 'vocabulary' and 'vocabulary' in content:
-                                    # Transform {"vocabulary": [...]} to {"words": [...]}
-                                    # Also normalize field names in vocabulary items
-                                    words = content['vocabulary']
-                                    for word in words:
-                                        # Map english->word/front, russian->translation/back
-                                        if 'english' in word and 'word' not in word:
-                                            word['word'] = word['english']
-                                            word['front'] = word['english']
-                                        if 'russian' in word and 'translation' not in word:
-                                            word['translation'] = word['russian']
-                                            word['back'] = word['russian']
-                                        # Map example_translation to usage or hint
-                                        if 'example_translation' in word and 'usage' not in word:
-                                            word['usage'] = word['example_translation']
-                                    content = {'words': words}
-                                elif mapped_type == 'grammar' and 'grammar' in content:
-                                    # Extract grammar data from nested structure
-                                    grammar_data = content['grammar']
-                                    if isinstance(grammar_data, dict):
-                                        content = grammar_data
-                                elif mapped_type == 'quiz' and 'questions' not in content:
-                                    # For quiz types, ensure questions are at top level
-                                    if 'quiz' in content:
-                                        content = content['quiz']
-                                    elif 'exercises' in content:
-                                        content = {'questions': content['exercises']}
-                                elif mapped_type == 'matching' and 'matching' in content:
-                                    # Transform {"matching": [...]} to {"pairs": [...]}
-                                    content = {'pairs': content['matching']}
-                                elif mapped_type == 'text' and 'dialogue' in content:
-                                    # Extract dialogue content
-                                    dialogue_data = content['dialogue']
-                                    if isinstance(dialogue_data, dict):
-                                        content = dialogue_data
-                                elif mapped_type == 'card' and 'flashcards' in content:
-                                    # Transform {"flashcards": [...]} to {"cards": [...]}
-                                    content = {'cards': content['flashcards']}
-                                elif mapped_type == 'final_test' and 'test' in content:
-                                    test_data = content['test']
-                                    if isinstance(test_data, dict):
-                                        content = test_data
-
-                                content = sanitize_json_content(content)
-                            elif isinstance(content, list):
-                                content = sanitize_json_content(content)
-
-                            # Для foreign keys используем None вместо 0
-                            collection_id = lesson_data.get('collection_id')
-                            book_id = lesson_data.get('book_id')
-
-                            if existing_lesson:
-                                # Обновляем существующий урок
-                                existing_lesson.title = sanitize_json_content(
-                                    lesson_data.get('title', existing_lesson.title)
-                                )
-                                existing_lesson.type = mapped_type
-                                existing_lesson.description = sanitize_json_content(
-                                    lesson_data.get('grammar_focus', lesson_data.get('description', existing_lesson.description or ''))
-                                )
-                                existing_lesson.content = content
-                                if collection_id:
-                                    existing_lesson.collection_id = safe_int(collection_id)
-                                if book_id:
-                                    existing_lesson.book_id = safe_int(book_id)
-                                # Помечаем content как изменённый для SQLAlchemy
-                                from sqlalchemy.orm.attributes import flag_modified
-                                flag_modified(existing_lesson, 'content')
-                                imported_stats['lessons'] += 1
-                            else:
-                                # Создаём новый урок
-                                lesson = Lessons(
-                                    module_id=module.id,
-                                    number=lesson_number,
-                                    title=sanitize_json_content(
-                                        lesson_data.get('title', 'Untitled Lesson')
-                                    ),
-                                    type=mapped_type,
-                                    description=sanitize_json_content(
-                                        lesson_data.get('grammar_focus', lesson_data.get('description', ''))
-                                    ),
-                                    order=lesson_number,
-                                    content=content,
-                                    collection_id=safe_int(collection_id) if collection_id else None,
-                                    book_id=safe_int(book_id) if book_id else None
-                                )
-                                db.session.add(lesson)
-                                imported_stats['lessons'] += 1
-
-                db.session.commit()
-
-                logger.info(f"Import completed: {imported_stats}")
-                flash(
-                    f'Импорт завершен успешно! '
-                    f'Импортировано: {imported_stats["levels"]} уровней, '
-                    f'{imported_stats["modules"]} модулей, '
-                    f'{imported_stats["lessons"]} уроков',
-                    'success'
-                )
-                return redirect(url_for('curriculum_admin.admin_lessons'))
-
+                result = CurriculumImportService.import_curriculum_data(data)
+                results.append((source_name, result, None))
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error importing curriculum: {str(e)}")
-                flash(f'Ошибка при импорте: {str(e)}', 'error')
-                return redirect(request.url)
+                logger.error(f"Import error in {source_name}: {e}")
+                results.append((source_name, None, str(e)))
 
-        except Exception as e:
-            logger.error(f"Error in import_curriculum: {str(e)}")
-            flash('Произошла непредвиденная ошибка', 'error')
-            return redirect(request.url)
+        # 4. Flash summary
+        success = [r for r in results if r[2] is None]
+        import_errors = [r for r in results if r[2] is not None]
+
+        if success:
+            names = ', '.join(r[0] for r in success)
+            flash(
+                f'Импортировано {len(success)} из {len(results)} файлов: {names}',
+                'success'
+            )
+
+        for name, _, err in import_errors:
+            flash(f'Ошибка в {name}: {err}', 'danger')
+
+        for err_msg in errors:
+            flash(err_msg, 'danger')
+
+        return redirect(url_for('curriculum_admin.admin_lessons'))
 
     return render_template('admin/curriculum/import.html')
 

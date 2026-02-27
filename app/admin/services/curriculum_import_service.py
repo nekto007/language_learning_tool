@@ -179,6 +179,9 @@ class CurriculumImportService:
         """
         logger.info("Начинаем импорт данных курса из JSON")
 
+        # Сохраняем оригинальный JSON до нормализации (для raw_content)
+        original_data = data
+
         # Нормализация формата JSON (поддержка двух форматов)
         # Формат 1 (старый): {"level": "A1", "module": 6, "lessons": [...]}
         # Формат 2 (новый): {"module": {"id": 6, "level": "A1", "lessons": [...]}}
@@ -246,7 +249,7 @@ class CurriculumImportService:
                 number=module_number,
                 title=module_title,
                 description=module_description,
-                raw_content=data,
+                raw_content=original_data,
                 input_mode=data.get('input_mode', 'selection_only'),
                 prerequisites=module_prerequisites if module_prerequisites else None
             )
@@ -258,7 +261,9 @@ class CurriculumImportService:
             logger.info(f"Создан новый модуль: id={module.id}, number={module.number}")
         else:
             # Обновляем существующий модуль
-            module.raw_content = data
+            module.raw_content = original_data
+            module.level_id = level.id
+            module.number = module_number
             if data.get('title'):
                 module.title = data.get('title')
             if module_description:
