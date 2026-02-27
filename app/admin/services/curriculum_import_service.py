@@ -231,12 +231,10 @@ class CurriculumImportService:
         module_description = data.get('description', '')
         explicit_module_id = data.get('module_id')
 
-        # Сначала проверяем по явному ID, затем по level_id + number
-        module = None
-        if explicit_module_id:
+        # Сначала ищем по level_id + number (надёжнее), затем по явному ID
+        module = Module.query.filter_by(level_id=level.id, number=module_number).first()
+        if not module and explicit_module_id:
             module = Module.query.get(explicit_module_id)
-        if not module:
-            module = Module.query.filter_by(level_id=level.id, number=module_number).first()
 
         # Получаем prerequisites из JSON
         module_prerequisites = data.get('prerequisites', [])

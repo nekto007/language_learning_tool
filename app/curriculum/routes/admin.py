@@ -73,9 +73,16 @@ def import_curriculum():
                 result = CurriculumImportService.import_curriculum_data(data)
                 results.append((source_name, result, None))
             except Exception as e:
+                # Полный rollback чтобы очистить broken state сессии
                 db.session.rollback()
                 logger.error(f"Import error in {source_name}: {e}")
                 results.append((source_name, None, str(e)))
+
+        # Убедимся что сессия чистая перед redirect
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
         # 4. Flash summary
         success = [r for r in results if r[2] is None]
