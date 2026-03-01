@@ -2078,8 +2078,8 @@ window.QuizApp = {
       let correctText = '';
       let userText = userAnswer ? userAnswer.text : '';
 
-      // For questions with options (multiple_choice, fill_blank with options)
-      if ((question.type === 'multiple_choice' || question.type === 'fill_blank' || question.type === 'fill_in_blank') && question.options) {
+      // For questions with options (multiple_choice, fill_blank, dialogue_completion, listening_choice)
+      if ((question.type === 'multiple_choice' || question.type === 'fill_blank' || question.type === 'fill_in_blank' || question.type === 'dialogue_completion' || question.type === 'listening_choice') && question.options) {
         // Get the correct option text
         if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < question.options.length) {
           correctText = question.options[correctAnswer];
