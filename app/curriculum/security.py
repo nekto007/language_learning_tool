@@ -183,7 +183,7 @@ def check_lesson_access(lesson_id: int) -> bool:
     # First lesson in module — check module-level access
     module_lessons = Lessons.query.filter_by(
         module_id=lesson.module_id,
-    ).order_by(Lessons.order).all()
+    ).order_by(Lessons.number).all()
 
     if not module_lessons:
         return False

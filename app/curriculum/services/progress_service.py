@@ -448,7 +448,7 @@ class ProgressService:
                 next_lesson = Lessons.query.filter(
                     Lessons.module_id == current_lesson.module_id,
                     Lessons.order > current_lesson.order
-                ).order_by(Lessons.order).first()
+                ).order_by(Lessons.number).first()
 
             if next_lesson:
                 return next_lesson
@@ -466,7 +466,7 @@ class ProgressService:
                 # Get first lesson of next module
                 return Lessons.query.filter_by(
                     module_id=next_module.id
-                ).order_by(Lessons.order).first()
+                ).order_by(Lessons.number).first()
 
             # If no next module, try next level
             current_level = current_module.level
@@ -486,7 +486,7 @@ class ProgressService:
                     # Get first lesson of first module
                     return Lessons.query.filter_by(
                         module_id=first_module.id
-                    ).order_by(Lessons.order).first()
+                    ).order_by(Lessons.number).first()
 
             return None
 

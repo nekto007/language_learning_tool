@@ -483,7 +483,7 @@ def import_curriculum_data(data):
 
     # Возвращаем результат
     # Определяем id первого урока, если есть
-    first_lesson = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.order).first()
+    first_lesson = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).first()
     first_lesson_id = first_lesson.id if first_lesson else None
 
     result = {

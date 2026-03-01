@@ -148,7 +148,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                 next_l = Lessons.query.filter(
                     Lessons.module_id == module.id,
                     Lessons.order > lesson.order,
-                ).order_by(Lessons.order).first()
+                ).order_by(Lessons.number).first()
 
                 if not next_l:
                     # Try next module
@@ -158,7 +158,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                     if next_module:
                         next_l = Lessons.query.filter(
                             Lessons.module_id == next_module.id,
-                        ).order_by(Lessons.order).first()
+                        ).order_by(Lessons.number).first()
 
                 if next_l:
                     next_module = Module.query.get(next_l.module_id)
@@ -330,14 +330,14 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
             if first_module:
                 first_lesson = Lessons.query.filter_by(
                     module_id=first_module.id,
-                ).order_by(Lessons.order).first()
+                ).order_by(Lessons.number).first()
                 if first_lesson:
                     level = first_module.level
                     # Find first grammar lesson title in the module
                     grammar_lesson = Lessons.query.filter_by(
                         module_id=first_module.id,
                         type='grammar',
-                    ).order_by(Lessons.order).first()
+                    ).order_by(Lessons.number).first()
                     grammar_topic_title = grammar_lesson.title if grammar_lesson else None
                     grammar_minutes = LESSON_TIME.get('grammar', 12)
                     onboarding['first_lesson'] = {
@@ -374,7 +374,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
             extra = Lessons.query.filter(
                 Lessons.module_id == planned.module_id,
                 Lessons.order > planned.order,
-            ).order_by(Lessons.order).first()
+            ).order_by(Lessons.number).first()
             if not extra:
                 next_mod = Module.query.filter(
                     Module.number == (Module.query.get(planned.module_id).number + 1 if Module.query.get(planned.module_id) else 0),
@@ -382,7 +382,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                 if next_mod:
                     extra = Lessons.query.filter(
                         Lessons.module_id == next_mod.id,
-                    ).order_by(Lessons.order).first()
+                    ).order_by(Lessons.number).first()
             if extra:
                 bonus_completed_today = LessonProgress.query.filter(
                     LessonProgress.user_id == user_id,
@@ -644,7 +644,7 @@ def get_tomorrow_preview(user_id: int) -> dict[str, Any] | None:
     next_l = Lessons.query.filter(
         Lessons.module_id == module.id,
         Lessons.order > lesson.order,
-    ).order_by(Lessons.order).first()
+    ).order_by(Lessons.number).first()
 
     if not next_l:
         next_module = Module.query.filter(
@@ -653,7 +653,7 @@ def get_tomorrow_preview(user_id: int) -> dict[str, Any] | None:
         if next_module:
             next_l = Lessons.query.filter(
                 Lessons.module_id == next_module.id,
-            ).order_by(Lessons.order).first()
+            ).order_by(Lessons.number).first()
 
     if not next_l:
         return None
@@ -717,7 +717,7 @@ def get_quickest_action(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any] | 
                 next_l = Lessons.query.filter(
                     Lessons.module_id == module.id,
                     Lessons.order > lesson.order,
-                ).order_by(Lessons.order).first()
+                ).order_by(Lessons.number).first()
                 if next_l:
                     return {
                         'type': 'lesson',

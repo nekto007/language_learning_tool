@@ -177,7 +177,7 @@ class LessonAnalyticsService:
     def _find_drop_off_points(cls, module_id: int) -> List[Dict[str, Any]]:
         """Find lessons where users commonly abandon the module."""
         try:
-            lessons = Lessons.query.filter_by(module_id=module_id).order_by(Lessons.order).all()
+            lessons = Lessons.query.filter_by(module_id=module_id).order_by(Lessons.number).all()
             drop_off = []
 
             for lesson in lessons:
