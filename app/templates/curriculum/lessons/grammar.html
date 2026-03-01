@@ -446,7 +446,7 @@
                 </div>
 
               {% elif exercise.type == 'true_false' %}
-                <p class="exercise-prompt">{{ exercise.question or exercise.prompt or exercise.text }}</p>
+                <p class="exercise-prompt">{{ exercise.question or exercise.statement or exercise.prompt or exercise.text }}</p>
                 <div class="answer-options binary">
                   {% set exercise_idx = loop.index0 %}
                   {% set prev_answer = previous_feedback.get(exercise_idx|string, {}).get('user_answer', '') %}

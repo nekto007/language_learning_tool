@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ book.title }} - {{ _('Chapter') }} {{ current_chapter.chap_num }}/{{ chapters|length }}{% endblock %}
+{% block title %}{{ book.title }} - Глава {{ current_chapter.chap_num }}/{{ chapters|length }}{% endblock %}
 
 {% block content %}
 <style>
@@ -754,7 +754,7 @@ body.dark-theme .rdr-bottom-nav {
       <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
          class="rdr-nav-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span>{{ _('Previous') }}</span>
+        <span>Назад</span>
       </a>
       {% endif %}
     </div>
@@ -764,7 +764,7 @@ body.dark-theme .rdr-bottom-nav {
         {% for ch in chapters %}
         <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
                 {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
-          {{ _('Chapter') }} {{ ch.chap_num }}
+          Глава {{ ch.chap_num }}
         </option>
         {% endfor %}
       </select>
@@ -777,7 +777,7 @@ body.dark-theme .rdr-bottom-nav {
     </div>
 
     <div class="rdr-header__right">
-      <button class="rdr-menu-btn" onclick="toggleSidebar()" title="{{ _('Settings') }}">
+      <button class="rdr-menu-btn" onclick="toggleSidebar()" title="Настройки">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
@@ -786,7 +786,7 @@ body.dark-theme .rdr-bottom-nav {
   <!-- Scrollable content -->
   <div class="rdr-body" id="readerBody">
     <div class="rdr-content">
-      <h1>{{ _('Chapter') }} {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
+      <h1>Глава {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
 
       <div id="chapterContent" class="text-size-18">
         {{ current_chapter.text_raw | format_chapter_text }}
@@ -798,7 +798,7 @@ body.dark-theme .rdr-bottom-nav {
         <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
            class="rdr-bottom-btn" id="prev-chapter-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {{ _('Previous Chapter') }}
+          Предыдущая глава
         </a>
         {% else %}
         <div></div>
@@ -806,20 +806,20 @@ body.dark-theme .rdr-bottom-nav {
 
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
            class="rdr-bottom-btn">
-          {{ _('Back to Book') }}
+          К книге
         </a>
 
         {% if current_chapter.chap_num < chapters|length %}
         <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
            class="rdr-bottom-btn rdr-bottom-btn--primary" id="next-chapter-link">
-          {{ _('Next Chapter') }}
+          Следующая глава
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
         {% else %}
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
            class="rdr-bottom-btn rdr-bottom-btn--success" id="finish-reading-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {{ _('Finish Reading') }}
+          Завершить чтение
         </a>
         {% endif %}
         <div id="daily-plan-next-step" style="grid-column: 1 / -1;"></div>
@@ -843,27 +843,27 @@ body.dark-theme .rdr-bottom-nav {
   <div class="rdr-sidebar__body">
     <!-- Chapter Info -->
     <div class="rdr-chapter-info">
-      <div class="rdr-chapter-info__num">{{ _('Chapter') }} {{ current_chapter.chap_num }}</div>
+      <div class="rdr-chapter-info__num">Глава {{ current_chapter.chap_num }}</div>
       <div class="rdr-chapter-info__title">{{ current_chapter.title }}</div>
     </div>
 
     <!-- Reading Progress -->
     <div class="rdr-sidebar__section">
-      <div class="rdr-sidebar__section-title">{{ _('Reading Progress') }}</div>
+      <div class="rdr-sidebar__section-title">Прогресс чтения</div>
       <div class="rdr-sidebar-progress">
         <div class="rdr-progress-ring" id="sidebarProgressCircle">
           <div class="rdr-progress-ring__inner" id="sidebarProgressText">0%</div>
         </div>
         <div class="rdr-progress-details">
-          <div>{{ _('Position') }}: <span id="sidebarPosition">{{ current_chapter.chap_num }}</span></div>
-          <div>{{ _('Total words') }}: {{ current_chapter.words }}</div>
+          <div>Позиция: <span id="sidebarPosition">{{ current_chapter.chap_num }}</span></div>
+          <div>Всего слов: {{ current_chapter.words }}</div>
         </div>
       </div>
     </div>
 
     <!-- Quick Settings -->
     <div class="rdr-sidebar__section">
-      <div class="rdr-sidebar__section-title">{{ _('Quick Settings') }}</div>
+      <div class="rdr-sidebar__section-title">Настройки</div>
 
       <!-- Font Size -->
       <div style="margin-bottom: 1rem;">
@@ -880,52 +880,52 @@ body.dark-theme .rdr-bottom-nav {
 
       <!-- Dark Theme -->
       <div class="rdr-theme-row">
-        <span class="rdr-theme-label">{{ _('Dark Theme') }}</span>
+        <span class="rdr-theme-label">Тёмная тема</span>
         <div class="rdr-toggle" id="themeToggle" onclick="toggleTheme()"></div>
       </div>
     </div>
 
     <!-- Navigation -->
     <div class="rdr-sidebar__section">
-      <div class="rdr-sidebar__section-title">{{ _('Navigation') }}</div>
+      <div class="rdr-sidebar__section-title">Навигация</div>
       <div class="rdr-sidebar-nav">
         {% if current_chapter.chap_num > 1 %}
         <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
            class="rdr-sidebar-nav-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-          {{ _('Previous Chapter') }}
+          Предыдущая глава
         </a>
         {% endif %}
 
         {% if current_chapter.chap_num < chapters|length %}
         <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
            class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--primary">
-          {{ _('Next Chapter') }}
+          Следующая глава
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </a>
         {% else %}
         <a href="{{ url_for('books.book_details', book_id=book.id) }}"
            class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--success">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          {{ _('Finish Reading') }}
+          Завершить чтение
         </a>
         {% endif %}
 
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
            class="rdr-sidebar-nav-btn">
-          {{ _('Back to Book') }}
+          К книге
         </a>
       </div>
     </div>
 
     <!-- Chapter Selection -->
     <div class="rdr-sidebar__section">
-      <div class="rdr-sidebar__section-title">{{ _('All Chapters') }}</div>
+      <div class="rdr-sidebar__section-title">Все главы</div>
       <select class="rdr-sidebar-chapters" onchange="window.location.href=this.value">
         {% for ch in chapters %}
         <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
                 {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
-          {{ _('Chapter') }} {{ ch.chap_num }}: {{ ch.title }}
+          Глава {{ ch.chap_num }}: {{ ch.title }}
         </option>
         {% endfor %}
       </select>
@@ -1096,19 +1096,19 @@ function handleWordClick(e) {
                 }
 
                 if (!data.in_reading_deck) {
-                    actionsHTML += `<button class="rdr-popup-btn--add" onclick="addToLearning(${data.id}, '${safeWord}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> {{ _('Add') }}</button>`;
+                    actionsHTML += `<button class="rdr-popup-btn--add" onclick="addToLearning(${data.id}, '${safeWord}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Добавить</button>`;
                 } else {
-                    actionsHTML += `<span class="rdr-popup-badge">{{ _('In reading deck') }}</span>`;
+                    actionsHTML += `<span class="rdr-popup-badge">В колоде для чтения</span>`;
                 }
 
                 actionsDiv.innerHTML = actionsHTML;
             } else {
-                translationDiv.innerHTML = '<em style="color: var(--rdr-text-light);">{{ _("Translation not found") }}</em>';
+                translationDiv.innerHTML = '<em style="color: var(--rdr-text-light);">Перевод не найден</em>';
             }
         })
         .catch(error => {
             console.error('Error fetching translation:', error);
-            document.getElementById('popupTranslation').innerHTML = '<em style="color: #ef4444;">{{ _("Error loading translation") }}</em>';
+            document.getElementById('popupTranslation').innerHTML = '<em style="color: #ef4444;">Ошибка загрузки перевода</em>';
         });
 }
 
@@ -1130,7 +1130,7 @@ function addToLearning(wordId, word) {
     .then(data => {
         if (data.success) {
             const actionsDiv = document.getElementById('popupActions');
-            actionsDiv.innerHTML = '<span class="rdr-popup-badge" style="background: #d1fae5; color: #059669;">{{ _("Added to learning") }}</span>';
+            actionsDiv.innerHTML = '<span class="rdr-popup-badge" style="background: #d1fae5; color: #059669;">Добавлено в изучение</span>';
             setTimeout(() => {
                 document.getElementById('translationPopup').style.display = 'none';
             }, 2000);

@@ -334,7 +334,7 @@
         {% for question in questions_list %}
           {% set question_index = loop.index0 %}
           <div class="question-block" data-question-index="{{ question_index }}">
-            <p class="question-text">{{ loop.index }}. {{ (question.question or question.instruction)|sanitize }}</p>
+            <p class="question-text">{{ loop.index }}. {{ (question.question or question.statement or question.instruction)|sanitize }}</p>
 
             {% if question.type == 'true_false' %}
               {# True/False question #}

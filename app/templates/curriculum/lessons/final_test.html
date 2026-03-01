@@ -589,7 +589,7 @@
       {% for question in exercises %}
         {% set question_index = loop.index0 %}
         <div class="question-card" id="question-{{ question_index }}" style="display: none;" data-index="{{ question_index }}">
-          {% set full_question = question.question or question.prompt or question.sentence or question.russian %}
+          {% set full_question = question.question or question.prompt or question.statement or question.sentence or question.russian %}
 
           {# Check if it's a dialogue question (contains A: and B:) #}
           {% if "A:" in full_question and "B:" in full_question %}
