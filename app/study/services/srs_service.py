@@ -295,7 +295,7 @@ class SRSService:
                 UserCardDirection, UserWord.id == UserCardDirection.user_word_id
             ).filter(
                 UserWord.user_id == user_id
-            ).subquery()
+            ).scalar_subquery()
 
             new_count = CollectionWords.query.outerjoin(
                 UserWord,

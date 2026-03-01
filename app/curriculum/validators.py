@@ -119,7 +119,8 @@ class QuizQuestionSchema(Schema):
         # For these types, question/prompt is not strictly required
         # They may have alternative fields like 'instruction', 'russian', 'sentence', 'audio', etc.
         skip_question_prompt = q_type in ['fill_blank', 'fill_in_blank', 'translation', 'matching', 'ordering',
-                                          'transformation', 'dialogue_completion', 'listening_choice', 'reorder']
+                                          'transformation', 'dialogue_completion', 'listening_choice', 'reorder',
+                                          'true_false', 'tf']
 
         # Must have either 'question' or 'prompt' for other types
         if not skip_question_prompt and not data.get('question') and not data.get('prompt'):
