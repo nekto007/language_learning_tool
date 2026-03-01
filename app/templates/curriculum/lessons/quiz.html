@@ -2166,9 +2166,6 @@ window.QuizApp = {
   },
 
   nextQuestion() {
-    // Save progress before moving to next question
-    this.saveProgress();
-
     if (this.state.isRetryPhase) {
       // In retry phase, move to next incorrect question
       const currentRetryIndex = this.state.incorrectQuestions.indexOf(this.state.currentQuestion);
@@ -2176,6 +2173,7 @@ window.QuizApp = {
 
       if (nextRetryIndex < this.state.incorrectQuestions.length) {
         this.state.currentQuestion = this.state.incorrectQuestions[nextRetryIndex];
+        this.saveProgress();
         this.showQuestion(this.state.currentQuestion);
       } else {
         // Finished retry phase
@@ -2193,6 +2191,7 @@ window.QuizApp = {
           this.showResults();
         }
       } else {
+        this.saveProgress();
         this.showQuestion(this.state.currentQuestion);
       }
     }
