@@ -373,3 +373,7 @@ tests/TEST_SAFETY.md
 
 # Test config with credentials
 tests/conftest.py
+
+# Учебный контент (конфиденциальные данные)
+grammar_exercises_extra/
+grammar_extra_audit_report.md
