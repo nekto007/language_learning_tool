@@ -220,7 +220,7 @@ def word_list():
                 UserCardDirection, UserCardDirection.user_word_id == UserWord.id
             ).group_by(UserWord.word_id).having(
                 func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
-            ).subquery()
+            ).scalar_subquery()
             query = query.filter(CollectionWords.id.in_(mastered_subquery))
         else:
             query = query.filter(UserWord.status == status)

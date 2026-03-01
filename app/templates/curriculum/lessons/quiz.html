@@ -1362,11 +1362,15 @@
                 <div class="quiz-dialogue-box">
                   {% for line in question.get('dialogue', []) %}
                     <div class="quiz-dialogue-line">
-                      <strong>{{ line.speaker }}:</strong>
-                      {% if line.get('blank') %}
-                        <span class="quiz-blank-marker">___</span>
+                      {% if line is mapping %}
+                        <strong>{{ line.speaker }}:</strong>
+                        {% if line.get('blank') %}
+                          <span class="quiz-blank-marker">___</span>
+                        {% else %}
+                          {{ line.text|safe }}
+                        {% endif %}
                       {% else %}
-                        {{ line.text|safe }}
+                        {{ line|safe }}
                       {% endif %}
                     </div>
                   {% endfor %}

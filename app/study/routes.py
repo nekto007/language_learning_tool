@@ -748,7 +748,7 @@ def get_study_items():
             UserCardDirection, UserWord.id == UserCardDirection.user_word_id
         ).filter(
             UserWord.user_id == current_user.id
-        ).subquery()
+        ).scalar_subquery()
 
         new_words_query = db.session.query(CollectionWords).outerjoin(
             UserWord,
