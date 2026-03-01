@@ -1360,20 +1360,30 @@
               {% endif %}
               {% if question.get('dialogue') %}
                 <div class="quiz-dialogue-box">
-                  {% for line in question.get('dialogue', []) %}
-                    <div class="quiz-dialogue-line">
-                      {% if line is mapping %}
-                        <strong>{{ line.speaker }}:</strong>
-                        {% if line.get('blank') %}
-                          <span class="quiz-blank-marker">___</span>
-                        {% else %}
-                          {{ line.text|safe }}
-                        {% endif %}
-                      {% else %}
-                        {{ line|safe }}
+                  {% if question.dialogue is string %}
+                    {# dialogue is a plain string — render as lines split by newline #}
+                    {% for line in question.dialogue.split('\n') %}
+                      {% if line.strip() %}
+                        <div class="quiz-dialogue-line">{{ line|safe }}</div>
                       {% endif %}
-                    </div>
-                  {% endfor %}
+                    {% endfor %}
+                  {% else %}
+                    {# dialogue is a list of objects or strings #}
+                    {% for line in question.get('dialogue', []) %}
+                      <div class="quiz-dialogue-line">
+                        {% if line is mapping %}
+                          <strong>{{ line.speaker }}:</strong>
+                          {% if line.get('blank') %}
+                            <span class="quiz-blank-marker">___</span>
+                          {% else %}
+                            {{ line.text|safe }}
+                          {% endif %}
+                        {% else %}
+                          {{ line|safe }}
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  {% endif %}
                 </div>
               {% endif %}
               <div class="answer-options">
