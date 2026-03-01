@@ -366,39 +366,42 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         if not has_any_words:
             onboarding['no_words'] = True
 
-    # Bonus task: extra lesson or extra reading
+    # Bonus task: extra lesson or extra reading (max 1 bonus per day)
     bonus: dict[str, Any] = {}
-    if next_lesson and next_lesson.get('lesson_id'):
+    # Count curriculum lessons completed today (beyond the planned one)
+    lessons_completed_today = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= today_start,
+        LessonProgress.completed_at < today_end,
+    ).count()
+    # Only show bonus if user hasn't already done 2+ lessons today (main + bonus)
+    if lessons_completed_today < 2 and next_lesson and next_lesson.get('lesson_id'):
         planned = Lessons.query.get(next_lesson['lesson_id'])
         if planned:
             extra = Lessons.query.filter(
                 Lessons.module_id == planned.module_id,
-                Lessons.order > planned.order,
+                Lessons.number > planned.number,
             ).order_by(Lessons.number).first()
             if not extra:
-                next_mod = Module.query.filter(
-                    Module.number == (Module.query.get(planned.module_id).number + 1 if Module.query.get(planned.module_id) else 0),
-                ).first()
-                if next_mod:
-                    extra = Lessons.query.filter(
-                        Lessons.module_id == next_mod.id,
-                    ).order_by(Lessons.number).first()
+                planned_module = Module.query.get(planned.module_id)
+                if planned_module:
+                    next_mod = Module.query.filter(
+                        Module.level_id == planned_module.level_id,
+                        Module.number == planned_module.number + 1,
+                    ).first()
+                    if next_mod:
+                        extra = Lessons.query.filter(
+                            Lessons.module_id == next_mod.id,
+                        ).order_by(Lessons.number).first()
             if extra:
-                bonus_completed_today = LessonProgress.query.filter(
-                    LessonProgress.user_id == user_id,
-                    LessonProgress.lesson_id == extra.id,
-                    LessonProgress.status == 'completed',
-                    LessonProgress.completed_at >= today_start,
-                    LessonProgress.completed_at < today_end,
-                ).first()
-                if not bonus_completed_today:
-                    extra_module = Module.query.get(extra.module_id)
-                    bonus['extra_lesson'] = {
-                        'title': extra.title,
-                        'lesson_id': extra.id,
-                        'module_number': extra_module.number if extra_module else None,
-                        'lesson_type': extra.type,
-                    }
+                extra_module = Module.query.get(extra.module_id)
+                bonus['extra_lesson'] = {
+                    'title': extra.title,
+                    'lesson_id': extra.id,
+                    'module_number': extra_module.number if extra_module else None,
+                    'lesson_type': extra.type,
+                }
     bonus['extra_reading'] = book_to_read is not None or bool(started_book_ids)
 
     return {
