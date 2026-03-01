@@ -1088,13 +1088,15 @@ function handleWordClick(e) {
                 translationDiv.textContent = data.translation;
 
                 let actionsHTML = '';
+                const safeWord = word.replace(/'/g, "\\'");
 
                 if (data.has_audio) {
-                    actionsHTML += `<button class="rdr-popup-btn--audio" onclick="playWordAudio('${data.audio_url}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></button>`;
+                    const safeUrl = data.audio_url.replace(/'/g, "\\'");
+                    actionsHTML += `<button class="rdr-popup-btn--audio" onclick="playWordAudio('${safeUrl}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></button>`;
                 }
 
                 if (!data.in_reading_deck) {
-                    actionsHTML += `<button class="rdr-popup-btn--add" onclick="addToLearning(${data.id}, '${word}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> {{ _('Add') }}</button>`;
+                    actionsHTML += `<button class="rdr-popup-btn--add" onclick="addToLearning(${data.id}, '${safeWord}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> {{ _('Add') }}</button>`;
                 } else {
                     actionsHTML += `<span class="rdr-popup-badge">{{ _('In reading deck') }}</span>`;
                 }
