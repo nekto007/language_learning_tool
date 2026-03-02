@@ -829,7 +829,15 @@
 
     .dash-step__num { width: 26px; min-width: 26px; height: 26px; font-size: 0.7rem; }
     .dash-step__body { flex-wrap: wrap; padding: 0.875rem 1rem; gap: 0.75rem; }
-    .dash-step__btn { width: 100%; text-align: center; }
+
+    .dash-stepper-bar { padding: 0.5rem 0; }
+    .dash-stepper-dot { width: 12px; height: 12px; }
+    .dash-stepper-count { font-size: 0.75rem; }
+    .dash-timeline { padding-left: 0; }
+    .dash-timeline::before { left: 12px; }
+    .dash-step--current .dash-step__num { width: 28px; min-width: 28px; height: 28px; }
+    .dash-step--current .dash-step__btn,
+    .dash-step--upcoming .dash-step__btn { width: 100%; text-align: center; }
 
     .dash-summary__grid { gap: 1rem; }
 
