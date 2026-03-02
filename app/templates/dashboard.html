@@ -78,6 +78,7 @@
         </div>
         {% endif %}
 
+        <div class="dash-timeline">
         {# Step: Next Lesson #}
         {% if daily_plan.next_lesson %}
         <div class="dash-step dash-step--lesson {% if plan_completion.lesson %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
@@ -269,6 +270,8 @@
         </div>
         {% set ns.step = ns.step + 1 %}
         {% endif %}
+
+        </div><!-- /dash-timeline -->
 
         {% if ns.step == 1 %}
         <div class="dash-step dash-step--done">
@@ -919,6 +922,32 @@
     font-size: 0.9375rem;
     font-weight: 700;
     color: #065f46;
+}
+
+/* Timeline connector */
+.dash-timeline {
+    position: relative;
+    padding-left: 0;
+}
+
+.dash-timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: 32px;
+    width: 2px;
+    background: var(--dash-border);
+    z-index: 0;
+}
+
+.dash-step {
+    position: relative;
+}
+
+.dash-step__num {
+    position: relative;
+    z-index: 1;
 }
 </style>
 {% endblock %}
