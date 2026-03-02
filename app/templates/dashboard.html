@@ -81,7 +81,8 @@
         <div class="dash-timeline">
         {# Step: Next Lesson #}
         {% if daily_plan.next_lesson %}
-        <div class="dash-step dash-step--lesson {% if plan_completion.lesson %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'done' if plan_completion.lesson else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--lesson dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{% if plan_completion.lesson %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#127919;</div>
@@ -115,7 +116,8 @@
 
         {# Step: Grammar #}
         {% if daily_plan.grammar_topic %}
-        <div class="dash-step dash-step--grammar {% if plan_completion.grammar %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'done' if plan_completion.grammar else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--grammar dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{% if plan_completion.grammar %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#129504;</div>
@@ -141,7 +143,8 @@
 
         {# Step: Words #}
         {% if daily_plan.words_due > 0 or daily_plan.has_any_words or (daily_plan.onboarding and daily_plan.onboarding.get('no_words')) %}
-        <div class="dash-step dash-step--words {% if plan_completion.words %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'done' if plan_completion.words else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--words dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{% if plan_completion.words %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128214;</div>
@@ -175,7 +178,7 @@
         {# Step: Reading #}
         {% if plan_completion.books and not daily_plan.book_to_read %}
         {# Book was read today but no more unread books — show completed step #}
-        <div class="dash-step dash-step--book dash-step--completed" style="animation-delay: {{ ns.step * 0.08 }}s">
+        <div class="dash-step dash-step--book dash-step--done" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">&#10003;</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128213;</div>
@@ -189,7 +192,8 @@
         {% set ns.step = ns.step + 1 %}
 
         {% elif daily_plan.book_to_read %}
-        <div class="dash-step dash-step--book {% if plan_completion.books %}dash-step--completed{% endif %}" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'done' if plan_completion.books else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{% if plan_completion.books %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128213;</div>
@@ -207,7 +211,8 @@
         {% set ns.step = ns.step + 1 %}
 
         {% elif daily_plan.suggested_books %}
-        <div class="dash-step dash-step--book" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'current' if (ns.step - 1) == ns.current_idx else 'upcoming' %}
+        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{{ ns.step }}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128213;</div>
@@ -225,7 +230,8 @@
         {% set ns.step = ns.step + 1 %}
 
         {% elif daily_plan.onboarding and daily_plan.onboarding.get('available_books') %}
-        <div class="dash-step dash-step--book" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'current' if (ns.step - 1) == ns.current_idx else 'upcoming' %}
+        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{{ ns.step }}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128213;</div>
@@ -532,22 +538,6 @@
 .dash-step--words .dash-step__num { color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.06); }
 .dash-step--book .dash-step__num { color: #10b981; border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.06); }
 .dash-step--bonus .dash-step__num { color: #f97316; border-color: rgba(249, 115, 22, 0.2); background: rgba(249, 115, 22, 0.06); }
-
-/* Completed step */
-.dash-step--completed .dash-step__body {
-    opacity: 0.6;
-    border-left-color: #10b981 !important;
-}
-.dash-step--completed .dash-step__num {
-    background: #10b981;
-    color: white;
-    border-color: #10b981;
-    font-size: 0.75rem;
-}
-.dash-step--completed .dash-step__btn {
-    background: #10b981;
-    pointer-events: none;
-}
 
 .dash-step__body:hover {
     border-color: var(--dash-accent);
@@ -948,6 +938,70 @@
 .dash-step__num {
     position: relative;
     z-index: 1;
+}
+
+/* ============================================
+   Step States: done / current / upcoming
+   ============================================ */
+
+/* Done: compact, muted, green check */
+.dash-step--done .dash-step__body {
+    padding: 0.625rem 1rem;
+    opacity: 0.6;
+    border-left-color: var(--dash-success) !important;
+}
+.dash-step--done .dash-step__num {
+    background: var(--dash-success);
+    color: white;
+    border-color: var(--dash-success);
+    font-size: 0.75rem;
+}
+.dash-step--done .dash-step__meta {
+    display: none;
+}
+.dash-step--done .dash-step__btn {
+    background: var(--dash-success);
+    pointer-events: none;
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.875rem;
+}
+
+/* Current: highlighted, prominent CTA */
+.dash-step--current .dash-step__body {
+    border: 2px solid var(--dash-accent);
+    box-shadow: 0 4px 20px rgba(80, 70, 229, 0.12);
+    opacity: 1;
+}
+.dash-step--current .dash-step__num {
+    background: var(--dash-accent);
+    color: white;
+    border-color: var(--dash-accent);
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
+}
+.dash-step--current .dash-step__btn {
+    padding: 0.625rem 1.5rem;
+    font-weight: 700;
+    font-size: 0.9375rem;
+}
+
+/* Upcoming: visible but secondary */
+.dash-step--upcoming .dash-step__body {
+    opacity: 0.75;
+}
+.dash-step--upcoming .dash-step__num {
+    opacity: 0.5;
+}
+.dash-step--upcoming .dash-step__btn {
+    background: transparent;
+    color: var(--dash-accent);
+    border: 1.5px solid var(--dash-accent);
+}
+.dash-step--upcoming .dash-step__btn:hover {
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
 }
 </style>
 {% endblock %}
