@@ -583,12 +583,20 @@ def import_exercises_json():
 
         exercises_imported = 0
         try:
+            # Удалить ранее импортированные из JSON упражнения для этой темы
+            deleted = GrammarExercise.query.filter(
+                GrammarExercise.topic_id == topic.id,
+                GrammarExercise.content['source'].astext == 'json_import'
+            ).delete(synchronize_session=False)
+
             for session in sessions:
                 for ex in session.get('exercises', []):
+                    content = ex.get('content', {})
+                    content['source'] = 'json_import'
                     exercise = GrammarExercise(
                         topic_id=topic.id,
                         exercise_type=ex.get('exercise_type', 'fill_blank'),
-                        content=ex.get('content', {}),
+                        content=content,
                         difficulty=ex.get('difficulty', 1),
                         order=ex.get('order', 0)
                     )
@@ -598,7 +606,8 @@ def import_exercises_json():
             db.session.commit()
             flash(
                 f'Импортировано {exercises_imported} упражнений '
-                f'для темы "{topic.title}" (модуль {module_id})',
+                f'для темы "{topic.title}" (модуль {module_id}). '
+                f'Удалено {deleted} старых.',
                 'success'
             )
         except Exception as e:
