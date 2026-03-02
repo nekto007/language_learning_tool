@@ -34,7 +34,49 @@
     <div class="dash-plan">
         <h2 class="dash-plan__heading">&#1055;&#1083;&#1072;&#1085; &#1085;&#1072; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103;</h2>
 
-        {% set ns = namespace(step=1) %}
+        {# Count steps and completions for progress bar #}
+        {% set steps = [] %}
+        {% if daily_plan.next_lesson or (daily_plan.onboarding and daily_plan.onboarding.first_lesson) %}
+            {% set _ = steps.append({'type': 'lesson', 'done': plan_completion.lesson}) %}
+        {% endif %}
+        {% if daily_plan.grammar_topic %}
+            {% set _ = steps.append({'type': 'grammar', 'done': plan_completion.grammar}) %}
+        {% endif %}
+        {% if daily_plan.words_due > 0 or daily_plan.has_any_words or (daily_plan.onboarding and daily_plan.onboarding.get('no_words')) %}
+            {% set _ = steps.append({'type': 'words', 'done': plan_completion.words}) %}
+        {% endif %}
+        {% if daily_plan.book_to_read or (plan_completion.books and not daily_plan.book_to_read) or daily_plan.suggested_books or (daily_plan.onboarding and daily_plan.onboarding.get('available_books')) %}
+            {% set _ = steps.append({'type': 'book', 'done': plan_completion.books}) %}
+        {% endif %}
+        {% set steps_done = steps | selectattr('done') | list | length %}
+        {% set steps_total = steps | length %}
+        {% set all_done = (steps_done == steps_total and steps_total > 0) %}
+
+        {# Find first incomplete step index (0-based) for "current" highlighting #}
+        {% set ns = namespace(current_idx=steps_total, step=1) %}
+        {% for s in steps %}
+            {% if not s.done and ns.current_idx == steps_total %}
+                {% set ns.current_idx = loop.index0 %}
+            {% endif %}
+        {% endfor %}
+
+        {% if steps_total > 0 %}
+        <div class="dash-stepper-bar">
+            {% for s in steps %}
+            <div class="dash-stepper-dot {% if s.done %}dash-stepper-dot--done{% elif loop.index0 == ns.current_idx %}dash-stepper-dot--current{% endif %}"></div>
+            {% if not loop.last %}<div class="dash-stepper-line {% if s.done %}dash-stepper-line--done{% endif %}"></div>{% endif %}
+            {% endfor %}
+            <span class="dash-stepper-count">{{ steps_done }} &#1080;&#1079; {{ steps_total }}</span>
+        </div>
+        {% endif %}
+
+        {# Completion banner #}
+        {% if all_done %}
+        <div class="dash-plan-complete">
+            <span class="dash-plan-complete__icon">&#127881;</span>
+            <span class="dash-plan-complete__text">&#1055;&#1083;&#1072;&#1085; &#1085;&#1072; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103; &#1074;&#1099;&#1087;&#1086;&#1083;&#1085;&#1077;&#1085;!</span>
+        </div>
+        {% endif %}
 
         {# Step: Next Lesson #}
         {% if daily_plan.next_lesson %}
@@ -799,6 +841,84 @@
 
     .dash-progress__grid { grid-template-columns: 1fr; }
     .dash-quick__grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============================================
+   Stepper Progress Bar
+   ============================================ */
+
+.dash-stepper-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem 0;
+}
+
+.dash-stepper-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--dash-border);
+    background: var(--dash-surface);
+    flex-shrink: 0;
+    transition: all 0.3s;
+}
+
+.dash-stepper-dot--done {
+    background: var(--dash-success);
+    border-color: var(--dash-success);
+}
+
+.dash-stepper-dot--current {
+    border-color: var(--dash-accent);
+    background: var(--dash-accent);
+    box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.2);
+    animation: dashPulse 2s ease-in-out infinite;
+}
+
+@keyframes dashPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(80, 70, 229, 0.08); }
+}
+
+.dash-stepper-line {
+    flex: 1;
+    height: 2px;
+    background: var(--dash-border);
+    transition: background 0.3s;
+}
+
+.dash-stepper-line--done {
+    background: var(--dash-success);
+}
+
+.dash-stepper-count {
+    margin-left: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    white-space: nowrap;
+}
+
+/* Completion banner */
+.dash-plan-complete {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #a7f3d0;
+    border-radius: var(--dash-radius-sm);
+    margin-bottom: 1rem;
+    animation: dashSlideUp 0.4s ease-out;
+}
+
+.dash-plan-complete__icon { font-size: 1.25rem; }
+
+.dash-plan-complete__text {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #065f46;
 }
 </style>
 {% endblock %}
