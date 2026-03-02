@@ -428,7 +428,6 @@
   border-radius: var(--grammar-radius);
   border: 1px solid var(--grammar-border);
   margin-bottom: 1.5rem;
-  overflow: hidden;
 }
 
 .stats-section__header {
@@ -438,6 +437,7 @@
   padding: 1rem 1.25rem;
   background: var(--grammar-surface-alt);
   border-bottom: 1px solid var(--grammar-border);
+  border-radius: var(--grammar-radius) var(--grammar-radius) 0 0;
 }
 
 .stats-section__icon {
@@ -557,11 +557,13 @@
 /* Levels Grid */
 .levels-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
 }
 
 .level-stat {
+  display: block;
+  white-space: normal;
   background: var(--grammar-surface-alt);
   border-radius: var(--grammar-radius-sm);
   padding: 1rem;
