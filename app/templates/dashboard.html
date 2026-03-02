@@ -100,7 +100,8 @@
         {% set ns.step = ns.step + 1 %}
 
         {% elif daily_plan.onboarding and daily_plan.onboarding.first_lesson %}
-        <div class="dash-step dash-step--lesson" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {% set step_state = 'current' if (ns.step - 1) == ns.current_idx else 'upcoming' %}
+        <div class="dash-step dash-step--lesson dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">{{ ns.step }}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#127919;</div>
