@@ -2598,13 +2598,6 @@ window.QuizApp = {
         }
       }
       
-      // Force redraw to ensure buttons are visible
-      const footer = document.getElementById('lesson-footer');
-      if (footer) {
-        footer.style.display = 'none';
-        footer.offsetHeight; // Force reflow
-        footer.style.display = '';
-      }
     }, 100); // Small delay to ensure DOM is ready
   }
 };

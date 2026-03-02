@@ -25,7 +25,7 @@
   font-family: var(--lsn-font);
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 1rem 6rem;
+  padding: 0 1rem 2rem;
 }
 
 /* ── Animations ── */
@@ -46,7 +46,7 @@
 
 .lsn-page .lsn-header { animation: lsnSlideUp 0.4s ease-out; }
 .lsn-page .lsn-body { animation: lsnSlideUp 0.4s ease-out 0.08s both; }
-.lsn-page .lsn-footer { animation: lsnSlideUp 0.3s ease-out 0.12s both; }
+.lsn-page .lsn-footer--visible { animation: lsnSlideUp 0.3s ease-out both; }
 
 /* ── Header ── */
 .lsn-header {
@@ -191,30 +191,24 @@
   margin-bottom: 2rem;
 }
 
-/* ── Footer ── */
+/* ── Footer (hidden until lesson completion) ── */
 .lsn-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--lsn-surface);
-  border-top: 1px solid var(--lsn-border);
-  padding: 0.75rem 1rem;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: none;
+  max-width: 800px;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem;
+}
+
+.lsn-footer--visible {
+  display: block;
 }
 
 .lsn-footer__inner {
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .lsn-btn {
@@ -264,7 +258,7 @@
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .lsn-page {
-    padding: 0 0.75rem 5.5rem;
+    padding: 0 0.75rem 1.5rem;
   }
 
   .lsn-header {
@@ -280,10 +274,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
-  }
-
-  .lsn-footer {
-    padding: 0.625rem 0.75rem;
   }
 
   .lsn-btn {
@@ -369,11 +359,6 @@
   <div class="lsn-footer" id="lesson-footer">
     <div class="lsn-footer__inner">
     {% block action_buttons %}
-      <a href="{{ '/learn/' }}" class="lsn-btn lsn-btn--outline">
-        <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        {{ _('К модулю') }}
-      </a>
-
       <button type="button"
               class="lsn-btn lsn-btn--outline btn-lesson btn-outline"
               id="retry-button"
@@ -420,6 +405,8 @@
   var observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       if (m.attributeName === 'style' && completeBtn.style.display !== 'none') {
+        var footer = document.getElementById('lesson-footer');
+        if (footer) footer.classList.add('lsn-footer--visible');
         document.dispatchEvent(new Event('dailyPlanStepComplete'));
         observer.disconnect();
       }

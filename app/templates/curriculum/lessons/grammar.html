@@ -860,13 +860,6 @@ function showResultsAndNavigation(data) {
       console.error('Navigation buttons not found in DOM');
     }
     
-    // Принудительная перерисовка для обеспечения видимости кнопок
-    const footer = document.getElementById('lesson-footer');
-    if (footer) {
-      footer.style.display = 'none';
-      footer.offsetHeight; // Force reflow
-      footer.style.display = '';
-    }
   }, 100); // Небольшая задержка для обеспечения готовности DOM
 }
 
