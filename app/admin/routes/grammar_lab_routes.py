@@ -342,8 +342,9 @@ def import_from_modules():
                     ).delete(synchronize_session=False)
                     skipped += 1  # Count as updated (using skipped for "updated" count)
                 else:
-                    # Create new topic
+                    # Create new topic with id = module.id
                     topic = GrammarTopic(
+                        id=module.id,
                         slug=slug,
                         title=title,
                         title_ru=title,
@@ -360,7 +361,7 @@ def import_from_modules():
                         difficulty=1
                     )
                     db.session.add(topic)
-                    db.session.flush()  # Get topic.id
+                    db.session.flush()
                     imported += 1
 
                 # Link source grammar lesson back to the topic
