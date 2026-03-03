@@ -328,8 +328,14 @@ def import_from_modules():
                         'summary': content.get('summary', {}),
                         'source_module': module.number
                     }
-                    # Delete old exercises to reimport
-                    GrammarExercise.query.filter_by(topic_id=topic.id).delete()
+                    # Delete old module exercises to reimport (preserve JSON-imported)
+                    GrammarExercise.query.filter(
+                        GrammarExercise.topic_id == topic.id,
+                        db.or_(
+                            GrammarExercise.content['source'].astext != 'json_import',
+                            ~GrammarExercise.content.has_key('source')
+                        )
+                    ).delete(synchronize_session=False)
                     skipped += 1  # Count as updated (using skipped for "updated" count)
                 else:
                     # Create new topic
