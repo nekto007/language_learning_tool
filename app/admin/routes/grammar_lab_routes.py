@@ -324,6 +324,7 @@ def import_from_modules():
                     topic.title = title
                     topic.title_ru = title
                     topic.level = level_code
+                    topic.order = module.number
                     topic.content = {
                         'introduction': content.get('description', ''),
                         'sections': content.get('sections', []),
