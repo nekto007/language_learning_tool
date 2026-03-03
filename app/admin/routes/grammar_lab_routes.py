@@ -277,7 +277,6 @@ def delete_exercise(exercise_id):
 @admin_required
 def import_from_modules():
     """Import grammar topics from curriculum modules (from database)"""
-    import re
     from app.curriculum.models import Module, Lessons, CEFRLevel
 
     if request.method == 'POST':
@@ -309,15 +308,19 @@ def import_from_modules():
                 if not title:
                     continue
 
-                # Generate slug: {level}-{number}-{topic-slug}
-                slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-                slug = f"{level_code.lower()}-{module.number}-{slug}"[:100]
+                # Generate slug: {level}-{number}
+                slug = f"{level_code.lower()}-{module.number}"
 
-                # Check if already exists
-                existing = GrammarTopic.query.filter_by(slug=slug).first()
+                # Check if already exists: first by grammar_topic_id, then by slug
+                existing = None
+                if grammar_lesson.grammar_topic_id:
+                    existing = GrammarTopic.query.get(grammar_lesson.grammar_topic_id)
+                if not existing:
+                    existing = GrammarTopic.query.filter_by(slug=slug).first()
                 if existing:
                     # Update existing topic
                     topic = existing
+                    topic.slug = slug
                     topic.title = title
                     topic.title_ru = title
                     topic.level = level_code
@@ -509,9 +512,11 @@ def import_from_modules():
             continue
 
         # Check if exists
-        slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-        slug = f"{level_code.lower()}-{module.number}-{slug}"[:100]
-        exists = GrammarTopic.query.filter_by(slug=slug).first() is not None
+        slug = f"{level_code.lower()}-{module.number}"
+        exists = bool(
+            (grammar_lesson.grammar_topic_id and GrammarTopic.query.get(grammar_lesson.grammar_topic_id))
+            or GrammarTopic.query.filter_by(slug=slug).first()
+        )
 
         # Упражнения находятся в quiz уроках в content['exercises']
         quiz_lessons = Lessons.query.filter_by(
@@ -573,10 +578,8 @@ def import_exercises_json():
             return redirect(request.url)
 
         # Build full slug matching the pattern used by import_from_modules
-        import re
         level = data.get('level', '').lower()
-        full_slug = re.sub(r'[^a-z0-9]+', '-', topic_name.lower()).strip('-')
-        full_slug = f"{level}-{module_id}-{full_slug}"[:100]
+        full_slug = f"{level}-{module_id}"
 
         topic = GrammarTopic.query.filter_by(slug=full_slug).first()
         if not topic:
