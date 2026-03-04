@@ -251,28 +251,18 @@
         {% endif %}
 
         {# Bonus step: shown when >=2 main tasks are done #}
+        {# extra_reading without extra_lesson duplicates the book step (step 4), so only show bonus if extra_lesson exists #}
         {% set done = [plan_completion.lesson, plan_completion.grammar, plan_completion.words, plan_completion.books] | select | list | length %}
-        {% if done >= 2 and daily_plan.bonus and (daily_plan.bonus.extra_lesson or daily_plan.bonus.extra_reading) %}
+        {% if done >= 2 and daily_plan.bonus and daily_plan.bonus.extra_lesson %}
         <div class="dash-step dash-step--bonus" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">&#11088;</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128640;</div>
                 <div class="dash-step__info">
-                    {% if daily_plan.bonus.extra_lesson %}
                     <div class="dash-step__title">&#1041;&#1086;&#1085;&#1091;&#1089;: &#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.bonus.extra_lesson.module_number }} &mdash; {{ daily_plan.bonus.extra_lesson.title }}</div>
                     <div class="dash-step__meta">&#1044;&#1086;&#1087;&#1086;&#1083;&#1085;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1099;&#1081; &#1091;&#1088;&#1086;&#1082;</div>
-                    {% elif daily_plan.bonus.extra_reading %}
-                    <div class="dash-step__title">&#1041;&#1086;&#1085;&#1091;&#1089;: &#1055;&#1086;&#1095;&#1080;&#1090;&#1072;&#1081; &#1077;&#1097;&#1105;</div>
-                    <div class="dash-step__meta">&#1044;&#1086;&#1087;&#1086;&#1083;&#1085;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1086;&#1077; &#1095;&#1090;&#1077;&#1085;&#1080;&#1077;</div>
-                    {% endif %}
                 </div>
-                {% if daily_plan.bonus.extra_lesson %}
                 <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.bonus.extra_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
-                {% elif daily_plan.bonus.extra_reading and daily_plan.book_to_read %}
-                <a href="{{ url_for('books.read_book_chapters', book_id=daily_plan.book_to_read.id) }}?from=daily_plan" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
-                {% else %}
-                <a href="{{ url_for('books.book_list') }}?from=daily_plan" class="dash-step__btn">&#1050;&#1085;&#1080;&#1075;&#1080;</a>
-                {% endif %}
             </div>
         </div>
         {% set ns.step = ns.step + 1 %}
