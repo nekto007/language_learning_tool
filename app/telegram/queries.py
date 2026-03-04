@@ -449,12 +449,23 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         func.sum(UserGrammarExercise.correct_count)
     ).scalar() or 0
 
-    # Words reviewed today
+    # Words reviewed today (all sources: curriculum lessons + SRS cards)
     words_reviewed = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
         UserWord.user_id == user_id,
         UserCardDirection.last_reviewed >= today_start,
         UserCardDirection.last_reviewed < today_end,
         UserCardDirection.direction == 'eng-rus',
+    ).scalar() or 0
+
+    # Words reviewed in dedicated SRS card sessions only (excludes curriculum lessons)
+    from app.study.models import StudySession
+    srs_words_reviewed = db.session.query(
+        func.coalesce(func.sum(StudySession.words_studied), 0)
+    ).filter(
+        StudySession.user_id == user_id,
+        StudySession.session_type == 'cards',
+        StudySession.start_time >= today_start,
+        StudySession.start_time < today_end,
     ).scalar() or 0
 
     # Books read today
@@ -477,6 +488,7 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'grammar_exercises': grammar_done,
         'grammar_correct': grammar_correct,
         'words_reviewed': words_reviewed,
+        'srs_words_reviewed': srs_words_reviewed,
         'books_read': book_titles,
     }
 

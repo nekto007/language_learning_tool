@@ -33,7 +33,7 @@ def dashboard():
     plan_completion = {
         'lesson': daily_summary['lessons_count'] > 0,
         'grammar': daily_summary['grammar_exercises'] > 0,
-        'words': daily_summary['words_reviewed'] > 0,
+        'words': daily_summary.get('srs_words_reviewed', 0) > 0,
         'books': len(daily_summary.get('books_read', [])) > 0,
     }
 
@@ -407,7 +407,7 @@ def daily_plan_next_step() -> tuple:
     plan_completion = {
         'lesson': daily_summary['lessons_count'] > 0,
         'grammar': daily_summary['grammar_exercises'] > 0,
-        'words': daily_summary['words_reviewed'] > 0,
+        'words': daily_summary.get('srs_words_reviewed', 0) > 0,
         'books': len(daily_summary.get('books_read', [])) > 0,
     }
 
