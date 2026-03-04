@@ -150,25 +150,55 @@ def format_morning_reminder(user_name: str, streak: int,
     lines.append('')
     step += 1
 
-    # Block 4: Reading (if book_to_read or suggested_books)
-    book = plan.get('book_to_read')
-    suggested = plan.get('suggested_books')
-    if book or suggested:
-        lines.append(f'{step}) \U0001f4d5 Чтение (по желанию) 5\u201310 мин')
-        if book:
-            lines.append(book['title'])
-            if site_url and book.get('id'):
-                lines.append(f'\U0001f517 {site_url}/books/{book["id"]}')
-        elif suggested:
-            lines.append('Выбери книгу:')
-            for sb in suggested:
-                if site_url:
-                    lines.append(f'\u2022 {sb["title"]} \u2014 \U0001f517 {site_url}/books/{sb["id"]}')
-                else:
-                    lines.append(f'\u2022 {sb["title"]}')
-        lines.append('\U0001f4a1 Чтение = закрепляешь лексику в контексте '
-                     '+ привыкаешь к структуре фраз.')
-        lines.append('(слово \u2192 перевод/озвучка \u2192 добавить в SRS + QUIZ)')
+    # Block 4: Book course reading OR regular reading
+    bc = plan.get('book_course_lesson')
+    bc_is_reading = bc and bc.get('lesson_type') == 'reading'
+
+    if bc_is_reading:
+        # Book course reading lesson replaces regular reading
+        course_title = bc.get('course_title', 'Book Course')
+        day_num = bc.get('day_number', '')
+        minutes = bc.get('estimated_minutes', 10)
+        lines.append(f'{step}) \U0001f4d6 {course_title} \u2014 '
+                     f'День {day_num}, чтение (~{minutes} мин)')
+        if site_url and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
+            lines.append(f'\U0001f517 {site_url}/book-courses/{bc["course_id"]}'
+                         f'/modules/{bc["module_id"]}/lessons/{bc["lesson_id"]}')
+        lines.append('')
+        step += 1
+    else:
+        book = plan.get('book_to_read')
+        suggested = plan.get('suggested_books')
+        if book or suggested:
+            lines.append(f'{step}) \U0001f4d5 Чтение (по желанию) 5\u201310 мин')
+            if book:
+                lines.append(book['title'])
+                if site_url and book.get('id'):
+                    lines.append(f'\U0001f517 {site_url}/books/{book["id"]}')
+            elif suggested:
+                lines.append('Выбери книгу:')
+                for sb in suggested:
+                    if site_url:
+                        lines.append(f'\u2022 {sb["title"]} \u2014 \U0001f517 {site_url}/books/{sb["id"]}')
+                    else:
+                        lines.append(f'\u2022 {sb["title"]}')
+            lines.append('\U0001f4a1 Чтение = закрепляешь лексику в контексте '
+                         '+ привыкаешь к структуре фраз.')
+            lines.append('(слово \u2192 перевод/озвучка \u2192 добавить в SRS + QUIZ)')
+            lines.append('')
+            step += 1
+
+    # Block 5: Book course practice (when not reading)
+    if bc and not bc_is_reading:
+        course_title = bc.get('course_title', 'Book Course')
+        lesson_type = bc.get('lesson_type', 'practice')
+        minutes = bc.get('estimated_minutes', 15)
+        type_label = lesson_type.replace('_', ' ').title()
+        lines.append(f'{step}) \U0001f9e9 {course_title} \u2014 {type_label} (~{minutes} мин)')
+        if site_url and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
+            lines.append(f'\U0001f517 {site_url}/book-courses/{bc["course_id"]}'
+                         f'/modules/{bc["module_id"]}/lessons/{bc["lesson_id"]}')
+        lines.append('')
 
     return '\n'.join(lines)
 
@@ -227,6 +257,12 @@ def format_evening_summary(user_name: str, summary: dict[str, Any],
         for title in summary['books_read']:
             lines.append(f'\U0001f4d5 Чтение: {title}')
 
+    # Book course lessons
+    bc_count = summary.get('book_course_lessons_today', 0)
+    if bc_count > 0:
+        lines.append(f'\U0001f4d6 Книжный курс: {bc_count} '
+                     f'{"урок" if bc_count == 1 else "урока" if bc_count < 5 else "уроков"} пройдено')
+
     # Streak
     if streak > 0:
         lines.append('')
@@ -262,23 +298,35 @@ def format_evening_summary(user_name: str, summary: dict[str, Any],
 
 def format_nudge(user_name: str, site_url: str,
                  quick_action: dict[str, Any] | None = None,
-                 cards_url: str = '') -> str:
+                 cards_url: str = '',
+                 book_course_lesson: dict[str, Any] | None = None) -> str:
     """Format midday nudge — only sent when a quick action is available."""
     lines = [f'Эй, {user_name} \U0001f642', '']
 
-    if not quick_action:
+    if not quick_action and not book_course_lesson:
         return '\n'.join(lines)
 
-    label = quick_action['label']
-    minutes = quick_action['minutes']
-    lines.append(f'Давай совсем маленький шаг \u2014 {label} (~{minutes} мин).')
-    if quick_action['type'] == 'words' and (cards_url or site_url):
-        url = cards_url or (site_url + '/study/cards')
-        lines.append(f'\U0001f517 {url}')
-    elif quick_action['type'] == 'grammar' and site_url:
-        lines.append(f'\U0001f517 {site_url}/grammar-lab/')
-    elif quick_action['type'] == 'lesson' and site_url:
-        lines.append(f'\U0001f517 {site_url}/learn/')
+    if quick_action:
+        label = quick_action['label']
+        minutes = quick_action['minutes']
+        lines.append(f'Давай совсем маленький шаг \u2014 {label} (~{minutes} мин).')
+        if quick_action['type'] == 'words' and (cards_url or site_url):
+            url = cards_url or (site_url + '/study/cards')
+            lines.append(f'\U0001f517 {url}')
+        elif quick_action['type'] == 'grammar' and site_url:
+            lines.append(f'\U0001f517 {site_url}/grammar-lab/')
+        elif quick_action['type'] == 'lesson' and site_url:
+            lines.append(f'\U0001f517 {site_url}/learn/')
+
+    if book_course_lesson and site_url:
+        bc = book_course_lesson
+        course_title = bc.get('course_title', 'Book Course')
+        day_num = bc.get('day_number', '')
+        lines.append('')
+        lines.append(f'\U0001f4d6 Или продолжи {course_title} \u2014 день {day_num}')
+        if bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
+            lines.append(f'\U0001f517 {site_url}/book-courses/{bc["course_id"]}'
+                         f'/modules/{bc["module_id"]}/lessons/{bc["lesson_id"]}')
 
     return '\n'.join(lines)
 

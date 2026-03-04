@@ -168,6 +168,14 @@ def view_course(course_id):
             ).all()
             module_progress = {p.module_id: p for p in progress_records}
 
+        # Get user's known word IDs for difficulty calculation
+        from app.study.models import UserWord
+        known_word_ids = {
+            r[0] for r in db.session.query(UserWord.word_id).filter(
+                UserWord.user_id == current_user.id
+            ).all()
+        }
+
         # Prepare modules with progress and lock status
         module_data = []
         for i, module in enumerate(modules):
@@ -181,12 +189,27 @@ def view_course(course_id):
                 prev_progress = module_progress.get(prev_module.id)
                 is_unlocked = prev_progress and prev_progress.status == 'completed'
 
+            # Difficulty indicator: count new words in module vocabulary
+            new_words_count = 0
+            total_vocab = 0
+            if module.vocabulary_focus:
+                vocab_word_ids = []
+                for v in module.vocabulary_focus:
+                    if isinstance(v, dict) and v.get('id'):
+                        vocab_word_ids.append(v['id'])
+                    elif isinstance(v, int):
+                        vocab_word_ids.append(v)
+                total_vocab = len(vocab_word_ids)
+                new_words_count = sum(1 for wid in vocab_word_ids if wid not in known_word_ids)
+
             module_info = {
                 'module': module,
                 'progress': progress,
                 'is_unlocked': is_unlocked,
                 'progress_percentage': progress.progress_percentage if progress else 0,
-                'status': progress.status if progress else 'not_started'
+                'status': progress.status if progress else 'not_started',
+                'new_words_count': new_words_count,
+                'total_vocab': total_vocab,
             }
             module_data.append(module_info)
 
@@ -493,6 +516,31 @@ def view_lesson(course_id, module_id, lesson_number):
             # All reading types use the reading_passage template
             template = 'curriculum/book_courses/lessons/reading_passage.html'
 
+            # Calculate reading difficulty indicator (Donets method)
+            reading_difficulty = None
+            dl = daily_lesson if 'daily_lesson' in dir() else None
+            if dl:
+                from app.study.models import UserWord
+                slice_vocab = SliceVocabulary.query.filter_by(
+                    daily_lesson_id=dl.id
+                ).all()
+                if slice_vocab:
+                    known_ids = {
+                        r[0] for r in db.session.query(UserWord.word_id).filter(
+                            UserWord.user_id == current_user.id
+                        ).all()
+                    }
+                    new_count = sum(1 for sv in slice_vocab if sv.word_id not in known_ids)
+                    if new_count < 5:
+                        reading_difficulty = {'level': 'easy', 'new_words': new_count,
+                                              'hint': 'Лёгкое чтение — наслаждайся историей!'}
+                    elif new_count <= 10:
+                        reading_difficulty = {'level': 'medium', 'new_words': new_count,
+                                              'hint': 'Среднее чтение — подчёркивай важные слова'}
+                    else:
+                        reading_difficulty = {'level': 'hard', 'new_words': new_count,
+                                              'hint': 'Вдумчивое чтение — разбирай каждое предложение'}
+
             return render_template(
                 template,
                 course=course,
@@ -501,11 +549,12 @@ def view_lesson(course_id, module_id, lesson_number):
                 lesson_number=lesson_number,
                 module_progress=module_progress,
                 book=course.book,
-                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
-                use_api=True if daily_lesson else False,
+                daily_lesson=dl,
+                use_api=True if dl else False,
                 review_cards=review_cards,
                 next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson
+                has_next_lesson=has_next_lesson,
+                reading_difficulty=reading_difficulty,
             )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary according to new architecture
@@ -1489,12 +1538,22 @@ def get_lesson_api(lesson_id):
 
             final_html = '\n'.join(html_paragraphs)
 
+            # Resolve audio URL: prefer daily_lesson.audio_url, fallback to chapter audio
+            audio_url = daily_lesson.audio_url
+            if not audio_url and daily_lesson.chapter_id:
+                from app.books.models import Chapter
+                chapter = Chapter.query.get(daily_lesson.chapter_id)
+                if chapter and chapter.audio_url:
+                    audio_url = url_for('books.serve_chapter_audio',
+                                        book_id=chapter.book_id,
+                                        chapter_num=chapter.chap_num)
+
             return jsonify({
                 'html': final_html,
                 'tooltip_map': tooltip_map,
                 'word_count': daily_lesson.word_count,
                 'title': f'Чтение — День {daily_lesson.day_number}',
-                'audio_url': daily_lesson.audio_url
+                'audio_url': audio_url
             })
 
         else:

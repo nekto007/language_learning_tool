@@ -81,6 +81,23 @@ def save_cover_image(file):
     return result
 
 
+@books.route('/audio/<int:book_id>/chapter/<int:chapter_num>')
+@login_required
+def serve_chapter_audio(book_id: int, chapter_num: int):
+    """Serve audio file for a book chapter."""
+    from flask import send_file, current_app
+    chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first_or_404()
+    if not chapter.audio_url:
+        return 'No audio available', 404
+    # Resolve path relative to project root
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    audio_path = os.path.join(project_root, chapter.audio_url)
+    if not os.path.isfile(audio_path):
+        logger.warning(f"Audio file not found: {audio_path}")
+        return 'Audio file not found', 404
+    return send_file(audio_path, mimetype='audio/mpeg')
+
+
 @books.route('/add', methods=['GET', 'POST'])
 @login_required
 @admin_required

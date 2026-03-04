@@ -30,11 +30,16 @@ def dashboard():
     daily_summary = get_daily_summary(current_user.id)
 
     # Completion flags: compare daily_summary with daily_plan
+    bc_lesson = daily_plan.get('book_course_lesson')
+    bc_done = daily_plan.get('book_course_done_today', False)
+    # If book course reading lesson → replaces books step; practice → extra step 5
+    bc_is_reading = bc_lesson and bc_lesson.get('lesson_type') == 'reading'
     plan_completion = {
         'lesson': daily_summary['lessons_count'] > 0,
         'grammar': daily_summary['grammar_exercises'] > 0,
         'words': daily_summary.get('srs_words_reviewed', 0) > 0,
-        'books': len(daily_summary.get('books_read', [])) > 0,
+        'books': bc_done if bc_is_reading else len(daily_summary.get('books_read', [])) > 0,
+        'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
     }
 
     # Cards URL (user's default deck or generic)

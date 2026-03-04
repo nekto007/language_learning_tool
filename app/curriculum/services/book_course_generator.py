@@ -122,8 +122,10 @@ class BookCourseGenerator:
     def _create_book_course(self, title: str, description: str, level: str) -> Optional[BookCourse]:
         """Create the BookCourse record"""
         try:
+            from app.curriculum.book_courses import generate_slug
             course = BookCourse(
                 book_id=self.book_id,
+                slug=generate_slug(title),
                 title=title,
                 description=description,
                 level=level,

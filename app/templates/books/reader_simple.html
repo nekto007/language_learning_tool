@@ -735,6 +735,88 @@ body.dark-theme .rdr-bottom-nav {
     font-size: 0.8125rem;
   }
 }
+
+/* ── Audio Player ── */
+.rdr-audio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--rdr-surface);
+  border-bottom: 1px solid var(--rdr-border);
+  position: sticky;
+  top: 48px;
+  z-index: 90;
+}
+.rdr-audio__play {
+  background: var(--rdr-primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.rdr-audio__progress {
+  flex: 1;
+  height: 6px;
+  background: var(--rdr-border);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+}
+.rdr-audio__progress-fill {
+  height: 100%;
+  background: var(--rdr-primary);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+.rdr-audio__time {
+  font-size: 0.75rem;
+  color: var(--rdr-text-muted);
+  min-width: 36px;
+  text-align: center;
+}
+.rdr-audio__speed {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.25rem;
+  border: 1px solid var(--rdr-border);
+  border-radius: 4px;
+  background: var(--rdr-surface);
+  color: var(--rdr-text);
+  cursor: pointer;
+}
+.rdr-audio__toggle {
+  background: none;
+  border: none;
+  color: var(--rdr-text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+.rdr-audio-show {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: var(--rdr-primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 100;
+}
 </style>
 
 <div class="rdr-wrap">
@@ -782,6 +864,32 @@ body.dark-theme .rdr-bottom-nav {
       </button>
     </div>
   </div>
+
+  {% if current_chapter.audio_url %}
+  <!-- Audio Player Bar -->
+  <div class="rdr-audio" id="audioBar" style="display: none;">
+    <audio id="chapterAudio" preload="none"
+           src="{{ url_for('books.serve_chapter_audio', book_id=book.id, chapter_num=current_chapter.chap_num) }}"></audio>
+    <button class="rdr-audio__play" id="audioPlayBtn" onclick="toggleAudio()">
+      <svg id="audioPlayIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+      <svg id="audioPauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
+    </button>
+    <div class="rdr-audio__progress" id="audioProgressBar" onclick="seekAudio(event)">
+      <div class="rdr-audio__progress-fill" id="audioProgressFill"></div>
+    </div>
+    <span class="rdr-audio__time" id="audioTime">0:00</span>
+    <select class="rdr-audio__speed" id="audioSpeed" onchange="setAudioSpeed(this.value)">
+      <option value="0.75">0.75x</option>
+      <option value="1" selected>1x</option>
+      <option value="1.25">1.25x</option>
+      <option value="1.5">1.5x</option>
+    </select>
+    <button class="rdr-audio__toggle" onclick="hideAudioBar()" title="Скрыть плеер">&times;</button>
+  </div>
+  <button class="rdr-audio-show" id="audioShowBtn" onclick="showAudioBar()" title="Показать аудиоплеер">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+  </button>
+  {% endif %}
 
   <!-- Scrollable content -->
   <div class="rdr-body" id="readerBody">
@@ -1240,4 +1348,79 @@ document.addEventListener('keydown', (e) => {
 // Dispatch after daily-plan-next.js has loaded its listener
 document.dispatchEvent(new Event('dailyPlanStepComplete'));
 </script>
+{% if current_chapter.audio_url %}
+<script>
+(function() {
+  var audio = document.getElementById('chapterAudio');
+  var bar = document.getElementById('audioBar');
+  var showBtn = document.getElementById('audioShowBtn');
+  var playIcon = document.getElementById('audioPlayIcon');
+  var pauseIcon = document.getElementById('audioPauseIcon');
+  var progressFill = document.getElementById('audioProgressFill');
+  var timeEl = document.getElementById('audioTime');
+
+  // Restore preference from localStorage
+  var pref = localStorage.getItem('rdr_audio_visible');
+  if (pref !== 'hidden') {
+    bar.style.display = 'flex';
+    showBtn.style.display = 'none';
+  }
+
+  window.toggleAudio = function() {
+    if (audio.paused) {
+      audio.play();
+      playIcon.style.display = 'none';
+      pauseIcon.style.display = 'block';
+    } else {
+      audio.pause();
+      playIcon.style.display = 'block';
+      pauseIcon.style.display = 'none';
+    }
+  };
+
+  window.seekAudio = function(e) {
+    var rect = e.currentTarget.getBoundingClientRect();
+    var pct = (e.clientX - rect.left) / rect.width;
+    if (audio.duration) audio.currentTime = pct * audio.duration;
+  };
+
+  window.setAudioSpeed = function(val) {
+    audio.playbackRate = parseFloat(val);
+  };
+
+  window.hideAudioBar = function() {
+    audio.pause();
+    playIcon.style.display = 'block';
+    pauseIcon.style.display = 'none';
+    bar.style.display = 'none';
+    showBtn.style.display = 'flex';
+    localStorage.setItem('rdr_audio_visible', 'hidden');
+  };
+
+  window.showAudioBar = function() {
+    bar.style.display = 'flex';
+    showBtn.style.display = 'none';
+    localStorage.setItem('rdr_audio_visible', 'visible');
+  };
+
+  function formatTime(s) {
+    var m = Math.floor(s / 60);
+    var sec = Math.floor(s % 60);
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  audio.addEventListener('timeupdate', function() {
+    if (audio.duration) {
+      progressFill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+      timeEl.textContent = formatTime(audio.currentTime);
+    }
+  });
+
+  audio.addEventListener('ended', function() {
+    playIcon.style.display = 'block';
+    pauseIcon.style.display = 'none';
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

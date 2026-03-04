@@ -7,6 +7,8 @@ from sqlalchemy import func
 
 from app.utils.db import db
 from app.curriculum.models import LessonProgress, Lessons, Module
+from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
+from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import UserGrammarExercise, UserGrammarTopicStatus, GrammarTopic
 from app.study.models import UserWord, UserCardDirection
 from app.books.models import UserChapterProgress, Book
@@ -71,6 +73,15 @@ def has_activity_today(user_id: int, tz: str = DEFAULT_TZ) -> bool:
         UserChapterProgress.updated_at < today_end,
     ).first()
     if book_activity:
+        return True
+
+    # Check book course lesson progress
+    book_course_activity = UserLessonProgress.query.filter(
+        UserLessonProgress.user_id == user_id,
+        UserLessonProgress.completed_at >= today_start,
+        UserLessonProgress.completed_at < today_end,
+    ).first()
+    if book_course_activity:
         return True
 
     return False
@@ -366,6 +377,57 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         if not has_any_words:
             onboarding['no_words'] = True
 
+    # Book course: find next uncompleted lesson for active enrollment
+    book_course_lesson = None
+    book_course_done_today = False
+
+    active_enrollment = BookCourseEnrollment.query.filter_by(
+        user_id=user_id, status='active'
+    ).first()
+
+    if active_enrollment:
+        # Check if any book course lesson was completed today
+        bc_done = UserLessonProgress.query.filter(
+            UserLessonProgress.user_id == user_id,
+            UserLessonProgress.enrollment_id == active_enrollment.id,
+            UserLessonProgress.completed_at >= today_start,
+            UserLessonProgress.completed_at < today_end,
+        ).first()
+        book_course_done_today = bc_done is not None
+
+        # Find next uncompleted daily lesson
+        completed_lesson_ids = {
+            r[0] for r in db.session.query(UserLessonProgress.daily_lesson_id).filter(
+                UserLessonProgress.user_id == user_id,
+                UserLessonProgress.enrollment_id == active_enrollment.id,
+                UserLessonProgress.status == 'completed',
+            ).all()
+        }
+
+        next_bc_lesson = DailyLesson.query.join(
+            BookCourseModule, BookCourseModule.id == DailyLesson.book_course_module_id
+        ).filter(
+            BookCourseModule.course_id == active_enrollment.course_id,
+        ).order_by(DailyLesson.day_number).all()
+
+        for dl in next_bc_lesson:
+            if dl.id not in completed_lesson_ids:
+                module = BookCourseModule.query.get(dl.book_course_module_id)
+                course = BookCourse.query.get(active_enrollment.course_id)
+                book_course_lesson = {
+                    'course_id': active_enrollment.course_id,
+                    'course_slug': course.slug if course else None,
+                    'course_title': course.title if course else None,
+                    'module_id': module.id if module else None,
+                    'module_number': module.module_number if module else None,
+                    'lesson_id': dl.id,
+                    'day_number': dl.day_number,
+                    'lesson_type': dl.lesson_type,
+                    'estimated_minutes': 10 if dl.lesson_type == 'reading' else 15,
+                    'chapter_id': dl.chapter_id,
+                }
+                break
+
     # Bonus task: extra lesson or extra reading (max 1 bonus per day)
     bonus: dict[str, Any] = {}
     # Count curriculum lessons completed today (beyond the planned one)
@@ -413,6 +475,8 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'suggested_books': suggested_books,
         'onboarding': onboarding,
         'bonus': bonus,
+        'book_course_lesson': book_course_lesson,
+        'book_course_done_today': book_course_done_today,
     }
 
 
@@ -482,6 +546,14 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     ).distinct().all()
     book_titles = [r[0] for r in books_read_today]
 
+    # Book course lessons completed today
+    book_course_lessons_today = UserLessonProgress.query.filter(
+        UserLessonProgress.user_id == user_id,
+        UserLessonProgress.status == 'completed',
+        UserLessonProgress.completed_at >= today_start,
+        UserLessonProgress.completed_at < today_end,
+    ).count()
+
     return {
         'lessons_count': len(lesson_types),
         'lesson_types': lesson_types,
@@ -490,6 +562,7 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'words_reviewed': words_reviewed,
         'srs_words_reviewed': srs_words_reviewed,
         'books_read': book_titles,
+        'book_course_lessons_today': book_course_lessons_today,
     }
 
 
