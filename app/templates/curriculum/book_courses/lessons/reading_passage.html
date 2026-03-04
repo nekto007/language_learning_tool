@@ -6,6 +6,12 @@
 <div class="lesson-intro">
   <h1>Чтение с переводом</h1>
   <p>Прочитайте текст. Нажмите на любое слово для перевода.</p>
+  {% if reading_difficulty %}
+  <div class="reading-difficulty reading-difficulty--{{ reading_difficulty.level }}">
+    <span class="reading-difficulty__words">{{ reading_difficulty.new_words }} новых слов</span>
+    <span class="reading-difficulty__hint">{{ reading_difficulty.hint }}</span>
+  </div>
+  {% endif %}
 </div>
 
 <div class="reading-wrapper">
@@ -586,6 +592,16 @@ function formatTime(seconds) {
 </script>
 
 <style>
+.reading-difficulty {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem;
+  border-radius: 8px; margin-top: 0.5rem; font-size: 0.875rem;
+}
+.reading-difficulty--easy { background: rgba(16,185,129,0.1); color: #065f46; }
+.reading-difficulty--medium { background: rgba(245,158,11,0.1); color: #92400e; }
+.reading-difficulty--hard { background: rgba(239,68,68,0.1); color: #991b1b; }
+.reading-difficulty__words { font-weight: 700; }
+.reading-difficulty__hint { opacity: 0.85; }
+
 .reading-wrapper {
   max-width: 750px;
   margin: 0 auto;

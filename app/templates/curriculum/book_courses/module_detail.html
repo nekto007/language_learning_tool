@@ -1,960 +1,973 @@
 {% extends "base.html" %}
 
-{% block title %}{{ module.title }} - {{ course.title }}{% endblock %}
+{% block title %}{{ _('Модуль') }} {{ module.module_number }}: {{ module.title }}{% endblock %}
 
 {% block content %}
-<div class="md-page">
+<div class="ml-page">
+  {# ── Calculate progress ── #}
+  {% set completed_lessons = module_progress.lessons_completed or [] if module_progress else [] %}
+  {% set completed_ids = completed_lessons | map('string') | list %}
+  {% set counter = namespace(completed=0) %}
+  {% for lesson in lessons %}
+    {% if lesson.id|string in completed_ids %}
+      {% set counter.completed = counter.completed + 1 %}
+    {% endif %}
+  {% endfor %}
+  {% set progress_pct = (module_progress.progress_percentage|round|int) if module_progress else ((counter.completed / lessons|length * 100)|round|int if lessons|length > 0 else 0) %}
+
   <!-- Hero Section -->
-  <div class="md-hero">
-    <div class="md-hero__bg-shapes">
-      <div class="md-shape md-shape--1"></div>
-      <div class="md-shape md-shape--2"></div>
-      <div class="md-shape md-shape--3"></div>
+  <div class="ml-hero">
+    <div class="ml-hero__bg-shapes">
+      <div class="ml-shape ml-shape--1"></div>
+      <div class="ml-shape ml-shape--2"></div>
+      <div class="ml-shape ml-shape--3"></div>
     </div>
 
-    <div class="md-hero__content">
-      <!-- Breadcrumb -->
-      <nav class="md-hero__breadcrumb">
-        <a href="{{ url_for('book_courses.list_book_courses') }}">Книжные курсы</a>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.5">
-          <path d="M9 18l6-6-6-6"/>
+    <div class="ml-hero__content">
+      <a href="{{ url_for('book_courses.view_course', course_id=course.id) }}" class="ml-hero__back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
-        <a href="{{ url_for('book_courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.5">
-          <path d="M9 18l6-6-6-6"/>
-        </svg>
-        <span class="md-hero__breadcrumb-current">Модуль {{ module.module_number }}</span>
+        <span>{{ _('К модулям') }}</span>
+      </a>
+
+      <nav class="ml-hero__breadcrumb" aria-label="{{ _('Навигация') }}">
+        <ol role="list">
+          <li><a href="{{ url_for('book_courses.list_book_courses') }}">{{ _('Курсы') }}</a></li>
+          <li aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </li>
+          <li><a href="{{ url_for('book_courses.view_course', course_id=course.id) }}">{{ course.title }}</a></li>
+          <li aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </li>
+          <li aria-current="page">{{ _('Модуль') }} {{ module.module_number }}</li>
+        </ol>
       </nav>
 
-      <div class="md-hero__main">
-        <div class="md-hero__badge">
-          <span class="md-hero__badge-num">{{ module.module_number }}</span>
+      <div class="ml-hero__main">
+        <div class="ml-hero__badge">
+          <span class="ml-hero__badge-number">{{ module.module_number }}</span>
+          <span class="ml-hero__badge-label">{{ _('модуль') }}</span>
         </div>
 
-        <div class="md-hero__info">
-          <h1 class="md-hero__title">{{ module.title }}</h1>
+        <div class="ml-hero__info">
+          <div class="ml-hero__level">{{ course.title }}</div>
+          <h1 class="ml-hero__title">{{ module.title }}</h1>
           {% if module.description %}
-          <p class="md-hero__desc">{{ module.description }}</p>
+            <p class="ml-hero__desc">{{ module.description }}</p>
           {% endif %}
+        </div>
+      </div>
+    </div>
 
-          <div class="md-hero__stats">
-            <div class="md-hero__stat">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
-              </svg>
-              <span>{{ lessons|length }} уроков</span>
-            </div>
-            {% if module.estimated_reading_time %}
-            <div class="md-hero__stat">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 6v6l4 2"/>
-              </svg>
-              <span>~{{ module.estimated_reading_time }} мин.</span>
-            </div>
-            {% endif %}
-            {% if module_progress %}
-            <div class="md-hero__stat md-hero__stat--highlight">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M8 12l3 3 5-5"/>
-              </svg>
-              <span>{{ module_progress.progress_percentage|round|int }}% пройдено</span>
-            </div>
-            {% endif %}
-            {% if due_cards_count and due_cards_count > 0 %}
-            <div class="md-hero__stat md-hero__stat--srs">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 4v6h-6"/>
-                <path d="M1 20v-6h6"/>
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-              </svg>
-              <span>{{ due_cards_count }} слов к повторению</span>
-            </div>
-            {% endif %}
+    <!-- Stats Row -->
+    <div class="ml-stats">
+      <div class="ml-stat">
+        <div class="ml-stat__value">{{ counter.completed }}<span class="ml-stat__divider">/</span>{{ lessons|length }}</div>
+        <div class="ml-stat__label">{{ _('уроков') }}</div>
+      </div>
+      <div class="ml-stat">
+        <div class="ml-stat__value">{{ progress_pct }}<span class="ml-stat__unit">%</span></div>
+        <div class="ml-stat__label">{{ _('прогресс') }}</div>
+      </div>
+      {% if due_cards_count is defined and due_cards_count and due_cards_count > 0 %}
+        <div class="ml-stat">
+          <div class="ml-stat__value">{{ due_cards_count }}</div>
+          <div class="ml-stat__label">{{ _('к повторению') }}</div>
+        </div>
+      {% endif %}
+      {% if counter.completed == lessons|length and lessons|length > 0 %}
+        <div class="ml-stat ml-stat--trophy">
+          <div class="ml-stat__value">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5 3h14c.6 0 1 .4 1 1v2c0 3.3-2.2 6-5 6.7V16h2c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h2v-3.3C6.2 12 4 9.3 4 6V4c0-.6.4-1 1-1zm1 2v1c0 2.2 1.8 4 4 4h4c2.2 0 4-1.8 4-4V5H6z"/>
+            </svg>
           </div>
+          <div class="ml-stat__label">{{ _('завершён') }}</div>
         </div>
-      </div>
-
-      {% if module_progress %}
-      <div class="md-hero__progress">
-        <div class="md-hero__progress-track">
-          <div class="md-hero__progress-fill" style="width: {{ module_progress.progress_percentage }}%"></div>
-        </div>
-      </div>
       {% endif %}
     </div>
-  </div>
 
-  <!-- Learning Objectives -->
-  {% if module.learning_objectives %}
-  <div class="md-objectives">
-    <div class="md-section-header">
-      <h2 class="md-section-header__title">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--md-primary)" stroke-width="2">
-          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-        </svg>
-        Что вы изучите
-      </h2>
-    </div>
-    <div class="md-objectives__grid">
-      {% for objective in module.learning_objectives %}
-      <div class="md-objectives__card">
-        <span class="md-objectives__check">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            <path d="M20 6L9 17l-5-5"/>
-          </svg>
-        </span>
-        <span class="md-objectives__text">{{ objective }}</span>
+    <!-- Progress Bar -->
+    {% if lessons|length > 0 %}
+      <div class="ml-hero__progress">
+        <div class="ml-hero__progress-fill" style="width: {{ progress_pct }}%"></div>
       </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Focus Areas -->
-  {% if module.vocabulary_focus or module.grammar_focus %}
-  <div class="md-focus">
-    {% if module.vocabulary_focus %}
-    <div class="md-focus__card md-focus__card--vocab">
-      <div class="md-focus__header">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--md-primary)" stroke-width="2">
-          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-        <h3 class="md-focus__title">Ключевая лексика</h3>
-      </div>
-      <div class="md-focus__tags">
-        {% for word in module.vocabulary_focus[:10] %}
-        <span class="md-focus__tag md-focus__tag--vocab">{{ word }}</span>
-        {% endfor %}
-        {% if module.vocabulary_focus|length > 10 %}
-        <span class="md-focus__tag md-focus__tag--more">+{{ module.vocabulary_focus|length - 10 }} слов</span>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    {% if module.grammar_focus %}
-    <div class="md-focus__card md-focus__card--grammar">
-      <div class="md-focus__header">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--md-primary-dark)" stroke-width="2">
-          <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
-        </svg>
-        <h3 class="md-focus__title">Грамматический фокус</h3>
-      </div>
-      <div class="md-focus__tags">
-        {% for point in module.grammar_focus %}
-        <span class="md-focus__tag md-focus__tag--grammar">{{ point|replace('_', ' ') }}</span>
-        {% endfor %}
-      </div>
-    </div>
     {% endif %}
   </div>
-  {% endif %}
 
   <!-- Lessons Section -->
-  <div class="md-lessons">
-    <div class="md-section-header">
-      <h2 class="md-section-header__title">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--md-primary)" stroke-width="2">
-          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-          <rect x="9" y="3" width="6" height="4" rx="2"/>
-          <path d="M9 14l2 2 4-4"/>
-        </svg>
-        Уроки модуля
-      </h2>
-      <p class="md-section-header__subtitle">Выполняйте уроки последовательно для лучшего результата</p>
+  <div class="ml-lessons">
+    <div class="ml-lessons__header">
+      <h2 class="ml-lessons__title">{{ _('Уроки модуля') }}</h2>
+      <p class="ml-lessons__subtitle">{{ lessons|length }} {{ _('уроков для изучения') }}</p>
     </div>
 
-    <div class="md-lessons__list">
-      {% set completed_lessons = module_progress.lessons_completed or [] if module_progress else [] %}
-      {% set completed_ids = completed_lessons | map('string') | list %}
-      {% set ns = namespace(found_current=false) %}
+    {% if lessons %}
+      <div class="ml-lessons__list">
+        {% set current_lesson_found = false %}
+        {% for lesson in lessons %}
+          {% set is_completed = (lesson.id|string) in completed_ids %}
 
-      {% for lesson in lessons %}
-        {% set is_completed = (lesson.id|string) in completed_ids %}
-        {# Current = first uncompleted lesson #}
-        {% set is_current = not is_completed and not ns.found_current %}
-        {% if is_current %}
-          {% set ns.found_current = true %}
-        {% endif %}
-
-        <div class="md-lesson {{ 'md-lesson--completed' if is_completed else 'md-lesson--current' if is_current else 'md-lesson--available' }}">
-          <div class="md-lesson__dot">
-            {% if is_completed %}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <path d="M5 12l5 5L20 7"/>
-            </svg>
-            {% else %}
-            <span>{{ loop.index }}</span>
+          {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок в списке завершён #}
+          {% set is_available = false %}
+          {% if loop.first %}
+            {% set is_available = true %}
+          {% elif is_completed %}
+            {% set is_available = true %}
+          {% else %}
+            {% set prev_lesson = lessons[loop.index0 - 1] %}
+            {% if prev_lesson.id|string in completed_ids %}
+              {% set is_available = true %}
             {% endif %}
-          </div>
+          {% endif %}
 
-          <div class="md-lesson__body">
-            <div class="md-lesson__header">
-              <div class="md-lesson__title-row">
-                <span class="md-lesson__icon">
-                  {% if lesson.type == 'vocabulary' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  {% elif lesson.type in ['reading_passage', 'reading'] %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-                  {% elif lesson.type in ['reading_mcq', 'mcq'] %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
-                  {% elif lesson.type == 'match_headings' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                  {% elif lesson.type in ['open_cloze', 'cloze'] %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                  {% elif lesson.type == 'word_formation' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  {% elif lesson.type == 'keyword_transform' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                  {% elif lesson.type in ['grammar_sheet', 'grammar_focus', 'grammar'] %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-                  {% elif lesson.type == 'final_test' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/></svg>
-                  {% elif lesson.type == 'summary' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><path d="M9 12h6M9 16h6"/></svg>
-                  {% elif lesson.type == 'discussion' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  {% else %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-                  {% endif %}
-                </span>
-                <h4 class="md-lesson__title">
-                  {% set type_name %}
-                    {% if lesson.type == 'vocabulary' %}Словарь
-                    {% elif lesson.type in ['reading_passage', 'reading'] %}Чтение
-                    {% elif lesson.type in ['reading_mcq', 'mcq', 'comprehension_mcq'] %}Тест
-                    {% elif lesson.type == 'match_headings' %}Заголовки
-                    {% elif lesson.type in ['open_cloze', 'cloze', 'cloze_practice'] %}Пропуски
-                    {% elif lesson.type == 'word_formation' %}Словообразование
-                    {% elif lesson.type == 'keyword_transform' %}Трансформации
-                    {% elif lesson.type in ['grammar_sheet', 'grammar_focus', 'grammar'] %}Грамматика
-                    {% elif lesson.type == 'final_test' %}Финальный тест
-                    {% elif lesson.type in ['summary', 'summary_writing'] %}Резюме
-                    {% elif lesson.type == 'vocabulary_review' %}Повторение слов
-                    {% elif lesson.type == 'discussion' %}Обсуждение
-                    {% elif lesson.type == 'writing' %}Письмо
-                    {% elif lesson.type == 'listening' %}Аудирование
-                    {% else %}Практика
-                    {% endif %}
-                  {% endset %}
-                  Урок {{ loop.index }}: {{ type_name|trim }}
-                </h4>
-              </div>
-              {% if lesson.estimated_time %}
-              <span class="md-lesson__time">~{{ lesson.estimated_time }} мин</span>
+          {# Текущий урок - первый доступный незавершённый #}
+          {% set is_current = is_available and not is_completed and not current_lesson_found %}
+
+          {% if is_current %}
+            {% set current_lesson_found = true %}
+          {% endif %}
+
+          {# Lesson URL #}
+          {% set lesson_url = url_for('book_courses.view_lesson_by_slug', course_slug=course.slug, module_number=module.module_number, lesson_number=loop.index) if course.slug else url_for('book_courses.view_lesson', course_id=course.id, module_id=module.id, lesson_number=loop.index) %}
+
+          <div class="ml-lesson {% if is_completed %}ml-lesson--completed{% elif is_current %}ml-lesson--current{% elif not is_available %}ml-lesson--locked{% else %}ml-lesson--available{% endif %}">
+            <div class="ml-lesson__number">
+              <span>{{ loop.index }}</span>
+              {% if is_completed %}
+                <div class="ml-lesson__badge ml-lesson__badge--check">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </div>
+              {% elif is_current %}
+                <div class="ml-lesson__badge ml-lesson__badge--current">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </div>
+              {% elif not is_available %}
+                <div class="ml-lesson__badge ml-lesson__badge--lock">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                  </svg>
+                </div>
               {% endif %}
             </div>
 
-            <div class="md-lesson__actions">
-              {% set lesson_url = url_for('book_courses.view_lesson_by_slug', course_slug=course.slug, module_number=module.module_number, lesson_number=loop.index) if course.slug else url_for('book_courses.view_lesson_by_id', course_id=course.id, module_id=module.id, lesson_id=lesson.id) %}
-              {% if is_completed %}
-                <span class="md-lesson__badge md-lesson__badge--completed">Завершено</span>
-                <a href="{{ lesson_url }}" class="md-lesson__btn md-lesson__btn--secondary">
-                  Повторить
-                </a>
-              {% elif is_current %}
-                <span class="md-lesson__badge md-lesson__badge--current">Текущий</span>
-                <a href="{{ lesson_url }}" class="md-lesson__btn md-lesson__btn--primary">
-                  Продолжить
+            <div class="ml-lesson__content">
+              <div class="ml-lesson__type">
+                {# Lesson type icon and label #}
+                {% if lesson.type in ['vocabulary', 'vocabulary_review'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                  </svg>
+                  <span>{{ _('Словарь') }}</span>
+                {% elif lesson.type in ['reading', 'reading_passage', 'reading_part1', 'reading_part2', 'reading_assignment', 'text'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                  </svg>
+                  <span>{{ _('Чтение') }}</span>
+                {% elif lesson.type in ['grammar', 'grammar_focus', 'grammar_bridge'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  <span>{{ _('Грамматика') }}</span>
+                {% elif lesson.type in ['reading_mcq', 'comprehension_mcq', 'match_headings'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/>
+                  </svg>
+                  <span>{{ _('Викторина') }}</span>
+                {% elif lesson.type in ['final_test', 'module_test'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                    <line x1="4" y1="22" x2="4" y2="15"/>
+                  </svg>
+                  <span>{{ _('Тест') }}</span>
+                {% elif lesson.type in ['anki_session', 'srs'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                    <path d="M16 3h-8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/>
+                  </svg>
+                  <span>{{ _('Карточки') }}</span>
+                {% elif lesson.type in ['open_cloze', 'keyword_transform', 'word_formation', 'cloze_practice', 'vocabulary_practice', 'mixed_practice'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  <span>{{ _('Упражнение') }}</span>
+                {% elif lesson.type in ['discussion', 'summary', 'summary_writing'] %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                    <rect x="9" y="3" width="6" height="4" rx="2"/>
+                  </svg>
+                  <span>{{ _('Задание') }}</span>
+                {% else %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                  </svg>
+                  <span>{{ _('Урок') }}</span>
+                {% endif %}
+              </div>
+              <h3 class="ml-lesson__title">{{ lesson.title }}</h3>
+            </div>
+
+            <div class="ml-lesson__action">
+              {% if is_available %}
+                <a href="{{ lesson_url }}"
+                   class="ml-lesson__btn {% if is_completed %}ml-lesson__btn--completed{% elif is_current %}ml-lesson__btn--current{% endif %}">
+                  {% if is_completed %}
+                    <span>{{ _('Повторить') }}</span>
+                  {% elif is_current %}
+                    <span>{{ _('Продолжить') }}</span>
+                  {% else %}
+                    <span>{{ _('Начать') }}</span>
+                  {% endif %}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
                 </a>
               {% else %}
-                <a href="{{ lesson_url }}" class="md-lesson__btn md-lesson__btn--primary">
-                  Начать
-                </a>
+                <span class="ml-lesson__locked-label">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                  </svg>
+                </span>
               {% endif %}
             </div>
           </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="ml-lessons__empty">
+        <div class="ml-lessons__empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
         </div>
-      {% endfor %}
-    </div>
+        <h4>{{ _('Уроки появятся скоро') }}</h4>
+        <p>{{ _('Мы готовим учебные материалы для этого модуля') }}</p>
+      </div>
+    {% endif %}
   </div>
 
-  <!-- Navigation -->
-  <div class="md-nav">
-    {% if prev_module %}
-    {% set prev_url = url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=prev_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=prev_module.id) %}
-    <a href="{{ prev_url }}" class="md-nav__link md-nav__link--prev">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- Bottom Navigation -->
+  <div class="ml-nav">
+    <a href="{{ url_for('book_courses.view_course', course_id=course.id) }}" class="ml-nav__back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
-      <div class="md-nav__text">
-        <span class="md-nav__label">Предыдущий</span>
-        <span class="md-nav__title">{{ prev_module.title|truncate(25) }}</span>
-      </div>
-    </a>
-    {% else %}
-    <div class="md-nav__link md-nav__link--disabled"></div>
-    {% endif %}
-
-    {% set course_url = url_for('book_courses.view_course_by_slug', course_slug=course.slug) if course.slug else url_for('book_courses.view_course', course_id=course.id) %}
-    <a href="{{ course_url }}" class="md-nav__link md-nav__link--center">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
-        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
-      </svg>
-      <span>К курсу</span>
+      <span>{{ _('К модулям') }}</span>
     </a>
 
-    {% if next_module %}
-    {% set next_url = url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=next_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=next_module.id) %}
-    <a href="{{ next_url }}" class="md-nav__link md-nav__link--next {{ 'md-nav__link--locked' if next_module.is_locked else '' }}">
-      <div class="md-nav__text">
-        <span class="md-nav__label">Следующий</span>
-        <span class="md-nav__title">{{ next_module.title|truncate(25) }}</span>
+    {% if counter.completed == lessons|length and lessons|length > 0 %}
+      <div class="ml-nav__completion">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 3h14c.6 0 1 .4 1 1v2c0 3.3-2.2 6-5 6.7V16h2c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h2v-3.3C6.2 12 4 9.3 4 6V4c0-.6.4-1 1-1zm1 2v1c0 2.2 1.8 4 4 4h4c2.2 0 4-1.8 4-4V5H6z"/>
+        </svg>
+        <span>{{ _('Поздравляем! Вы завершили все уроки в этом модуле.') }}</span>
       </div>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M5 12h14M12 5l7 7-7 7"/>
-      </svg>
-    </a>
-    {% else %}
-    <div class="md-nav__link md-nav__link--disabled"></div>
     {% endif %}
   </div>
 </div>
 
 <style>
 /* ============================================
-   Module Detail Page - BEM Design System
+   Module Lessons Page
    ============================================ */
 
 
-.md-page {
-  --md-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --md-primary: #10b981;
-  --md-primary-dark: #059669;
-  --md-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  --md-surface: #ffffff;
-  --md-surface-alt: #f8fafc;
-  --md-text: #0f172a;
-  --md-text-muted: #64748b;
-  --md-border: #e2e8f0;
-  --md-radius: 16px;
-  --md-radius-sm: 10px;
-  font-family: var(--md-font);
+.ml-page {
+  --ml-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ml-primary: #10b981;
+  --ml-primary-dark: #059669;
+  --ml-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --ml-surface: #ffffff;
+  --ml-surface-alt: #f8fafc;
+  --ml-text: #0f172a;
+  --ml-text-muted: #64748b;
+  --ml-border: #e2e8f0;
+  --ml-radius: 16px;
+  --ml-radius-sm: 10px;
+  font-family: var(--ml-font);
   max-width: 900px;
   margin: 0 auto;
   padding: 0 1rem 3rem;
 }
 
-/* ---- Hero Section ---- */
+/* ============================================
+   Hero Section
+   ============================================ */
 
-.md-hero {
+.ml-hero {
   position: relative;
-  background: var(--md-gradient);
-  border-radius: var(--md-radius);
+  background: var(--ml-gradient);
+  border-radius: var(--ml-radius);
   padding: 2rem;
   margin-bottom: 2rem;
   overflow: hidden;
   color: white;
-  animation: md-slideUp 0.5s ease-out;
 }
 
-.md-hero__bg-shapes {
+/* Background Shapes */
+.ml-hero__bg-shapes {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.md-shape {
+.ml-shape {
   position: absolute;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.md-shape--1 {
+.ml-shape--1 {
   width: 300px;
   height: 300px;
   top: -100px;
   right: -50px;
-  animation: md-float-1 20s ease-in-out infinite;
+  animation: ml-float-1 20s ease-in-out infinite;
 }
 
-.md-shape--2 {
+.ml-shape--2 {
   width: 200px;
   height: 200px;
   bottom: -80px;
   left: -40px;
-  animation: md-float-2 15s ease-in-out infinite;
+  animation: ml-float-2 15s ease-in-out infinite;
 }
 
-.md-shape--3 {
+.ml-shape--3 {
   width: 100px;
   height: 100px;
   top: 50%;
   right: 30%;
-  animation: md-float-3 12s ease-in-out infinite;
+  animation: ml-float-3 12s ease-in-out infinite;
 }
 
-@keyframes md-float-1 {
+@keyframes ml-float-1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(-20px, 20px) scale(1.05); }
 }
 
-@keyframes md-float-2 {
+@keyframes ml-float-2 {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
   50% { transform: translate(30px, -20px) rotate(10deg); }
 }
 
-@keyframes md-float-3 {
+@keyframes ml-float-3 {
   0%, 100% { transform: translate(0, 0); opacity: 0.1; }
   50% { transform: translate(-15px, 15px); opacity: 0.2; }
 }
 
-.md-hero__content {
+/* Hero Content */
+.ml-hero__content {
   position: relative;
   z-index: 1;
 }
 
-/* Breadcrumb */
+.ml-hero__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
 
-.md-hero__breadcrumb {
+.ml-hero__back:hover {
+  color: white;
+  transform: translateX(-4px);
+}
+
+/* Breadcrumb */
+.ml-hero__breadcrumb ol {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
-  margin-bottom: 1.5rem;
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
-.md-hero__breadcrumb a {
-  color: rgba(255, 255, 255, 0.85);
+.ml-hero__breadcrumb li {
+  display: flex;
+  align-items: center;
+}
+
+.ml-hero__breadcrumb a {
+  color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
-  font-weight: 500;
   transition: color 0.2s ease;
 }
 
-.md-hero__breadcrumb a:hover {
+.ml-hero__breadcrumb a:hover {
   color: white;
-  text-decoration: underline;
 }
 
-.md-hero__breadcrumb-current {
-  opacity: 0.7;
+.ml-hero__breadcrumb li[aria-current="page"] {
+  color: white;
+  font-weight: 600;
+}
+
+.ml-hero__breadcrumb li[aria-hidden="true"] {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Hero Main */
-
-.md-hero__main {
+.ml-hero__main {
   display: flex;
   align-items: flex-start;
   gap: 1.5rem;
-  margin-bottom: 0.5rem;
 }
 
-.md-hero__badge {
+.ml-hero__badge {
   flex-shrink: 0;
-}
-
-.md-hero__badge-num {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 90px;
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
-  border-radius: var(--md-radius);
-  font-size: 1.75rem;
-  font-weight: 700;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--ml-radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-.md-hero__info {
+.ml-hero__badge-number {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.ml-hero__badge-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.ml-hero__info {
   flex: 1;
   min-width: 0;
 }
 
-.md-hero__title {
-  font-size: 2rem;
+.ml-hero__level {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+  margin-bottom: 0.375rem;
+}
+
+.ml-hero__title {
+  font-size: 1.75rem;
   font-weight: 700;
   margin: 0 0 0.5rem;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
-.md-hero__desc {
+.ml-hero__desc {
   font-size: 1rem;
+  margin: 0;
   opacity: 0.9;
-  margin: 0 0 1rem;
-  max-width: 600px;
   line-height: 1.5;
 }
 
-/* Hero Stats */
-
-.md-hero__stats {
+/* Stats Row */
+.ml-stats {
   display: flex;
-  flex-wrap: wrap;
   gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
-.md-hero__stat {
+.ml-stat {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--ml-radius-sm);
+  backdrop-filter: blur(5px);
+}
+
+.ml-stat--trophy {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ml-stat__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.ml-stat__divider {
+  opacity: 0.5;
+  margin: 0 0.125rem;
+}
+
+.ml-stat__unit {
+  font-size: 1rem;
   font-weight: 500;
+  opacity: 0.8;
 }
 
-.md-hero__stat svg {
-  flex-shrink: 0;
+.ml-stat__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.25rem;
 }
 
-.md-hero__stat--highlight {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.35rem 0.75rem;
-  border-radius: 20px;
-}
-
-.md-hero__stat--srs {
-  background: rgba(255, 193, 7, 0.3);
-  padding: 0.35rem 0.75rem;
-  border-radius: 20px;
-  animation: md-pulseScale 2s infinite;
-}
-
-@keyframes md-pulseScale {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
-}
-
-/* Hero Progress */
-
-.md-hero__progress {
-  margin-top: 1.5rem;
-}
-
-.md-hero__progress-track {
+/* Hero Progress Bar */
+.ml-hero__progress {
   height: 6px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+  border-radius: 3px;
+  margin-top: 1.25rem;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
-.md-hero__progress-fill {
+.ml-hero__progress-fill {
   height: 100%;
-  background: white;
-  border-radius: 10px;
-  transition: width 0.5s ease;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  transition: width 0.6s ease;
 }
 
-/* ---- Section Header ---- */
+/* ============================================
+   Lessons Section
+   ============================================ */
 
-.md-section-header {
-  margin-bottom: 1rem;
+.ml-lessons {
+  background: var(--ml-surface);
+  border-radius: var(--ml-radius);
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--ml-border);
 }
 
-.md-section-header__title {
+.ml-lessons__header {
+  margin-bottom: 1.5rem;
+}
+
+.ml-lessons__title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--md-text);
+  color: var(--ml-text);
   margin: 0 0 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   letter-spacing: -0.02em;
 }
 
-.md-section-header__subtitle {
+.ml-lessons__subtitle {
   font-size: 0.875rem;
-  color: var(--md-text-muted);
-  margin: 0.25rem 0 0;
-}
-
-/* ---- Objectives Section ---- */
-
-.md-objectives {
-  margin-bottom: 2rem;
-  animation: md-slideUp 0.5s ease-out 0.1s both;
-}
-
-.md-objectives__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 0.75rem;
-}
-
-.md-objectives__card {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: var(--md-surface);
-  border-radius: var(--md-radius-sm);
-  border: 1px solid var(--md-border);
-  transition: border-color 0.2s ease;
-}
-
-.md-objectives__card:hover {
-  border-color: var(--md-primary);
-}
-
-.md-objectives__check {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--md-gradient);
-  color: white;
-  border-radius: 50%;
-}
-
-.md-objectives__text {
-  font-size: 0.9rem;
-  color: var(--md-text);
-  line-height: 1.4;
-}
-
-/* ---- Focus Section ---- */
-
-.md-focus {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-  animation: md-slideUp 0.5s ease-out 0.15s both;
-}
-
-.md-focus__card {
-  background: var(--md-surface);
-  border-radius: var(--md-radius);
-  padding: 1.25rem;
-  border: 1px solid var(--md-border);
-}
-
-.md-focus__header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.md-focus__title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--md-text);
+  color: var(--ml-text-muted);
   margin: 0;
 }
 
-.md-focus__tags {
+/* Lessons List */
+.ml-lessons__list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.md-focus__tag {
-  padding: 0.35rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
+/* Lesson Card */
+.ml-lesson {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  background: var(--ml-surface-alt);
+  border-radius: var(--ml-radius-sm);
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
 }
 
-.md-focus__tag--vocab {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--md-primary-dark);
+.ml-lesson:hover:not(.ml-lesson--locked) {
+  border-color: var(--ml-primary);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
-.md-focus__tag--grammar {
-  background: rgba(5, 150, 105, 0.1);
-  color: #047857;
+.ml-lesson--current {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%);
+  border-color: var(--ml-primary);
 }
 
-.md-focus__tag--more {
-  background: var(--md-gradient);
+.ml-lesson--completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(16, 185, 129, 0.06) 100%);
+}
+
+.ml-lesson--locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Lesson Number */
+.ml-lesson__number {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ml-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ml-lesson--current .ml-lesson__number {
+  background: var(--ml-primary);
   color: white;
 }
 
-/* ---- Lessons Section ---- */
-
-.md-lessons {
-  margin-bottom: 2rem;
-  animation: md-slideUp 0.5s ease-out 0.2s both;
+.ml-lesson--completed .ml-lesson__number {
+  background: #22c55e;
+  color: white;
 }
 
-.md-lessons__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.md-lesson {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: var(--md-surface);
-  border-radius: var(--md-radius-sm);
-  border: 1px solid var(--md-border);
-  transition: all 0.2s ease;
-  animation: md-slideUp 0.4s ease-out both;
-}
-
-.md-lesson:nth-child(1) { animation-delay: 0.25s; }
-.md-lesson:nth-child(2) { animation-delay: 0.3s; }
-.md-lesson:nth-child(3) { animation-delay: 0.35s; }
-.md-lesson:nth-child(4) { animation-delay: 0.4s; }
-.md-lesson:nth-child(5) { animation-delay: 0.45s; }
-.md-lesson:nth-child(6) { animation-delay: 0.5s; }
-.md-lesson:nth-child(7) { animation-delay: 0.55s; }
-.md-lesson:nth-child(8) { animation-delay: 0.6s; }
-.md-lesson:nth-child(9) { animation-delay: 0.65s; }
-.md-lesson:nth-child(10) { animation-delay: 0.7s; }
-.md-lesson:nth-child(n+11) { animation-delay: 0.75s; }
-
-.md-lesson:hover {
-  border-color: var(--md-primary);
-}
-
-.md-lesson--completed {
-  border-left: 3px solid var(--md-primary);
-}
-
-.md-lesson--current {
-  border-left: 3px solid var(--md-primary);
-  background: rgba(16, 185, 129, 0.04);
-}
-
-/* Lesson Status Dot */
-
-.md-lesson__dot {
-  width: 28px;
-  height: 28px;
+.ml-lesson__badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  border: 2px solid var(--ml-surface-alt);
+}
+
+.ml-lesson__badge--check {
+  background: #22c55e;
+  color: white;
+}
+
+.ml-lesson__badge--current {
+  background: var(--ml-primary);
+  color: white;
+}
+
+.ml-lesson__badge--lock {
+  background: #94a3b8;
+  color: white;
+}
+
+/* Lesson Content */
+.ml-lesson__content {
+  min-width: 0;
+}
+
+.ml-lesson__type {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ml-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.25rem;
+}
+
+.ml-lesson--current .ml-lesson__type {
+  color: var(--ml-primary-dark);
+}
+
+.ml-lesson__type svg {
   flex-shrink: 0;
-  background: var(--md-surface-alt);
-  color: var(--md-text-muted);
 }
 
-.md-lesson--completed .md-lesson__dot {
-  background: var(--md-primary);
+.ml-lesson__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ml-text);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ml-lesson__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f59e0b;
+  margin-top: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 6px;
+}
+
+.ml-lesson__score svg {
+  color: #f59e0b;
+}
+
+/* Lesson Action */
+.ml-lesson__action {
+  flex-shrink: 0;
+}
+
+.ml-lesson__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: var(--ml-primary);
   color: white;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
 }
 
-.md-lesson--current .md-lesson__dot {
-  background: var(--md-gradient);
-  color: white;
+.ml-lesson__btn:hover {
+  background: var(--ml-primary-dark);
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-/* Lesson Body */
+.ml-lesson__btn--completed {
+  background: #22c55e;
+}
 
-.md-lesson__body {
-  flex: 1;
+.ml-lesson__btn--completed:hover {
+  background: #16a34a;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.ml-lesson__btn--current {
+  background: var(--ml-primary);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.ml-lesson__locked-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #94a3b8;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.ml-lessons__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--ml-text-muted);
+}
+
+.ml-lessons__empty-icon {
+  margin-bottom: 1rem;
+  color: var(--ml-border);
+}
+
+.ml-lessons__empty h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ml-text);
+  margin: 0 0 0.5rem;
+}
+
+.ml-lessons__empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ============================================
+   Bottom Navigation
+   ============================================ */
+
+.ml-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.md-lesson__header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.md-lesson__title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-}
-
-.md-lesson__icon {
-  flex-shrink: 0;
-  color: var(--md-text-muted);
-  display: flex;
-  align-items: center;
-}
-
-.md-lesson--completed .md-lesson__icon {
-  color: var(--md-primary);
-}
-
-.md-lesson--current .md-lesson__icon {
-  color: var(--md-primary-dark);
-}
-
-.md-lesson__title {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--md-text);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.md-lesson__time {
-  font-size: 0.75rem;
-  color: var(--md-text-muted);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* Lesson Actions */
-
-.md-lesson__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.md-lesson__badge {
-  font-size: 0.7rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 10px;
-  font-weight: 500;
-}
-
-.md-lesson__badge--completed {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--md-primary-dark);
-}
-
-.md-lesson__badge--current {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--md-primary);
-}
-
-.md-lesson__btn {
-  padding: 0.35rem 0.85rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.md-lesson__btn--primary {
-  background: var(--md-gradient);
-  color: white;
-}
-
-.md-lesson__btn--primary:hover {
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
-  transform: translateY(-1px);
-}
-
-.md-lesson__btn--secondary {
-  background: var(--md-surface-alt);
-  color: var(--md-text);
-  border: 1px solid var(--md-border);
-}
-
-.md-lesson__btn--secondary:hover {
-  border-color: var(--md-primary);
-  color: var(--md-primary-dark);
-}
-
-/* ---- Navigation ---- */
-
-.md-nav {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
   gap: 1rem;
-  padding: 1.5rem 0;
-  border-top: 1px solid var(--md-border);
-  animation: md-slideUp 0.5s ease-out 0.3s both;
+  margin-top: 2rem;
+  flex-wrap: wrap;
 }
 
-.md-nav__link {
-  display: flex;
+.ml-nav__back {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: var(--md-surface);
-  border: 1px solid var(--md-border);
-  border-radius: var(--md-radius-sm);
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--ml-surface);
+  color: var(--ml-text);
+  border: 1px solid var(--ml-border);
+  border-radius: var(--ml-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
   text-decoration: none;
-  color: var(--md-text);
   transition: all 0.2s ease;
 }
 
-.md-nav__link:hover:not(.md-nav__link--disabled):not(.md-nav__link--locked) {
-  border-color: var(--md-primary);
-  color: var(--md-primary-dark);
+.ml-nav__back:hover {
+  border-color: var(--ml-primary);
+  color: var(--ml-primary);
+  transform: translateX(-4px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
 }
 
-.md-nav__link--disabled {
-  visibility: hidden;
-}
-
-.md-nav__link--locked {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.md-nav__link--prev {
-  justify-self: start;
-}
-
-.md-nav__link--next {
-  justify-self: end;
-  text-align: right;
-}
-
-.md-nav__link--center {
-  background: var(--md-gradient);
-  color: white;
-  border-color: transparent;
-  gap: 0.5rem;
-  font-weight: 600;
-}
-
-.md-nav__link--center:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-  color: white;
-}
-
-.md-nav__text {
+.ml-nav__completion {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 179, 8, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--ml-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #b45309;
 }
 
-.md-nav__label {
-  font-size: 0.75rem;
-  color: var(--md-text-muted);
+.ml-nav__completion svg {
+  color: #f59e0b;
+  flex-shrink: 0;
 }
 
-.md-nav__link:hover .md-nav__label {
-  color: var(--md-primary);
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 640px) {
+  .ml-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .ml-hero {
+    padding: 1.5rem;
+  }
+
+  .ml-hero__main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .ml-hero__badge {
+    width: 64px;
+    height: 72px;
+  }
+
+  .ml-hero__badge-number {
+    font-size: 1.5rem;
+  }
+
+  .ml-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .ml-stats {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .ml-stat {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: calc(50% - 0.5rem);
+  }
+
+  .ml-stat__value {
+    font-size: 1.25rem;
+  }
+
+  .ml-lessons {
+    padding: 1.25rem;
+  }
+
+  .ml-lesson {
+    grid-template-columns: 44px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .ml-lesson__number {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .ml-lesson__action {
+    grid-column: 1 / -1;
+  }
+
+  .ml-lesson__btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ml-lesson__locked-label {
+    display: none;
+  }
+
+  .ml-nav {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ml-nav__back {
+    justify-content: center;
+  }
+
+  .ml-nav__completion {
+    text-align: center;
+    justify-content: center;
+  }
+
+  .ml-hero__breadcrumb {
+    display: none;
+  }
 }
 
-.md-nav__link--center .md-nav__label {
-  color: rgba(255, 255, 255, 0.8);
-}
+/* ============================================
+   Animations
+   ============================================ */
 
-.md-nav__link--center:hover .md-nav__label {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.md-nav__title {
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-/* ---- Animations ---- */
-
-@keyframes md-slideUp {
+@keyframes ml-slideUp {
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -965,82 +978,32 @@
   }
 }
 
-/* ---- Responsive ---- */
-
-@media (max-width: 640px) {
-  .md-page {
-    padding: 0 0.75rem 2rem;
-  }
-
-  .md-hero {
-    padding: 1.5rem;
-  }
-
-  .md-hero__main {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .md-hero__badge-num {
-    width: 52px;
-    height: 52px;
-    font-size: 1.5rem;
-  }
-
-  .md-hero__title {
-    font-size: 1.5rem;
-  }
-
-  .md-hero__stats {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .md-objectives__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .md-focus {
-    grid-template-columns: 1fr;
-  }
-
-  .md-lesson {
-    flex-wrap: wrap;
-  }
-
-  .md-lesson__body {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .md-lesson__actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .md-lesson__btn {
-    text-align: center;
-  }
-
-  .md-nav {
-    grid-template-columns: 1fr;
-  }
-
-  .md-nav__link--prev,
-  .md-nav__link--next {
-    justify-self: stretch;
-    text-align: left;
-  }
-
-  .md-nav__link--next {
-    flex-direction: row-reverse;
-  }
-
-  .md-nav__link--disabled {
-    display: none;
-  }
+.ml-hero {
+  animation: ml-slideUp 0.5s ease-out;
 }
+
+.ml-lessons {
+  animation: ml-slideUp 0.5s ease-out 0.1s both;
+}
+
+.ml-nav {
+  animation: ml-slideUp 0.4s ease-out 0.2s both;
+}
+
+.ml-lesson {
+  animation: ml-slideUp 0.4s ease-out both;
+}
+
+.ml-lesson:nth-child(1) { animation-delay: 0.15s; }
+.ml-lesson:nth-child(2) { animation-delay: 0.2s; }
+.ml-lesson:nth-child(3) { animation-delay: 0.25s; }
+.ml-lesson:nth-child(4) { animation-delay: 0.3s; }
+.ml-lesson:nth-child(5) { animation-delay: 0.35s; }
+.ml-lesson:nth-child(6) { animation-delay: 0.4s; }
+.ml-lesson:nth-child(7) { animation-delay: 0.45s; }
+.ml-lesson:nth-child(8) { animation-delay: 0.5s; }
+.ml-lesson:nth-child(9) { animation-delay: 0.55s; }
+.ml-lesson:nth-child(10) { animation-delay: 0.6s; }
+.ml-lesson:nth-child(n+11) { animation-delay: 0.65s; }
 </style>
 {% endblock %}

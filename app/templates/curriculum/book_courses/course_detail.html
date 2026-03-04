@@ -4,382 +4,215 @@
 
 {% block content %}
 <div class="cd-page">
-  <!-- Breadcrumb -->
-  <nav class="cd-breadcrumb">
-    <a href="{{ url_for('book_courses.list_book_courses') }}" class="cd-breadcrumb__link">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
-      </svg>
-      <span>Книжные курсы</span>
-    </a>
-    <svg class="cd-breadcrumb__sep" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M9 18l6-6-6-6"/>
-    </svg>
-    <span class="cd-breadcrumb__current">{{ course.title }}</span>
-  </nav>
-
-  <!-- Course Hero -->
+  <!-- Hero Section -->
   <div class="cd-hero">
     <div class="cd-hero__bg-shapes">
-      <div class="cd-shape cd-shape--1"></div>
-      <div class="cd-shape cd-shape--2"></div>
-      <div class="cd-shape cd-shape--3"></div>
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
+      <div class="shape shape--3"></div>
     </div>
 
     <div class="cd-hero__content">
-      <div class="cd-hero__cover-wrapper">
-        {% if book.cover_image %}
-          <div class="cd-hero__cover">
-            <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ course.title }}">
-          </div>
-        {% else %}
-          <div class="cd-hero__cover cd-hero__cover--placeholder">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
-            </svg>
-          </div>
-        {% endif %}
-      </div>
+      <a href="{{ url_for('book_courses.list_book_courses') }}" class="cd-hero__back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        <span>Книжные курсы</span>
+      </a>
 
-      <div class="cd-hero__info">
-        <div class="cd-hero__badges">
-          <span class="cd-badge cd-badge--level cd-badge--{{ course.level|lower }}">{{ course.level }}</span>
-          {% if course.is_featured %}
-            <span class="cd-badge cd-badge--featured">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-              Рекомендуем
-            </span>
+      <div class="cd-hero__main">
+        <div class="cd-hero__cover">
+          {% if book.cover_image %}
+            <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}" alt="{{ course.title }}">
+          {% else %}
+            <span class="cd-hero__cover-placeholder">📖</span>
           {% endif %}
         </div>
 
-        <h1 class="cd-hero__title">{{ course.title }}</h1>
-
-        <p class="cd-hero__author">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-          {{ book.author }}
-        </p>
-
-        <p class="cd-hero__desc">{{ course.description }}</p>
+        <div class="cd-hero__info">
+          <h1 class="cd-hero__title">{{ course.title }}</h1>
+          <p class="cd-hero__author">{{ book.author }}</p>
+          <div class="cd-hero__badges">
+            <span class="cd-hero__level-pill">{{ course.level }}</span>
+            {% if course.is_featured %}
+              <span class="cd-hero__featured-pill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                Рекомендуем
+              </span>
+            {% endif %}
+          </div>
+          {% if course.description %}
+            <p class="cd-hero__desc">{{ course.description }}</p>
+          {% endif %}
+        </div>
       </div>
+
+      {% if not is_enrolled %}
+        <button id="enroll-btn" class="cd-hero__cta cd-hero__cta--btn" onclick="enrollInCourse({{ course.id }})">
+          <div class="cd-hero__cta-content">
+            <span class="cd-hero__cta-label">Начать обучение</span>
+            <span class="cd-hero__cta-title">Записаться на курс</span>
+          </div>
+          <div class="cd-hero__cta-arrow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </button>
+      {% elif enrollment and enrollment.current_module %}
+        <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=enrollment.current_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="cd-hero__cta">
+          <div class="cd-hero__cta-content">
+            <span class="cd-hero__cta-label">Продолжить</span>
+            <span class="cd-hero__cta-title">Модуль {{ enrollment.current_module.module_number }}</span>
+          </div>
+          <div class="cd-hero__cta-arrow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </a>
+      {% endif %}
     </div>
 
     <!-- Stats Row -->
-    <div class="cd-hero__stats">
+    <div class="cd-stats">
       <div class="cd-stat">
-        <div class="cd-stat__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <path d="M3 9h18M9 21V9"/>
-          </svg>
-        </div>
-        <div class="cd-stat__content">
-          <span class="cd-stat__value">{{ total_modules }}</span>
-          <span class="cd-stat__label">модулей</span>
-        </div>
-      </div>
-      {% if course.estimated_duration_weeks %}
-      <div class="cd-stat">
-        <div class="cd-stat__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-        </div>
-        <div class="cd-stat__content">
-          <span class="cd-stat__value">{{ course.estimated_duration_weeks }}</span>
-          <span class="cd-stat__label">недель</span>
-        </div>
-      </div>
-      {% endif %}
-      {% if course.difficulty_score %}
-      <div class="cd-stat">
-        <div class="cd-stat__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-        </div>
-        <div class="cd-stat__content">
-          <span class="cd-stat__value">{{ course.difficulty_score|round(1) }}/10</span>
-          <span class="cd-stat__label">сложность</span>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- Enroll / Progress -->
-    <div class="cd-hero__actions">
-      {% if not is_enrolled %}
-        <button id="enroll-btn" class="cd-btn cd-btn--enroll" onclick="enrollInCourse({{ course.id }})">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="16"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
-          </svg>
-          Записаться на курс
-        </button>
-      {% else %}
-        <div class="cd-enrolled">
-          <div class="cd-enrolled__badge">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-              <path d="M22 4L12 14.01l-3-3"/>
-            </svg>
-            Вы записаны на курс
-          </div>
-          <div class="cd-enrolled__progress">
-            <div class="cd-enrolled__progress-header">
-              <span>Прогресс курса</span>
-              <span class="cd-enrolled__progress-percent">{{ enrollment.progress_percentage|round(1) }}%</span>
-            </div>
-            <div class="cd-progress">
-              <div class="cd-progress__fill" style="width: {{ enrollment.progress_percentage }}%"></div>
-            </div>
-          </div>
-          {% if enrollment.current_module %}
-            <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=enrollment.current_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="cd-btn cd-btn--continue">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
-              Продолжить обучение
-            </a>
+        <div class="cd-stat__value">
+          {% if is_enrolled %}
+            {% set completed_count = modules|selectattr('status', 'equalto', 'completed')|list|length %}
+            {{ completed_count }}<span class="cd-stat__divider">/</span>{{ total_modules }}
+          {% else %}
+            0<span class="cd-stat__divider">/</span>{{ total_modules }}
           {% endif %}
         </div>
+        <div class="cd-stat__label">модулей</div>
+      </div>
+      <div class="cd-stat">
+        <div class="cd-stat__value">
+          {% if is_enrolled and enrollment %}
+            {{ enrollment.progress_percentage|round(0)|int }}<span class="cd-stat__unit">%</span>
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="cd-stat__label">прогресс</div>
+      </div>
+      {% if course.estimated_duration_weeks %}
+        <div class="cd-stat">
+          <div class="cd-stat__value">~{{ course.estimated_duration_weeks }}<span class="cd-stat__unit">нед.</span></div>
+          <div class="cd-stat__label">длительность</div>
+        </div>
       {% endif %}
     </div>
   </div>
 
-  <!-- Course Content -->
-  <div class="cd-section cd-section--anim" style="--delay: 0.1s">
-    <div class="cd-section__header">
-      <div class="cd-section__title-group">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="8" y1="6" x2="21" y2="6"/>
-          <line x1="8" y1="12" x2="21" y2="12"/>
-          <line x1="8" y1="18" x2="21" y2="18"/>
-          <line x1="3" y1="6" x2="3.01" y2="6"/>
-          <line x1="3" y1="12" x2="3.01" y2="12"/>
-          <line x1="3" y1="18" x2="3.01" y2="18"/>
-        </svg>
-        <h2 class="cd-section__title">Содержание курса</h2>
-      </div>
-      <span class="cd-section__badge">{{ total_modules }} модулей</span>
+  <!-- Modules Section -->
+  <div class="cd-modules-section">
+    <div class="cd-modules-section__header">
+      <h2 class="cd-modules-section__title">Модули курса</h2>
+      <p class="cd-modules-section__subtitle">{{ total_modules }} {{ 'модуль' if total_modules == 1 else 'модуля' if total_modules < 5 else 'модулей' }} для изучения</p>
     </div>
 
-    <div class="cd-modules">
-      {% for module_data in modules %}
-        {% set module = module_data.module %}
-        {% set progress = module_data.progress %}
-        {% set is_unlocked = module_data.is_unlocked %}
-        {% set status = module_data.status %}
+    {% if modules %}
+      <div class="cd-modules-grid">
+        {% for module_data in modules %}
+          {% set module = module_data.module %}
+          {% set is_unlocked = module_data.is_unlocked %}
+          {% set status = module_data.status %}
+          {% set percentage = module_data.progress_percentage %}
 
-        <div class="cd-module cd-module--anim {% if status == 'completed' %}cd-module--completed{% elif status == 'in_progress' %}cd-module--in-progress{% endif %} {% if not is_unlocked %}cd-module--locked{% endif %}" style="--delay: {{ 0.15 + loop.index0 * 0.05 }}s">
-          <div class="cd-module__number {% if status == 'completed' %}cd-module__number--completed{% elif status == 'in_progress' %}cd-module__number--in-progress{% endif %}">
-            {% if not is_unlocked %}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
-              </svg>
-            {% elif status == 'completed' %}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 6L9 17l-5-5"/>
-              </svg>
-            {% else %}
-              {{ module.module_number }}
-            {% endif %}
-          </div>
-
-          <div class="cd-module__content">
-            <div class="cd-module__header">
-              <h3 class="cd-module__title">{{ module.title }}</h3>
-              <div class="cd-module__meta">
-                {% if module.estimated_reading_time %}
-                  <span class="cd-module__tag">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="10"/>
-                      <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    {{ module.estimated_reading_time }} мин
-                  </span>
-                {% endif %}
-                <span class="cd-module__tag">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+          <div class="cd-module {% if status == 'completed' %}cd-module--completed{% elif status == 'in_progress' %}cd-module--current{% endif %} {% if not is_unlocked %}cd-module--locked{% endif %}">
+            <div class="cd-module__number">
+              <span>{{ module.module_number }}</span>
+              {% if status == 'completed' %}
+                <div class="cd-module__check">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5"/>
                   </svg>
-                  {{ module.total_lessons }} уроков
-                </span>
-              </div>
-            </div>
-
-            {% if module.description %}
-            <p class="cd-module__desc">{{ module.description }}</p>
-            {% endif %}
-
-            {% if module.learning_objectives %}
-            <div class="cd-module__objectives">
-              {% for objective in module.learning_objectives[:3] %}
-                <span class="cd-objective">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-                    <path d="M22 4L12 14.01l-3-3"/>
-                  </svg>
-                  {{ objective }}
-                </span>
-              {% endfor %}
-            </div>
-            {% endif %}
-
-            {% if is_unlocked and is_enrolled %}
-              <div class="cd-module__progress-row">
-                <div class="cd-progress cd-progress--small">
-                  <div class="cd-progress__fill" style="width: {{ module_data.progress_percentage }}%"></div>
                 </div>
-                <span class="cd-module__progress-text">{{ module_data.progress_percentage|round(0)|int }}%</span>
-              </div>
-            {% endif %}
-          </div>
+              {% elif not is_unlocked %}
+                <div class="cd-module__lock">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
+                  </svg>
+                </div>
+              {% endif %}
+            </div>
 
-          <div class="cd-module__action">
-            {% if is_unlocked and is_enrolled %}
-              <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="cd-btn-module {% if status == 'completed' %}cd-btn-module--completed{% endif %}">
-                {% if status == 'completed' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="1 4 1 10 7 10"/>
-                    <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
-                  </svg>
-                  Повторить
-                {% elif status == 'in_progress' %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"/>
-                  </svg>
-                  Продолжить
+            <div class="cd-module__content">
+              <h3 class="cd-module__title">{{ module.title }}</h3>
+              <p class="cd-module__desc">
+                {% if not is_unlocked %}
+                  Завершите предыдущий модуль
                 {% else %}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                    <polyline points="12 5 19 12 12 19"/>
-                  </svg>
-                  Начать
+                  {{ module.description or 'Изучите новый материал' }}
                 {% endif %}
+              </p>
+
+              {% if is_unlocked %}
+                <div class="cd-module__meta">
+                  <span class="cd-module__lessons">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    {{ module.total_lessons }} уроков
+                  </span>
+                  {% if percentage > 0 %}
+                    <span class="cd-module__percent">{{ percentage|round(0)|int }}%</span>
+                  {% endif %}
+                </div>
+
+                {% if percentage > 0 and percentage < 100 %}
+                  <div class="cd-module__progress">
+                    <div class="cd-module__progress-fill" style="width: {{ percentage }}%"></div>
+                  </div>
+                {% endif %}
+              {% endif %}
+            </div>
+
+            {% if is_unlocked %}
+              <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="cd-module__action">
+                {% if status == 'completed' %}
+                  <span>Повторить</span>
+                {% elif percentage > 0 %}
+                  <span>Продолжить</span>
+                {% else %}
+                  <span>Начать</span>
+                {% endif %}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
               </a>
-            {% elif not is_enrolled %}
-              <span class="cd-module__locked-msg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
-                </svg>
-                Запишитесь
-              </span>
-            {% else %}
-              <span class="cd-module__locked-msg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
-                </svg>
-                Заблокировано
-              </span>
             {% endif %}
           </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="cd-modules-section__empty">
+        <div class="cd-modules-section__empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
         </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- Additional Info -->
-  {% if course.author_info or course.literary_themes or course.language_features %}
-  <div class="cd-info cd-section--anim" style="--delay: 0.3s">
-    {% if course.author_info %}
-    <div class="cd-info-card">
-      <div class="cd-info-card__header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-          <circle cx="12" cy="7" r="4"/>
-        </svg>
-        <h3>Об авторе</h3>
+        <h4>Модули появятся скоро</h4>
+        <p>Мы готовим учебные материалы для этого курса</p>
       </div>
-      <div class="cd-info-card__body">
-        <p class="cd-info-card__name">{{ course.author_info.name }}</p>
-        {% if course.author_info.bio %}
-          <p class="cd-info-card__bio">{{ course.author_info.bio }}</p>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    {% if course.literary_themes %}
-    <div class="cd-info-card">
-      <div class="cd-info-card__header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/>
-          <circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/>
-          <circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/>
-          <circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/>
-          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
-        </svg>
-        <h3>Темы книги</h3>
-      </div>
-      <div class="cd-info-card__body">
-        <div class="cd-tags">
-          {% for theme in course.literary_themes %}
-            <span class="cd-tag">{{ theme }}</span>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if course.language_features %}
-    <div class="cd-info-card">
-      <div class="cd-info-card__header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cd-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 7l5 5-5 5"/>
-          <line x1="13" y1="17" x2="19" y2="17"/>
-        </svg>
-        <h3>Языковые особенности</h3>
-      </div>
-      <div class="cd-info-card__body">
-        {% if course.language_features.grammar_points %}
-        <div class="cd-feature-group">
-          <span class="cd-feature-group__label">Грамматика:</span>
-          <div class="cd-tags">
-            {% for point in course.language_features.grammar_points %}
-              <span class="cd-tag cd-tag--feature">{{ point|replace('_', ' ') }}</span>
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
-        {% if course.language_features.vocabulary_themes %}
-        <div class="cd-feature-group">
-          <span class="cd-feature-group__label">Лексика:</span>
-          <div class="cd-tags">
-            {% for theme in course.language_features.vocabulary_themes %}
-              <span class="cd-tag cd-tag--feature">{{ theme }}</span>
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
-      </div>
-    </div>
     {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <style>
 /* ============================================
-   Course Detail Page — Premium Design
+   Course Detail Page - Level Modules Style
    ============================================ */
 
 
 .cd-page {
   --cd-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --cd-primary: #10b981;
-  --cd-primary-dark: #059669;
-  --cd-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --cd-primary: #2563eb;
+  --cd-primary-dark: #1d4ed8;
   --cd-surface: #ffffff;
   --cd-surface-alt: #f8fafc;
   --cd-text: #0f172a;
@@ -387,58 +220,25 @@
   --cd-border: #e2e8f0;
   --cd-radius: 16px;
   --cd-radius-sm: 10px;
+
   font-family: var(--cd-font);
   max-width: 900px;
   margin: 0 auto;
   padding: 0 1rem 3rem;
 }
 
-/* ---- Breadcrumb ---- */
-
-.cd-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  margin-bottom: 1.25rem;
-  font-size: 0.875rem;
-}
-
-.cd-breadcrumb__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--cd-primary);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.cd-breadcrumb__link:hover {
-  color: var(--cd-primary-dark);
-}
-
-.cd-breadcrumb__sep {
-  color: var(--cd-text-muted);
-  opacity: 0.5;
-}
-
-.cd-breadcrumb__current {
-  color: var(--cd-text-muted);
-}
-
-/* ---- Hero Section ---- */
-
+/* Hero Section */
 .cd-hero {
   position: relative;
-  background: var(--cd-gradient);
+  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
   border-radius: var(--cd-radius);
   padding: 2rem;
   margin-bottom: 2rem;
   overflow: hidden;
-  color: #fff;
+  color: white;
 }
 
-/* Floating Shapes */
+/* Background Shapes */
 .cd-hero__bg-shapes {
   position: absolute;
   inset: 0;
@@ -446,13 +246,13 @@
   pointer-events: none;
 }
 
-.cd-shape {
+.shape {
   position: absolute;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.cd-shape--1 {
+.shape--1 {
   width: 300px;
   height: 300px;
   top: -100px;
@@ -460,7 +260,7 @@
   animation: cd-float-1 20s ease-in-out infinite;
 }
 
-.cd-shape--2 {
+.shape--2 {
   width: 200px;
   height: 200px;
   bottom: -80px;
@@ -468,7 +268,7 @@
   animation: cd-float-2 15s ease-in-out infinite;
 }
 
-.cd-shape--3 {
+.shape--3 {
   width: 100px;
   height: 100px;
   top: 50%;
@@ -495,24 +295,42 @@
 .cd-hero__content {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 2rem;
+}
+
+.cd-hero__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.cd-hero__back:hover {
+  color: white;
+  transform: translateX(-4px);
+}
+
+.cd-hero__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
-.cd-hero__cover-wrapper {
-  position: relative;
-}
-
+/* Book Cover (replaces level badge) */
 .cd-hero__cover {
-  width: 160px;
-  height: 230px;
-  border-radius: 12px;
+  width: 80px;
+  height: 110px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .cd-hero__cover img {
@@ -521,230 +339,485 @@
   object-fit: cover;
 }
 
-.cd-hero__cover--placeholder {
+.cd-hero__cover-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 2rem;
+  width: 100%;
+  height: 100%;
 }
 
 .cd-hero__info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.cd-hero__badges {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.cd-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.3rem 0.75rem;
-  border-radius: 50px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.cd-badge--level {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-.cd-badge--featured {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #fff;
+  flex: 1;
+  min-width: 0;
 }
 
 .cd-hero__title {
   font-size: 1.75rem;
   font-weight: 700;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.375rem;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
 .cd-hero__author {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 1rem;
-  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  margin: 0 0 0.625rem;
+  opacity: 0.8;
   font-weight: 500;
 }
 
-.cd-hero__desc {
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.6;
-  margin: 0;
-  font-size: 0.9375rem;
-}
-
-/* Stats Row */
-.cd-hero__stats {
-  position: relative;
-  z-index: 1;
+.cd-hero__badges {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
   flex-wrap: wrap;
 }
 
-.cd-stat {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0.625rem 1rem;
-  border-radius: var(--cd-radius-sm);
-}
-
-.cd-stat__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.85;
-}
-
-.cd-stat__content {
-  display: flex;
-  flex-direction: column;
-}
-
-.cd-stat__value {
-  font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.cd-stat__label {
-  font-size: 0.6875rem;
-  opacity: 0.8;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-/* Enroll / Enrolled Actions */
-.cd-hero__actions {
-  position: relative;
-  z-index: 1;
-}
-
-.cd-btn {
+.cd-hero__level-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.625rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cd-hero__featured-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cd-hero__desc {
+  font-size: 1rem;
+  margin: 0;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+/* CTA Button */
+.cd-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  color: var(--cd-text);
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--cd-radius-sm);
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.cd-hero__cta--btn {
   border: none;
   cursor: pointer;
   font-family: var(--cd-font);
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s ease;
 }
 
-.cd-btn--enroll {
-  padding: 0.875rem 1.75rem;
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--cd-primary-dark);
-  border-radius: var(--cd-radius-sm);
-  font-size: 1rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-}
-
-.cd-btn--enroll:hover {
-  background: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-}
-
-.cd-btn--enroll:disabled {
+.cd-hero__cta--btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
 }
 
-.cd-enrolled {
+.cd-hero__cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.cd-hero__cta-content {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
-.cd-enrolled__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(5px);
-  border-radius: 50px;
+.cd-hero__cta-label {
+  font-size: 0.75rem;
   font-weight: 600;
-  font-size: 0.875rem;
-  width: fit-content;
+  color: var(--cd-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.cd-enrolled__progress {
-  max-width: 320px;
+.cd-hero__cta-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cd-text);
+  margin-top: 0.125rem;
 }
 
-.cd-enrolled__progress-header {
+.cd-hero__cta-arrow {
+  width: 40px;
+  height: 40px;
+  background: var(--cd-surface-alt);
+  border-radius: 50%;
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.375rem;
-  font-size: 0.8125rem;
-  opacity: 0.9;
+  align-items: center;
+  justify-content: center;
+  color: var(--cd-primary);
+  transition: all 0.2s ease;
 }
 
-.cd-enrolled__progress-percent {
+.cd-hero__cta:hover .cd-hero__cta-arrow {
+  background: var(--cd-primary);
+  color: white;
+  transform: translateX(4px);
+}
+
+/* Stats Row */
+.cd-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cd-stat {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--cd-radius-sm);
+  backdrop-filter: blur(5px);
+}
+
+.cd-stat__value {
+  font-size: 1.5rem;
   font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
-.cd-progress {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+.cd-stat__divider {
+  opacity: 0.5;
+  margin: 0 0.125rem;
+}
+
+.cd-stat__unit {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.cd-stat__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+/* Modules Section */
+.cd-modules-section {
+  background: var(--cd-surface);
+  border-radius: var(--cd-radius);
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--cd-border);
+}
+
+.cd-modules-section__header {
+  margin-bottom: 1.5rem;
+}
+
+.cd-modules-section__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cd-text);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.cd-modules-section__subtitle {
+  font-size: 0.875rem;
+  color: var(--cd-text-muted);
+  margin: 0;
+}
+
+/* Modules Grid */
+.cd-modules-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Module Card */
+.cd-module {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--cd-surface-alt);
+  border-radius: var(--cd-radius-sm);
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.cd-module:hover:not(.cd-module--locked) {
+  border-color: var(--cd-primary);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.cd-module--current {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(14, 165, 233, 0.08) 100%);
+  border-color: var(--cd-primary);
+}
+
+.cd-module--completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);
+}
+
+.cd-module--locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Module Number */
+.cd-module__number {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cd-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cd-module--current .cd-module__number {
+  background: var(--cd-primary);
+  color: white;
+}
+
+.cd-module--completed .cd-module__number {
+  background: #22c55e;
+  color: white;
+}
+
+.cd-module__check,
+.cd-module__lock {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--cd-surface-alt);
+}
+
+.cd-module__check {
+  background: #22c55e;
+  color: white;
+}
+
+.cd-module__lock {
+  background: #94a3b8;
+  color: white;
+}
+
+/* Module Content */
+.cd-module__content {
+  min-width: 0;
+}
+
+.cd-module__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cd-text);
+  margin: 0 0 0.25rem;
+  line-height: 1.3;
+}
+
+.cd-module__desc {
+  font-size: 0.8125rem;
+  color: var(--cd-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.cd-module__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.625rem;
+}
+
+.cd-module__lessons {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--cd-text-muted);
+}
+
+.cd-module__lessons svg {
+  color: var(--cd-primary);
+}
+
+.cd-module__percent {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--cd-primary);
+}
+
+/* Progress Bar */
+.cd-module__progress {
+  height: 4px;
+  background: rgba(37, 99, 235, 0.15);
+  border-radius: 2px;
+  margin-top: 0.5rem;
   overflow: hidden;
 }
 
-.cd-progress--small {
-  height: 6px;
-}
-
-.cd-progress__fill {
+.cd-module__progress-fill {
   height: 100%;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 4px;
-  transition: width 0.4s ease;
+  background: linear-gradient(90deg, var(--cd-primary) 0%, #0ea5e9 100%);
+  border-radius: 2px;
+  transition: width 0.5s ease;
 }
 
-.cd-btn--continue {
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--cd-primary-dark);
-  border-radius: var(--cd-radius-sm);
-  font-size: 0.9375rem;
-  width: fit-content;
+/* Module Action */
+.cd-module__action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--cd-primary);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
-.cd-btn--continue:hover {
-  background: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+.cd-module__action:hover {
+  background: var(--cd-primary-dark);
+  transform: scale(1.02);
 }
 
-/* ---- slideUp Animation ---- */
+.cd-module--completed .cd-module__action {
+  background: #22c55e;
+}
 
+.cd-module--completed .cd-module__action:hover {
+  background: #16a34a;
+}
+
+/* Empty State */
+.cd-modules-section__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--cd-text-muted);
+}
+
+.cd-modules-section__empty-icon {
+  margin-bottom: 1rem;
+  color: var(--cd-border);
+}
+
+.cd-modules-section__empty h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--cd-text);
+  margin: 0 0 0.5rem;
+}
+
+.cd-modules-section__empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .cd-page {
+    padding: 0 0.75rem 2rem;
+  }
+
+  .cd-hero {
+    padding: 1.5rem;
+  }
+
+  .cd-hero__main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .cd-hero__cover {
+    width: 64px;
+    height: 88px;
+  }
+
+  .cd-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .cd-hero__cta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .cd-stats {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .cd-stat {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: calc(50% - 0.5rem);
+  }
+
+  .cd-stat__value {
+    font-size: 1.25rem;
+  }
+
+  .cd-modules-section {
+    padding: 1.25rem;
+  }
+
+  .cd-module {
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .cd-module__number {
+    width: 48px;
+    height: 48px;
+    font-size: 1.125rem;
+  }
+
+  .cd-module__action {
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Page Load Animation */
 @keyframes cd-slideUp {
   from {
     opacity: 0;
@@ -756,424 +829,27 @@
   }
 }
 
-.cd-section--anim {
-  animation: cd-slideUp 0.5s ease both;
-  animation-delay: var(--delay, 0s);
+.cd-hero {
+  animation: cd-slideUp 0.5s ease-out;
 }
 
-.cd-module--anim {
-  animation: cd-slideUp 0.45s ease both;
-  animation-delay: var(--delay, 0s);
-}
-
-/* ---- Content Section ---- */
-
-.cd-section {
-  margin-bottom: 2rem;
-}
-
-.cd-section__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.25rem;
-}
-
-.cd-section__title-group {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-}
-
-.cd-section__title {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--cd-text);
-}
-
-.cd-section__badge {
-  padding: 0.3rem 0.875rem;
-  background: var(--cd-gradient);
-  color: #fff;
-  border-radius: 50px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-/* ---- Modules List ---- */
-
-.cd-modules {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.cd-modules-section {
+  animation: cd-slideUp 0.5s ease-out 0.1s both;
 }
 
 .cd-module {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.25rem;
-  background: var(--cd-surface);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius);
-  padding: 1.25rem 1.5rem;
-  transition: all 0.2s ease;
+  animation: cd-slideUp 0.4s ease-out both;
 }
 
-.cd-module:hover:not(.cd-module--locked) {
-  border-color: var(--cd-primary);
-  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
-}
-
-.cd-module--locked {
-  opacity: 0.55;
-}
-
-.cd-module--completed {
-  border-left: 4px solid var(--cd-primary);
-}
-
-.cd-module--in-progress {
-  border-left: 4px solid #3b82f6;
-}
-
-/* Module Number Badge */
-.cd-module__number {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--cd-surface-alt);
-  border-radius: 12px;
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--cd-text-muted);
-  flex-shrink: 0;
-}
-
-.cd-module__number--completed {
-  background: #dcfce7;
-  color: #16a34a;
-}
-
-.cd-module__number--in-progress {
-  background: #dbeafe;
-  color: #3b82f6;
-}
-
-/* Module Content */
-.cd-module__content {
-  flex: 1;
-  min-width: 0;
-}
-
-.cd-module__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 0.375rem;
-}
-
-.cd-module__title {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--cd-text);
-  line-height: 1.3;
-}
-
-.cd-module__meta {
-  display: flex;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
-
-.cd-module__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8125rem;
-  color: var(--cd-text-muted);
-  white-space: nowrap;
-}
-
-.cd-module__desc {
-  font-size: 0.875rem;
-  color: var(--cd-text-muted);
-  margin: 0 0 0.625rem;
-  line-height: 1.5;
-}
-
-/* Objectives */
-.cd-module__objectives {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.625rem;
-}
-
-.cd-objective {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.625rem;
-  background: var(--cd-surface-alt);
-  border-radius: 50px;
-  color: var(--cd-text-muted);
-}
-
-.cd-objective svg {
-  color: var(--cd-primary);
-  flex-shrink: 0;
-}
-
-/* Module Progress Row */
-.cd-module__progress-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  max-width: 220px;
-}
-
-.cd-module__progress-row .cd-progress {
-  flex: 1;
-  background: var(--cd-surface-alt);
-}
-
-.cd-module__progress-row .cd-progress__fill {
-  background: var(--cd-gradient);
-}
-
-.cd-module__progress-text {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--cd-primary);
-  white-space: nowrap;
-}
-
-/* Module Action */
-.cd-module__action {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
-.cd-btn-module {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1.125rem;
-  background: var(--cd-gradient);
-  color: #fff;
-  border-radius: var(--cd-radius-sm);
-  text-decoration: none;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  font-family: var(--cd-font);
-  transition: all 0.2s ease;
-}
-
-.cd-btn-module:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.cd-btn-module--completed {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-}
-
-.cd-btn-module--completed:hover {
-  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
-}
-
-.cd-module__locked-msg {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 1rem;
-  background: var(--cd-surface-alt);
-  color: var(--cd-text-muted);
-  border-radius: var(--cd-radius-sm);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-/* ---- Info Section ---- */
-
-.cd-info {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-}
-
-.cd-info-card {
-  background: var(--cd-surface);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius);
-  overflow: hidden;
-}
-
-.cd-info-card__header {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.875rem 1.25rem;
-  background: var(--cd-surface-alt);
-  border-bottom: 1px solid var(--cd-border);
-}
-
-.cd-info-card__header h3 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--cd-text);
-}
-
-.cd-info-card__body {
-  padding: 1.25rem;
-}
-
-.cd-info-card__name {
-  font-weight: 600;
-  margin: 0 0 0.375rem;
-  color: var(--cd-text);
-}
-
-.cd-info-card__bio {
-  font-size: 0.875rem;
-  color: var(--cd-text-muted);
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Tags */
-.cd-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-.cd-tag {
-  padding: 0.3rem 0.75rem;
-  background: var(--cd-surface-alt);
-  border-radius: 50px;
-  font-size: 0.8125rem;
-  color: var(--cd-text-muted);
-  border: 1px solid var(--cd-border);
-}
-
-.cd-tag--feature {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: var(--cd-primary-dark);
-}
-
-/* Feature Groups */
-.cd-feature-group {
-  margin-bottom: 1rem;
-}
-
-.cd-feature-group:last-child {
-  margin-bottom: 0;
-}
-
-.cd-feature-group__label {
-  display: block;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--cd-text);
-  margin-bottom: 0.5rem;
-}
-
-/* ---- Responsive (640px) ---- */
-
-@media (max-width: 640px) {
-  .cd-page {
-    padding: 0 0.75rem 2rem;
-  }
-
-  .cd-hero {
-    padding: 1.5rem;
-  }
-
-  .cd-hero__content {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-
-  .cd-hero__cover-wrapper {
-    display: flex;
-    justify-content: center;
-  }
-
-  .cd-hero__cover {
-    width: 130px;
-    height: 190px;
-  }
-
-  .cd-hero__info {
-    text-align: center;
-  }
-
-  .cd-hero__badges {
-    justify-content: center;
-  }
-
-  .cd-hero__author {
-    justify-content: center;
-  }
-
-  .cd-hero__title {
-    font-size: 1.375rem;
-  }
-
-  .cd-hero__stats {
-    justify-content: center;
-  }
-
-  .cd-enrolled {
-    align-items: center;
-  }
-
-  .cd-enrolled__progress {
-    max-width: 100%;
-    width: 100%;
-  }
-
-  .cd-module {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-  }
-
-  .cd-module__header {
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .cd-module__action {
-    width: 100%;
-  }
-
-  .cd-btn-module,
-  .cd-module__locked-msg {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .cd-info {
-    grid-template-columns: 1fr;
-  }
-
-  .cd-section__header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-}
+.cd-module:nth-child(1) { animation-delay: 0.15s; }
+.cd-module:nth-child(2) { animation-delay: 0.2s; }
+.cd-module:nth-child(3) { animation-delay: 0.25s; }
+.cd-module:nth-child(4) { animation-delay: 0.3s; }
+.cd-module:nth-child(5) { animation-delay: 0.35s; }
+.cd-module:nth-child(6) { animation-delay: 0.4s; }
+.cd-module:nth-child(7) { animation-delay: 0.45s; }
+.cd-module:nth-child(8) { animation-delay: 0.5s; }
+.cd-module:nth-child(n+9) { animation-delay: 0.55s; }
 </style>
 {% endblock %}
 

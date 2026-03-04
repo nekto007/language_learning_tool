@@ -7,53 +7,53 @@
 <style>
 
 /* ── Scoped Book Lesson Variables ── */
-.bls-page {
-  --bls-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --bls-primary: #10b981;
-  --bls-primary-dark: #059669;
-  --bls-gradient: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
-  --bls-surface: #ffffff;
-  --bls-surface-alt: #f8fafc;
-  --bls-text: #0f172a;
-  --bls-text-muted: #64748b;
-  --bls-text-light: #94a3b8;
-  --bls-border: #e2e8f0;
-  --bls-radius: 16px;
-  --bls-radius-sm: 10px;
-  --bls-success: #10b981;
-  --bls-warning: #f59e0b;
-  --bls-danger: #ef4444;
+.bl-page {
+  --bl-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bl-primary: #10b981;
+  --bl-primary-dark: #059669;
+  --bl-gradient: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+  --bl-surface: #ffffff;
+  --bl-surface-alt: #f8fafc;
+  --bl-text: #0f172a;
+  --bl-text-muted: #64748b;
+  --bl-text-light: #94a3b8;
+  --bl-border: #e2e8f0;
+  --bl-radius: 16px;
+  --bl-radius-sm: 10px;
+  --bl-success: #10b981;
+  --bl-warning: #f59e0b;
+  --bl-danger: #ef4444;
 
-  font-family: var(--bls-font);
+  font-family: var(--bl-font);
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1rem 6rem;
 }
 
 /* ── Animations ── */
-@keyframes blsSlideUp {
+@keyframes blSlideUp {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes blsFloat1 {
+@keyframes blFloat1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(-12px, 12px) scale(1.05); }
 }
 
-@keyframes blsFloat2 {
+@keyframes blFloat2 {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
   50% { transform: translate(14px, -10px) rotate(8deg); }
 }
 
-.bls-page .bls-header { animation: blsSlideUp 0.4s ease-out; }
-.bls-page .bls-body { animation: blsSlideUp 0.4s ease-out 0.08s both; }
-.bls-page .bls-footer { animation: blsSlideUp 0.3s ease-out 0.12s both; }
+.bl-page .bl-header { animation: blSlideUp 0.4s ease-out; }
+.bl-page .bl-body { animation: blSlideUp 0.4s ease-out 0.08s both; }
+.bl-page .bl-footer { animation: blSlideUp 0.3s ease-out 0.12s both; }
 
 /* ── Header ── */
-.bls-header {
-  background: var(--bls-gradient);
-  border-radius: var(--bls-radius);
+.bl-header {
+  background: var(--bl-gradient);
+  border-radius: var(--bl-radius);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
   color: #fff;
@@ -61,8 +61,8 @@
   overflow: hidden;
 }
 
-.bls-header::before,
-.bls-header::after {
+.bl-header::before,
+.bl-header::after {
   content: '';
   position: absolute;
   border-radius: 50%;
@@ -70,23 +70,64 @@
   pointer-events: none;
 }
 
-.bls-header::before {
+.bl-header::before {
   width: 120px;
   height: 120px;
   top: -40px;
   right: -30px;
-  animation: blsFloat1 18s ease-in-out infinite;
+  animation: blFloat1 18s ease-in-out infinite;
 }
 
-.bls-header::after {
+.bl-header::after {
   width: 70px;
   height: 70px;
   bottom: -25px;
   left: 8%;
-  animation: blsFloat2 14s ease-in-out infinite;
+  animation: blFloat2 14s ease-in-out infinite;
 }
 
-.bls-header__top {
+/* ── Header Breadcrumb ── */
+.bl-header__breadcrumb {
+  position: relative;
+  z-index: 1;
+}
+
+.bl-header__breadcrumb ol {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.bl-header__breadcrumb li {
+  display: flex;
+  align-items: center;
+}
+
+.bl-header__breadcrumb a {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.bl-header__breadcrumb a:hover {
+  color: white;
+}
+
+.bl-header__breadcrumb li[aria-current="page"] {
+  color: white;
+  font-weight: 600;
+}
+
+.bl-header__breadcrumb li[aria-hidden="true"] {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.bl-header__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -96,14 +137,14 @@
   margin-bottom: 0.75rem;
 }
 
-.bls-header__left {
+.bl-header__left {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
 }
 
-.bls-badge {
+.bl-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -117,13 +158,13 @@
   backdrop-filter: blur(5px);
 }
 
-.bls-badge__icon {
+.bl-badge__icon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
 }
 
-.bls-title {
+.bl-title {
   font-size: 1.125rem;
   font-weight: 700;
   margin: 0;
@@ -133,7 +174,7 @@
   text-overflow: ellipsis;
 }
 
-.bls-header__counter {
+.bl-header__counter {
   font-size: 0.8125rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
@@ -141,18 +182,18 @@
 }
 
 /* ── Content Area ── */
-.bls-body {
+.bl-body {
   margin-bottom: 2rem;
 }
 
 /* ── Footer ── */
-.bls-footer {
+.bl-footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--bls-surface);
-  border-top: 1px solid var(--bls-border);
+  background: var(--bl-surface);
+  border-top: 1px solid var(--bl-border);
   padding: 0.75rem 1rem;
   z-index: 100;
   display: flex;
@@ -161,7 +202,7 @@
   gap: 0.75rem;
 }
 
-.bls-footer__inner {
+.bl-footer__inner {
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
@@ -171,13 +212,13 @@
   gap: 0.75rem;
 }
 
-.bls-btn {
+.bl-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   padding: 0.625rem 1.25rem;
-  border-radius: var(--bls-radius-sm);
-  font-family: var(--bls-font);
+  border-radius: var(--bl-radius-sm);
+  font-family: var(--bl-font);
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
@@ -186,24 +227,24 @@
   border: none;
 }
 
-.bls-btn__icon {
+.bl-btn__icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
 }
 
-.bls-btn--primary {
-  background: var(--bls-gradient);
+.bl-btn--primary {
+  background: var(--bl-gradient);
   color: #fff;
 }
 
-.bls-btn--primary:hover {
+.bl-btn--primary:hover {
   opacity: 0.92;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.bls-btn--primary:disabled {
+.bl-btn--primary:disabled {
   background: #d1d5db;
   box-shadow: none;
   cursor: not-allowed;
@@ -212,49 +253,49 @@
   transform: none;
 }
 
-.bls-btn--outline {
-  background: var(--bls-surface);
-  color: var(--bls-text-muted);
-  border: 1.5px solid var(--bls-border);
+.bl-btn--outline {
+  background: var(--bl-surface);
+  color: var(--bl-text-muted);
+  border: 1.5px solid var(--bl-border);
 }
 
-.bls-btn--outline:hover {
-  background: var(--bls-surface-alt);
-  color: var(--bls-text);
+.bl-btn--outline:hover {
+  background: var(--bl-surface-alt);
+  color: var(--bl-text);
   border-color: #cbd5e1;
 }
 
 /* ── SRS Review Section ── */
-.bls-review {
+.bl-review {
   background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-  border-radius: var(--bls-radius-sm);
+  border-radius: var(--bl-radius-sm);
   padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
   border: 1px solid #ffcc80;
 }
 
-.bls-review__header {
+.bl-review__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.bls-review__info {
+.bl-review__info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.bls-review__icon {
+.bl-review__icon {
   font-size: 1.25rem;
 }
 
-.bls-review__title {
+.bl-review__title {
   font-weight: 600;
   color: #e65100;
 }
 
-.bls-review__count {
+.bl-review__count {
   background: #ff9800;
   color: white;
   padding: 0.2rem 0.6rem;
@@ -263,34 +304,34 @@
   font-weight: 500;
 }
 
-.bls-review__toggle {
+.bl-review__toggle {
   background: #ff9800;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: var(--bls-radius-sm);
+  border-radius: var(--bl-radius-sm);
   cursor: pointer;
-  font-family: var(--bls-font);
+  font-family: var(--bl-font);
   font-weight: 500;
   transition: all 0.2s;
 }
 
-.bls-review__toggle:hover {
+.bl-review__toggle:hover {
   background: #f57c00;
 }
 
-.bls-review__content {
+.bl-review__content {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(230, 81, 0, 0.2);
 }
 
-.bls-review__card-wrap {
+.bl-review__card-wrap {
   perspective: 1000px;
   margin-bottom: 1rem;
 }
 
-.bls-review__card {
+.bl-review__card {
   width: 100%;
   height: 150px;
   position: relative;
@@ -299,11 +340,11 @@
   cursor: pointer;
 }
 
-.bls-review__card.flipped {
+.bl-review__card.flipped {
   transform: rotateY(180deg);
 }
 
-.bls-review__card-face {
+.bl-review__card-face {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
   backface-visibility: hidden;
@@ -313,63 +354,63 @@
   justify-content: center;
   padding: 1rem;
   background: white;
-  border-radius: var(--bls-radius-sm);
+  border-radius: var(--bl-radius-sm);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.bls-review__card-face--back {
+.bl-review__card-face--back {
   transform: rotateY(180deg);
   background: #fff8e1;
 }
 
-.bls-review__word {
+.bl-review__word {
   font-size: 1.5rem;
   font-weight: 600;
   color: #333;
 }
 
-.bls-review__hint {
+.bl-review__hint {
   font-size: 0.75rem;
-  color: var(--bls-text-muted);
+  color: var(--bl-text-muted);
   margin-top: 0.5rem;
 }
 
-.bls-review__controls {
+.bl-review__controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.bls-review__progress {
+.bl-review__progress {
   font-size: 0.875rem;
   color: #e65100;
   font-weight: 500;
 }
 
-.bls-review__buttons {
+.bl-review__buttons {
   display: flex;
   gap: 0.5rem;
 }
 
-.bls-review__rate {
+.bl-review__rate {
   padding: 0.4rem 1rem;
   border: none;
-  border-radius: var(--bls-radius-sm);
+  border-radius: var(--bl-radius-sm);
   cursor: pointer;
-  font-family: var(--bls-font);
+  font-family: var(--bl-font);
   font-size: 0.8rem;
   font-weight: 500;
   transition: all 0.2s;
 }
 
-.bls-review__rate--hard { background: #ffebee; color: #c62828; }
-.bls-review__rate--hard:hover { background: #ffcdd2; }
-.bls-review__rate--good { background: #e8f5e9; color: #2e7d32; }
-.bls-review__rate--good:hover { background: #c8e6c9; }
-.bls-review__rate--easy { background: #e3f2fd; color: #1565c0; }
-.bls-review__rate--easy:hover { background: #bbdefb; }
+.bl-review__rate--hard { background: #ffebee; color: #c62828; }
+.bl-review__rate--hard:hover { background: #ffcdd2; }
+.bl-review__rate--good { background: #e8f5e9; color: #2e7d32; }
+.bl-review__rate--good:hover { background: #c8e6c9; }
+.bl-review__rate--easy { background: #e3f2fd; color: #1565c0; }
+.bl-review__rate--easy:hover { background: #bbdefb; }
 
-.bls-review__complete {
+.bl-review__complete {
   text-align: center;
   padding: 1rem;
   color: #2e7d32;
@@ -377,32 +418,32 @@
 }
 
 /* ── Lesson Results ── */
-.bls-results {
+.bl-results {
   text-align: center;
   padding: 2rem;
-  background: var(--bls-surface);
-  border-radius: var(--bls-radius);
-  border: 1px solid var(--bls-border);
+  background: var(--bl-surface);
+  border-radius: var(--bl-radius);
+  border: 1px solid var(--bl-border);
 }
 
-.bls-results__icon {
+.bl-results__icon {
   font-size: 4rem;
   margin-bottom: 1rem;
 }
 
-.bls-results__score {
+.bl-results__score {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--bls-primary);
+  color: var(--bl-primary);
   margin-bottom: 0.5rem;
 }
 
-.bls-results__message {
-  color: var(--bls-text-muted);
+.bl-results__message {
+  color: var(--bl-text-muted);
   margin-bottom: 1.5rem;
 }
 
-.bls-results__actions {
+.bl-results__actions {
   display: flex;
   gap: 1rem;
   justify-content: center;
@@ -415,30 +456,34 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .bls-page {
+  .bl-page {
     padding: 0 0.75rem 5.5rem;
   }
 
-  .bls-header {
+  .bl-header {
     padding: 1rem 1.125rem;
     border-radius: 12px;
   }
 
-  .bls-title {
+  .bl-title {
     font-size: 1rem;
   }
 
-  .bls-header__top {
+  .bl-header__top {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
 
-  .bls-footer {
+  .bl-header__breadcrumb {
+    display: none;
+  }
+
+  .bl-footer {
     padding: 0.625rem 0.75rem;
   }
 
-  .bls-btn {
+  .bl-btn {
     padding: 0.5rem 1rem;
     font-size: 0.8125rem;
   }
@@ -447,68 +492,76 @@
 {% endblock %}
 
 {% block content %}
-<div class="bls-page">
-
-  <!-- Breadcrumb -->
-  <nav class="breadcrumb-nav" aria-label="Навигация">
-    <a href="{{ url_for('book_courses.list_book_courses') }}">Курсы</a>
-    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
-    <a href="{{ url_for('book_courses.view_course', course_id=course.id) }}">{{ course.title }}</a>
-    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
-    <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}">Модуль {{ module.module_number }}</a>
-    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
-    <span class="breadcrumb-nav__current">{{ lesson.title or ('Урок ' ~ lesson_number) }}</span>
-  </nav>
+<div class="bl-page">
 
   <!-- Compact Header -->
-  <div class="bls-header">
-    <div class="bls-header__top">
-      <div class="bls-header__left">
-        <span class="bls-badge">
-          <svg class="bls-badge__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 6 3 6 3s3 0 6-3v-5"/></svg>
+  <div class="bl-header">
+    <!-- Breadcrumb -->
+    <nav class="bl-header__breadcrumb" aria-label="Навигация">
+      <ol role="list">
+        <li><a href="{{ url_for('book_courses.list_book_courses') }}">Курсы</a></li>
+        <li aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </li>
+        <li><a href="{{ url_for('book_courses.view_course', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </li>
+        <li><a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}">Модуль {{ module.module_number }}</a></li>
+        <li aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </li>
+        <li aria-current="page">{{ lesson.title or ('Урок ' ~ lesson_number) }}</li>
+      </ol>
+    </nav>
+
+    <div class="bl-header__top">
+      <div class="bl-header__left">
+        <span class="bl-badge">
+          <svg class="bl-badge__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 6 3 6 3s3 0 6-3v-5"/></svg>
           {% block lesson_type %}Урок{% endblock %}
         </span>
-        <h1 class="bls-title">{{ lesson.title or ('Урок ' ~ lesson_number) }}</h1>
+        <h1 class="bl-title">{{ lesson.title or ('Урок ' ~ lesson_number) }}</h1>
       </div>
-      <span class="bls-header__counter">{{ course.title }}</span>
+      <span class="bl-header__counter">{{ course.title }}</span>
     </div>
   </div>
 
   <!-- SRS Review Section (if there are due cards) -->
   {% if review_cards and review_cards|length > 0 %}
-  <div class="bls-review" id="srs-review-section">
-    <div class="bls-review__header">
-      <div class="bls-review__info">
-        <span class="bls-review__icon">🔄</span>
-        <span class="bls-review__title">Повторение слов</span>
-        <span class="bls-review__count">{{ review_cards|length }} слов</span>
+  <div class="bl-review" id="srs-review-section">
+    <div class="bl-review__header">
+      <div class="bl-review__info">
+        <span class="bl-review__icon">🔄</span>
+        <span class="bl-review__title">Повторение слов</span>
+        <span class="bl-review__count">{{ review_cards|length }} слов</span>
       </div>
-      <button class="bls-review__toggle" onclick="toggleReviewSection()">
+      <button class="bl-review__toggle" onclick="toggleReviewSection()">
         <span id="review-toggle-text">Начать</span>
       </button>
     </div>
 
-    <div class="bls-review__content" id="review-content" style="display: none;">
-      <div class="bls-review__card-wrap">
-        <div class="bls-review__card" id="review-card" onclick="flipReviewCard()">
-          <div class="bls-review__card-face">
-            <div class="bls-review__word" id="review-front"></div>
-            <div class="bls-review__hint">Нажмите для перевода</div>
+    <div class="bl-review__content" id="review-content" style="display: none;">
+      <div class="bl-review__card-wrap">
+        <div class="bl-review__card" id="review-card" onclick="flipReviewCard()">
+          <div class="bl-review__card-face">
+            <div class="bl-review__word" id="review-front"></div>
+            <div class="bl-review__hint">Нажмите для перевода</div>
           </div>
-          <div class="bls-review__card-face bls-review__card-face--back">
-            <div class="bls-review__word" id="review-back"></div>
+          <div class="bl-review__card-face bl-review__card-face--back">
+            <div class="bl-review__word" id="review-back"></div>
           </div>
         </div>
       </div>
 
-      <div class="bls-review__controls">
-        <div class="bls-review__progress">
+      <div class="bl-review__controls">
+        <div class="bl-review__progress">
           <span id="review-current">1</span> / <span id="review-total">{{ review_cards|length }}</span>
         </div>
-        <div class="bls-review__buttons" id="review-buttons" style="display: none;">
-          <button class="bls-review__rate bls-review__rate--hard" onclick="rateReviewCard(1)">Не знаю</button>
-          <button class="bls-review__rate bls-review__rate--good" onclick="rateReviewCard(2)">Сомневаюсь</button>
-          <button class="bls-review__rate bls-review__rate--easy" onclick="rateReviewCard(3)">Знаю</button>
+        <div class="bl-review__buttons" id="review-buttons" style="display: none;">
+          <button class="bl-review__rate bl-review__rate--hard" onclick="rateReviewCard(1)">Не знаю</button>
+          <button class="bl-review__rate bl-review__rate--good" onclick="rateReviewCard(2)">Сомневаюсь</button>
+          <button class="bl-review__rate bl-review__rate--easy" onclick="rateReviewCard(3)">Знаю</button>
         </div>
       </div>
     </div>
@@ -516,21 +569,21 @@
   {% endif %}
 
   <!-- Main Content -->
-  <div class="bls-body lesson-content">
+  <div class="bl-body lesson-content">
     {% block lesson_content %}{% endblock %}
   </div>
 
   <!-- Navigation Footer -->
-  <div class="bls-footer" id="lesson-footer">
-    <div class="bls-footer__inner">
+  <div class="bl-footer" id="lesson-footer">
+    <div class="bl-footer__inner">
     {% block lesson_footer %}
-      <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bls-btn bls-btn--outline">
-        <svg class="bls-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
+        <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         К модулю
       </a>
 
-      <button id="complete-btn" class="bls-btn bls-btn--primary btn-footer btn-primary" onclick="completeLesson()" disabled>
-        <svg class="bls-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <button id="complete-btn" class="bl-btn bl-btn--primary btn-footer btn-primary" onclick="completeLesson()" disabled>
+        <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Завершить урок
       </button>
     {% endblock %}
@@ -612,12 +665,12 @@ function showResults(score) {
     : 'Продолжайте практиковаться!';
 
   content.innerHTML = `
-    <div class="bls-results">
-      <div class="bls-results__icon">${emoji}</div>
-      <div class="bls-results__score">${score}%</div>
-      <div class="bls-results__message">${message}</div>
-      <div class="bls-results__actions">
-        <a href="${document.referrer || '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}'}" class="bls-btn bls-btn--primary">
+    <div class="bl-results">
+      <div class="bl-results__icon">${emoji}</div>
+      <div class="bl-results__score">${score}%</div>
+      <div class="bl-results__message">${message}</div>
+      <div class="bl-results__actions">
+        <a href="${document.referrer || '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}'}" class="bl-btn bl-btn--primary">
           Продолжить
         </a>
       </div>
@@ -651,7 +704,7 @@ function showReviewCard(index) {
   if (index >= reviewCards.length) {
     // All cards reviewed
     document.getElementById('review-content').innerHTML = `
-      <div class="bls-review__complete">
+      <div class="bl-review__complete">
         ✅ Отлично! Все слова повторены.
       </div>
     `;

@@ -3,376 +3,445 @@
 {% block title %}Книжные курсы{% endblock %}
 
 {% block content %}
-<div class="bcl-page">
+{% set my_courses = courses | selectattr('is_enrolled') | list %}
+{% set enrolled_count = my_courses | length %}
+{% set featured_courses = courses | selectattr('course.is_featured') | rejectattr('is_enrolled') | list %}
+{% set featured_ids = featured_courses | map(attribute='course') | map(attribute='id') | list if featured_courses else [] %}
+
+<div class="bc-page">
   <!-- Hero Section -->
-  <div class="bcl-hero">
-    <div class="bcl-hero__bg-shapes">
-      <div class="bcl-hero__shape bcl-hero__shape--1"></div>
-      <div class="bcl-hero__shape bcl-hero__shape--2"></div>
-      <div class="bcl-hero__shape bcl-hero__shape--3"></div>
+  <div class="bc-hero">
+    <div class="bc-hero__bg-shapes">
+      <div class="shape shape--1"></div>
+      <div class="shape shape--2"></div>
     </div>
 
-    <div class="bcl-hero__content">
-      <div class="bcl-hero__header">
-        <div class="bcl-hero__icon">
+    <div class="bc-hero__content">
+      <div class="bc-hero__greeting">
+        <div class="bc-hero__icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         <div>
-          <h1 class="bcl-hero__title">Учите английский через книги</h1>
-          <p class="bcl-hero__subtitle">Погружайтесь в увлекательные истории и улучшайте свой английский</p>
+          <h1 class="bc-hero__title">Книжные курсы</h1>
+          <p class="bc-hero__subtitle">Изучайте язык через книги</p>
         </div>
       </div>
 
-      <div class="bcl-hero__stats">
-        <div class="bcl-hero__stat">
-          <span class="bcl-hero__stat-value">{{ total_courses }}</span>
-          <span class="bcl-hero__stat-label">курсов</span>
+      <div class="bc-stats">
+        <div class="bc-stat bc-stat--enrolled">
+          <div class="bc-stat__icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </div>
+          <div class="bc-stat__data">
+            <span class="bc-stat__value">{{ enrolled_count }}</span>
+            <span class="bc-stat__label">{{ 'курс' if enrolled_count == 1 else 'курса' if enrolled_count < 5 else 'курсов' }}</span>
+          </div>
         </div>
-        <div class="bcl-hero__stat-divider"></div>
-        <div class="bcl-hero__stat">
-          <span class="bcl-hero__stat-value">{{ courses|selectattr('is_enrolled')|list|length }}</span>
-          <span class="bcl-hero__stat-label">активных</span>
+
+        <div class="bc-stat bc-stat--progress">
+          <div class="bc-stat__icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <div class="bc-stat__data">
+            {% if enrolled_count > 0 %}
+              {% set ns = namespace(total_pct=0) %}
+              {% for c in my_courses %}
+                {% set ns.total_pct = ns.total_pct + c.progress_percentage %}
+              {% endfor %}
+              <span class="bc-stat__value">{{ (ns.total_pct / enrolled_count) | round(0) | int }}%</span>
+            {% else %}
+              <span class="bc-stat__value">&mdash;</span>
+            {% endif %}
+            <span class="bc-stat__label">прогресс</span>
+          </div>
+        </div>
+
+        <div class="bc-stat bc-stat--total">
+          <div class="bc-stat__icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+            </svg>
+          </div>
+          <div class="bc-stat__data">
+            <span class="bc-stat__value">{{ total_courses }}</span>
+            <span class="bc-stat__label">всего</span>
+          </div>
         </div>
       </div>
+
+      {% if my_courses %}
+        {% set active_course = my_courses[0] %}
+        {% if active_course.current_module %}
+          <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=active_course.course.slug, module_number=active_course.current_module.module_number) if active_course.course.slug else url_for('book_courses.view_module', course_id=active_course.course.id, module_id=active_course.current_module.id) }}" class="bc-hero__cta">
+            <div class="bc-hero__cta-content">
+              <span class="bc-hero__cta-label">Продолжить</span>
+              <span class="bc-hero__cta-title">{{ active_course.course.title }}</span>
+            </div>
+            <div class="bc-hero__cta-arrow">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+        {% else %}
+          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=active_course.course.slug) if active_course.course.slug else url_for('book_courses.view_course', course_id=active_course.course.id) }}" class="bc-hero__cta">
+            <div class="bc-hero__cta-content">
+              <span class="bc-hero__cta-label">Продолжить</span>
+              <span class="bc-hero__cta-title">{{ active_course.course.title }}</span>
+            </div>
+            <div class="bc-hero__cta-arrow">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+        {% endif %}
+      {% endif %}
     </div>
   </div>
 
   <!-- Telegram Banner -->
   {% include 'partials/telegram_banner.html' %}
 
-  <!-- Filter Bar -->
-  <div class="bcl-filter">
-    <div class="bcl-filter__group">
-      <svg class="bcl-filter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M4 6h16M7 12h10M10 18h4"/>
-      </svg>
-      <select id="level-filter" class="bcl-filter__select" onchange="filterCourses()">
+  <!-- Filter Section -->
+  <div class="bc-section bc-filter-section">
+    <div class="bc-filter">
+      <select id="filter-level" class="bc-filter__select" onchange="filterCourses()">
         <option value="">Все уровни</option>
-        <option value="A1">A1 - Начальный</option>
-        <option value="A2">A2 - Элементарный</option>
-        <option value="B1">B1 - Средний</option>
-        <option value="B2">B2 - Выше среднего</option>
-        <option value="C1">C1 - Продвинутый</option>
-        <option value="C2">C2 - Профессиональный</option>
+        <option value="A1">A1</option>
+        <option value="A2">A2</option>
+        <option value="B1">B1</option>
+        <option value="B2">B2</option>
+        <option value="C1">C1</option>
+        <option value="C2">C2</option>
       </select>
-    </div>
-    <div class="bcl-filter__group">
-      <svg class="bcl-filter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
-      </svg>
-      <select id="status-filter" class="bcl-filter__select" onchange="filterCourses()">
+      <select id="filter-status" class="bc-filter__select" onchange="filterCourses()">
         <option value="">Все курсы</option>
         <option value="enrolled">Мои курсы</option>
-        <option value="not-enrolled">Доступные</option>
+        <option value="available">Доступные</option>
       </select>
     </div>
-    <div class="bcl-filter__results">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-      </svg>
-      <span id="courses-count">{{ total_courses }}</span> курсов
-    </div>
   </div>
 
-  <!-- My Courses (if enrolled) -->
-  {% set my_courses = courses | selectattr('is_enrolled') | list %}
+  <!-- Мои курсы -->
   {% if my_courses %}
-  <div class="bcl-section">
-    <div class="bcl-section__header">
-      <div class="bcl-section__title-row">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="5 3 19 12 5 21 5 3"/>
-        </svg>
-        <h2 class="bcl-section__title">Мои курсы</h2>
-      </div>
-      <span class="bcl-section__badge">{{ my_courses|length }}</span>
+  <div class="bc-section" data-section="my">
+    <div class="bc-section__header">
+      <h2 class="bc-section__title">Мои курсы</h2>
+      <p class="bc-section__subtitle">Продолжайте обучение</p>
     </div>
-    <div class="bcl-my-grid">
+
+    <div class="bc-grid">
       {% for course_data in my_courses %}
-      <div class="bcl-my-card" data-level="{{ course_data.course.level }}" data-enrolled="true">
-        <div class="bcl-my-card__cover">
-          {% if course_data.book.cover_image %}
-            <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
-          {% else %}
-            <div class="bcl-placeholder bcl-placeholder--small">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+        {% set is_completed = course_data.progress_percentage == 100 %}
+        {% set is_current = course_data.progress_percentage > 0 and not is_completed %}
+        <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}"
+           class="bc-card-link"
+           data-level="{{ course_data.course.level }}"
+           data-enrolled="true">
+          <div class="bc-card {% if is_completed %}bc-card--completed{% elif is_current %}bc-card--current{% endif %}">
+            <div class="bc-card__header">
+              <div class="bc-card__cover">
+                {% if course_data.book.cover_image %}
+                  <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
+                {% else %}
+                  <div class="bc-card__cover-placeholder">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                {% endif %}
+              </div>
+              {% if is_completed %}
+                <div class="bc-card__status bc-card__status--completed">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </div>
+              {% elif is_current %}
+                <div class="bc-card__status bc-card__status--current">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="bc-card__content">
+              <h3 class="bc-card__title">{{ course_data.course.title }}</h3>
+              <p class="bc-card__author">{{ course_data.book.author }}</p>
+              <span class="bc-card__level bc-card__level--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
+            </div>
+
+            <div class="bc-card__footer">
+              {% if course_data.current_module %}
+                <div class="bc-card__stats">
+                  <span class="bc-card__stat">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                    </svg>
+                    {{ course_data.current_module.title if course_data.current_module.title else 'Модуль ' ~ course_data.current_module.order }}
+                  </span>
+                </div>
+              {% endif %}
+              <div class="bc-card__progress">
+                <div class="bc-card__progress-bar">
+                  <div class="bc-card__progress-fill" style="width: {{ course_data.progress_percentage }}%"></div>
+                </div>
+                <span class="bc-card__progress-text">{{ course_data.progress_percentage | round(0) | int }}%</span>
+              </div>
+            </div>
+
+            <div class="bc-card__arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
             </div>
-          {% endif %}
-          <div class="bcl-level-badge bcl-level-badge--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</div>
-        </div>
-        <div class="bcl-my-card__info">
-          <h3 class="bcl-my-card__title">{{ course_data.course.title }}</h3>
-          <p class="bcl-my-card__author">{{ course_data.book.author }}</p>
-          <div class="bcl-my-card__progress">
-            <div class="bcl-my-card__progress-info">
-              <span>Прогресс</span>
-              <span class="bcl-my-card__progress-pct">{{ course_data.progress_percentage|round(0)|int }}%</span>
-            </div>
-            <div class="bcl-my-card__progress-bar">
-              <div class="bcl-my-card__progress-fill" style="width: {{ course_data.progress_percentage }}%"></div>
-            </div>
           </div>
-          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-btn bcl-btn--continue">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"/>
-            </svg>
-            Продолжить
-          </a>
-        </div>
-      </div>
+        </a>
       {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- Featured Courses -->
-  {% set featured_courses = courses | selectattr('course.is_featured') | rejectattr('is_enrolled') | list %}
+  <!-- Рекомендуемые -->
   {% if featured_courses %}
-  <div class="bcl-section">
-    <div class="bcl-section__header">
-      <div class="bcl-section__title-row">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-        <h2 class="bcl-section__title">Рекомендуем</h2>
-      </div>
+  <div class="bc-section" data-section="featured">
+    <div class="bc-section__header">
+      <h2 class="bc-section__title">Рекомендуемые</h2>
+      <p class="bc-section__subtitle">Популярные курсы для изучения</p>
     </div>
-    <div class="bcl-featured-grid">
-      {% for course_data in featured_courses[:3] %}
-      <div class="bcl-featured" data-level="{{ course_data.course.level }}" data-enrolled="false">
-        <div class="bcl-featured__badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-          </svg>
-          Популярный
-        </div>
-        <div class="bcl-featured__cover">
-          {% if course_data.book.cover_image %}
-            <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
-          {% else %}
-            <div class="bcl-placeholder bcl-placeholder--large">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+
+    <div class="bc-grid">
+      {% for course_data in featured_courses %}
+        <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}"
+           class="bc-card-link"
+           data-level="{{ course_data.course.level }}"
+           data-enrolled="false">
+          <div class="bc-card">
+            <div class="bc-card__featured-star">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
-              <span class="bcl-placeholder__title">{{ course_data.book.title[:25] }}{% if course_data.book.title|length > 25 %}...{% endif %}</span>
             </div>
-          {% endif %}
-        </div>
-        <div class="bcl-featured__info">
-          <div class="bcl-meta">
-            <span class="bcl-level-badge bcl-level-badge--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
-            {% if course_data.course.estimated_duration_weeks %}
-            <span class="bcl-meta__duration">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+
+            <div class="bc-card__header">
+              <div class="bc-card__cover">
+                {% if course_data.book.cover_image %}
+                  <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
+                {% else %}
+                  <div class="bc-card__cover-placeholder">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="bc-card__content">
+              <h3 class="bc-card__title">{{ course_data.course.title }}</h3>
+              <p class="bc-card__author">{{ course_data.book.author }}</p>
+              <span class="bc-card__level bc-card__level--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
+            </div>
+
+            <div class="bc-card__footer">
+              {% if course_data.course.description %}
+                <div class="bc-card__stats">
+                  <span class="bc-card__stat bc-card__stat--desc">{{ course_data.course.description[:80] }}{% if course_data.course.description|length > 80 %}...{% endif %}</span>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="bc-card__arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
-              {{ course_data.course.estimated_duration_weeks }} нед.
-            </span>
-            {% endif %}
+            </div>
           </div>
-          <h3 class="bcl-featured__title">{{ course_data.course.title }}</h3>
-          <p class="bcl-featured__author">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-            {{ course_data.book.author }}
-          </p>
-          <p class="bcl-featured__desc">{{ course_data.course.description[:120] }}{% if course_data.course.description|length > 120 %}...{% endif %}</p>
-          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-btn bcl-btn--explore">
-            Подробнее
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </a>
-        </div>
-      </div>
+        </a>
       {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- All Courses -->
-  <div class="bcl-section">
-    <div class="bcl-section__header">
-      <div class="bcl-section__title-row">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-        </svg>
-        <h2 class="bcl-section__title">Все курсы</h2>
-      </div>
-    </div>
-    {% set featured_ids = featured_courses | map(attribute='course') | map(attribute='id') | list if featured_courses is defined and featured_courses else [] %}
-    {% if courses %}
-    <div class="bcl-courses-grid" id="courses-grid">
-      {% for course_data in courses %}
-      {% if not course_data.is_enrolled and course_data.course.id not in featured_ids %}
-      <div class="bcl-course-card" data-level="{{ course_data.course.level }}" data-enrolled="false">
-        <div class="bcl-course-card__cover">
-          {% if course_data.book.cover_image %}
-            <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
-          {% else %}
-            <div class="bcl-placeholder">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="bcl-placeholder__title">{{ course_data.book.title[:20] }}{% if course_data.book.title|length > 20 %}...{% endif %}</span>
-            </div>
-          {% endif %}
-          <div class="bcl-course-card__overlay">
-            <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-course-card__overlay-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-              Подробнее
-            </a>
-          </div>
-        </div>
-        <div class="bcl-course-card__info">
-          <div class="bcl-meta">
-            <span class="bcl-level-badge bcl-level-badge--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
-            {% if course_data.course.estimated_duration_weeks %}
-            <span class="bcl-meta__duration">{{ course_data.course.estimated_duration_weeks }} нед.</span>
-            {% endif %}
-          </div>
-          <h3 class="bcl-course-card__title">{{ course_data.course.title }}</h3>
-          <p class="bcl-course-card__author">{{ course_data.book.author }}</p>
-          <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}" class="bcl-btn bcl-btn--view">
-            Смотреть курс
-          </a>
-        </div>
-      </div>
-      {% endif %}
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="bcl-empty">
-      <div class="bcl-empty__icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h3 class="bcl-empty__title">Курсы пока не созданы</h3>
-      <p class="bcl-empty__desc">Скоро здесь появятся интересные книжные курсы для изучения английского</p>
-    </div>
+  <!-- Все курсы -->
+  {% set remaining_courses = [] %}
+  {% for course_data in courses %}
+    {% if not course_data.is_enrolled and course_data.course.id not in featured_ids %}
+      {% if remaining_courses.append(course_data) %}{% endif %}
     {% endif %}
+  {% endfor %}
+
+  {% if remaining_courses %}
+  <div class="bc-section" data-section="all">
+    <div class="bc-section__header">
+      <h2 class="bc-section__title">Все курсы</h2>
+      <p class="bc-section__subtitle">Выберите курс для изучения</p>
+    </div>
+
+        <div class="bc-grid">
+          {% for course_data in courses %}
+            {% if not course_data.is_enrolled and course_data.course.id not in featured_ids %}
+              <a href="{{ url_for('book_courses.view_course_by_slug', course_slug=course_data.course.slug) if course_data.course.slug else url_for('book_courses.view_course', course_id=course_data.course.id) }}"
+                 class="bc-card-link"
+                 data-level="{{ course_data.course.level }}"
+                 data-enrolled="false">
+                <div class="bc-card">
+                  <div class="bc-card__header">
+                    <div class="bc-card__cover">
+                      {% if course_data.book.cover_image %}
+                        <img src="{{ url_for('uploads.serve_cover', filename=course_data.book.cover_image.split('/')[-1]) }}" alt="{{ course_data.course.title }}">
+                      {% else %}
+                        <div class="bc-card__cover-placeholder">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="bc-card__content">
+                    <h3 class="bc-card__title">{{ course_data.course.title }}</h3>
+                    <p class="bc-card__author">{{ course_data.book.author }}</p>
+                    <span class="bc-card__level bc-card__level--{{ course_data.course.level|lower }}">{{ course_data.course.level }}</span>
+                  </div>
+
+                  <div class="bc-card__footer">
+                    {% if course_data.course.description %}
+                      <div class="bc-card__stats">
+                        <span class="bc-card__stat bc-card__stat--desc">{{ course_data.course.description[:80] }}{% if course_data.course.description|length > 80 %}...{% endif %}</span>
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="bc-card__arrow">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+                </div>
+              </a>
+            {% endif %}
+          {% endfor %}
+        </div>
   </div>
+  {% endif %}
+
+  {% if not courses %}
+  <div class="bc-section">
+    <div class="bc-empty">
+      <div class="bc-empty__icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+      </div>
+      <h4>Курсы пока не созданы</h4>
+      <p>Скоро здесь появятся интересные книжные курсы для изучения</p>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <style>
+/* ============================================
+   Book Courses Page - Unified Design System
+   ============================================ */
 
-/* ── Page Container ── */
-.bcl-page {
-  --bcl-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --bcl-primary: #10b981;
-  --bcl-primary-dark: #059669;
-  --bcl-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  --bcl-surface: #ffffff;
-  --bcl-surface-alt: #f8fafc;
-  --bcl-text: #0f172a;
-  --bcl-text-muted: #64748b;
-  --bcl-text-light: #94a3b8;
-  --bcl-border: #e2e8f0;
-  --bcl-radius: 16px;
-  --bcl-radius-sm: 10px;
-  --bcl-radius-xs: 8px;
-  --bcl-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --bcl-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+.bc-page {
+  --bc-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bc-primary: #2563eb;
+  --bc-primary-dark: #1d4ed8;
+  --bc-surface: #ffffff;
+  --bc-surface-alt: #f8fafc;
+  --bc-text: #0f172a;
+  --bc-text-muted: #64748b;
+  --bc-border: #e2e8f0;
+  --bc-radius: 16px;
+  --bc-radius-sm: 10px;
 
-  font-family: var(--bcl-font);
+  font-family: var(--bc-font);
   max-width: 900px;
   margin: 0 auto;
   padding: 0 1rem 3rem;
-  color: var(--bcl-text);
 }
 
-/* ── Animations ── */
-@keyframes bcl-slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* ============================================
+   Hero Section
+   ============================================ */
 
-@keyframes bcl-float-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(-20px, 15px) scale(1.08); }
-}
-
-@keyframes bcl-float-2 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  50%      { transform: translate(25px, -20px) rotate(10deg); }
-}
-
-@keyframes bcl-float-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(-10px, -15px) scale(1.05); }
-}
-
-/* ── Hero ── */
-.bcl-hero {
+.bc-hero {
   position: relative;
-  background: var(--bcl-gradient);
-  border-radius: var(--bcl-radius);
-  padding: 2rem 1.5rem;
-  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  border-radius: var(--bc-radius);
+  padding: 2rem;
+  margin-bottom: 2rem;
   overflow: hidden;
-  color: #fff;
-  animation: bcl-slideUp 0.4s ease-out;
+  color: white;
 }
 
-.bcl-hero__bg-shapes {
+.bc-hero__bg-shapes {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.bcl-hero__shape {
+.bc-hero .shape {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.bcl-hero__shape--1 {
-  width: 160px;
-  height: 160px;
-  top: -50px;
+.bc-hero .shape--1 {
+  width: 250px;
+  height: 250px;
+  top: -80px;
   right: -40px;
-  animation: bcl-float-1 18s ease-in-out infinite;
+  animation: bc-float-1 20s ease-in-out infinite;
 }
 
-.bcl-hero__shape--2 {
-  width: 90px;
-  height: 90px;
-  bottom: -30px;
-  left: 10%;
-  animation: bcl-float-2 14s ease-in-out infinite;
+.bc-hero .shape--2 {
+  width: 150px;
+  height: 150px;
+  bottom: -50px;
+  left: -30px;
+  animation: bc-float-2 15s ease-in-out infinite;
 }
 
-.bcl-hero__shape--3 {
-  width: 50px;
-  height: 50px;
-  top: 40%;
-  left: 55%;
-  animation: bcl-float-3 12s ease-in-out infinite;
+@keyframes bc-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 20px) scale(1.05); }
 }
 
-.bcl-hero__content {
+@keyframes bc-float-2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(30px, -20px) rotate(10deg); }
+}
+
+.bc-hero__content {
   position: relative;
   z-index: 1;
 }
 
-.bcl-hero__header {
+.bc-hero__greeting {
   display: flex;
   align-items: center;
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
-.bcl-hero__icon {
+.bc-hero__icon {
   width: 52px;
   height: 52px;
   background: rgba(255, 255, 255, 0.2);
@@ -384,7 +453,7 @@
   flex-shrink: 0;
 }
 
-.bcl-hero__title {
+.bc-hero__title {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
@@ -392,79 +461,147 @@
   letter-spacing: -0.02em;
 }
 
-.bcl-hero__subtitle {
-  font-size: 0.875rem;
+.bc-hero__subtitle {
+  font-size: 0.9375rem;
   margin: 0.25rem 0 0;
   opacity: 0.9;
-  line-height: 1.5;
 }
 
-.bcl-hero__stats {
-  display: flex;
+/* CTA Button */
+.bc-hero__cta {
+  display: inline-flex;
   align-items: center;
   gap: 1rem;
+  background: white;
+  color: var(--bc-text);
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--bc-radius-sm);
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  margin-top: 1.5rem;
 }
 
-.bcl-hero__stat {
-  text-align: center;
+.bc-hero__cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
 }
 
-.bcl-hero__stat-value {
-  display: block;
-  font-size: 1.5rem;
+.bc-hero__cta-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.bc-hero__cta-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bc-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bc-hero__cta-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--bc-text);
+  margin-top: 0.125rem;
+}
+
+.bc-hero__cta-arrow {
+  width: 40px;
+  height: 40px;
+  background: var(--bc-surface-alt);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bc-primary);
+  transition: all 0.2s ease;
+}
+
+.bc-hero__cta:hover .bc-hero__cta-arrow {
+  background: var(--bc-primary);
+  color: white;
+  transform: translateX(4px);
+}
+
+/* Stats Row */
+.bc-stats {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.bc-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--bc-radius-sm);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bc-stat__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bc-stat--enrolled .bc-stat__icon {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.bc-stat--progress .bc-stat__icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bc-stat--total .bc-stat__icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.bc-stat__data {
+  display: flex;
+  flex-direction: column;
+}
+
+.bc-stat__value {
+  font-size: 1.125rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.bcl-hero__stat-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.bc-stat__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
   opacity: 0.8;
-  margin-top: 2px;
+  margin-top: 0.125rem;
 }
 
-.bcl-hero__stat-divider {
-  width: 1px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.25);
-}
+/* ============================================
+   Filter Section
+   ============================================ */
 
-/* ── Filter Bar ── */
-.bcl-filter {
+.bc-filter {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 0.875rem 1.25rem;
-  background: var(--bcl-surface);
-  border: 1px solid var(--bcl-border);
-  border-radius: var(--bcl-radius);
-  margin-bottom: 1.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
-  box-shadow: var(--bcl-shadow);
-  animation: bcl-slideUp 0.4s ease-out 0.1s both;
 }
 
-.bcl-filter__group {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-}
-
-.bcl-filter__icon {
-  color: var(--bcl-text-muted);
-  flex-shrink: 0;
-}
-
-.bcl-filter__select {
+.bc-filter__select {
   appearance: none;
   -webkit-appearance: none;
   padding: 0.5rem 2.25rem 0.5rem 0.875rem;
-  border: 1px solid var(--bcl-border);
-  border-radius: var(--bcl-radius-xs);
-  background: var(--bcl-surface-alt);
-  color: var(--bcl-text);
-  font-family: var(--bcl-font);
+  border: 1px solid var(--bc-border);
+  border-radius: 8px;
+  background: var(--bc-surface-alt);
+  color: var(--bc-text);
+  font-family: var(--bc-font);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -474,601 +611,445 @@
   background-position: right 0.75rem center;
 }
 
-.bcl-filter__select:hover {
-  border-color: var(--bcl-primary);
+.bc-filter__select:hover {
+  border-color: var(--bc-primary);
 }
 
-.bcl-filter__select:focus {
+.bc-filter__select:focus {
   outline: none;
-  border-color: var(--bcl-primary);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+  border-color: var(--bc-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.bcl-filter__results {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--bcl-text-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
+/* ============================================
+   Section
+   ============================================ */
+
+.bc-section {
+  background: var(--bc-surface);
+  border-radius: var(--bc-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--bc-border);
 }
 
-/* ── Sections ── */
-.bcl-section {
-  margin-bottom: 2rem;
-  animation: bcl-slideUp 0.4s ease-out 0.15s both;
+.bc-section__header {
+  margin-bottom: 1.25rem;
 }
 
-.bcl-section:nth-child(5) { animation-delay: 0.2s; }
-.bcl-section:nth-child(6) { animation-delay: 0.25s; }
-.bcl-section:nth-child(7) { animation-delay: 0.3s; }
-
-.bcl-section__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.bcl-section__title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--bcl-text-muted);
-}
-
-.bcl-section__title {
-  font-size: 1.1rem;
+.bc-section__title {
+  font-size: 1.125rem;
   font-weight: 700;
+  color: var(--bc-text);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.bc-section__subtitle {
+  font-size: 0.8125rem;
+  color: var(--bc-text-muted);
   margin: 0;
-  color: var(--bcl-text);
-  letter-spacing: -0.01em;
 }
 
-.bcl-section__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 8px;
-  background: var(--bcl-primary);
-  color: #fff;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
+/* ============================================
+   Card Grid
+   ============================================ */
 
-/* ── My Courses Grid ── */
-.bcl-my-grid {
+.bc-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1rem;
 }
 
-.bcl-my-card {
-  display: flex;
-  background: var(--bcl-surface);
-  border: 1px solid var(--bcl-border);
-  border-radius: var(--bcl-radius);
-  overflow: hidden;
-  box-shadow: var(--bcl-shadow);
-  transition: all 0.25s ease;
-  animation: bcl-slideUp 0.35s ease-out both;
+.bc-card-link {
+  text-decoration: none;
+  color: inherit;
 }
 
-.bcl-my-card:nth-child(1) { animation-delay: 0.1s; }
-.bcl-my-card:nth-child(2) { animation-delay: 0.15s; }
-.bcl-my-card:nth-child(3) { animation-delay: 0.2s; }
-.bcl-my-card:nth-child(4) { animation-delay: 0.25s; }
-
-.bcl-my-card:hover {
-  border-color: var(--bcl-primary);
-  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.12);
-  transform: translateY(-2px);
-}
-
-.bcl-my-card__cover {
-  width: 120px;
-  flex-shrink: 0;
+.bc-card {
   position: relative;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background: var(--bc-surface-alt);
+  border-radius: var(--bc-radius-sm);
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+  overflow: hidden;
+  height: 100%;
 }
 
-.bcl-my-card__cover img {
+.bc-card-link:hover .bc-card {
+  border-color: var(--bc-primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+}
+
+.bc-card--current {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(14, 165, 233, 0.08) 100%);
+  border-color: var(--bc-primary);
+}
+
+.bc-card--completed {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);
+}
+
+/* Card Header */
+.bc-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.bc-card__cover {
+  width: 48px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+}
+
+.bc-card__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.bcl-my-card__info {
-  flex: 1;
-  padding: 1.25rem;
+.bc-card__cover-placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.bcl-my-card__title {
+.bc-card__status {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bc-card__status--completed {
+  background: #22c55e;
+  color: white;
+}
+
+.bc-card__status--current {
+  background: var(--bc-primary);
+  color: white;
+}
+
+/* Featured Star Badge */
+.bc-card__featured-star {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Card Content */
+.bc-card__content {
+  flex: 1;
+  min-height: 48px;
+}
+
+.bc-card__title {
   font-size: 1rem;
   font-weight: 600;
+  color: var(--bc-text);
   margin: 0 0 0.25rem;
-  color: var(--bcl-text);
   line-height: 1.3;
-}
-
-.bcl-my-card__author {
-  font-size: 0.8125rem;
-  color: var(--bcl-text-muted);
-  margin: 0 0 1rem;
-}
-
-.bcl-my-card__progress {
-  margin-bottom: 1rem;
-}
-
-.bcl-my-card__progress-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  margin-bottom: 0.5rem;
-  color: var(--bcl-text-muted);
-}
-
-.bcl-my-card__progress-pct {
-  font-weight: 600;
-  color: var(--bcl-primary);
-}
-
-.bcl-my-card__progress-bar {
-  height: 6px;
-  background: var(--bcl-surface-alt);
-  border-radius: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.bcl-my-card__progress-fill {
-  height: 100%;
-  background: var(--bcl-gradient);
-  border-radius: 3px;
-  transition: width 0.4s ease;
+.bc-card__author {
+  font-size: 0.8125rem;
+  color: var(--bc-text-muted);
+  margin: 0 0 0.5rem;
 }
 
-/* ── Level Badges ── */
-.bcl-level-badge {
+.bc-card__level {
   display: inline-flex;
-  padding: 0.25rem 0.625rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.bcl-level-badge--a1, .bcl-level-badge--a2 { background: #dcfce7; color: #16a34a; }
-.bcl-level-badge--b1, .bcl-level-badge--b2 { background: #dbeafe; color: #2563eb; }
-.bcl-level-badge--c1, .bcl-level-badge--c2 { background: #fce7f3; color: #db2777; }
+.bc-card__level--a1, .bc-card__level--a2 { background: #dcfce7; color: #16a34a; }
+.bc-card__level--b1, .bc-card__level--b2 { background: #dbeafe; color: #2563eb; }
+.bc-card__level--c1, .bc-card__level--c2 { background: #fce7f3; color: #db2777; }
 
-.bcl-my-card__cover .bcl-level-badge {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  font-size: 0.6875rem;
+/* Card Footer */
+.bc-card__footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--bc-border);
 }
 
-/* ── Buttons ── */
-.bcl-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: none;
-  border-radius: var(--bcl-radius-sm);
-  font-family: var(--bcl-font);
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.bcl-btn--continue {
-  padding: 0.625rem 1rem;
-  background: var(--bcl-primary);
-  color: #fff;
-  font-size: 0.875rem;
-  margin-top: auto;
-}
-
-.bcl-btn--continue:hover {
-  background: var(--bcl-primary-dark);
-  color: #fff;
-  transform: translateY(-1px);
-}
-
-.bcl-btn--explore {
-  padding: 0.75rem 1.25rem;
-  background: var(--bcl-primary);
-  color: #fff;
-  font-size: 0.9375rem;
-}
-
-.bcl-btn--explore:hover {
-  background: var(--bcl-primary-dark);
-  color: #fff;
-  gap: 0.75rem;
-}
-
-.bcl-btn--view {
-  display: block;
-  text-align: center;
-  padding: 0.625rem 1rem;
-  background: var(--bcl-surface-alt);
-  color: var(--bcl-text);
-  font-size: 0.875rem;
-}
-
-.bcl-btn--view:hover {
-  background: var(--bcl-primary);
-  color: #fff;
-}
-
-/* ── Featured Grid ── */
-.bcl-featured-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
-}
-
-.bcl-featured {
-  background: var(--bcl-surface);
-  border: 2px solid var(--bcl-primary);
-  border-radius: var(--bcl-radius);
-  overflow: hidden;
-  position: relative;
-  box-shadow: var(--bcl-shadow);
-  transition: all 0.25s ease;
-  animation: bcl-slideUp 0.35s ease-out both;
-}
-
-.bcl-featured:nth-child(1) { animation-delay: 0.1s; }
-.bcl-featured:nth-child(2) { animation-delay: 0.15s; }
-.bcl-featured:nth-child(3) { animation-delay: 0.2s; }
-
-.bcl-featured:hover {
-  box-shadow: 0 16px 50px rgba(16, 185, 129, 0.15);
-  transform: translateY(-4px);
-}
-
-.bcl-featured__badge {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #fff;
-  border-radius: 50px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 2;
-}
-
-.bcl-featured__cover {
-  height: 200px;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-  overflow: hidden;
-}
-
-.bcl-featured__cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.bcl-featured__info {
-  padding: 1.25rem;
-}
-
-.bcl-featured__title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
-  color: var(--bcl-text);
-  line-height: 1.3;
-}
-
-.bcl-featured__author {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--bcl-text-muted);
-  margin: 0 0 0.75rem;
-}
-
-.bcl-featured__desc {
-  font-size: 0.875rem;
-  color: var(--bcl-text-muted);
-  line-height: 1.6;
-  margin: 0 0 1.25rem;
-}
-
-/* ── Course Meta ── */
-.bcl-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.bc-card__stats {
   margin-bottom: 0.75rem;
 }
 
-.bcl-meta__duration {
+.bc-card__stat {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.8125rem;
-  color: var(--bcl-text-muted);
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--bc-text-muted);
 }
 
-/* ── All Courses Grid ── */
-.bcl-courses-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
+.bc-card__stat svg {
+  color: var(--bc-primary);
+  flex-shrink: 0;
 }
 
-.bcl-course-card {
-  background: var(--bcl-surface);
-  border: 1px solid var(--bcl-border);
-  border-radius: var(--bcl-radius);
-  overflow: hidden;
-  box-shadow: var(--bcl-shadow);
-  transition: all 0.25s ease;
-  animation: bcl-slideUp 0.35s ease-out both;
-}
-
-.bcl-course-card:nth-child(1) { animation-delay: 0.1s; }
-.bcl-course-card:nth-child(2) { animation-delay: 0.15s; }
-.bcl-course-card:nth-child(3) { animation-delay: 0.2s; }
-.bcl-course-card:nth-child(4) { animation-delay: 0.25s; }
-.bcl-course-card:nth-child(5) { animation-delay: 0.3s; }
-.bcl-course-card:nth-child(6) { animation-delay: 0.35s; }
-
-.bcl-course-card:hover {
-  border-color: var(--bcl-primary);
-  box-shadow: var(--bcl-shadow-md);
-  transform: translateY(-4px);
-}
-
-.bcl-course-card__cover {
-  height: 410px;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-  overflow: hidden;
-  position: relative;
-}
-
-.bcl-course-card__cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.bcl-course-card:hover .bcl-course-card__cover img {
-  transform: scale(1.05);
-}
-
-.bcl-course-card__overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.bcl-course-card:hover .bcl-course-card__overlay {
-  opacity: 1;
-}
-
-.bcl-course-card__overlay-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: #fff;
-  color: var(--bcl-text);
-  border-radius: var(--bcl-radius-sm);
-  text-decoration: none;
-  font-family: var(--bcl-font);
-  font-size: 0.875rem;
-  font-weight: 600;
-  transform: translateY(10px);
-  transition: transform 0.3s ease;
-}
-
-.bcl-course-card:hover .bcl-course-card__overlay-btn {
-  transform: translateY(0);
-}
-
-.bcl-course-card__info {
-  padding: 1.25rem;
-}
-
-.bcl-course-card__title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.375rem;
-  color: var(--bcl-text);
+.bc-card__stat--desc {
+  display: block;
   line-height: 1.4;
+  font-weight: 400;
 }
 
-.bcl-course-card__author {
-  font-size: 0.8125rem;
-  color: var(--bcl-text-muted);
-  margin: 0 0 1rem;
+/* Progress Bar */
+.bc-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-/* ── Placeholders ── */
-.bcl-placeholder {
+.bc-card__progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(37, 99, 235, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bc-card__progress-fill {
   height: 100%;
+  background: linear-gradient(90deg, var(--bc-primary) 0%, #0ea5e9 100%);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.bc-card--completed .bc-card__progress-fill {
+  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
+}
+
+.bc-card__progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bc-primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+.bc-card--completed .bc-card__progress-text {
+  color: #22c55e;
+}
+
+/* Arrow */
+.bc-card__arrow {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: linear-gradient(145deg, #059669 0%, #10b981 100%);
-  color: rgba(255, 255, 255, 0.9);
-  padding: 1rem;
+  color: var(--bc-text-muted);
+  opacity: 0;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bc-card-link:hover .bc-card__arrow {
+  opacity: 1;
+  right: 0.75rem;
+  color: var(--bc-primary);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.bc-empty {
   text-align: center;
+  padding: 3rem 1rem;
+  color: var(--bc-text-muted);
 }
 
-.bcl-placeholder--small {
-  width: 100%;
-  height: 100%;
-}
-
-.bcl-placeholder--large {
-  background: linear-gradient(145deg, #059669 0%, #10b981 100%);
-}
-
-.bcl-placeholder__title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.3;
-  max-width: 90%;
-  word-wrap: break-word;
-}
-
-.bcl-placeholder--large .bcl-placeholder__title {
-  font-size: 1rem;
-}
-
-/* ── Empty State ── */
-.bcl-empty {
-  background: var(--bcl-surface);
-  border: 1px solid var(--bcl-border);
-  border-radius: var(--bcl-radius);
-  padding: 4rem 2rem;
-  text-align: center;
-  animation: bcl-slideUp 0.5s ease-out;
-}
-
-.bcl-empty__icon {
-  color: var(--bcl-border);
+.bc-empty__icon {
   margin-bottom: 1rem;
+  color: var(--bc-border);
 }
 
-.bcl-empty__title {
+.bc-empty h4 {
   font-size: 1.125rem;
   font-weight: 600;
+  color: var(--bc-text);
   margin: 0 0 0.5rem;
-  color: var(--bcl-text);
 }
 
-.bcl-empty__desc {
+.bc-empty p {
   font-size: 0.875rem;
-  color: var(--bcl-text-muted);
   margin: 0;
 }
 
-/* ── Hidden (for filtering) ── */
-.bcl-course-card.hidden,
-.bcl-my-card.hidden,
-.bcl-featured.hidden {
-  display: none;
-}
+/* ============================================
+   Responsive
+   ============================================ */
 
-/* ── Responsive ── */
 @media (max-width: 640px) {
-  .bcl-page {
+  .bc-page {
     padding: 0 0.75rem 2rem;
   }
 
-  .bcl-hero {
-    padding: 1.25rem;
+  .bc-hero {
+    padding: 1.5rem;
   }
 
-  .bcl-hero__header {
+  .bc-hero__greeting {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
   }
 
-  .bcl-hero__title {
+  .bc-hero__title {
     font-size: 1.25rem;
   }
 
-  .bcl-hero__stats {
-    justify-content: space-around;
-    width: 100%;
+  .bc-stats {
+    gap: 0.5rem;
   }
 
-  .bcl-hero__shape--3 {
+  .bc-stat {
+    flex: 1 1 calc(50% - 0.25rem);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .bc-stat__icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .bc-stat__value {
+    font-size: 1rem;
+  }
+
+  .bc-section {
+    padding: 1.25rem;
+  }
+
+  .bc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bc-card__arrow {
     display: none;
   }
 
-  .bcl-filter {
+  .bc-filter {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.75rem;
-    padding: 1rem;
   }
 
-  .bcl-filter__results {
-    margin-left: 0;
-    justify-content: center;
-  }
-
-  .bcl-my-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .bcl-my-card {
-    flex-direction: column;
-  }
-
-  .bcl-my-card__cover {
+  .bc-filter__select {
     width: 100%;
-    height: 140px;
-  }
-
-  .bcl-featured-grid,
-  .bcl-courses-grid {
-    grid-template-columns: 1fr;
   }
 }
-</style>
-{% endblock %}
 
-{% block scripts %}
+/* ============================================
+   Page Load Animation
+   ============================================ */
+
+@keyframes bc-slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bc-hero {
+  animation: bc-slideUp 0.5s ease-out;
+}
+
+.bc-section {
+  animation: bc-slideUp 0.5s ease-out both;
+}
+
+.bc-section:nth-of-type(1) { animation-delay: 0.1s; }
+.bc-section:nth-of-type(2) { animation-delay: 0.15s; }
+.bc-section:nth-of-type(3) { animation-delay: 0.2s; }
+.bc-section:nth-of-type(4) { animation-delay: 0.25s; }
+
+.bc-card {
+  animation: bc-slideUp 0.4s ease-out both;
+}
+
+.bc-card-link:nth-child(1) .bc-card { animation-delay: 0.15s; }
+.bc-card-link:nth-child(2) .bc-card { animation-delay: 0.2s; }
+.bc-card-link:nth-child(3) .bc-card { animation-delay: 0.25s; }
+.bc-card-link:nth-child(4) .bc-card { animation-delay: 0.3s; }
+.bc-card-link:nth-child(5) .bc-card { animation-delay: 0.35s; }
+.bc-card-link:nth-child(6) .bc-card { animation-delay: 0.4s; }
+.bc-card-link:nth-child(7) .bc-card { animation-delay: 0.45s; }
+</style>
+
 <script>
 function filterCourses() {
-  const levelFilter = document.getElementById('level-filter').value;
-  const statusFilter = document.getElementById('status-filter').value;
-  const allCards = document.querySelectorAll('[data-level]');
-  let visibleCount = 0;
+  const level = document.getElementById('filter-level').value;
+  const status = document.getElementById('filter-status').value;
 
-  allCards.forEach(card => {
+  document.querySelectorAll('.bc-card-link').forEach(card => {
     const cardLevel = card.dataset.level;
-    const isEnrolled = card.dataset.enrolled === 'true';
+    const cardEnrolled = card.dataset.enrolled;
 
-    let showByLevel = !levelFilter || cardLevel === levelFilter;
-    let showByStatus = !statusFilter ||
-                       (statusFilter === 'enrolled' && isEnrolled) ||
-                       (statusFilter === 'not-enrolled' && !isEnrolled);
+    let show = true;
+    if (level && cardLevel !== level) show = false;
+    if (status === 'enrolled' && cardEnrolled !== 'true') show = false;
+    if (status === 'available' && cardEnrolled === 'true') show = false;
 
-    if (showByLevel && showByStatus) {
-      card.classList.remove('hidden');
-      visibleCount++;
-    } else {
-      card.classList.add('hidden');
-    }
+    card.style.display = show ? '' : 'none';
   });
 
-  document.getElementById('courses-count').textContent = visibleCount;
+  // Hide empty sections
+  document.querySelectorAll('.bc-section').forEach(section => {
+    const cards = section.querySelectorAll('.bc-card-link:not([style*="display: none"])');
+    const isFilterSection = section.classList.contains('bc-filter-section');
+    if (!isFilterSection) {
+      section.style.display = cards.length > 0 ? '' : 'none';
+    }
+  });
 }
 </script>
 {% endblock %}

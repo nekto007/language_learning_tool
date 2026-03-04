@@ -45,8 +45,13 @@
         {% if daily_plan.words_due > 0 or daily_plan.has_any_words or (daily_plan.onboarding and daily_plan.onboarding.get('no_words')) %}
             {% set _ = steps.append({'type': 'words', 'done': plan_completion.words}) %}
         {% endif %}
-        {% if daily_plan.book_to_read or (plan_completion.books and not daily_plan.book_to_read) or daily_plan.suggested_books or (daily_plan.onboarding and daily_plan.onboarding.get('available_books')) %}
+        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type == 'reading' %}
             {% set _ = steps.append({'type': 'book', 'done': plan_completion.books}) %}
+        {% elif daily_plan.book_to_read or (plan_completion.books and not daily_plan.book_to_read) or daily_plan.suggested_books or (daily_plan.onboarding and daily_plan.onboarding.get('available_books')) %}
+            {% set _ = steps.append({'type': 'book', 'done': plan_completion.books}) %}
+        {% endif %}
+        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type != 'reading' %}
+            {% set _ = steps.append({'type': 'book_course_practice', 'done': plan_completion.book_course_practice}) %}
         {% endif %}
         {% set steps_done = steps | selectattr('done') | list | length %}
         {% set steps_total = steps | length %}
@@ -176,7 +181,28 @@
         {% set ns.step = ns.step + 1 %}
         {% endif %}
 
-        {# Step: Reading #}
+        {# Step: Book Course Reading (replaces regular reading when lesson_type == 'reading') #}
+        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type == 'reading' %}
+        {% set step_state = 'done' if plan_completion.books else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">{% if plan_completion.books %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+            <div class="dash-step__body">
+                <div class="dash-step__icon">&#128214;</div>
+                <div class="dash-step__info">
+                    <div class="dash-step__title">{{ daily_plan.book_course_lesson.course_title }} &#8212; &#1044;&#1077;&#1085;&#1100; {{ daily_plan.book_course_lesson.day_number }}, &#1095;&#1090;&#1077;&#1085;&#1080;&#1077;</div>
+                    <div class="dash-step__meta">~{{ daily_plan.book_course_lesson.estimated_minutes }} &#1084;&#1080;&#1085;</div>
+                </div>
+                {% if plan_completion.books %}
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+                {% else %}
+                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=daily_plan.book_course_lesson.course_id, module_id=daily_plan.book_course_lesson.module_id, lesson_id=daily_plan.book_course_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% set ns.step = ns.step + 1 %}
+
+        {% else %}
+        {# Step: Regular Reading #}
         {% if plan_completion.books and not daily_plan.book_to_read %}
         {# Book was read today but no more unread books — show completed step #}
         <div class="dash-step dash-step--book dash-step--done" style="animation-delay: {{ ns.step * 0.08 }}s">
@@ -249,10 +275,32 @@
         </div>
         {% set ns.step = ns.step + 1 %}
         {% endif %}
+        {% endif %}{# end book course reading vs regular reading #}
+
+        {# Step: Book Course Practice (step 5, when lesson is not reading) #}
+        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type != 'reading' %}
+        {% set step_state = 'done' if plan_completion.book_course_practice else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--book-course dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
+            <div class="dash-step__num">{% if plan_completion.book_course_practice %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+            <div class="dash-step__body">
+                <div class="dash-step__icon">&#129513;</div>
+                <div class="dash-step__info">
+                    <div class="dash-step__title">{{ daily_plan.book_course_lesson.course_title }} &#8212; {{ daily_plan.book_course_lesson.lesson_type | replace('_', ' ') | title }}</div>
+                    <div class="dash-step__meta">~{{ daily_plan.book_course_lesson.estimated_minutes }} &#1084;&#1080;&#1085;</div>
+                </div>
+                {% if plan_completion.book_course_practice %}
+                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
+                {% else %}
+                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=daily_plan.book_course_lesson.course_id, module_id=daily_plan.book_course_lesson.module_id, lesson_id=daily_plan.book_course_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% set ns.step = ns.step + 1 %}
+        {% endif %}
 
         {# Bonus step: shown when >=2 main tasks are done #}
         {# extra_reading without extra_lesson duplicates the book step (step 4), so only show bonus if extra_lesson exists #}
-        {% set done = [plan_completion.lesson, plan_completion.grammar, plan_completion.words, plan_completion.books] | select | list | length %}
+        {% set done = [plan_completion.lesson, plan_completion.grammar, plan_completion.words, plan_completion.books, plan_completion.book_course_practice] | select | list | length %}
         {% if done >= 2 and daily_plan.bonus and daily_plan.bonus.extra_lesson %}
         <div class="dash-step dash-step--bonus" style="animation-delay: {{ ns.step * 0.08 }}s">
             <div class="dash-step__num">&#11088;</div>
@@ -522,12 +570,14 @@
 .dash-step--words .dash-step__body { border-left: 3px solid #f59e0b; }
 .dash-step--book .dash-step__body { border-left: 3px solid #10b981; }
 .dash-step--done .dash-step__body { border-left: 3px solid #94a3b8; }
+.dash-step--book-course .dash-step__body { border-left: 3px solid #8b5cf6; }
 .dash-step--bonus .dash-step__body { border-left: 3px solid #f97316; }
 
 .dash-step--lesson .dash-step__num { color: #5046e5; border-color: rgba(80, 70, 229, 0.2); background: rgba(80, 70, 229, 0.06); }
 .dash-step--grammar .dash-step__num { color: #06b6d4; border-color: rgba(6, 182, 212, 0.2); background: rgba(6, 182, 212, 0.06); }
 .dash-step--words .dash-step__num { color: #f59e0b; border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.06); }
 .dash-step--book .dash-step__num { color: #10b981; border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.06); }
+.dash-step--book-course .dash-step__num { color: #8b5cf6; border-color: rgba(139, 92, 246, 0.2); background: rgba(139, 92, 246, 0.06); }
 .dash-step--bonus .dash-step__num { color: #f97316; border-color: rgba(249, 115, 22, 0.2); background: rgba(249, 115, 22, 0.06); }
 
 .dash-step__body:hover {
