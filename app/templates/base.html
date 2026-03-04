@@ -89,8 +89,19 @@
                             <i class="fas fa-book-open me-1"></i>Курсы
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="coursesDropdown">
+                            {% set active_cl = get_active_curriculum_lesson() %}
+                            {% if active_cl %}
+                            <li><a class="dropdown-item text-success fw-semibold" href="{{ active_cl.url }}"><i class="fas fa-play-circle me-2"></i>Продолжить: {{ active_cl.level.code }}</a></li>
+                            {% endif %}
+                            {% set active_bc = get_active_book_course() %}
+                            {% if active_bc %}
+                            <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('book_courses.view_course', course_id=active_bc.course.id) }}"><i class="fas fa-play-circle me-2"></i>{{ active_bc.course.title }}</a></li>
+                            {% endif %}
+                            {% if active_cl or active_bc %}
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="/learn/"><i class="fas fa-list me-2"></i>Все курсы</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('book_courses.list_book_courses') }}"><i class="fas fa-book me-2"></i>Book Courses</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('book_courses.list_book_courses') }}"><i class="fas fa-book me-2"></i>Книжные курсы</a></li>
                             {% if get_cefr_levels() %}
                             <li><hr class="dropdown-divider"></li>
                             {% for level in get_cefr_levels() %}
@@ -124,6 +135,11 @@
                             <i class="fas fa-flask me-1"></i>Грамматика
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="grammarDropdown">
+                            {% set active_gt = get_active_grammar_topic() %}
+                            {% if active_gt %}
+                            <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('grammar_lab.topic_detail', topic_id=active_gt.id) }}"><i class="fas fa-play-circle me-2"></i>Продолжить: {{ active_gt.title }}</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.index') }}"><i class="fas fa-home me-2"></i>Grammar Lab</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.topics') }}"><i class="fas fa-list me-2"></i>Все темы</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.practice') }}"><i class="fas fa-dumbbell me-2"></i>Практика</a></li>

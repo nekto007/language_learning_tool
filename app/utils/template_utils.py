@@ -197,12 +197,77 @@ def init_template_utils(app):
             from app.curriculum.url_helpers import get_beautiful_lesson_url
             return get_beautiful_lesson_url(lesson)
 
+        def get_active_book_course():
+            """Возвращает активный книжный курс пользователя для навбара"""
+            from flask_login import current_user
+            if not current_user.is_authenticated:
+                return None
+            try:
+                from app.curriculum.book_courses import BookCourseEnrollment
+                enrollment = BookCourseEnrollment.query.filter_by(
+                    user_id=current_user.id
+                ).order_by(BookCourseEnrollment.last_activity.desc()).first()
+                if enrollment:
+                    return {
+                        'course': enrollment.course,
+                        'current_module': enrollment.current_module
+                    }
+            except Exception:
+                pass
+            return None
+
+        def get_active_curriculum_lesson():
+            """Возвращает последний активный урок обычного курса для навбара"""
+            from flask_login import current_user
+            if not current_user.is_authenticated:
+                return None
+            try:
+                from app.curriculum.models import LessonProgress, Lessons
+                progress = LessonProgress.query.filter_by(
+                    user_id=current_user.id,
+                    status='in_progress'
+                ).order_by(LessonProgress.last_activity.desc()).first()
+                if progress:
+                    lesson = Lessons.query.get(progress.lesson_id)
+                    if lesson and lesson.module:
+                        return {
+                            'lesson': lesson,
+                            'module': lesson.module,
+                            'level': lesson.module.level,
+                            'url': f'/learn/{lesson.id}/'
+                        }
+            except Exception:
+                pass
+            return None
+
+        def get_active_grammar_topic():
+            """Возвращает последнюю активную грамматическую тему для навбара"""
+            from flask_login import current_user
+            if not current_user.is_authenticated:
+                return None
+            try:
+                from app.grammar_lab.models import UserGrammarTopicStatus, GrammarTopic
+                status = UserGrammarTopicStatus.query.filter(
+                    UserGrammarTopicStatus.user_id == current_user.id,
+                    UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing'])
+                ).order_by(UserGrammarTopicStatus.updated_at.desc()).first()
+                if status:
+                    topic = GrammarTopic.query.get(status.topic_id)
+                    if topic:
+                        return topic
+            except Exception:
+                pass
+            return None
+
         return dict(
             get_cefr_levels=get_cefr_levels,
             get_user_lessons=get_user_lessons,
             get_curriculum_progress=get_curriculum_progress,
             translate_lesson_type=translate_lesson_type,
-            get_lesson_url=get_lesson_url
+            get_lesson_url=get_lesson_url,
+            get_active_book_course=get_active_book_course,
+            get_active_curriculum_lesson=get_active_curriculum_lesson,
+            get_active_grammar_topic=get_active_grammar_topic
         )
 
     @app.context_processor
