@@ -206,10 +206,11 @@
         <h2 class="bcl-section__title">Все курсы</h2>
       </div>
     </div>
+    {% set featured_ids = featured_courses | map(attribute='course') | map(attribute='id') | list if featured_courses is defined and featured_courses else [] %}
     {% if courses %}
     <div class="bcl-courses-grid" id="courses-grid">
       {% for course_data in courses %}
-      {% if not course_data.is_enrolled %}
+      {% if not course_data.is_enrolled and course_data.course.id not in featured_ids %}
       <div class="bcl-course-card" data-level="{{ course_data.course.level }}" data-enrolled="false">
         <div class="bcl-course-card__cover">
           {% if course_data.book.cover_image %}
