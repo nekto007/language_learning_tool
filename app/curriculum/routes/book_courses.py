@@ -112,7 +112,7 @@ def _build_vocabulary_fc_vars(
                         'direction': card.get('direction', 'eng-rus'),
                         'front': card.get('front', ''),
                         'back': card.get('back', ''),
-                        'audio_url': card.get('audio_url') if card.get('has_audio') else None,
+                        'audio_url': card.get('audio_url'),
                         'example': card.get('examples', '') or '',
                         'example_translation': '',
                         'book_context': card.get('context'),
@@ -136,7 +136,7 @@ def _build_vocabulary_fc_vars(
                 'direction': 'eng-rus',
                 'front': v.get('lemma', ''),
                 'back': v.get('translation', ''),
-                'audio_url': v.get('audio_url') if v.get('has_audio') else None,
+                'audio_url': v.get('audio_url'),
                 'example': v.get('example', ''),
                 'example_translation': '',
                 'book_context': v.get('context'),
@@ -671,6 +671,7 @@ def view_lesson(course_id, module_id, lesson_number):
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson,
                 reading_difficulty=reading_difficulty,
+                annotations=dl.annotations if dl else None,
             )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary according to new architecture
@@ -1189,7 +1190,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 use_api=True,
                 review_cards=review_cards,
                 next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson
+                has_next_lesson=has_next_lesson,
+                annotations=daily_lesson.annotations if daily_lesson else None,
             )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary
