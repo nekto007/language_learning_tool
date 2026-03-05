@@ -847,7 +847,7 @@ class FlashcardSession {
             const csrfToken = csrfMeta && csrfMeta.content;
 
             const body = this.config.completePayload
-                ? this.config.completePayload(this.config.sessionId)
+                ? this.config.completePayload(this.config.sessionId, this.sessionStats)
                 : { session_id: this.config.sessionId };
 
             const response = await fetch(this.config.completeUrl, {
