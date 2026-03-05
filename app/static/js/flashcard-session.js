@@ -299,6 +299,16 @@ class FlashcardSession {
                 return;
             }
 
+            // Normalize: accept both 'state' and 'status' field names
+            for (const card of this.cards) {
+                if (!card.state && card.status) {
+                    card.state = card.status;
+                }
+                if (!card.state) {
+                    card.state = 'new';
+                }
+            }
+
             // Count cards by state
             let newCount = 0;
             let learningCount = 0;
