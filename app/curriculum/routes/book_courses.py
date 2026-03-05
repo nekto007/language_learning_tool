@@ -72,6 +72,121 @@ def truncate_context(text: str, max_sentences: int = 1) -> str:
     return result
 
 
+def _build_vocabulary_fc_vars(
+    vocabulary_data: list[dict],
+    course: 'BookCourse',
+    module: 'BookCourseModule',
+    daily_lesson: 'DailyLesson | None',
+    next_lesson_url: str | None,
+    has_next_lesson: bool,
+    is_review: bool = False,
+) -> dict:
+    """Build fc_* template variables for vocabulary flashcard sessions.
+
+    Returns a dict of template variables to be merged into render_template kwargs.
+    """
+    fc_cards: list[dict] = []
+    srs_session_key: str | None = None
+    fc_nothing_to_study = False
+
+    # Try SRS session first (provides direction, requeue, etc.)
+    if daily_lesson and current_user.is_authenticated:
+        try:
+            enrollment = BookCourseEnrollment.query.filter_by(
+                user_id=current_user.id, course_id=course.id
+            ).first()
+            if enrollment:
+                srs = BookSRSIntegration()
+                session_data = srs.create_srs_session_for_lesson(
+                    user_id=current_user.id,
+                    daily_lesson=daily_lesson,
+                    enrollment=enrollment
+                )
+                srs_session_key = session_data.get('session_key')
+                studied_today = session_data.get('studied_today', 0)
+                for card in session_data.get('deck', []):
+                    fc_cards.append({
+                        'word_id': card.get('word_id'),
+                        'card_id': card.get('card_id'),
+                        'direction_id': None,
+                        'direction': card.get('direction', 'eng-rus'),
+                        'front': card.get('front', ''),
+                        'back': card.get('back', ''),
+                        'audio_url': card.get('audio_url') if card.get('has_audio') else None,
+                        'example': card.get('examples', '') or '',
+                        'example_translation': '',
+                        'book_context': card.get('context'),
+                        'status': card.get('phase', 'new'),
+                        'is_new': card.get('new', True),
+                        'word': card.get('lemma', card.get('front', '')),
+                        'translation': card.get('translation', card.get('back', '')),
+                    })
+                if not fc_cards and studied_today > 0:
+                    fc_nothing_to_study = True
+        except Exception as e:
+            logger.error(f"Error loading SRS session for vocabulary: {e}")
+
+    # Fallback to vocabulary_data if SRS session didn't return cards
+    if not fc_cards and not fc_nothing_to_study:
+        for v in vocabulary_data:
+            fc_cards.append({
+                'word_id': v.get('id'),
+                'card_id': None,
+                'direction_id': None,
+                'direction': 'eng-rus',
+                'front': v.get('lemma', ''),
+                'back': v.get('translation', ''),
+                'audio_url': v.get('audio_url') if v.get('has_audio') else None,
+                'example': v.get('example', ''),
+                'example_translation': '',
+                'book_context': v.get('context'),
+                'status': 'new',
+                'is_new': True,
+                'word': v.get('lemma', ''),
+                'translation': v.get('translation', ''),
+            })
+
+    # Build module URL for back navigation
+    if course.slug:
+        back_url = url_for('book_courses.view_module_by_slug',
+                           course_slug=course.slug,
+                           module_number=module.module_number)
+    else:
+        back_url = url_for('book_courses.view_module',
+                           course_id=course.id, module_id=module.id)
+
+    # Mark-complete URL
+    mark_complete_url: str | None = None
+    if daily_lesson:
+        mark_complete_url = f'/curriculum/api/v1/lesson/{daily_lesson.id}/complete'
+
+    title_suffix = 'Повторение слов' if is_review else 'Словарь'
+
+    return {
+        'fc_title': f"{course.title}: {title_suffix}",
+        'fc_back_url': back_url,
+        'fc_cards': fc_cards,
+        'fc_grade_url': '/curriculum/api/v1/srs/grade',
+        'fc_grade_payload': (
+            '(function(card, rating, sessionId) {'
+            ' return { card_id: card.card_id || card.word_id,'
+            ' rating: rating,'
+            ' session_key: '
+            + (f'"{srs_session_key}"' if srs_session_key else '"book_vocab"')
+            + ' };'
+            '})'
+        ),
+        'fc_mark_complete_url': mark_complete_url,
+        'fc_on_complete_url': next_lesson_url or back_url,
+        'fc_on_complete_text': 'Следующий урок' if has_next_lesson else 'К модулю',
+        'fc_session_id': srs_session_key,
+        'fc_show_examples': True,
+        'fc_show_audio': True,
+        'fc_show_book_context': True,
+        'fc_nothing_to_study': fc_nothing_to_study,
+    }
+
+
 # Create blueprint for book course routes
 book_courses_bp = Blueprint('book_courses', __name__)
 
@@ -657,6 +772,13 @@ def view_lesson(course_id, module_id, lesson_number):
                 db.session.rollback()
                 book_deck = None
 
+            fc_vars = _build_vocabulary_fc_vars(
+                vocabulary_data=vocabulary_data,
+                course=course, module=module,
+                daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson,
+            )
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
                 course=course,
@@ -668,7 +790,8 @@ def view_lesson(course_id, module_id, lesson_number):
                 total_words=len(vocabulary_data),
                 daily_lesson=daily_lesson,
                 review_cards=review_cards,
-                book_deck=book_deck
+                book_deck=book_deck,
+                **fc_vars,
             )
         elif lesson_type in ['grammar', 'grammar_focus']:
             # Grammar Bridge: show Grammar Lab topic content directly
@@ -792,6 +915,14 @@ def view_lesson(course_id, module_id, lesson_number):
                 db.session.rollback()
                 book_deck = None
 
+            fc_vars = _build_vocabulary_fc_vars(
+                vocabulary_data=vocabulary_data[:15],
+                course=course, module=module,
+                daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson,
+                is_review=True,
+            )
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
                 course=course,
@@ -803,8 +934,9 @@ def view_lesson(course_id, module_id, lesson_number):
                 total_words=len(vocabulary_data[:15]),
                 daily_lesson=daily_lesson,
                 review_cards=review_cards,
-                is_review=True,  # Flag to show review mode
-                book_deck=book_deck
+                is_review=True,
+                book_deck=book_deck,
+                **fc_vars,
             )
         elif lesson_type in ['comprehension_mcq']:
             # Comprehension MCQ - use reading_mcq template
@@ -1134,6 +1266,13 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 db.session.rollback()
                 book_deck = None
 
+            fc_vars = _build_vocabulary_fc_vars(
+                vocabulary_data=vocabulary_data,
+                course=course, module=module,
+                daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson,
+            )
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
                 course=course,
@@ -1145,7 +1284,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 total_words=len(vocabulary_data),
                 daily_lesson=daily_lesson,
                 review_cards=review_cards,
-                book_deck=book_deck
+                book_deck=book_deck,
+                **fc_vars,
             )
         elif lesson_type in ['grammar', 'grammar_focus']:
             # Grammar Bridge: show Grammar Lab topic content directly
@@ -1263,6 +1403,14 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 db.session.rollback()
                 book_deck = None
 
+            fc_vars = _build_vocabulary_fc_vars(
+                vocabulary_data=vocabulary_data[:15],
+                course=course, module=module,
+                daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson,
+                is_review=True,
+            )
             return render_template(
                 'curriculum/book_courses/lessons/vocabulary.html',
                 course=course,
@@ -1275,7 +1423,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 daily_lesson=daily_lesson,
                 review_cards=review_cards,
                 is_review=True,
-                book_deck=book_deck
+                book_deck=book_deck,
+                **fc_vars,
             )
         elif lesson_type in ['comprehension_mcq']:
             # Comprehension MCQ - use reading_mcq template
