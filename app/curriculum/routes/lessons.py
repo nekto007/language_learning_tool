@@ -922,13 +922,52 @@ def render_card_lesson(lesson):
         'next_review_time': next_review_time
     }
 
+    # Build fc_cards for shared flashcard component
+    fc_cards = []
+    for c in cards_list:
+        fc_cards.append({
+            'word_id': c['word_id'],
+            'direction_id': c.get('direction_id'),
+            'direction': c.get('direction', 'eng-rus'),
+            'front': c['front'],
+            'back': c['back'],
+            'audio_url': c.get('audio_url'),
+            'example': c.get('example_en', ''),
+            'example_translation': c.get('example_ru', ''),
+            'book_context': None,
+            'status': c.get('status', 'new'),
+            'is_new': c.get('is_new', True),
+            'word': c.get('word', c['front']),
+            'translation': c.get('translation', c['back']),
+        })
+
+    next_lesson_url = f"/learn/{next_lesson.id}/" if next_lesson else None
+    if lesson.module and lesson.module.level:
+        back_url = f"/learn/{lesson.module.level.code.lower()}/#module-{lesson.module.number}"
+    else:
+        back_url = '/learn/'
+
     return render_template(
         'curriculum/lessons/card.html',
         lesson=lesson,
         progress=progress,
         cards_data=cards_data,
         next_lesson=next_lesson,
-        lesson_id=lesson.id
+        lesson_id=lesson.id,
+        # Shared flashcard component variables
+        fc_title=f"Урок {lesson.order_index}" if hasattr(lesson, 'order_index') and lesson.order_index else lesson.title,
+        fc_back_url=back_url,
+        fc_cards=fc_cards,
+        fc_grade_url='/study/api/update-study-item',
+        fc_complete_url=f'/curriculum/lessons/{lesson.id}/complete-srs',
+        fc_complete_payload='(function(sid, stats) { var total = stats ? stats.total : 0; var incorrect = stats ? stats.incorrect : 0; return { cards_studied: total, accuracy: total > 0 ? Math.round(((total - incorrect) / total) * 100) : 0 }; })',
+        fc_on_complete_url=next_lesson_url or '/learn/',
+        fc_on_complete_text='Следующий урок' if next_lesson else 'К обучению',
+        fc_session_id=None,
+        fc_show_examples=True,
+        fc_show_audio=True,
+        fc_show_book_context=False,
+        fc_nothing_to_study=len(fc_cards) == 0,
     )
 
 
