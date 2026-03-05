@@ -478,6 +478,7 @@ def view_lesson(course_id, module_id, lesson_number):
             for i, dl in enumerate(all_lessons):
                 if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
                     next_daily_lesson = all_lessons[i + 1]
+                    next_position = i + 2  # 1-indexed position
                     has_next_lesson = True
                     # Use pretty URL if course has slug
                     if course.slug:
@@ -485,7 +486,7 @@ def view_lesson(course_id, module_id, lesson_number):
                             'book_courses.view_lesson_by_slug',
                             course_slug=course.slug,
                             module_number=module.module_number,
-                            lesson_number=next_daily_lesson.day_number
+                            lesson_number=next_position
                         )
                     else:
                         next_lesson_url = url_for(
@@ -1005,6 +1006,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
         for i, dl in enumerate(all_lessons):
             if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
                 next_daily_lesson = all_lessons[i + 1]
+                next_position = i + 2  # 1-indexed position
                 has_next_lesson = True
                 # Use pretty URL if course has slug
                 if course.slug:
@@ -1012,7 +1014,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                         'book_courses.view_lesson_by_slug',
                         course_slug=course.slug,
                         module_number=module.module_number,
-                        lesson_number=next_daily_lesson.day_number
+                        lesson_number=next_position
                     )
                 else:
                     next_lesson_url = url_for(

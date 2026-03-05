@@ -116,6 +116,20 @@
       <div class="progress-fill" id="reading-progress" style="width: 0%"></div>
     </div>
   </div>
+
+  <!-- Inline Footer (not fixed) -->
+  <div class="reading-footer" id="footer-buttons">
+    <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="btn-footer btn-secondary">
+      <i class="fas fa-arrow-left"></i> К урокам
+    </a>
+    <button id="complete-btn" class="btn-footer btn-primary" onclick="completeAndNext()" disabled>
+      {% if has_next_lesson %}
+      Далее <i class="fas fa-arrow-right"></i>
+      {% else %}
+      Завершить <i class="fas fa-check"></i>
+      {% endif %}
+    </button>
+  </div>
 </div>
 
 <!-- Word Popup Modal -->
@@ -149,18 +163,7 @@
 {% endblock %}
 
 {% block lesson_footer %}
-<div class="lesson-footer-actions" id="footer-buttons">
-  <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
-  </a>
-  <button id="complete-btn" class="btn-footer btn-primary" onclick="completeAndNext()" disabled>
-    {% if has_next_lesson %}
-    Далее <i class="fas fa-arrow-right"></i>
-    {% else %}
-    Завершить <i class="fas fa-check"></i>
-    {% endif %}
-  </button>
-</div>
+<!-- Empty: reading uses inline footer inside content, not fixed footer -->
 {% endblock %}
 
 {% block lesson_scripts %}
@@ -221,7 +224,7 @@ function makeWordsClickable() {
 
   textNodes.forEach(textNode => {
     const text = textNode.textContent;
-    const parts = text.split(/(\s+|[.,!?;:'"()\[\]{}—–-]+)/);
+    const parts = text.split(/(\s+|[.,!?;:"\u201C\u201D()\[\]{}\u2014\u2013-]+)/);
     const fragment = document.createDocumentFragment();
 
     parts.forEach(part => {
@@ -243,8 +246,9 @@ function makeWordsClickable() {
 }
 
 async function handleWordClick(event, word) {
+  event.preventDefault();
   event.stopPropagation();
-  const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
+  const cleanWord = word.replace(/[^\w'\u2019-]/g, '').replace(/\u2019/g, "'").toLowerCase();
   if (!cleanWord) return;
 
   currentWord = cleanWord;
@@ -258,6 +262,7 @@ async function handleWordClick(event, word) {
   document.getElementById('popup-status').textContent = '';
   document.getElementById('popup-status').className = 'popup-status';
   resetAddButton();
+
   document.getElementById('word-popup-overlay').classList.add('active');
 
   try {
@@ -412,7 +417,7 @@ function initReadingProgress() {
     }
   });
 
-  // For short content
+  // For short content that fits without scrolling
   setTimeout(() => {
     if (container.scrollHeight <= container.clientHeight * 1.1) {
       updateProgress(100);
@@ -602,13 +607,22 @@ function formatTime(seconds) {
 .reading-difficulty__words { font-weight: 700; }
 .reading-difficulty__hint { opacity: 0.85; }
 
+/* Hide fixed footer from base template — reading uses inline footer */
+.bl-footer { display: none !important; }
+
 .reading-wrapper {
   max-width: 750px;
   margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.reading-footer {
   display: flex;
-  flex-direction: column;
-  height: calc(100vh - 200px);
-  min-height: 400px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem 0;
 }
 
 
@@ -627,10 +641,11 @@ function formatTime(seconds) {
 }
 
 .reading-scroll-container {
-  flex: 1;
+  max-height: 60vh;
   overflow-y: auto;
   background: var(--bg-primary);
   border-radius: 16px;
+  position: relative;
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-sm);
 }
@@ -698,14 +713,14 @@ function formatTime(seconds) {
 .word-popup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.2s;
+  transition: opacity 0.15s;
 }
 
 .word-popup-overlay.active {
@@ -718,9 +733,10 @@ function formatTime(seconds) {
   border-radius: 16px;
   padding: 1.5rem;
   width: 280px;
-  box-shadow: var(--shadow-2xl);
+  max-width: calc(100vw - 2rem);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
   transform: scale(0.9);
-  transition: transform 0.2s;
+  transition: transform 0.15s;
   text-align: center;
 }
 
@@ -975,9 +991,6 @@ function formatTime(seconds) {
 }
 
 @media (max-width: 768px) {
-  .reading-wrapper {
-    height: calc(100vh - 200px);
-  }
   .reading-content {
     padding: 1.25rem;
   }
