@@ -109,6 +109,24 @@
   </div>
   {% endif %}
 
+  <!-- Annotations -->
+  {% if annotations %}
+  <div class="annotations-section">
+    <h3 class="annotations-title">📌 Заметки к тексту</h3>
+    {% for ann in annotations %}
+    <div class="annotation-card annotation-card--{{ ann.type }}">
+      <span class="annotation-badge">
+        {% if ann.type == 'cultural' %}🌍{% elif ann.type == 'lexical' %}📝{% else %}📐{% endif %}
+      </span>
+      <div class="annotation-body">
+        <span class="annotation-phrase">{{ ann.phrase }}</span>
+        <p class="annotation-note">{{ ann.note }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Reading Progress -->
   <div class="reading-progress-section">
     <span class="progress-label">Прочитано: <span id="progress-percent">0</span>%</span>
@@ -904,6 +922,72 @@ function formatTime(seconds) {
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
   background: linear-gradient(135deg, #059669, #0284c7);
   color: white;
+}
+
+/* Annotations Section */
+.annotations-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.annotations-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.annotation-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border-light);
+}
+
+.annotation-card:last-child {
+  margin-bottom: 0;
+}
+
+.annotation-card--cultural {
+  background: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.15);
+}
+
+.annotation-card--lexical {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.annotation-card--grammar {
+  background: rgba(168, 85, 247, 0.06);
+  border-color: rgba(168, 85, 247, 0.15);
+}
+
+.annotation-badge {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.annotation-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.annotation-phrase {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.annotation-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 /* Comprehension Section */
