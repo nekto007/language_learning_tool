@@ -295,7 +295,26 @@ def cards():
         nothing_to_study=counts['nothing_to_study'],
         limit_reached=counts['limit_reached'],
         daily_limit=counts['new_limit'],
-        new_cards_today=counts['new_today']
+        new_cards_today=counts['new_today'],
+        # Shared flashcard component variables
+        fc_title='Карточки',
+        fc_back_url=url_for('study.index'),
+        fc_cards=[],
+        fc_fetch_cards_url='/study/api/get-study-items',
+        fc_fetch_cards_params={'source': 'auto'},
+        fc_grade_url='/study/api/update-study-item',
+        fc_complete_url='/study/api/complete-session',
+        fc_on_complete_url=url_for('study.index'),
+        fc_on_complete_text='К колодам',
+        fc_session_id=session.id,
+        fc_show_examples=settings.include_examples if settings else True,
+        fc_show_audio=settings.include_audio if settings else True,
+        fc_show_book_context=False,
+        fc_nothing_to_study=counts['nothing_to_study'],
+        fc_limit_reached=counts['limit_reached'],
+        fc_daily_limit=counts['new_limit'],
+        fc_new_cards_today=counts['new_today'],
+        fc_deck_id=None,
     )
 
 
@@ -348,7 +367,26 @@ def cards_deck(deck_id):
         nothing_to_study=counts['nothing_to_study'],
         limit_reached=counts['limit_reached'],
         daily_limit=counts['new_limit'],
-        new_cards_today=counts['new_today']
+        new_cards_today=counts['new_today'],
+        # Shared flashcard component variables
+        fc_title=deck.title,
+        fc_back_url=url_for('study.index'),
+        fc_cards=[],
+        fc_fetch_cards_url='/study/api/get-study-items',
+        fc_fetch_cards_params={'source': 'deck', 'deck_id': str(deck_id)},
+        fc_grade_url='/study/api/update-study-item',
+        fc_complete_url='/study/api/complete-session',
+        fc_on_complete_url=url_for('study.index'),
+        fc_on_complete_text='К колодам',
+        fc_session_id=session.id,
+        fc_show_examples=settings.include_examples if settings else True,
+        fc_show_audio=settings.include_audio if settings else True,
+        fc_show_book_context=False,
+        fc_nothing_to_study=counts['nothing_to_study'],
+        fc_limit_reached=counts['limit_reached'],
+        fc_daily_limit=counts['new_limit'],
+        fc_new_cards_today=counts['new_today'],
+        fc_deck_id=deck_id,
     )
 
 

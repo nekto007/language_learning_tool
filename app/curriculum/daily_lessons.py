@@ -30,6 +30,9 @@ class DailyLesson(db.Model):
 
     # Audio
     audio_url = Column(Text, nullable=True)  # Path to lesson audio file
+
+    # Annotations (cultural, lexical, grammar notes for reading lessons)
+    annotations = Column(JSONBCompat, nullable=True)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
