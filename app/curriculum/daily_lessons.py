@@ -195,6 +195,7 @@ class UserLessonProgress(db.Model):
     error_types = Column(JSONBCompat)  # {'vocabulary': 2, 'grammar': 1, 'comprehension': 3}
     last_attempt_at = Column(DateTime(timezone=True))  # When last attempt was made
     review_intervals = Column(JSONBCompat)  # [1, 3, 7, 14] - days between review attempts
+    lesson_data = Column(JSONBCompat)  # Flexible storage: {reading_progress: 85, self_check: [...]}
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),

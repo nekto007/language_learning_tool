@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
@@ -1767,6 +1767,67 @@ def get_lesson_api(lesson_id):
 
     except Exception as e:
         logger.error(f"Error getting lesson {lesson_id}: {str(e)}")
+        return jsonify({'error': 'Server error'}), 500
+
+
+@book_courses_bp.route('/api/v1/lesson/<int:lesson_id>/progress', methods=['GET', 'POST'])
+@login_required
+def lesson_progress_api(lesson_id):
+    """Save/load reading progress and self-check answers for a lesson."""
+    try:
+        from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
+
+        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
+        if not module:
+            return jsonify({'error': 'Module not found'}), 404
+
+        enrollment = BookCourseEnrollment.query.filter_by(
+            course_id=module.course_id,
+            user_id=current_user.id
+        ).first()
+        if not enrollment:
+            return jsonify({'error': 'Access denied'}), 403
+
+        progress = UserLessonProgress.query.filter_by(
+            user_id=current_user.id,
+            daily_lesson_id=lesson_id,
+            enrollment_id=enrollment.id
+        ).first()
+
+        if request.method == 'GET':
+            if progress and progress.lesson_data:
+                return jsonify(progress.lesson_data)
+            return jsonify({})
+
+        # POST — save progress
+        data = request.get_json(silent=True) or {}
+
+        if not progress:
+            progress = UserLessonProgress(
+                user_id=current_user.id,
+                daily_lesson_id=lesson_id,
+                enrollment_id=enrollment.id,
+                status='in_progress',
+                started_at=datetime.now(UTC)
+            )
+            db.session.add(progress)
+
+        lesson_data = dict(progress.lesson_data or {})
+        if 'reading_progress' in data:
+            lesson_data['reading_progress'] = min(int(data['reading_progress']), 100)
+        if 'self_check' in data:
+            lesson_data['self_check'] = data['self_check']
+
+        progress.lesson_data = lesson_data
+        flag_modified(progress, 'lesson_data')
+        db.session.commit()
+
+        return jsonify({'ok': True})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error saving lesson progress: {e}')
         return jsonify({'error': 'Server error'}), 500
 
 

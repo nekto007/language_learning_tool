@@ -112,6 +112,41 @@
         </div>
       {% endif %}
     </div>
+
+    <!-- Word Popup (inside reading container) -->
+    <div class="word-popup-container" id="word-popup-container">
+      <div class="word-popup" id="word-popup">
+        <button class="popup-close" id="popup-close-btn" onclick="closePopup()">&times;</button>
+        <div class="popup-word" id="popup-word">word</div>
+        <div class="popup-translation" id="popup-translation">перевод</div>
+        <div class="popup-example" id="popup-example"></div>
+
+        <div class="popup-actions">
+          <button class="popup-btn" id="popup-audio-btn" onclick="playAudio()" title="Озвучить">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </button>
+          <button class="popup-btn popup-btn-primary" id="popup-add-btn" onclick="addToFlashcards()" title="Добавить в карточки">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="popup-status" id="popup-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reading Progress (right after text) -->
+  <div class="reading-progress-section">
+    <span class="progress-label">Прочитано: <span id="progress-percent">0</span>%</span>
+    <div class="reading-progress-bar">
+      <div class="progress-fill" id="reading-progress" style="width: 0%"></div>
+    </div>
   </div>
 
   <!-- Comprehension Questions (if available) -->
@@ -205,8 +240,8 @@
     <div class="self-check-item" data-answer="{{ 'true' if item.answer else 'false' }}" data-explanation="{{ item.explanation }}">
       <p class="self-check-statement">"{{ item.statement }}"</p>
       <div class="self-check-buttons">
-        <button class="self-check-btn self-check-btn--true" onclick="checkAnswer(this, true)">True</button>
-        <button class="self-check-btn self-check-btn--false" onclick="checkAnswer(this, false)">False</button>
+        <button class="self-check-btn self-check-btn--true" onclick="checkAnswer(this, true)">Верно</button>
+        <button class="self-check-btn self-check-btn--false" onclick="checkAnswer(this, false)">Неверно</button>
       </div>
       <div class="self-check-feedback"></div>
     </div>
@@ -225,14 +260,6 @@
   </div>
   {% endif %}
 
-  <!-- Reading Progress -->
-  <div class="reading-progress-section">
-    <span class="progress-label">Прочитано: <span id="progress-percent">0</span>%</span>
-    <div class="reading-progress-bar">
-      <div class="progress-fill" id="reading-progress" style="width: 0%"></div>
-    </div>
-  </div>
-
   <!-- Inline Footer (not fixed) -->
   <div class="reading-footer" id="footer-buttons">
     <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="btn-footer btn-secondary">
@@ -248,31 +275,6 @@
   </div>
 </div>
 
-<!-- Word Popup Modal -->
-<div class="word-popup-overlay" id="word-popup-overlay">
-  <div class="word-popup" id="word-popup">
-    <div class="popup-word" id="popup-word">word</div>
-    <div class="popup-translation" id="popup-translation">перевод</div>
-    <div class="popup-example" id="popup-example"></div>
-
-    <div class="popup-actions">
-      <button class="popup-btn" id="popup-audio-btn" onclick="playAudio()" title="Озвучить">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-        </svg>
-      </button>
-      <button class="popup-btn popup-btn-primary" id="popup-add-btn" onclick="addToFlashcards()" title="Добавить в карточки">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
-    </div>
-
-    <div class="popup-status" id="popup-status"></div>
-  </div>
-</div>
 
 <!-- Hidden Audio Element -->
 <audio id="word-audio" preload="none"></audio>
@@ -379,7 +381,7 @@ async function handleWordClick(event, word) {
   document.getElementById('popup-status').className = 'popup-status';
   resetAddButton();
 
-  document.getElementById('word-popup-overlay').classList.add('active');
+  document.getElementById('word-popup-container').classList.add('active');
 
   try {
     const response = await fetch('/api/translate', {
@@ -406,19 +408,21 @@ async function handleWordClick(event, word) {
   }
 }
 
-// Close popup on overlay click
-document.getElementById('word-popup-overlay').addEventListener('click', (e) => {
-  if (e.target.id === 'word-popup-overlay') {
-    document.getElementById('word-popup-overlay').classList.remove('active');
-    currentWord = null;
-    currentWordId = null;
-  }
+function closePopup() {
+  document.getElementById('word-popup-container').classList.remove('active');
+  currentWord = null;
+  currentWordId = null;
+}
+
+// Close popup on tap/click outside popup (on text or scroll container)
+document.getElementById('reading-scroll-container').addEventListener('click', (e) => {
+  if (e.target.closest('.word-popup-container')) return;
+  if (e.target.closest('.clickable-word')) return; // word click opens new popup
+  closePopup();
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    document.getElementById('word-popup-overlay').classList.remove('active');
-  }
+  if (e.key === 'Escape') closePopup();
 });
 
 function playAudio() {
@@ -494,6 +498,66 @@ function showStatus(msg, type) {
   el.className = 'popup-status ' + type;
 }
 
+// ==================== Progress Persistence ====================
+
+const lessonId = {{ daily_lesson.id if daily_lesson else 'null' }};
+let saveTimer = null;
+
+function saveProgressToServer(data) {
+  if (!lessonId) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    fetch(`/curriculum/api/v1/lesson/${lessonId}/progress`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify(data)
+    }).catch(() => {});
+  }, 1000);
+}
+
+function saveProgressNow(data) {
+  if (!lessonId) return;
+  clearTimeout(saveTimer);
+  fetch(`/curriculum/api/v1/lesson/${lessonId}/progress`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+    body: JSON.stringify(data)
+  }).catch(() => {});
+}
+
+async function loadSavedProgress() {
+  if (!lessonId) return null;
+  try {
+    const resp = await fetch(`/curriculum/api/v1/lesson/${lessonId}/progress`);
+    if (resp.ok) return await resp.json();
+  } catch (e) {}
+  return null;
+}
+
+function restoreSelfCheck(savedChecks) {
+  if (!savedChecks || !savedChecks.length) return;
+  const items = document.querySelectorAll('.self-check-item');
+  savedChecks.forEach(sc => {
+    const item = items[sc.index];
+    if (!item || item.classList.contains('answered')) return;
+    const correctAnswer = item.dataset.answer === 'true';
+    const explanation = item.dataset.explanation;
+    const feedback = item.querySelector('.self-check-feedback');
+    const btn = item.querySelector(sc.userAnswer ? '.self-check-btn--true' : '.self-check-btn--false');
+
+    item.classList.add('answered');
+    if (btn) btn.classList.add('selected');
+
+    if (sc.correct) {
+      item.classList.add('correct');
+      feedback.innerHTML = '<span class="feedback-icon">✓</span> Верно! ' + explanation;
+    } else {
+      item.classList.add('incorrect');
+      feedback.innerHTML = '<span class="feedback-icon">✗</span> Неверно. ' + explanation;
+    }
+  });
+}
+
 function initReadingProgress() {
   const container = document.getElementById('reading-scroll-container');
   const progressBar = document.getElementById('reading-progress');
@@ -503,41 +567,60 @@ function initReadingProgress() {
   let maxScroll = 0;
   let comprehensionShown = false;
 
-  function updateProgress(percent) {
+  function updateProgress(percent, save) {
     const rounded = Math.round(percent);
     progressBar.style.width = percent + '%';
     progressPercent.textContent = rounded;
 
-    // Show comprehension questions at 80%
     if (percent >= 80 && comprehensionSection && !comprehensionShown) {
       comprehensionSection.style.display = 'block';
       comprehensionShown = true;
       initComprehensionQuestions();
     }
 
-    // Enable complete button at 80%
     if (percent >= 80 && completeBtn) {
       completeBtn.disabled = false;
     }
+
+    if (save) {
+      saveProgressToServer({ reading_progress: rounded });
+    }
   }
 
-  container.addEventListener('scroll', () => {
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight - container.clientHeight;
-    if (scrollHeight <= 0) return;
-
-    const percent = Math.min((scrollTop / scrollHeight) * 100, 100);
-    if (percent > maxScroll) {
-      maxScroll = percent;
-      updateProgress(maxScroll);
+  // Restore saved progress
+  loadSavedProgress().then(saved => {
+    if (saved) {
+      if (saved.reading_progress) {
+        maxScroll = saved.reading_progress;
+        updateProgress(maxScroll, false);
+      }
+      if (saved.self_check) {
+        restoreSelfCheck(saved.self_check);
+      }
     }
   });
 
-  // For short content that fits without scrolling
-  setTimeout(() => {
-    if (container.scrollHeight <= container.clientHeight * 1.1) {
-      updateProgress(100);
+  function calcProgress() {
+    const hasInnerScroll = container.scrollHeight > container.clientHeight + 10;
+    if (!hasInnerScroll) return 100;
+    const innerMax = container.scrollHeight - container.clientHeight;
+    return Math.min((container.scrollTop / innerMax) * 100, 100);
+  }
+
+  container.addEventListener('scroll', () => {
+    const percent = calcProgress();
+    updateProgress(percent, false);
+
+    // Save max reached to server (debounced)
+    if (percent > maxScroll) {
+      maxScroll = percent;
+      saveProgressToServer({ reading_progress: Math.round(maxScroll) });
     }
+  }, { passive: true });
+
+  // Initial check
+  setTimeout(() => {
+    updateProgress(calcProgress(), false);
   }, 500);
 }
 
@@ -598,6 +681,17 @@ function checkAnswer(btn, userAnswer) {
     item.classList.add('incorrect');
     feedback.innerHTML = '<span class="feedback-icon">✗</span> Неверно. ' + explanation;
   }
+
+  // Save all answered self-check items to server
+  const allItems = document.querySelectorAll('.self-check-item.answered');
+  const selfCheck = [];
+  allItems.forEach(el => {
+    const idx = Array.from(el.parentElement.children).filter(c => c.classList.contains('self-check-item')).indexOf(el);
+    const selectedBtn = el.querySelector('.self-check-btn.selected');
+    const wasTrue = selectedBtn && selectedBtn.classList.contains('self-check-btn--true');
+    selfCheck.push({ index: idx, userAnswer: wasTrue, correct: el.classList.contains('correct') });
+  });
+  saveProgressNow({ self_check: selfCheck });
 }
 
 const nextLessonUrl = {{ next_lesson_url | tojson | safe if next_lesson_url else 'null' }};
@@ -1106,6 +1200,9 @@ function formatTime(seconds) {
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.15s, color 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .clickable-word:hover {
@@ -1143,38 +1240,48 @@ function formatTime(seconds) {
 }
 
 /* Popup */
-.word-popup-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.25);
-  display: flex;
-  align-items: center;
+.word-popup-container {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: none;
   justify-content: center;
-  z-index: 1000;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s;
+  padding: 0.75rem;
+  background: linear-gradient(transparent, rgba(255,255,255,0.95) 30%);
 }
 
-.word-popup-overlay.active {
-  opacity: 1;
-  visibility: visible;
+.word-popup-container.active {
+  display: flex;
 }
 
 .word-popup {
+  position: relative;
   background: var(--bg-primary);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   width: 280px;
-  max-width: calc(100vw - 2rem);
-  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
-  transform: scale(0.9);
-  transition: transform 0.15s;
+  max-width: 100%;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
   text-align: center;
 }
 
-.word-popup-overlay.active .word-popup {
-  transform: scale(1);
+.popup-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.popup-close:hover {
+  color: var(--text-primary);
 }
 
 .popup-word {
