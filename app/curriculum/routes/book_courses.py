@@ -47,6 +47,43 @@ LESSON_TYPE_TRANSLATIONS = {
 }
 
 
+def _parse_lesson_scaffold(raw_annotations):
+    """Parse DailyLesson.annotations field — supports both old (list) and new (dict) format.
+
+    Returns dict with keys: annotations, objectives, before_reading, reflection, self_check, can_do.
+    """
+    if raw_annotations is None:
+        return {
+            'annotations': None,
+            'objectives': None,
+            'before_reading': None,
+            'reflection': None,
+            'self_check': None,
+            'can_do': None,
+        }
+
+    # Old format: plain list of annotation dicts
+    if isinstance(raw_annotations, list):
+        return {
+            'annotations': raw_annotations,
+            'objectives': None,
+            'before_reading': None,
+            'reflection': None,
+            'self_check': None,
+            'can_do': None,
+        }
+
+    # New format: dict with sections
+    return {
+        'annotations': raw_annotations.get('annotations'),
+        'objectives': raw_annotations.get('objectives'),
+        'before_reading': raw_annotations.get('before_reading'),
+        'reflection': raw_annotations.get('reflection'),
+        'self_check': raw_annotations.get('self_check'),
+        'can_do': raw_annotations.get('can_do'),
+    }
+
+
 def get_lesson_type_display(lesson_type: str) -> str:
     """Получить русское название типа урока"""
     return LESSON_TYPE_TRANSLATIONS.get(lesson_type, lesson_type.replace('_', ' ').title())
@@ -657,6 +694,8 @@ def view_lesson(course_id, module_id, lesson_number):
                         reading_difficulty = {'level': 'hard', 'new_words': new_count,
                                               'hint': 'Вдумчивое чтение — разбирай каждое предложение'}
 
+            scaffold = _parse_lesson_scaffold(dl.annotations if dl else None)
+
             return render_template(
                 template,
                 course=course,
@@ -671,7 +710,12 @@ def view_lesson(course_id, module_id, lesson_number):
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson,
                 reading_difficulty=reading_difficulty,
-                annotations=dl.annotations if dl else None,
+                annotations=scaffold['annotations'],
+                objectives=scaffold['objectives'],
+                before_reading=scaffold['before_reading'],
+                reflection=scaffold['reflection'],
+                self_check=scaffold['self_check'],
+                can_do=scaffold['can_do'],
             )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary according to new architecture
@@ -798,10 +842,11 @@ def view_lesson(course_id, module_id, lesson_number):
             # Grammar Bridge: show Grammar Lab topic content directly
             from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
-            # Try explicit FK first (from DailyLesson's linked Lesson)
+            # Try explicit FK first (from DailyLesson's linked Task)
             topic = None
-            if daily_lesson and daily_lesson.lesson and daily_lesson.lesson.grammar_topic_id:
-                topic = GrammarTopic.query.get(daily_lesson.lesson.grammar_topic_id)
+            task = daily_lesson.task if daily_lesson else None
+            if task and getattr(task, 'grammar_topic_id', None):
+                topic = GrammarTopic.query.get(task.grammar_topic_id)
 
             # Fallback to modulo-based mapping
             if not topic:
@@ -1178,6 +1223,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
             # All reading types use the reading_passage template
             template = 'curriculum/book_courses/lessons/reading_passage.html'
 
+            scaffold = _parse_lesson_scaffold(daily_lesson.annotations if daily_lesson else None)
+
             return render_template(
                 template,
                 course=course,
@@ -1191,7 +1238,12 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 review_cards=review_cards,
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson,
-                annotations=daily_lesson.annotations if daily_lesson else None,
+                annotations=scaffold['annotations'],
+                objectives=scaffold['objectives'],
+                before_reading=scaffold['before_reading'],
+                reflection=scaffold['reflection'],
+                self_check=scaffold['self_check'],
+                can_do=scaffold['can_do'],
             )
         elif lesson_type == 'vocabulary':
             # Load vocabulary from SliceVocabulary
@@ -1295,8 +1347,9 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
 
             # Try explicit FK first
             topic = None
-            if daily_lesson and daily_lesson.lesson and daily_lesson.lesson.grammar_topic_id:
-                topic = GrammarTopic.query.get(daily_lesson.lesson.grammar_topic_id)
+            task = daily_lesson.task if daily_lesson else None
+            if task and getattr(task, 'grammar_topic_id', None):
+                topic = GrammarTopic.query.get(task.grammar_topic_id)
 
             # Fallback to modulo-based mapping
             if not topic:
@@ -1804,8 +1857,9 @@ def complete_lesson_api_v1(lesson_id):
 
                 # Try explicit FK first
                 topic = None
-                if daily_lesson.lesson and daily_lesson.lesson.grammar_topic_id:
-                    topic = GrammarTopic.query.get(daily_lesson.lesson.grammar_topic_id)
+                task = daily_lesson.task
+                if task and getattr(task, 'grammar_topic_id', None):
+                    topic = GrammarTopic.query.get(task.grammar_topic_id)
 
                 # Fallback to modulo-based mapping
                 if not topic:
