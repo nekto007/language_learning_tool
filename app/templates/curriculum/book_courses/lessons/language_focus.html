@@ -1,0 +1,1083 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Language Focus{% endblock %}
+
+{% block lesson_content %}
+<div class="lf-container">
+
+  <!-- Title & Intro -->
+  <div class="lf-hero">
+    <div class="lf-hero__badge">Language Focus</div>
+    <h1 class="lf-hero__title">{{ lf.title }}</h1>
+    {% if lf.intro %}
+    <p class="lf-hero__intro">{{ lf.intro }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Objectives -->
+  {% if lf.objectives %}
+  <div class="lf-section lf-objectives">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#127919;</span>
+      What you'll learn
+    </h2>
+    <ul class="lf-objectives__list">
+      {% for obj in lf.objectives %}
+      <li>{{ obj }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Examples from Text -->
+  {% if lf.examples_from_text %}
+  <div class="lf-section lf-examples">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#128214;</span>
+      In the book
+    </h2>
+    {% for ex in lf.examples_from_text %}
+    <div class="lf-example">
+      <div class="lf-example__text">{{ ex.text }}</div>
+      {% if ex.highlight %}
+      <div class="lf-example__highlight">{{ ex.highlight }}</div>
+      {% endif %}
+      {% if ex.note %}
+      <div class="lf-example__note">{{ ex.note }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- What to Notice -->
+  {% if lf.what_to_notice %}
+  <div class="lf-section lf-notice">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#128065;</span>
+      What to notice
+    </h2>
+    <div class="lf-notice__content">
+      <p>{{ lf.what_to_notice }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Micro Rule -->
+  {% if lf.micro_rule %}
+  <div class="lf-section lf-rule">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#128161;</span>
+      The rule
+    </h2>
+    <div class="lf-rule__content">
+      {{ lf.micro_rule|replace('\n', '<br>')|safe }}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Mini Practice -->
+  {% if lf.mini_practice %}
+  <div class="lf-section lf-practice" id="practice-section">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#9997;&#65039;</span>
+      Quick practice
+    </h2>
+    <div class="lf-practice__progress">
+      <span id="practice-current">1</span> / <span id="practice-total">{{ lf.mini_practice|length }}</span>
+    </div>
+
+    <div class="lf-practice__card" id="practice-card">
+      <div class="lf-practice__question" id="practice-question"></div>
+
+      <!-- Fill blank input -->
+      <div class="lf-practice__input-wrap" id="fill-input-wrap" style="display:none;">
+        <input type="text" id="fill-answer" class="lf-practice__input" placeholder="Type your answer..." autocomplete="off" spellcheck="false">
+        <button type="button" class="lf-practice__check-btn" id="check-btn" onclick="checkAnswer()">Check</button>
+      </div>
+
+      <!-- Choose options -->
+      <div class="lf-practice__options" id="choose-options" style="display:none;"></div>
+
+      <!-- Feedback -->
+      <div class="lf-practice__feedback" id="practice-feedback" style="display:none;"></div>
+    </div>
+
+    <div class="lf-practice__nav">
+      <button class="lf-practice__next-btn" id="next-btn" onclick="nextQuestion()" disabled>
+        Next
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Use It -->
+  {% if lf.use_it %}
+  <div class="lf-section lf-useit">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#128172;</span>
+      Use it
+    </h2>
+    <div class="lf-useit__prompt">
+      <p>{{ lf.use_it }}</p>
+    </div>
+    {% if lf.use_it_support %}
+    <div class="lf-useit__support">
+      <div class="lf-useit__support-label">Sentence starters:</div>
+      <ul>
+        {% for s in lf.use_it_support %}
+        <li>{{ s }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Linked Grammar Lab Topics -->
+  {% if linked_topics %}
+  <div class="lf-section lf-linked">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#128218;</span>
+      Extra practice in Grammar Lab
+    </h2>
+    <div class="lf-linked__list">
+      {% for topic in linked_topics %}
+      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="lf-linked__card">
+        <div class="lf-linked__card-top">
+          <span class="lf-linked__level">{{ topic.level }}</span>
+          <span class="lf-linked__count">{{ topic.exercise_count }} exercises</span>
+        </div>
+        <div class="lf-linked__title">{{ topic.title }}</div>
+        <div class="lf-linked__title-ru">{{ topic.title_ru }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Can-do Checklist -->
+  {% if lf.can_do %}
+  <div class="lf-section lf-cando">
+    <h2 class="lf-section__title">
+      <span class="lf-section__icon">&#9989;</span>
+      I can now...
+    </h2>
+    <ul class="lf-cando__list">
+      {% for item in lf.can_do %}
+      <li>
+        <label class="lf-cando__item">
+          <input type="checkbox" class="lf-cando__checkbox" onchange="checkCanDo()">
+          <span>{{ item }}</span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Results (hidden, shown after completion) -->
+  <div class="lf-results" id="results-section" style="display:none;">
+    <div class="lf-results__card">
+      <div class="lf-results__icon" id="results-icon">&#127881;</div>
+      <div class="lf-results__title">Lesson complete!</div>
+      <div class="lf-results__message" id="results-message"></div>
+      <div class="lf-results__actions" id="results-actions">
+        <span class="lf-results__saving">Saving...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="bl-footer__inner">
+  <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
+    <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to module
+  </a>
+
+  <button id="complete-btn" class="bl-btn bl-btn--primary" onclick="completeLessonFlow()" disabled>
+    <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    Complete lesson
+  </button>
+</div>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const miniPractice = {{ lf.mini_practice | tojson | safe if lf.mini_practice else '[]' }};
+const hasNext = {{ 'true' if has_next_lesson else 'false' }};
+const nextUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';
+
+let currentQ = 0;
+let practiceAnswers = {};
+let practiceCompleted = miniPractice.length === 0;
+
+// Init practice on load
+document.addEventListener('DOMContentLoaded', function() {
+  if (miniPractice.length > 0) {
+    showPracticeQuestion(0);
+  }
+
+  // Enter key for fill_blank
+  const fillInput = document.getElementById('fill-answer');
+  if (fillInput) {
+    fillInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && !this.disabled) {
+        checkAnswer();
+      }
+    });
+  }
+
+  // Enable complete button if no practice
+  if (practiceCompleted) {
+    enableCompleteButton();
+  }
+});
+
+function showPracticeQuestion(index) {
+  if (index >= miniPractice.length) {
+    practiceCompleted = true;
+    enableCompleteButton();
+    // Show completion message in practice section
+    const card = document.getElementById('practice-card');
+    card.innerHTML = '<div class="lf-practice__done">All questions answered!</div>';
+    document.querySelector('.lf-practice__nav').style.display = 'none';
+    return;
+  }
+
+  const q = miniPractice[index];
+  currentQ = index;
+
+  document.getElementById('practice-current').textContent = index + 1;
+
+  const questionEl = document.getElementById('practice-question');
+  const fillWrap = document.getElementById('fill-input-wrap');
+  const chooseWrap = document.getElementById('choose-options');
+  const feedback = document.getElementById('practice-feedback');
+
+  feedback.style.display = 'none';
+
+  if (q.type === 'fill_blank') {
+    questionEl.innerHTML = q.question.replace(/_+/g, '<span class="lf-blank">______</span>');
+    fillWrap.style.display = 'flex';
+    chooseWrap.style.display = 'none';
+    const input = document.getElementById('fill-answer');
+    input.value = '';
+    input.disabled = false;
+    document.getElementById('check-btn').disabled = false;
+    input.focus();
+  } else if (q.type === 'choose') {
+    // Extract options from question like "There [was / were] owls..."
+    const match = q.question.match(/\[([^\]]+)\]/);
+    if (match) {
+      const options = match[1].split('/').map(o => o.trim());
+      const cleanQuestion = q.question.replace(/\[([^\]]+)\]/, '<span class="lf-blank">______</span>');
+      questionEl.innerHTML = cleanQuestion;
+      chooseWrap.style.display = 'flex';
+      fillWrap.style.display = 'none';
+      chooseWrap.innerHTML = options.map((opt, i) =>
+        `<button class="lf-practice__option" onclick="selectChoice('${opt}', this)">${opt}</button>`
+      ).join('');
+    }
+  }
+
+  // Update next button
+  document.getElementById('next-btn').disabled = practiceAnswers[index] === undefined;
+  document.getElementById('next-btn').innerHTML = index === miniPractice.length - 1
+    ? 'Done <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+}
+
+function checkAnswer() {
+  const q = miniPractice[currentQ];
+  const userAnswer = document.getElementById('fill-answer').value.trim().toLowerCase();
+  const correct = q.answer.toLowerCase();
+  const isCorrect = userAnswer === correct;
+
+  practiceAnswers[currentQ] = { answer: userAnswer, isCorrect };
+  showFeedback(isCorrect, q.explanation, correct);
+
+  document.getElementById('fill-answer').disabled = true;
+  document.getElementById('check-btn').disabled = true;
+  document.getElementById('next-btn').disabled = false;
+}
+
+function selectChoice(choice, btn) {
+  const q = miniPractice[currentQ];
+  const isCorrect = choice.toLowerCase() === q.answer.toLowerCase();
+
+  practiceAnswers[currentQ] = { answer: choice, isCorrect };
+
+  // Highlight buttons
+  const options = document.querySelectorAll('.lf-practice__option');
+  options.forEach(opt => {
+    opt.disabled = true;
+    if (opt.textContent.toLowerCase() === q.answer.toLowerCase()) {
+      opt.classList.add('correct');
+    } else if (opt === btn && !isCorrect) {
+      opt.classList.add('incorrect');
+    }
+  });
+
+  showFeedback(isCorrect, q.explanation, q.answer);
+  document.getElementById('next-btn').disabled = false;
+}
+
+function showFeedback(isCorrect, explanation, correctAnswer) {
+  const feedback = document.getElementById('practice-feedback');
+  feedback.className = 'lf-practice__feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  feedback.innerHTML = `
+    <span class="lf-practice__feedback-icon">${isCorrect ? '&#10003;' : '&#10007;'}</span>
+    <span class="lf-practice__feedback-text">
+      ${isCorrect ? 'Correct!' : 'The answer is: <strong>' + correctAnswer + '</strong>'}
+      ${explanation ? '<br><small>' + explanation + '</small>' : ''}
+    </span>
+  `;
+  feedback.style.display = 'flex';
+}
+
+function nextQuestion() {
+  if (currentQ < miniPractice.length - 1) {
+    showPracticeQuestion(currentQ + 1);
+  } else {
+    // Practice finished
+    practiceCompleted = true;
+    enableCompleteButton();
+    const card = document.getElementById('practice-card');
+    card.innerHTML = '<div class="lf-practice__done">All questions answered!</div>';
+    document.querySelector('.lf-practice__nav').style.display = 'none';
+  }
+}
+
+function checkCanDo() {
+  // Optional: track which can-do items are checked
+}
+
+function enableCompleteButton() {
+  const btn = document.getElementById('complete-btn');
+  if (btn) btn.disabled = false;
+}
+
+function completeLessonFlow() {
+  const btn = document.getElementById('complete-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Saving...';
+
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  fetch(`/curriculum/api/v1/lesson/${lessonId}/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({})
+  })
+  .then(response => {
+    if (response.status === 201 || response.ok) {
+      const ct = response.headers.get('content-type');
+      if (ct && ct.includes('application/json')) return response.json();
+      return { success: true };
+    }
+    throw new Error('Failed to complete lesson');
+  })
+  .then(data => {
+    console.log('Lesson completed:', data);
+    showCompletionResults();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    btn.disabled = false;
+    btn.innerHTML = 'Complete lesson';
+    alert('Error saving progress. Please try again.');
+  });
+}
+
+function showCompletionResults() {
+  // Hide main content, show results
+  document.querySelector('.lf-container').querySelectorAll('.lf-hero, .lf-section').forEach(el => {
+    el.style.display = 'none';
+  });
+  document.getElementById('results-section').style.display = 'block';
+
+  // Calculate practice score
+  let correct = 0;
+  let total = miniPractice.length;
+  for (let i = 0; i < total; i++) {
+    if (practiceAnswers[i]?.isCorrect) correct++;
+  }
+  const score = total > 0 ? Math.round((correct / total) * 100) : 100;
+
+  const icon = score >= 80 ? '&#127881;' : score >= 60 ? '&#128077;' : '&#128170;';
+  const message = total > 0
+    ? `Practice: ${correct}/${total} correct`
+    : 'Well done studying this topic!';
+
+  document.getElementById('results-icon').innerHTML = icon;
+  document.getElementById('results-message').textContent = message;
+
+  // Show navigation buttons
+  const actions = document.getElementById('results-actions');
+  if (hasNext && nextUrl) {
+    actions.innerHTML = `
+      <a href="${nextUrl}" class="lf-results__btn lf-results__btn--primary">
+        Next lesson
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+    `;
+  } else {
+    actions.innerHTML = `
+      <a href="${moduleUrl}" class="lf-results__btn lf-results__btn--outline">Back to module</a>
+    `;
+  }
+
+  // Hide footer
+  document.getElementById('lesson-footer').style.display = 'none';
+}
+</script>
+
+<style>
+/* ── Language Focus Container ── */
+.lf-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* ── Hero ── */
+.lf-hero {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  text-align: center;
+}
+
+.lf-hero__badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lf-hero__title {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem;
+  line-height: 1.3;
+}
+
+.lf-hero__intro {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Sections ── */
+.lf-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.lf-section__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lf-section__icon {
+  font-size: 1.25rem;
+}
+
+/* ── Objectives ── */
+.lf-objectives__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lf-objectives__list li {
+  position: relative;
+  padding: 0.5rem 0 0.5rem 1.75rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.lf-objectives__list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.875rem;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border-radius: 50%;
+}
+
+/* ── Examples from Text ── */
+.lf-example {
+  padding: 1.25rem;
+  background: #fafafa;
+  border-radius: 12px;
+  border-left: 4px solid #8b5cf6;
+  margin-bottom: 1rem;
+}
+
+.lf-example:last-child {
+  margin-bottom: 0;
+}
+
+.lf-example__text {
+  color: #1f2937;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-style: italic;
+}
+
+.lf-example__highlight {
+  margin-top: 0.75rem;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 0.875rem;
+  color: #7c3aed;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.lf-example__note {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+/* ── What to Notice ── */
+.lf-notice__content {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(99, 102, 241, 0.06));
+  border-radius: 12px;
+  padding: 1.25rem;
+  border-left: 4px solid #8b5cf6;
+}
+
+.lf-notice__content p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.7;
+}
+
+/* ── Micro Rule ── */
+.lf-rule__content {
+  background: #fffbeb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border-left: 4px solid #f59e0b;
+  color: #78350f;
+  line-height: 1.8;
+  font-size: 0.9375rem;
+}
+
+.lf-rule__content strong {
+  color: #92400e;
+}
+
+/* ── Mini Practice ── */
+.lf-practice {
+  border: 2px solid #e9d5ff;
+}
+
+.lf-practice__progress {
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: #f5f3ff;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  display: inline-block;
+  margin-bottom: 1.25rem;
+}
+
+.lf-practice__card {
+  margin-bottom: 1rem;
+}
+
+.lf-practice__question {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.lf-blank {
+  background: rgba(139, 92, 246, 0.12);
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+/* Fill blank input */
+.lf-practice__input-wrap {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 450px;
+  margin: 0 auto;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.lf-practice__input {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  outline: none !important;
+  background: #fff !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+
+.lf-practice__input:focus {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
+}
+
+.lf-practice__input:disabled {
+  background: #f9fafb !important;
+  color: #6b7280;
+}
+
+.lf-practice__check-btn {
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lf-practice__check-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.lf-practice__check-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+/* Choose options */
+.lf-practice__options {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.lf-practice__option {
+  padding: 0.75rem 2rem;
+  background: #f5f3ff;
+  border: 2px solid #e9d5ff;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #5b21b6;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lf-practice__option:hover:not(:disabled) {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+  transform: translateY(-1px);
+}
+
+.lf-practice__option.correct {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.lf-practice__option.incorrect {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.lf-practice__option:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+/* Feedback */
+.lf-practice__feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.lf-practice__feedback.correct {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+.lf-practice__feedback.incorrect {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+}
+
+.lf-practice__feedback-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.lf-practice__feedback.correct .lf-practice__feedback-icon {
+  background: #22c55e;
+  color: white;
+}
+
+.lf-practice__feedback.incorrect .lf-practice__feedback-icon {
+  background: #ef4444;
+  color: white;
+}
+
+.lf-practice__feedback-text {
+  flex: 1;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.lf-practice__feedback-text small {
+  color: #6b7280;
+}
+
+/* Practice nav */
+.lf-practice__nav {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.lf-practice__next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lf-practice__next-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.lf-practice__next-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.lf-practice__done {
+  text-align: center;
+  padding: 1.5rem;
+  color: #059669;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+/* ── Use It ── */
+.lf-useit__prompt {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(14, 165, 233, 0.06));
+  border-radius: 12px;
+  padding: 1.25rem;
+  border-left: 4px solid #10b981;
+}
+
+.lf-useit__prompt p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.7;
+}
+
+.lf-useit__support {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border-radius: 10px;
+}
+
+.lf-useit__support-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.lf-useit__support ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.lf-useit__support li {
+  color: #4b5563;
+  margin-bottom: 0.375rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* ── Linked Topics ── */
+.lf-linked__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lf-linked__card {
+  display: block;
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.lf-linked__card:hover {
+  border-color: #8b5cf6;
+  background: #faf5ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.12);
+}
+
+.lf-linked__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.lf-linked__level {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lf-linked__count {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.lf-linked__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.lf-linked__title-ru {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* ── Can-do ── */
+.lf-cando__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lf-cando__list li {
+  margin-bottom: 0.5rem;
+}
+
+.lf-cando__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.625rem 0.75rem;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.lf-cando__item:hover {
+  background: #f9fafb;
+}
+
+.lf-cando__checkbox {
+  margin-top: 0.1875rem;
+  width: 18px;
+  height: 18px;
+  accent-color: #8b5cf6;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lf-cando__item span {
+  color: #374151;
+  line-height: 1.5;
+}
+
+/* ── Results ── */
+.lf-results {
+  max-width: 420px;
+  margin: 2rem auto;
+}
+
+.lf-results__card {
+  background: #fff;
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.lf-results__icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.lf-results__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.lf-results__message {
+  color: #6b7280;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.lf-results__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.lf-results__saving {
+  color: #8b5cf6;
+  font-weight: 500;
+}
+
+.lf-results__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.lf-results__btn--primary {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.lf-results__btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  color: white;
+}
+
+.lf-results__btn--outline {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.lf-results__btn--outline:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .lf-hero, .lf-section {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+
+  .lf-hero__title {
+    font-size: 1.375rem;
+  }
+
+  .lf-practice__input-wrap {
+    flex-direction: column;
+  }
+
+  .lf-practice__options {
+    flex-direction: column;
+  }
+
+  .lf-practice__option {
+    width: 100%;
+    text-align: center;
+  }
+
+  .lf-results__card {
+    padding: 2rem 1.25rem;
+  }
+}
+</style>
+{% endblock %}

@@ -3,7 +3,7 @@
 Comprehension MCQ and Cloze Practice Generator
 
 Generates comprehension questions and cloze exercises from text.
-Used for comprehension_mcq and cloze_practice lesson types.
+Used for comprehension_mcq and phrase_cloze lesson types.
 """
 
 import re

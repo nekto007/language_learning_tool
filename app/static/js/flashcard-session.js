@@ -176,6 +176,9 @@ class FlashcardSession {
             progressSection: document.querySelector('.cards-progress-section'),
             bookContext: document.getElementById('book-context'),
             bookContextText: document.getElementById('book-context-text'),
+            unitTypeBadge: document.getElementById('unit-type-badge'),
+            cardNote: document.getElementById('card-note'),
+            cardNoteText: document.getElementById('card-note-text'),
         };
     }
 
@@ -550,6 +553,28 @@ class FlashcardSession {
 
         // Configure audio
         const hasAudio = card.audio_url !== null && card.audio_url !== undefined;
+
+        // Unit type badge (WORD / PHRASE / PATTERN)
+        if (this.els.unitTypeBadge) {
+            const unitType = card.unit_type;
+            if (unitType) {
+                this.els.unitTypeBadge.textContent = unitType.toUpperCase();
+                this.els.unitTypeBadge.className = 'fc-unit-type fc-unit-type--' + unitType;
+                this.els.unitTypeBadge.style.display = '';
+            } else {
+                this.els.unitTypeBadge.style.display = 'none';
+            }
+        }
+
+        // Usage note on back
+        if (this.els.cardNote) {
+            if (card.note) {
+                this.els.cardNote.style.display = '';
+                if (this.els.cardNoteText) this.els.cardNoteText.textContent = card.note;
+            } else {
+                this.els.cardNote.style.display = 'none';
+            }
+        }
 
         // Set card content
         if (this.els.frontWord) this.els.frontWord.textContent = card.word;

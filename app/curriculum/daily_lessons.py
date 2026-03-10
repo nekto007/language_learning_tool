@@ -75,7 +75,7 @@ class DailyLesson(db.Model):
         until next vocabulary lesson (for example sentences).
         Returns list of (day_number, lesson_type, slice_text) tuples.
         """
-        if self.lesson_type not in ('vocabulary', 'vocabulary_review'):
+        if self.lesson_type not in ('vocabulary', 'context_review'):
             return []
 
         # Get all lessons in this module after current day
@@ -89,7 +89,7 @@ class DailyLesson(db.Model):
         reading_texts = []
         for lesson in lessons:
             # Stop at next vocabulary lesson
-            if lesson.lesson_type in ('vocabulary', 'vocabulary_review') and lesson.day_number > self.day_number:
+            if lesson.lesson_type in ('vocabulary', 'context_review') and lesson.day_number > self.day_number:
                 break
             # Collect reading texts
             if lesson.lesson_type == 'reading' and lesson.slice_text:
@@ -134,6 +134,10 @@ class SliceVocabulary(db.Model):
     # New fields for admin editing
     custom_translation = Column(Text, nullable=True)  # Local translation for this course (null = use global)
     priority = Column(Integer, default=0)  # Display order (higher = first)
+
+    # Pedagogical metadata for flashcard display
+    unit_type = Column(String(20), nullable=True)  # word, phrase, pattern (null = auto-detect from word)
+    note = Column(Text, nullable=True)  # Usage note shown on card back (e.g. "usually used in the negative")
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -195,6 +199,7 @@ class UserLessonProgress(db.Model):
     error_types = Column(JSONBCompat)  # {'vocabulary': 2, 'grammar': 1, 'comprehension': 3}
     last_attempt_at = Column(DateTime(timezone=True))  # When last attempt was made
     review_intervals = Column(JSONBCompat)  # [1, 3, 7, 14] - days between review attempts
+    lesson_data = Column(JSONBCompat)  # Flexible storage: {reading_progress: 85, self_check: [...]}
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),

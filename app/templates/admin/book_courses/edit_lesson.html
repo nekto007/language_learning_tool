@@ -4,7 +4,7 @@
 {% block extra_css %}
 <style>
 .edit-form-container {
-    max-width: {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}1200px{% else %}900px{% endif %};
+    max-width: {% if lesson.lesson_type in ['vocabulary', 'context_review'] %}1200px{% else %}900px{% endif %};
     margin: 0 auto;
 }
 
@@ -533,7 +533,7 @@ select.form-control {
                 </div>
 
                 <!-- Slice Text (hidden for vocabulary lessons) -->
-                <div class="form-group" id="sliceTextGroup" {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}style="display: none;"{% endif %}>
+                <div class="form-group" id="sliceTextGroup" {% if lesson.lesson_type in ['vocabulary', 'context_review'] %}style="display: none;"{% endif %}>
                     <label for="slice_text">Текст урока</label>
                     <textarea name="slice_text" id="slice_text" class="form-control">{{ lesson.slice_text or '' }}</textarea>
                     <p class="help-text">Основной текст урока (около 800 слов)</p>
@@ -566,7 +566,7 @@ select.form-control {
         </form>
     </div>
 
-    {% if lesson.lesson_type in ['vocabulary', 'vocabulary_review'] %}
+    {% if lesson.lesson_type in ['vocabulary', 'context_review'] %}
     <!-- Vocabulary Editor Card -->
     <div class="form-card">
         <div class="form-header">
@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const lessonTypeSelect = document.getElementById('lesson_type');
     const sliceTextGroup = document.getElementById('sliceTextGroup');
 
-    const vocabularyTypes = ['vocabulary', 'vocabulary_review'];
+    const vocabularyTypes = ['vocabulary', 'context_review'];
 
     // Toggle text field visibility based on lesson type
     function toggleTextFieldVisibility() {

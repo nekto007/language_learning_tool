@@ -83,7 +83,7 @@ class TestInit:
 
         day6_a1a2 = generator.LESSON_SCHEDULE_A1_A2[5]
         assert day6_a1a2['lesson1'] == 'reading'
-        assert day6_a1a2['lesson2'] == 'grammar_focus'  # grammar_focus on day 6 (summary_writing removed 2025-12-15)
+        assert day6_a1a2['lesson2'] == 'language_focus'  # language_focus on day 6
 
         # Check beginner schedule structure (legacy)
         day1 = generator.LESSON_SCHEDULE_BEGINNER[0]
@@ -94,11 +94,11 @@ class TestInit:
         """Test practice rotation has correct types"""
         expected_types = [
             'vocabulary',
-            'grammar_focus',
+            'language_focus',
             'comprehension_mcq',
-            'cloze_practice',
-            'vocabulary_review',
-            'summary_writing',
+            'phrase_cloze',
+            'context_review',
+            'guided_retelling',
         ]
         assert generator.PRACTICE_ROTATION == expected_types
 
@@ -298,7 +298,7 @@ class TestCreatePracticeLesson:
         }
 
         lesson = generator._create_practice_lesson(
-            mock_module, 1, 'grammar_focus', slice_data, {}
+            mock_module, 1, 'language_focus', slice_data, {}
         )
 
         # Full text is preserved (was truncated in earlier versions)

@@ -88,7 +88,7 @@ class GrammarLabService:
             LessonProgress, LessonProgress.lesson_id == Lessons.id
         ).filter(
             Lessons.grammar_topic_id.in_(missing_ids),
-            Lessons.type.in_(['grammar', 'grammar_focus']),
+            Lessons.type.in_(['grammar', 'language_focus']),
             LessonProgress.user_id == user_id,
             LessonProgress.status == 'completed'
         ).all()

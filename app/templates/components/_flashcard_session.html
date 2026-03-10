@@ -108,6 +108,8 @@
                     <span id="state-badge" class="badge"></span>
                     <span id="lapses-badge" class="badge bg-secondary ms-1" style="display: none;"></span>
                 </div>
+                <!-- Unit type badge (WORD / PHRASE / PATTERN) -->
+                <div id="unit-type-badge" class="fc-unit-type" style="display: none;"></div>
                 <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
                 <button id="front-audio-btn" class="btn btn-outline-secondary mb-4">
@@ -142,6 +144,12 @@
                 <div class="mb-4">
                     <div class="text-secondary mb-2 fw-semibold">Перевод</div>
                     <div id="translation-text" class="fs-4 text-danger"></div>
+                </div>
+
+                <!-- Usage note (pedagogical hint) -->
+                <div id="card-note" class="fc-card-note" style="display: none;">
+                    <div class="fc-card-note__label">Что запомнить</div>
+                    <div id="card-note-text" class="fc-card-note__text"></div>
                 </div>
 
                 {% if fc_show_book_context is defined and fc_show_book_context %}

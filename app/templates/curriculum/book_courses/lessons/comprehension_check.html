@@ -1,0 +1,760 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Comprehension Check{% endblock %}
+
+{% block lesson_content %}
+<div class="cc-container">
+
+  <!-- Header -->
+  <div class="cc-hero">
+    <div class="cc-hero__badge">Comprehension Check</div>
+    <h1 class="cc-hero__title">{{ cc.title }}</h1>
+    {% if cc.intro %}
+    <p class="cc-hero__intro">{{ cc.intro }}</p>
+    {% endif %}
+  </div>
+
+  <!-- What we're checking -->
+  {% if cc.objectives %}
+  <div class="cc-section cc-objectives">
+    <h2 class="cc-section__title">What this check covers</h2>
+    <ul class="cc-objectives__list">
+      {% for obj in cc.objectives %}
+      <li>{{ obj }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Passage (collapsible) -->
+  {% if daily_lesson and daily_lesson.slice_text %}
+  <div class="cc-passage">
+    <div class="cc-passage__header" onclick="togglePassage()">
+      <span class="cc-passage__title">Need to check the text?</span>
+      <span class="cc-passage__toggle" id="passage-toggle">Show</span>
+    </div>
+    <div class="cc-passage__content" id="passage-content" style="display:none;">
+      <div class="cc-passage__text">{{ daily_lesson.slice_text }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Quiz -->
+  <div class="cc-quiz" id="quiz-section">
+    <div class="cc-quiz__progress">
+      <div class="cc-quiz__bar">
+        <div class="cc-quiz__bar-fill" id="quiz-progress" style="width:0%"></div>
+      </div>
+      <span class="cc-quiz__counter">
+        <span id="current-q">1</span> / <span id="total-q">{{ cc.questions|length }}</span>
+      </span>
+    </div>
+
+    <div class="cc-quiz__card" id="question-card">
+      <!-- Question type badge -->
+      <div class="cc-quiz__type" id="q-type-badge"></div>
+      <div class="cc-quiz__question" id="question-text"></div>
+
+      <!-- MCQ options -->
+      <div class="cc-quiz__options" id="options-list"></div>
+
+      <!-- True/False buttons -->
+      <div class="cc-quiz__tf" id="tf-buttons" style="display:none;">
+        <button class="cc-quiz__tf-btn" data-value="true" onclick="selectTF(true)">True</button>
+        <button class="cc-quiz__tf-btn" data-value="false" onclick="selectTF(false)">False</button>
+      </div>
+
+      <!-- Feedback -->
+      <div class="cc-quiz__feedback" id="feedback" style="display:none;"></div>
+    </div>
+
+    <div class="cc-quiz__nav">
+      <button class="cc-quiz__next" id="next-btn" onclick="nextQuestion()" disabled>
+        Next
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="cc-results" id="results-section" style="display:none;">
+    <div class="cc-results__card">
+      <div class="cc-results__icon" id="results-icon"></div>
+      <div class="cc-results__score" id="results-score"></div>
+      <div class="cc-results__detail" id="results-detail"></div>
+      <div class="cc-results__message" id="results-message"></div>
+      <div class="cc-results__actions" id="results-actions">
+        <span class="cc-results__saving">Saving...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Can-do (shown after results) -->
+  {% if cc.can_do %}
+  <div class="cc-section cc-cando" id="cando-section" style="display:none;">
+    <h2 class="cc-section__title">After this check, I can...</h2>
+    <ul class="cc-cando__list">
+      {% for item in cc.can_do %}
+      <li>
+        <label class="cc-cando__item">
+          <input type="checkbox" class="cc-cando__checkbox">
+          <span>{{ item }}</span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="bl-footer__inner">
+  <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
+    <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to module
+  </a>
+  <span id="complete-placeholder"></span>
+</div>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const questions = {{ cc.questions | tojson | safe }};
+const resultBands = {{ cc.result_bands | tojson | safe if cc.result_bands else '[]' }};
+const hasNext = {{ 'true' if has_next_lesson else 'false' }};
+const nextUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';
+
+const storageKey = `cc_progress_${lessonId}`;
+let currentQ = 0;
+let answers = {};
+
+// Persistence
+function saveProgress() {
+  localStorage.setItem(storageKey, JSON.stringify({ currentQ, answers, ts: Date.now() }));
+}
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem(storageKey));
+    if (d && Date.now() - d.ts < 3600000) { currentQ = d.currentQ || 0; answers = d.answers || {}; return true; }
+  } catch(e) {}
+  return false;
+}
+function clearProgress() { localStorage.removeItem(storageKey); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadProgress();
+  document.getElementById('total-q').textContent = questions.length;
+  showQuestion(currentQ);
+});
+
+function showQuestion(index) {
+  if (index >= questions.length) { showResults(); return; }
+  currentQ = index;
+  const q = questions[index];
+
+  document.getElementById('current-q').textContent = index + 1;
+  document.getElementById('quiz-progress').style.width = ((index + 1) / questions.length * 100) + '%';
+
+  // Type badge
+  const typeBadge = document.getElementById('q-type-badge');
+  const typeLabels = { multiple_choice: 'Multiple Choice', true_false: 'True / False', best_summary: 'Best Interpretation' };
+  typeBadge.textContent = typeLabels[q.type] || 'Question';
+
+  // Question text
+  const qText = document.getElementById('question-text');
+  qText.textContent = q.type === 'true_false' ? q.statement : q.question;
+
+  // Show appropriate input
+  const optionsList = document.getElementById('options-list');
+  const tfButtons = document.getElementById('tf-buttons');
+
+  if (q.type === 'true_false') {
+    optionsList.style.display = 'none';
+    tfButtons.style.display = 'flex';
+    // Reset TF buttons
+    tfButtons.querySelectorAll('.cc-quiz__tf-btn').forEach(btn => {
+      btn.classList.remove('selected', 'correct', 'incorrect');
+      btn.disabled = false;
+    });
+  } else {
+    tfButtons.style.display = 'none';
+    optionsList.style.display = 'flex';
+    optionsList.innerHTML = q.options.map((opt, i) => `
+      <div class="cc-quiz__option" onclick="selectOption(${i})">
+        <span class="cc-quiz__option-letter">${String.fromCharCode(65 + i)}</span>
+        <span class="cc-quiz__option-text">${opt}</span>
+      </div>
+    `).join('');
+  }
+
+  // Hide feedback
+  document.getElementById('feedback').style.display = 'none';
+
+  // Update next button
+  const nextBtn = document.getElementById('next-btn');
+  nextBtn.disabled = answers[index] === undefined;
+  nextBtn.innerHTML = index === questions.length - 1
+    ? 'Finish <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+    : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+}
+
+function selectOption(optIndex) {
+  const q = questions[currentQ];
+  answers[currentQ] = optIndex;
+  const isCorrect = optIndex === q.answer;
+
+  const options = document.querySelectorAll('.cc-quiz__option');
+  options.forEach((opt, i) => {
+    opt.classList.remove('selected', 'correct', 'incorrect');
+    opt.style.pointerEvents = 'none';
+    if (i === q.answer) opt.classList.add('correct');
+    else if (i === optIndex && !isCorrect) opt.classList.add('incorrect');
+    if (i === optIndex) opt.classList.add('selected');
+  });
+
+  showFeedback(isCorrect, q.explanation);
+  document.getElementById('next-btn').disabled = false;
+  saveProgress();
+}
+
+function selectTF(value) {
+  const q = questions[currentQ];
+  answers[currentQ] = value;
+  const isCorrect = value === q.answer;
+
+  const buttons = document.querySelectorAll('.cc-quiz__tf-btn');
+  buttons.forEach(btn => {
+    btn.disabled = true;
+    btn.classList.remove('selected', 'correct', 'incorrect');
+    const btnVal = btn.dataset.value === 'true';
+    if (btnVal === q.answer) btn.classList.add('correct');
+    else if (btnVal === value && !isCorrect) btn.classList.add('incorrect');
+    if (btnVal === value) btn.classList.add('selected');
+  });
+
+  showFeedback(isCorrect, q.explanation);
+  document.getElementById('next-btn').disabled = false;
+  saveProgress();
+}
+
+function showFeedback(isCorrect, explanation) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'cc-quiz__feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  const verdict = isCorrect ? 'Correct!' : 'Not quite.';
+  const body = explanation ? `${verdict} ${explanation}` : verdict;
+  fb.innerHTML = `
+    <span class="cc-quiz__fb-label">${verdict}</span>
+    <span class="cc-quiz__fb-text">${explanation || ''}</span>
+  `;
+  fb.style.display = 'flex';
+}
+
+function nextQuestion() {
+  if (currentQ < questions.length - 1) {
+    showQuestion(currentQ + 1);
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  let correct = 0;
+  questions.forEach((q, i) => {
+    if (q.type === 'true_false') {
+      if (answers[i] === q.answer) correct++;
+    } else {
+      if (answers[i] === q.answer) correct++;
+    }
+  });
+
+  const total = questions.length;
+  const pct = Math.round((correct / total) * 100);
+
+  // Hide quiz, show results
+  document.getElementById('quiz-section').style.display = 'none';
+  document.querySelector('.cc-objectives')?.style && (document.querySelector('.cc-objectives').style.display = 'none');
+  document.getElementById('results-section').style.display = 'block';
+
+  // Score
+  document.getElementById('results-score').textContent = pct + '%';
+  document.getElementById('results-detail').textContent = `${correct} out of ${total} correct`;
+
+  // Icon
+  const icon = pct >= 75 ? '&#127881;' : pct >= 50 ? '&#128077;' : '&#128170;';
+  document.getElementById('results-icon').innerHTML = icon;
+
+  // Message from result_bands
+  let message = '';
+  if (resultBands.length > 0) {
+    // Bands are sorted by min_score descending
+    const sorted = [...resultBands].sort((a, b) => b.min_score - a.min_score);
+    for (const band of sorted) {
+      if (correct >= band.min_score) { message = band.message; break; }
+    }
+  }
+  if (!message) {
+    message = pct >= 75 ? 'Excellent understanding!' : pct >= 50 ? 'Good, but review some details.' : 'Try re-reading the text.';
+  }
+  document.getElementById('results-message').textContent = message;
+
+  // Complete lesson
+  completeLessonAPI(pct);
+}
+
+function completeLessonAPI(score) {
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  fetch(`/curriculum/api/v1/lesson/${lessonId}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({})
+  })
+  .then(r => { if (r.ok || r.status === 201) return r.json().catch(() => ({})); throw new Error('fail'); })
+  .then(() => {
+    clearProgress();
+    showCompletionUI();
+  })
+  .catch(e => {
+    console.error(e);
+    showCompletionUI();
+  });
+}
+
+function showCompletionUI() {
+  const actions = document.getElementById('results-actions');
+  if (hasNext && nextUrl) {
+    actions.innerHTML = `<a href="${nextUrl}" class="cc-results__btn cc-results__btn--primary">Next lesson <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>`;
+  } else {
+    actions.innerHTML = `<a href="${moduleUrl}" class="cc-results__btn cc-results__btn--outline">Back to module</a>`;
+  }
+
+  // Show can-do
+  const cando = document.getElementById('cando-section');
+  if (cando) cando.style.display = 'block';
+
+  // Hide footer
+  document.getElementById('lesson-footer').style.display = 'none';
+}
+
+function togglePassage() {
+  const c = document.getElementById('passage-content');
+  const t = document.getElementById('passage-toggle');
+  if (c.style.display === 'none') { c.style.display = 'block'; t.textContent = 'Hide'; }
+  else { c.style.display = 'none'; t.textContent = 'Show'; }
+}
+</script>
+
+<style>
+.cc-container { max-width: 800px; margin: 0 auto; }
+
+/* Hero */
+.cc-hero {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  text-align: center;
+}
+
+.cc-hero__badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cc-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem;
+}
+
+.cc-hero__intro {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Sections */
+.cc-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.cc-section__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem;
+}
+
+/* Objectives */
+.cc-objectives__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cc-objectives__list li {
+  position: relative;
+  padding: 0.375rem 0 0.375rem 1.5rem;
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.9375rem;
+}
+
+.cc-objectives__list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.75rem;
+  width: 7px;
+  height: 7px;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  border-radius: 50%;
+}
+
+/* Passage */
+.cc-passage {
+  background: #fff;
+  border-radius: 16px;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.cc-passage__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cc-passage__header:hover { background: #f9fafb; }
+
+.cc-passage__title {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9375rem;
+}
+
+.cc-passage__toggle {
+  font-size: 0.8125rem;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.cc-passage__content {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.cc-passage__text {
+  font-size: 0.9375rem;
+  line-height: 1.8;
+  color: #374151;
+  white-space: pre-wrap;
+}
+
+/* Quiz */
+.cc-quiz {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.cc-quiz__progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cc-quiz__bar {
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cc-quiz__bar-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  transition: width 0.3s ease;
+  border-radius: 999px;
+}
+
+.cc-quiz__counter {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f59e0b;
+  white-space: nowrap;
+}
+
+.cc-quiz__card { margin-bottom: 1rem; }
+
+.cc-quiz__type {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+}
+
+.cc-quiz__question {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+/* MCQ Options */
+.cc-quiz__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.cc-quiz__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cc-quiz__option:hover { border-color: #f59e0b; background: #fffbeb; }
+.cc-quiz__option.selected { border-color: #f59e0b; }
+.cc-quiz__option.correct { border-color: #22c55e; background: #dcfce7; }
+.cc-quiz__option.incorrect { border-color: #ef4444; background: #fee2e2; }
+
+.cc-quiz__option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.cc-quiz__option.correct .cc-quiz__option-letter { background: #22c55e; color: white; }
+.cc-quiz__option.incorrect .cc-quiz__option-letter { background: #ef4444; color: white; }
+.cc-quiz__option-text { flex: 1; line-height: 1.4; color: #374151; }
+
+/* True/False */
+.cc-quiz__tf {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.cc-quiz__tf-btn {
+  flex: 1;
+  max-width: 200px;
+  padding: 1rem 2rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cc-quiz__tf-btn:hover:not(:disabled) { border-color: #f59e0b; background: #fffbeb; }
+.cc-quiz__tf-btn.correct { border-color: #22c55e; background: #dcfce7; color: #166534; font-weight: 700; }
+.cc-quiz__tf-btn.incorrect { border-color: #ef4444; background: #fee2e2; color: #991b1b; }
+.cc-quiz__tf-btn:disabled { cursor: default; }
+.cc-quiz__tf-btn:disabled:not(.correct):not(.incorrect) { opacity: 0.5; }
+
+/* Feedback */
+.cc-quiz__feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+}
+
+.cc-quiz__feedback.correct { background: #dcfce7; border: 1px solid #86efac; }
+.cc-quiz__feedback.incorrect { background: #fee2e2; border: 1px solid #fca5a5; }
+
+.cc-quiz__fb-label {
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.cc-quiz__feedback.correct .cc-quiz__fb-label { color: #166534; }
+.cc-quiz__feedback.incorrect .cc-quiz__fb-label { color: #991b1b; }
+
+.cc-quiz__fb-text {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.cc-quiz__fb-text:empty { display: none; }
+
+/* Nav */
+.cc-quiz__nav {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.cc-quiz__next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cc-quiz__next:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+.cc-quiz__next:disabled { background: #d1d5db; cursor: not-allowed; }
+
+/* Results */
+.cc-results { max-width: 420px; margin: 2rem auto; }
+
+.cc-results__card {
+  background: #fff;
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.cc-results__icon { font-size: 4rem; margin-bottom: 1rem; }
+
+.cc-results__score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.25rem;
+}
+
+.cc-results__detail {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.cc-results__message {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.cc-results__actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.cc-results__saving { color: #f59e0b; font-weight: 500; }
+
+.cc-results__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.cc-results__btn--primary {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.cc-results__btn--primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4); color: white; }
+
+.cc-results__btn--outline { background: #f3f4f6; color: #374151; }
+.cc-results__btn--outline:hover { background: #e5e7eb; color: #1f2937; }
+
+/* Can-do */
+.cc-cando__list { margin: 0; padding: 0; list-style: none; }
+.cc-cando__list li { margin-bottom: 0.5rem; }
+
+.cc-cando__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.cc-cando__item:hover { background: #f9fafb; }
+
+.cc-cando__checkbox {
+  margin-top: 0.1875rem;
+  width: 18px;
+  height: 18px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cc-cando__item span { color: #374151; line-height: 1.5; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .cc-hero, .cc-section, .cc-quiz { padding: 1.25rem; border-radius: 12px; }
+  .cc-hero__title { font-size: 1.25rem; }
+  .cc-quiz__tf { flex-direction: column; }
+  .cc-quiz__tf-btn { max-width: none; }
+  .cc-results__card { padding: 2rem 1.25rem; }
+}
+</style>
+{% endblock %}

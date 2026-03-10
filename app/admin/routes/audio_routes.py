@@ -150,6 +150,37 @@ def normalize_audio_listening_fields():
         }), 500
 
 
+@audio_bp.route('/audio/fill-empty-listening', methods=['POST'])
+@admin_required
+@handle_admin_errors(return_json=True)
+def fill_empty_listening_fields():
+    """Заполнение пустых полей listening чистым именем файла"""
+    try:
+        success, fixed_count, message = AudioManagementService.fill_empty_listening_fields()
+
+        if success:
+            clear_admin_cache()
+            logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'fixed_count': fixed_count
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': message
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error filling empty listening fields: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @audio_bp.route('/audio/fix-all', methods=['POST'])
 @admin_required
 def fix_all_audio():
@@ -188,6 +219,16 @@ def fix_all_audio():
     except Exception as e:
         logger.error(f"Error normalizing listening fields in fix-all: {e}")
         results.append({'step': 'Нормализация формата', 'success': False, 'error': str(e)})
+
+    # 4. Заполнить пустые поля listening
+    try:
+        success, fixed_count, message = AudioManagementService.fill_empty_listening_fields()
+        results.append({'step': 'Заполнение пустых listening', 'success': success, 'count': fixed_count if success else 0})
+        if success:
+            logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
+    except Exception as e:
+        logger.error(f"Error filling empty listening fields in fix-all: {e}")
+        results.append({'step': 'Заполнение пустых listening', 'success': False, 'error': str(e)})
 
     clear_admin_cache()
 

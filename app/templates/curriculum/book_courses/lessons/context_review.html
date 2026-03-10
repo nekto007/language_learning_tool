@@ -1,0 +1,965 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Key Phrases{% endblock %}
+
+{% block lesson_content %}
+<div class="cr-container">
+
+  <!-- Hero -->
+  <div class="cr-hero">
+    <div class="cr-hero__badge">Key Phrases in Context</div>
+    <h1 class="cr-hero__title">{{ cr.title }}</h1>
+    {% if cr.intro %}
+    <p class="cr-hero__intro">{{ cr.intro }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Progress -->
+  <div class="cr-progress">
+    <div class="cr-progress__bar">
+      <div class="cr-progress__fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <span class="cr-progress__text" id="progress-text">0 / <span id="total-ex">0</span></span>
+  </div>
+
+  <!-- Block 1: Choose the best phrase -->
+  <div class="cr-block" id="block-choose" style="display:none;">
+    <div class="cr-block__header">
+      <span class="cr-block__number">1</span>
+      <h2 class="cr-block__title">Choose the best phrase</h2>
+    </div>
+    <div class="cr-block__items" id="choose-items"></div>
+  </div>
+
+  <!-- Block 2: Complete the sentence -->
+  <div class="cr-block" id="block-complete" style="display:none;">
+    <div class="cr-block__header">
+      <span class="cr-block__number">2</span>
+      <h2 class="cr-block__title">Complete the sentence</h2>
+    </div>
+    <div class="cr-block__items" id="complete-items"></div>
+  </div>
+
+  <!-- Block 3: Match phrase to meaning -->
+  <div class="cr-block" id="block-match" style="display:none;">
+    <div class="cr-block__header">
+      <span class="cr-block__number">3</span>
+      <h2 class="cr-block__title">Match phrase to meaning</h2>
+    </div>
+    <div class="cr-match" id="match-area"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="cr-results" id="results-section" style="display:none;">
+    <div class="cr-results__card">
+      <div class="cr-results__icon" id="results-icon"></div>
+      <div class="cr-results__score" id="results-score"></div>
+      <div class="cr-results__detail" id="results-detail"></div>
+      <div class="cr-results__message" id="results-message"></div>
+      <div class="cr-results__actions" id="results-actions">
+        <span class="cr-results__saving">Saving...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phrase recap -->
+  {% if cr.phrases %}
+  <div class="cr-recap" id="recap-section" style="display:none;">
+    <h2 class="cr-recap__title">Key phrases from this chapter</h2>
+    <div class="cr-recap__list">
+      {% for phrase in cr.phrases %}
+      <div class="cr-recap__item">
+        <span class="cr-recap__phrase">{{ phrase.phrase }}</span>
+        {% if phrase.meaning %}
+        <span class="cr-recap__note">{{ phrase.meaning }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="bl-footer__inner">
+  <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
+    <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to module
+  </a>
+  <div class="cr-footer-right">
+    <span class="cr-footer__hint" id="footer-hint">Complete all exercises to continue</span>
+    <button class="bl-btn bl-btn--primary cr-btn--pending" id="footer-next-btn" onclick="onFooterNextClick()">
+      Next lesson
+      <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const chooseData = {{ cr.choose_best_phrase | tojson | safe if cr.choose_best_phrase else '[]' }};
+const completeData = {{ cr.complete_the_sentence | tojson | safe if cr.complete_the_sentence else '[]' }};
+const matchData = {{ cr.match_phrase_to_meaning | tojson | safe if cr.match_phrase_to_meaning else '{}' }};
+const resultBands = {{ cr.result_bands | tojson | safe if cr.result_bands else '[]' }};
+const hasNext = {{ 'true' if has_next_lesson else 'false' }};
+const nextUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';
+
+const storageKey = `cr_progress_${lessonId}`;
+
+// State
+let totalExercises = chooseData.length + completeData.length + (matchData.pairs ? matchData.pairs.length : 0);
+let correctCount = 0;
+let answeredCount = 0;
+let chooseAnswered = {};
+let completeAnswered = {};
+let matchSolved = {};
+
+// Persistence
+function saveProgress() {
+  localStorage.setItem(storageKey, JSON.stringify({
+    chooseAnswered, completeAnswered, matchSolved,
+    correctCount, answeredCount, ts: Date.now()
+  }));
+}
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem(storageKey));
+    if (d && Date.now() - d.ts < 86400000) {
+      chooseAnswered = d.chooseAnswered || {};
+      completeAnswered = d.completeAnswered || {};
+      matchSolved = d.matchSolved || {};
+      correctCount = typeof d.correctCount === 'number' ? d.correctCount : 0;
+      answeredCount = typeof d.answeredCount === 'number' ? d.answeredCount : 0;
+      return true;
+    }
+  } catch(e) { console.error('Failed to load progress:', e); }
+  return false;
+}
+function clearProgress() { localStorage.removeItem(storageKey); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const hadProgress = loadProgress();
+  document.getElementById('total-ex').textContent = totalExercises;
+  renderChoose();
+  renderComplete();
+  renderMatch();
+  updateProgress();
+  if (hadProgress) checkAllDone();
+});
+
+// ── Block 1: Choose the best phrase ──
+function renderChoose() {
+  if (chooseData.length === 0) return;
+  document.getElementById('block-choose').style.display = 'block';
+  const container = document.getElementById('choose-items');
+  container.innerHTML = '';
+
+  chooseData.forEach((item, idx) => {
+    const answered = chooseAnswered[idx] !== undefined;
+    const userAnswer = chooseAnswered[idx];
+
+    let optionsHtml = item.options.map((opt, oi) => {
+      let cls = 'cr-option';
+      if (answered) {
+        if (oi === item.answer) cls += ' cr-option--correct';
+        else if (oi === userAnswer && userAnswer !== item.answer) cls += ' cr-option--incorrect';
+        if (oi !== item.answer && oi !== userAnswer) cls += ' cr-option--dim';
+      }
+      const disabled = answered ? 'style="pointer-events:none"' : '';
+      return `<div class="${cls}" ${disabled} onclick="answerChoose(${idx}, ${oi})">
+        <span class="cr-option__letter">${String.fromCharCode(65 + oi)}</span>
+        <span class="cr-option__text">${opt}</span>
+      </div>`;
+    }).join('');
+
+    let feedbackHtml = '';
+    if (answered) {
+      const isCorrect = userAnswer === item.answer;
+      feedbackHtml = `<div class="cr-feedback ${isCorrect ? 'cr-feedback--correct' : 'cr-feedback--incorrect'}">
+        <span class="cr-feedback__label">${isCorrect ? 'Correct!' : 'Not quite.'}</span>
+        <span class="cr-feedback__text">${item.explanation || ''}</span>
+      </div>`;
+    }
+
+    container.innerHTML += `
+      <div class="cr-exercise" id="choose-${idx}">
+        <div class="cr-exercise__q">${idx + 1}. ${item.sentence}</div>
+        <div class="cr-exercise__options">${optionsHtml}</div>
+        ${feedbackHtml}
+      </div>`;
+  });
+}
+
+function answerChoose(idx, optIndex) {
+  if (chooseAnswered[idx] !== undefined) return;
+  chooseAnswered[idx] = optIndex;
+  const isCorrect = optIndex === chooseData[idx].answer;
+  if (isCorrect) correctCount++;
+  answeredCount++;
+  saveProgress();
+  renderChoose();
+  updateProgress();
+  checkAllDone();
+}
+
+// ── Block 2: Complete the sentence ──
+function renderComplete() {
+  if (completeData.length === 0) return;
+  document.getElementById('block-complete').style.display = 'block';
+  const container = document.getElementById('complete-items');
+  container.innerHTML = '';
+
+  completeData.forEach((item, idx) => {
+    const answered = completeAnswered[idx] !== undefined;
+    const userAnswer = completeAnswered[idx];
+
+    let inputHtml;
+    if (answered) {
+      const isCorrect = userAnswer === true;
+      const cls = isCorrect ? 'cr-input--correct' : 'cr-input--incorrect';
+      inputHtml = `<span class="cr-input-display ${cls}">${item.answer}</span>`;
+    } else {
+      inputHtml = `<input type="text" class="cr-input" id="complete-input-${idx}" data-idx="${idx}"
+        placeholder="Type the phrase..." autocomplete="off" spellcheck="false">`;
+    }
+
+    // Build sentence with gap
+    const parts = item.sentence.split('______');
+    const sentenceHtml = parts.length > 1
+      ? `${parts[0]}${inputHtml}${parts[1]}`
+      : `${item.sentence}<br>${inputHtml}`;
+
+    let feedbackHtml = '';
+    if (answered) {
+      const isCorrect = userAnswer === true;
+      feedbackHtml = `<div class="cr-feedback ${isCorrect ? 'cr-feedback--correct' : 'cr-feedback--incorrect'}">
+        <span class="cr-feedback__label">${isCorrect ? 'Correct!' : 'Not quite.'}</span>
+        <span class="cr-feedback__text">${item.explanation || (isCorrect ? '' : 'The answer is: ' + item.answer)}</span>
+      </div>`;
+    }
+
+    container.innerHTML += `
+      <div class="cr-exercise" id="complete-${idx}">
+        <div class="cr-exercise__q cr-exercise__q--inline">${idx + 1}. ${sentenceHtml}</div>
+        ${feedbackHtml}
+      </div>`;
+  });
+
+  // Attach handlers
+  container.querySelectorAll('.cr-input').forEach(input => {
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        checkComplete(parseInt(this.dataset.idx));
+      }
+    });
+    input.addEventListener('blur', function() {
+      if (this.value.trim()) checkComplete(parseInt(this.dataset.idx));
+    });
+  });
+
+  // Focus first unanswered
+  for (let i = 0; i < completeData.length; i++) {
+    if (completeAnswered[i] === undefined) {
+      const inp = document.getElementById(`complete-input-${i}`);
+      if (inp) setTimeout(() => inp.focus(), 100);
+      break;
+    }
+  }
+}
+
+function checkComplete(idx) {
+  if (completeAnswered[idx] !== undefined) return;
+  const input = document.getElementById(`complete-input-${idx}`);
+  if (!input) return;
+  const val = input.value.trim().toLowerCase();
+  if (!val) return;
+
+  const item = completeData[idx];
+  const correct = [item.answer.toLowerCase()];
+  if (item.alt_answers) item.alt_answers.forEach(a => correct.push(a.toLowerCase()));
+
+  const isCorrect = correct.includes(val);
+  completeAnswered[idx] = isCorrect;
+  if (isCorrect) correctCount++;
+  answeredCount++;
+  saveProgress();
+  renderComplete();
+  updateProgress();
+  checkAllDone();
+}
+
+// ── Block 3: Match phrase to meaning ──
+let matchSelected = null; // { side: 'left'|'right', idx: number }
+
+function renderMatch() {
+  if (!matchData.pairs || matchData.pairs.length === 0) return;
+  document.getElementById('block-match').style.display = 'block';
+  const area = document.getElementById('match-area');
+  const n = matchData.pairs.length;
+
+  // Build right column: solved pairs align with their left match, unsolved keep shuffled order
+  const rightSlots = new Array(n).fill(null);
+  const usedRight = new Set();
+
+  for (let i = 0; i < n; i++) {
+    if (matchSolved[i] !== undefined) {
+      rightSlots[i] = matchSolved[i]; // place matched meaning opposite its phrase
+      usedRight.add(matchSolved[i]);
+    }
+  }
+
+  // Fill remaining slots with unsolved items in original shuffled order
+  const shuffled = matchData.shuffled_right || matchData.pairs.map((_, i) => i);
+  const unsolvedRight = shuffled.filter(ri => !usedRight.has(ri));
+  let ui = 0;
+  for (let i = 0; i < n; i++) {
+    if (rightSlots[i] === null) {
+      rightSlots[i] = unsolvedRight[ui++];
+    }
+  }
+
+  let leftHtml = matchData.pairs.map((p, i) => {
+    const solved = matchSolved[i] !== undefined;
+    const cls = solved ? 'cr-match__item cr-match__item--solved' : 'cr-match__item';
+    const sel = matchSelected && matchSelected.side === 'left' && matchSelected.idx === i ? ' cr-match__item--selected' : '';
+    return `<div class="${cls}${sel}" data-side="left" data-idx="${i}" onclick="selectMatch('left', ${i})">${p.phrase}</div>`;
+  }).join('');
+
+  let rightHtml = rightSlots.map((ri) => {
+    const p = matchData.pairs[ri];
+    const solved = usedRight.has(ri);
+    const cls = solved ? 'cr-match__item cr-match__item--solved' : 'cr-match__item';
+    const sel = matchSelected && matchSelected.side === 'right' && matchSelected.idx === ri ? ' cr-match__item--selected' : '';
+    return `<div class="${cls}${sel}" data-side="right" data-idx="${ri}" onclick="selectMatch('right', ${ri})">${p.meaning}</div>`;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="cr-match__col cr-match__col--left">
+      <div class="cr-match__label">Phrase</div>
+      ${leftHtml}
+    </div>
+    <div class="cr-match__col cr-match__col--right">
+      <div class="cr-match__label">Meaning</div>
+      ${rightHtml}
+    </div>
+  `;
+}
+
+function selectMatch(side, idx) {
+  // Don't allow selecting solved items
+  if (side === 'left' && matchSolved[idx] !== undefined) return;
+  if (side === 'right' && Object.values(matchSolved).includes(idx)) return;
+
+  if (!matchSelected) {
+    matchSelected = { side, idx };
+    renderMatch();
+    return;
+  }
+
+  if (matchSelected.side === side) {
+    // Same side — change selection
+    matchSelected = { side, idx };
+    renderMatch();
+    return;
+  }
+
+  // Different sides — check match
+  let leftIdx, rightIdx;
+  if (matchSelected.side === 'left') {
+    leftIdx = matchSelected.idx;
+    rightIdx = idx;
+  } else {
+    leftIdx = idx;
+    rightIdx = matchSelected.idx;
+  }
+
+  matchSelected = null;
+
+  if (leftIdx === rightIdx) {
+    // Correct match
+    matchSolved[leftIdx] = rightIdx;
+    correctCount++;
+    answeredCount++;
+    saveProgress();
+    renderMatch();
+    updateProgress();
+    checkAllDone();
+  } else {
+    // Wrong match — flash
+    answeredCount++;
+    saveProgress();
+    // Flash both items red briefly
+    const items = document.querySelectorAll('.cr-match__item');
+    items.forEach(el => {
+      const s = el.dataset.side;
+      const i = parseInt(el.dataset.idx);
+      if ((s === 'left' && i === leftIdx) || (s === 'right' && i === rightIdx)) {
+        el.classList.add('cr-match__item--wrong');
+        setTimeout(() => el.classList.remove('cr-match__item--wrong'), 600);
+      }
+    });
+    updateProgress();
+    checkAllDone();
+  }
+}
+
+// ── Progress & completion ──
+function updateProgress() {
+  const pct = totalExercises > 0 ? Math.round((answeredCount / totalExercises) * 100) : 0;
+  document.getElementById('progress-fill').style.width = Math.min(pct, 100) + '%';
+  document.getElementById('progress-text').textContent = `${Math.min(answeredCount, totalExercises)} / ${totalExercises}`;
+
+  const remaining = totalExercises - answeredCount;
+  const hint = document.getElementById('footer-hint');
+  if (hint) {
+    hint.textContent = remaining > 0 ? `${remaining} exercise${remaining > 1 ? 's' : ''} remaining` : '';
+  }
+}
+
+function checkAllDone() {
+  const chooseAllDone = chooseData.every((_, i) => chooseAnswered[i] !== undefined);
+  const completeAllDone = completeData.every((_, i) => completeAnswered[i] !== undefined);
+  const matchPairs = matchData.pairs ? matchData.pairs.length : 0;
+  const matchAllDone = Object.keys(matchSolved).length >= matchPairs;
+
+  if (chooseAllDone && completeAllDone && matchAllDone) {
+    setTimeout(showResults, 600);
+  }
+}
+
+function showResults() {
+  const total = totalExercises;
+  const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('results-score').textContent = pct + '%';
+  document.getElementById('results-detail').textContent = `${correctCount} out of ${total} correct`;
+
+  const icon = pct >= 75 ? '&#127881;' : pct >= 50 ? '&#128077;' : '&#128170;';
+  document.getElementById('results-icon').innerHTML = icon;
+
+  let message = '';
+  if (resultBands.length > 0) {
+    const sorted = [...resultBands].sort((a, b) => b.min_score - a.min_score);
+    for (const band of sorted) {
+      if (correctCount >= band.min_score) { message = band.message; break; }
+    }
+  }
+  if (!message) {
+    message = pct >= 75 ? 'Great phrase knowledge!' : pct >= 50 ? 'Good effort. Review the phrases below.' : 'Take another look at the key phrases.';
+  }
+  document.getElementById('results-message').textContent = message;
+
+  // Scroll to results
+  document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  completeLessonAPI();
+}
+
+function onFooterNextClick() {
+  const btn = document.getElementById('footer-next-btn');
+  if (btn.classList.contains('cr-btn--pending')) {
+    // Scroll to first unanswered exercise
+    for (let i = 0; i < chooseData.length; i++) {
+      if (chooseAnswered[i] === undefined) {
+        document.getElementById(`choose-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    for (let i = 0; i < completeData.length; i++) {
+      if (completeAnswered[i] === undefined) {
+        document.getElementById(`complete-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const inp = document.getElementById(`complete-input-${i}`);
+        if (inp) inp.focus();
+        return;
+      }
+    }
+    if (matchData.pairs) {
+      const matchPairs = matchData.pairs.length;
+      if (Object.keys(matchSolved).length < matchPairs) {
+        document.getElementById('match-area')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    return;
+  }
+}
+
+function completeLessonAPI() {
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  fetch(`/curriculum/api/v1/lesson/${lessonId}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({})
+  })
+  .then(r => { if (r.ok || r.status === 201) return r.json().catch(() => ({})); throw new Error('fail'); })
+  .then(() => { clearProgress(); showCompletionUI(); })
+  .catch(e => { console.error(e); showCompletionUI(); });
+}
+
+function showCompletionUI() {
+  const actions = document.getElementById('results-actions');
+  if (hasNext && nextUrl) {
+    actions.innerHTML = `<a href="${nextUrl}" class="cr-results__btn cr-results__btn--primary">Next lesson <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>`;
+  } else {
+    actions.innerHTML = `<a href="${moduleUrl}" class="cr-results__btn cr-results__btn--outline">Back to module</a>`;
+  }
+
+  // Show recap
+  const recap = document.getElementById('recap-section');
+  if (recap) recap.style.display = 'block';
+
+  // Hide footer
+  const footer = document.getElementById('lesson-footer');
+  if (footer) footer.style.display = 'none';
+}
+</script>
+
+<style>
+.cr-container { max-width: 800px; margin: 0 auto; }
+
+/* Hero */
+.cr-hero {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  text-align: center;
+}
+
+.cr-hero__badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cr-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem;
+}
+
+.cr-hero__intro {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Progress */
+.cr-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0 0.25rem;
+}
+
+.cr-progress__bar {
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cr-progress__fill {
+  height: 100%;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  transition: width 0.4s ease;
+  border-radius: 999px;
+}
+
+.cr-progress__text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  white-space: nowrap;
+}
+
+/* Blocks */
+.cr-block {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.cr-block__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cr-block__number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.cr-block__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* Exercises */
+.cr-exercise {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.cr-exercise:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.cr-exercise__q {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.5;
+  margin-bottom: 0.875rem;
+}
+
+.cr-exercise__q--inline {
+  font-weight: 500;
+  color: #374151;
+  line-height: 2;
+}
+
+.cr-exercise__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Options (choose best phrase) */
+.cr-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cr-option:hover { border-color: #8b5cf6; background: #f5f3ff; }
+.cr-option--correct { border-color: #22c55e; background: #dcfce7; pointer-events: none; }
+.cr-option--incorrect { border-color: #ef4444; background: #fee2e2; pointer-events: none; }
+.cr-option--dim { opacity: 0.5; pointer-events: none; }
+
+.cr-option__letter {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.cr-option--correct .cr-option__letter { background: #22c55e; color: white; }
+.cr-option--incorrect .cr-option__letter { background: #ef4444; color: white; }
+.cr-option__text { flex: 1; line-height: 1.4; color: #374151; }
+
+/* Complete sentence input */
+.cr-input {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #fafafa;
+  text-align: center;
+  width: 160px;
+  transition: all 0.2s;
+}
+
+.cr-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.cr-input-display {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.cr-input--correct {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.cr-input--incorrect {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+/* Feedback */
+.cr-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+}
+
+.cr-feedback--correct { background: #dcfce7; border: 1px solid #86efac; }
+.cr-feedback--incorrect { background: #fee2e2; border: 1px solid #fca5a5; }
+
+.cr-feedback__label {
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.cr-feedback--correct .cr-feedback__label { color: #166534; }
+.cr-feedback--incorrect .cr-feedback__label { color: #991b1b; }
+
+.cr-feedback__text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.cr-feedback__text:empty { display: none; }
+
+/* Match */
+.cr-match {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.cr-match__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cr-match__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.cr-match__item {
+  padding: 0.75rem 1rem;
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.cr-match__item:hover:not(.cr-match__item--solved) {
+  border-color: #8b5cf6;
+  background: #f5f3ff;
+}
+
+.cr-match__item--selected {
+  border-color: #8b5cf6;
+  background: #ede9fe;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.cr-match__item--solved {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+  cursor: default;
+  opacity: 0.7;
+}
+
+.cr-match__item--wrong {
+  animation: matchShake 0.4s ease;
+  border-color: #ef4444;
+  background: #fee2e2;
+}
+
+@keyframes matchShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Results */
+.cr-results { max-width: 420px; margin: 2rem auto; }
+
+.cr-results__card {
+  background: #fff;
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.cr-results__icon { font-size: 4rem; margin-bottom: 1rem; }
+
+.cr-results__score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.25rem;
+}
+
+.cr-results__detail { font-size: 1rem; color: #6b7280; margin-bottom: 0.75rem; }
+.cr-results__message { font-size: 0.9375rem; color: #374151; line-height: 1.5; margin-bottom: 1.5rem; }
+.cr-results__actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.cr-results__saving { color: #8b5cf6; font-weight: 500; }
+
+.cr-results__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.cr-results__btn--primary {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+.cr-results__btn--primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); color: white; }
+.cr-results__btn--outline { background: #f3f4f6; color: #374151; }
+.cr-results__btn--outline:hover { background: #e5e7eb; color: #1f2937; }
+
+/* Recap */
+.cr-recap {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-top: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.cr-recap__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem;
+}
+
+.cr-recap__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.cr-recap__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.875rem;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+}
+
+.cr-recap__phrase {
+  font-weight: 600;
+  color: #5b21b6;
+  font-size: 0.9375rem;
+}
+
+.cr-recap__note {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Footer */
+.cr-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cr-footer__hint {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.cr-btn--pending {
+  background: #d1d5db !important;
+  color: #9ca3af !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
+.cr-btn--pending:hover {
+  opacity: 0.85;
+  transform: none !important;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .cr-hero, .cr-block, .cr-recap { padding: 1.25rem; border-radius: 12px; }
+  .cr-hero__title { font-size: 1.25rem; }
+  .cr-match { gap: 0.625rem; }
+  .cr-match__item { padding: 0.625rem 0.75rem; font-size: 0.875rem; }
+  .cr-results__card { padding: 2rem 1.25rem; }
+  .cr-input { width: 120px; }
+}
+</style>
+{% endblock %}

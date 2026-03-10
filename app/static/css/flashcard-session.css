@@ -919,3 +919,59 @@
         margin-top: 0;
     }
 }
+
+/* ========================================
+   Unit type badge (front side)
+   ======================================== */
+.fc-unit-type {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.75rem;
+    border-radius: 100px;
+    margin-bottom: 0.5rem;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.fc-unit-type--word {
+    background: #6366f1;
+}
+
+.fc-unit-type--phrase {
+    background: #0891b2;
+}
+
+.fc-unit-type--pattern {
+    background: #7c3aed;
+}
+
+/* ========================================
+   Card note (back side)
+   ======================================== */
+.fc-card-note {
+    background: #fefce8;
+    border-left: 3px solid #eab308;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+.fc-card-note__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #a16207;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.fc-card-note__text {
+    font-size: 0.9rem;
+    color: #713f12;
+    font-style: italic;
+    line-height: 1.4;
+}

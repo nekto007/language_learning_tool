@@ -176,6 +176,50 @@ class AudioManagementService:
             return False, 0, str(e)
 
     @staticmethod
+    def fill_empty_listening_fields():
+        """
+        Заполняет пустые (NULL или '') поля listening чистым именем файла.
+        Генерирует pronunciation_en_word.mp3 на основе english_word.
+
+        Returns:
+            tuple: (success: bool, fixed_count: int, message: str)
+        """
+        try:
+            from sqlalchemy import or_
+
+            words_to_fix = CollectionWords.query.filter(
+                CollectionWords.russian_word.isnot(None),
+                CollectionWords.english_word.isnot(None),
+                CollectionWords.english_word != '',
+                or_(
+                    CollectionWords.listening.is_(None),
+                    CollectionWords.listening == ''
+                )
+            ).all()
+
+            if not words_to_fix:
+                return True, 0, 'Нет записей с пустым полем listening'
+
+            count = 0
+            for word in words_to_fix:
+                try:
+                    word.listening = AudioManagementService._get_clean_audio_filename(word.english_word)
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"Error processing word {word.english_word}: {str(e)}")
+                    continue
+
+            db.session.commit()
+
+            logger.info(f"Empty listening fields filled: {count} records")
+            return True, count, f'Заполнено пустых полей listening: {count}'
+
+        except Exception as e:
+            logger.error(f"Error filling empty listening fields: {str(e)}")
+            db.session.rollback()
+            return False, 0, str(e)
+
+    @staticmethod
     def get_download_list(pattern=None):
         """
         Получает список слов для загрузки аудио

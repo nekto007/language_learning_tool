@@ -67,7 +67,7 @@ def generate_audio_filename(course_id: int, chapter_num: int, sequential_number:
 class AudioLessonSplitter:
     """Main class for splitting audiobook into lesson segments"""
 
-    def __init__(self, m4b_path: str, output_dir: str, ffmpeg_path: str = "./ffmpeg", precision: str = "medium", interactive: bool = False, transcripts_dir: str = None):
+    def __init__(self, m4b_path: str, output_dir: str, ffmpeg_path: str = "./ffmpeg", precision: str = "medium", interactive: bool = False, transcripts_dir: str = None, model: str = "turbo"):
         self.m4b_path = Path(m4b_path)
         self.output_dir = Path(output_dir)
         # Convert to absolute path if relative
@@ -94,6 +94,7 @@ class AudioLessonSplitter:
             "high": 0.70     # Was 0.8 - 70% for clean transcripts
         }
         self.match_threshold = self.match_thresholds.get(precision, 0.6)
+        self.model = model
         self.interactive = interactive
 
         # Create directories
@@ -186,8 +187,7 @@ class AudioLessonSplitter:
         try:
             import stable_whisper
 
-            # Load model (use 'base' for speed, 'large' for accuracy)
-            model = stable_whisper.load_model("base")
+            model = stable_whisper.load_model(self.model)
 
             # Transcribe with word timestamps
             result = model.transcribe(
@@ -228,7 +228,7 @@ class AudioLessonSplitter:
             print("  stable-ts not installed, trying regular whisper...")
             import whisper
 
-            model = whisper.load_model("base")
+            model = whisper.load_model(self.model)
             result = model.transcribe(str(chapter_path), word_timestamps=True, language="en")
 
             transcript = {
@@ -896,6 +896,11 @@ def main():
         help="Directory containing transcript JSON files (default: <output>/transcripts)"
     )
     parser.add_argument(
+        "--model",
+        default="turbo",
+        help="Whisper model name (default: large-v3-turbo)"
+    )
+    parser.add_argument(
         "--lesson-id",
         type=int,
         help="Process only this specific lesson ID (optional)"
@@ -918,7 +923,8 @@ def main():
         ffmpeg_path=args.ffmpeg,
         precision=args.precision,
         interactive=args.interactive,
-        transcripts_dir=args.transcripts_dir
+        transcripts_dir=args.transcripts_dir,
+        model=args.model
     )
 
     splitter.process_course(args.course_id, lesson_id=args.lesson_id)

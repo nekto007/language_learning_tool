@@ -61,11 +61,11 @@ class DailySliceGenerator:
     # Legacy practice rotation (for backward compatibility)
     PRACTICE_ROTATION = [
         'vocabulary',        # Day 1: New words from slice (10-15 words)
-        'grammar_focus',     # Day 2: Grammar patterns from text
+        'language_focus',    # Day 2: Grammar patterns from text
         'comprehension_mcq', # Day 3: MCQ test on reading
-        'cloze_practice',    # Day 4: Open cloze + word formation
-        'vocabulary_review', # Day 5: Vocabulary review (matching, fill-in)
-        'summary_writing',   # Day 6: Summary of week's reading
+        'phrase_cloze',      # Day 4: Open cloze + word formation
+        'context_review',    # Day 5: Vocabulary review (matching, fill-in)
+        'guided_retelling',  # Day 6: Summary of week's reading
     ]
 
     # NEW v3.1: Level-specific lesson schedules
@@ -74,15 +74,15 @@ class DailySliceGenerator:
         # Day 1: vocabulary → reading (learn words, then see in context)
         {'lesson1': 'vocabulary', 'lesson2': 'reading'},
         # Day 2: reading → grammar (read, then grammar from text)
-        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        {'lesson1': 'reading', 'lesson2': 'language_focus'},
         # Day 3: reading → comprehension (read, then MCQ)
         {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
         # Day 4: reading → cloze (read, then fill gaps)
-        {'lesson1': 'reading', 'lesson2': 'cloze_practice'},
-        # Day 5: vocabulary_review → reading (SRS review, then light reading)
-        {'lesson1': 'vocabulary_review', 'lesson2': 'reading'},
-        # Day 6: reading → summary (read, then write summary)
-        {'lesson1': 'reading', 'lesson2': 'summary_writing'},
+        {'lesson1': 'reading', 'lesson2': 'phrase_cloze'},
+        # Day 5: context_review → reading (SRS review, then light reading)
+        {'lesson1': 'context_review', 'lesson2': 'reading'},
+        # Day 6: reading → retelling (read, then guided retelling)
+        {'lesson1': 'reading', 'lesson2': 'guided_retelling'},
         # Day 7: vocabulary → reading (new words for dense text)
         {'lesson1': 'vocabulary', 'lesson2': 'reading'},
     ]
@@ -91,33 +91,33 @@ class DailySliceGenerator:
     # For B1+: 6-day cycle, reading always first
     LESSON_SCHEDULE_INTERMEDIATE = [
         {'lesson1': 'reading', 'lesson2': 'vocabulary'},
-        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        {'lesson1': 'reading', 'lesson2': 'language_focus'},
         {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
-        {'lesson1': 'reading', 'lesson2': 'cloze_practice'},
-        {'lesson1': 'reading', 'lesson2': 'vocabulary_review'},
-        {'lesson1': 'reading', 'lesson2': 'summary_writing'},
+        {'lesson1': 'reading', 'lesson2': 'phrase_cloze'},
+        {'lesson1': 'reading', 'lesson2': 'context_review'},
+        {'lesson1': 'reading', 'lesson2': 'guided_retelling'},
     ]
 
     # NEW v3.2: Fixed 10-day cycle for A1-A2 (according to plan_A1-A2.md)
     LESSON_SCHEDULE_A1_A2 = [
         # День 1: vocabulary → reading (6-7 новых слов, ~120-150 слов текста)
         {'lesson1': 'vocabulary', 'lesson2': 'reading'},
-        # День 2: reading → grammar_focus (~150-180 слов, можно мини-упр.)
-        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        # День 2: reading → language_focus (~150-180 слов, можно мини-упр.)
+        {'lesson1': 'reading', 'lesson2': 'language_focus'},
         # День 3: reading → comprehension_mcq (~150-180 слов, ✅ MCQ)
         {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
-        # День 4: reading → cloze_practice (~120-150 слов, ✅ cloze)
-        {'lesson1': 'reading', 'lesson2': 'cloze_practice'},
-        # День 5: vocabulary_review → reading (8-10 слов SRS, ~100-130 слов)
-        {'lesson1': 'vocabulary_review', 'lesson2': 'reading'},
-        # День 6: reading → grammar_focus (~150-180 слов, грамматика из текста)
-        {'lesson1': 'reading', 'lesson2': 'grammar_focus'},
+        # День 4: reading → phrase_cloze (~120-150 слов, ✅ cloze)
+        {'lesson1': 'reading', 'lesson2': 'phrase_cloze'},
+        # День 5: context_review → reading (8-10 слов SRS, ~100-130 слов)
+        {'lesson1': 'context_review', 'lesson2': 'reading'},
+        # День 6: reading → language_focus (~150-180 слов, грамматика из текста)
+        {'lesson1': 'reading', 'lesson2': 'language_focus'},
         # День 7: vocabulary → reading (6-7 новых слов, ~120-150 слов)
         {'lesson1': 'vocabulary', 'lesson2': 'reading'},
         # День 8: reading → comprehension_mcq (~150-180 слов, ✅ MCQ)
         {'lesson1': 'reading', 'lesson2': 'comprehension_mcq'},
-        # День 9: vocabulary_review → reading (8-10 слов SRS, ~100-130 слов)
-        {'lesson1': 'vocabulary_review', 'lesson2': 'reading'},
+        # День 9: context_review → reading (8-10 слов SRS, ~100-130 слов)
+        {'lesson1': 'context_review', 'lesson2': 'reading'},
     ]
     # День 10: module_test (добавляется отдельно)
 
@@ -231,7 +231,7 @@ class DailySliceGenerator:
                 db.session.flush()
 
                 # Extract vocabulary if needed
-                if lesson1_type in ['vocabulary', 'vocabulary_review']:
+                if lesson1_type in ['vocabulary', 'context_review']:
                     self._extract_slice_vocabulary(
                         lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
                     )
@@ -251,7 +251,7 @@ class DailySliceGenerator:
                 db.session.flush()
 
                 # Extract vocabulary if needed
-                if lesson2_type in ['vocabulary', 'vocabulary_review']:
+                if lesson2_type in ['vocabulary', 'context_review']:
                     self._extract_slice_vocabulary(
                         lesson2, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
                     )
@@ -296,7 +296,7 @@ class DailySliceGenerator:
                     db.session.flush()
 
                     # Extract vocabulary if needed
-                    if lesson1_type in ['vocabulary', 'vocabulary_review']:
+                    if lesson1_type in ['vocabulary', 'context_review']:
                         self._extract_slice_vocabulary(
                             lesson1, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
                         )
@@ -316,7 +316,7 @@ class DailySliceGenerator:
                     db.session.flush()
 
                     # Extract vocabulary if needed
-                    if lesson2_type in ['vocabulary', 'vocabulary_review']:
+                    if lesson2_type in ['vocabulary', 'context_review']:
                         self._extract_slice_vocabulary(
                             lesson2, slice_data['text'], module_vocabulary, used_word_ids_in_module, level=level
                         )
@@ -703,7 +703,7 @@ class DailySliceGenerator:
         Args:
             module: BookCourseModule instance
             day_number: Day number in the module
-            lesson_type: Type of lesson (reading, vocabulary, grammar_focus, etc.)
+            lesson_type: Type of lesson (reading, vocabulary, language_focus, etc.)
             slice_data: Data about the text slice
             module_vocabulary: Vocabulary for the module
             lesson_order: 1 or 2 (first or second lesson of the day)
@@ -743,11 +743,11 @@ class DailySliceGenerator:
                                  module_vocabulary: Dict[int, Dict],
                                  lesson_order: int = 2) -> DailyLesson:
         """Create a practice lesson for the day with specified type."""
-        # Generate task for comprehension_mcq and cloze_practice
+        # Generate task for comprehension_mcq and phrase_cloze
         task_id = None
         if practice_type == 'comprehension_mcq':
             task_id = self._generate_mcq_task(module, slice_data['text'], day_number)
-        elif practice_type == 'cloze_practice':
+        elif practice_type == 'phrase_cloze':
             task_id = self._generate_cloze_task(module, slice_data['text'], day_number)
 
         lesson = DailyLesson(
@@ -796,7 +796,7 @@ class DailySliceGenerator:
             return None
 
     def _generate_cloze_task(self, module: BookCourseModule, text: str, day_number: int) -> Optional[int]:
-        """Generate and save Cloze task for cloze_practice lesson."""
+        """Generate and save Cloze task for phrase_cloze lesson."""
         try:
             # Generate cloze exercise from text
             cloze_data = ClozePracticeGenerator.generate_cloze(text, num_gaps=8)

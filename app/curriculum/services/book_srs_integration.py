@@ -275,7 +275,9 @@ class BookSRSIntegration:
                 'word': entry.word,
                 'context': entry.context_sentence,
                 'frequency': entry.frequency_in_slice,
-                'word_id': entry.word_id
+                'word_id': entry.word_id,
+                'unit_type': entry.unit_type,
+                'note': entry.note,
             })
 
         return result
@@ -288,6 +290,8 @@ class BookSRSIntegration:
         for word_data in word_data_list:
             word = word_data['word']
             context = word_data.get('context')
+            unit_type = word_data.get('unit_type')
+            note = word_data.get('note')
 
             # Создаем или получаем UserWord
             user_word = UserWord.get_or_create(user_id, word.id)
@@ -303,9 +307,9 @@ class BookSRSIntegration:
             self._link_card_to_book_lesson(eng_rus_card, daily_lesson)
             self._link_card_to_book_lesson(rus_eng_card, daily_lesson)
 
-            # Store cards with context
-            cards_with_context.append({'card': eng_rus_card, 'context': context})
-            cards_with_context.append({'card': rus_eng_card, 'context': context})
+            # Store cards with context and pedagogical metadata
+            cards_with_context.append({'card': eng_rus_card, 'context': context, 'unit_type': unit_type, 'note': note})
+            cards_with_context.append({'card': rus_eng_card, 'context': context, 'unit_type': unit_type, 'note': note})
 
         return cards_with_context
 
@@ -420,6 +424,9 @@ class BookSRSIntegration:
                 'examples': examples,
                 # Context from book (SliceVocabulary)
                 'context': context,
+                # Pedagogical metadata
+                'unit_type': item.get('unit_type'),
+                'note': item.get('note'),
             }
 
             deck.append(deck_item)

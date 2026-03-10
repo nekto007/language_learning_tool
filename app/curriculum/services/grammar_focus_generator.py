@@ -5,7 +5,7 @@ Grammar Focus Generator v1.0
 Generates grammar lesson content from pre-built templates in JSON module files.
 Maps grammar topics to their explanations, examples, and exercises.
 
-Used by DailySliceGenerator for grammar_focus lessons.
+Used by DailySliceGenerator for language_focus lessons.
 """
 
 import json
