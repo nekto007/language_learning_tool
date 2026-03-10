@@ -2552,3 +2552,46 @@ def api_add_word_to_deck(deck_id):
         'success': True,
         'message': 'Слово добавлено в колоду'
     })
+
+
+@study.route('/api/add-phrase-to-deck', methods=['POST'])
+@login_required
+def api_add_phrase_to_deck():
+    """
+    Add a custom phrase to the user's default study deck.
+    Used by lesson templates (phrase cloze, etc.) to save missed phrases.
+
+    Body: { "english": "bound to", "russian": "обязательно; наверняка", "context": "They were bound to notice." }
+    Returns: { "success": true } or { "success": false, "error": "..." }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data'}), 400
+
+    english = (data.get('english') or '').strip()
+    russian = (data.get('russian') or '').strip()
+    context = (data.get('context') or '').strip()
+
+    if not english or not russian:
+        return jsonify({'success': False, 'error': 'english and russian required'}), 400
+
+    deck_id = current_user.default_study_deck_id
+    if not deck_id:
+        return jsonify({'success': False, 'error': 'no_default_deck'}), 200
+
+    deck_word, error = DeckService.add_word_to_deck(
+        deck_id=deck_id,
+        user_id=current_user.id,
+        word_id=None,
+        custom_english=english,
+        custom_russian=russian,
+        custom_sentences=context if context else None
+    )
+
+    if error:
+        return jsonify({'success': False, 'error': error}), 200
+
+    return jsonify({
+        'success': True,
+        'message': f'"{english}" added to your deck'
+    })
