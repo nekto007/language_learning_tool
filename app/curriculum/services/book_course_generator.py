@@ -700,11 +700,11 @@ class BookCourseGenerator:
             # v3.0 lesson types
             'reading': f'Day {day_number}: Reading',
             'vocabulary': f'Day {day_number}: Vocabulary',
-            'grammar_focus': f'Day {day_number}: Grammar Focus',
+            'language_focus': f'Day {day_number}: Language Focus',
             'comprehension_mcq': f'Day {day_number}: Comprehension Quiz',
-            'cloze_practice': f'Day {day_number}: Cloze Practice',
-            'vocabulary_review': f'Day {day_number}: Vocabulary Review',
-            'summary_writing': f'Day {day_number}: Summary Writing',
+            'phrase_cloze': f'Day {day_number}: Phrase Cloze',
+            'context_review': f'Day {day_number}: Context Review',
+            'guided_retelling': f'Day {day_number}: Guided Retelling',
             'module_test': 'Module Test',
             # Legacy v2.0 lesson types (for compatibility)
             'reading_part1': f'Day {day_number}: Reading Part 1',
@@ -730,11 +730,11 @@ class BookCourseGenerator:
             # v3.0 lesson types
             'reading': 'Read today\'s text passage (~800-1000 words)',
             'vocabulary': 'Learn new vocabulary from the text (10-15 words)',
-            'grammar_focus': 'Study grammar patterns from the text with exercises',
+            'language_focus': 'Study grammar patterns from the text with exercises',
             'comprehension_mcq': 'Test your understanding with multiple choice questions',
-            'cloze_practice': 'Practice with open cloze and word formation exercises',
-            'vocabulary_review': 'Review vocabulary with matching and fill-in exercises',
-            'summary_writing': 'Write a summary of what you\'ve read this week',
+            'phrase_cloze': 'Practice with open cloze and word formation exercises',
+            'context_review': 'Review vocabulary with matching and fill-in exercises',
+            'guided_retelling': 'Write a retelling of what you\'ve read this week',
             'module_test': 'Comprehensive test covering all module material',
             # Legacy v2.0 lesson types (for compatibility)
             'reading_part1': 'Read first half of the text with comprehension questions',
@@ -760,11 +760,11 @@ class BookCourseGenerator:
             # v3.0 lesson types
             'reading': 25,              # ~800 words at 150-200 wpm
             'vocabulary': 15,           # 10-15 words
-            'grammar_focus': 20,        # Grammar exercises
+            'language_focus': 20,       # Grammar exercises
             'comprehension_mcq': 15,    # MCQ quiz
-            'cloze_practice': 18,       # Cloze + word formation
-            'vocabulary_review': 15,    # Review exercises
-            'summary_writing': 20,      # Writing practice
+            'phrase_cloze': 18,         # Cloze + word formation
+            'context_review': 15,       # Review exercises
+            'guided_retelling': 20,     # Writing practice
             'module_test': 30,          # Comprehensive test
             # Legacy v2.0 lesson types (for compatibility)
             'reading_part1': 25,

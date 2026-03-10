@@ -29,7 +29,7 @@ def backfill():
 
         # Find all grammar lessons without grammar_topic_id
         grammar_lessons = Lessons.query.filter(
-            Lessons.type.in_(['grammar', 'grammar_focus']),
+            Lessons.type.in_(['grammar', 'language_focus']),
             Lessons.grammar_topic_id.is_(None)
         ).all()
 

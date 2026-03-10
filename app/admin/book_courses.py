@@ -929,7 +929,7 @@ def register_book_course_routes(admin_bp):
 
         # Get vocabulary for vocabulary lessons
         vocabulary = []
-        if lesson.lesson_type in ['vocabulary', 'vocabulary_review']:
+        if lesson.lesson_type in ['vocabulary', 'context_review']:
             from sqlalchemy.orm import joinedload
             from app.curriculum.daily_lessons import SliceVocabulary
             vocabulary = SliceVocabulary.query.filter_by(
@@ -966,7 +966,7 @@ def register_book_course_routes(admin_bp):
                 lesson.available_at = form.available_at.data
 
                 # For vocabulary lessons, slice_text is optional
-                vocabulary_types = ['vocabulary', 'vocabulary_review']
+                vocabulary_types = ['vocabulary', 'context_review']
                 if lesson.lesson_type in vocabulary_types:
                     lesson.slice_text = None
                     lesson.word_count = 0
@@ -1145,7 +1145,7 @@ def register_book_course_routes(admin_bp):
 
         # Get vocabulary words from SliceVocabulary for vocabulary lessons
         slice_vocabulary = []
-        if task_type in ['vocabulary', 'vocabulary_review']:
+        if task_type in ['vocabulary', 'context_review']:
             from app.curriculum.daily_lessons import SliceVocabulary
             vocab_entries = SliceVocabulary.query.filter_by(daily_lesson_id=lesson_id).all()
             for v in vocab_entries:
