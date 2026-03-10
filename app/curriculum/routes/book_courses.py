@@ -22,11 +22,11 @@ LESSON_TYPE_TRANSLATIONS = {
     # v3.0 lesson types
     'vocabulary': 'Словарь',
     'reading': 'Чтение',
-    'grammar_focus': 'Грамматика',
+    'language_focus': 'Грамматика',
     'comprehension_mcq': 'Тест на понимание',
-    'cloze_practice': 'Заполнение пропусков',
-    'vocabulary_review': 'Повторение слов',
-    'summary_writing': 'Пересказ',
+    'phrase_cloze': 'Заполнение пропусков',
+    'context_review': 'Key Phrases in Context',
+    'guided_retelling': 'Пересказ',
     'module_test': 'Тест модуля',
     # v2.0 lesson types (legacy)
     'reading_part1': 'Чтение (часть 1)',
@@ -157,6 +157,8 @@ def _build_vocabulary_fc_vars(
                         'is_new': card.get('new', True),
                         'word': card.get('lemma', card.get('front', '')),
                         'translation': card.get('translation', card.get('back', '')),
+                        'unit_type': card.get('unit_type'),
+                        'note': card.get('note'),
                     })
                 if not fc_cards and studied_today > 0:
                     fc_nothing_to_study = True
@@ -181,6 +183,8 @@ def _build_vocabulary_fc_vars(
                 'is_new': True,
                 'word': v.get('lemma', ''),
                 'translation': v.get('translation', ''),
+                'unit_type': v.get('unit_type'),
+                'note': v.get('note'),
             })
 
     # Build module URL for back navigation
@@ -838,32 +842,60 @@ def view_lesson(course_id, module_id, lesson_number):
                 book_deck=book_deck,
                 **fc_vars,
             )
-        elif lesson_type in ['grammar', 'grammar_focus']:
-            # Grammar Bridge: show Grammar Lab topic content directly
+        elif lesson_type in ['grammar', 'language_focus']:
             from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
-            # Try explicit FK first (from DailyLesson's linked Task)
-            topic = None
+            # Check if this lesson has a Language Focus payload (book-linked content)
             task = daily_lesson.task if daily_lesson else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                # Language Focus lesson — render from task.payload
+                lf = task.payload
+
+                # Fetch linked grammar topics for the "Дополнительная практика" section
+                linked_topics = []
+                for tid in lf.get('linked_grammar_topic_ids', []):
+                    t = GrammarTopic.query.get(tid)
+                    if t:
+                        ex_count = GrammarExercise.query.filter_by(topic_id=t.id).count()
+                        linked_topics.append({
+                            'id': t.id,
+                            'title': t.title,
+                            'title_ru': t.title_ru,
+                            'level': t.level,
+                            'exercise_count': ex_count
+                        })
+
+                return render_template(
+                    'curriculum/book_courses/lessons/language_focus.html',
+                    course=course,
+                    module=module,
+                    lesson=lesson,
+                    lesson_number=lesson_number,
+                    module_progress=module_progress,
+                    review_cards=review_cards,
+                    lf=lf,
+                    linked_topics=linked_topics,
+                    daily_lesson=daily_lesson,
+                    next_lesson_url=next_lesson_url,
+                    has_next_lesson=has_next_lesson
+                )
+
+            # Fallback: Grammar Bridge (old behavior for lessons without payload)
+            topic = None
             if task and getattr(task, 'grammar_topic_id', None):
                 topic = GrammarTopic.query.get(task.grammar_topic_id)
 
-            # Fallback to modulo-based mapping
             if not topic:
-                course_level = course.level or 'A1'
+                course_level = course.level or 'B1'
                 day_number = daily_lesson.day_number if daily_lesson else lesson_number
+                grammar_lesson_index = (day_number - 1) // 6
 
-                # Calculate which grammar topic to show based on day number
-                grammar_lesson_index = (day_number - 1) // 6  # Cycle through topics
-
-                # Get Grammar Lab topics for this level
                 grammar_topics = GrammarTopic.query.filter_by(
                     level=course_level
                 ).order_by(GrammarTopic.order).all()
 
-                # If no topics for this level, try fallback levels
                 if not grammar_topics:
-                    for fallback in ['A1', 'A2', 'B1']:
+                    for fallback in ['B1', 'A2', 'A1']:
                         grammar_topics = GrammarTopic.query.filter_by(
                             level=fallback
                         ).order_by(GrammarTopic.order).all()
@@ -874,7 +906,6 @@ def view_lesson(course_id, module_id, lesson_number):
                     topic_index = grammar_lesson_index % len(grammar_topics)
                     topic = grammar_topics[topic_index]
 
-            # Get exercises for the topic
             exercises = []
             if topic:
                 topic_exercises = GrammarExercise.query.filter_by(
@@ -883,7 +914,6 @@ def view_lesson(course_id, module_id, lesson_number):
                     GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
                 ).order_by(GrammarExercise.order).limit(5).all()
 
-                # Convert to JSON-serializable format
                 for ex in topic_exercises:
                     exercises.append({
                         'id': ex.id,
@@ -909,8 +939,20 @@ def view_lesson(course_id, module_id, lesson_number):
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson
             )
-        elif lesson_type in ['vocabulary_review']:
-            # Vocabulary review - similar to vocabulary but for review
+        elif lesson_type in ['context_review']:
+            # Check for curated context review payload
+            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                cr = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/context_review.html',
+                    course=course, module=module, lesson=lesson,
+                    lesson_number=lesson_number, module_progress=module_progress,
+                    review_cards=review_cards, daily_lesson=daily_lesson,
+                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, cr=cr
+                )
+
+            # Fallback: auto-generated vocabulary review
             vocabulary_data = []
 
             if daily_lesson:
@@ -934,7 +976,7 @@ def view_lesson(course_id, module_id, lesson_number):
             from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
             from app.study.models import QuizDeckWord
             try:
-                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (vocabulary_review in view_lesson)")
+                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (context_review in view_lesson)")
                 book_deck = get_or_create_book_course_deck(current_user.id, course)
 
                 # Add vocabulary words to deck
@@ -952,7 +994,7 @@ def view_lesson(course_id, module_id, lesson_number):
                                 db.session.add(deck_word)
                                 words_added += 1
                     if words_added > 0:
-                        logger.info(f"Added {words_added} words to deck {book_deck.id} (vocabulary_review)")
+                        logger.info(f"Added {words_added} words to deck {book_deck.id} (context_review)")
 
                 db.session.commit()
                 logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
@@ -985,8 +1027,25 @@ def view_lesson(course_id, module_id, lesson_number):
                 **fc_vars,
             )
         elif lesson_type in ['comprehension_mcq']:
-            # Comprehension MCQ - use reading_mcq template
-            # Always generate fresh questions in Russian from slice text
+            # Check for curated comprehension payload
+            task = daily_lesson.task if daily_lesson else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                cc = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/comprehension_check.html',
+                    course=course,
+                    module=module,
+                    lesson=lesson,
+                    lesson_number=lesson_number,
+                    module_progress=module_progress,
+                    review_cards=review_cards,
+                    cc=cc,
+                    daily_lesson=daily_lesson,
+                    next_lesson_url=next_lesson_url,
+                    has_next_lesson=has_next_lesson
+                )
+
+            # Fallback: auto-generated questions
             mcq_data = None
             if daily_lesson and daily_lesson.slice_text:
                 mcq_data = ComprehensionMCQGenerator.generate_questions(
@@ -1004,16 +1063,30 @@ def view_lesson(course_id, module_id, lesson_number):
                 daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
                 mcq_data=mcq_data
             )
-        elif lesson_type in ['cloze_practice']:
-            # Cloze practice - use open_cloze template
-            cloze_data = None
-            if daily_lesson and daily_lesson.task_id:
-                from app.books.models import Task
-                task = Task.query.get(daily_lesson.task_id)
-                if task and task.payload:
-                    cloze_data = task.payload
+        elif lesson_type in ['phrase_cloze']:
+            # Cloze practice — check for curated phrase cloze payload
+            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                pc = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/phrase_cloze.html',
+                    course=course,
+                    module=module,
+                    lesson=lesson,
+                    lesson_number=lesson_number,
+                    module_progress=module_progress,
+                    review_cards=review_cards,
+                    daily_lesson=daily_lesson,
+                    has_next_lesson=has_next_lesson if 'has_next_lesson' in dir() else False,
+                    next_lesson_url=next_lesson_url if 'next_lesson_url' in dir() else None,
+                    pc=pc
+                )
 
-            # Generate cloze from slice text if no task data
+            # Fallback: auto-generated cloze
+            cloze_data = None
+            if task and task.payload:
+                cloze_data = task.payload
+
             if not cloze_data and daily_lesson and daily_lesson.slice_text:
                 cloze_data = ClozePracticeGenerator.generate_cloze(
                     daily_lesson.slice_text, num_gaps=8
@@ -1042,8 +1115,20 @@ def view_lesson(course_id, module_id, lesson_number):
                 module_progress=module_progress,
                 review_cards=review_cards
             )
-        elif lesson_type == 'summary_writing':
-            # Summary writing - productive task
+        elif lesson_type == 'guided_retelling':
+            # Check for curated retelling payload
+            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                rt = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/retelling.html',
+                    course=course, module=module, lesson=lesson,
+                    lesson_number=lesson_number, module_progress=module_progress,
+                    review_cards=review_cards, daily_lesson=daily_lesson,
+                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, rt=rt
+                )
+
+            # Fallback: old summary template
             return render_template(
                 'curriculum/book_courses/lessons/summary.html',
                 course=course,
@@ -1341,19 +1426,51 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 book_deck=book_deck,
                 **fc_vars,
             )
-        elif lesson_type in ['grammar', 'grammar_focus']:
-            # Grammar Bridge: show Grammar Lab topic content directly
+        elif lesson_type in ['grammar', 'language_focus']:
             from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
-            # Try explicit FK first
-            topic = None
+            # Check if this lesson has a Language Focus payload (book-linked content)
             task = daily_lesson.task if daily_lesson else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                # Language Focus lesson — render from task.payload
+                lf = task.payload
+
+                # Fetch linked grammar topics for the "Дополнительная практика" section
+                linked_topics = []
+                for tid in lf.get('linked_grammar_topic_ids', []):
+                    t = GrammarTopic.query.get(tid)
+                    if t:
+                        ex_count = GrammarExercise.query.filter_by(topic_id=t.id).count()
+                        linked_topics.append({
+                            'id': t.id,
+                            'title': t.title,
+                            'title_ru': t.title_ru,
+                            'level': t.level,
+                            'exercise_count': ex_count
+                        })
+
+                return render_template(
+                    'curriculum/book_courses/lessons/language_focus.html',
+                    course=course,
+                    module=module,
+                    lesson=lesson,
+                    lesson_number=lesson_number,
+                    module_progress=module_progress,
+                    review_cards=review_cards,
+                    lf=lf,
+                    linked_topics=linked_topics,
+                    daily_lesson=daily_lesson,
+                    next_lesson_url=next_lesson_url,
+                    has_next_lesson=has_next_lesson
+                )
+
+            # Fallback: Grammar Bridge (old behavior for lessons without payload)
+            topic = None
             if task and getattr(task, 'grammar_topic_id', None):
                 topic = GrammarTopic.query.get(task.grammar_topic_id)
 
-            # Fallback to modulo-based mapping
             if not topic:
-                course_level = course.level or 'A1'
+                course_level = course.level or 'B1'
                 day_number = daily_lesson.day_number if daily_lesson else lesson_number
 
                 grammar_lesson_index = (day_number - 1) // 6
@@ -1363,7 +1480,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 ).order_by(GrammarTopic.order).all()
 
                 if not grammar_topics:
-                    for fallback in ['A1', 'A2', 'B1']:
+                    for fallback in ['B1', 'A2', 'A1']:
                         grammar_topics = GrammarTopic.query.filter_by(
                             level=fallback
                         ).order_by(GrammarTopic.order).all()
@@ -1408,8 +1525,20 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 next_lesson_url=next_lesson_url,
                 has_next_lesson=has_next_lesson
             )
-        elif lesson_type in ['vocabulary_review']:
-            # Vocabulary review - similar to vocabulary but for review
+        elif lesson_type in ['context_review']:
+            # Check for curated context review payload
+            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                cr = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/context_review.html',
+                    course=course, module=module, lesson=lesson,
+                    lesson_number=lesson_number, module_progress=module_progress,
+                    review_cards=review_cards, daily_lesson=daily_lesson,
+                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, cr=cr
+                )
+
+            # Fallback: auto-generated vocabulary review
             vocabulary_data = []
             slice_vocab = SliceVocabulary.query.filter_by(
                 daily_lesson_id=daily_lesson.id
@@ -1431,7 +1560,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
             from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
             from app.study.models import QuizDeckWord
             try:
-                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (vocabulary_review)")
+                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (context_review)")
                 book_deck = get_or_create_book_course_deck(current_user.id, course)
 
                 # Add vocabulary words to deck
@@ -1449,7 +1578,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                                 db.session.add(deck_word)
                                 words_added += 1
                     if words_added > 0:
-                        logger.info(f"Added {words_added} words to deck {book_deck.id} (vocabulary_review)")
+                        logger.info(f"Added {words_added} words to deck {book_deck.id} (context_review)")
 
                 db.session.commit()
                 logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
@@ -1482,8 +1611,25 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 **fc_vars,
             )
         elif lesson_type in ['comprehension_mcq']:
-            # Comprehension MCQ - use reading_mcq template
-            # Always generate fresh questions in Russian from slice text
+            # Check for curated comprehension payload
+            task = daily_lesson.task if daily_lesson else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                cc = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/comprehension_check.html',
+                    course=course,
+                    module=module,
+                    lesson=lesson,
+                    lesson_number=lesson_number,
+                    module_progress=module_progress,
+                    review_cards=review_cards,
+                    cc=cc,
+                    daily_lesson=daily_lesson,
+                    next_lesson_url=next_lesson_url,
+                    has_next_lesson=has_next_lesson
+                )
+
+            # Fallback: auto-generated questions
             mcq_data = None
             if daily_lesson and daily_lesson.slice_text:
                 mcq_data = ComprehensionMCQGenerator.generate_questions(
@@ -1501,16 +1647,30 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 daily_lesson=daily_lesson,
                 mcq_data=mcq_data
             )
-        elif lesson_type in ['cloze_practice']:
-            # Cloze practice - use open_cloze template
-            cloze_data = None
-            if daily_lesson and daily_lesson.task_id:
-                from app.books.models import Task
-                task = Task.query.get(daily_lesson.task_id)
-                if task and task.payload:
-                    cloze_data = task.payload
+        elif lesson_type in ['phrase_cloze']:
+            # Cloze practice — check for curated phrase cloze payload
+            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                pc = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/phrase_cloze.html',
+                    course=course,
+                    module=module,
+                    lesson=lesson,
+                    lesson_number=lesson_number,
+                    module_progress=module_progress,
+                    review_cards=review_cards,
+                    daily_lesson=daily_lesson,
+                    has_next_lesson=has_next_lesson if 'has_next_lesson' in dir() else False,
+                    next_lesson_url=next_lesson_url if 'next_lesson_url' in dir() else None,
+                    pc=pc
+                )
 
-            # Generate cloze from slice text if no task data
+            # Fallback: auto-generated cloze
+            cloze_data = None
+            if task and task.payload:
+                cloze_data = task.payload
+
             if not cloze_data and daily_lesson and daily_lesson.slice_text:
                 cloze_data = ClozePracticeGenerator.generate_cloze(
                     daily_lesson.slice_text, num_gaps=8
@@ -1527,8 +1687,20 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 daily_lesson=daily_lesson,
                 cloze_data=cloze_data
             )
-        elif lesson_type == 'summary_writing':
-            # Summary writing - productive task
+        elif lesson_type == 'guided_retelling':
+            # Check for curated retelling payload
+            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+                rt = task.payload
+                return render_template(
+                    'curriculum/book_courses/lessons/retelling.html',
+                    course=course, module=module, lesson=lesson,
+                    lesson_number=lesson_number, module_progress=module_progress,
+                    review_cards=review_cards, daily_lesson=daily_lesson,
+                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, rt=rt
+                )
+
+            # Fallback: old summary template
             return render_template(
                 'curriculum/book_courses/lessons/summary.html',
                 course=course,
@@ -1912,7 +2084,7 @@ def complete_lesson_api_v1(lesson_id):
                 logger.error(f"Error auto-creating SRS cards: {str(e)}")
 
         # Sync grammar completion with Grammar Lab
-        if daily_lesson.lesson_type in ['grammar', 'grammar_focus']:
+        if daily_lesson.lesson_type in ['grammar', 'language_focus']:
             try:
                 from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
 

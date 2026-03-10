@@ -1,0 +1,768 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Phrase Cloze{% endblock %}
+
+{% block lesson_content %}
+<div class="pc-container">
+
+  <!-- Hero -->
+  <div class="pc-hero">
+    <div class="pc-hero__badge">Phrase Cloze</div>
+    <h1 class="pc-hero__title">{{ pc.title }}</h1>
+    {% if pc.intro %}
+    <p class="pc-hero__intro">{{ pc.intro }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Progress -->
+  <div class="pc-progress">
+    <div class="pc-progress__bar">
+      <div class="pc-progress__fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <span class="pc-progress__text" id="progress-text">0 / {{ pc.gaps|length }}</span>
+  </div>
+
+  <!-- Cloze text -->
+  <div class="pc-text-card">
+    <div class="pc-text" id="cloze-text"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="pc-results" id="results-section" style="display:none;">
+    <div class="pc-results__card">
+      <div class="pc-results__icon" id="results-icon"></div>
+      <div class="pc-results__score" id="results-score"></div>
+      <div class="pc-results__detail" id="results-detail"></div>
+      <div class="pc-results__message" id="results-message"></div>
+      <div class="pc-results__actions" id="results-actions">
+        <span class="pc-results__saving">Saving...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phrase recap -->
+  {% if pc.phrases_learned %}
+  <div class="pc-recap" id="recap-section" style="display:none;">
+    <h2 class="pc-recap__title">Phrases you practised</h2>
+    <div class="pc-recap__list">
+      {% for phrase in pc.phrases_learned %}
+      <div class="pc-recap__item">
+        <span class="pc-recap__phrase">{{ phrase.phrase }}</span>
+        {% if phrase.note %}
+        <span class="pc-recap__note">{{ phrase.note }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="bl-footer__inner">
+  <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
+    <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to module
+  </a>
+  <div class="pc-footer-right">
+    <span class="pc-footer__hint" id="footer-hint">Fill in all gaps to continue</span>
+    <button class="bl-btn bl-btn--primary pc-btn--pending" id="footer-next-btn" onclick="onFooterNextClick()">
+      Next lesson
+      <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const gapsData = {{ pc.gaps | tojson | safe }};
+const clozeText = {{ pc.text | tojson | safe }};
+const resultBands = {{ pc.result_bands | tojson | safe if pc.result_bands else '[]' }};
+const hasNext = {{ 'true' if has_next_lesson else 'false' }};
+const nextUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';
+
+const MAX_ATTEMPTS = 3;
+const storageKey = `pc_progress_${lessonId}`;
+
+// State
+let gapState = {};  // { gapId: { attempts: 0, solved: bool, revealed: bool } }
+let totalGaps = gapsData.length;
+let solvedCount = 0;
+
+// Persistence
+function saveProgress() {
+  localStorage.setItem(storageKey, JSON.stringify({ gapState, solvedCount, ts: Date.now() }));
+}
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem(storageKey));
+    if (d && Date.now() - d.ts < 3600000) {
+      gapState = d.gapState || {};
+      solvedCount = d.solvedCount || 0;
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+function clearProgress() { localStorage.removeItem(storageKey); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadProgress();
+  renderCloze();
+  updateProgress();
+});
+
+function renderCloze() {
+  const container = document.getElementById('cloze-text');
+  let html = clozeText;
+
+  gapsData.forEach(gap => {
+    const placeholder = `(${gap.id}) ______`;
+    const state = gapState[gap.id] || { attempts: 0, solved: false, revealed: false };
+    gapState[gap.id] = state;
+
+    let gapHtml;
+    if (state.solved) {
+      gapHtml = `<span class="pc-gap pc-gap--solved" data-id="${gap.id}">
+        <span class="pc-gap__word">${gap.answer}</span>
+      </span>`;
+    } else if (state.revealed) {
+      gapHtml = `<span class="pc-gap pc-gap--revealed" data-id="${gap.id}">
+        <span class="pc-gap__word">${gap.answer}</span>
+      </span>`;
+    } else {
+      const width = Math.max(80, gap.answer.length * 12 + 24);
+      const remaining = MAX_ATTEMPTS - state.attempts;
+      const dots = Array.from({length: MAX_ATTEMPTS}, (_, i) =>
+        `<span class="pc-dot ${i < remaining ? 'pc-dot--full' : 'pc-dot--empty'}"></span>`
+      ).join('');
+      gapHtml = `<span class="pc-gap pc-gap--active" data-id="${gap.id}">
+        <input type="text"
+               class="pc-gap__input"
+               id="gap-${gap.id}"
+               data-id="${gap.id}"
+               style="width:${width}px"
+               placeholder="..."
+               autocomplete="off"
+               spellcheck="false">
+        <span class="pc-gap__dots" id="dots-${gap.id}">${dots}</span>
+      </span>`;
+    }
+    html = html.replace(placeholder, gapHtml);
+  });
+
+  container.innerHTML = html;
+
+  // Attach enter handlers
+  container.querySelectorAll('.pc-gap__input').forEach(input => {
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        checkGap(parseInt(this.dataset.id));
+      }
+    });
+    // Also check on blur (when user tabs away)
+    input.addEventListener('blur', function() {
+      if (this.value.trim()) {
+        checkGap(parseInt(this.dataset.id));
+      }
+    });
+  });
+
+  // Focus first unsolved gap
+  focusNextGap();
+}
+
+function focusNextGap() {
+  const nextGap = gapsData.find(g => !gapState[g.id]?.solved && !gapState[g.id]?.revealed);
+  // Remove focus class from all
+  document.querySelectorAll('.pc-gap--focus').forEach(el => el.classList.remove('pc-gap--focus'));
+  if (nextGap) {
+    const gapEl = document.querySelector(`.pc-gap[data-id="${nextGap.id}"]`);
+    if (gapEl) gapEl.classList.add('pc-gap--focus');
+    const input = document.getElementById(`gap-${nextGap.id}`);
+    if (input) setTimeout(() => input.focus(), 100);
+  }
+}
+
+function checkGap(gapId) {
+  const gap = gapsData.find(g => g.id === gapId);
+  if (!gap) return;
+
+  const state = gapState[gapId];
+  if (state.solved || state.revealed) return;
+
+  const input = document.getElementById(`gap-${gapId}`);
+  if (!input) return;
+
+  const userAnswer = input.value.trim().toLowerCase();
+  if (!userAnswer) return;
+
+  // Check answer — support alternative answers
+  const correctAnswers = [gap.answer.toLowerCase()];
+  if (gap.alt_answers) {
+    gap.alt_answers.forEach(a => correctAnswers.push(a.toLowerCase()));
+  }
+
+  const isCorrect = correctAnswers.includes(userAnswer);
+
+  if (isCorrect) {
+    state.solved = true;
+    solvedCount++;
+    showGapResult(gapId, true, gap);
+  } else {
+    state.attempts++;
+    if (state.attempts >= MAX_ATTEMPTS) {
+      state.revealed = true;
+      showGapResult(gapId, false, gap);
+      sendPhraseToDeck(gap);
+    } else {
+      // Shake and update dots
+      input.classList.add('pc-gap__input--wrong');
+      setTimeout(() => input.classList.remove('pc-gap__input--wrong'), 400);
+      updateDots(gapId, MAX_ATTEMPTS - state.attempts);
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  saveProgress();
+  updateProgress();
+
+  // Check if all gaps done
+  const allDone = gapsData.every(g => gapState[g.id]?.solved || gapState[g.id]?.revealed);
+  if (allDone) {
+    document.querySelectorAll('.pc-gap--focus').forEach(el => el.classList.remove('pc-gap--focus'));
+    setTimeout(showResults, 600);
+  } else if (isCorrect || state.attempts >= MAX_ATTEMPTS) {
+    setTimeout(focusNextGap, 300);
+  }
+}
+
+function showGapResult(gapId, correct, gap) {
+  const gapEl = document.querySelector(`.pc-gap[data-id="${gapId}"]`);
+  if (!gapEl) return;
+
+  const cls = correct ? 'pc-gap--solved' : 'pc-gap--revealed';
+  let chunkHtml = '';
+  if (gap.chunk && !correct) {
+    // Show chunk inline for missed answers
+    chunkHtml = `<span class="pc-gap__chunk-inline">${gap.chunk}</span>`;
+  }
+
+  gapEl.className = `pc-gap ${cls}`;
+  gapEl.innerHTML = `<span class="pc-gap__word">${gap.answer}</span>${chunkHtml}`;
+}
+
+function updateDots(gapId, remaining) {
+  const container = document.getElementById(`dots-${gapId}`);
+  if (!container) return;
+  const dots = container.querySelectorAll('.pc-dot');
+  dots.forEach((dot, i) => {
+    dot.className = `pc-dot ${i < remaining ? 'pc-dot--full' : 'pc-dot--used'}`;
+  });
+}
+
+function updateProgress() {
+  const done = gapsData.filter(g => gapState[g.id]?.solved || gapState[g.id]?.revealed).length;
+  const remaining = totalGaps - done;
+  const pct = Math.round((done / totalGaps) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${done} / ${totalGaps}`;
+
+  // Update footer hint
+  const hint = document.getElementById('footer-hint');
+  if (hint) {
+    hint.textContent = remaining > 0 ? `${remaining} gap${remaining > 1 ? 's' : ''} remaining` : '';
+  }
+}
+
+function showResults() {
+  const correct = gapsData.filter(g => gapState[g.id]?.solved).length;
+  const total = totalGaps;
+  const pct = Math.round((correct / total) * 100);
+
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('results-score').textContent = pct + '%';
+  document.getElementById('results-detail').textContent = `${correct} out of ${total} correct`;
+
+  const icon = pct >= 75 ? '&#127881;' : pct >= 50 ? '&#128077;' : '&#128170;';
+  document.getElementById('results-icon').innerHTML = icon;
+
+  // Result bands
+  let message = '';
+  if (resultBands.length > 0) {
+    const sorted = [...resultBands].sort((a, b) => b.min_score - a.min_score);
+    for (const band of sorted) {
+      if (correct >= band.min_score) { message = band.message; break; }
+    }
+  }
+  if (!message) {
+    message = pct >= 75 ? 'Great work with phrases!' : pct >= 50 ? 'Good effort. Review the phrases below.' : 'Take another look at the phrases in context.';
+  }
+  document.getElementById('results-message').textContent = message;
+
+  completeLessonAPI();
+}
+
+function sendPhraseToDeck(gap) {
+  if (!gap.chunk) return;
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  // Find the phrase_learned entry for this gap to get the note
+  const phrasesData = {{ pc.phrases_learned | tojson | safe if pc.phrases_learned else '[]' }};
+  const matched = phrasesData.find(p => gap.chunk.toLowerCase().includes(p.phrase.toLowerCase()));
+  const russian = matched ? matched.note : gap.chunk;
+
+  fetch('/study/api/add-phrase-to-deck', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({
+      english: matched ? matched.phrase : gap.chunk,
+      russian: russian,
+      context: gap.chunk
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      // Show small toast notification
+      showDeckToast(matched ? matched.phrase : gap.chunk);
+    }
+  })
+  .catch(e => console.error('Failed to send phrase to deck:', e));
+}
+
+function onFooterNextClick() {
+  const btn = document.getElementById('footer-next-btn');
+  if (btn.classList.contains('pc-btn--pending')) {
+    // Scroll to first unsolved gap
+    focusNextGap();
+    const nextGap = gapsData.find(g => !gapState[g.id]?.solved && !gapState[g.id]?.revealed);
+    if (nextGap) {
+      const el = document.querySelector(`.pc-gap[data-id="${nextGap.id}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
+}
+
+function showDeckToast(phrase) {
+  const toast = document.createElement('div');
+  toast.className = 'pc-toast';
+  toast.innerHTML = `<span class="pc-toast__icon">&#128218;</span> <strong>${phrase}</strong> added to your deck`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add('pc-toast--visible'), 10);
+  setTimeout(() => {
+    toast.classList.remove('pc-toast--visible');
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+function completeLessonAPI() {
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  fetch(`/curriculum/api/v1/lesson/${lessonId}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({})
+  })
+  .then(r => { if (r.ok || r.status === 201) return r.json().catch(() => ({})); throw new Error('fail'); })
+  .then(() => { clearProgress(); showCompletionUI(); })
+  .catch(e => { console.error(e); showCompletionUI(); });
+}
+
+function showCompletionUI() {
+  const actions = document.getElementById('results-actions');
+  if (hasNext && nextUrl) {
+    actions.innerHTML = `<a href="${nextUrl}" class="pc-results__btn pc-results__btn--primary">Next lesson <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>`;
+  } else {
+    actions.innerHTML = `<a href="${moduleUrl}" class="pc-results__btn pc-results__btn--outline">Back to module</a>`;
+  }
+
+  // Show recap
+  const recap = document.getElementById('recap-section');
+  if (recap) recap.style.display = 'block';
+
+  // Hide footer
+  const footer = document.getElementById('lesson-footer');
+  if (footer) footer.style.display = 'none';
+}
+</script>
+
+<style>
+.pc-container { max-width: 800px; margin: 0 auto; }
+
+/* Hero */
+.pc-hero {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  text-align: center;
+}
+
+.pc-hero__badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pc-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem;
+}
+
+.pc-hero__intro {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Progress */
+.pc-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0 0.25rem;
+}
+
+.pc-progress__bar {
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pc-progress__fill {
+  height: 100%;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  transition: width 0.4s ease;
+  border-radius: 999px;
+}
+
+.pc-progress__text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #06b6d4;
+  white-space: nowrap;
+}
+
+/* Text card */
+.pc-text-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.pc-text {
+  font-size: 1.0625rem;
+  line-height: 2.2;
+  color: #374151;
+  white-space: pre-wrap;
+}
+
+/* Gap states */
+.pc-gap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.pc-gap--active {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  vertical-align: baseline;
+}
+
+.pc-gap__input {
+  padding: 0.2rem 0.5rem;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #fafafa;
+  text-align: center;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.pc-gap__input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.pc-gap__input--wrong {
+  animation: shake 0.3s ease;
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Attempt dots */
+.pc-gap__dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.pc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.pc-dot--full {
+  background: #d1d5db;
+}
+
+.pc-dot--used {
+  background: #ef4444;
+}
+
+.pc-gap--solved + .pc-gap__dots .pc-dot,
+.pc-dot--correct {
+  background: #22c55e;
+}
+
+/* Solved gap */
+.pc-gap--solved .pc-gap__word {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 6px;
+  font-weight: 600;
+  border: 1px solid #86efac;
+}
+
+/* Revealed gap (exhausted attempts) */
+.pc-gap--revealed .pc-gap__word {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  font-weight: 600;
+  border: 1px solid #fcd34d;
+}
+
+/* Active gap focus highlight */
+.pc-gap--focus .pc-gap__input {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Dim inactive gaps when there is a focused one */
+.pc-text:has(.pc-gap--focus) .pc-gap--active:not(.pc-gap--focus) .pc-gap__input {
+  opacity: 0.45;
+}
+.pc-text:has(.pc-gap--focus) .pc-gap--active:not(.pc-gap--focus) .pc-gap__dots {
+  opacity: 0.35;
+}
+
+/* Inline chunk (shown below revealed word) */
+.pc-gap__chunk-inline {
+  display: block;
+  font-size: 0.75rem;
+  color: #92400e;
+  font-style: italic;
+  margin-top: 1px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.pc-gap--revealed {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: baseline;
+}
+
+/* Results */
+.pc-results { max-width: 420px; margin: 2rem auto; }
+
+.pc-results__card {
+  background: #fff;
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.pc-results__icon { font-size: 4rem; margin-bottom: 1rem; }
+
+.pc-results__score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.25rem;
+}
+
+.pc-results__detail { font-size: 1rem; color: #6b7280; margin-bottom: 0.75rem; }
+.pc-results__message { font-size: 0.9375rem; color: #374151; line-height: 1.5; margin-bottom: 1.5rem; }
+.pc-results__actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.pc-results__saving { color: #06b6d4; font-weight: 500; }
+
+.pc-results__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.pc-results__btn--primary {
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  color: white;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+.pc-results__btn--primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4); color: white; }
+.pc-results__btn--outline { background: #f3f4f6; color: #374151; }
+.pc-results__btn--outline:hover { background: #e5e7eb; color: #1f2937; }
+
+/* Recap */
+.pc-recap {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-top: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.pc-recap__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem;
+}
+
+.pc-recap__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.pc-recap__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.875rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+}
+
+.pc-recap__phrase {
+  font-weight: 600;
+  color: #0c4a6e;
+  font-size: 0.9375rem;
+}
+
+.pc-recap__note {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Footer */
+.pc-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pc-footer__hint {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.pc-btn--pending {
+  background: #d1d5db !important;
+  color: #9ca3af !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
+.pc-btn--pending:hover {
+  opacity: 0.85;
+  transform: none !important;
+}
+
+/* Toast notification */
+.pc-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1f2937;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  z-index: 100;
+  opacity: 0;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.pc-toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.pc-toast__icon { margin-right: 0.375rem; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .pc-hero, .pc-text-card, .pc-recap { padding: 1.25rem; border-radius: 12px; }
+  .pc-hero__title { font-size: 1.25rem; }
+  .pc-text { font-size: 1rem; line-height: 2; }
+  .pc-results__card { padding: 2rem 1.25rem; }
+  .pc-gap__chunk { font-size: 0.75rem; }
+}
+</style>
+{% endblock %}

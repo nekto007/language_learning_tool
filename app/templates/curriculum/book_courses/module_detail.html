@@ -160,7 +160,7 @@
             <div class="ml-lesson__content">
               <div class="ml-lesson__type">
                 {# Lesson type icon and label #}
-                {% if lesson.type in ['vocabulary', 'vocabulary_review'] %}
+                {% if lesson.type in ['vocabulary', 'context_review'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
@@ -172,7 +172,7 @@
                     <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
                   </svg>
                   <span>{{ _('Чтение') }}</span>
-                {% elif lesson.type in ['grammar', 'grammar_focus', 'grammar_bridge'] %}
+                {% elif lesson.type in ['grammar', 'language_focus', 'grammar_bridge'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
@@ -195,12 +195,12 @@
                     <path d="M16 3h-8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/>
                   </svg>
                   <span>{{ _('Карточки') }}</span>
-                {% elif lesson.type in ['open_cloze', 'keyword_transform', 'word_formation', 'cloze_practice', 'vocabulary_practice', 'mixed_practice'] %}
+                {% elif lesson.type in ['open_cloze', 'keyword_transform', 'word_formation', 'phrase_cloze', 'vocabulary_practice', 'mixed_practice'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
                   <span>{{ _('Упражнение') }}</span>
-                {% elif lesson.type in ['discussion', 'summary', 'summary_writing'] %}
+                {% elif lesson.type in ['discussion', 'summary', 'guided_retelling'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
                     <rect x="9" y="3" width="6" height="4" rx="2"/>

@@ -138,7 +138,6 @@
 
 {% block lesson_scripts %}
 <script>
-const dailyLessonId = {{ daily_lesson.id if daily_lesson else 'null' }};
 const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
 const nextLessonUrl = '{{ next_lesson_url or "" }}';
 const moduleUrl = '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}';

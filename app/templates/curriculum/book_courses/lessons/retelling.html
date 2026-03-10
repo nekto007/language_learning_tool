@@ -1,0 +1,761 @@
+{% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+
+{% block lesson_type %}Retelling{% endblock %}
+
+{% block lesson_content %}
+<div class="rt-container">
+
+  <!-- Hero -->
+  <div class="rt-hero">
+    <div class="rt-hero__badge">Guided Retelling</div>
+    <h1 class="rt-hero__title">{{ rt.title }}</h1>
+    {% if rt.intro %}
+    <p class="rt-hero__intro">{{ rt.intro }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Instructions -->
+  {% if rt.instructions %}
+  <div class="rt-section">
+    <h2 class="rt-section__title">How to do it</h2>
+    <ul class="rt-instructions">
+      {% for inst in rt.instructions %}
+      <li>{{ inst }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Writing plan -->
+  {% if rt.writing_plan %}
+  <div class="rt-section rt-plan">
+    <h2 class="rt-section__title">Writing plan</h2>
+    <ol class="rt-plan__list">
+      {% for step in rt.writing_plan %}
+      <li>{{ step }}</li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+
+  <!-- Sentence starters -->
+  {% if rt.sentence_starters %}
+  <div class="rt-section rt-starters">
+    <h2 class="rt-section__title">Useful sentence starters</h2>
+    <div class="rt-starters__list">
+      {% for starter in rt.sentence_starters %}
+      <span class="rt-starter" onclick="insertStarter(this)">{{ starter }}</span>
+      {% endfor %}
+    </div>
+    <p class="rt-starters__hint">Click a starter to add it to your text</p>
+  </div>
+  {% endif %}
+
+  <!-- Lexical reminders -->
+  {% if rt.lexical_reminders %}
+  <div class="rt-section rt-vocab">
+    <h2 class="rt-section__title">Words &amp; phrases to use</h2>
+    <div class="rt-vocab__list">
+      {% for item in rt.lexical_reminders %}
+      <span class="rt-vocab__item">{{ item }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Text area -->
+  <div class="rt-section rt-writing">
+    <h2 class="rt-section__title">Your retelling</h2>
+    <textarea class="rt-textarea" id="retelling-text"
+      placeholder="Write your retelling here. Use the plan above to organise your ideas."
+      rows="10"></textarea>
+    <div class="rt-writing__meta">
+      <span class="rt-word-count" id="word-count">Word count: 0</span>
+      <span class="rt-target">Target: {{ rt.target_words or '100–200' }} words</span>
+    </div>
+  </div>
+
+  <!-- Checklist -->
+  {% if rt.checklist %}
+  <div class="rt-section rt-checklist">
+    <h2 class="rt-section__title">Self-check</h2>
+    <ul class="rt-checklist__list">
+      {% for item in rt.checklist %}
+      <li>
+        <label class="rt-check">
+          <input type="checkbox" class="rt-check__input" onchange="updateChecklist()">
+          <span class="rt-check__text">{{ item }}</span>
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="rt-checklist__progress" id="checklist-progress"></div>
+  </div>
+  {% endif %}
+
+  <!-- Sample answer -->
+  {% if rt.sample_answer %}
+  <div class="rt-section rt-sample">
+    <div class="rt-sample__header" onclick="toggleSample()">
+      <h2 class="rt-section__title">Compare with a sample</h2>
+      <span class="rt-sample__toggle" id="sample-toggle">Show</span>
+    </div>
+    <div class="rt-sample__content" id="sample-content" style="display:none;">
+      <div class="rt-sample__text">{{ rt.sample_answer }}</div>
+      <p class="rt-sample__note">This is just one possible version. Your retelling can be different — what matters is covering the key events in your own words.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Self-assessment -->
+  <div class="rt-section rt-assessment" id="assessment-section" style="display:none;">
+    <h2 class="rt-section__title">How did it go?</h2>
+    <div class="rt-assessment__options">
+      <button class="rt-assess-btn" data-level="hard" onclick="selfAssess('hard')">
+        <span class="rt-assess-btn__icon">&#128556;</span>
+        <span class="rt-assess-btn__label">It was hard</span>
+        <span class="rt-assess-btn__hint">I struggled to write without looking at the text</span>
+      </button>
+      <button class="rt-assess-btn" data-level="ok" onclick="selfAssess('ok')">
+        <span class="rt-assess-btn__icon">&#128077;</span>
+        <span class="rt-assess-btn__label">It was OK</span>
+        <span class="rt-assess-btn__hint">I managed but had to think carefully</span>
+      </button>
+      <button class="rt-assess-btn" data-level="easy" onclick="selfAssess('easy')">
+        <span class="rt-assess-btn__icon">&#128170;</span>
+        <span class="rt-assess-btn__label">It was easy</span>
+        <span class="rt-assess-btn__hint">I could retell the story without much effort</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Completion -->
+  <div class="rt-results" id="results-section" style="display:none;">
+    <div class="rt-results__card">
+      <div class="rt-results__icon">&#9997;&#65039;</div>
+      <div class="rt-results__title">Well done!</div>
+      <div class="rt-results__message" id="results-message"></div>
+      <div class="rt-results__actions" id="results-actions">
+        <span class="rt-results__saving">Saving...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block lesson_footer %}
+<div class="bl-footer__inner">
+  <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
+    <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to module
+  </a>
+  <div class="rt-footer-right">
+    <span class="rt-footer__hint" id="footer-hint">Write your retelling to continue</span>
+    <button class="bl-btn bl-btn--primary rt-btn--pending" id="footer-next-btn" onclick="onFooterNextClick()">
+      Next lesson
+      <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
+const hasNext = {{ 'true' if has_next_lesson else 'false' }};
+const nextUrl = '{{ next_lesson_url or "" }}';
+const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';
+const minWords = {{ rt.min_words or 30 }};
+
+const storageKey = `rt_progress_${lessonId}`;
+
+// Persistence
+function saveProgress() {
+  const text = document.getElementById('retelling-text').value;
+  const checks = Array.from(document.querySelectorAll('.rt-check__input')).map(cb => cb.checked);
+  localStorage.setItem(storageKey, JSON.stringify({ text, checks, ts: Date.now() }));
+}
+
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem(storageKey));
+    if (d && Date.now() - d.ts < 86400000) {
+      if (d.text) document.getElementById('retelling-text').value = d.text;
+      if (d.checks) {
+        const cbs = document.querySelectorAll('.rt-check__input');
+        d.checks.forEach((checked, i) => { if (cbs[i]) cbs[i].checked = checked; });
+      }
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function clearProgress() { localStorage.removeItem(storageKey); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadProgress();
+  updateWordCount();
+  updateChecklist();
+
+  const textarea = document.getElementById('retelling-text');
+  textarea.addEventListener('input', function() {
+    updateWordCount();
+    saveProgress();
+  });
+});
+
+function updateWordCount() {
+  const text = document.getElementById('retelling-text').value.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  const el = document.getElementById('word-count');
+  el.textContent = 'Word count: ' + words;
+
+  const unlockAt = 20; // soft gate: any meaningful attempt unlocks progress
+  if (words >= minWords) {
+    el.classList.add('rt-word-count--ok');
+    el.classList.remove('rt-word-count--low');
+  } else {
+    el.classList.remove('rt-word-count--ok');
+    if (words > 0) el.classList.add('rt-word-count--low');
+    else el.classList.remove('rt-word-count--low');
+  }
+  // Show assessment & unlock footer once student has written something meaningful
+  if (words >= unlockAt) {
+    document.getElementById('assessment-section').style.display = 'block';
+    document.getElementById('footer-hint').textContent = '';
+  } else {
+    document.getElementById('assessment-section').style.display = 'none';
+  }
+}
+
+function updateChecklist() {
+  const cbs = document.querySelectorAll('.rt-check__input');
+  const total = cbs.length;
+  const checked = Array.from(cbs).filter(cb => cb.checked).length;
+  const el = document.getElementById('checklist-progress');
+  if (el) {
+    el.textContent = checked === total ? 'All done!' : `${checked} / ${total}`;
+    el.className = 'rt-checklist__progress' + (checked === total ? ' rt-checklist__progress--done' : '');
+  }
+  saveProgress();
+}
+
+function insertStarter(el) {
+  const textarea = document.getElementById('retelling-text');
+  const starter = el.textContent;
+  const pos = textarea.selectionStart || textarea.value.length;
+  const before = textarea.value.substring(0, pos);
+  const after = textarea.value.substring(pos);
+  const needsSpace = before.length > 0 && !before.endsWith('\n') && !before.endsWith(' ');
+  textarea.value = before + (needsSpace ? ' ' : '') + starter;
+  textarea.focus();
+  const newPos = textarea.value.length;
+  textarea.setSelectionRange(newPos, newPos);
+  updateWordCount();
+  saveProgress();
+}
+
+function toggleSample() {
+  const c = document.getElementById('sample-content');
+  const t = document.getElementById('sample-toggle');
+  if (c.style.display === 'none') { c.style.display = 'block'; t.textContent = 'Hide'; }
+  else { c.style.display = 'none'; t.textContent = 'Show'; }
+}
+
+function selfAssess(level) {
+  // Highlight selected
+  document.querySelectorAll('.rt-assess-btn').forEach(btn => {
+    btn.classList.remove('rt-assess-btn--selected');
+    if (btn.dataset.level === level) btn.classList.add('rt-assess-btn--selected');
+  });
+
+  const messages = {
+    hard: "Writing is a skill that improves with practice. You've taken an important step — keep going!",
+    ok: "Good work! Your retelling skills are developing well. Each attempt makes you stronger.",
+    easy: "Excellent! You clearly have a strong grasp of this chapter. Keep up the great work!"
+  };
+
+  setTimeout(() => {
+    document.getElementById('results-section').style.display = 'block';
+    document.getElementById('results-message').textContent = messages[level];
+    document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    completeLessonAPI();
+  }, 400);
+}
+
+function onFooterNextClick() {
+  const btn = document.getElementById('footer-next-btn');
+  if (btn.classList.contains('rt-btn--pending')) {
+    document.getElementById('retelling-text').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('retelling-text').focus();
+    return;
+  }
+}
+
+function completeLessonAPI() {
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+  fetch(`/curriculum/api/v1/lesson/${lessonId}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({})
+  })
+  .then(r => { if (r.ok || r.status === 201) return r.json().catch(() => ({})); throw new Error('fail'); })
+  .then(() => { clearProgress(); showCompletionUI(); })
+  .catch(e => { console.error(e); showCompletionUI(); });
+}
+
+function showCompletionUI() {
+  const actions = document.getElementById('results-actions');
+  if (hasNext && nextUrl) {
+    actions.innerHTML = `<a href="${nextUrl}" class="rt-results__btn rt-results__btn--primary">Next lesson <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>`;
+  } else {
+    actions.innerHTML = `<a href="${moduleUrl}" class="rt-results__btn rt-results__btn--outline">Back to module</a>`;
+  }
+
+  // Update footer
+  const footerBtn = document.getElementById('footer-next-btn');
+  if (footerBtn) {
+    footerBtn.classList.remove('rt-btn--pending');
+    if (hasNext && nextUrl) {
+      footerBtn.onclick = () => window.location.href = nextUrl;
+    }
+  }
+  document.getElementById('footer-hint').textContent = '';
+
+  // Hide footer
+  const footer = document.getElementById('lesson-footer');
+  if (footer) footer.style.display = 'none';
+}
+</script>
+
+<style>
+.rt-container { max-width: 800px; margin: 0 auto; }
+
+/* Hero */
+.rt-hero {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  text-align: center;
+}
+
+.rt-hero__badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  padding: 0.375rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rt-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem;
+}
+
+.rt-hero__intro {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Sections */
+.rt-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.rt-section__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem;
+}
+
+/* Instructions */
+.rt-instructions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rt-instructions li {
+  position: relative;
+  padding: 0.375rem 0 0.375rem 1.5rem;
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.9375rem;
+}
+
+.rt-instructions li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.75rem;
+  width: 7px;
+  height: 7px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border-radius: 50%;
+}
+
+/* Writing plan */
+.rt-plan__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: plan;
+}
+
+.rt-plan__list li {
+  counter-increment: plan;
+  position: relative;
+  padding: 0.625rem 0 0.625rem 2.5rem;
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.9375rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rt-plan__list li:last-child { border-bottom: none; }
+
+.rt-plan__list li::before {
+  content: counter(plan);
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Sentence starters */
+.rt-starters__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rt-starter {
+  display: inline-block;
+  padding: 0.5rem 0.875rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  color: #9a3412;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-style: italic;
+}
+
+.rt-starter:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
+  transform: translateY(-1px);
+}
+
+.rt-starter:active {
+  transform: translateY(0);
+  background: #fed7aa;
+}
+
+.rt-starters__hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0.75rem 0 0;
+  font-style: italic;
+}
+
+/* Lexical reminders */
+.rt-vocab__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rt-vocab__item {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #166534;
+  font-weight: 500;
+}
+
+/* Text area */
+.rt-textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  line-height: 1.7;
+  resize: vertical;
+  min-height: 200px;
+  transition: border-color 0.2s;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.rt-textarea:focus {
+  outline: none;
+  border-color: #f97316;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.rt-textarea::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.rt-writing__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding: 0 0.25rem;
+}
+
+.rt-word-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.rt-word-count--ok { color: #22c55e; }
+.rt-word-count--low { color: #f97316; }
+
+.rt-target {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+/* Checklist */
+.rt-checklist__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rt-checklist__list li { margin-bottom: 0.5rem; }
+
+.rt-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.rt-check:hover { background: #f9fafb; }
+
+.rt-check__input {
+  margin-top: 0.1875rem;
+  width: 18px;
+  height: 18px;
+  accent-color: #f97316;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rt-check__text {
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.9375rem;
+}
+
+.rt-checklist__progress {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-align: right;
+}
+
+.rt-checklist__progress--done { color: #22c55e; }
+
+/* Sample answer */
+.rt-sample__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.rt-sample__header .rt-section__title { margin: 0; }
+
+.rt-sample__toggle {
+  font-size: 0.8125rem;
+  color: #f97316;
+  font-weight: 600;
+}
+
+.rt-sample__content {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.rt-sample__text {
+  font-size: 0.9375rem;
+  line-height: 1.8;
+  color: #374151;
+  background: #fffbeb;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #fde68a;
+}
+
+.rt-sample__note {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  font-style: italic;
+  margin: 0.75rem 0 0;
+}
+
+/* Self-assessment */
+.rt-assessment__options {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.rt-assess-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 1rem;
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rt-assess-btn:hover { border-color: #f97316; background: #fff7ed; }
+.rt-assess-btn--selected { border-color: #f97316; background: #fff7ed; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15); }
+
+.rt-assess-btn__icon { font-size: 1.75rem; }
+.rt-assess-btn__label { font-weight: 600; color: #1f2937; font-size: 0.9375rem; }
+.rt-assess-btn__hint { font-size: 0.75rem; color: #6b7280; text-align: center; line-height: 1.3; }
+
+/* Results */
+.rt-results { max-width: 420px; margin: 2rem auto; }
+
+.rt-results__card {
+  background: #fff;
+  padding: 2.5rem 2rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.rt-results__icon { font-size: 3rem; margin-bottom: 0.75rem; }
+
+.rt-results__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.rt-results__message {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.rt-results__actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.rt-results__saving { color: #f97316; font-weight: 500; }
+
+.rt-results__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.rt-results__btn--primary {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+.rt-results__btn--primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4); color: white; }
+.rt-results__btn--outline { background: #f3f4f6; color: #374151; }
+.rt-results__btn--outline:hover { background: #e5e7eb; color: #1f2937; }
+
+/* Footer */
+.rt-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rt-footer__hint {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.rt-btn--pending {
+  background: #d1d5db !important;
+  color: #9ca3af !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
+.rt-btn--pending:hover {
+  opacity: 0.85;
+  transform: none !important;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .rt-hero, .rt-section { padding: 1.25rem; border-radius: 12px; }
+  .rt-hero__title { font-size: 1.25rem; }
+  .rt-assessment__options { flex-direction: column; }
+  .rt-results__card { padding: 2rem 1.25rem; }
+  .rt-textarea { min-height: 160px; }
+}
+</style>
+{% endblock %}
