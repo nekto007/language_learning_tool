@@ -1,19 +1,19 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}❓ Тест на понимание{% endblock %}
+{% block lesson_type %}❓ {{ 'Тест на понимание' if nav_lang == 'ru' else 'Reading Comprehension' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Тест на понимание текста</h1>
-  <p>Ответьте на вопросы по тексту. Нажмите на текст, чтобы развернуть/свернуть его.</p>
+  <h1>{{ 'Тест на понимание текста' if instr_lang == 'ru' else 'Reading Comprehension Quiz' }}</h1>
+  <p>{{ 'Ответьте на вопросы по тексту. Нажмите на текст, чтобы развернуть/свернуть его.' if instr_lang == 'ru' else 'Answer the questions about the text. Click on the text to expand/collapse it.' }}</p>
 </div>
 
 <!-- Passage Text (collapsible) -->
 {% if daily_lesson and daily_lesson.slice_text %}
 <div class="passage-container">
   <div class="passage-header" onclick="togglePassage()">
-    <span class="passage-title">📖 Текст для чтения</span>
-    <span class="passage-toggle" id="passage-toggle">▼ Показать</span>
+    <span class="passage-title">📖 {{ 'Текст для чтения' if instr_lang == 'ru' else 'Reading passage' }}</span>
+    <span class="passage-toggle" id="passage-toggle">▼ {{ 'Показать' if instr_lang == 'ru' else 'Show' }}</span>
   </div>
   <div class="passage-content" id="passage-content" style="display: none;">
     <div class="passage-text">{{ daily_lesson.slice_text }}</div>
@@ -27,12 +27,12 @@
     <div class="progress-bar">
       <div class="progress-fill" id="quiz-progress" style="width: 10%"></div>
     </div>
-    <span class="progress-text">Вопрос <span id="current-q">1</span> из 10</span>
+    <span class="progress-text">{{ 'Вопрос' if instr_lang == 'ru' else 'Question' }} <span id="current-q">1</span> {{ 'из' if instr_lang == 'ru' else 'of' }} 10</span>
   </div>
 
   <!-- Question Card -->
   <div class="question-card" id="question-card">
-    <div class="question-number">Вопрос <span id="q-number">1</span></div>
+    <div class="question-number">{{ 'Вопрос' if instr_lang == 'ru' else 'Question' }} <span id="q-number">1</span></div>
     <div class="question-text" id="question-text"></div>
 
     <div class="options-list" id="options-list">
@@ -47,7 +47,7 @@
 
   <!-- Navigation -->
   <div class="quiz-nav">
-    <button class="nav-btn primary" id="next-btn" onclick="nextQuestion()" disabled>Далее →</button>
+    <button class="nav-btn primary" id="next-btn" onclick="nextQuestion()" disabled>{{ 'Далее' if nav_lang == 'ru' else 'Next' }} →</button>
   </div>
 </div>
 
@@ -56,7 +56,7 @@
   <div class="results-card">
     <div class="results-icon" id="results-icon">🎯</div>
     <div class="results-score" id="results-score">0%</div>
-    <div class="results-correct" id="results-correct">0 из 10 правильно</div>
+    <div class="results-correct" id="results-correct">0 {{ 'из' if instr_lang == 'ru' else 'of' }} 10 {{ 'правильно' if instr_lang == 'ru' else 'correct' }}</div>
     <div class="results-message" id="results-message"></div>
   </div>
 </div>
@@ -65,13 +65,13 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions" id="footer-buttons">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishQuiz()" style="display: none;">
     {% if has_next_lesson %}
-    Далее <i class="fas fa-arrow-right"></i>
+    {{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>
     {% else %}
-    Завершить <i class="fas fa-check"></i>
+    {{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>
     {% endif %}
   </button>
 </div>
@@ -81,6 +81,8 @@
 <!-- Server data -->
 <script>
 const serverQuestionData = {{ mcq_data | tojson | safe if mcq_data else 'null' }};
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
 </script>
 
 <script>
@@ -136,12 +138,13 @@ function loadQuestions() {
     questions = generatePlaceholderQuestions();
   }
 
-  // Update total count
-  document.querySelectorAll('#total-q, .progress-text').forEach(el => {
-    if (el.textContent.includes('10')) {
-      el.textContent = el.textContent.replace('10', questions.length);
-    }
-  });
+  // Update total count in progress text
+  const progressTextEl = document.querySelector('.progress-text');
+  if (progressTextEl) {
+    const qLabel = LANG === 'ru' ? 'Вопрос' : 'Question';
+    const ofLabel = LANG === 'ru' ? 'из' : 'of';
+    progressTextEl.innerHTML = `${qLabel} <span id="current-q">1</span> ${ofLabel} ${questions.length}`;
+  }
 
   // Restore progress if available
   loadProgress();
@@ -255,7 +258,7 @@ function showQuestion(index) {
   const nextBtn = document.getElementById('next-btn');
   if (nextBtn) {
     nextBtn.disabled = answers[index] === undefined;
-    nextBtn.textContent = index === questions.length - 1 ? 'Завершить ✓' : 'Далее →';
+    nextBtn.textContent = index === questions.length - 1 ? (NAV_LANG === 'ru' ? 'Завершить ✓' : 'Finish ✓') : (NAV_LANG === 'ru' ? 'Далее →' : 'Next →');
   }
 
   // Hide feedback
@@ -281,7 +284,7 @@ function selectOption(optionIndex) {
   const feedback = document.getElementById('feedback');
   document.getElementById('feedback-icon').textContent = isCorrect ? '✓' : '✗';
   document.getElementById('feedback-icon').className = 'feedback-icon ' + (isCorrect ? 'correct' : 'incorrect');
-  document.getElementById('feedback-text').textContent = q.explanation || (isCorrect ? 'Правильно!' : 'Неверно');
+  document.getElementById('feedback-text').textContent = q.explanation || (isCorrect ? (LANG === 'ru' ? 'Правильно!' : 'Correct!') : (LANG === 'ru' ? 'Неверно' : 'Incorrect'));
   feedback.style.display = 'block';
 
   // Highlight correct/incorrect
@@ -325,10 +328,14 @@ function showResults() {
 
   // Update results display
   document.getElementById('results-score').textContent = score + '%';
-  document.getElementById('results-correct').textContent = `${correct} из ${questions.length} правильно`;
+  document.getElementById('results-correct').textContent = LANG === 'ru'
+    ? `${correct} из ${questions.length} правильно`
+    : `${correct} of ${questions.length} correct`;
 
   const icon = score >= 70 ? '🎉' : score >= 50 ? '👍' : '💪';
-  const message = score >= 70 ? 'Отличный результат!' : score >= 50 ? 'Хорошая работа!' : 'Попробуйте перечитать текст';
+  const message = LANG === 'ru'
+    ? (score >= 70 ? 'Отличный результат!' : score >= 50 ? 'Хорошая работа!' : 'Попробуйте перечитать текст')
+    : (score >= 70 ? 'Excellent result!' : score >= 50 ? 'Good job!' : 'Try re-reading the text');
 
   document.getElementById('results-icon').textContent = icon;
   document.getElementById('results-message').textContent = message;
@@ -344,7 +351,7 @@ const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, m
 async function finishQuiz() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+  btn.innerHTML = NAV_LANG === 'ru' ? '<i class="fas fa-spinner fa-spin"></i> Сохраняем...' : '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
   try {
     {% if daily_lesson %}
@@ -374,8 +381,10 @@ async function finishQuiz() {
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
-    alert('Ошибка сохранения. Попробуйте ещё раз.');
+    btn.innerHTML = hasNextLesson
+      ? (NAV_LANG === 'ru' ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Next <i class="fas fa-arrow-right"></i>')
+      : (NAV_LANG === 'ru' ? 'Завершить <i class="fas fa-check"></i>' : 'Finish <i class="fas fa-check"></i>');
+    alert(NAV_LANG === 'ru' ? 'Ошибка сохранения. Попробуйте ещё раз.' : 'Save error. Please try again.');
   }
 }
 
@@ -386,10 +395,10 @@ function togglePassage() {
 
   if (content.style.display === 'none') {
     content.style.display = 'block';
-    toggle.textContent = '▲ Скрыть';
+    toggle.textContent = LANG === 'ru' ? '▲ Скрыть' : '▲ Hide';
   } else {
     content.style.display = 'none';
-    toggle.textContent = '▼ Показать';
+    toggle.textContent = LANG === 'ru' ? '▼ Показать' : '▼ Show';
   }
 }
 

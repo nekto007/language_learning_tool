@@ -1,11 +1,11 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}🧠 SRS Повторение{% endblock %}
+{% block lesson_type %}🧠 {{ 'SRS Повторение' if nav_lang == 'ru' else 'SRS Review' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Spaced Repetition Session</h1>
-  <p>Повторите слова с помощью интервального повторения</p>
+  <h1>{{ 'Сессия интервального повторения' if instr_lang == 'ru' else 'Spaced Repetition Session' }}</h1>
+  <p>{{ 'Повторите слова с помощью интервального повторения' if instr_lang == 'ru' else 'Review words using spaced repetition' }}</p>
 </div>
 
 <div class="srs-container">
@@ -13,15 +13,15 @@
   <div class="srs-stats">
     <div class="stat-item new">
       <span class="stat-count" id="new-count">0</span>
-      <span class="stat-label">Новые</span>
+      <span class="stat-label">{{ 'Новые' if instr_lang == 'ru' else 'New' }}</span>
     </div>
     <div class="stat-item learning">
       <span class="stat-count" id="learning-count">0</span>
-      <span class="stat-label">Изучаю</span>
+      <span class="stat-label">{{ 'Изучаю' if instr_lang == 'ru' else 'Learning' }}</span>
     </div>
     <div class="stat-item review">
       <span class="stat-count" id="review-count">0</span>
-      <span class="stat-label">Повтор</span>
+      <span class="stat-label">{{ 'Повтор' if instr_lang == 'ru' else 'Review' }}</span>
     </div>
   </div>
 
@@ -44,46 +44,46 @@
   <!-- Reveal Button -->
   <div class="srs-reveal" id="reveal-section">
     <button class="btn btn-primary btn-lg" id="reveal-btn" onclick="revealCard()">
-      Показать ответ
+      {{ 'Показать ответ' if instr_lang == 'ru' else 'Show answer' }}
     </button>
-    <div class="reveal-hint">Нажмите пробел или кликните</div>
+    <div class="reveal-hint">{{ 'Нажмите пробел или кликните' if instr_lang == 'ru' else 'Press space or click' }}</div>
   </div>
 
   <!-- Rating Buttons (hidden until revealed) -->
   <div class="srs-rating" id="rating-section" style="display: none;">
-    <div class="rating-label">Как хорошо вы знали это слово?</div>
+    <div class="rating-label">{{ 'Как хорошо вы знали это слово?' if instr_lang == 'ru' else 'How well did you know this word?' }}</div>
     <div class="rating-buttons">
       <button class="rating-btn again" onclick="rateCard(1)">
         <span class="rating-time">&lt;1м</span>
-        <span class="rating-text">Снова</span>
+        <span class="rating-text">{{ 'Снова' if instr_lang == 'ru' else 'Again' }}</span>
       </button>
       <button class="rating-btn hard" onclick="rateCard(2)">
-        <span class="rating-time">&lt;10м</span>
-        <span class="rating-text">Сложно</span>
+        <span class="rating-time">&lt;10{{ 'м' if instr_lang == 'ru' else 'm' }}</span>
+        <span class="rating-text">{{ 'Сложно' if instr_lang == 'ru' else 'Hard' }}</span>
       </button>
       <button class="rating-btn good" onclick="rateCard(3)">
-        <span class="rating-time" id="good-interval">1д</span>
-        <span class="rating-text">Хорошо</span>
+        <span class="rating-time" id="good-interval">1{{ 'д' if instr_lang == 'ru' else 'd' }}</span>
+        <span class="rating-text">{{ 'Хорошо' if instr_lang == 'ru' else 'Good' }}</span>
       </button>
       <button class="rating-btn easy" onclick="rateCard(4)">
-        <span class="rating-time" id="easy-interval">4д</span>
-        <span class="rating-text">Легко</span>
+        <span class="rating-time" id="easy-interval">4{{ 'д' if instr_lang == 'ru' else 'd' }}</span>
+        <span class="rating-text">{{ 'Легко' if instr_lang == 'ru' else 'Easy' }}</span>
       </button>
     </div>
-    <div class="rating-hint">Клавиши 1-4 для быстрого ответа</div>
+    <div class="rating-hint">{{ 'Клавиши 1-4 для быстрого ответа' if instr_lang == 'ru' else 'Keys 1-4 for quick answer' }}</div>
   </div>
 
   <!-- Session Complete -->
   <div class="srs-complete" id="complete-section" style="display: none;">
     <div class="complete-icon">🎉</div>
-    <div class="complete-title">Сессия завершена!</div>
+    <div class="complete-title">{{ 'Сессия завершена!' if instr_lang == 'ru' else 'Session complete!' }}</div>
     <div class="complete-stats">
       <div class="stat-row">
-        <span>Изучено слов:</span>
+        <span>{{ 'Изучено слов:' if instr_lang == 'ru' else 'Words studied:' }}</span>
         <span id="studied-count">0</span>
       </div>
       <div class="stat-row">
-        <span>Правильных ответов:</span>
+        <span>{{ 'Правильных ответов:' if instr_lang == 'ru' else 'Correct answers:' }}</span>
         <span id="correct-percent">0%</span>
       </div>
     </div>
@@ -103,12 +103,13 @@
 
 {% block lesson_footer %}
 <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
-  Завершить урок
+  {{ 'Завершить урок' if nav_lang == 'ru' else 'Complete lesson' }}
 </button>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
+const LANG = '{{ instr_lang }}';
 // SRS data will be loaded from API
 let cards = [];
 let currentIndex = 0;
@@ -216,11 +217,14 @@ function showCard(index) {
 }
 
 function formatInterval(days) {
-  if (days < 1) return '<1д';
-  if (days === 1) return '1д';
-  if (days < 7) return days + 'д';
-  if (days < 30) return Math.round(days / 7) + 'н';
-  return Math.round(days / 30) + 'м';
+  const d = LANG === 'ru' ? 'д' : 'd';
+  const w = LANG === 'ru' ? 'н' : 'w';
+  const m = LANG === 'ru' ? 'м' : 'mo';
+  if (days < 1) return '<1' + d;
+  if (days === 1) return '1' + d;
+  if (days < 7) return days + d;
+  if (days < 30) return Math.round(days / 7) + w;
+  return Math.round(days / 30) + m;
 }
 
 function revealCard() {

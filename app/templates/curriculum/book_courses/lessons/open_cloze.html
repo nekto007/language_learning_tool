@@ -1,16 +1,21 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}✏️ Заполнение пропусков{% endblock %}
+{% block lesson_type %}✏️ {{ 'Заполнение пропусков' if nav_lang == 'ru' else 'Open Cloze' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Заполнение пропусков</h1>
-  <p>Заполните пропуски в тексте подходящими словами</p>
+  <h1>{{ 'Заполнение пропусков' if instr_lang == 'ru' else 'Open Cloze' }}</h1>
+  <p>{{ 'Заполните пропуски в тексте подходящими словами' if instr_lang == 'ru' else 'Fill in the gaps in the text with suitable words' }}</p>
 </div>
 
 <div class="lesson-instructions">
+  {% if instr_lang == 'ru' %}
   <strong>Инструкция:</strong> Прочитайте текст и заполните каждый пропуск одним словом.
   Используйте контекст предложения для определения правильного ответа.
+  {% else %}
+  <strong>Instructions:</strong> Read the text and fill each gap with one word.
+  Use the context of the sentence to determine the correct answer.
+  {% endif %}
 </div>
 
 <div class="cloze-container" id="cloze-container">
@@ -19,7 +24,7 @@
 
 <div class="cloze-summary" id="summary" style="display: none;">
   <div class="summary-score">
-    <span id="correct-count">0</span> / <span id="total-count">8</span> правильно
+    <span id="correct-count">0</span> / <span id="total-count">8</span> {{ 'правильно' if instr_lang == 'ru' else 'correct' }}
   </div>
 </div>
 {% endblock %}
@@ -27,13 +32,13 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
-    Проверить
+    {{ 'Проверить' if nav_lang == 'ru' else 'Check' }}
   </button>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
-    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+    {% if has_next_lesson %}{{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>{% else %}{{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>{% endif %}
   </button>
 </div>
 {% endblock %}
@@ -42,6 +47,7 @@
 <!-- Server data -->
 <script>
 const serverClozeData = {{ cloze_data | tojson | safe if cloze_data else 'null' }};
+const NAV_LANG = '{{ nav_lang }}';
 </script>
 
 <script>
@@ -192,7 +198,7 @@ const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, m
 async function finishLesson() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+  btn.innerHTML = NAV_LANG === 'ru' ? '<i class="fas fa-spinner fa-spin"></i> Сохраняем...' : '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
   try {
     {% if daily_lesson %}
@@ -222,8 +228,10 @@ async function finishLesson() {
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
-    alert('Ошибка сохранения. Попробуйте ещё раз.');
+    btn.innerHTML = hasNextLesson
+      ? (NAV_LANG === 'ru' ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Next <i class="fas fa-arrow-right"></i>')
+      : (NAV_LANG === 'ru' ? 'Завершить <i class="fas fa-check"></i>' : 'Finish <i class="fas fa-check"></i>');
+    alert(NAV_LANG === 'ru' ? 'Ошибка сохранения. Попробуйте ещё раз.' : 'Save error. Please try again.');
   }
 }
 

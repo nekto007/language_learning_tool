@@ -1,6 +1,6 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}Module Test{% endblock %}
+{% block lesson_type %}{{ 'Тест модуля' if nav_lang == 'ru' else 'Module Test' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="mt-container">
@@ -8,33 +8,33 @@
   <!-- Start screen -->
   <div id="test-info" class="mt-info">
     <div class="mt-hero">
-      <div class="mt-hero__badge">Module Test</div>
-      <h1 class="mt-hero__title">{{ test_data.title if test_data and test_data.title else 'Module ' ~ module.module_number ~ ' Test' }}</h1>
+      <div class="mt-hero__badge">{{ 'Тест модуля' if nav_lang == 'ru' else 'Module Test' }}</div>
+      <h1 class="mt-hero__title">{{ test_data.title if test_data and test_data.title else ('Тест модуля ' ~ module.module_number if instr_lang == 'ru' else 'Module ' ~ module.module_number ~ ' Test') }}</h1>
       {% if test_data and test_data.intro %}
       <p class="mt-hero__intro">{{ test_data.intro }}</p>
       {% else %}
-      <p class="mt-hero__intro">Check what you remember from this module's chapters.</p>
+      <p class="mt-hero__intro">{{ 'Проверьте свои знания по всему материалу модуля.' if instr_lang == 'ru' else 'Check what you remember from this module\'s chapters.' }}</p>
       {% endif %}
     </div>
 
     <div class="mt-details">
       <div class="mt-detail">
         <span class="mt-detail__icon">&#128221;</span>
-        <span class="mt-detail__text">{{ test_data.total_questions if test_data and test_data.total_questions else '28–36' }} questions across 4 sections</span>
+        <span class="mt-detail__text">{{ test_data.total_questions if test_data and test_data.total_questions else '28–36' }} {{ 'вопросов по 4 разделам' if instr_lang == 'ru' else 'questions across 4 sections' }}</span>
       </div>
       <div class="mt-detail">
         <span class="mt-detail__icon">&#9200;</span>
-        <span class="mt-detail__text">Estimated time: {{ test_data.estimated_time if test_data and test_data.estimated_time else '20–25' }} minutes</span>
+        <span class="mt-detail__text">{{ 'Примерное время:' if instr_lang == 'ru' else 'Estimated time:' }} {{ test_data.estimated_time if test_data and test_data.estimated_time else '20–25' }} {{ 'минут' if instr_lang == 'ru' else 'minutes' }}</span>
       </div>
       <div class="mt-detail">
         <span class="mt-detail__icon">&#127942;</span>
-        <span class="mt-detail__text">Target score: {{ test_data.pass_score if test_data and test_data.pass_score else 70 }}%+</span>
+        <span class="mt-detail__text">{{ 'Минимальный балл:' if instr_lang == 'ru' else 'Target score:' }} {{ test_data.pass_score if test_data and test_data.pass_score else 70 }}%+</span>
       </div>
     </div>
 
     {% if test_data and test_data.sections %}
     <div class="mt-sections">
-      <h3 class="mt-sections__title">Test sections</h3>
+      <h3 class="mt-sections__title">{{ 'Разделы теста' if instr_lang == 'ru' else 'Test sections' }}</h3>
       <div class="mt-sections__grid">
         {% for section in test_data.sections %}
         <div class="mt-section-card">
@@ -46,7 +46,7 @@
             {% else %}&#9998;{% endif %}
           </span>
           <span class="mt-section-card__name">{{ section.name }}</span>
-          <span class="mt-section-card__count">{{ section.questions|length }} questions</span>
+          <span class="mt-section-card__count">{{ section.questions|length }} {{ 'вопросов' if instr_lang == 'ru' else 'questions' }}</span>
         </div>
         {% endfor %}
       </div>
@@ -54,7 +54,7 @@
     {% endif %}
 
     <button class="mt-start-btn" onclick="startTest()">
-      Start test
+      {{ 'Начать тест' if nav_lang == 'ru' else 'Start test' }}
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
   </div>
@@ -66,7 +66,7 @@
         <div class="mt-progress__bar">
           <div class="mt-progress__fill" id="test-progress"></div>
         </div>
-        <span class="mt-progress__text">Question <span id="current-q">1</span> / <span id="total-q">36</span></span>
+        <span class="mt-progress__text">{{ 'Вопрос' if instr_lang == 'ru' else 'Question' }} <span id="current-q">1</span> / <span id="total-q">36</span></span>
       </div>
       <div class="mt-timer" id="timer">25:00</div>
     </div>
@@ -97,17 +97,17 @@
       <div class="mt-results__status" id="results-status"></div>
 
       <div class="mt-breakdown">
-        <h3 class="mt-breakdown__title">Results by section</h3>
+        <h3 class="mt-breakdown__title">{{ 'Результаты по разделам' if instr_lang == 'ru' else 'Results by section' }}</h3>
         <div class="mt-breakdown__list" id="breakdown-list"></div>
       </div>
 
       <div class="mt-review" id="review-section" style="display:none;">
-        <h3 class="mt-breakdown__title">What to review</h3>
+        <h3 class="mt-breakdown__title">{{ 'Что повторить' if instr_lang == 'ru' else 'What to review' }}</h3>
         <ul class="mt-review__list" id="review-list"></ul>
       </div>
 
       <div class="mt-results__actions" id="results-actions">
-        <span class="mt-results__saving">Saving...</span>
+        <span class="mt-results__saving">{{ 'Сохраняем...' if nav_lang == 'ru' else 'Saving...' }}</span>
       </div>
     </div>
   </div>
@@ -119,7 +119,7 @@
 <div class="bl-footer__inner">
   <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
     <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to module
+    {{ 'К модулю' if nav_lang == 'ru' else 'Back to module' }}
   </a>
 </div>
 {% endblock %}
@@ -129,6 +129,8 @@
 const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
 const nextLessonUrl = '{{ next_lesson_url or "" }}';
 const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
 const passScore = {{ test_data.pass_score if test_data and test_data.pass_score else 70 }};
 const estimatedTime = {{ test_data.estimated_time if test_data and test_data.estimated_time else 25 }};
 
@@ -244,7 +246,7 @@ function renderQuestion(idx, q, sec) {
   document.getElementById('prev-btn').disabled = idx === 0;
   const nextBtn = document.getElementById('next-btn');
   if (idx === allQuestions.length - 1) {
-    nextBtn.innerHTML = 'Finish';
+    nextBtn.innerHTML = NAV_LANG === 'ru' ? 'Завершить' : 'Finish';
     nextBtn.classList.add('mt-nav__btn--finish');
   } else {
     nextBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -308,10 +310,10 @@ function finishTest() {
   document.getElementById('results-icon').innerHTML = score >= passScore ? '&#127881;' : '&#128214;';
 
   const statusEl = document.getElementById('results-status');
-  if (score >= 85) statusEl.textContent = 'Excellent. You know this module very well.';
-  else if (score >= 70) statusEl.textContent = 'Good job. You understood most of the module well.';
-  else if (score >= 50) statusEl.textContent = 'Solid start. Review a few areas and try again.';
-  else statusEl.textContent = 'Keep practising — you\'ll get there.';
+  if (score >= 85) statusEl.textContent = LANG === 'ru' ? 'Отлично! Вы отлично знаете этот модуль.' : 'Excellent. You know this module very well.';
+  else if (score >= 70) statusEl.textContent = LANG === 'ru' ? 'Хорошая работа! Вы хорошо поняли большую часть модуля.' : 'Good job. You understood most of the module well.';
+  else if (score >= 50) statusEl.textContent = LANG === 'ru' ? 'Хорошее начало. Повторите несколько тем и попробуйте снова.' : 'Solid start. Review a few areas and try again.';
+  else statusEl.textContent = LANG === 'ru' ? 'Продолжайте практиковаться — у вас получится.' : 'Keep practising — you\'ll get there.';
 
   // Breakdown
   document.getElementById('breakdown-list').innerHTML = testSections.map(s => {
@@ -370,19 +372,24 @@ function showCompletionUI() {
   const actions = document.getElementById('results-actions');
   const passed = window.finalScore >= passScore;
 
+  const passedLabel = LANG === 'ru' ? '&#10003; Модуль завершён!' : '&#10003; Module complete';
+  const savedLabel = LANG === 'ru' ? 'Результат сохранён' : 'Result saved';
+  const nextLabel = NAV_LANG === 'ru' ? 'Следующий урок' : 'Next lesson';
+  const backLabel = NAV_LANG === 'ru' ? 'К модулю' : 'Back to module';
+
   if (hasNextLesson && nextLessonUrl) {
     actions.innerHTML = `
       <span class="mt-results__status-tag ${passed ? 'mt-results__status-tag--pass' : 'mt-results__status-tag--retry'}">
-        ${passed ? '&#10003; Module complete' : 'Result saved'}
+        ${passed ? passedLabel : savedLabel}
       </span>
-      <a href="${nextLessonUrl}" class="mt-results__btn mt-results__btn--primary">Next lesson</a>
+      <a href="${nextLessonUrl}" class="mt-results__btn mt-results__btn--primary">${nextLabel}</a>
     `;
   } else {
     actions.innerHTML = `
       <span class="mt-results__status-tag ${passed ? 'mt-results__status-tag--pass' : 'mt-results__status-tag--retry'}">
-        ${passed ? '&#10003; Module complete' : 'Result saved'}
+        ${passed ? passedLabel : savedLabel}
       </span>
-      <a href="${moduleUrl}" class="mt-results__btn mt-results__btn--outline">Back to module</a>
+      <a href="${moduleUrl}" class="mt-results__btn mt-results__btn--outline">${backLabel}</a>
     `;
   }
 }

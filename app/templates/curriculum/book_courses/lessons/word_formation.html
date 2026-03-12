@@ -1,16 +1,21 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}🔤 Словообразование{% endblock %}
+{% block lesson_type %}🔤 {{ 'Словообразование' if nav_lang == 'ru' else 'Word Formation' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Словообразование</h1>
-  <p>Преобразуйте слова в скобках в правильную форму</p>
+  <h1>{{ 'Словообразование' if instr_lang == 'ru' else 'Word Formation' }}</h1>
+  <p>{{ 'Преобразуйте слова в скобках в правильную форму' if instr_lang == 'ru' else 'Change the words in brackets to the correct form' }}</p>
 </div>
 
 <div class="lesson-instructions">
+  {% if instr_lang == 'ru' %}
   <strong>Инструкция:</strong> Прочитайте предложения и измените форму слова в скобках так,
   чтобы оно грамматически и лексически подходило к предложению.
+  {% else %}
+  <strong>Instructions:</strong> Read the sentences and change the form of the word in brackets
+  so that it fits the sentence both grammatically and lexically.
+  {% endif %}
 </div>
 
 <div class="word-formation-container" id="wf-container">
@@ -19,7 +24,7 @@
 
 <div class="wf-summary" id="summary" style="display: none;">
   <div class="summary-score">
-    <span id="correct-count">0</span> / <span id="total-count">8</span> правильно
+    <span id="correct-count">0</span> / <span id="total-count">8</span> {{ 'правильно' if instr_lang == 'ru' else 'correct' }}
   </div>
 </div>
 {% endblock %}
@@ -27,19 +32,22 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
-    Проверить
+    {{ 'Проверить' if nav_lang == 'ru' else 'Check' }}
   </button>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
-    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+    {% if has_next_lesson %}{{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>{% else %}{{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>{% endif %}
   </button>
 </div>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
+
 // Word formation data
 const wordFormationData = [
   {
@@ -202,7 +210,7 @@ function checkAnswers() {
       const itemEl = document.getElementById(`item-${item.id}`);
       const correction = document.createElement('div');
       correction.className = 'correction';
-      correction.innerHTML = `<span class="correction-label">Правильно:</span> ${item.answer}`;
+      correction.innerHTML = `<span class="correction-label">${LANG === 'ru' ? 'Правильно:' : 'Correct answer:'}</span> ${item.answer}`;
       itemEl.querySelector('.item-content').appendChild(correction);
     }
   });
@@ -227,7 +235,7 @@ const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, m
 async function finishLesson() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+  btn.innerHTML = NAV_LANG === 'ru' ? '<i class="fas fa-spinner fa-spin"></i> Сохраняем...' : '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
   try {
     {% if daily_lesson %}
@@ -257,8 +265,10 @@ async function finishLesson() {
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
-    alert('Ошибка сохранения. Попробуйте ещё раз.');
+    btn.innerHTML = hasNextLesson
+      ? (NAV_LANG === 'ru' ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Next <i class="fas fa-arrow-right"></i>')
+      : (NAV_LANG === 'ru' ? 'Завершить <i class="fas fa-check"></i>' : 'Finish <i class="fas fa-check"></i>');
+    alert(NAV_LANG === 'ru' ? 'Ошибка сохранения. Попробуйте ещё раз.' : 'Save error. Please try again.');
   }
 }
 

@@ -1,6 +1,6 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}📚 Грамматика{% endblock %}
+{% block lesson_type %}📚 {{ 'Грамматика' if nav_lang == 'ru' else 'Grammar' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="grammar-lesson-container">
@@ -52,7 +52,7 @@
 
     {% if topic.content.important_notes %}
     <div class="grammar-notes">
-      <h3><i class="fas fa-lightbulb"></i> Важно запомнить</h3>
+      <h3><i class="fas fa-lightbulb"></i> {{ 'Важно запомнить' if instr_lang == 'ru' else 'Important to Remember' }}</h3>
       <ul>
         {% for note in topic.content.important_notes %}
         <li>{{ note }}</li>
@@ -64,7 +64,7 @@
     <!-- Button to Practice -->
     <div class="theory-actions">
       <button class="btn-start-practice" onclick="startPractice()">
-        Перейти к упражнениям <i class="fas fa-arrow-right"></i>
+        {{ 'Перейти к упражнениям' if nav_lang == 'ru' else 'Go to exercises' }} <i class="fas fa-arrow-right"></i>
       </button>
     </div>
   </div>
@@ -72,7 +72,7 @@
   <!-- Practice Section (hidden initially) -->
   <div class="grammar-practice" id="practice-section" style="display: none;">
     <div class="practice-header">
-      <h2><i class="fas fa-dumbbell"></i> Практика</h2>
+      <h2><i class="fas fa-dumbbell"></i> {{ 'Практика' if instr_lang == 'ru' else 'Practice' }}</h2>
       <div class="practice-progress">
         <span id="current-q">1</span> / <span id="total-q">{{ exercises|length }}</span>
       </div>
@@ -82,18 +82,18 @@
       <div class="question-text" id="question-text"></div>
       <div class="options-list" id="options-list"></div>
       <div class="fill-blank-input" id="fill-blank-input" style="display: none;">
-        <input type="text" id="fill-answer" class="fill-input" placeholder="Введите ответ..." autocomplete="off" spellcheck="false">
-        <button type="button" class="btn-check-answer" onclick="checkFillAnswer()">Проверить</button>
+        <input type="text" id="fill-answer" class="fill-input" placeholder="{{ 'Введите ответ...' if instr_lang == 'ru' else 'Enter your answer...' }}" autocomplete="off" spellcheck="false">
+        <button type="button" class="btn-check-answer" onclick="checkFillAnswer()">{{ 'Проверить' if nav_lang == 'ru' else 'Check' }}</button>
       </div>
       <div class="feedback" id="feedback" style="display: none;"></div>
     </div>
 
     <div class="practice-nav">
       <button class="btn-nav btn-secondary" onclick="showTheory()">
-        <i class="fas fa-arrow-left"></i> К теории
+        <i class="fas fa-arrow-left"></i> {{ 'К теории' if nav_lang == 'ru' else 'To theory' }}
       </button>
       <button class="btn-nav btn-primary" id="next-btn" onclick="nextQuestion()" disabled>
-        Далее <i class="fas fa-arrow-right"></i>
+        {{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>
       </button>
     </div>
   </div>
@@ -105,7 +105,7 @@
       <div class="results-score" id="results-score">0%</div>
       <div class="results-message" id="results-message"></div>
       <div class="results-actions" id="results-actions">
-        <span class="saving-indicator"><i class="fas fa-spinner fa-spin"></i> Сохраняем...</span>
+        <span class="saving-indicator"><i class="fas fa-spinner fa-spin"></i> {{ 'Сохраняем...' if instr_lang == 'ru' else 'Saving...' }}</span>
       </div>
     </div>
   </div>
@@ -114,8 +114,8 @@
   <!-- No topic fallback -->
   <div class="grammar-empty">
     <div class="empty-icon"><i class="fas fa-book-open"></i></div>
-    <h2>Грамматика</h2>
-    <p>Грамматическая тема для этого урока не найдена</p>
+    <h2>{{ 'Грамматика' if instr_lang == 'ru' else 'Grammar' }}</h2>
+    <p>{{ 'Грамматическая тема для этого урока не найдена' if instr_lang == 'ru' else 'Grammar topic for this lesson was not found' }}</p>
   </div>
   {% endif %}
 </div>
@@ -129,6 +129,37 @@
 
 {% block lesson_scripts %}
 <script>
+const LANG = '{{ instr_lang }}';
+const L = LANG === 'ru' ? {
+  question: 'Вопрос',
+  correct: 'Правильно!',
+  incorrect: 'Неправильно',
+  incorrectAnswer: 'Неправильно. Правильный ответ:',
+  finish: 'Завершить',
+  next: 'Далее',
+  excellent: 'Отлично! Материал усвоен!',
+  good: 'Хорошо! Рекомендуем повторить.',
+  reviewTheory: 'Стоит вернуться к теории.',
+  retry: 'Повторить',
+  nextLesson: 'Следующий урок',
+  toLessonList: 'К списку уроков',
+  trySave: 'Попробовать сохранить'
+} : {
+  question: 'Question',
+  correct: 'Correct!',
+  incorrect: 'Incorrect',
+  incorrectAnswer: 'Incorrect. Correct answer:',
+  finish: 'Finish',
+  next: 'Next',
+  excellent: 'Excellent! Material mastered!',
+  good: 'Good! We recommend reviewing.',
+  reviewTheory: 'Consider going back to theory.',
+  retry: 'Retry',
+  nextLesson: 'Next lesson',
+  toLessonList: 'To lesson list',
+  trySave: 'Try saving'
+};
+
 // Exercises data from Grammar Lab
 const exercises = {{ exercises | tojson | safe if exercises else '[]' }};
 const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
@@ -209,7 +240,7 @@ function showQuestion(index) {
   document.getElementById('total-q').textContent = exercises.length;
 
   // Get question text
-  const questionText = ex.content?.question || ex.question || 'Вопрос';
+  const questionText = ex.content?.question || ex.question || L.question;
   document.getElementById('question-text').innerHTML = questionText.replace(/_+/g, '<span class="blank-space">______</span>');
 
   const exerciseType = ex.exercise_type || ex.content?.exercise_type || 'multiple_choice';
@@ -239,7 +270,7 @@ function showQuestion(index) {
   // Update nav
   document.getElementById('next-btn').disabled = answers[index] === undefined;
   document.getElementById('next-btn').innerHTML =
-    index === exercises.length - 1 ? 'Завершить <i class="fas fa-check"></i>' : 'Далее <i class="fas fa-arrow-right"></i>';
+    index === exercises.length - 1 ? L.finish + ' <i class="fas fa-check"></i>' : L.next + ' <i class="fas fa-arrow-right"></i>';
 
   // Hide feedback
   document.getElementById('feedback').style.display = 'none';
@@ -265,7 +296,7 @@ function selectOption(optionIndex) {
   feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
   feedback.innerHTML = `
     <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
-    <div class="feedback-text">${explanation || (isCorrect ? 'Правильно!' : 'Неправильно')}</div>
+    <div class="feedback-text">${explanation || (isCorrect ? L.correct : L.incorrect)}</div>
   `;
   feedback.style.display = 'flex';
 
@@ -298,7 +329,7 @@ function checkFillAnswer() {
   feedback.innerHTML = `
     <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
     <div class="feedback-text">
-      ${isCorrect ? 'Правильно!' : `Неправильно. Правильный ответ: <strong>${ex.content?.correct_answer || correctAnswer}</strong>`}
+      ${isCorrect ? L.correct : `${L.incorrectAnswer} <strong>${ex.content?.correct_answer || correctAnswer}</strong>`}
       ${explanation ? `<br><small>${explanation}</small>` : ''}
     </div>
   `;
@@ -353,9 +384,9 @@ function showFinalResults() {
   document.getElementById('results-score').textContent = score + '%';
 
   const icon = score >= 80 ? '🎉' : score >= 60 ? '👍' : '📚';
-  const message = score >= 80 ? 'Отлично! Материал усвоен!'
-    : score >= 60 ? 'Хорошо! Рекомендуем повторить.'
-    : 'Стоит вернуться к теории.';
+  const message = score >= 80 ? L.excellent
+    : score >= 60 ? L.good
+    : L.reviewTheory;
 
   document.getElementById('results-icon').textContent = icon;
   document.getElementById('results-message').textContent = message;
@@ -422,10 +453,10 @@ function showCompletionButtons(hasError = false) {
   if (hasError) {
     resultsActions.innerHTML = `
       <button class="btn-action btn-retry" onclick="retryPractice()">
-        <i class="fas fa-redo"></i> Повторить
+        <i class="fas fa-redo"></i> ${L.retry}
       </button>
       <button class="btn-action btn-complete" onclick="completeLesson()">
-        <i class="fas fa-check"></i> Попробовать сохранить
+        <i class="fas fa-check"></i> ${L.trySave}
       </button>
     `;
     return;
@@ -434,19 +465,19 @@ function showCompletionButtons(hasError = false) {
   if (hasNext && nextUrl) {
     resultsActions.innerHTML = `
       <button class="btn-action btn-retry" onclick="retryPractice()">
-        <i class="fas fa-redo"></i> Повторить
+        <i class="fas fa-redo"></i> ${L.retry}
       </button>
       <a href="${nextUrl}" class="btn-action btn-next-lesson">
-        Следующий урок <i class="fas fa-arrow-right"></i>
+        ${L.nextLesson} <i class="fas fa-arrow-right"></i>
       </a>
     `;
   } else {
     resultsActions.innerHTML = `
       <button class="btn-action btn-retry" onclick="retryPractice()">
-        <i class="fas fa-redo"></i> Повторить
+        <i class="fas fa-redo"></i> ${L.retry}
       </button>
       <a href="${moduleUrl}" class="btn-action btn-back-module">
-        К списку уроков
+        ${L.toLessonList}
       </a>
     `;
   }

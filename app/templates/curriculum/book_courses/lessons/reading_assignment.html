@@ -1,21 +1,21 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}📖 Чтение{% endblock %}
+{% block lesson_type %}📖 {{ 'Чтение' if nav_lang == 'ru' else 'Reading' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Reading Assignment</h1>
-  <p>Прочитайте текст и выполните задание</p>
+  <h1>{{ 'Задание на чтение' if instr_lang == 'ru' else 'Reading Assignment' }}</h1>
+  <p>{{ 'Прочитайте текст и выполните задание' if instr_lang == 'ru' else 'Read the text and complete the assignment' }}</p>
 </div>
 
 <div class="reading-assignment-container">
   <!-- Reading Section -->
   <div class="reading-section">
     <div class="reading-header">
-      <h2 id="reading-title">Chapter Reading</h2>
+      <h2 id="reading-title">{{ 'Чтение главы' if instr_lang == 'ru' else 'Chapter Reading' }}</h2>
       <div class="reading-meta">
-        <span class="word-count" id="word-count">~800 слов</span>
-        <span class="reading-time" id="reading-time">~4 мин</span>
+        <span class="word-count" id="word-count">~800 {{ 'слов' if instr_lang == 'ru' else 'words' }}</span>
+        <span class="reading-time" id="reading-time">~4 {{ 'мин' if instr_lang == 'ru' else 'min' }}</span>
       </div>
     </div>
 
@@ -41,14 +41,14 @@
       <div class="progress-bar">
         <div class="progress-fill" id="read-progress" style="width: 0%"></div>
       </div>
-      <span class="progress-text" id="progress-text">0% прочитано</span>
+      <span class="progress-text" id="progress-text">0% {{ 'прочитано' if instr_lang == 'ru' else 'read' }}</span>
     </div>
   </div>
 
   <!-- Comprehension Check -->
   <div class="comprehension-section" id="comprehension-section" style="display: none;">
-    <h3>Проверка понимания</h3>
-    <p class="section-desc">Ответьте на вопросы по тексту</p>
+    <h3>{{ 'Проверка понимания' if instr_lang == 'ru' else 'Comprehension Check' }}</h3>
+    <p class="section-desc">{{ 'Ответьте на вопросы по тексту' if instr_lang == 'ru' else 'Answer the questions about the text' }}</p>
 
     <div class="questions-list" id="questions-list">
       <!-- Questions will be populated -->
@@ -60,13 +60,13 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="start-quiz-btn" class="btn-footer btn-primary" onclick="showComprehension()" style="display: none;">
-    Проверить понимание
+    {{ 'Проверить понимание' if nav_lang == 'ru' else 'Check comprehension' }}
   </button>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
-    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+    {% if has_next_lesson %}{{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>{% else %}{{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>{% endif %}
   </button>
 </div>
 {% endblock %}
@@ -120,6 +120,7 @@ const comprehensionQuestions = [
   }
 ];
 
+const LANG = '{{ instr_lang }}';
 let userAnswers = {};
 let readingComplete = false;
 
@@ -148,7 +149,7 @@ function trackReading() {
     maxScroll = Math.max(maxScroll, progress);
 
     progressBar.style.width = maxScroll + '%';
-    progressText.textContent = Math.round(maxScroll) + '% прочитано';
+    progressText.textContent = Math.round(maxScroll) + '% ' + (LANG === 'ru' ? 'прочитано' : 'read');
 
     if (maxScroll >= 80 && !readingComplete) {
       readingComplete = true;

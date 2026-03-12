@@ -1,16 +1,21 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}🔄 Трансформации{% endblock %}
+{% block lesson_type %}🔄 {{ 'Трансформации' if nav_lang == 'ru' else 'Transformations' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Трансформации с ключевым словом</h1>
-  <p>Перепишите предложения, используя данное слово</p>
+  <h1>{{ 'Трансформации с ключевым словом' if instr_lang == 'ru' else 'Key Word Transformations' }}</h1>
+  <p>{{ 'Перепишите предложения, используя данное слово' if instr_lang == 'ru' else 'Rewrite the sentences using the given word' }}</p>
 </div>
 
 <div class="lesson-instructions">
+  {% if instr_lang == 'ru' %}
   <strong>Инструкция:</strong> Завершите второе предложение так, чтобы оно имело тот же смысл,
   что и первое. Используйте данное ключевое слово. Используйте от 2 до 5 слов, включая ключевое слово.
+  {% else %}
+  <strong>Instructions:</strong> Complete the second sentence so that it has a similar meaning
+  to the first. Use the given keyword. Use between 2 and 5 words, including the keyword.
+  {% endif %}
 </div>
 
 <div class="transform-container" id="transform-container">
@@ -19,7 +24,7 @@
 
 <div class="transform-summary" id="summary" style="display: none;">
   <div class="summary-score">
-    <span id="correct-count">0</span> / <span id="total-count">6</span> правильно
+    <span id="correct-count">0</span> / <span id="total-count">6</span> {{ 'правильно' if instr_lang == 'ru' else 'correct' }}
   </div>
 </div>
 {% endblock %}
@@ -27,19 +32,22 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
-    Проверить
+    {{ 'Проверить' if nav_lang == 'ru' else 'Check' }}
   </button>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
-    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+    {% if has_next_lesson %}{{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>{% else %}{{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>{% endif %}
   </button>
 </div>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
+
 // Transformation data
 const transformData = [
   {
@@ -144,12 +152,12 @@ function renderItems() {
         <div class="item-number">${item.id}</div>
         <div class="item-content">
           <div class="original-sentence">
-            <span class="sentence-label">Оригинал:</span>
+            <span class="sentence-label">${LANG === 'ru' ? 'Оригинал:' : 'Original:'}</span>
             ${item.original}
           </div>
           <div class="keyword-badge">${item.keyword}</div>
           <div class="target-sentence">
-            <span class="sentence-label">Перепишите:</span>
+            <span class="sentence-label">${LANG === 'ru' ? 'Перепишите:' : 'Rewrite:'}</span>
             ${parts[0]}<input type="text"
                               class="transform-input"
                               id="input-${item.id}"
@@ -206,7 +214,7 @@ function checkAnswers() {
       const itemEl = document.getElementById(`item-${item.id}`);
       const correction = document.createElement('div');
       correction.className = 'correction';
-      correction.innerHTML = `<span class="correction-label">Возможный ответ:</span> ${item.answers[0]}`;
+      correction.innerHTML = `<span class="correction-label">${LANG === 'ru' ? 'Возможный ответ:' : 'Possible answer:'}</span> ${item.answers[0]}`;
       itemEl.querySelector('.item-content').appendChild(correction);
     }
   });
@@ -231,7 +239,7 @@ const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, m
 async function finishLesson() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+  btn.innerHTML = NAV_LANG === 'ru' ? '<i class="fas fa-spinner fa-spin"></i> Сохраняем...' : '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
   try {
     {% if daily_lesson %}
@@ -261,8 +269,10 @@ async function finishLesson() {
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
-    alert('Ошибка сохранения. Попробуйте ещё раз.');
+    btn.innerHTML = hasNextLesson
+      ? (NAV_LANG === 'ru' ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Next <i class="fas fa-arrow-right"></i>')
+      : (NAV_LANG === 'ru' ? 'Завершить <i class="fas fa-check"></i>' : 'Finish <i class="fas fa-check"></i>');
+    alert(NAV_LANG === 'ru' ? 'Ошибка сохранения. Попробуйте ещё раз.' : 'Save error. Please try again.');
   }
 }
 

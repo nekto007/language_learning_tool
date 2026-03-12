@@ -1,11 +1,11 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}📄 Текст{% endblock %}
+{% block lesson_type %}📄 {{ 'Текст' if nav_lang == 'ru' else 'Text' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
   <h1>{{ lesson.title|default('Lesson Content') }}</h1>
-  <p>Изучите материал урока</p>
+  <p>{{ 'Изучите материал урока' if instr_lang == 'ru' else 'Study the lesson material' }}</p>
 </div>
 
 <div class="text-lesson-container">
@@ -48,7 +48,7 @@
       <div class="progress-bar">
         <div class="progress-fill" id="read-progress" style="width: 0%"></div>
       </div>
-      <span class="progress-label" id="progress-label">Прокрутите вниз для прочтения</span>
+      <span class="progress-label" id="progress-label">{{ 'Прокрутите вниз для прочтения' if instr_lang == 'ru' else 'Scroll down to read' }}</span>
     </div>
   </div>
 </div>
@@ -57,16 +57,17 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" disabled>
-    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+    {% if has_next_lesson %}{{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>{% else %}{{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>{% endif %}
   </button>
 </div>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
+const LANG = '{{ instr_lang }}';
 let readingComplete = false;
 let maxProgress = 0;
 
@@ -95,13 +96,13 @@ function trackReading() {
     progressBar.style.width = maxProgress + '%';
 
     if (maxProgress < 30) {
-      progressLabel.textContent = 'Прокрутите вниз для прочтения';
+      progressLabel.textContent = LANG === 'ru' ? 'Прокрутите вниз для прочтения' : 'Scroll down to read';
     } else if (maxProgress < 70) {
-      progressLabel.textContent = `${Math.round(maxProgress)}% прочитано`;
+      progressLabel.textContent = `${Math.round(maxProgress)}% ${LANG === 'ru' ? 'прочитано' : 'read'}`;
     } else if (maxProgress < 95) {
-      progressLabel.textContent = 'Почти готово...';
+      progressLabel.textContent = LANG === 'ru' ? 'Почти готово...' : 'Almost done...';
     } else {
-      progressLabel.textContent = 'Текст прочитан!';
+      progressLabel.textContent = LANG === 'ru' ? 'Текст прочитан!' : 'Text read!';
       if (!readingComplete) {
         readingComplete = true;
         completeBtn.disabled = false;

@@ -1,87 +1,87 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}Написание резюме{% endblock %}
+{% block lesson_type %}{{ 'Написание резюме' if nav_lang == 'ru' else 'Summary Writing' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="summary-lesson">
     <div class="lesson-intro">
-        <h1>Напишите резюме</h1>
-        <p>Кратко изложите прочитанное в модуле своими словами.</p>
+        <h1>{{ 'Напишите резюме' if instr_lang == 'ru' else 'Write a Summary' }}</h1>
+        <p>{{ 'Кратко изложите прочитанное в модуле своими словами.' if instr_lang == 'ru' else 'Briefly summarize what you read in the module in your own words.' }}</p>
     </div>
 
     <div class="lesson-instructions">
-        <strong>Инструкция:</strong>
+        <strong>{{ 'Инструкция:' if instr_lang == 'ru' else 'Instructions:' }}</strong>
         <ul>
-            <li>Напишите 100-200 слов, резюмируя основные моменты</li>
-            <li>Используйте свои слова - не копируйте текст напрямую</li>
-            <li>Укажите главных персонажей, события и темы</li>
-            <li>Проверьте чек-лист ниже, чтобы убедиться что всё включили</li>
+            <li>{{ 'Напишите 100-200 слов, резюмируя основные моменты' if instr_lang == 'ru' else 'Write 100-200 words summarizing the main points' }}</li>
+            <li>{{ 'Используйте свои слова - не копируйте текст напрямую' if instr_lang == 'ru' else "Use your own words - don't copy text directly" }}</li>
+            <li>{{ 'Укажите главных персонажей, события и темы' if instr_lang == 'ru' else 'Mention main characters, events, and themes' }}</li>
+            <li>{{ 'Проверьте чек-лист ниже, чтобы убедиться что всё включили' if instr_lang == 'ru' else "Check the checklist below to make sure you've included everything" }}</li>
         </ul>
     </div>
 
     <!-- Summary Writing Area -->
     <div class="summary-container">
         <div class="summary-header">
-            <span class="word-count">Слов: <span id="word-count">0</span> / 200</span>
+            <span class="word-count">{{ 'Слов:' if instr_lang == 'ru' else 'Words:' }} <span id="word-count">0</span> / 200</span>
         </div>
         <textarea
             id="summary-textarea"
             class="summary-textarea"
-            placeholder="Напишите резюме здесь..."
+            placeholder="{{ 'Напишите резюме здесь...' if instr_lang == 'ru' else 'Write your summary here...' }}"
             oninput="updateWordCount()"
         ></textarea>
     </div>
 
     <!-- Key Points Checklist -->
     <div class="checklist-container">
-        <h3>Вы включили?</h3>
+        <h3>{{ 'Вы включили?' if instr_lang == 'ru' else 'Did you include?' }}</h3>
         <div class="checklist-items" id="checklist">
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Упомянуты главные персонажи</span>
+                <span>{{ 'Упомянуты главные персонажи' if instr_lang == 'ru' else 'Main characters mentioned' }}</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Описаны ключевые события</span>
+                <span>{{ 'Описаны ключевые события' if instr_lang == 'ru' else 'Key events described' }}</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Указано место действия</span>
+                <span>{{ 'Указано место действия' if instr_lang == 'ru' else 'Setting mentioned' }}</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Определена тема или главная мысль</span>
+                <span>{{ 'Определена тема или главная мысль' if instr_lang == 'ru' else 'Theme or main idea identified' }}</span>
             </label>
             <label class="checklist-item">
                 <input type="checkbox" onchange="updateChecklist()">
-                <span>Использована лексика из модуля</span>
+                <span>{{ 'Использована лексика из модуля' if instr_lang == 'ru' else 'Module vocabulary used' }}</span>
             </label>
         </div>
         <div class="checklist-progress">
-            <span id="checklist-count">0</span>/5 пунктов отмечено
+            <span id="checklist-count">0</span>/5 {{ 'пунктов отмечено' if instr_lang == 'ru' else 'items checked' }}
         </div>
     </div>
 
     <!-- Self-Assessment -->
     <div class="self-assessment">
-        <h3>Самооценка</h3>
-        <p>Насколько уверенно вы чувствуете себя в резюме?</p>
+        <h3>{{ 'Самооценка' if instr_lang == 'ru' else 'Self-assessment' }}</h3>
+        <p>{{ 'Насколько уверенно вы чувствуете себя в резюме?' if instr_lang == 'ru' else 'How confident do you feel about your summary?' }}</p>
         <div class="assessment-options">
             <button class="assessment-btn" data-value="1" onclick="selectAssessment(1)">
                 <span class="emoji">😕</span>
-                <span>Нужно больше практики</span>
+                <span>{{ 'Нужно больше практики' if instr_lang == 'ru' else 'Need more practice' }}</span>
             </button>
             <button class="assessment-btn" data-value="2" onclick="selectAssessment(2)">
                 <span class="emoji">🤔</span>
-                <span>Получается</span>
+                <span>{{ 'Получается' if instr_lang == 'ru' else 'Getting there' }}</span>
             </button>
             <button class="assessment-btn" data-value="3" onclick="selectAssessment(3)">
                 <span class="emoji">😊</span>
-                <span>Уверенно</span>
+                <span>{{ 'Уверенно' if instr_lang == 'ru' else 'Confident' }}</span>
             </button>
             <button class="assessment-btn" data-value="4" onclick="selectAssessment(4)">
                 <span class="emoji">🌟</span>
-                <span>Очень уверенно</span>
+                <span>{{ 'Очень уверенно' if instr_lang == 'ru' else 'Very confident' }}</span>
             </button>
         </div>
     </div>

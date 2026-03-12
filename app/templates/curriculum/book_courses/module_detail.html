@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('Модуль') }} {{ module.module_number }}: {{ module.title }}{% endblock %}
+{% set ui_lang = 'ru' if (course.level or '')|upper in ('A1', 'A2') else ('en' if (course.level or '')|upper in ('C1', 'C2') else 'mixed') %}
+{% set nav_lang = 'ru' if ui_lang in ('ru', 'mixed') else 'en' %}
+{% set t = {
+  'module':       {'ru': 'Модуль',        'en': 'Module'},
+  'module_lc':    {'ru': 'модуль',        'en': 'module'},
+  'courses':      {'ru': 'Курсы',         'en': 'Courses'},
+  'back_modules': {'ru': 'К модулям',     'en': 'Back to modules'},
+  'lessons_label':{'ru': 'уроков',        'en': 'lessons'},
+  'progress':     {'ru': 'прогресс',      'en': 'progress'},
+  'to_review':    {'ru': 'к повторению',  'en': 'to review'},
+  'completed':    {'ru': 'завершён',      'en': 'completed'},
+  'module_lessons':{'ru': 'Уроки модуля', 'en': 'Module Lessons'},
+  'lessons_to_study':{'ru': 'уроков для изучения', 'en': 'lessons to study'},
+  'vocab':        {'ru': 'Словарь',       'en': 'Vocabulary'},
+  'reading':      {'ru': 'Чтение',        'en': 'Reading'},
+  'grammar':      {'ru': 'Грамматика',    'en': 'Grammar'},
+  'quiz':         {'ru': 'Викторина',     'en': 'Quiz'},
+  'test':         {'ru': 'Тест',          'en': 'Test'},
+  'cards':        {'ru': 'Карточки',      'en': 'Cards'},
+  'exercise':     {'ru': 'Упражнение',    'en': 'Exercise'},
+  'task':         {'ru': 'Задание',       'en': 'Task'},
+  'lesson':       {'ru': 'Урок',          'en': 'Lesson'},
+  'review':       {'ru': 'Повторить',     'en': 'Review'},
+  'continue':     {'ru': 'Продолжить',    'en': 'Continue'},
+  'start':        {'ru': 'Начать',        'en': 'Start'},
+  'lessons_soon': {'ru': 'Уроки появятся скоро', 'en': 'Lessons coming soon'},
+  'preparing':    {'ru': 'Мы готовим учебные материалы для этого модуля', 'en': 'We are preparing learning materials for this module'},
+  'congrats':     {'ru': 'Поздравляем! Вы завершили все уроки в этом модуле.', 'en': 'Congratulations! You have completed all lessons in this module.'},
+} %}
+{% block title %}{{ t.module[nav_lang] }} {{ module.module_number }}: {{ module.title }}{% endblock %}
 
 {% block content %}
 <div class="ml-page">
@@ -28,12 +57,12 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
-        <span>{{ _('К модулям') }}</span>
+        <span>{{ t.back_modules[nav_lang] }}</span>
       </a>
 
-      <nav class="ml-hero__breadcrumb" aria-label="{{ _('Навигация') }}">
+      <nav class="ml-hero__breadcrumb" aria-label="{{ t.courses[nav_lang] }}">
         <ol role="list">
-          <li><a href="{{ url_for('book_courses.list_book_courses') }}">{{ _('Курсы') }}</a></li>
+          <li><a href="{{ url_for('book_courses.list_book_courses') }}">{{ t.courses[nav_lang] }}</a></li>
           <li aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </li>
@@ -41,14 +70,14 @@
           <li aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </li>
-          <li aria-current="page">{{ _('Модуль') }} {{ module.module_number }}</li>
+          <li aria-current="page">{{ t.module[nav_lang] }} {{ module.module_number }}</li>
         </ol>
       </nav>
 
       <div class="ml-hero__main">
         <div class="ml-hero__badge">
           <span class="ml-hero__badge-number">{{ module.module_number }}</span>
-          <span class="ml-hero__badge-label">{{ _('модуль') }}</span>
+          <span class="ml-hero__badge-label">{{ t.module_lc[nav_lang] }}</span>
         </div>
 
         <div class="ml-hero__info">
@@ -65,16 +94,16 @@
     <div class="ml-stats">
       <div class="ml-stat">
         <div class="ml-stat__value">{{ counter.completed }}<span class="ml-stat__divider">/</span>{{ lessons|length }}</div>
-        <div class="ml-stat__label">{{ _('уроков') }}</div>
+        <div class="ml-stat__label">{{ t.lessons_label[nav_lang] }}</div>
       </div>
       <div class="ml-stat">
         <div class="ml-stat__value">{{ progress_pct }}<span class="ml-stat__unit">%</span></div>
-        <div class="ml-stat__label">{{ _('прогресс') }}</div>
+        <div class="ml-stat__label">{{ t.progress[nav_lang] }}</div>
       </div>
       {% if due_cards_count is defined and due_cards_count and due_cards_count > 0 %}
         <div class="ml-stat">
           <div class="ml-stat__value">{{ due_cards_count }}</div>
-          <div class="ml-stat__label">{{ _('к повторению') }}</div>
+          <div class="ml-stat__label">{{ t.to_review[nav_lang] }}</div>
         </div>
       {% endif %}
       {% if counter.completed == lessons|length and lessons|length > 0 %}
@@ -84,7 +113,7 @@
               <path d="M5 3h14c.6 0 1 .4 1 1v2c0 3.3-2.2 6-5 6.7V16h2c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h2v-3.3C6.2 12 4 9.3 4 6V4c0-.6.4-1 1-1zm1 2v1c0 2.2 1.8 4 4 4h4c2.2 0 4-1.8 4-4V5H6z"/>
             </svg>
           </div>
-          <div class="ml-stat__label">{{ _('завершён') }}</div>
+          <div class="ml-stat__label">{{ t.completed[nav_lang] }}</div>
         </div>
       {% endif %}
     </div>
@@ -100,8 +129,8 @@
   <!-- Lessons Section -->
   <div class="ml-lessons">
     <div class="ml-lessons__header">
-      <h2 class="ml-lessons__title">{{ _('Уроки модуля') }}</h2>
-      <p class="ml-lessons__subtitle">{{ lessons|length }} {{ _('уроков для изучения') }}</p>
+      <h2 class="ml-lessons__title">{{ t.module_lessons[nav_lang] }}</h2>
+      <p class="ml-lessons__subtitle">{{ lessons|length }} {{ t.lessons_to_study[nav_lang] }}</p>
     </div>
 
     {% if lessons %}
@@ -165,53 +194,53 @@
                     <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
                   </svg>
-                  <span>{{ _('Словарь') }}</span>
+                  <span>{{ t.vocab[nav_lang] }}</span>
                 {% elif lesson.type in ['reading', 'reading_passage', 'reading_part1', 'reading_part2', 'reading_assignment', 'text'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                     <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
                   </svg>
-                  <span>{{ _('Чтение') }}</span>
-                {% elif lesson.type in ['grammar', 'language_focus', 'grammar_bridge'] %}
+                  <span>{{ t.reading[nav_lang] }}</span>
+                {% elif lesson.type in ['grammar', 'language_focus', 'grammar_focus', 'grammar_bridge'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
-                  <span>{{ _('Грамматика') }}</span>
+                  <span>{{ t.grammar[nav_lang] }}</span>
                 {% elif lesson.type in ['reading_mcq', 'comprehension_mcq', 'match_headings'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/>
                   </svg>
-                  <span>{{ _('Викторина') }}</span>
+                  <span>{{ t.quiz[nav_lang] }}</span>
                 {% elif lesson.type in ['final_test', 'module_test'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
                     <line x1="4" y1="22" x2="4" y2="15"/>
                   </svg>
-                  <span>{{ _('Тест') }}</span>
+                  <span>{{ t.test[nav_lang] }}</span>
                 {% elif lesson.type in ['anki_session', 'srs'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
                     <path d="M16 3h-8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/>
                   </svg>
-                  <span>{{ _('Карточки') }}</span>
-                {% elif lesson.type in ['open_cloze', 'keyword_transform', 'word_formation', 'phrase_cloze', 'vocabulary_practice', 'mixed_practice'] %}
+                  <span>{{ t.cards[nav_lang] }}</span>
+                {% elif lesson.type in ['open_cloze', 'keyword_transform', 'word_formation', 'phrase_cloze', 'cloze_practice', 'vocabulary_practice', 'mixed_practice'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
-                  <span>{{ _('Упражнение') }}</span>
-                {% elif lesson.type in ['discussion', 'summary', 'guided_retelling'] %}
+                  <span>{{ t.exercise[nav_lang] }}</span>
+                {% elif lesson.type in ['discussion', 'summary', 'guided_retelling', 'summary_writing'] %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
                     <rect x="9" y="3" width="6" height="4" rx="2"/>
                   </svg>
-                  <span>{{ _('Задание') }}</span>
+                  <span>{{ t.task[nav_lang] }}</span>
                 {% else %}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                     <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
                   </svg>
-                  <span>{{ _('Урок') }}</span>
+                  <span>{{ t.lesson[nav_lang] }}</span>
                 {% endif %}
               </div>
               <h3 class="ml-lesson__title">{{ lesson.title }}</h3>
@@ -222,11 +251,11 @@
                 <a href="{{ lesson_url }}"
                    class="ml-lesson__btn {% if is_completed %}ml-lesson__btn--completed{% elif is_current %}ml-lesson__btn--current{% endif %}">
                   {% if is_completed %}
-                    <span>{{ _('Повторить') }}</span>
+                    <span>{{ t.review[nav_lang] }}</span>
                   {% elif is_current %}
-                    <span>{{ _('Продолжить') }}</span>
+                    <span>{{ t.continue[nav_lang] }}</span>
                   {% else %}
-                    <span>{{ _('Начать') }}</span>
+                    <span>{{ t.start[nav_lang] }}</span>
                   {% endif %}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -250,8 +279,8 @@
             <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
           </svg>
         </div>
-        <h4>{{ _('Уроки появятся скоро') }}</h4>
-        <p>{{ _('Мы готовим учебные материалы для этого модуля') }}</p>
+        <h4>{{ t.lessons_soon[nav_lang] }}</h4>
+        <p>{{ t.preparing[nav_lang] }}</p>
       </div>
     {% endif %}
   </div>
@@ -262,7 +291,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
-      <span>{{ _('К модулям') }}</span>
+      <span>{{ t.back_modules[nav_lang] }}</span>
     </a>
 
     {% if counter.completed == lessons|length and lessons|length > 0 %}
@@ -270,7 +299,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M5 3h14c.6 0 1 .4 1 1v2c0 3.3-2.2 6-5 6.7V16h2c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h2v-3.3C6.2 12 4 9.3 4 6V4c0-.6.4-1 1-1zm1 2v1c0 2.2 1.8 4 4 4h4c2.2 0 4-1.8 4-4V5H6z"/>
         </svg>
-        <span>{{ _('Поздравляем! Вы завершили все уроки в этом модуле.') }}</span>
+        <span>{{ t.congrats[nav_lang] }}</span>
       </div>
     {% endif %}
   </div>

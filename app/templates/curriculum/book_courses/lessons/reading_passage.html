@@ -1,14 +1,36 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}📖 Чтение{% endblock %}
+{% block lesson_type %}📖 {{ {'ru':'Чтение','en':'Reading'}[nav_lang] }}{% endblock %}
 
 {% block lesson_content %}
+{% set t = {
+  'reading_title': {'ru': 'Чтение с переводом', 'en': 'Reading with Translation'},
+  'reading_intro': {'ru': 'Прочитайте текст. Нажмите на любое слово для перевода.', 'en': 'Read the text. Tap any word for translation.'},
+  'new_words': {'ru': 'новых слов', 'en': 'new words'},
+  'words': {'ru': 'слов', 'en': 'words'},
+  'min': {'ru': 'мин.', 'en': 'min.'},
+  'audiobook': {'ru': 'Аудиокнига', 'en': 'Audiobook'},
+  'audio_not_supported': {'ru': 'Ваш браузер не поддерживает аудио.', 'en': 'Your browser does not support audio.'},
+  'rewind': {'ru': 'Назад 10с', 'en': 'Rewind 10s'},
+  'speed': {'ru': 'Скорость', 'en': 'Speed'},
+  'forward': {'ru': 'Вперед 10с', 'en': 'Forward 10s'},
+  'loading_text': {'ru': 'Загрузка текста...', 'en': 'Loading text...'},
+  'comprehension': {'ru': 'Проверка понимания', 'en': 'Comprehension Check'},
+  'read_progress': {'ru': 'Прочитано:', 'en': 'Read:'},
+  'play_audio': {'ru': 'Озвучить', 'en': 'Play audio'},
+  'add_to_cards': {'ru': 'Добавить в карточки', 'en': 'Add to flashcards'}
+} %}
+{% set t_nav = {
+  'to_lessons': {'ru': 'К урокам', 'en': 'To lessons'},
+  'next': {'ru': 'Далее', 'en': 'Next'},
+  'finish': {'ru': 'Завершить', 'en': 'Finish'}
+} %}
 <div class="lesson-intro">
-  <h1>Чтение с поддержкой</h1>
-  <p>Прочитайте текст. Используйте перевод и заметки только если это нужно для понимания.</p>
+  <h1>{{ t.reading_title[instr_lang] }}</h1>
+  <p>{{ t.reading_intro[instr_lang] }}</p>
   {% if reading_difficulty %}
   <div class="reading-difficulty reading-difficulty--{{ reading_difficulty.level }}">
-    <span class="reading-difficulty__words">{{ reading_difficulty.new_words }} новых слов</span>
+    <span class="reading-difficulty__words">{{ reading_difficulty.new_words }} {{ t.new_words[instr_lang] }}</span>
     <span class="reading-difficulty__hint">{{ reading_difficulty.hint }}</span>
   </div>
   {% endif %}
@@ -45,8 +67,8 @@
 <div class="reading-wrapper">
   <!-- Reading Stats -->
   <div class="reading-stats">
-    <span class="stat">📖 <span id="word-count">{{ lesson.word_count or '~200' }}</span> слов</span>
-    <span class="stat">⏱️ ~<span id="read-time">2</span> мин.</span>
+    <span class="stat">📖 <span id="word-count">{{ lesson.word_count or '~200' }}</span> {{ t.words[instr_lang] }}</span>
+    <span class="stat">⏱️ ~<span id="read-time">2</span> {{ t.min[instr_lang] }}</span>
   </div>
 
   <!-- Audio Player Section -->
@@ -54,17 +76,17 @@
     <div class="audio-player-container">
       <div class="audio-player-header">
         <span class="audio-icon">🎧</span>
-        <span class="audio-title">Аудиокнига</span>
+        <span class="audio-title">{{ t.audiobook[instr_lang] }}</span>
       </div>
       <p class="audio-guidance">Сначала прочитайте текст, затем прослушайте аудио.</p>
 
       <audio id="lesson-audio-player" controls preload="metadata" class="audio-player">
         <source id="audio-source" src="" type="audio/mpeg">
-        Ваш браузер не поддерживает аудио.
+        {{ t.audio_not_supported[instr_lang] }}
       </audio>
 
       <div class="audio-controls">
-        <button id="audio-rewind" class="audio-btn" title="Назад 10с">
+        <button id="audio-rewind" class="audio-btn" title="{{ t.rewind[instr_lang] }}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 4v6h6M23 20v-6h-6"/>
             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
@@ -72,11 +94,11 @@
           <span class="rewind-text">-10s</span>
         </button>
 
-        <button id="audio-speed" class="audio-btn audio-speed-btn" title="Скорость">
+        <button id="audio-speed" class="audio-btn audio-speed-btn" title="{{ t.speed[instr_lang] }}">
           <span class="speed-text">1x</span>
         </button>
 
-        <button id="audio-forward" class="audio-btn" title="Вперед 10с">
+        <button id="audio-forward" class="audio-btn" title="{{ t.forward[instr_lang] }}">
           <span class="forward-text">+10s</span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M23 4v6h-6M1 20v-6h6"/>
@@ -104,7 +126,7 @@
       {% if use_api %}
         <div class="loading">
           <div class="loading-spinner"></div>
-          <p>Загрузка текста...</p>
+          <p>{{ t.loading_text[instr_lang] }}</p>
         </div>
       {% else %}
         <div class="passage-text">
@@ -152,7 +174,7 @@
   <!-- Comprehension Questions (if available) -->
   {% if comprehension_questions and comprehension_questions|length > 0 %}
   <div class="comprehension-section" id="comprehension-section" style="display: none;">
-    <h3 class="comprehension-title">📝 Проверка понимания</h3>
+    <h3 class="comprehension-title">📝 {{ t.comprehension[instr_lang] }}</h3>
     <div class="comprehension-questions">
       {% for q in comprehension_questions %}
       <div class="question-item" data-question-id="{{ loop.index }}">
@@ -172,6 +194,14 @@
     </div>
   </div>
   {% endif %}
+
+  <!-- Reading Progress -->
+  <div class="reading-progress-section">
+    <span class="progress-label">{{ t.read_progress[instr_lang] }} <span id="progress-percent">0</span>%</span>
+    <div class="reading-progress-bar">
+      <div class="progress-fill" id="reading-progress" style="width: 0%"></div>
+    </div>
+  </div>
 
   <!-- Annotations -->
   {% if annotations %}
@@ -263,18 +293,43 @@
   <!-- Inline Footer (not fixed) -->
   <div class="reading-footer" id="footer-buttons">
     <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="btn-footer btn-secondary">
-      <i class="fas fa-arrow-left"></i> К урокам
+      <i class="fas fa-arrow-left"></i> {{ t_nav.to_lessons[nav_lang] }}
     </a>
     <button id="complete-btn" class="btn-footer btn-primary" onclick="completeAndNext()" disabled>
       {% if has_next_lesson %}
-      Далее <i class="fas fa-arrow-right"></i>
+      {{ t_nav.next[nav_lang] }} <i class="fas fa-arrow-right"></i>
       {% else %}
-      Завершить <i class="fas fa-check"></i>
+      {{ t_nav.finish[nav_lang] }} <i class="fas fa-check"></i>
       {% endif %}
     </button>
   </div>
 </div>
 
+<!-- Word Popup Modal -->
+<div class="word-popup-overlay" id="word-popup-overlay">
+  <div class="word-popup" id="word-popup">
+    <div class="popup-word" id="popup-word">word</div>
+    <div class="popup-translation" id="popup-translation">перевод</div>
+    <div class="popup-example" id="popup-example"></div>
+
+    <div class="popup-actions">
+      <button class="popup-btn" id="popup-audio-btn" onclick="playAudio()" title="{{ t.play_audio[instr_lang] }}">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+      <button class="popup-btn popup-btn-primary" id="popup-add-btn" onclick="addToFlashcards()" title="{{ t.add_to_cards[instr_lang] }}">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="popup-status" id="popup-status"></div>
+  </div>
+</div>
 
 <!-- Hidden Audio Element -->
 <audio id="word-audio" preload="none"></audio>
@@ -285,6 +340,45 @@
 {% endblock %}
 
 {% block lesson_scripts %}
+<script>
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
+const L = LANG === 'ru' ? {
+  saving: 'Сохраняем...',
+  error_loading: 'Ошибка загрузки',
+  error_prefix: 'Ошибка:',
+  correct: '✓ Правильно!',
+  try_again: '✗ Попробуйте ещё раз',
+  save_error: 'Ошибка сохранения. Попробуйте ещё раз.',
+  no_audio: 'Нет аудио',
+  not_found: 'Не найдено',
+  error: 'Ошибка',
+  word_not_in_dict: 'Слово не в словаре',
+  already_learned: '✓ Уже выучено',
+  in_learning: '📚 В обучении',
+  added: '✓ Добавлено!',
+  network_error: 'Ошибка сети',
+  next_btn: 'Далее',
+  finish_btn: 'Завершить'
+} : {
+  saving: 'Saving...',
+  error_loading: 'Loading error',
+  error_prefix: 'Error:',
+  correct: '✓ Correct!',
+  try_again: '✗ Try again',
+  save_error: 'Save error. Please try again.',
+  no_audio: 'No audio',
+  not_found: 'Not found',
+  error: 'Error',
+  word_not_in_dict: 'Word not in dictionary',
+  already_learned: '✓ Already learned',
+  in_learning: '📚 In learning',
+  added: '✓ Added!',
+  network_error: 'Network error',
+  next_btn: 'Next',
+  finish_btn: 'Finish'
+};
+</script>
 <script>
 let currentWord = null;
 let currentWordId = null;
@@ -317,11 +411,11 @@ async function loadContent() {
       makeWordsClickable();
       initReadingProgress();
     } else if (data.error) {
-      document.getElementById('reading-content').innerHTML = `<div class="error-state"><p>Ошибка: ${data.error}</p></div>`;
+      document.getElementById('reading-content').innerHTML = `<div class="error-state"><p>${L.error_prefix} ${data.error}</p></div>`;
     }
   } catch (error) {
     console.error('Error:', error);
-    document.getElementById('reading-content').innerHTML = `<div class="error-state"><p>Ошибка загрузки</p></div>`;
+    document.getElementById('reading-content').innerHTML = `<div class="error-state"><p>${L.error_loading}</p></div>`;
   }
 }
 document.addEventListener('DOMContentLoaded', loadContent);
@@ -392,7 +486,7 @@ async function handleWordClick(event, word) {
     const data = await response.json();
 
     if (data.success) {
-      document.getElementById('popup-translation').textContent = data.translation || 'Не найдено';
+      document.getElementById('popup-translation').textContent = data.translation || L.not_found;
       if (data.word_id) currentWordId = data.word_id;
       if (data.sentences) {
         // Replace <br> with newlines and render
@@ -401,10 +495,10 @@ async function handleWordClick(event, word) {
         document.getElementById('popup-example').style.display = 'block';
       }
     } else {
-      document.getElementById('popup-translation').textContent = 'Не найдено';
+      document.getElementById('popup-translation').textContent = L.not_found;
     }
   } catch (error) {
-    document.getElementById('popup-translation').textContent = 'Ошибка';
+    document.getElementById('popup-translation').textContent = L.error;
   }
 }
 
@@ -429,7 +523,7 @@ function playAudio() {
   if (!currentWord) return;
   const audio = document.getElementById('word-audio');
   audio.src = `/static/audio/pronunciation_en_${currentWord}.mp3`;
-  audio.play().catch(() => showStatus('Нет аудио', 'error'));
+  audio.play().catch(() => showStatus(L.no_audio, 'error'));
 }
 
 async function addToFlashcards() {
@@ -449,7 +543,7 @@ async function addToFlashcards() {
     }
 
     if (!currentWordId) {
-      showStatus('Слово не в словаре', 'error');
+      showStatus(L.word_not_in_dict, 'error');
       resetAddButton();
       return;
     }
@@ -467,21 +561,21 @@ async function addToFlashcards() {
 
     // Handle word_status from response
     if (data.word_status === 'learned') {
-      showStatus('✓ Уже выучено', 'success');
+      showStatus(L.already_learned, 'success');
       btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
       btn.classList.add('learned');
     } else if (data.word_status === 'in_learning') {
-      showStatus('📚 В обучении', 'success');
+      showStatus(L.in_learning, 'success');
       btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
     } else if (data.success) {
-      showStatus('✓ Добавлено!', 'success');
+      showStatus(L.added, 'success');
       btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
     } else {
-      showStatus(data.error || 'Ошибка', 'error');
+      showStatus(data.error || L.error, 'error');
       resetAddButton();
     }
   } catch (error) {
-    showStatus('Ошибка сети', 'error');
+    showStatus(L.network_error, 'error');
     resetAddButton();
   }
 }
@@ -643,11 +737,11 @@ function initComprehensionQuestions() {
       const selectedLabel = this.closest('.option-label');
       if (isCorrect) {
         selectedLabel.classList.add('correct');
-        feedback.textContent = '✓ Правильно!';
+        feedback.textContent = L.correct;
         feedback.className = 'question-feedback correct';
       } else {
         selectedLabel.classList.add('incorrect');
-        feedback.textContent = '✗ Попробуйте ещё раз';
+        feedback.textContent = L.try_again;
         feedback.className = 'question-feedback incorrect';
         // Show correct answer after delay
         setTimeout(() => {
@@ -701,7 +795,7 @@ const moduleUrl = "{% if course.slug %}{{ url_for('book_courses.view_module_by_s
 async function completeAndNext() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + L.saving;
 
   try {
     {% if daily_lesson %}
@@ -730,8 +824,8 @@ async function completeAndNext() {
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
-    alert('Ошибка сохранения. Попробуйте ещё раз.');
+    btn.innerHTML = hasNextLesson ? L.next_btn + ' <i class="fas fa-arrow-right"></i>' : L.finish_btn + ' <i class="fas fa-check"></i>';
+    alert(L.save_error);
   }
 }
 

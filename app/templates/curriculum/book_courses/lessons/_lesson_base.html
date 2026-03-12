@@ -489,14 +489,42 @@
 {% endblock %}
 
 {% block content %}
+{# UI language: ru (A1-A2), mixed (B1-B2), en (C1-C2) #}
+{% set ui_lang = 'ru' if (course.level or '')|upper in ('A1', 'A2') else ('en' if (course.level or '')|upper in ('C1', 'C2') else 'mixed') %}
+{% set t = {
+  'courses':       {'ru': 'Курсы',            'en': 'Courses'},
+  'module':        {'ru': 'Модуль',            'en': 'Module'},
+  'lesson':        {'ru': 'Урок',              'en': 'Lesson'},
+  'back_to_module':{'ru': 'К модулю',          'en': 'Back to module'},
+  'complete':      {'ru': 'Завершить урок',    'en': 'Complete lesson'},
+  'saving':        {'ru': 'Сохраняем...',      'en': 'Saving...'},
+  'save_error':    {'ru': 'Ошибка при сохранении прогресса', 'en': 'Error saving progress'},
+  'continue':      {'ru': 'Продолжить',        'en': 'Continue'},
+  'srs_title':     {'ru': 'Повторение слов',   'en': 'Card Review'},
+  'srs_words':     {'ru': 'слов',              'en': 'cards'},
+  'srs_start':     {'ru': 'Начать',            'en': 'Start'},
+  'srs_hide':      {'ru': 'Скрыть',            'en': 'Hide'},
+  'srs_flip_hint': {'ru': 'Нажмите для перевода', 'en': 'Tap to reveal'},
+  'srs_hard':      {'ru': 'Не знаю',           'en': "Don't know"},
+  'srs_good':      {'ru': 'Сомневаюсь',        'en': 'Unsure'},
+  'srs_easy':      {'ru': 'Знаю',              'en': 'Know'},
+  'srs_done':      {'ru': 'Отлично! Все слова повторены.', 'en': 'Great! All cards reviewed.'},
+  'result_great':  {'ru': 'Отличный результат!','en': 'Excellent!'},
+  'result_good':   {'ru': 'Хорошая работа!',   'en': 'Good job!'},
+  'result_keep':   {'ru': 'Продолжайте практиковаться!', 'en': 'Keep practicing!'},
+} %}
+{# For navigation: mixed = ru; for instructions: mixed = en #}
+{% set nav_lang = 'ru' if ui_lang in ('ru', 'mixed') else 'en' %}
+{% set instr_lang = 'ru' if ui_lang == 'ru' else 'en' %}
+
 <div class="bl-page">
 
   <!-- Compact Header -->
   <div class="bl-header">
     <!-- Breadcrumb -->
-    <nav class="bl-header__breadcrumb" aria-label="Навигация">
+    <nav class="bl-header__breadcrumb" aria-label="{{ t.courses[nav_lang] }}">
       <ol role="list">
-        <li><a href="{{ url_for('book_courses.list_book_courses') }}">Курсы</a></li>
+        <li><a href="{{ url_for('book_courses.list_book_courses') }}">{{ t.courses[nav_lang] }}</a></li>
         <li aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </li>
@@ -504,11 +532,11 @@
         <li aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </li>
-        <li><a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}">Модуль {{ module.module_number }}</a></li>
+        <li><a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}">{{ t.module[nav_lang] }} {{ module.module_number }}</a></li>
         <li aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </li>
-        <li aria-current="page">{{ lesson.title or ('Урок ' ~ lesson_number) }}</li>
+        <li aria-current="page">{{ lesson.title or (t.lesson[nav_lang] ~ ' ' ~ lesson_number) }}</li>
       </ol>
     </nav>
 
@@ -516,9 +544,9 @@
       <div class="bl-header__left">
         <span class="bl-badge">
           <svg class="bl-badge__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 6 3 6 3s3 0 6-3v-5"/></svg>
-          {% block lesson_type %}Урок{% endblock %}
+          {% block lesson_type %}{{ t.lesson[nav_lang] }}{% endblock %}
         </span>
-        <h1 class="bl-title">{{ lesson.title or ('Урок ' ~ lesson_number) }}</h1>
+        <h1 class="bl-title">{{ lesson.title or (t.lesson[nav_lang] ~ ' ' ~ lesson_number) }}</h1>
       </div>
       <span class="bl-header__counter">{{ course.title }}</span>
     </div>
@@ -530,11 +558,11 @@
     <div class="bl-review__header">
       <div class="bl-review__info">
         <span class="bl-review__icon">🔄</span>
-        <span class="bl-review__title">Повторение слов</span>
-        <span class="bl-review__count">{{ review_cards|length }} слов</span>
+        <span class="bl-review__title">{{ t.srs_title[nav_lang] }}</span>
+        <span class="bl-review__count">{{ review_cards|length }} {{ t.srs_words[nav_lang] }}</span>
       </div>
       <button class="bl-review__toggle" onclick="toggleReviewSection()">
-        <span id="review-toggle-text">Начать</span>
+        <span id="review-toggle-text">{{ t.srs_start[nav_lang] }}</span>
       </button>
     </div>
 
@@ -543,7 +571,7 @@
         <div class="bl-review__card" id="review-card" onclick="flipReviewCard()">
           <div class="bl-review__card-face">
             <div class="bl-review__word" id="review-front"></div>
-            <div class="bl-review__hint">Нажмите для перевода</div>
+            <div class="bl-review__hint">{{ t.srs_flip_hint[nav_lang] }}</div>
           </div>
           <div class="bl-review__card-face bl-review__card-face--back">
             <div class="bl-review__word" id="review-back"></div>
@@ -556,9 +584,9 @@
           <span id="review-current">1</span> / <span id="review-total">{{ review_cards|length }}</span>
         </div>
         <div class="bl-review__buttons" id="review-buttons" style="display: none;">
-          <button class="bl-review__rate bl-review__rate--hard" onclick="rateReviewCard(1)">Не знаю</button>
-          <button class="bl-review__rate bl-review__rate--good" onclick="rateReviewCard(2)">Сомневаюсь</button>
-          <button class="bl-review__rate bl-review__rate--easy" onclick="rateReviewCard(3)">Знаю</button>
+          <button class="bl-review__rate bl-review__rate--hard" onclick="rateReviewCard(1)">{{ t.srs_hard[nav_lang] }}</button>
+          <button class="bl-review__rate bl-review__rate--good" onclick="rateReviewCard(2)">{{ t.srs_good[nav_lang] }}</button>
+          <button class="bl-review__rate bl-review__rate--easy" onclick="rateReviewCard(3)">{{ t.srs_easy[nav_lang] }}</button>
         </div>
       </div>
     </div>
@@ -576,12 +604,12 @@
     {% block lesson_footer %}
       <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="bl-btn bl-btn--outline">
         <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        К модулю
+        {{ t.back_to_module[nav_lang] }}
       </a>
 
       <button id="complete-btn" class="bl-btn bl-btn--primary btn-footer btn-primary" onclick="completeLesson()" disabled>
         <svg class="bl-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Завершить урок
+        {{ t.complete[nav_lang] }}
       </button>
     {% endblock %}
     </div>
@@ -606,7 +634,7 @@ function enableCompleteButton() {
 function completeLesson(score = 100) {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.textContent = 'Сохраняем...';
+  btn.textContent = '{{ t.saving[nav_lang] }}';
 
   // Use new API if daily_lesson_id exists
   const endpoint = dailyLessonId
@@ -646,9 +674,9 @@ function completeLesson(score = 100) {
   })
   .catch(error => {
     console.error('Error:', error);
-    alert('Ошибка при сохранении прогресса');
+    alert('{{ t.save_error[nav_lang] }}');
     btn.disabled = false;
-    btn.textContent = 'Завершить урок';
+    btn.textContent = '{{ t.complete[nav_lang] }}';
   });
 }
 
@@ -657,9 +685,9 @@ function showResults(score) {
   const footer = document.querySelector('#lesson-footer');
 
   const emoji = score >= 90 ? '🎉' : score >= 70 ? '👍' : '💪';
-  const message = score >= 90 ? 'Отличный результат!'
-    : score >= 70 ? 'Хорошая работа!'
-    : 'Продолжайте практиковаться!';
+  const message = score >= 90 ? '{{ t.result_great[nav_lang] }}'
+    : score >= 70 ? '{{ t.result_good[nav_lang] }}'
+    : '{{ t.result_keep[nav_lang] }}';
 
   content.innerHTML = `
     <div class="bl-results">
@@ -668,7 +696,7 @@ function showResults(score) {
       <div class="bl-results__message">${message}</div>
       <div class="bl-results__actions">
         <a href="${document.referrer || '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}'}" class="bl-btn bl-btn--primary">
-          Продолжить
+          {{ t.continue[nav_lang] }}
         </a>
       </div>
     </div>
@@ -689,11 +717,11 @@ function toggleReviewSection() {
 
   if (content.style.display === 'none') {
     content.style.display = 'block';
-    toggleText.textContent = 'Скрыть';
+    toggleText.textContent = '{{ t.srs_hide[nav_lang] }}';
     showReviewCard(0);
   } else {
     content.style.display = 'none';
-    toggleText.textContent = 'Начать';
+    toggleText.textContent = '{{ t.srs_start[nav_lang] }}';
   }
 }
 
@@ -702,7 +730,7 @@ function showReviewCard(index) {
     // All cards reviewed
     document.getElementById('review-content').innerHTML = `
       <div class="bl-review__complete">
-        ✅ Отлично! Все слова повторены.
+        ✅ {{ t.srs_done[nav_lang] }}
       </div>
     `;
     return;

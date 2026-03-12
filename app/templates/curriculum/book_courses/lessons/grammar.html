@@ -1,11 +1,11 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}📚 Грамматика{% endblock %}
+{% block lesson_type %}📚 {{ 'Грамматика' if nav_lang == 'ru' else 'Grammar' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
   <h1>{{ grammar_data.title if grammar_data else 'Grammar Focus' }}</h1>
-  <p>Изучите грамматическую тему и выполните упражнения</p>
+  <p>{{ 'Изучите грамматическую тему и выполните упражнения' if instr_lang == 'ru' else 'Study the grammar topic and complete the exercises' }}</p>
 </div>
 
 <!-- Grammar Lab Link -->
@@ -13,10 +13,10 @@
   <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
     <div>
       <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">Grammar Lab</h4>
-      <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">Изучайте грамматику с интерактивными упражнениями и системой повторений</p>
+      <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">{{ 'Изучайте грамматику с интерактивными упражнениями и системой повторений' if instr_lang == 'ru' else 'Learn grammar with interactive exercises and spaced repetition' }}</p>
     </div>
     <a href="{{ url_for('grammar_lab.topics', level=course.level or 'A1') }}" class="btn btn-light" style="font-weight: 600;">
-      <i class="fas fa-flask me-1"></i> Открыть Grammar Lab
+      <i class="fas fa-flask me-1"></i> {{ 'Открыть Grammar Lab' if nav_lang == 'ru' else 'Open Grammar Lab' }}
     </a>
   </div>
 </div>
@@ -71,7 +71,7 @@
       <!-- Important Notes -->
       {% if grammar_data.important_notes %}
       <div class="theory-notes">
-        <h3>Важно запомнить</h3>
+        <h3>{{ 'Важно запомнить' if instr_lang == 'ru' else 'Important to Remember' }}</h3>
         <ul class="notes-list">
           {% for note in grammar_data.important_notes %}
           <li>{{ note }}</li>
@@ -84,18 +84,18 @@
     <div class="theory-header">
       <h2>Grammar Focus</h2>
     </div>
-    <p>Грамматический материал загружается...</p>
+    <p>{{ 'Грамматический материал загружается...' if instr_lang == 'ru' else 'Grammar content is loading...' }}</p>
     {% endif %}
 
     <button class="btn btn-secondary" onclick="showPractice()">
-      Перейти к упражнениям →
+      {{ 'Перейти к упражнениям →' if nav_lang == 'ru' else 'Go to exercises →' }}
     </button>
   </div>
 
   <!-- Practice Section (hidden initially) -->
   <div class="grammar-practice" id="practice-section" style="display: none;">
     <div class="practice-header">
-      <h2>Практика</h2>
+      <h2>{{ 'Практика' if instr_lang == 'ru' else 'Practice' }}</h2>
       <div class="practice-progress">
         <span id="current-q">1</span> / <span id="total-q">5</span>
       </div>
@@ -109,10 +109,10 @@
 
     <div class="practice-nav">
       <button class="btn btn-secondary" id="back-to-theory" onclick="showTheory()">
-        ← Вернуться к теории
+        {{ '← Вернуться к теории' if nav_lang == 'ru' else '← Back to theory' }}
       </button>
       <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()" disabled>
-        Далее →
+        {{ 'Далее →' if nav_lang == 'ru' else 'Next →' }}
       </button>
     </div>
   </div>
@@ -131,13 +131,43 @@
 {% block lesson_footer %}
 <div class="lesson-footer-buttons" id="footer-buttons">
   <button id="complete-btn" class="btn btn-primary btn-lg" onclick="completeLesson()" style="display: none;">
-    Завершить урок
+    {{ 'Завершить урок' if nav_lang == 'ru' else 'Complete lesson' }}
   </button>
 </div>
 {% endblock %}
 
 {% block lesson_scripts %}
 <script>
+const LANG = '{{ instr_lang }}';
+const L = LANG === 'ru' ? {
+  finish: 'Завершить',
+  next: 'Далее →',
+  correct: 'Правильно!',
+  incorrect: 'Неправильно.',
+  saving: 'Сохраняем...',
+  completeLesson: 'Завершить урок',
+  grammarDone: '✓ Грамматика завершена!',
+  nextLesson: 'Следующий урок →',
+  backToModule: 'Вернуться к модулю',
+  excellent: 'Отлично! Вы хорошо освоили тему!',
+  good: 'Хорошо! Но можно ещё попрактиковаться.',
+  reviewTheory: 'Рекомендуем повторить теорию.'
+} : {
+  finish: 'Finish',
+  next: 'Next →',
+  correct: 'Correct!',
+  incorrect: 'Incorrect.',
+  saving: 'Saving...',
+  completeLesson: 'Complete lesson',
+  grammarDone: '✓ Grammar completed!',
+  nextLesson: 'Next lesson →',
+  backToModule: 'Back to module',
+  excellent: 'Excellent! You\'ve mastered this topic!',
+  good: 'Good! But you can practice some more.',
+  reviewTheory: 'We recommend reviewing the theory.'
+};
+
+const dailyLessonId = {{ daily_lesson.id if daily_lesson else 'null' }};
 const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
 const nextLessonUrl = '{{ next_lesson_url or "" }}';
 const moduleUrl = '{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}';
@@ -194,7 +224,7 @@ function showQuestion(index) {
   // Update nav
   document.getElementById('next-btn').disabled = answers[index] === undefined;
   document.getElementById('next-btn').textContent =
-    index === practiceQuestions.length - 1 ? 'Завершить' : 'Далее →';
+    index === practiceQuestions.length - 1 ? L.finish : L.next;
 
   // Hide feedback
   document.getElementById('feedback').style.display = 'none';
@@ -219,7 +249,7 @@ function selectOption(optionIndex) {
   feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'incorrect');
   feedback.innerHTML = `
     <div class="feedback-icon">${isCorrect ? '✓' : '✗'}</div>
-    <div class="feedback-text">${q.explanation || (isCorrect ? 'Правильно!' : 'Неправильно.')}</div>
+    <div class="feedback-text">${q.explanation || (isCorrect ? L.correct : L.incorrect)}</div>
   `;
   feedback.style.display = 'flex';
 
@@ -263,9 +293,9 @@ function showResults() {
   document.getElementById('results-score').textContent = score + '%';
 
   const icon = score >= 80 ? '🎉' : score >= 60 ? '👍' : '📚';
-  const message = score >= 80 ? 'Отлично! Вы хорошо освоили тему!'
-    : score >= 60 ? 'Хорошо! Но можно ещё попрактиковаться.'
-    : 'Рекомендуем повторить теорию.';
+  const message = score >= 80 ? L.excellent
+    : score >= 60 ? L.good
+    : L.reviewTheory;
 
   document.getElementById('results-icon').textContent = icon;
   document.getElementById('results-message').textContent = message;
@@ -278,7 +308,7 @@ function showResults() {
 function completeLesson() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.textContent = 'Сохраняем...';
+  btn.textContent = L.saving;
 
   // Use new API if daily_lesson_id exists
   const endpoint = dailyLessonId
@@ -306,7 +336,7 @@ function completeLesson() {
   .catch(error => {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.textContent = 'Завершить урок';
+    btn.textContent = L.completeLesson;
   });
 }
 
@@ -315,13 +345,13 @@ function showCompletionSuccess() {
 
   if (hasNextLesson && nextLessonUrl) {
     footerButtons.innerHTML = `
-      <span class="completion-check">✓ Грамматика завершена!</span>
-      <a href="${nextLessonUrl}" class="btn btn-primary btn-lg">Следующий урок →</a>
+      <span class="completion-check">${L.grammarDone}</span>
+      <a href="${nextLessonUrl}" class="btn btn-primary btn-lg">${L.nextLesson}</a>
     `;
   } else {
     footerButtons.innerHTML = `
-      <span class="completion-check">✓ Грамматика завершена!</span>
-      <a href="${moduleUrl}" class="btn btn-secondary">Вернуться к модулю</a>
+      <span class="completion-check">${L.grammarDone}</span>
+      <a href="${moduleUrl}" class="btn btn-secondary">${L.backToModule}</a>
     `;
   }
 }

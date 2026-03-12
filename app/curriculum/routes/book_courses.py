@@ -17,33 +17,51 @@ from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
-# Словарь переводов типов уроков
+# Язык UI определяется уровнем курса: A1-A2 → ru, B1-B2 → mixed, C1-C2 → en
+def get_ui_lang(course_level: str) -> str:
+    """Определить язык интерфейса по уровню курса"""
+    level = (course_level or "").upper()
+    if level in ("A1", "A2"):
+        return "ru"
+    if level in ("C1", "C2"):
+        return "en"
+    return "mixed"
+
+
+# Словарь переводов типов уроков (ru / en)
 LESSON_TYPE_TRANSLATIONS = {
     # v3.0 lesson types
-    'vocabulary': 'Словарь',
-    'reading': 'Чтение',
-    'language_focus': 'Грамматика',
-    'comprehension_mcq': 'Тест на понимание',
-    'phrase_cloze': 'Заполнение пропусков',
-    'context_review': 'Key Phrases in Context',
-    'guided_retelling': 'Пересказ',
-    'module_test': 'Тест модуля',
+    'vocabulary':        {'ru': 'Словарь',              'en': 'Vocabulary'},
+    'reading':           {'ru': 'Чтение',               'en': 'Reading'},
+    'language_focus':    {'ru': 'Грамматика',           'en': 'Grammar'},
+    'grammar_focus':     {'ru': 'Грамматика',           'en': 'Grammar'},
+    'comprehension_mcq': {'ru': 'Тест на понимание',    'en': 'Reading Quiz'},
+    'phrase_cloze':      {'ru': 'Заполнение пропусков', 'en': 'Cloze Practice'},
+    'cloze_practice':    {'ru': 'Заполнение пропусков', 'en': 'Cloze Practice'},
+    'context_review':    {'ru': 'Фразы в контексте',    'en': 'Key Phrases in Context'},
+    'vocabulary_review': {'ru': 'Повторение слов',      'en': 'Card Review'},
+    'guided_retelling':  {'ru': 'Пересказ',             'en': 'Retelling'},
+    'summary_writing':   {'ru': 'Краткий пересказ',     'en': 'Summary'},
+    'module_test':       {'ru': 'Тест модуля',          'en': 'Module Test'},
+    'anki_session':      {'ru': 'Повторение слов',      'en': 'Card Review'},
     # v2.0 lesson types (legacy)
-    'reading_part1': 'Чтение (часть 1)',
-    'reading_part2': 'Чтение (часть 2)',
-    'vocabulary_practice': 'Практика словаря',
-    'discussion': 'Обсуждение',
-    'mixed_practice': 'Смешанная практика',
+    'reading_part1':       {'ru': 'Чтение (часть 1)',     'en': 'Reading (Part 1)'},
+    'reading_part2':       {'ru': 'Чтение (часть 2)',     'en': 'Reading (Part 2)'},
+    'vocabulary_practice': {'ru': 'Практика словаря',     'en': 'Vocabulary Practice'},
+    'discussion':          {'ru': 'Обсуждение',           'en': 'Discussion'},
+    'mixed_practice':      {'ru': 'Смешанная практика',   'en': 'Mixed Practice'},
     # Legacy lesson types
-    'reading_passage': 'Чтение',
-    'reading_mcq': 'Тест по чтению',
-    'match_headings': 'Заголовки',
-    'open_cloze': 'Пропуски',
-    'word_formation': 'Словообразование',
-    'keyword_transform': 'Трансформации',
-    'grammar_sheet': 'Грамматика',
-    'grammar': 'Грамматика',
-    'final_test': 'Финальный тест'
+    'reading_passage':   {'ru': 'Чтение',            'en': 'Reading'},
+    'reading_assignment':{'ru': 'Чтение',            'en': 'Reading'},
+    'reading_mcq':       {'ru': 'Тест по чтению',    'en': 'Reading Quiz'},
+    'match_headings':    {'ru': 'Заголовки',          'en': 'Match Headings'},
+    'open_cloze':        {'ru': 'Пропуски',           'en': 'Open Cloze'},
+    'word_formation':    {'ru': 'Словообразование',   'en': 'Word Formation'},
+    'keyword_transform': {'ru': 'Трансформации',      'en': 'Key Word Transform'},
+    'grammar_sheet':     {'ru': 'Грамматика',         'en': 'Grammar'},
+    'grammar':           {'ru': 'Грамматика',         'en': 'Grammar'},
+    'final_test':        {'ru': 'Итоговый тест',      'en': 'Final Test'},
+    'srs':               {'ru': 'Повторение слов',    'en': 'Card Review'},
 }
 
 
@@ -84,9 +102,14 @@ def _parse_lesson_scaffold(raw_annotations):
     }
 
 
-def get_lesson_type_display(lesson_type: str) -> str:
-    """Получить русское название типа урока"""
-    return LESSON_TYPE_TRANSLATIONS.get(lesson_type, lesson_type.replace('_', ' ').title())
+def get_lesson_type_display(lesson_type: str, ui_lang: str = 'ru') -> str:
+    """Получить название типа урока с учётом языка интерфейса.
+    Для mixed используется ru (названия типов — это навигация)."""
+    lang = 'ru' if ui_lang in ('ru', 'mixed') else 'en'
+    entry = LESSON_TYPE_TRANSLATIONS.get(lesson_type)
+    if entry:
+        return entry.get(lang, entry.get('ru', lesson_type))
+    return lesson_type.replace('_', ' ').title()
 
 
 def truncate_context(text: str, max_sentences: int = 1) -> str:
@@ -507,12 +530,18 @@ def view_module(course_id, module_id):
         ).order_by(DailyLesson.day_number, DailyLesson.id).all()
 
         # Convert to template format
+        ui_lang = get_ui_lang(course.level)
         lessons = []
         for dl in daily_lessons:
+            type_label = get_lesson_type_display(dl.lesson_type, ui_lang)
+            if ui_lang == 'en':
+                title = f'Day {dl.day_number}: {type_label}'
+            else:
+                title = f'День {dl.day_number}: {type_label}'
             lessons.append({
                 'lesson_number': dl.day_number,
                 'type': dl.lesson_type,
-                'title': f'День {dl.day_number}: {get_lesson_type_display(dl.lesson_type)}',
+                'title': title,
                 'id': dl.id,
                 'estimated_time': 15,
                 'description': None
@@ -595,10 +624,16 @@ def view_lesson(course_id, module_id, lesson_number):
                 abort(404)
         else:
             # Convert DailyLesson to lesson format for templates
+            ui_lang = get_ui_lang(course.level)
+            type_label = get_lesson_type_display(daily_lesson.lesson_type, ui_lang)
+            if ui_lang == 'en':
+                title = f'Day {daily_lesson.day_number}: {type_label}'
+            else:
+                title = f'День {daily_lesson.day_number}: {type_label}'
             lesson = {
                 'lesson_number': daily_lesson.day_number,
                 'type': daily_lesson.lesson_type,
-                'title': f'День {daily_lesson.day_number}: {get_lesson_type_display(daily_lesson.lesson_type)}',
+                'title': title,
                 'slice_text': daily_lesson.slice_text,
                 'word_count': daily_lesson.word_count,
                 'task_id': daily_lesson.task_id,
@@ -688,15 +723,16 @@ def view_lesson(course_id, module_id, lesson_number):
                         ).all()
                     }
                     new_count = sum(1 for sv in slice_vocab if sv.word_id not in known_ids)
+                    _ui = get_ui_lang(course.level)
                     if new_count < 5:
-                        reading_difficulty = {'level': 'easy', 'new_words': new_count,
-                                              'hint': 'Лёгкое чтение — наслаждайся историей!'}
+                        hint = 'Easy reading — enjoy the story!' if _ui == 'en' else 'Лёгкое чтение — наслаждайся историей!'
+                        reading_difficulty = {'level': 'easy', 'new_words': new_count, 'hint': hint}
                     elif new_count <= 10:
-                        reading_difficulty = {'level': 'medium', 'new_words': new_count,
-                                              'hint': 'Среднее чтение — подчёркивай важные слова'}
+                        hint = 'Moderate reading — highlight key words' if _ui == 'en' else 'Среднее чтение — подчёркивай важные слова'
+                        reading_difficulty = {'level': 'medium', 'new_words': new_count, 'hint': hint}
                     else:
-                        reading_difficulty = {'level': 'hard', 'new_words': new_count,
-                                              'hint': 'Вдумчивое чтение — разбирай каждое предложение'}
+                        hint = 'Intensive reading — analyze each sentence' if _ui == 'en' else 'Вдумчивое чтение — разбирай каждое предложение'
+                        reading_difficulty = {'level': 'hard', 'new_words': new_count, 'hint': hint}
 
             scaffold = _parse_lesson_scaffold(dl.annotations if dl else None)
 
@@ -1231,10 +1267,16 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
             abort(404)
 
         # Convert DailyLesson to lesson format for templates
+        ui_lang = get_ui_lang(course.level)
+        type_label = get_lesson_type_display(daily_lesson.lesson_type, ui_lang)
+        if ui_lang == 'en':
+            title = f'Day {daily_lesson.day_number}: {type_label}'
+        else:
+            title = f'День {daily_lesson.day_number}: {type_label}'
         lesson = {
             'lesson_number': daily_lesson.day_number,
             'type': daily_lesson.lesson_type,
-            'title': f'День {daily_lesson.day_number}: {get_lesson_type_display(daily_lesson.lesson_type)}',
+            'title': title,
             'slice_text': daily_lesson.slice_text,
             'word_count': daily_lesson.word_count,
             'task_id': daily_lesson.task_id,

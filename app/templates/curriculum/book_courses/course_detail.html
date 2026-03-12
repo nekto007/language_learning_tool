@@ -3,6 +3,32 @@
 {% block title %}{{ course.title }}{% endblock %}
 
 {% block content %}
+{# UI language: ru (A1-A2), mixed (B1-B2), en (C1-C2) #}
+{% set ui_lang = 'ru' if (course.level or '')|upper in ('A1', 'A2') else ('en' if (course.level or '')|upper in ('C1', 'C2') else 'mixed') %}
+{% set nav_lang = 'ru' if ui_lang in ('ru', 'mixed') else 'en' %}
+{% set t = {
+  'back':           {'ru': 'Книжные курсы',      'en': 'Book Courses'},
+  'start_learning': {'ru': 'Начать обучение',     'en': 'Start Learning'},
+  'enroll':         {'ru': '{{ t.enroll[nav_lang] }}',  'en': 'Enroll in Course'},
+  'continue':       {'ru': 'Продолжить',          'en': 'Continue'},
+  'module':         {'ru': 'Модуль',              'en': 'Module'},
+  'modules_label':  {'ru': 'модулей',             'en': 'modules'},
+  'progress':       {'ru': 'прогресс',            'en': 'progress'},
+  'duration':       {'ru': 'длительность',        'en': 'duration'},
+  'weeks':          {'ru': 'нед.',                'en': 'wks'},
+  'course_modules': {'ru': 'Модули курса',        'en': 'Course Modules'},
+  'modules_to_study':{'ru': 'для изучения',       'en': 'to study'},
+  'complete_prev':  {'ru': 'Завершите предыдущий модуль', 'en': 'Complete the previous module'},
+  'study_new':      {'ru': 'Изучите новый материал',      'en': 'Study new material'},
+  'lessons':        {'ru': 'уроков',              'en': 'lessons'},
+  'review':         {'ru': 'Повторить',           'en': 'Review'},
+  'start':          {'ru': 'Начать',              'en': 'Start'},
+  'featured':       {'ru': 'Рекомендуем',         'en': 'Featured'},
+  'modules_soon':   {'ru': 'Модули появятся скоро','en': 'Modules coming soon'},
+  'preparing':      {'ru': 'Мы готовим учебные материалы для этого курса', 'en': 'We are preparing learning materials for this course'},
+  'enrolling':      {'ru': '{{ t.enrolling[nav_lang] }}',       'en': 'Enrolling...'},
+  'enroll_error':   {'ru': '{{ t.enroll_error[nav_lang] }}', 'en': 'Error enrolling in course'},
+} %}
 <div class="cd-page">
   <!-- Hero Section -->
   <div class="cd-hero">
@@ -17,7 +43,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
-        <span>Книжные курсы</span>
+        <span>{{ t.back[nav_lang] }}</span>
       </a>
 
       <div class="cd-hero__main">
@@ -39,7 +65,7 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
-                Рекомендуем
+                {{ t.featured[nav_lang] }}
               </span>
             {% endif %}
           </div>
@@ -52,8 +78,8 @@
       {% if not is_enrolled %}
         <button id="enroll-btn" class="cd-hero__cta cd-hero__cta--btn" onclick="enrollInCourse({{ course.id }})">
           <div class="cd-hero__cta-content">
-            <span class="cd-hero__cta-label">Начать обучение</span>
-            <span class="cd-hero__cta-title">Записаться на курс</span>
+            <span class="cd-hero__cta-label">{{ t.start_learning[nav_lang] }}</span>
+            <span class="cd-hero__cta-title">{{ t.enroll[nav_lang] }}</span>
           </div>
           <div class="cd-hero__cta-arrow">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -64,8 +90,8 @@
       {% elif enrollment and enrollment.current_module %}
         <a href="{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=enrollment.current_module.module_number) if course.slug else url_for('book_courses.view_module', course_id=course.id, module_id=enrollment.current_module.id) }}" class="cd-hero__cta">
           <div class="cd-hero__cta-content">
-            <span class="cd-hero__cta-label">Продолжить</span>
-            <span class="cd-hero__cta-title">Модуль {{ enrollment.current_module.module_number }}</span>
+            <span class="cd-hero__cta-label">{{ t.continue[nav_lang] }}</span>
+            <span class="cd-hero__cta-title">{{ t.module[nav_lang] }} {{ enrollment.current_module.module_number }}</span>
           </div>
           <div class="cd-hero__cta-arrow">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,7 +113,7 @@
             0<span class="cd-stat__divider">/</span>{{ total_modules }}
           {% endif %}
         </div>
-        <div class="cd-stat__label">модулей</div>
+        <div class="cd-stat__label">{{ t.modules_label[nav_lang] }}</div>
       </div>
       <div class="cd-stat">
         <div class="cd-stat__value">
@@ -97,12 +123,12 @@
             —
           {% endif %}
         </div>
-        <div class="cd-stat__label">прогресс</div>
+        <div class="cd-stat__label">{{ t.progress[nav_lang] }}</div>
       </div>
       {% if course.estimated_duration_weeks %}
         <div class="cd-stat">
-          <div class="cd-stat__value">~{{ course.estimated_duration_weeks }}<span class="cd-stat__unit">нед.</span></div>
-          <div class="cd-stat__label">длительность</div>
+          <div class="cd-stat__value">~{{ course.estimated_duration_weeks }}<span class="cd-stat__unit">{{ t.weeks[nav_lang] }}</span></div>
+          <div class="cd-stat__label">{{ t.duration[nav_lang] }}</div>
         </div>
       {% endif %}
     </div>
@@ -111,8 +137,8 @@
   <!-- Modules Section -->
   <div class="cd-modules-section">
     <div class="cd-modules-section__header">
-      <h2 class="cd-modules-section__title">Модули курса</h2>
-      <p class="cd-modules-section__subtitle">{{ total_modules }} {{ 'модуль' if total_modules == 1 else 'модуля' if total_modules < 5 else 'модулей' }} для изучения</p>
+      <h2 class="cd-modules-section__title">{{ t.course_modules[nav_lang] }}</h2>
+      <p class="cd-modules-section__subtitle">{{ total_modules }} {{ t.modules_label[nav_lang] }} {{ t.modules_to_study[nav_lang] }}</p>
     </div>
 
     {% if modules %}
@@ -145,9 +171,9 @@
               <h3 class="cd-module__title">{{ module.title }}</h3>
               <p class="cd-module__desc">
                 {% if not is_unlocked %}
-                  Завершите предыдущий модуль
+                  {{ t.complete_prev[nav_lang] }}
                 {% else %}
-                  {{ module.description or 'Изучите новый материал' }}
+                  {{ module.description or t.study_new[nav_lang] }}
                 {% endif %}
               </p>
 
@@ -157,7 +183,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
-                    {{ module.total_lessons }} уроков
+                    {{ module.total_lessons }} {{ t.lessons[nav_lang] }}
                   </span>
                   {% if percentage > 0 %}
                     <span class="cd-module__percent">{{ percentage|round(0)|int }}%</span>
@@ -175,11 +201,11 @@
             {% if is_unlocked %}
               <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="cd-module__action">
                 {% if status == 'completed' %}
-                  <span>Повторить</span>
+                  <span>{{ t.review[nav_lang] }}</span>
                 {% elif percentage > 0 %}
-                  <span>Продолжить</span>
+                  <span>{{ t.continue[nav_lang] }}</span>
                 {% else %}
-                  <span>Начать</span>
+                  <span>{{ t.start[nav_lang] }}</span>
                 {% endif %}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -196,8 +222,8 @@
             <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
           </svg>
         </div>
-        <h4>Модули появятся скоро</h4>
-        <p>Мы готовим учебные материалы для этого курса</p>
+        <h4>{{ t.modules_soon[nav_lang] }}</h4>
+        <p>{{ t.preparing[nav_lang] }}</p>
       </div>
     {% endif %}
   </div>
@@ -858,7 +884,7 @@
 function enrollInCourse(courseId) {
   const btn = document.getElementById('enroll-btn');
   btn.disabled = true;
-  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cd-spinner"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Записываем...';
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cd-spinner"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> {{ t.enrolling[nav_lang] }}';
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -881,16 +907,16 @@ function enrollInCourse(courseId) {
     if (data.success) {
       window.location.reload();
     } else {
-      alert(data.error || 'Ошибка при записи на курс');
+      alert(data.error || '{{ t.enroll_error[nav_lang] }}');
       btn.disabled = false;
-      btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Записаться на курс';
+      btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> {{ t.enroll[nav_lang] }}';
     }
   })
   .catch(error => {
     console.error('Error:', error);
-    alert('Ошибка при записи на курс');
+    alert('{{ t.enroll_error[nav_lang] }}');
     btn.disabled = false;
-    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Записаться на курс';
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> {{ t.enroll[nav_lang] }}';
   });
 }
 

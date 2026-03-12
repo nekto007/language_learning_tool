@@ -1,7 +1,1379 @@
 {% extends "base.html" %}
 
-{% block title %}{{ fc_title }}{% endblock %}
+{% block lesson_type %}📝 {{ {'ru':'Словарь','en':'Vocabulary'}[nav_lang] }}{% endblock %}
 
-{% block content %}
-{% include "components/_flashcard_session.html" %}
+{% block lesson_content %}
+{% set t = {
+  'study_words': {'ru': 'Изучение слов', 'en': 'Study Words'},
+  'intro': {'ru': 'Изучите новые слова из этого раздела', 'en': 'Learn new words from this section'},
+  'progress': {'ru': 'Прогресс', 'en': 'Progress'},
+  'of': {'ru': 'из', 'en': 'of'},
+  'tap_to_translate': {'ru': 'Нажмите для перевода', 'en': 'Tap to translate'},
+  'how_well': {'ru': 'Насколько хорошо вы знаете это слово?', 'en': 'How well do you know this word?'},
+  'dont_know': {'ru': 'Не знаю', 'en': "Don't know"},
+  'hard_hint': {'ru': '1-2 карточки', 'en': '1-2 cards'},
+  'unsure': {'ru': 'Сомневаюсь', 'en': 'Unsure'},
+  'good_hint': {'ru': '3-5 карточек', 'en': '3-5 cards'},
+  'know': {'ru': 'Знаю', 'en': 'Know'},
+  'done': {'ru': 'Готово', 'en': 'Done'},
+  'no_translation': {'ru': 'Нет перевода', 'en': 'No translation'},
+  'in_text': {'ru': 'В тексте:', 'en': 'In text:'},
+  'example': {'ru': 'Пример:', 'en': 'Example:'},
+  'play_audio': {'ru': 'Озвучить', 'en': 'Play audio'},
+  'add_to_cards': {'ru': 'Добавить в карточки', 'en': 'Add to flashcards'}
+} %}
+<div class="lesson-intro">
+  <h1>{{ t.study_words[instr_lang] }}</h1>
+  <p id="intro-text">{{ t.intro[instr_lang] }}</p>
+</div>
+
+<div class="vocabulary-container">
+  <!-- Progress -->
+  <div class="vocab-progress">
+    <div class="progress-info">
+      <span class="progress-label">{{ t.progress[instr_lang] }}</span>
+      <span class="progress-count"><span id="current-word">1</span> {{ t.of[instr_lang] }} <span id="total-words">?</span></span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="vocab-progress" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <!-- Flashcard (Anki-style) -->
+  <div class="vocab-card-container">
+    <div class="vocab-card" id="flashcard" onclick="flipCard()">
+      <div class="vocab-card-front">
+        <div class="word-english" id="word-english"></div>
+        <button class="audio-btn-inline" id="audio-btn-front" onclick="event.stopPropagation(); playAudio()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        </button>
+        <div class="word-hint">
+          <span class="hint-icon">👆</span> {{ t.tap_to_translate[instr_lang] }}
+        </div>
+      </div>
+      <div class="vocab-card-back">
+        <!-- Front side repeated -->
+        <div class="word-english-back" id="word-english-back"></div>
+        <button class="audio-btn-inline audio-btn-back" onclick="event.stopPropagation(); playAudio()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+        </button>
+        <hr class="answer-divider">
+        <!-- Translation -->
+        <div class="word-translation" id="word-translation"></div>
+        <!-- Context from book -->
+        <div class="word-context" id="word-context"></div>
+        <!-- Example usage -->
+        <div class="word-example" id="word-example"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rating Buttons (shown after flip) - Unified 1-2-3 scale -->
+  <div class="rating-section" id="rating-section" style="display: none;">
+    <div class="rating-label">{{ t.how_well[instr_lang] }}</div>
+    <div class="rating-buttons" id="rating-buttons">
+      <button class="rating-btn hard" onclick="rateWord(1)">
+        <span class="rating-icon">😕</span>
+        <span class="rating-text">{{ t.dont_know[instr_lang] }}</span>
+        <span class="rating-hint">{{ t.hard_hint[instr_lang] }}</span>
+      </button>
+      <button class="rating-btn good" onclick="rateWord(2)">
+        <span class="rating-icon">🤔</span>
+        <span class="rating-text">{{ t.unsure[instr_lang] }}</span>
+        <span class="rating-hint">{{ t.good_hint[instr_lang] }}</span>
+      </button>
+      <button class="rating-btn easy" onclick="rateWord(3)">
+        <span class="rating-icon">😊</span>
+        <span class="rating-text">{{ t.know[instr_lang] }}</span>
+        <span class="rating-hint">{{ t.done[instr_lang] }}</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Word Popup Modal (for context words) -->
+<div class="word-popup-overlay" id="word-popup-overlay">
+  <div class="word-popup" id="word-popup">
+    <div class="popup-word" id="popup-word">word</div>
+    <div class="popup-translation" id="popup-translation">перевод</div>
+    <div class="popup-example" id="popup-example"></div>
+
+    <div class="popup-actions">
+      <button class="popup-btn" id="popup-audio-btn" onclick="playPopupAudio()" title="{{ t.play_audio[instr_lang] }}">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+      <button class="popup-btn popup-btn-primary" id="popup-add-btn" onclick="addToFlashcards()" title="{{ t.add_to_cards[instr_lang] }}">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="popup-status" id="popup-status"></div>
+  </div>
+</div>
+
+<!-- Hidden Audio Element -->
+<audio id="popup-word-audio" preload="none"></audio>
+{% endblock %}
+
+{% block lesson_footer %}
+<!-- Footer is empty - completion buttons shown in card after finishing -->
+{% endblock %}
+
+{% block lesson_scripts %}
+<script>
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
+const L = LANG === 'ru' ? {
+  words_left: (n, pw) => `Осталось ${n} ${pw} для изучения`,
+  all_cards_studied: 'Все карточки изучены!',
+  today_reviewed_cards: (n, pc) => `Сегодня вы прошли ${n} ${pc}.`,
+  come_back_tomorrow: 'Возвращайтесь завтра для повторения!',
+  these_words_known: 'Эти слова вы уже знаете!',
+  all_words_learned: 'Вы уже выучили все слова из этой книги.',
+  great_work: 'Отличная работа! Можете переходить к следующему уроку.',
+  excellent: 'Отлично!',
+  today_reviewed: (n, pc) => `Сегодня вы прошли ${n} ${pc}`,
+  all_words_studied: 'Все слова изучены!',
+  no_translation: 'Нет перевода',
+  in_text: 'В тексте:',
+  example_label: 'Пример:',
+  no_audio: 'Нет аудио',
+  word_not_in_dict: 'Слово не в словаре',
+  already_learned: '✓ Уже выучено',
+  in_learning: '📚 В обучении',
+  added: '✓ Добавлено!',
+  error: 'Ошибка',
+  network_error: 'Ошибка сети',
+  not_found: 'Не найдено',
+  pos: { noun: 'сущ.', verb: 'гл.', adjective: 'прил.', adverb: 'нареч.', preposition: 'предл.', conjunction: 'союз', pronoun: 'мест.', interjection: 'межд.', unknown: '' },
+  pluralizeWords: (count) => { const l2 = count % 100, l1 = count % 10; if (l2 >= 11 && l2 <= 19) return 'слов'; if (l1 === 1) return 'слово'; if (l1 >= 2 && l1 <= 4) return 'слова'; return 'слов'; },
+  pluralizeCards: (count) => { const l2 = count % 100, l1 = count % 10; if (l2 >= 11 && l2 <= 19) return 'карточек'; if (l1 === 1) return 'карточку'; if (l1 >= 2 && l1 <= 4) return 'карточки'; return 'карточек'; }
+} : {
+  words_left: (n, pw) => `${n} ${pw} left to study`,
+  all_cards_studied: 'All cards studied!',
+  today_reviewed_cards: (n, pc) => `Today you reviewed ${n} ${pc}.`,
+  come_back_tomorrow: 'Come back tomorrow for review!',
+  these_words_known: 'You already know these words!',
+  all_words_learned: "You've already learned all words from this book.",
+  great_work: 'Great job! You can move on to the next lesson.',
+  excellent: 'Excellent!',
+  today_reviewed: (n, pc) => `Today you reviewed ${n} ${pc}`,
+  all_words_studied: 'All words studied!',
+  no_translation: 'No translation',
+  in_text: 'In text:',
+  example_label: 'Example:',
+  no_audio: 'No audio',
+  word_not_in_dict: 'Word not in dictionary',
+  already_learned: '✓ Already learned',
+  in_learning: '📚 In learning',
+  added: '✓ Added!',
+  error: 'Error',
+  network_error: 'Network error',
+  not_found: 'Not found',
+  pos: { noun: 'noun', verb: 'verb', adjective: 'adj.', adverb: 'adv.', preposition: 'prep.', conjunction: 'conj.', pronoun: 'pron.', interjection: 'interj.', unknown: '' },
+  pluralizeWords: (count) => count === 1 ? 'word' : 'words',
+  pluralizeCards: (count) => count === 1 ? 'card' : 'cards'
+};
+const L_nav = NAV_LANG === 'ru' ? {
+  to_module: '← К модулю',
+  next_lesson: 'Следующий урок →'
+} : {
+  to_module: '← To module',
+  next_lesson: 'Next lesson →'
+};
+</script>
+<script>
+// Vocabulary data - fallback if SRS not available
+const fallbackVocabulary = {{ vocabulary_data | tojson | safe }};
+const lessonId = {{ lesson.daily_lesson_id or 'null' }};
+// courseId already defined in _lesson_base.html
+
+let vocabularyData = [];
+let srsSession = null;
+let currentIndex = 0;
+let isFlipped = false;
+let studiedWords = new Set();
+let studiedTodayInitial = 0;  // Слов изучено сегодня ДО начала сессии
+
+function pluralizeWords(count) { return L.pluralizeWords(count); }
+function pluralizeCards(count) { return L.pluralizeCards(count); }
+
+// Part of speech translations
+const posLabels = L.pos;
+
+async function init() {
+  let srsSessionLoaded = false;
+
+  // Try to load SRS session first
+  if (lessonId) {
+    try {
+      const response = await fetch(`/curriculum/api/srs/session/${lessonId}`);
+      if (response.ok) {
+        srsSession = await response.json();
+        srsSessionLoaded = true;
+
+        // Сохраняем сколько слов изучено сегодня до начала сессии
+        studiedTodayInitial = srsSession.studied_today || 0;
+
+        if (srsSession.deck && srsSession.deck.length > 0) {
+          // Convert SRS deck to vocabulary format with full word data
+          vocabularyData = srsSession.deck.map(card => ({
+            card_id: card.card_id,
+            lemma: card.lemma || card.front,
+            translation: card.translation || card.back,
+            direction: card.direction,
+            phase: card.phase,
+            is_new: card.new,
+            audio_url: card.audio_url,
+            has_audio: card.has_audio || false,
+            part_of_speech: card.part_of_speech,
+            level: card.level,
+            transcription: card.transcription,
+            context: card.context,
+            examples: card.examples
+          }));
+          console.log(`Loaded ${vocabularyData.length} SRS cards for review`);
+        } else {
+          console.log(`SRS session loaded, but no due cards. Studied today: ${studiedTodayInitial}`);
+        }
+      }
+    } catch (e) {
+      console.log('SRS session not available, using fallback:', e);
+    }
+  }
+
+  // Fallback to regular vocabulary ONLY if SRS session failed to load
+  if (!srsSessionLoaded && vocabularyData.length === 0) {
+    vocabularyData = fallbackVocabulary;
+    console.log(`Using fallback vocabulary: ${vocabularyData.length} words (no SRS session)`);
+  }
+
+  if (vocabularyData.length > 0) {
+    // Обновляем UI с актуальными числами
+    document.getElementById('total-words').textContent = vocabularyData.length;
+    document.getElementById('intro-text').textContent =
+      L.words_left(vocabularyData.length, pluralizeWords(vocabularyData.length));
+    showWord(0);
+  } else {
+    // No words to study - check if user knows all words in the book
+    const totalStudiedToday = studiedTodayInitial;
+    const moduleUrl = `/curriculum/book-courses/${courseId}/modules/${moduleId}`;
+
+    if (totalStudiedToday > 0) {
+      // User studied some cards today - come back tomorrow
+      document.querySelector('.vocabulary-container').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">✅</div>
+          <h4>${L.all_cards_studied}</h4>
+          <p>${L.today_reviewed_cards(totalStudiedToday, pluralizeCards(totalStudiedToday))}</p>
+          <p class="text-muted">${L.come_back_tomorrow}</p>
+          <div class="completion-actions">
+            <a href="${moduleUrl}" class="btn btn-secondary">${L_nav.to_module}</a>
+            <button class="btn btn-primary" onclick="completeAndContinue()">${L_nav.next_lesson}</button>
+          </div>
+        </div>
+      `;
+    } else {
+      // User knows ALL words in the book - show special message
+      document.querySelector('.vocabulary-container').innerHTML = `
+        <div class="empty-state all-words-known">
+          <div class="empty-icon">🎓</div>
+          <h4>${L.these_words_known}</h4>
+          <p>${L.all_words_learned}</p>
+          <p class="text-muted">${L.great_work}</p>
+          <div class="completion-actions">
+            <a href="${moduleUrl}" class="btn btn-secondary">${L_nav.to_module}</a>
+            <button class="btn btn-primary" onclick="completeAndContinue()">${L_nav.next_lesson}</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
+function showWord(index) {
+  const word = vocabularyData[index];
+  if (!word) return;
+
+  currentIndex = index;
+  isFlipped = false;
+
+  // Determine front/back based on direction
+  // eng-rus: show English on front, Russian on back
+  // rus-eng: show Russian on front, English on back
+  const isEngRus = word.direction === 'eng-rus' || !word.direction;
+  const frontWord = isEngRus ? word.lemma : word.translation;  // Front: EN or RU
+  const backWord = frontWord;  // Back header repeats front word
+  const translationWord = isEngRus ? word.translation : word.lemma;  // Answer: RU or EN
+
+  // Front side - word to learn
+  document.getElementById('word-english').textContent = frontWord;
+
+  // Back side - same word repeated
+  document.getElementById('word-english-back').textContent = backWord;
+
+  // Translation (red)
+  document.getElementById('word-translation').textContent = translationWord || L.no_translation;
+
+  // Context from book (italic)
+  const contextEl = document.getElementById('word-context');
+  if (word.context) {
+    let context = word.context.replace(/\\n/g, ' ').replace(/<br\s*\/?>/gi, ' ');
+    contextEl.innerHTML = '<strong>📖 ' + L.in_text + '</strong> ' + context;
+    contextEl.style.display = 'block';
+  } else {
+    contextEl.style.display = 'none';
+  }
+
+  // Example usage
+  const exampleEl = document.getElementById('word-example');
+  if (word.examples) {
+    let example = word.examples.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+    exampleEl.innerHTML = '<strong>💡 ' + L.example_label + '</strong> ' + example;
+    exampleEl.style.display = 'block';
+  } else {
+    exampleEl.style.display = 'none';
+  }
+
+  // Reset card state (ensure card is not flipped for initial load)
+  if (index === 0) {
+    document.getElementById('flashcard').classList.remove('flipped');
+    document.getElementById('rating-section').style.display = 'none';
+  }
+
+  // Show/hide audio buttons based on has_audio and direction
+  // eng-rus: audio on both sides (English word shown)
+  // rus-eng: audio only on back side (where English answer is shown)
+  const audioBtnFront = document.getElementById('audio-btn-front');
+  const audioBtnBack = document.querySelector('.audio-btn-back');
+  if (word.has_audio) {
+    // Front audio: only for eng-rus (English on front)
+    if (audioBtnFront) audioBtnFront.style.display = isEngRus ? 'flex' : 'none';
+    // Back audio: always show (English is on back for rus-eng, repeated for eng-rus)
+    if (audioBtnBack) audioBtnBack.style.display = 'flex';
+  } else {
+    if (audioBtnFront) audioBtnFront.style.display = 'none';
+    if (audioBtnBack) audioBtnBack.style.display = 'none';
+  }
+
+  // Update progress
+  document.getElementById('current-word').textContent = index + 1;
+  document.getElementById('vocab-progress').style.width =
+    ((studiedWords.size) / vocabularyData.length * 100) + '%';
+}
+
+function flipCard() {
+  // Only flip from front to back, not back to front
+  if (isFlipped) return;
+
+  isFlipped = true;
+  document.getElementById('flashcard').classList.add('flipped');
+  document.getElementById('rating-section').style.display = 'block';
+
+  // Make context words clickable after flip
+  setTimeout(() => makeContextWordsClickable(), 100);
+}
+
+function nextWord() {
+  if (currentIndex < vocabularyData.length - 1) {
+    showWord(currentIndex + 1);
+  }
+  // Завершение теперь обрабатывается в rateWord()
+}
+
+async function rateWord(rating) {
+  const word = vocabularyData[currentIndex];
+  console.log(`Word "${word.lemma}" rated: ${rating} (unified scale 1-2-3)`);
+
+  // Visual feedback
+  const btn = event.target.closest('.rating-btn');
+  btn.classList.add('selected');
+
+  // Отмечаем слово как изученное
+  studiedWords.add(currentIndex);
+
+  // Update progress bar
+  document.getElementById('vocab-progress').style.width =
+    ((studiedWords.size) / vocabularyData.length * 100) + '%';
+
+  // If this is an SRS card, send rating to server (unified 1-2-3 scale)
+  let shouldRequeue = false;
+  let requeuePosition = null;
+
+  if (word.card_id && srsSession) {
+    try {
+      const response = await fetch('/curriculum/api/v1/srs/grade', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+          card_id: word.card_id,
+          rating: rating,  // Unified 1-2-3 scale
+          session_key: srsSession.session_key
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('SRS grade result:', result);
+
+        // Handle requeue position for in-session review
+        if (result.requeue_position !== null && result.requeue_position !== undefined) {
+          shouldRequeue = true;
+          requeuePosition = result.requeue_position;
+        }
+      } else {
+        const text = await response.text();
+        console.error('SRS grade error:', response.status, text);
+      }
+    } catch (e) {
+      console.error('Error grading card:', e);
+    }
+  } else {
+    // Fallback vocabulary - no SRS tracking
+    console.log('Rating word (no SRS):', word.lemma, rating);
+  }
+
+  setTimeout(() => {
+    btn.classList.remove('selected');
+
+    // Requeue card if needed (rating 1 or 2)
+    if (shouldRequeue && requeuePosition !== null) {
+      const cardCopy = { ...word, isRequeue: true };
+      const insertAt = Math.min(currentIndex + requeuePosition + 1, vocabularyData.length);
+      vocabularyData.splice(insertAt, 0, cardCopy);
+      document.getElementById('total-words').textContent = vocabularyData.length;
+      console.log(`Card requeued at position +${requeuePosition}`);
+    }
+
+    // Проверяем - это было последнее слово?
+    if (currentIndex >= vocabularyData.length - 1) {
+      showCompletionMessage();
+    } else {
+      // Сначала переворачиваем карточку обратно
+      document.getElementById('flashcard').classList.remove('flipped');
+      document.getElementById('rating-section').style.display = 'none';
+
+      // Ждём завершения анимации flip (500ms), потом показываем новое слово
+      setTimeout(() => {
+        nextWord();
+      }, 500);
+    }
+  }, 200);
+}
+
+function playAudio() {
+  const word = vocabularyData[currentIndex];
+  if (word && word.audio_url) {
+    const audio = new Audio(word.audio_url);
+    audio.play().catch(e => console.log('Audio not available'));
+  }
+}
+
+function showCompletionMessage() {
+  // Update progress to 100%
+  document.getElementById('vocab-progress').style.width = '100%';
+  document.querySelector('.progress-count').textContent = L.all_words_studied;
+
+  // Общее количество слов изученных сегодня:
+  // studiedTodayInitial - изучено ДО этой сессии
+  // studiedWords.size - изучено В этой сессии
+  // Итого = сумма (они не пересекаются, т.к. due cards не включают уже изученные сегодня)
+  const totalStudiedToday = studiedTodayInitial + studiedWords.size;
+
+  // URLs for navigation
+  const moduleUrl = `/curriculum/book-courses/${courseId}/modules/${moduleId}`;
+
+  // Общее количество карточек изученных сегодня
+  const totalCardsToday = totalStudiedToday * 2;  // eng-rus + rus-eng для каждого слова
+
+  // Show completion overlay on the card
+  const card = document.getElementById('flashcard');
+  card.innerHTML = `
+    <div class="completion-message">
+      <div class="completion-icon">🎉</div>
+      <h3>${L.excellent}</h3>
+      <p>${L.today_reviewed(totalCardsToday, pluralizeCards(totalCardsToday))}</p>
+      <div class="completion-actions">
+        <a href="${moduleUrl}" class="btn btn-secondary">${L_nav.to_module}</a>
+        <button class="btn btn-primary" onclick="completeAndContinue()">${L_nav.next_lesson}</button>
+      </div>
+    </div>
+  `;
+  card.classList.remove('flipped');
+
+  // Hide rating section
+  document.getElementById('rating-section').style.display = 'none';
+}
+
+function completeAndContinue() {
+  // Complete lesson and redirect to next lesson
+  const endpoint = dailyLessonId
+    ? `/curriculum/api/v1/lesson/${dailyLessonId}/complete`
+    : `/curriculum/api/book-courses/${courseId}/modules/${moduleId}/complete-lesson`;
+
+  const body = dailyLessonId
+    ? {}
+    : { lesson_number: lessonNumber, score: 100 };
+
+  fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCSRFToken()
+    },
+    body: JSON.stringify(body)
+  })
+  .then(() => {
+    // Redirect to next lesson
+    const nextLessonNumber = lessonNumber + 1;
+    window.location.href = `/curriculum/book-courses/${courseId}/modules/${moduleId}/lessons/${nextLessonNumber}`;
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    // Fallback to module page
+    window.location.href = `/curriculum/book-courses/${courseId}/modules/${moduleId}`;
+  });
+}
+
+// ========== Word Popup Functions ==========
+let popupWord = null;
+let popupWordId = null;
+
+function getCSRFToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
+function makeContextWordsClickable() {
+  const contextEl = document.getElementById('word-context');
+  if (!contextEl || contextEl.style.display === 'none') return;
+
+  // Get text content after the label
+  const textContent = contextEl.innerHTML;
+  const labelMatch = textContent.match(/^(<strong>[^<]+<\/strong>\s*)/);
+  if (!labelMatch) return;
+
+  const label = labelMatch[1];
+  const restText = textContent.substring(label.length);
+
+  // Split into words and non-words
+  const parts = restText.split(/(\s+|[.,!?;:'"()\[\]{}—–-]+)/);
+  let newHtml = label;
+
+  parts.forEach(part => {
+    if (part.trim() && /[a-zA-Z]/.test(part)) {
+      newHtml += `<span class="clickable-word" onclick="handleWordClick(event, '${part.replace(/'/g, "\\'")}')">${part}</span>`;
+    } else {
+      newHtml += part;
+    }
+  });
+
+  contextEl.innerHTML = newHtml;
+}
+
+async function handleWordClick(event, word) {
+  event.stopPropagation();
+  const cleanWord = word.replace(/[^\w'-]/g, '').toLowerCase();
+  if (!cleanWord) return;
+
+  popupWord = cleanWord;
+  popupWordId = null;
+
+  // Show popup
+  document.getElementById('popup-word').textContent = cleanWord;
+  document.getElementById('popup-translation').textContent = '...';
+  document.getElementById('popup-example').textContent = '';
+  document.getElementById('popup-example').style.display = 'none';
+  document.getElementById('popup-status').textContent = '';
+  document.getElementById('popup-status').className = 'popup-status';
+  resetAddButton();
+  document.getElementById('word-popup-overlay').classList.add('active');
+
+  try {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ word: cleanWord })
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      document.getElementById('popup-translation').textContent = data.translation || L.not_found;
+      if (data.word_id) popupWordId = data.word_id;
+      if (data.sentences) {
+        const example = data.sentences.replace(/<br\s*\/?>/gi, '\n');
+        document.getElementById('popup-example').textContent = example;
+        document.getElementById('popup-example').style.display = 'block';
+      }
+    } else {
+      document.getElementById('popup-translation').textContent = L.not_found;
+    }
+  } catch (error) {
+    document.getElementById('popup-translation').textContent = L.error;
+  }
+}
+
+// Close popup on overlay click
+document.getElementById('word-popup-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'word-popup-overlay') {
+    document.getElementById('word-popup-overlay').classList.remove('active');
+    popupWord = null;
+    popupWordId = null;
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('word-popup-overlay').classList.remove('active');
+  }
+});
+
+function playPopupAudio() {
+  if (!popupWord) return;
+  const audio = document.getElementById('popup-word-audio');
+  audio.src = `/static/audio/pronunciation_en_${popupWord}.mp3`;
+  audio.play().catch(() => showPopupStatus(L.no_audio, 'error'));
+}
+
+async function addToFlashcards() {
+  if (!popupWord) return;
+  const btn = document.getElementById('popup-add-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    if (!popupWordId) {
+      const searchResp = await fetch(`/api/words/search?term=${encodeURIComponent(popupWord)}`);
+      const searchData = await searchResp.json();
+      if (searchData.length > 0) {
+        const exact = searchData.find(w => w.english_word.toLowerCase() === popupWord);
+        popupWordId = exact ? exact.id : searchData[0].id;
+      }
+    }
+
+    if (!popupWordId) {
+      showPopupStatus(L.word_not_in_dict, 'error');
+      resetAddButton();
+      return;
+    }
+
+    const resp = await fetch('/curriculum/api/srs/add-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({
+        word_id: popupWordId,
+        source: 'vocabulary_lesson',
+        course_id: courseId
+      })
+    });
+    const data = await resp.json();
+
+    // Handle word_status from response
+    if (data.word_status === 'learned') {
+      showPopupStatus(L.already_learned, 'success');
+      btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
+      btn.classList.add('learned');
+    } else if (data.word_status === 'in_learning') {
+      showPopupStatus(L.in_learning, 'success');
+      btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
+    } else if (data.success) {
+      showPopupStatus(L.added, 'success');
+      btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>';
+    } else {
+      showPopupStatus(data.error || L.error, 'error');
+      resetAddButton();
+    }
+  } catch (error) {
+    showPopupStatus(L.network_error, 'error');
+    resetAddButton();
+  }
+}
+
+function resetAddButton() {
+  const btn = document.getElementById('popup-add-btn');
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+}
+
+function showPopupStatus(msg, type) {
+  const el = document.getElementById('popup-status');
+  el.textContent = msg;
+  el.className = 'popup-status ' + type;
+}
+
+// Initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+
+<style>
+/* Vocabulary Container */
+.vocabulary-container {
+  max-width: 550px;
+  margin: 0 auto;
+}
+
+/* Progress Section */
+.vocab-progress {
+  margin-bottom: 1rem;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.progress-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.progress-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.vocab-progress .progress-bar {
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vocab-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-color), #10b981);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+/* Flashcard */
+.vocab-card-container {
+  perspective: 1000px;
+  margin-bottom: 1rem;
+}
+
+.vocab-card {
+  width: 100%;
+  height: 300px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.vocab-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.vocab-card-front,
+.vocab-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.vocab-card-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  justify-content: flex-start;
+  padding-top: 1rem;
+}
+
+/* Front Side - English word */
+.word-english {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+/* Back Side - English word repeated */
+.word-english-back {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
+}
+
+.word-transcription {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  margin-bottom: 1rem;
+}
+
+.audio-btn-inline {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #10b981;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.audio-btn-inline svg {
+  fill: white;
+}
+
+.audio-btn-inline:hover {
+  transform: scale(1.1);
+  background: #059669;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* Fix mirrored icon on back side of flipped card */
+.vocab-card-back .audio-btn-inline {
+  transform: scaleX(-1);
+}
+
+.vocab-card-back .audio-btn-inline:hover {
+  transform: scaleX(-1) scale(1.1);
+}
+
+.word-hint {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hint-icon {
+  font-size: 1rem;
+}
+
+/* Answer Divider (Anki-style) */
+.answer-divider {
+  width: 80%;
+  border: none;
+  border-top: 2px solid #e2e8f0;
+  margin: 0.5rem 0;
+}
+
+/* Back Side - Translation (red) */
+.word-translation {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+/* Context from book (italic) */
+.word-context {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: #64748b;
+  line-height: 1.4;
+  max-width: 90%;
+  text-align: left;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #10b981;
+}
+
+/* Example usage */
+.word-example {
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.4;
+  max-width: 90%;
+  text-align: left;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: #fffbeb;
+  border-radius: 6px;
+  border-left: 3px solid #f59e0b;
+}
+
+.word-details {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.7);
+  border-radius: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+}
+
+.detail-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.level-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.level-a1, .level-a2 { background: #dbeafe; color: #1e40af; }
+.level-b1, .level-b2 { background: #fef3c7; color: #92400e; }
+.level-c1, .level-c2 { background: #fee2e2; color: #991b1b; }
+
+.word-context-section,
+.word-example-section {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.7);
+  border-radius: 12px;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+.word-context-section:last-child,
+.word-example-section:last-child {
+  margin-bottom: 0;
+}
+
+.word-context {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.example-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.word-example {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Rating Section */
+.rating-section {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.rating-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.rating-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.rating-btn {
+  flex: 1;
+  max-width: 100px;
+  padding: 0.5rem 0.4rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  transition: all 0.2s;
+}
+
+.rating-icon {
+  font-size: 1.25rem;
+}
+
+.rating-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rating-hint {
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  margin-top: 0.1rem;
+}
+
+.rating-btn.hard {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.rating-btn.hard:hover, .rating-btn.hard.selected {
+  background: #fecaca;
+  transform: scale(1.05);
+}
+
+.rating-btn.good {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.rating-btn.good:hover, .rating-btn.good.selected {
+  background: #fde68a;
+  transform: scale(1.05);
+}
+
+.rating-btn.easy {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.rating-btn.easy:hover, .rating-btn.easy.selected {
+  background: #bbf7d0;
+  transform: scale(1.05);
+}
+
+/* Completion Message */
+.completion-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 2rem;
+}
+
+.completion-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.completion-message h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #10b981;
+  margin-bottom: 0.5rem;
+}
+
+.completion-message p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.completion-actions {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.completion-actions .btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+}
+
+.completion-actions .btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.completion-actions .btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+.completion-actions .btn-primary {
+  background: #10b981;
+  color: white;
+}
+
+.completion-actions .btn-primary:hover {
+  background: #059669;
+}
+
+.completion-hint {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  margin-top: 1rem;
+}
+
+/* Footer */
+.footer-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+}
+
+.empty-state.all-words-known {
+  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 2px solid #86efac;
+}
+
+.empty-state.all-words-known h4 {
+  color: #166534;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+/* Reduce lesson-content and container size */
+.lesson-container {
+  min-height: auto !important;
+}
+
+.lesson-header-bar {
+  position: relative !important;
+}
+
+.lesson-content {
+  padding: 0.5rem 1rem !important;
+  max-width: 600px !important;
+  flex: none !important;
+}
+
+.lesson-intro {
+  margin-bottom: 1rem !important;
+}
+
+.lesson-intro h1 {
+  font-size: 1.25rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.lesson-intro p {
+  font-size: 0.875rem !important;
+}
+
+.lesson-footer {
+  padding: 0.5rem !important;
+}
+
+/* Clickable words in context */
+.clickable-word {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.clickable-word:hover {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+/* Word Popup */
+.word-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+}
+
+.word-popup-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.word-popup {
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 280px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  transform: scale(0.9);
+  transition: transform 0.2s;
+  text-align: center;
+}
+
+.word-popup-overlay.active .word-popup {
+  transform: scale(1);
+}
+
+.popup-word {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.popup-translation {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #059669;
+  margin-bottom: 0.75rem;
+}
+
+.popup-example {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  display: none;
+}
+
+.popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.popup-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.popup-btn:hover {
+  background: #e5e7eb;
+  transform: scale(1.05);
+}
+
+.popup-btn-primary {
+  background: #10b981;
+  color: #fff;
+}
+
+.popup-btn-primary:hover {
+  background: #059669;
+}
+
+.popup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.popup-btn.learned {
+  background: #10b981;
+  color: #fff;
+}
+
+.popup-status {
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+  min-height: 1rem;
+}
+
+.popup-status.success { color: #10b981; }
+.popup-status.error { color: #ef4444; }
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* spin animation moved to design-system.css */
+
+/* Responsive */
+@media (max-width: 480px) {
+  .vocab-card {
+    height: 320px;
+  }
+
+  .word-english {
+    font-size: 1.5rem;
+  }
+
+  .word-translation {
+    font-size: 1.25rem;
+  }
+
+  .word-context,
+  .word-example {
+    font-size: 0.75rem;
+  }
+}
+</style>
 {% endblock %}

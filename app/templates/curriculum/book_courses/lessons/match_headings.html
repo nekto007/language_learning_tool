@@ -1,28 +1,27 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
 
-{% block lesson_type %}🔗 Сопоставление заголовков{% endblock %}
+{% block lesson_type %}🔗 {{ 'Сопоставление заголовков' if nav_lang == 'ru' else 'Match Headings' }}{% endblock %}
 
 {% block lesson_content %}
 <div class="lesson-intro">
-  <h1>Сопоставление заголовков</h1>
-  <p>Сопоставьте заголовки с параграфами текста</p>
+  <h1>{{ 'Сопоставление заголовков' if instr_lang == 'ru' else 'Match Headings' }}</h1>
+  <p>{{ 'Сопоставьте заголовки с параграфами текста' if instr_lang == 'ru' else 'Match the headings with the paragraphs of the text' }}</p>
 </div>
 
 <div class="lesson-instructions">
-  <strong>Инструкция:</strong> Прочитайте параграфы и выберите наиболее подходящий заголовок для каждого из них.
-  Некоторые заголовки лишние и не подойдут ни к одному параграфу.
+  <strong>{{ 'Инструкция:' if instr_lang == 'ru' else 'Instructions:' }}</strong> {{ 'Прочитайте параграфы и выберите наиболее подходящий заголовок для каждого из них. Некоторые заголовки лишние и не подойдут ни к одному параграфу.' if instr_lang == 'ru' else 'Read the paragraphs and choose the most appropriate heading for each one. Some headings are extra and will not match any paragraph.' }}
 </div>
 
 <div class="matching-container">
   <div class="headings-panel">
-    <h3>Заголовки</h3>
+    <h3>{{ 'Заголовки' if instr_lang == 'ru' else 'Headings' }}</h3>
     <div class="headings-list" id="headings-list">
       <!-- Will be populated -->
     </div>
   </div>
 
   <div class="paragraphs-panel">
-    <h3>Параграфы</h3>
+    <h3>{{ 'Параграфы' if instr_lang == 'ru' else 'Paragraphs' }}</h3>
     <div class="paragraphs-list" id="paragraphs-list">
       <!-- Will be populated -->
     </div>
@@ -33,13 +32,13 @@
 {% block lesson_footer %}
 <div class="lesson-footer-actions">
   <a href="{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}" class="btn-footer btn-secondary">
-    <i class="fas fa-arrow-left"></i> К урокам
+    <i class="fas fa-arrow-left"></i> {{ 'К урокам' if nav_lang == 'ru' else 'To lessons' }}
   </a>
   <button id="check-btn" class="btn-footer btn-primary" onclick="checkAnswers()">
-    Проверить
+    {{ 'Проверить' if nav_lang == 'ru' else 'Check' }}
   </button>
   <button id="complete-btn" class="btn-footer btn-primary" onclick="finishLesson()" style="display: none;">
-    {% if has_next_lesson %}Далее <i class="fas fa-arrow-right"></i>{% else %}Завершить <i class="fas fa-check"></i>{% endif %}
+    {% if has_next_lesson %}{{ 'Далее' if nav_lang == 'ru' else 'Next' }} <i class="fas fa-arrow-right"></i>{% else %}{{ 'Завершить' if nav_lang == 'ru' else 'Finish' }} <i class="fas fa-check"></i>{% endif %}
   </button>
 </div>
 {% endblock %}
@@ -68,6 +67,8 @@ const matchingData = {
   ]
 };
 
+const LANG = '{{ instr_lang }}';
+const NAV_LANG = '{{ nav_lang }}';
 let selectedHeading = null;
 let answers = {};
 let isChecked = false;
@@ -144,9 +145,9 @@ function renderParagraphs() {
   container.innerHTML = matchingData.paragraphs.map(p => `
     <div class="paragraph-item" id="paragraph-${p.id}">
       <div class="paragraph-header">
-        <span class="paragraph-number">Параграф ${p.id}</span>
+        <span class="paragraph-number">${LANG === 'ru' ? 'Параграф' : 'Paragraph'} ${p.id}</span>
         <div class="answer-slot" id="slot-${p.id}" onclick="selectSlot(${p.id})">
-          <span class="slot-placeholder">Выберите заголовок</span>
+          <span class="slot-placeholder">${LANG === 'ru' ? 'Выберите заголовок' : 'Choose a heading'}</span>
         </div>
       </div>
       <div class="paragraph-text">${p.text}</div>
@@ -184,7 +185,7 @@ function selectSlot(paragraphId) {
   if (existingPara) {
     // Remove from previous slot
     const prevSlot = document.getElementById(`slot-${existingPara[0]}`);
-    prevSlot.innerHTML = '<span class="slot-placeholder">Выберите заголовок</span>';
+    prevSlot.innerHTML = `<span class="slot-placeholder">${LANG === 'ru' ? 'Выберите заголовок' : 'Choose a heading'}</span>`;
     delete answers[existingPara[0]];
   }
 
@@ -230,7 +231,7 @@ function checkAnswers() {
       if (correctHeading) {
         const correction = document.createElement('div');
         correction.className = 'slot-correction';
-        correction.textContent = `Правильно: ${correctHeading.id}. ${correctHeading.text}`;
+        correction.textContent = `${LANG === 'ru' ? 'Правильно:' : 'Correct:'} ${correctHeading.id}. ${correctHeading.text}`;
         slot.parentElement.appendChild(correction);
       }
     }
@@ -252,7 +253,7 @@ const moduleUrl = "{{ url_for('book_courses.view_module', course_id=course.id, m
 async function finishLesson() {
   const btn = document.getElementById('complete-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохраняем...';
+  btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${NAV_LANG === 'ru' ? 'Сохраняем...' : 'Saving...'}`;
 
   try {
     {% if daily_lesson %}
@@ -282,8 +283,10 @@ async function finishLesson() {
   } catch (error) {
     console.error('Error:', error);
     btn.disabled = false;
-    btn.innerHTML = hasNextLesson ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Завершить <i class="fas fa-check"></i>';
-    alert('Ошибка сохранения. Попробуйте ещё раз.');
+    btn.innerHTML = hasNextLesson
+      ? (NAV_LANG === 'ru' ? 'Далее <i class="fas fa-arrow-right"></i>' : 'Next <i class="fas fa-arrow-right"></i>')
+      : (NAV_LANG === 'ru' ? 'Завершить <i class="fas fa-check"></i>' : 'Finish <i class="fas fa-check"></i>');
+    alert(LANG === 'ru' ? 'Ошибка сохранения. Попробуйте ещё раз.' : 'Save error. Please try again.');
   }
 }
 
