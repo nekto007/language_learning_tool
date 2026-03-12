@@ -9,7 +9,7 @@
 {% set t = {
   'back':           {'ru': 'Книжные курсы',      'en': 'Book Courses'},
   'start_learning': {'ru': 'Начать обучение',     'en': 'Start Learning'},
-  'enroll':         {'ru': '{{ t.enroll[nav_lang] }}',  'en': 'Enroll in Course'},
+  'enroll':         {'ru': 'Записаться на курс',  'en': 'Enroll in Course'},
   'continue':       {'ru': 'Продолжить',          'en': 'Continue'},
   'module':         {'ru': 'Модуль',              'en': 'Module'},
   'modules_label':  {'ru': 'модулей',             'en': 'modules'},
@@ -26,8 +26,8 @@
   'featured':       {'ru': 'Рекомендуем',         'en': 'Featured'},
   'modules_soon':   {'ru': 'Модули появятся скоро','en': 'Modules coming soon'},
   'preparing':      {'ru': 'Мы готовим учебные материалы для этого курса', 'en': 'We are preparing learning materials for this course'},
-  'enrolling':      {'ru': '{{ t.enrolling[nav_lang] }}',       'en': 'Enrolling...'},
-  'enroll_error':   {'ru': '{{ t.enroll_error[nav_lang] }}', 'en': 'Error enrolling in course'},
+  'enrolling':      {'ru': 'Записываемся...',       'en': 'Enrolling...'},
+  'enroll_error':   {'ru': 'Ошибка при записи на курс', 'en': 'Error enrolling in course'},
 } %}
 <div class="cd-page">
   <!-- Hero Section -->
@@ -877,9 +877,6 @@
 .cd-module:nth-child(8) { animation-delay: 0.5s; }
 .cd-module:nth-child(n+9) { animation-delay: 0.55s; }
 </style>
-{% endblock %}
-
-{% block scripts %}
 <script>
 function enrollInCourse(courseId) {
   const btn = document.getElementById('enroll-btn');
