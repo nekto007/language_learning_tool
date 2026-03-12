@@ -199,7 +199,12 @@
             </div>
 
             {% if is_unlocked %}
-              <a href="{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}" class="cd-module__action">
+              {% set module_url %}{% if course.slug %}{{ url_for('book_courses.view_module_by_slug', course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for('book_courses.view_module', course_id=course.id, module_id=module.id) }}{% endif %}{% endset %}
+              {% if is_enrolled %}
+                <a href="{{ module_url }}" class="cd-module__action">
+              {% else %}
+                <a href="#" class="cd-module__action" onclick="enrollAndGo({{ course.id }}, '{{ module_url }}'); return false;">
+              {% endif %}
                 {% if status == 'completed' %}
                   <span>{{ t.review[nav_lang] }}</span>
                 {% elif percentage > 0 %}
@@ -915,6 +920,23 @@ function enrollInCourse(courseId) {
     btn.disabled = false;
     btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> {{ t.enroll[nav_lang] }}';
   });
+}
+
+function enrollAndGo(courseId, redirectUrl) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  fetch(`/curriculum/book-courses/${courseId}/enroll`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      window.location.href = redirectUrl;
+    } else {
+      alert(data.error || '{{ t.enroll_error[nav_lang] }}');
+    }
+  })
+  .catch(() => alert('{{ t.enroll_error[nav_lang] }}'));
 }
 
 /* Spinner animation for enroll button */
