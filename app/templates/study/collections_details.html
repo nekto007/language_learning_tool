@@ -3,531 +3,266 @@
 {% block title %}{{ collection.name }} - Детали коллекции{% endblock %}
 
 {% block content %}
-<div class="coll-detail-page">
+<div class="cd-page">
   <!-- Breadcrumb -->
-  <nav class="coll-detail-breadcrumb" aria-label="breadcrumb">
+  <nav class="cd-breadcrumb">
     <a href="{{ url_for('study.collections') }}">Коллекции</a>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M9 18l6-6-6-6"/>
-    </svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     <span>{{ collection.name }}</span>
   </nav>
 
-  <!-- Hero Header -->
-  <div class="coll-detail-hero">
-    <div class="coll-detail-hero__bg-shapes">
-      <div class="shape shape--1"></div>
-      <div class="shape shape--2"></div>
+  <!-- Hero -->
+  <div class="cd-hero">
+    <div class="cd-hero__shapes">
+      <div class="cd-shape cd-shape--1"></div>
+      <div class="cd-shape cd-shape--2"></div>
     </div>
-
-    <div class="coll-detail-hero__content">
-      <div class="coll-detail-hero__info">
-        <div class="coll-detail-hero__icon">
+    <div class="cd-hero__body">
+      <div class="cd-hero__info">
+        <div class="cd-hero__icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
           </svg>
         </div>
         <div>
-          <h1 class="coll-detail-hero__title">{{ collection.name }}</h1>
-          <p class="coll-detail-hero__subtitle">{{ collection.words|length }} слов</p>
+          <h1 class="cd-hero__title">{{ collection.name }}</h1>
+          <p class="cd-hero__sub">{{ collection.words|length }} слов</p>
           {% if collection.description %}
-          <p class="coll-detail-hero__desc">{{ collection.description }}</p>
+          <p class="cd-hero__desc">{{ collection.description }}</p>
           {% endif %}
         </div>
       </div>
-
-      <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}"
-            id="add-collection-form">
+      <form method="POST" action="{{ url_for('study.add_collection', collection_id=collection.id) }}" id="add-all-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="coll-detail-hero__action" id="add-collection-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
+        <button type="submit" class="cd-hero__btn" id="add-all-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Добавить все
         </button>
       </form>
     </div>
   </div>
 
-  <!-- Topic Badges -->
+  <!-- Topics -->
   {% if topics %}
-  <div class="coll-detail-topics">
-    <span class="coll-detail-topics__label">Темы:</span>
+  <div class="cd-topics">
+    <span class="cd-topics__label">Темы:</span>
     {% for topic in topics %}
-    <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="coll-detail-topics__badge">
-      {{ topic.name }}
-    </a>
+    <a href="{{ url_for('study.topic_details', topic_id=topic.id) }}" class="cd-topics__tag">{{ topic.name }}</a>
     {% endfor %}
   </div>
   {% endif %}
 
-  <!-- Words List -->
+  <!-- Word List -->
   {% if words %}
-  <div class="coll-detail-words">
+  <div class="cd-words">
     {% for word in words %}
-    <div class="word-card">
-      <!-- Level Badge -->
-      <div class="word-card__level word-card__level--{{ (word.level or 'na')|lower }}">
-        {{ word.level or '-' }}
-      </div>
-
-      <!-- Content -->
-      <div class="word-card__content">
-        <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="word-card__english">{{ word.english_word }}</a>
-        <span class="word-card__russian">{{ word.russian_word }}</span>
-      </div>
-
-      <!-- Status -->
-      <div class="word-card__status">
-        {% if word.is_studying %}
-        <span class="word-status word-status--studying">Изучается</span>
-        {% else %}
-        <span class="word-status word-status--new">Не изучается</span>
-        {% endif %}
-      </div>
-
-      <!-- Action -->
-      <div class="word-card__action">
-        {% if not word.is_studying %}
-        <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}"
-              class="add-word-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="word-card__add-btn add-word-btn" title="Добавить">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-          </button>
-        </form>
-        {% else %}
-        <span class="word-card__added">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            <path d="M20 6L9 17l-5-5"/>
-          </svg>
-        </span>
-        {% endif %}
-      </div>
+    <div class="cd-word">
+      <span class="cd-lvl cd-lvl--{{ (word.level or 'na')|lower }}">{{ word.level or '-' }}</span>
+      <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="cd-word__en">{{ word.english_word }}</a>
+      <span class="cd-word__ru">{{ word.russian_word }}</span>
+      {% if word.is_studying %}
+      <span class="cd-word__done">Изучается</span>
+      {% else %}
+      <form method="POST" action="{{ url_for('words.update_word_status', word_id=word.id, status=1) }}" class="cd-word__form add-word-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="cd-word__add add-word-btn" title="Добавить">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </form>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="coll-detail-empty">
-    <p>В этой коллекции пока нет слов</p>
-  </div>
+  <div class="cd-empty">В этой коллекции пока нет слов</div>
   {% endif %}
 </div>
 
 <style>
-
-.coll-detail-page {
-  --cd-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --cd-primary: #3b82f6;
-  --cd-accent: #06b6d4;
-  --cd-success: #22c55e;
-  --cd-surface: #ffffff;
-  --cd-surface-alt: #f8fafc;
-  --cd-text: #0f172a;
-  --cd-text-muted: #64748b;
-  --cd-border: #e2e8f0;
-  --cd-radius: 16px;
-  --cd-radius-sm: 10px;
-
-  font-family: var(--cd-font);
+.cd-page {
+  --f: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --blue: #3b82f6;
+  --cyan: #06b6d4;
+  --green: #22c55e;
+  --green-dark: #16a34a;
+  --txt: #0f172a;
+  --txt2: #64748b;
+  --bg: #ffffff;
+  --bg2: #f8fafc;
+  --line: #e2e8f0;
+  --r: 16px;
+  --rs: 10px;
+  font-family: var(--f);
   max-width: 900px;
   margin: 0 auto;
-  padding: 0 1rem 3rem;
+  padding: 0 0 3rem;
 }
 
 /* Breadcrumb */
-.coll-detail-breadcrumb {
+.cd-breadcrumb {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: var(--cd-text-muted);
+  color: var(--txt2);
   margin-bottom: 1.5rem;
 }
-
-.coll-detail-breadcrumb a {
-  color: var(--cd-primary);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.coll-detail-breadcrumb a:hover {
-  text-decoration: underline;
-}
-
-.coll-detail-breadcrumb svg {
-  opacity: 0.5;
-}
+.cd-breadcrumb a { color: var(--blue); text-decoration: none; font-weight: 500; }
+.cd-breadcrumb a:hover { text-decoration: underline; }
+.cd-breadcrumb svg { opacity: 0.5; }
 
 /* Hero */
-.coll-detail-hero {
+.cd-hero {
   position: relative;
   background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 50%, #06b6d4 100%);
-  border-radius: var(--cd-radius);
+  border-radius: var(--r);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   overflow: hidden;
-  color: white;
+  color: #fff;
+  animation: cd-up 0.4s ease-out;
 }
+.cd-hero__shapes { position: absolute; inset: 0; pointer-events: none; }
+.cd-shape { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.1); }
+.cd-shape--1 { width: 150px; height: 150px; top: -50px; right: -30px; animation: cd-f1 18s ease-in-out infinite; }
+.cd-shape--2 { width: 80px; height: 80px; bottom: -30px; left: 10%; animation: cd-f2 14s ease-in-out infinite; }
 
-.coll-detail-hero__bg-shapes {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
+@keyframes cd-f1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-15px,15px) scale(1.05); } }
+@keyframes cd-f2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(20px,-15px) rotate(8deg); } }
 
-.coll-detail-hero .shape {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+.cd-hero__body {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem;
 }
+.cd-hero__info { display: flex; align-items: flex-start; gap: 1rem; flex: 1; }
+.cd-hero__icon {
+  width: 52px; height: 52px; background: rgba(255,255,255,0.2);
+  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(10px); flex-shrink: 0;
+}
+.cd-hero__title { font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
+.cd-hero__sub { font-size: 0.875rem; margin: 0.25rem 0 0; opacity: 0.9; }
+.cd-hero__desc { font-size: 0.875rem; margin: 0.5rem 0 0; opacity: 0.85; line-height: 1.4; }
 
-.coll-detail-hero .shape--1 {
-  width: 150px;
-  height: 150px;
-  top: -50px;
-  right: -30px;
-  animation: cd-float-1 18s ease-in-out infinite;
+.cd-hero__btn {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.625rem 1.25rem; background: rgba(255,255,255,0.2);
+  border-radius: 10px; color: #fff; font-size: 0.9375rem; font-weight: 600;
+  font-family: var(--f); backdrop-filter: blur(5px);
+  border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+  transition: all 0.2s; flex-shrink: 0;
 }
-
-.coll-detail-hero .shape--2 {
-  width: 80px;
-  height: 80px;
-  bottom: -30px;
-  left: 10%;
-  animation: cd-float-2 14s ease-in-out infinite;
-}
-
-@keyframes cd-float-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-15px, 15px) scale(1.05); }
-}
-
-@keyframes cd-float-2 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  50% { transform: translate(20px, -15px) rotate(8deg); }
-}
-
-.coll-detail-hero__content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.coll-detail-hero__info {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  flex: 1;
-}
-
-.coll-detail-hero__icon {
-  width: 52px;
-  height: 52px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(10px);
-  flex-shrink: 0;
-}
-
-.coll-detail-hero__title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.coll-detail-hero__subtitle {
-  font-size: 0.875rem;
-  margin: 0.25rem 0 0;
-  opacity: 0.9;
-}
-
-.coll-detail-hero__desc {
-  font-size: 0.875rem;
-  margin: 0.5rem 0 0;
-  opacity: 0.85;
-  line-height: 1.4;
-}
-
-.coll-detail-hero__action {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  color: white;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  font-family: var(--cd-font);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.coll-detail-hero__action:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.coll-detail-hero__action:disabled {
-  opacity: 0.7;
-  cursor: default;
-  transform: none;
-}
+.cd-hero__btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+.cd-hero__btn:disabled { opacity: 0.7; cursor: default; transform: none; }
 
 /* Topics */
-.coll-detail-topics {
+.cd-topics {
+  display: flex; align-items: center; gap: 0.5rem;
+  flex-wrap: wrap; margin-bottom: 1.5rem;
+  animation: cd-up 0.4s ease-out 0.1s both;
+}
+.cd-topics__label { font-size: 0.875rem; font-weight: 500; color: var(--txt2); }
+.cd-topics__tag {
+  padding: 0.375rem 0.75rem; background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 8px;
+  font-size: 0.8125rem; font-weight: 600; color: var(--blue);
+  text-decoration: none; transition: all 0.2s;
+}
+.cd-topics__tag:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* Word List */
+.cd-words {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  animation: cd-up 0.4s ease-out 0.15s both;
+}
+
+.cd-word {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
-}
-
-.coll-detail-topics__label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--cd-text-muted);
-}
-
-.coll-detail-topics__badge {
-  padding: 0.375rem 0.75rem;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--cd-primary);
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.coll-detail-topics__badge:hover {
-  background: var(--cd-primary);
-  color: white;
-  border-color: var(--cd-primary);
-}
-
-/* Words List */
-.coll-detail-words {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.word-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: var(--cd-surface);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius-sm);
-  transition: all 0.2s ease;
-}
-
-.word-card:hover {
-  border-color: var(--cd-primary);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
-}
-
-.word-card__level {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: white;
-  flex-shrink: 0;
-}
-
-.word-card__level--a1 { background: linear-gradient(135deg, #22c55e, #16a34a); }
-.word-card__level--a2 { background: linear-gradient(135deg, #06b6d4, #0891b2); }
-.word-card__level--b1 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.word-card__level--b2 { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.word-card__level--c1 { background: linear-gradient(135deg, #ef4444, #dc2626); }
-.word-card__level--c2 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-.word-card__level--na { background: var(--cd-border); color: var(--cd-text-muted); }
-
-.word-card__content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
   gap: 0.75rem;
-  align-items: baseline;
+  padding: 0.625rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--rs);
+  transition: all 0.2s;
+}
+.cd-word:hover {
+  border-color: var(--blue);
+  box-shadow: 0 2px 8px rgba(59,130,246,0.08);
 }
 
-.word-card__english {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--cd-text);
-  text-decoration: none;
+/* Level badge */
+.cd-lvl {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.cd-lvl--a1 { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.cd-lvl--a2 { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.cd-lvl--b1 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.cd-lvl--b2 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.cd-lvl--c1 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.cd-lvl--c2 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.cd-lvl--na { background: var(--line); color: var(--txt2); }
+
+/* Word text */
+.cd-word__en {
+  font-size: 0.9375rem; font-weight: 600; color: var(--txt);
+  text-decoration: none; white-space: nowrap; flex-shrink: 0;
+}
+.cd-word__en:hover { color: var(--blue); }
+
+.cd-word__ru {
+  font-size: 0.8125rem; color: var(--txt2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-right: auto;
 }
 
-.word-card__english:hover {
-  color: var(--cd-primary);
+/* Status & action — always at the end */
+.cd-word__done {
+  font-size: 0.75rem; font-weight: 600; color: var(--green-dark);
+  background: rgba(34,197,94,0.1); padding: 0.25rem 0.625rem;
+  border-radius: 6px; white-space: nowrap; flex-shrink: 0;
 }
 
-.word-card__russian {
-  font-size: 0.8125rem;
-  color: var(--cd-text-muted);
-}
+.cd-word__form { flex-shrink: 0; margin: 0; }
 
-.word-card__status {
-  flex-shrink: 0;
+.cd-word__add {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1.5px solid rgba(34,197,94,0.4); background: rgba(34,197,94,0.08);
+  color: #16a34a; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
 }
+.cd-word__add:hover { background: var(--green); border-color: var(--green); color: #fff; transform: scale(1.1); }
+.cd-word__add:disabled { opacity: 0.5; cursor: default; transform: none; }
 
-.word-status {
-  display: inline-flex;
-  padding: 0.25rem 0.625rem;
-  border-radius: 6px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-}
-
-.word-status--studying {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-.word-status--new {
-  background: var(--cd-surface-alt);
-  color: var(--cd-text-muted);
-}
-
-.word-card__action {
-  flex-shrink: 0;
-}
-
-.word-card__add-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1.5px solid rgba(34, 197, 94, 0.4);
-  background: rgba(34, 197, 94, 0.08);
-  color: #16a34a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.word-card__add-btn:hover {
-  background: #22c55e;
-  border-color: #22c55e;
-  color: white;
-  transform: scale(1.1);
-}
-
-.word-card__add-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-  transform: none;
-}
-
-.word-card__added {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.coll-detail-empty {
-  background: var(--cd-surface);
-  border: 1px solid var(--cd-border);
-  border-radius: var(--cd-radius);
-  padding: 3rem 2rem;
-  text-align: center;
-  color: var(--cd-text-muted);
+/* Empty */
+.cd-empty {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 3rem 2rem; text-align: center; color: var(--txt2);
 }
 
 /* Animations */
-@keyframes cd-slideUp {
+@keyframes cd-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-.coll-detail-hero { animation: cd-slideUp 0.4s ease-out; }
-.coll-detail-topics { animation: cd-slideUp 0.4s ease-out 0.1s both; }
-.coll-detail-words { animation: cd-slideUp 0.4s ease-out 0.15s both; }
-
-.word-card {
-  animation: cd-slideUp 0.3s ease-out both;
+@keyframes cd-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
-
-.word-card:nth-child(1) { animation-delay: 0.1s; }
-.word-card:nth-child(2) { animation-delay: 0.13s; }
-.word-card:nth-child(3) { animation-delay: 0.16s; }
-.word-card:nth-child(4) { animation-delay: 0.19s; }
-.word-card:nth-child(5) { animation-delay: 0.22s; }
-.word-card:nth-child(6) { animation-delay: 0.25s; }
-.word-card:nth-child(7) { animation-delay: 0.28s; }
-.word-card:nth-child(8) { animation-delay: 0.31s; }
-.word-card:nth-child(9) { animation-delay: 0.34s; }
-.word-card:nth-child(10) { animation-delay: 0.37s; }
+.spin { animation: cd-spin 0.8s linear infinite; }
 
 /* Responsive */
 @media (max-width: 640px) {
-  .coll-detail-page {
-    padding: 0 0.75rem 2rem;
-  }
+  .cd-hero { padding: 1.25rem; }
+  .cd-hero__body { flex-direction: column; align-items: flex-start; }
+  .cd-hero__btn { width: 100%; justify-content: center; }
 
-  .coll-detail-hero {
-    padding: 1.25rem;
-  }
-
-  .coll-detail-hero__content {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .coll-detail-hero__action {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .word-card {
-    flex-wrap: wrap;
-    padding: 0.75rem;
-  }
-
-  .word-card__content {
-    flex: 1 1 calc(100% - 52px);
-    flex-direction: column;
-    gap: 0.125rem;
-  }
-
-  .word-card__status {
-    order: 3;
-    margin-left: auto;
-  }
-
-  .word-card__action {
-    order: 4;
-  }
+  .cd-word { flex-wrap: wrap; padding: 0.625rem 0.75rem; gap: 0.5rem; }
+  .cd-word__en { font-size: 0.875rem; }
+  .cd-word__ru { flex-basis: calc(100% - 48px); margin-left: 48px; margin-top: -0.25rem; margin-right: 0; }
 }
 </style>
 {% endblock %}
@@ -535,112 +270,75 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add all collection words
-    const addCollectionForm = document.getElementById('add-collection-form');
-    const addCollectionBtn = document.getElementById('add-collection-btn');
+    // Add all words
+    const addAllForm = document.getElementById('add-all-form');
+    const addAllBtn = document.getElementById('add-all-btn');
 
-    if (addCollectionForm) {
-        addCollectionForm.addEventListener('submit', function(e) {
+    if (addAllForm) {
+        addAllForm.addEventListener('submit', function(e) {
             e.preventDefault();
-
-            addCollectionBtn.disabled = true;
-            addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Добавление...';
+            addAllBtn.disabled = true;
+            addAllBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Добавление...';
 
             fetch(this.action, {
                 method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(new FormData(this))
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    showCDToast(data.message, 'success');
-
+                    showToast(data.message, 'success');
                     if (data.added_count > 0) {
-                        addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Добавлено';
-                        addCollectionBtn.disabled = true;
+                        addAllBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Добавлено';
                         setTimeout(() => location.reload(), 2000);
                     } else {
-                        addCollectionBtn.disabled = false;
-                        addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+                        addAllBtn.disabled = false;
+                        addAllBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
                     }
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                addCollectionBtn.disabled = false;
-                addCollectionBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+            .catch(() => {
+                addAllBtn.disabled = false;
+                addAllBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
             });
         });
     }
 
-    // Add individual words
+    // Add individual word
     document.querySelectorAll('.add-word-form').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-
-            const submitBtn = this.querySelector('.add-word-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83"/></svg>';
+            const btn = this.querySelector('.add-word-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83"/></svg>';
 
             fetch(this.action, {
                 method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(new FormData(this))
             })
-            .then(response => {
-                if (response.ok) {
-                    // Replace button with check
-                    const card = submitBtn.closest('.word-card');
-                    submitBtn.closest('.add-word-form').outerHTML = '<span class="word-card__added"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>';
-
-                    // Update status badge
-                    const statusEl = card.querySelector('.word-status');
-                    if (statusEl) {
-                        statusEl.className = 'word-status word-status--studying';
-                        statusEl.textContent = 'Изучается';
-                    }
+            .then(r => {
+                if (r.ok) {
+                    this.outerHTML = '<span class="cd-word__done">Изучается</span>';
                 } else {
-                    throw new Error('Server error');
+                    throw new Error();
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>';
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>';
             });
         });
     });
 
-    function showCDToast(message, type) {
-        const colors = {
-            success: { bg: '#dcfce7', border: '#22c55e', icon: '\u2713' },
-            info: { bg: '#dbeafe', border: '#3b82f6', icon: '\u2139' }
-        };
-        const c = colors[type] || colors.info;
-
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-            background: ${c.bg}; padding: 16px 20px; border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 12px;
-            border-left: 4px solid ${c.border}; font-family: 'Onest', sans-serif; font-size: 14px; font-weight: 500;
-            animation: cd-slideUp 0.3s ease-out;
-        `;
-        toast.innerHTML = `<span style="color: ${c.border}; font-size: 18px; font-weight: bold;">${c.icon}</span><span>${message}</span>`;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.3s';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+    function showToast(msg, type) {
+        const c = type === 'success' ? { bg: '#dcfce7', b: '#22c55e', i: '\u2713' } : { bg: '#dbeafe', b: '#3b82f6', i: '\u2139' };
+        const t = document.createElement('div');
+        t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${c.bg};padding:16px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);display:flex;align-items:center;gap:12px;border-left:4px solid ${c.b};font-family:'Onest',sans-serif;font-size:14px;font-weight:500;animation:cd-up .3s ease-out`;
+        t.innerHTML = `<span style="color:${c.b};font-size:18px;font-weight:bold">${c.i}</span><span>${msg}</span>`;
+        document.body.appendChild(t);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3000);
     }
 });
 </script>

@@ -142,11 +142,13 @@ class CollectionTopicService:
     @staticmethod
     def add_collection_to_study(collection_id: int, user_id: int) -> tuple[int, str]:
         """
-        Add all words from collection to user's study list
+        Add all words from collection to user's study list and default deck.
 
         Returns:
             Tuple of (added_count, message)
         """
+        from app.study.deck_utils import ensure_word_in_default_deck
+
         collection = Collection.query.get(collection_id)
         if not collection:
             return 0, "Collection not found"
@@ -157,12 +159,14 @@ class CollectionTopicService:
         word_ids = [w.id for w in words]
         existing_word_ids = get_user_word_ids(user_id, word_ids)
 
-        # Add new words
+        # Add new words to study list and default deck
         added_count = 0
         for word in words:
             if word.id not in existing_word_ids:
                 user_word = UserWord(user_id=user_id, word_id=word.id)
                 db.session.add(user_word)
+                db.session.flush()
+                ensure_word_in_default_deck(user_id, word.id, user_word.id)
                 added_count += 1
 
         if added_count > 0:
@@ -246,11 +250,13 @@ class CollectionTopicService:
     @staticmethod
     def add_topic_to_study(topic_id: int, user_id: int) -> tuple[int, str]:
         """
-        Add all words from topic to user's study list
+        Add all words from topic to user's study list and default deck.
 
         Returns:
             Tuple of (added_count, message)
         """
+        from app.study.deck_utils import ensure_word_in_default_deck
+
         topic = Topic.query.get(topic_id)
         if not topic:
             return 0, "Topic not found"
@@ -261,12 +267,14 @@ class CollectionTopicService:
         word_ids = [w.id for w in words]
         existing_word_ids = get_user_word_ids(user_id, word_ids)
 
-        # Add new words
+        # Add new words to study list and default deck
         added_count = 0
         for word in words:
             if word.id not in existing_word_ids:
                 user_word = UserWord(user_id=user_id, word_id=word.id)
                 db.session.add(user_word)
+                db.session.flush()
+                ensure_word_in_default_deck(user_id, word.id, user_word.id)
                 added_count += 1
 
         if added_count > 0:
