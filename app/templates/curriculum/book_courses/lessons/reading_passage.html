@@ -161,6 +161,7 @@
         <div class="popup-status" id="popup-status"></div>
       </div>
     </div>
+    <audio id="word-audio" preload="none"></audio>
   </div>
 
   <!-- Reading Progress (right after text) -->
@@ -305,34 +306,6 @@
   </div>
 </div>
 
-<!-- Word Popup Modal -->
-<div class="word-popup-overlay" id="word-popup-overlay">
-  <div class="word-popup" id="word-popup">
-    <div class="popup-word" id="popup-word">word</div>
-    <div class="popup-translation" id="popup-translation">перевод</div>
-    <div class="popup-example" id="popup-example"></div>
-
-    <div class="popup-actions">
-      <button class="popup-btn" id="popup-audio-btn" onclick="playAudio()" title="{{ t.play_audio[instr_lang] }}">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-        </svg>
-      </button>
-      <button class="popup-btn popup-btn-primary" id="popup-add-btn" onclick="addToFlashcards()" title="{{ t.add_to_cards[instr_lang] }}">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
-    </div>
-
-    <div class="popup-status" id="popup-status"></div>
-  </div>
-</div>
-
-<!-- Hidden Audio Element -->
-<audio id="word-audio" preload="none"></audio>
 {% endblock %}
 
 {% block lesson_footer %}
