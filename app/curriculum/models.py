@@ -75,22 +75,33 @@ class Module(db.Model):
         if not self.prerequisites:
             return True, []
 
-        # Check each prerequisite
-        for prereq in self.prerequisites:
-            if isinstance(prereq, dict):
-                # Format: {"type": "module", "id": 5, "min_score": 80}
-                if prereq.get('type') == 'module':
-                    prereq_module = Module.query.get(prereq['id'])
-                    if prereq_module:
-                        # Check if user completed this module
-                        progress = self._get_module_completion(user_id, prereq['id'])
-                        min_score = prereq.get('min_score', 70)
+        # Collect all prerequisite module IDs and batch load them
+        module_prereqs = [
+            prereq for prereq in self.prerequisites
+            if isinstance(prereq, dict) and prereq.get('type') == 'module'
+        ]
+        prereq_ids = [p['id'] for p in module_prereqs]
 
-                        if progress['progress_percent'] < 100:
-                            reasons.append(f"Complete module '{prereq_module.title}'")
-                        elif progress['avg_score'] < min_score:
-                            reasons.append(
-                                f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
+        if not prereq_ids:
+            return True, []
+
+        prereq_modules = {
+            m.id: m for m in Module.query.filter(Module.id.in_(prereq_ids)).all()
+        }
+
+        # Check each prerequisite using pre-loaded modules
+        for prereq in module_prereqs:
+            prereq_module = prereq_modules.get(prereq['id'])
+            if prereq_module:
+                # Check if user completed this module
+                progress = self._get_module_completion(user_id, prereq['id'])
+                min_score = prereq.get('min_score', 70)
+
+                if progress['progress_percent'] < 100:
+                    reasons.append(f"Complete module '{prereq_module.title}'")
+                elif progress['avg_score'] < min_score:
+                    reasons.append(
+                        f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
 
         return len(reasons) == 0, reasons
 

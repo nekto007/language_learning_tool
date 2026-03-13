@@ -43,7 +43,6 @@ def create_app(config_class=Config):
 
     # Configure JWT
     from datetime import timedelta
-    app.config['JWT_SECRET_KEY'] = app.config['SECRET_KEY']
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
     app.config['JWT_TOKEN_LOCATION'] = ['headers']

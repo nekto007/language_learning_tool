@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 
 from app.study.models import GameScore
 from app.utils.db import db
@@ -73,38 +73,64 @@ def dashboard():
         recent_books = current_user.get_recent_reading_progress(1)
         recent_book = recent_books[0] if recent_books else None
 
-    # === GRAMMAR LAB STATS ===
-    grammar_total = GrammarTopic.query.count()
-    grammar_studied = UserGrammarTopicStatus.query.filter(
-        UserGrammarTopicStatus.user_id == current_user.id,
-        UserGrammarTopicStatus.theory_completed == True
-    ).count()
+    # === GRAMMAR LAB STATS (single query: total + studied) ===
+    grammar_counts = db.session.query(
+        func.count(GrammarTopic.id),
+        func.count(case(
+            (UserGrammarTopicStatus.theory_completed == True, 1),
+        ))
+    ).select_from(GrammarTopic).outerjoin(
+        UserGrammarTopicStatus,
+        (UserGrammarTopicStatus.topic_id == GrammarTopic.id) &
+        (UserGrammarTopicStatus.user_id == current_user.id)
+    ).one()
+    grammar_total = grammar_counts[0]
+    grammar_studied = grammar_counts[1]
     grammar_mastered = grammar_studied
 
-    # === BOOK COURSES STATS ===
-    courses_enrolled = BookCourseEnrollment.query.filter_by(
+    # === BOOK COURSES STATS (single query: count + most recent) ===
+    active_courses = BookCourseEnrollment.query.filter_by(
         user_id=current_user.id, status='active'
-    ).count()
-    active_course = BookCourseEnrollment.query.filter_by(
-        user_id=current_user.id, status='active'
-    ).order_by(BookCourseEnrollment.last_activity.desc()).first()
+    ).order_by(BookCourseEnrollment.last_activity.desc()).all()
+    courses_enrolled = len(active_courses)
+    active_course = active_courses[0] if active_courses else None
 
-    # === ACHIEVEMENTS ===
-    total_achievements = Achievement.query.count()
-    earned_achievements = UserAchievement.query.filter_by(user_id=current_user.id).count()
+    # === ACHIEVEMENTS (single query: total + earned) ===
+    achievement_counts = db.session.query(
+        func.count(Achievement.id),
+        func.count(case(
+            (UserAchievement.user_id == current_user.id, 1),
+        ))
+    ).select_from(Achievement).outerjoin(
+        UserAchievement,
+        (UserAchievement.achievement_id == Achievement.id) &
+        (UserAchievement.user_id == current_user.id)
+    ).one()
+    total_achievements = achievement_counts[0]
+    earned_achievements = achievement_counts[1]
 
-    # === GAME SCORES ===
-    best_matching = GameScore.query.filter_by(
+    # === GAME SCORES (single query via union: best matching + best quiz) ===
+    q_matching = GameScore.query.filter_by(
         user_id=current_user.id, game_type='matching'
-    ).order_by(GameScore.score.desc()).first()
-    best_quiz = GameScore.query.filter_by(
+    ).order_by(GameScore.score.desc()).limit(1)
+    q_quiz = GameScore.query.filter_by(
         user_id=current_user.id, game_type='quiz'
-    ).order_by(GameScore.score.desc()).first()
+    ).order_by(GameScore.score.desc()).limit(1)
+    best_scores = q_matching.union_all(q_quiz).all()
+    best_matching = None
+    best_quiz = None
+    for score in best_scores:
+        if score.game_type == 'matching':
+            best_matching = score
+        elif score.game_type == 'quiz':
+            best_quiz = score
 
-    # === TELEGRAM ===
-    telegram_linked = TelegramUser.query.filter_by(
-        user_id=current_user.id, is_active=True
-    ).first() is not None
+    # === TELEGRAM (exists check, no full row load) ===
+    telegram_linked = db.session.query(
+        TelegramUser.query.filter_by(
+            user_id=current_user.id, is_active=True
+        ).exists()
+    ).scalar()
 
     return render_template('dashboard.html',
         # Daily plan

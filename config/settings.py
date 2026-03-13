@@ -215,6 +215,9 @@ class Config:
     BABEL_DEFAULT_LOCALE = "en"
     BABEL_DEFAULT_TIMEZONE = "UTC"
 
+    # JWT — must be distinct from SECRET_KEY
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or os.urandom(32).hex()
+
     # Security
     SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
     SESSION_COOKIE_HTTPONLY = True
@@ -251,6 +254,7 @@ class TestConfig(Config):
     WTF_CSRF_ENABLED = True
     WTF_CSRF_SECRET_KEY = 'csrf-test-key'
     SECRET_KEY = 'test-secret-key'
+    JWT_SECRET_KEY = 'test-jwt-secret-key'
     SERVER_NAME = 'localhost.localdomain'
     
     # Отключаем validation в тестах для быстрой работы

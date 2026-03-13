@@ -116,3 +116,64 @@ class TelegramLinkCode(db.Model):
         """Delete the code after successful linking."""
         db.session.delete(self)
         db.session.commit()
+
+
+class PendingTelegramLink(db.Model):
+    """Tracks two-step /link flow: user sent /link and is expected to send a code.
+
+    Replaces the in-memory ``_pending_link`` dict so the state survives
+    app restarts.
+    """
+
+    __tablename__ = 'pending_telegram_links'
+
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(BigInteger, nullable=False, unique=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    PENDING_TTL_SECONDS = 300  # 5 minutes
+
+    def __repr__(self) -> str:
+        return f"<PendingTelegramLink telegram_id={self.telegram_id}>"
+
+    @classmethod
+    def create(cls, telegram_id: int) -> 'PendingTelegramLink':
+        """Mark a telegram user as awaiting a link code.
+
+        Upserts: if a pending record already exists, refreshes its timestamp.
+        Also cleans up expired entries.
+        """
+        cls.cleanup_expired()
+
+        existing = cls.query.filter_by(telegram_id=telegram_id).first()
+        if existing:
+            existing.created_at = datetime.now(timezone.utc)
+            db.session.commit()
+            return existing
+
+        pending = cls(telegram_id=telegram_id)
+        db.session.add(pending)
+        db.session.commit()
+        return pending
+
+    @classmethod
+    def is_pending(cls, telegram_id: int) -> bool:
+        """Check if the user has a non-expired pending link."""
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=cls.PENDING_TTL_SECONDS)
+        return cls.query.filter(
+            cls.telegram_id == telegram_id,
+            cls.created_at > cutoff,
+        ).first() is not None
+
+    @classmethod
+    def remove(cls, telegram_id: int) -> None:
+        """Remove pending state for a telegram user."""
+        cls.query.filter_by(telegram_id=telegram_id).delete()
+        db.session.commit()
+
+    @classmethod
+    def cleanup_expired(cls) -> None:
+        """Delete all expired pending entries."""
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=cls.PENDING_TTL_SECONDS)
+        cls.query.filter(cls.created_at <= cutoff).delete()
+        db.session.commit()

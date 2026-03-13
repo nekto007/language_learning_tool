@@ -163,10 +163,13 @@ class User(db.Model, UserMixin):
 
     def get_last_read_book(self):
         """Get last read book from chapter progress"""
+        from sqlalchemy.orm import joinedload
         from app.books.models import UserChapterProgress, Chapter, Book
         latest_progress = UserChapterProgress.query.filter_by(
             user_id=self.id
-        ).join(Chapter).join(Book).order_by(
+        ).join(Chapter).join(Book).options(
+            joinedload(UserChapterProgress.chapter).joinedload(Chapter.book)
+        ).order_by(
             desc(UserChapterProgress.updated_at)
         ).first()
         return latest_progress.chapter.book if latest_progress else None

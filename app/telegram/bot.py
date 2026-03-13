@@ -1,34 +1,14 @@
 """Telegram bot command handlers."""
 import logging
-import time
 from typing import Any
 
 import requests
 from flask import current_app
 
-from app.telegram.models import TelegramUser, TelegramLinkCode
+from app.telegram.models import TelegramUser, TelegramLinkCode, PendingTelegramLink
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
-
-# In-memory state for two-step /link flow: {telegram_id: timestamp}
-_pending_link: dict[int, float] = {}
-_PENDING_LINK_TTL = 300  # 5 minutes
-_PENDING_LINK_MAX = 1000
-
-
-def _cleanup_pending_links() -> None:
-    """Remove expired entries and enforce max size."""
-    now = time.monotonic()
-    expired = [tid for tid, ts in _pending_link.items()
-               if now - ts > _PENDING_LINK_TTL]
-    for tid in expired:
-        del _pending_link[tid]
-    # If still too many, drop oldest
-    if len(_pending_link) > _PENDING_LINK_MAX:
-        sorted_items = sorted(_pending_link.items(), key=lambda x: x[1])
-        for tid, _ in sorted_items[:len(_pending_link) - _PENDING_LINK_MAX]:
-            del _pending_link[tid]
 
 
 def _progress_bar(pct: int, length: int = 10) -> str:
@@ -101,7 +81,7 @@ def _handle_link(chat_id: int, telegram_id: int, username: str | None,
     """Handle /link XXXXXX command (supports two-step flow)."""
     code = args.strip()
     if not code:
-        _pending_link[telegram_id] = time.monotonic()
+        PendingTelegramLink.create(telegram_id)
         _send_message(chat_id, 'Отправь код привязки — 6 цифр:')
         return
     if len(code) != 6 or not code.isdigit():
@@ -491,7 +471,7 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
 
 def handle_update(data: dict) -> None:
     """Dispatch an incoming Telegram update to the appropriate handler."""
-    _cleanup_pending_links()
+    PendingTelegramLink.cleanup_expired()
 
     # Handle callback queries (inline button presses)
     callback_query = data.get('callback_query')
@@ -528,7 +508,7 @@ def handle_update(data: dict) -> None:
 
     if text.startswith('/'):
         # Any command clears pending /link state
-        _pending_link.pop(telegram_id, None)
+        PendingTelegramLink.remove(telegram_id)
 
     if text == '/start' or text.startswith('/start '):
         _handle_start(chat_id, telegram_id, username)
@@ -543,14 +523,13 @@ def handle_update(data: dict) -> None:
         _handle_stats(chat_id, telegram_id)
     elif text == '/help':
         _send_message(chat_id, HELP_TEXT)
-    elif (telegram_id in _pending_link
-          and time.monotonic() - _pending_link[telegram_id] < _PENDING_LINK_TTL
+    elif (PendingTelegramLink.is_pending(telegram_id)
           and text.isdigit() and len(text) == 6):
         # Two-step /link flow: user sent code after /link
-        del _pending_link[telegram_id]
+        PendingTelegramLink.remove(telegram_id)
         _handle_link(chat_id, telegram_id, username, text)
     else:
-        _pending_link.pop(telegram_id, None)
+        PendingTelegramLink.remove(telegram_id)
         _send_message(chat_id, (
             'Доступные команды:\n'
             '/stats — статистика\n'
