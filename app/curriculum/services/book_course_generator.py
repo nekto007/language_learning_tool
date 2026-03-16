@@ -661,7 +661,7 @@ class BookCourseGenerator:
                         # Update module lessons_data with structured lesson information
                         lessons_data = {
                             'lessons': [],
-                            'total_lessons': len(daily_lessons)
+                            'total_lessons': 0
                         }
 
                         for lesson in daily_lessons:
@@ -678,6 +678,7 @@ class BookCourseGenerator:
                             }
                             lessons_data['lessons'].append(lesson_info)
 
+                        lessons_data['total_lessons'] = len(lessons_data['lessons'])
                         module.lessons_data = lessons_data
                         success_count += 1
                         logger.info(f"Generated {len(daily_lessons)} structured lessons for module {module.module_number}")

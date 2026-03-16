@@ -126,6 +126,14 @@ class DailySliceGenerator:
     VOCABULARY_WORDS_PER_LESSON = 30  # Max words per vocabulary lesson (large reserve, filtered at display)
     VOCABULARY_WORDS_PER_MODULE = 60  # Max words tracked per module (increased for reserves)
 
+    # Common proper nouns / place name parts that should not be taught as vocabulary
+    PROPER_NOUN_EXCLUSIONS = {
+        'york', 'san', 'kong', 'hong', 'pall', 'mall', 'bradshaw', 'wilson',
+        'fogg', 'passepartout', 'fix', 'aouda', 'suez', 'bombay', 'calcutta',
+        'yokohama', 'liverpool', 'francisco', 'savile', 'phileas', 'stuart',
+        'ralph', 'sullivan', 'flanagan', 'reform',
+    }
+
     def __init__(self):
         self.timezone = pytz.timezone('Europe/Amsterdam')
 
@@ -430,8 +438,8 @@ class DailySliceGenerator:
         sentences = self._split_into_sentences(text)
         total_words = sum(len(s.split()) for s in sentences)
 
-        # Calculate target words per slice
-        target_words_per_slice = total_words // num_slices
+        # Calculate target words per slice (float for better distribution)
+        target_words_per_slice = total_words / num_slices
 
         slices = []
         current_slice = []
@@ -453,7 +461,7 @@ class DailySliceGenerator:
 
             should_finish_slice = (
                 len(slices) < num_slices - 1 and  # Not the last slice
-                current_word_count >= target_words_per_slice * 0.8 and  # At least 80% of target
+                current_word_count >= target_words_per_slice * 0.85 and  # At least 85% of target
                 sentences_remaining > slices_remaining  # Enough sentences left for remaining slices
             )
 
@@ -486,6 +494,53 @@ class DailySliceGenerator:
                 'end_position': current_position,
                 'chapter_id': chapter_id
             })
+
+        # Post-processing: redistribute sentences if last slice is too heavy
+        if len(slices) > 1:
+            avg_words = sum(s['word_count'] for s in slices) / len(slices)
+            while slices[-1]['word_count'] > avg_words * 1.4:
+                # Split last slice text back into sentences
+                last_sentences = self._split_into_sentences(slices[-1]['text'])
+                if len(last_sentences) <= 1:
+                    break  # Can't split further
+
+                # Move the first sentence of the last slice to the preceding slice
+                moved_sentence = last_sentences[0]
+                moved_words = len(moved_sentence.split())
+
+                # Update the preceding slice: append the moved sentence
+                prev_idx = len(slices) - 2
+                prev_slice = slices[prev_idx]
+                new_prev_text = prev_slice['text'] + ' ' + moved_sentence
+                new_prev_word_count = prev_slice['word_count'] + moved_words
+                prev_chapter_id = self._find_chapter_for_slice(
+                    new_prev_text, chapters
+                )
+                slices[prev_idx] = {
+                    'text': new_prev_text,
+                    'word_count': new_prev_word_count,
+                    'start_position': prev_slice['start_position'],
+                    'end_position': prev_slice['end_position'] + len(moved_sentence) + 1,
+                    'chapter_id': prev_chapter_id
+                }
+
+                # Update the last slice: remove the moved sentence
+                remaining_sentences = last_sentences[1:]
+                new_last_text = ' '.join(remaining_sentences)
+                new_last_word_count = slices[-1]['word_count'] - moved_words
+                last_chapter_id = self._find_chapter_for_slice(
+                    new_last_text, chapters
+                )
+                slices[-1] = {
+                    'text': new_last_text,
+                    'word_count': new_last_word_count,
+                    'start_position': slices[prev_idx]['end_position'],
+                    'end_position': slices[prev_idx]['end_position'] + len(new_last_text),
+                    'chapter_id': last_chapter_id
+                }
+
+                # Recalculate average after redistribution
+                avg_words = sum(s['word_count'] for s in slices) / len(slices)
 
         logger.info(f"Split text into {len(slices)} slices (target: {num_slices})")
         for i, s in enumerate(slices):
@@ -937,6 +992,8 @@ class DailySliceGenerator:
                 continue
             if len(word_text) < 3:
                 continue
+            if word_text in self.PROPER_NOUN_EXCLUSIONS:
+                continue
 
             occurrences = len(re.findall(r'\b' + re.escape(word_text) + r'\b', text_lower))
 
@@ -1040,6 +1097,8 @@ class DailySliceGenerator:
                 continue
             # Skip very short words
             if len(word_text) < 3:
+                continue
+            if word_text in self.PROPER_NOUN_EXCLUSIONS:
                 continue
 
             occurrences = len(re.findall(r'\b' + re.escape(word_text) + r'\b', text_lower))

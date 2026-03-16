@@ -8,8 +8,20 @@ from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
+from sqlalchemy import case
+
 from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress, generate_slug)
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
+
+# Порядок типов уроков внутри одного дня: practice перед reading
+_LESSON_TYPE_ORDER = case(
+    (DailyLesson.lesson_type == 'vocabulary', 0),
+    (DailyLesson.lesson_type == 'context_review', 1),
+    (DailyLesson.lesson_type == 'reading', 9),
+    else_=5,
+)
+# Стандартная сортировка уроков: день → тип (practice first) → id
+LESSON_ORDER = (DailyLesson.day_number, _LESSON_TYPE_ORDER, DailyLesson.id)
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.curriculum.services.grammar_focus_generator import GrammarFocusGenerator
 from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
@@ -527,7 +539,7 @@ def view_module(course_id, module_id):
         # Get lessons from DailyLesson table (new architecture)
         daily_lessons = DailyLesson.query.filter_by(
             book_course_module_id=module.id
-        ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+        ).order_by(*LESSON_ORDER).all()
 
         # Convert to template format
         ui_lang = get_ui_lang(course.level)
@@ -663,7 +675,7 @@ def view_lesson(course_id, module_id, lesson_number):
             # Get all lessons in order and find the next one
             all_lessons = DailyLesson.query.filter_by(
                 book_course_module_id=module_id
-            ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+            ).order_by(*LESSON_ORDER).all()
 
             # Find current lesson position and get next
             for i, dl in enumerate(all_lessons):
@@ -1305,7 +1317,7 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
         # Get all lessons in order and find the next one
         all_lessons = DailyLesson.query.filter_by(
             book_course_module_id=module_id
-        ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+        ).order_by(*LESSON_ORDER).all()
 
         # Find current lesson position and get next
         for i, dl in enumerate(all_lessons):
@@ -2472,7 +2484,7 @@ def view_lesson_by_slug(course_slug, module_number, lesson_number):
     # Get all lessons ordered by day_number
     all_lessons = DailyLesson.query.filter_by(
         book_course_module_id=module.id
-    ).order_by(DailyLesson.day_number, DailyLesson.id).all()
+    ).order_by(*LESSON_ORDER).all()
 
     # Get lesson by position (lesson_number is 1-indexed)
     if lesson_number < 1 or lesson_number > len(all_lessons):
