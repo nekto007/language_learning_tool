@@ -135,26 +135,151 @@
   </div>
   {% endif %}
 
-  <!-- Linked Grammar Lab Topics -->
+  <!-- Inline Grammar Theory from Grammar Lab -->
   {% if linked_topics %}
-  <div class="lf-section lf-linked">
+  {% for topic in linked_topics %}
+  <div class="lf-section lf-grammar-theory">
     <h2 class="lf-section__title">
       <span class="lf-section__icon">&#128218;</span>
-      Extra practice in Grammar Lab
+      {{ topic.title }}
+      <span class="lf-grammar-theory__level">{{ topic.level }}</span>
     </h2>
-    <div class="lf-linked__list">
-      {% for topic in linked_topics %}
-      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="lf-linked__card">
-        <div class="lf-linked__card-top">
-          <span class="lf-linked__level">{{ topic.level }}</span>
-          <span class="lf-linked__count">{{ topic.exercise_count }} exercises</span>
+    {% if topic.title_ru %}
+    <div class="lf-grammar-theory__subtitle">{{ topic.title_ru }}</div>
+    {% endif %}
+
+    {% if topic.content %}
+      {% if topic.content.introduction %}
+      <div class="lf-grammar-theory__intro">
+        {{ topic.content.introduction|unescape }}
+      </div>
+      {% endif %}
+
+      {% if topic.content.sections %}
+      {% for section in topic.content.sections %}
+      <div class="lf-grammar-theory__block">
+        <h3 class="lf-grammar-theory__block-title">{{ section.subtitle|unescape }}</h3>
+        {% if section.description %}
+        <p class="lf-grammar-theory__block-desc">{{ section.description|unescape }}</p>
+        {% endif %}
+
+        {% if section.table %}
+        <div class="lf-grammar-theory__table-wrap">
+          <table class="lf-grammar-theory__table">
+            <tbody>
+            {% for row in section.table %}
+            <tr>
+              {% if row.pronoun %}<td class="lf-grammar-theory__td-pronoun">{{ row.pronoun|unescape }}</td>{% endif %}
+              {% if row.form %}<td class="lf-grammar-theory__td-form">{{ row.form|unescape }}</td>{% endif %}
+              {% if row.example %}<td>{{ row.example|unescape }}</td>{% endif %}
+              {% if row.translation %}<td class="lf-grammar-theory__td-translation">{{ row.translation|unescape }}</td>{% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <div class="lf-linked__title">{{ topic.title }}</div>
-        <div class="lf-linked__title-ru">{{ topic.title_ru }}</div>
-      </a>
+        {% endif %}
+
+        {% if section.rules %}
+        <ul class="lf-grammar-theory__rules">
+          {% for rule in section.rules %}
+          <li>
+            <strong>{{ rule.rule|unescape }}</strong>
+            {% if rule.examples %}
+            <ul class="lf-grammar-theory__rule-examples">
+              {% for example in rule.examples %}
+              <li>{{ example|unescape }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            {% if rule.note %}
+            <div class="lf-grammar-theory__rule-note">{{ rule.note|unescape }}</div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if section.usage %}
+        <ul class="lf-grammar-theory__rules">
+          {% for usage in section.usage %}
+          <li>
+            <strong>{{ usage.case|unescape }}</strong>
+            {% if usage.examples %}
+            <ul class="lf-grammar-theory__rule-examples">
+              {% for example in usage.examples %}
+              <li>{{ example|unescape }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if section.examples and not section.rules and not section.usage %}
+        <ul class="lf-grammar-theory__rule-examples">
+          {% for example in section.examples %}
+          <li>{% if example is mapping %}{{ (example.text or example)|unescape }}{% else %}{{ example|unescape }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
       {% endfor %}
+      {% endif %}
+
+      {% if topic.content.important_notes %}
+      <div class="lf-grammar-theory__alert lf-grammar-theory__alert--warning">
+        <div class="lf-grammar-theory__alert-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Important
+        </div>
+        <ul>
+          {% for note in topic.content.important_notes %}
+          <li>{{ note|unescape }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if topic.content.common_mistakes %}
+      <div class="lf-grammar-theory__alert lf-grammar-theory__alert--danger">
+        <div class="lf-grammar-theory__alert-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>
+          </svg>
+          Common mistakes
+        </div>
+        {% for mistake in topic.content.common_mistakes %}
+        <div class="lf-grammar-theory__mistake">
+          <span class="lf-grammar-theory__mistake-wrong">{{ mistake.wrong|unescape }}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="lf-grammar-theory__mistake-correct">{{ mistake.correct|unescape }}</span>
+        </div>
+        {% if mistake.explanation %}
+        <p class="lf-grammar-theory__mistake-explain">{{ mistake.explanation|unescape }}</p>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {% if topic.exercise_count > 0 %}
+    <div class="lf-grammar-theory__practice-link">
+      <a href="{{ url_for('grammar_lab.practice', topic_id=topic.id) }}{% if grammar_return_url %}?return_url={{ grammar_return_url|urlencode }}{% endif %}" class="lf-grammar-theory__practice-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 4v6h6M23 20v-6h-6"/>
+          <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
+        </svg>
+        Practice this topic ({{ topic.exercise_count }} exercises)
+      </a>
     </div>
+    {% endif %}
   </div>
+  {% endfor %}
   {% endif %}
 
   <!-- Can-do Checklist -->
@@ -876,62 +1001,250 @@ function showCompletionResults() {
   font-style: italic;
 }
 
-/* ── Linked Topics ── */
-.lf-linked__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+/* ── Inline Grammar Theory ── */
+.lf-grammar-theory {
+  border: 2px solid #e9d5ff;
 }
 
-.lf-linked__card {
-  display: block;
-  padding: 1rem 1.25rem;
-  background: #f9fafb;
+.lf-grammar-theory__level {
+  display: inline-block;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  padding: 0.125rem 0.625rem;
   border-radius: 12px;
-  border: 2px solid #e5e7eb;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.lf-grammar-theory__subtitle {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  margin-bottom: 1.25rem;
+}
+
+.lf-grammar-theory__intro {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(99, 102, 241, 0.06));
+  border-radius: 12px;
+  padding: 1.25rem;
+  border-left: 4px solid #8b5cf6;
+  color: #374151;
+  line-height: 1.7;
+  margin-bottom: 1.25rem;
+}
+
+.lf-grammar-theory__block {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.lf-grammar-theory__block:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.lf-grammar-theory__block-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem;
+}
+
+.lf-grammar-theory__block-desc {
+  color: #374151;
+  line-height: 1.7;
+  margin: 0 0 0.75rem;
+}
+
+.lf-grammar-theory__table-wrap {
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lf-grammar-theory__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.lf-grammar-theory__table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.lf-grammar-theory__table tr:last-child td {
+  border-bottom: none;
+}
+
+.lf-grammar-theory__td-pronoun {
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.lf-grammar-theory__td-form {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.lf-grammar-theory__td-translation {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.lf-grammar-theory__rules {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lf-grammar-theory__rules > li {
+  position: relative;
+  padding: 0.75rem 0 0.75rem 1.5rem;
+  color: #374151;
+  line-height: 1.6;
+  border-bottom: 1px solid #f9fafb;
+}
+
+.lf-grammar-theory__rules > li:last-child {
+  border-bottom: none;
+}
+
+.lf-grammar-theory__rules > li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1.125rem;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border-radius: 50%;
+}
+
+.lf-grammar-theory__rule-examples {
+  margin: 0.375rem 0 0 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.lf-grammar-theory__rule-examples li {
+  color: #6b7280;
+  font-style: italic;
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
+}
+
+.lf-grammar-theory__rule-note {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+/* Alerts */
+.lf-grammar-theory__alert {
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.lf-grammar-theory__alert--warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.lf-grammar-theory__alert--danger {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.lf-grammar-theory__alert-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-bottom: 0.625rem;
+}
+
+.lf-grammar-theory__alert--warning .lf-grammar-theory__alert-header {
+  color: #92400e;
+}
+
+.lf-grammar-theory__alert--danger .lf-grammar-theory__alert-header {
+  color: #991b1b;
+}
+
+.lf-grammar-theory__alert ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.lf-grammar-theory__alert li {
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 0.25rem;
+}
+
+/* Mistakes */
+.lf-grammar-theory__mistake {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.lf-grammar-theory__mistake-wrong {
+  text-decoration: line-through;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.lf-grammar-theory__mistake-correct {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.lf-grammar-theory__mistake-explain {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+/* Practice link */
+.lf-grammar-theory__practice-link {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+  text-align: center;
+}
+
+.lf-grammar-theory__practice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
   text-decoration: none;
   transition: all 0.2s;
 }
 
-.lf-linked__card:hover {
-  border-color: #8b5cf6;
-  background: #faf5ff;
+.lf-grammar-theory__practice-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.12);
-}
-
-.lf-linked__card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.lf-linked__level {
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
   color: white;
-  padding: 0.1875rem 0.625rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.lf-linked__count {
-  font-size: 0.75rem;
-  color: #9ca3af;
-  font-weight: 500;
-}
-
-.lf-linked__title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.lf-linked__title-ru {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-top: 0.25rem;
 }
 
 /* ── Can-do ── */

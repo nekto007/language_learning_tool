@@ -29,6 +29,46 @@ from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
+
+def _build_linked_topics_and_return_url(lf: dict, course, module, next_lesson_url: str, has_next_lesson: bool):
+    """Build linked grammar topics list (with inline content) and return_url for grammar-lab practice."""
+    from app.grammar_lab.models import GrammarTopic, GrammarExercise
+
+    linked_topics = []
+    for tid in lf.get('linked_grammar_topic_ids', []):
+        if isinstance(tid, str):
+            t = GrammarTopic.query.filter_by(slug=tid).first()
+        else:
+            t = GrammarTopic.query.get(tid)
+        if t:
+            ex_count = GrammarExercise.query.filter_by(topic_id=t.id).count()
+            linked_topics.append({
+                'id': t.id,
+                'title': t.title,
+                'title_ru': t.title_ru,
+                'level': t.level,
+                'exercise_count': ex_count,
+                'content': t.content,
+            })
+
+    # Build return_url for grammar-lab practice completion
+    if has_next_lesson and next_lesson_url:
+        grammar_return_url = next_lesson_url
+    elif course.slug:
+        grammar_return_url = url_for(
+            'book_courses.view_module_by_slug',
+            course_slug=course.slug,
+            module_number=module.module_number
+        )
+    else:
+        grammar_return_url = url_for(
+            'book_courses.view_module',
+            course_id=course.id,
+            module_id=module.id
+        )
+
+    return linked_topics, grammar_return_url
+
 # Язык UI определяется уровнем курса: A1-A2 → ru, B1-B2 → mixed, C1-C2 → en
 def get_ui_lang(course_level: str) -> str:
     """Определить язык интерфейса по уровню курса"""
@@ -899,19 +939,10 @@ def view_lesson(course_id, module_id, lesson_number):
                 # Language Focus lesson — render from task.payload
                 lf = task.payload
 
-                # Fetch linked grammar topics for the "Дополнительная практика" section
-                linked_topics = []
-                for tid in lf.get('linked_grammar_topic_ids', []):
-                    t = GrammarTopic.query.get(tid)
-                    if t:
-                        ex_count = GrammarExercise.query.filter_by(topic_id=t.id).count()
-                        linked_topics.append({
-                            'id': t.id,
-                            'title': t.title,
-                            'title_ru': t.title_ru,
-                            'level': t.level,
-                            'exercise_count': ex_count
-                        })
+                # Fetch linked grammar topics with inline content + return_url
+                linked_topics, grammar_return_url = _build_linked_topics_and_return_url(
+                    lf, course, module, next_lesson_url, has_next_lesson
+                )
 
                 return render_template(
                     'curriculum/book_courses/lessons/language_focus.html',
@@ -925,7 +956,8 @@ def view_lesson(course_id, module_id, lesson_number):
                     linked_topics=linked_topics,
                     daily_lesson=daily_lesson,
                     next_lesson_url=next_lesson_url,
-                    has_next_lesson=has_next_lesson
+                    has_next_lesson=has_next_lesson,
+                    grammar_return_url=grammar_return_url
                 )
 
             # Fallback: Grammar Bridge (old behavior for lessons without payload)
@@ -1489,19 +1521,10 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                 # Language Focus lesson — render from task.payload
                 lf = task.payload
 
-                # Fetch linked grammar topics for the "Дополнительная практика" section
-                linked_topics = []
-                for tid in lf.get('linked_grammar_topic_ids', []):
-                    t = GrammarTopic.query.get(tid)
-                    if t:
-                        ex_count = GrammarExercise.query.filter_by(topic_id=t.id).count()
-                        linked_topics.append({
-                            'id': t.id,
-                            'title': t.title,
-                            'title_ru': t.title_ru,
-                            'level': t.level,
-                            'exercise_count': ex_count
-                        })
+                # Fetch linked grammar topics with inline content + return_url
+                linked_topics, grammar_return_url = _build_linked_topics_and_return_url(
+                    lf, course, module, next_lesson_url, has_next_lesson
+                )
 
                 return render_template(
                     'curriculum/book_courses/lessons/language_focus.html',
@@ -1515,7 +1538,8 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                     linked_topics=linked_topics,
                     daily_lesson=daily_lesson,
                     next_lesson_url=next_lesson_url,
-                    has_next_lesson=has_next_lesson
+                    has_next_lesson=has_next_lesson,
+                    grammar_return_url=grammar_return_url
                 )
 
             # Fallback: Grammar Bridge (old behavior for lessons without payload)

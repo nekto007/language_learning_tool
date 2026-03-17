@@ -87,6 +87,9 @@ def practice(topic_id=None):
     """
     topic = None
 
+    # return_url: after practice completion, redirect here (e.g., back to book course lesson)
+    return_url = request.args.get('return_url', '')
+
     if topic_id:
         # Topic-specific practice
         topic = grammar_service.get_topic_detail(topic_id, current_user.id)
@@ -101,7 +104,8 @@ def practice(topic_id=None):
     return render_template(
         'grammar_lab/practice.html',
         session=session,
-        topic=topic
+        topic=topic,
+        return_url=return_url
     )
 
 
