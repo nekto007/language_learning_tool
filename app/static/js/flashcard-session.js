@@ -820,7 +820,17 @@ class FlashcardSession {
             // Update session stats
             this.sessionStats.total++;
 
-            // Update counters (only for non-requeued cards)
+            // Update counters
+            // Learning/relearning cards decrement regardless of requeue status
+            // (they were incremented when first entering learning state)
+            if (card.isRequeue && (card.state === 'learning' || card.state === 'relearning')) {
+                this.sessionStats.learning_cards--;
+                if (this.els.studiedCardsCounter) {
+                    this.els.studiedCardsCounter.textContent = `В изучении: ${Math.max(0, this.sessionStats.learning_cards)}`;
+                }
+            }
+
+            // New and review cards only decrement for non-requeued cards
             if (!card.isRequeue) {
                 if (card.state === 'new') {
                     this.sessionStats.new_cards--;
