@@ -149,6 +149,9 @@ def create_app(config_class=Config):
     from app.api.topics_collections import api_topics_collections
     app.register_blueprint(api_topics_collections, url_prefix='/api')
 
+    from app.api.daily_plan import api_daily_plan
+    app.register_blueprint(api_daily_plan, url_prefix='/api')
+
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
 
