@@ -1,15 +1,15 @@
 """API endpoints for daily plan and summary."""
 
 from flask import Blueprint, jsonify, request
-from flask_login import current_user
+from flask_jwt_extended import get_jwt_identity
 
-from app.api.decorators import api_login_required
+from app.api.decorators import api_jwt_required
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
 
 
 @api_daily_plan.route('/daily-plan')
-@api_login_required
+@api_jwt_required
 def daily_plan():
     """Get user's daily study plan.
 
@@ -31,13 +31,14 @@ def daily_plan():
     from app.telegram.queries import get_daily_plan
 
     tz = request.args.get('tz', 'Europe/Moscow')
-    plan = get_daily_plan(current_user.id, tz=tz)
+    user_id = get_jwt_identity()
+    plan = get_daily_plan(user_id, tz=tz)
 
     return jsonify({'success': True, **plan})
 
 
 @api_daily_plan.route('/daily-summary')
-@api_login_required
+@api_jwt_required
 def daily_summary():
     """Get summary of today's learning activity.
 
@@ -57,13 +58,14 @@ def daily_summary():
     from app.telegram.queries import get_daily_summary
 
     tz = request.args.get('tz', 'Europe/Moscow')
-    summary = get_daily_summary(current_user.id, tz=tz)
+    user_id = get_jwt_identity()
+    summary = get_daily_summary(user_id, tz=tz)
 
     return jsonify({'success': True, **summary})
 
 
 @api_daily_plan.route('/streak')
-@api_login_required
+@api_jwt_required
 def streak():
     """Get user's current learning streak.
 
@@ -77,9 +79,10 @@ def streak():
     from app.telegram.queries import get_current_streak, has_activity_today
 
     tz = request.args.get('tz', 'Europe/Moscow')
+    user_id = get_jwt_identity()
 
     return jsonify({
         'success': True,
-        'streak': get_current_streak(current_user.id, tz=tz),
-        'has_activity_today': has_activity_today(current_user.id, tz=tz),
+        'streak': get_current_streak(user_id, tz=tz),
+        'has_activity_today': has_activity_today(user_id, tz=tz),
     })

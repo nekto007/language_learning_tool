@@ -659,7 +659,7 @@ SRS-информация по конкретному упражнению.
 ### `GET /api/daily-plan`
 План обучения на день: следующий урок, грамматика, слова на повторение, книги, онбординг.
 
-**Auth:** `@api_login_required`
+**Auth:** `@api_jwt_required`
 
 **Query params:**
 - `tz` (str) — часовой пояс пользователя, напр. `Europe/Moscow` (по умолчанию)
@@ -684,7 +684,7 @@ SRS-информация по конкретному упражнению.
 ### `GET /api/daily-summary`
 Сводка учебной активности за сегодня.
 
-**Auth:** `@api_login_required`
+**Auth:** `@api_jwt_required`
 
 **Query params:**
 - `tz` (str) — часовой пояс пользователя (по умолчанию `Europe/Moscow`)
@@ -707,7 +707,7 @@ SRS-информация по конкретному упражнению.
 ### `GET /api/streak`
 Текущая серия обучения пользователя.
 
-**Auth:** `@api_login_required`
+**Auth:** `@api_jwt_required`
 
 **Query params:**
 - `tz` (str) — часовой пояс пользователя (по умолчанию `Europe/Moscow`)
