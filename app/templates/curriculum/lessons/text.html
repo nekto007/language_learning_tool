@@ -1,16 +1,26 @@
 {% extends "lesson_base_template.html" %}
 
+{% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
+{% set is_advanced = level_code in ('B1', 'B2', 'C1', 'C2') %}
+
 {% if text_content and text_content.is_listening_immersion %}
   {% set component_name = _('Аудирование') %}
   {% set instruction_text = _('Прослушайте диалог несколько раз. Постарайтесь понять содержание на слух. Можете читать текст и перевод во время прослушивания.') %}
   {% set block_description = _('Развитие навыков восприятия речи на слух') %}
 {% else %}
   {% set component_name = _('Чтение') %}
-  {% set instruction_text = _('Внимательно прочитайте текст. Вы можете использовать встроенный словарь для незнакомых слов.') %}
+  {% if is_advanced %}
+    {% set instruction_text = _('Внимательно прочитайте текст. Нажимайте на незнакомые слова для перевода.') %}
+  {% else %}
+    {% set instruction_text = _('Внимательно прочитайте текст. Вы можете использовать встроенный словарь для незнакомых слов.') %}
+  {% endif %}
   {% set block_description = _('Развитие навыков чтения и понимания текста') %}
 {% endif %}
 
 {% block extra_css %}
+{% if is_advanced %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/word-translator.css') }}">
+{% endif %}
 <style>
 /* Modern Text Card Styles */
 .text-content-box, .text-block {
@@ -165,7 +175,7 @@
                   </button>
                 {% endif %}
               </div>
-              {% if line.translation %}
+              {% if line.translation and not is_advanced %}
                 <div class="reading-line-translation">
                   {{ line.translation }}
                 </div>
@@ -197,7 +207,7 @@
               </script>
             </div>
 
-            {% if text_content.translation %}
+            {% if text_content.translation and not is_advanced %}
               <!-- Русский перевод -->
               <div class="listening-content-block translation mt-4">
                 <h4 class="listening-section-header translation">
@@ -212,11 +222,18 @@
                   <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз. Попробуйте понять содержание, глядя на английский текст, затем сверьтесь с переводом.
                 </p>
               </div>
+            {% elif is_advanced %}
+              <!-- Инструкция для продвинутого уровня -->
+              <div class="listening-instruction-box warning">
+                <p>
+                  <i class="fas fa-star"></i> <strong>{{ level_code }}:</strong> Нажимайте на незнакомые слова для перевода. Постарайтесь понять содержание из контекста.
+                </p>
+              </div>
             {% endif %}
 
           {% else %}
             <!-- Обычный текст без диалога -->
-            {% if text_content.translation %}
+            {% if text_content.translation and not is_advanced %}
               <!-- Английский текст -->
               <div class="listening-content-block english mb-4">
                 <h4 class="listening-section-header english">
@@ -240,7 +257,7 @@
                 </p>
               </div>
             {% else %}
-              <!-- Нет перевода - показываем английский текст (для продвинутого уровня) -->
+              <!-- Английский текст (для продвинутого уровня или без перевода) -->
               <div class="listening-content-block english">
                 <h4 class="listening-section-header english">
                   <i class="fas fa-language"></i> English Text
@@ -251,7 +268,11 @@
               <!-- Инструкция для продвинутого уровня -->
               <div class="listening-instruction-box warning">
                 <p>
-                  <i class="fas fa-star"></i> <strong>Продвинутый уровень:</strong> Прослушайте диалог и постарайтесь понять содержание. При необходимости можете обратиться к тексту.
+                  {% if is_advanced %}
+                    <i class="fas fa-star"></i> <strong>{{ level_code }}:</strong> Нажимайте на незнакомые слова для перевода. Постарайтесь понять содержание из контекста.
+                  {% else %}
+                    <i class="fas fa-star"></i> <strong>Продвинутый уровень:</strong> Прослушайте диалог и постарайтесь понять содержание. При необходимости можете обратиться к тексту.
+                  {% endif %}
                 </p>
               </div>
             {% endif %}
@@ -1572,5 +1593,14 @@ function handleMobileLayout() {
   }
 }
 </style>
+
+{% if is_advanced %}
+<script src="{{ url_for('static', filename='js/word-translator.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    new WordTranslator({ container: '.text-container' });
+});
+</script>
+{% endif %}
 {% endblock %}
 
