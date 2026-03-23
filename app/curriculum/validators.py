@@ -87,9 +87,10 @@ class QuizQuestionSchema(Schema):
     class Meta:
         unknown = INCLUDE  # Allow additional fields not defined in schema
 
-    type = fields.Str(required=False, validate=validate.OneOf(
+    type = fields.Str(required=False, load_default=None, validate=validate.OneOf(
         ['multiple_choice', 'mc', 'true_false', 'tf', 'fill_blank', 'fill_in_blank', 'translation',
-         'reorder', 'ordering', 'matching', 'transformation', 'listening_choice', 'dialogue_completion']))
+         'reorder', 'ordering', 'matching', 'transformation', 'listening_choice', 'dialogue_completion']),
+        allow_none=True)
     question = fields.Str(required=False, validate=validate.Length(min=1, max=500))
     prompt = fields.Str(required=False, validate=validate.Length(min=1, max=500))  # Alternative to question
     sentence = fields.Str(required=False)  # For fill_blank questions
@@ -280,7 +281,9 @@ class FinalTestSectionSchema(Schema):
         unknown = INCLUDE
 
     section = fields.Str(required=False)
+    name = fields.Str(required=False)  # Alternative to section
     exercises = fields.List(fields.Nested(QuizQuestionSchema), required=False)
+    questions = fields.List(fields.Nested(QuizQuestionSchema), required=False)  # Alternative to exercises
 
 
 class FinalTestContentSchema(Schema):
@@ -289,8 +292,11 @@ class FinalTestContentSchema(Schema):
         unknown = INCLUDE  # Allow additional fields
 
     test_sections = fields.List(fields.Nested(FinalTestSectionSchema), required=False)
+    sections = fields.List(fields.Nested(FinalTestSectionSchema), required=False)  # Alternative to test_sections
     passing_score = fields.Int(required=False, validate=validate.Range(min=0, max=100))
+    pass_score = fields.Int(required=False, validate=validate.Range(min=0, max=100))  # Alternative
     total_points = fields.Int(required=False, validate=validate.Range(min=0))
+    total_questions = fields.Int(required=False, validate=validate.Range(min=0))
     time_limit = fields.Int(required=False, validate=validate.Range(min=0))
 
 

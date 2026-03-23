@@ -992,9 +992,10 @@ def render_final_test_lesson(lesson):
         return redirect('/learn/')
 
     questions_to_sanitize = []
-    if 'test_sections' in cleaned_content:
-        for section in cleaned_content['test_sections']:
-            questions_to_sanitize.extend(section.get('exercises', []))
+    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
+    if sections_list:
+        for section in sections_list:
+            questions_to_sanitize.extend(section.get('exercises') or section.get('questions') or [])
     else:
         questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
         questions_to_sanitize = cleaned_content.get(questions_field, [])
@@ -1780,9 +1781,10 @@ def final_test_lesson(lesson_id):
     # Sanitize question content (same as quiz)
     # Support test_sections, exercises, or questions
     questions_to_sanitize = []
-    if 'test_sections' in cleaned_content:
-        for section in cleaned_content['test_sections']:
-            questions_to_sanitize.extend(section.get('exercises', []))
+    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
+    if sections_list:
+        for section in sections_list:
+            questions_to_sanitize.extend(section.get('exercises') or section.get('questions') or [])
     else:
         questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
         questions_to_sanitize = cleaned_content.get(questions_field, [])
@@ -2474,6 +2476,7 @@ def update_lesson_progress(lesson_id):
         completion_result = None
         if progress.status == 'completed' and progress.score is not None:
             try:
+                from app.achievements.services import process_lesson_completion
                 lesson = Lessons.query.get(lesson_id)
                 completion_result = process_lesson_completion(
                     user_id=current_user.id,
