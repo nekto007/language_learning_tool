@@ -29,7 +29,7 @@ msgid "Words"
 msgstr "Слова"
 
 msgid "words"
-msgstr "cлов"
+msgstr "слова"
 
 msgid "Study"
 msgstr "Обучение"
