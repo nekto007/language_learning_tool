@@ -1046,9 +1046,10 @@ def render_final_test_lesson(lesson):
                     logger.error(f"Invalid question index: {question_idx}")
 
         all_questions = []
-        if 'test_sections' in cleaned_content:
-            for section in cleaned_content['test_sections']:
-                all_questions.extend(section.get('exercises', []))
+        sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
+        if sections_list:
+            for section in sections_list:
+                all_questions.extend(section.get('exercises') or section.get('questions') or [])
         else:
             questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
             all_questions = cleaned_content.get(questions_field, [])
@@ -1083,10 +1084,11 @@ def render_final_test_lesson(lesson):
 
     next_lesson = get_next_lesson(lesson.id)
 
-    if 'test_sections' in cleaned_content:
+    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
+    if sections_list:
         questions = []
-        for section in cleaned_content.get('test_sections', []):
-            questions.extend(section.get('exercises', []))
+        for section in sections_list:
+            questions.extend(section.get('exercises') or section.get('questions') or [])
     else:
         questions = cleaned_content.get('exercises', cleaned_content.get('questions', []))
 
@@ -1943,11 +1945,12 @@ def final_test_results(lesson_id):
         flash('Ошибка в содержимом теста', 'error')
         return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 
-    # Extract questions (handle test_sections)
-    if 'test_sections' in cleaned_content:
+    # Extract questions (handle both test_sections/exercises and sections/questions formats)
+    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
+    if sections_list:
         questions = []
-        for section in cleaned_content['test_sections']:
-            questions.extend(section.get('exercises', []))
+        for section in sections_list:
+            questions.extend(section.get('exercises') or section.get('questions') or [])
     else:
         questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
         questions = cleaned_content.get(questions_field, [])

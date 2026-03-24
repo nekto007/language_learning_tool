@@ -699,7 +699,7 @@ def process_quiz_submission(questions, answers):
         if question_type == 'fill_blank' and 'options' in question:
             question_type = 'multiple_choice'
 
-        if question_type in ['multiple_choice', 'dialogue_completion', 'listening_choice']:
+        if question_type in ['multiple_choice', 'dialogue_completion', 'listening_choice', 'reading_comprehension']:
             # Для множественного выбора сравниваем индексы или текст
             try:
                 if isinstance(user_answer, str) and user_answer.isdigit():
