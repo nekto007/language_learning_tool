@@ -87,10 +87,7 @@ class QuizQuestionSchema(Schema):
     class Meta:
         unknown = INCLUDE  # Allow additional fields not defined in schema
 
-    type = fields.Str(required=False, load_default=None, validate=validate.OneOf(
-        ['multiple_choice', 'mc', 'true_false', 'tf', 'fill_blank', 'fill_in_blank', 'translation',
-         'reorder', 'ordering', 'matching', 'transformation', 'listening_choice', 'dialogue_completion']),
-        allow_none=True)
+    type = fields.Str(required=False, load_default=None, allow_none=True)
     question = fields.Str(required=False, validate=validate.Length(min=1, max=500))
     prompt = fields.Str(required=False, validate=validate.Length(min=1, max=500))  # Alternative to question
     sentence = fields.Str(required=False)  # For fill_blank questions

@@ -255,15 +255,15 @@ class TestQuizQuestionSchema:
         result = schema.load(data)
         assert result['type'] == 'fill_blank'
 
-    def test_invalid_question_type(self):
-        """Тест невалидного типа вопроса"""
+    def test_unknown_question_type_accepted(self):
+        """Неизвестные типы вопросов принимаются (reading_comprehension и др.)"""
         schema = QuizQuestionSchema()
         data = {
-            'type': 'invalid_type',
+            'type': 'reading_comprehension',
             'question': 'Test question'
         }
-        with pytest.raises(ValidationError):
-            schema.load(data)
+        result = schema.load(data)
+        assert result['type'] == 'reading_comprehension'
 
     def test_question_with_alternative_field_names(self):
         """Тест вопроса с альтернативными именами полей"""

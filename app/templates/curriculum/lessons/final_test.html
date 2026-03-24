@@ -638,7 +638,14 @@
             <h3 class="question-text">{{ question.question or full_question }}</h3>
           {% endif %}
 
-          {% if question.type in ['multiple_choice', 'listening_choice'] and question.options %}
+          {% if question.type == 'reading_comprehension' and question.text %}
+            <div class="final-test-reading-passage" style="background: var(--bg-secondary, #f8f9fa); border-radius: 12px; padding: 16px; margin-bottom: 16px; font-size: 0.95em; line-height: 1.6;">
+              {{ question.text|safe }}
+            </div>
+            <h3 class="question-text">{{ question.question }}</h3>
+          {% endif %}
+
+          {% if question.type in ['multiple_choice', 'listening_choice', 'reading_comprehension'] and question.options %}
             <div class="answer-options">
               {% for option in question.options %}
                 <button type="button"
@@ -1219,7 +1226,7 @@ window.FinalTestApp = {
       } else {
         isCorrect = (value === 'true') === (correctAnswer == true);
       }
-    } else if (question.type === 'multiple_choice' || question.type === 'listening_choice' || (question.type === 'fill_in_blank' && question.options) || (question.type === 'fill_blank' && question.options)) {
+    } else if (question.type === 'multiple_choice' || question.type === 'listening_choice' || question.type === 'reading_comprehension' || (question.type === 'fill_in_blank' && question.options) || (question.type === 'fill_blank' && question.options)) {
       const userIndex = parseInt(value);
       const normalize = (str) => str ? str.toLowerCase().trim() : '';
 
@@ -1379,7 +1386,7 @@ window.FinalTestApp = {
       let correctText = '';
       let userText = userAnswer ? userAnswer.text : '';
 
-      if ((question.type === 'multiple_choice' || question.type === 'fill_in_blank' || question.type === 'fill_blank') && question.options) {
+      if ((question.type === 'multiple_choice' || question.type === 'reading_comprehension' || question.type === 'fill_in_blank' || question.type === 'fill_blank') && question.options) {
         if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < question.options.length) {
           correctText = question.options[correctAnswer];
         } else if (typeof correctAnswer === 'string' && correctAnswer.match(/^\d+$/)) {
