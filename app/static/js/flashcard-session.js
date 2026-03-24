@@ -511,6 +511,29 @@ class FlashcardSession {
     /**
      * Display a card at the given index.
      */
+    _recountRemaining() {
+        // Recount remaining cards ahead in the queue by state (Anki-style)
+        let newCount = 0, learningCount = 0, reviewCount = 0;
+        for (let i = this.currentCardIndex + 1; i < this.cards.length; i++) {
+            const s = this.cards[i].state;
+            if (s === 'new') newCount++;
+            else if (s === 'learning' || s === 'relearning') learningCount++;
+            else if (s === 'review') reviewCount++;
+        }
+        this.sessionStats.new_cards = newCount;
+        this.sessionStats.learning_cards = learningCount;
+        this.sessionStats.review_cards = reviewCount;
+        if (this.els.newCardsCounter) {
+            this.els.newCardsCounter.textContent = `Новых: ${newCount}`;
+        }
+        if (this.els.studiedCardsCounter) {
+            this.els.studiedCardsCounter.textContent = `В изучении: ${learningCount}`;
+        }
+        if (this.els.reviewCardsCounter) {
+            this.els.reviewCardsCounter.textContent = `На повтор: ${reviewCount}`;
+        }
+    },
+
     showCard(index) {
         if (!this.cards || this.cards.length === 0) {
             this._showNoCardsMessage();
@@ -820,35 +843,8 @@ class FlashcardSession {
             // Update session stats
             this.sessionStats.total++;
 
-            // Update counters
-            // Learning/relearning cards decrement regardless of requeue status
-            // (they were incremented when first entering learning state)
-            if (card.isRequeue && (card.state === 'learning' || card.state === 'relearning')) {
-                this.sessionStats.learning_cards--;
-                if (this.els.studiedCardsCounter) {
-                    this.els.studiedCardsCounter.textContent = `В изучении: ${Math.max(0, this.sessionStats.learning_cards)}`;
-                }
-            }
-
-            // New and review cards only decrement for non-requeued cards
-            if (!card.isRequeue) {
-                if (card.state === 'new') {
-                    this.sessionStats.new_cards--;
-                    if (this.els.newCardsCounter) {
-                        this.els.newCardsCounter.textContent = `Новых: ${Math.max(0, this.sessionStats.new_cards)}`;
-                    }
-                } else if (card.state === 'learning' || card.state === 'relearning') {
-                    this.sessionStats.learning_cards--;
-                    if (this.els.studiedCardsCounter) {
-                        this.els.studiedCardsCounter.textContent = `В изучении: ${Math.max(0, this.sessionStats.learning_cards)}`;
-                    }
-                } else if (card.state === 'review') {
-                    this.sessionStats.review_cards--;
-                    if (this.els.reviewCardsCounter) {
-                        this.els.reviewCardsCounter.textContent = `На повтор: ${Math.max(0, this.sessionStats.review_cards)}`;
-                    }
-                }
-            }
+            // Recount remaining cards in queue (like Anki)
+            this._recountRemaining();
 
             // Move to next card
             this.showCard(this.currentCardIndex + 1);
