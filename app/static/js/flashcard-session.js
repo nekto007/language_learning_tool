@@ -532,7 +532,7 @@ class FlashcardSession {
         if (this.els.reviewCardsCounter) {
             this.els.reviewCardsCounter.textContent = `На повтор: ${reviewCount}`;
         }
-    },
+    }
 
     showCard(index) {
         if (!this.cards || this.cards.length === 0) {
