@@ -89,7 +89,11 @@ def has_activity_today(user_id: int, tz: str = DEFAULT_TZ) -> bool:
 
 def _has_activity_in_range(user_id: int, start_utc: datetime,
                            end_utc: datetime) -> bool:
-    """Check if user had any activity between start_utc and end_utc."""
+    """Check if user had any activity between start_utc and end_utc.
+
+    Must check the same 5 sources as has_activity_today() to avoid
+    streak gaps when user only did book reading or book course lessons.
+    """
     if LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
         LessonProgress.last_activity >= start_utc,
@@ -108,6 +112,22 @@ def _has_activity_in_range(user_id: int, start_utc: datetime,
         UserWord.user_id == user_id,
         UserCardDirection.last_reviewed >= start_utc,
         UserCardDirection.last_reviewed < end_utc,
+    ).first():
+        return True
+
+    # Book reading progress
+    if UserChapterProgress.query.filter(
+        UserChapterProgress.user_id == user_id,
+        UserChapterProgress.updated_at >= start_utc,
+        UserChapterProgress.updated_at < end_utc,
+    ).first():
+        return True
+
+    # Book course lesson progress
+    if UserLessonProgress.query.filter(
+        UserLessonProgress.user_id == user_id,
+        UserLessonProgress.completed_at >= start_utc,
+        UserLessonProgress.completed_at < end_utc,
     ).first():
         return True
 
