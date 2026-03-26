@@ -115,11 +115,13 @@ def _has_activity_in_range(user_id: int, start_utc: datetime,
 
 
 def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
-    """Calculate current streak (consecutive days with activity).
+    """Calculate current streak (consecutive days with activity or repaired days).
 
     Uses user's timezone to determine day boundaries.
-    Looks back from yesterday (today may still have activity ahead).
+    Repaired days (free_repair, spent_repair) count toward the streak.
     """
+    from app.achievements.models import StreakEvent
+
     streak = 0
 
     # If there's activity today, count today
@@ -133,7 +135,17 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
         if _has_activity_in_range(user_id, day_start, day_end):
             streak += 1
         else:
-            break
+            # Check if this day was repaired
+            check_date = (datetime.now(timezone.utc) - timedelta(days=offset)).date()
+            repaired = StreakEvent.query.filter(
+                StreakEvent.user_id == user_id,
+                StreakEvent.event_date == check_date,
+                StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
+            ).first()
+            if repaired:
+                streak += 1
+            else:
+                break
 
     return streak
 

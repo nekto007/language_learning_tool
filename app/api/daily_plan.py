@@ -67,22 +67,42 @@ def daily_summary():
 @api_daily_plan.route('/streak')
 @api_jwt_required
 def streak():
-    """Get user's current learning streak.
+    """Get user's current learning streak with recovery status.
 
     Query params:
         tz (str): User timezone. Default: 'Europe/Moscow'.
 
     Returns JSON:
-        streak: Current streak in days
-        has_activity_today: Whether user was active today
+        streak, coins_balance, has_activity_today, can_repair, missed_date, repair_cost
     """
-    from app.telegram.queries import get_current_streak, has_activity_today
+    from app.achievements.streak_service import get_streak_status
 
     tz = request.args.get('tz', 'Europe/Moscow')
     user_id = get_jwt_identity()
+    status = get_streak_status(user_id, tz=tz)
 
-    return jsonify({
-        'success': True,
-        'streak': get_current_streak(user_id, tz=tz),
-        'has_activity_today': has_activity_today(user_id, tz=tz),
-    })
+    return jsonify({'success': True, **status})
+
+
+@api_daily_plan.route('/streak/repair', methods=['POST'])
+@api_jwt_required
+def streak_repair():
+    """Pay streak coins to repair a broken streak."""
+    from app.achievements.streak_service import find_missed_date, apply_paid_repair
+    from app.telegram.queries import get_current_streak
+
+    user_id = get_jwt_identity()
+    tz = request.json.get('tz', 'Europe/Moscow') if request.is_json else 'Europe/Moscow'
+
+    missed = find_missed_date(user_id, tz=tz)
+    if not missed:
+        return jsonify({'success': False, 'error': 'no_missed_date'}), 400
+
+    result = apply_paid_repair(user_id, missed)
+    if result['success']:
+        db.session.commit()
+        result['new_streak'] = get_current_streak(user_id, tz=tz)
+    else:
+        db.session.rollback()
+
+    return jsonify(result)

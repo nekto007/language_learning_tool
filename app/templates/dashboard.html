@@ -16,14 +16,49 @@
                 <span class="dash-hero__wave">&#128075;</span>
                 <div>
                     <h1 class="dash-hero__title">&#1055;&#1088;&#1080;&#1074;&#1077;&#1090;, {{ current_user.username }}!</h1>
-                    {% if streak > 0 %}
+                    {% if streak_repaired %}
+                    <div class="dash-streak dash-streak--restored">
+                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__text">{{ streak }}
+                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                        <span class="dash-streak__restored">Серия восстановлена!</span>
+                    </div>
+                    {% elif streak_status and streak_status.can_repair and streak > 0 %}
                     <div class="dash-streak">
                         <span class="dash-streak__fire">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}&#1076;&#1077;&#1085;&#1100;{% elif streak < 5 %}&#1076;&#1085;&#1103;{% else %}&#1076;&#1085;&#1077;&#1081;{% endif %} &#1087;&#1086;&#1076;&#1088;&#1103;&#1076;</span>
+                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                    </div>
+                    {% elif streak_status and streak_status.can_repair %}
+                    <div class="dash-streak-recovery">
+                        <div class="dash-streak-recovery__alert">
+                            &#9888;&#65039; Серия прервалась!
+                        </div>
+                        <div class="dash-streak-recovery__options">
+                            <div class="dash-streak-recovery__free">
+                                &#127919; Выполните план на 100% сегодня — серия восстановится бесплатно
+                            </div>
+                            <div class="dash-streak-recovery__paid">
+                                &#128176; Или восстановите за <strong>{{ streak_status.repair_cost }}</strong> coins
+                                <button class="btn btn-sm btn-warning" id="repair-streak-btn"
+                                        onclick="repairStreak()" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
+                                    Восстановить
+                                </button>
+                                <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif streak > 0 %}
+                    <div class="dash-streak">
+                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__text">{{ streak }}
+                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
                     </div>
                     {% else %}
-                    <p class="dash-hero__subtitle">&#1042;&#1099;&#1073;&#1077;&#1088;&#1080;, &#1095;&#1077;&#1084; &#1093;&#1086;&#1095;&#1077;&#1096;&#1100; &#1079;&#1072;&#1085;&#1103;&#1090;&#1100;&#1089;&#1103; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103;</p>
+                    <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
                     {% endif %}
                 </div>
             </div>
@@ -1052,5 +1087,53 @@
     background: var(--dash-accent-soft);
     color: var(--dash-accent);
 }
+/* Streak recovery */
+.dash-streak__coins { margin-left: 12px; font-size: 0.85em; opacity: 0.8; }
+.dash-streak--restored .dash-streak__restored {
+    display: block; font-size: 0.85em; color: #10b981; font-weight: 600; margin-top: 4px;
+}
+.dash-streak-recovery {
+    background: #fef3cd; border: 1px solid #ffc107; border-radius: 12px;
+    padding: 16px; margin-top: 8px;
+}
+.dash-streak-recovery__alert { font-size: 1.1em; font-weight: 700; margin-bottom: 12px; }
+.dash-streak-recovery__free { margin-bottom: 8px; font-size: 0.95em; }
+.dash-streak-recovery__paid { display: flex; align-items: center; gap: 12px; font-size: 0.95em; flex-wrap: wrap; }
+.dash-streak-recovery__balance { opacity: 0.7; font-size: 0.85em; }
 </style>
+
+<script>
+async function repairStreak() {
+    const btn = document.getElementById('repair-streak-btn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const token = localStorage.getItem('jwt_token') || '';
+        const resp = await fetch('/api/streak/repair', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({tz: Intl.DateTimeFormat().resolvedOptions().timeZone})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            const msg = data.error === 'insufficient_coins'
+                ? 'Недостаточно coins (нужно ' + data.cost + ', баланс ' + data.balance + ')'
+                : 'Не удалось восстановить серию';
+            alert(msg);
+            btn.disabled = false;
+            btn.textContent = 'Восстановить';
+        }
+    } catch(e) {
+        alert('Ошибка сети');
+        btn.disabled = false;
+        btn.textContent = 'Восстановить';
+    }
+}
+</script>
 {% endblock %}

@@ -42,6 +42,31 @@ def dashboard():
         'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
     }
 
+    # === STREAK RECOVERY ===
+    from app.achievements.streak_service import get_streak_status, find_missed_date, apply_free_repair
+    streak_status = get_streak_status(current_user.id)
+    streak_repaired = False
+
+    # Check if plan is 100% complete → auto-repair streak
+    steps_available = {k: v for k, v in {
+        'lesson': daily_plan.get('next_lesson'),
+        'grammar': daily_plan.get('grammar_topic'),
+        'words': daily_plan.get('words_due'),
+        'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None),
+        'book_course_practice': bc_lesson if (bc_lesson and not bc_is_reading) else None,
+    }.items() if v}
+    steps_done = sum(1 for k in steps_available if plan_completion.get(k))
+    steps_total = len(steps_available)
+
+    if steps_total > 0 and steps_done >= steps_total:
+        missed = find_missed_date(current_user.id)
+        if missed:
+            apply_free_repair(current_user.id, missed)
+            db.session.commit()
+            streak = get_current_streak(current_user.id)
+            streak_status = get_streak_status(current_user.id)
+            streak_repaired = True
+
     # Cards URL (user's default deck or generic)
     cards_url = url_for('study.cards')
     if current_user.default_study_deck_id:
@@ -135,6 +160,8 @@ def dashboard():
     return render_template('dashboard.html',
         # Daily plan
         streak=streak,
+        streak_status=streak_status,
+        streak_repaired=streak_repaired,
         daily_plan=daily_plan,
         daily_summary=daily_summary,
         plan_completion=plan_completion,

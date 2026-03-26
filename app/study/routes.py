@@ -1021,6 +1021,13 @@ def update_study_item():
             else:
                 session.incorrect_answers += 1
 
+    # Award daily streak coin on card review
+    try:
+        from app.achievements.streak_service import earn_daily_coin
+        earn_daily_coin(current_user.id)
+    except Exception:
+        pass  # don't fail card grading if coin logic errors
+
     db.session.commit()
 
     # Calculate requeue position based on state

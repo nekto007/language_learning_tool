@@ -4,10 +4,11 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, CHAR
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, CHAR
+from sqlalchemy.orm import backref, relationship
 
 from app.utils.db import db
+from app.utils.types import JSONBCompat
 
 
 class LessonGrade(db.Model):
@@ -131,3 +132,47 @@ class UserStatistics(db.Model):
         """Total number of graded lessons"""
         return (self.grade_a_count + self.grade_b_count + self.grade_c_count +
                 self.grade_d_count + self.grade_f_count)
+
+
+class StreakCoins(db.Model):
+    """User's streak coin balance."""
+    __tablename__ = 'streak_coins'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), unique=True, nullable=False)
+    balance = Column(Integer, default=0, nullable=False)
+    total_earned = Column(Integer, default=0, nullable=False)
+    total_spent = Column(Integer, default=0, nullable=False)
+
+    user = relationship('User', backref=backref('streak_coins', uselist=False, cascade='all, delete-orphan'))
+
+    def earn(self, amount: int) -> None:
+        self.balance += amount
+        self.total_earned += amount
+
+    def spend(self, amount: int) -> bool:
+        if self.balance < amount:
+            return False
+        self.balance -= amount
+        self.total_spent += amount
+        return True
+
+
+class StreakEvent(db.Model):
+    """Log of streak-related events (earnings, repairs, breaks)."""
+    __tablename__ = 'streak_events'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    event_type = Column(String(20), nullable=False)
+    coins_delta = Column(Integer, default=0, nullable=False)
+    event_date = Column(Date, nullable=False)
+    details = Column(JSONBCompat, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship('User', backref=backref('streak_events', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        Index('idx_streak_events_user_date', 'user_id', 'event_date'),
+        Index('idx_streak_events_user_type', 'user_id', 'event_type'),
+    )

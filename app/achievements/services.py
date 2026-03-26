@@ -145,6 +145,10 @@ class StatisticsService:
         stats.last_activity_date = today
         stats.updated_at = datetime.now(timezone.utc)
 
+        # Award daily streak coin
+        from app.achievements.streak_service import earn_daily_coin
+        earn_daily_coin(user_id)
+
         db.session.commit()
         return stats
 
