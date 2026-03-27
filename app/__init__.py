@@ -166,10 +166,6 @@ def create_app(config_class=Config):
     from app.grammar_lab import grammar_lab_bp
     app.register_blueprint(grammar_lab_bp)
 
-    # Register public grammar pages (SEO)
-    from app.grammar_public import grammar_public_bp
-    app.register_blueprint(grammar_public_bp)
-
     # Register Telegram bot blueprint
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)

@@ -1,6 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}{{ topic.title }} - Grammar Lab{% endblock %}
+{% block title %}{{ topic.title }} ({{ topic.title_ru }}) — Грамматика {{ topic.level }} | LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="{{ meta_description }}">
+<meta property="og:title" content="{{ topic.title }} ({{ topic.title_ru }}) — Грамматика {{ topic.level }} | LLT English">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LearningResource",
+  "name": "{{ topic.title }}",
+  "description": "{{ meta_description|e }}",
+  "educationalLevel": "{{ topic.level }}",
+  "inLanguage": ["en", "ru"],
+  "learningResourceType": "Grammar reference",
+  "url": "https://llt-english.com/grammar-lab/topic/{{ topic.id }}",
+  "provider": {
+    "@type": "Organization",
+    "name": "LLT English"
+  }
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="grammar-page">
@@ -325,15 +349,17 @@
             <p class="topic-card__empty">Теоретический материал скоро будет добавлен.</p>
           {% endif %}
 
-          {% if not topic.progress or not topic.progress.theory_completed %}
-          <div class="topic-card__action">
-            <button type="button" class="topic-btn topic-btn--outline" id="complete-theory-btn">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 6L9 17l-5-5"/>
-              </svg>
-              Теория изучена (+20 XP)
-            </button>
-          </div>
+          {% if current_user.is_authenticated %}
+            {% if not topic.progress or not topic.progress.theory_completed %}
+            <div class="topic-card__action">
+              <button type="button" class="topic-btn topic-btn--outline" id="complete-theory-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                Теория изучена (+20 XP)
+              </button>
+            </div>
+            {% endif %}
           {% endif %}
         </div>
       </div>
@@ -360,6 +386,7 @@
                 <polygon points="5 3 19 12 5 21 5 3"/>
               </svg>
             </div>
+            {% if current_user.is_authenticated %}
             <h3 class="practice-start__title">Готовы к практике?</h3>
             <p class="practice-start__desc">Сессия: <strong>10-12 упражнений</strong> из {{ topic.exercise_count }}</p>
             <p class="practice-start__note">Система подберёт задания на основе вашего прогресса</p>
@@ -369,6 +396,17 @@
               </svg>
               Начать практику
             </a>
+            {% else %}
+            <h3 class="practice-start__title">Закрепите на практике</h3>
+            <p class="practice-start__desc">{{ topic.exercise_count }} упражнений для отработки этой темы</p>
+            <p class="practice-start__note">Зарегистрируйтесь, чтобы получить доступ к упражнениям и отслеживать прогресс</p>
+            <a href="{{ url_for('auth.register') }}" class="topic-btn topic-btn--success topic-btn--large">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Начать практику
+            </a>
+            {% endif %}
           </div>
           {% else %}
           <p class="topic-card__empty">Упражнения скоро будут добавлены.</p>

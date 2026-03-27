@@ -29,12 +29,12 @@ grammar_service = GrammarLabService()
 # ============ HTML Pages ============
 
 @grammar_lab_bp.route('/')
-@login_required
 def index():
-    """Grammar Lab home page"""
-    levels = grammar_service.get_levels_summary(current_user.id)
-    recommendations = grammar_service.get_recommendations(current_user.id, limit=5)
-    stats = grammar_service.get_user_stats(current_user.id)
+    """Grammar Lab home page — public, with personal stats for authenticated users"""
+    user_id = current_user.id if current_user.is_authenticated else None
+    levels = grammar_service.get_levels_summary(user_id)
+    recommendations = grammar_service.get_recommendations(user_id, limit=5) if user_id else []
+    stats = grammar_service.get_user_stats(user_id) if user_id else None
 
     return render_template(
         'grammar_lab/index.html',
@@ -46,11 +46,11 @@ def index():
 
 @grammar_lab_bp.route('/topics')
 @grammar_lab_bp.route('/topics/<level>')
-@login_required
 def topics(level=None):
-    """Topics listing page, optionally filtered by level"""
-    topics_list = grammar_service.get_topics_by_level(level, current_user.id)
-    levels = grammar_service.get_levels_summary(current_user.id)
+    """Topics listing page — public, with progress for authenticated users"""
+    user_id = current_user.id if current_user.is_authenticated else None
+    topics_list = grammar_service.get_topics_by_level(level, user_id)
+    levels = grammar_service.get_levels_summary(user_id)
 
     return render_template(
         'grammar_lab/topics.html',
@@ -61,17 +61,24 @@ def topics(level=None):
 
 
 @grammar_lab_bp.route('/topic/<int:topic_id>')
-@login_required
 def topic_detail(topic_id):
-    """Topic detail page with theory and exercises"""
-    topic = grammar_service.get_topic_detail(topic_id, current_user.id)
+    """Topic detail page with theory — public, exercises require auth"""
+    user_id = current_user.id if current_user.is_authenticated else None
+    topic = grammar_service.get_topic_detail(topic_id, user_id)
 
     if not topic:
         return redirect(url_for('grammar_lab.topics'))
 
+    # SEO meta description
+    intro = (topic.get('content') or {}).get('introduction', '')
+    meta_description = intro[:150].rstrip() if intro else f'{topic["title"]} — правила, примеры, таблицы.'
+    if topic.get('exercise_count'):
+        meta_description += f' {topic["exercise_count"]} упражнений для практики.'
+
     return render_template(
         'grammar_lab/topic_detail.html',
-        topic=topic
+        topic=topic,
+        meta_description=meta_description
     )
 
 

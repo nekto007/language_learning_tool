@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Grammar Lab{% endblock %}
+{% block title %}Грамматика английского языка A1–C1 | LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1. Бесплатная теория + упражнения для практики.">
+<meta property="og:title" content="Грамматика английского языка A1–C1 | LLT English">
+<meta property="og:description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://llt-english.com/grammar-lab/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Грамматика английского языка",
+  "description": "Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1.",
+  "url": "https://llt-english.com/grammar-lab/",
+  "inLanguage": ["en", "ru"],
+  "provider": {
+    "@type": "Organization",
+    "name": "LLT English"
+  }
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="grammar-page">
@@ -229,6 +251,26 @@
     {% endif %}
   </div>
 
+  {% if not current_user.is_authenticated %}
+  <!-- CTA for anonymous users -->
+  <div class="grammar-section grammar-cta-section">
+    <div class="grammar-cta-inline">
+      <div class="grammar-cta-inline__icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+          <circle cx="8.5" cy="7" r="4"/>
+          <path d="M20 8v6M23 11h-6"/>
+        </svg>
+      </div>
+      <div class="grammar-cta-inline__content">
+        <h3 class="grammar-cta-inline__title">Отслеживайте прогресс и практикуйтесь</h3>
+        <p class="grammar-cta-inline__desc">Зарегистрируйтесь, чтобы сохранять результаты, получить доступ к упражнениям и интервальному повторению</p>
+      </div>
+      <a href="{{ url_for('auth.register') }}" class="grammar-cta-inline__btn">Регистрация</a>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Quick Actions -->
   <div class="grammar-section">
     <div class="grammar-section__header">
@@ -236,6 +278,7 @@
     </div>
 
     <div class="actions-grid">
+      {% if current_user.is_authenticated %}
       <a href="{{ url_for('grammar_lab.practice') }}" class="action-card action-card--primary">
         <div class="action-card__icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -252,6 +295,24 @@
           </svg>
         </div>
       </a>
+      {% else %}
+      <a href="{{ url_for('auth.register') }}" class="action-card action-card--primary">
+        <div class="action-card__icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+        </div>
+        <div class="action-card__content">
+          <h3 class="action-card__title">Практика SRS</h3>
+          <p class="action-card__desc">Требуется регистрация</p>
+        </div>
+        <div class="action-card__arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>
+      </a>
+      {% endif %}
 
       <a href="{{ url_for('grammar_lab.topics') }}" class="action-card action-card--secondary">
         <div class="action-card__icon">
@@ -271,6 +332,7 @@
         </div>
       </a>
 
+      {% if current_user.is_authenticated %}
       <a href="{{ url_for('grammar_lab.stats') }}" class="action-card action-card--tertiary">
         <div class="action-card__icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -287,6 +349,7 @@
           </svg>
         </div>
       </a>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -1040,6 +1103,78 @@
   .recommendation-card__arrow {
     display: none;
   }
+}
+
+/* ============================================
+   CTA for anonymous users
+   ============================================ */
+
+.grammar-cta-section {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(168, 85, 247, 0.04) 100%);
+}
+
+.grammar-cta-inline {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.grammar-cta-inline__icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.grammar-cta-inline__content {
+  flex: 1;
+  min-width: 200px;
+}
+
+.grammar-cta-inline__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--grammar-text);
+  margin: 0 0 0.25rem;
+}
+
+.grammar-cta-inline__desc {
+  font-size: 0.8125rem;
+  color: var(--grammar-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.grammar-cta-inline__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, #a855f7 100%);
+  color: white;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.grammar-cta-inline__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  color: white;
+}
+
+@media (max-width: 640px) {
+  .grammar-cta-inline { flex-direction: column; text-align: center; }
+  .grammar-cta-inline__btn { width: 100%; justify-content: center; }
 }
 
 /* ============================================
