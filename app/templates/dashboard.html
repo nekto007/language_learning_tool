@@ -15,7 +15,7 @@
             <div class="dash-hero__greeting">
                 <span class="dash-hero__wave">&#128075;</span>
                 <div>
-                    <h1 class="dash-hero__title">&#1055;&#1088;&#1080;&#1074;&#1077;&#1090;, {{ current_user.username }}!</h1>
+                    <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
                     {% if streak_repaired %}
                     <div class="dash-streak dash-streak--restored">
                         <span class="dash-streak__fire">&#128293;</span>
@@ -59,6 +59,14 @@
                     </div>
                     {% else %}
                     <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
+                    {% endif %}
+                    {% if yesterday_summary and yesterday_summary.has_activity %}
+                    <div class="dash-yesterday">
+                        Вчера:
+                        {% if yesterday_summary.lessons_count > 0 %}{{ yesterday_summary.lessons_count }} урок{% if yesterday_summary.lessons_count > 1 %}а{% endif %}{% if yesterday_summary.lesson_score %} ({{ yesterday_summary.lesson_score|int }}%){% endif %}{% endif %}
+                        {% if yesterday_summary.words_reviewed > 0 %}{% if yesterday_summary.lessons_count > 0 %} · {% endif %}{{ yesterday_summary.words_reviewed }} слов{% endif %}
+                        {% if yesterday_summary.grammar_exercises > 0 %}{% if yesterday_summary.lessons_count > 0 or yesterday_summary.words_reviewed > 0 %} · {% endif %}{{ yesterday_summary.grammar_correct|int }}/{{ yesterday_summary.grammar_exercises }} грамматика{% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -128,7 +136,17 @@
                 <div class="dash-step__icon">&#127919;</div>
                 <div class="dash-step__info">
                     <div class="dash-step__title">&#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.next_lesson.module_number }} &mdash; {{ daily_plan.next_lesson.title }}</div>
-                    <div class="dash-step__meta">~{{ lesson_minutes }} &#1084;&#1080;&#1085;</div>
+                    <div class="dash-step__meta">
+                        {% if daily_plan.next_lesson.get('module_lessons_total') %}&#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.next_lesson.module_number }}, &#1091;&#1088;&#1086;&#1082; {{ daily_plan.next_lesson.get('module_lessons_completed', 0) + 1 }} &#1080;&#1079; {{ daily_plan.next_lesson.module_lessons_total }} &middot; {% endif %}~{{ lesson_minutes }} &#1084;&#1080;&#1085;
+                    </div>
+                    {% if plan_completion.lesson %}
+                    <span class="dash-step__result">&#10003; {% if daily_summary.get('lesson_score') is not none %}{{ daily_summary.lesson_score }}% {% endif %}{% if daily_summary.get('lesson_title') %}&mdash; {{ daily_summary.lesson_title }}{% endif %}</span>
+                    {% endif %}
+                    {% if daily_plan.next_lesson.get('module_lessons_total') %}
+                    <div class="dash-step__module-progress">
+                        <div class="dash-step__module-progress-fill" style="width: {{ ((daily_plan.next_lesson.get('module_lessons_completed', 0) + (1 if plan_completion.lesson else 0)) / daily_plan.next_lesson.module_lessons_total * 100) | int }}%"></div>
+                    </div>
+                    {% endif %}
                 </div>
                 {% if plan_completion.lesson %}
                 <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
@@ -164,11 +182,10 @@
                 <div class="dash-step__icon">&#129504;</div>
                 <div class="dash-step__info">
                     <div class="dash-step__title">Grammar Lab &mdash; {{ daily_plan.grammar_topic.title }}</div>
-                    <div class="dash-step__meta">3&ndash;5 &#1084;&#1080;&#1085;
-                        {% if daily_plan.grammar_topic.due_exercises > 0 %}
-                        &middot; {{ daily_plan.grammar_topic.due_exercises }} &#1091;&#1087;&#1088;&#1072;&#1078;&#1085;&#1077;&#1085;&#1080;&#1081; &#1085;&#1072; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;
-                        {% endif %}
-                    </div>
+                    <div class="dash-step__meta">&#129504; {{ daily_plan.grammar_topic.title }}: {{ daily_plan.grammar_topic.due_exercises }} &#1091;&#1087;&#1088;&#1072;&#1078;&#1085;&#1077;&#1085;&#1080;&#1081;</div>
+                    {% if plan_completion.grammar %}
+                    <span class="dash-step__result">&#10003; {{ daily_summary.get('grammar_correct', 0) }}/{{ daily_summary.get('grammar_exercises', 0) }} &#1074;&#1077;&#1088;&#1085;&#1086;{% if daily_summary.get('grammar_topic_title') %} &mdash; {{ daily_summary.grammar_topic_title }}{% endif %}</span>
+                    {% endif %}
                 </div>
                 {% if plan_completion.grammar %}
                 <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
@@ -193,8 +210,9 @@
                     {% if plan_completion.words %}
                     <div class="dash-step__title">&#1042;&#1089;&#1105; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;&#1077;&#1085;&#1086;! &#10003;</div>
                     <div class="dash-step__meta">&#1047;&#1072;&#1074;&#1090;&#1088;&#1072; &#1073;&#1091;&#1076;&#1091;&#1090; &#1085;&#1086;&#1074;&#1099;&#1077;</div>
+                    <span class="dash-step__result">&#10003; {{ daily_summary.get('srs_new_reviewed', 0) }} &#1085;&#1086;&#1074;&#1099;&#1093;, {{ daily_summary.get('srs_review_reviewed', 0) }} &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;</span>
                     {% elif daily_plan.words_due > 0 %}
-                    <div class="dash-step__title">{{ daily_plan.words_due }} &#1089;&#1083;&#1086;&#1074; &#1085;&#1072; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;</div>
+                    <div class="dash-step__title">&#128214; {{ daily_plan.get('words_new', 0) }} &#1085;&#1086;&#1074;&#1099;&#1093;, {{ daily_plan.get('words_review', 0) }} &#1085;&#1072; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;</div>
                     <div class="dash-step__meta">~{{ words_minutes }} &#1084;&#1080;&#1085;</div>
                     {% elif daily_plan.has_any_words %}
                     <div class="dash-step__title">&#1042;&#1089;&#1105; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;&#1077;&#1085;&#1086;! &#10003;</div>
@@ -226,6 +244,9 @@
                 <div class="dash-step__info">
                     <div class="dash-step__title">{{ daily_plan.book_course_lesson.course_title }} &#8212; &#1044;&#1077;&#1085;&#1100; {{ daily_plan.book_course_lesson.day_number }}, &#1095;&#1090;&#1077;&#1085;&#1080;&#1077;</div>
                     <div class="dash-step__meta">~{{ daily_plan.book_course_lesson.estimated_minutes }} &#1084;&#1080;&#1085;</div>
+                    {% if plan_completion.books %}
+                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }} &#1087;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1072;{% else %}&#1055;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1086;{% endif %}</span>
+                    {% endif %}
                 </div>
                 {% if plan_completion.books %}
                 <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
@@ -262,6 +283,9 @@
                 <div class="dash-step__info">
                     <div class="dash-step__title">{{ daily_plan.book_to_read.title }}</div>
                     <div class="dash-step__meta">5&ndash;10 &#1084;&#1080;&#1085; &#1095;&#1090;&#1077;&#1085;&#1080;&#1103;</div>
+                    {% if plan_completion.books %}
+                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }} &#1087;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1072;{% else %}&#1055;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1086;{% endif %}</span>
+                    {% endif %}
                 </div>
                 {% if plan_completion.books %}
                 <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
@@ -322,6 +346,9 @@
                 <div class="dash-step__info">
                     <div class="dash-step__title">{{ daily_plan.book_course_lesson.course_title }} &#8212; {{ daily_plan.book_course_lesson.lesson_type | replace('_', ' ') | title }}</div>
                     <div class="dash-step__meta">~{{ daily_plan.book_course_lesson.estimated_minutes }} &#1084;&#1080;&#1085;</div>
+                    {% if plan_completion.book_course_practice %}
+                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }}{% else %}&#1042;&#1099;&#1087;&#1086;&#1083;&#1085;&#1077;&#1085;&#1086;{% endif %}</span>
+                    {% endif %}
                 </div>
                 {% if plan_completion.book_course_practice %}
                 <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
@@ -1100,6 +1127,35 @@
 .dash-streak-recovery__free { margin-bottom: 8px; font-size: 0.95em; }
 .dash-streak-recovery__paid { display: flex; align-items: center; gap: 12px; font-size: 0.95em; flex-wrap: wrap; }
 .dash-streak-recovery__balance { opacity: 0.7; font-size: 0.85em; }
+
+/* Yesterday badge */
+.dash-yesterday {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.75);
+    margin-top: 4px;
+}
+
+/* Step result line (shown for completed steps) */
+.dash-step__result {
+    font-size: 0.8125rem;
+    color: #10b981;
+    font-weight: 500;
+    margin-top: 2px;
+    display: block;
+}
+.dash-step__module-progress {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+.dash-step__module-progress-fill {
+    height: 100%;
+    background: #5046e5;
+    border-radius: 2px;
+    transition: width 0.3s;
+}
 </style>
 
 <script>

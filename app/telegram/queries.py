@@ -208,6 +208,16 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                     level_code = None
                     if next_module and next_module.level:
                         level_code = next_module.level.code
+                    # Module progress
+                    module_total = Lessons.query.filter_by(module_id=next_l.module_id).count() if next_l.module_id else 0
+                    module_completed = LessonProgress.query.filter(
+                        LessonProgress.user_id == user_id,
+                        LessonProgress.status == 'completed',
+                        LessonProgress.lesson_id.in_(
+                            db.session.query(Lessons.id).filter_by(module_id=next_l.module_id)
+                        )
+                    ).count() if next_l.module_id else 0
+
                     next_lesson = {
                         'title': next_l.title,
                         'module_number': next_module.number if next_module else None,
@@ -215,6 +225,8 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                         'lesson_type': next_l.type,
                         'lesson_id': next_l.id,
                         'level_code': level_code,
+                        'module_lessons_total': module_total,
+                        'module_lessons_completed': module_completed,
                     }
 
     # Grammar topic to practice — prefer topic from current module
@@ -502,6 +514,8 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'next_lesson': next_lesson,
         'grammar_topic': grammar_topic,
         'words_due': words_due,
+        'words_new': remaining_new,
+        'words_review': max(0, words_due - remaining_new),
         'has_any_words': has_any_words,
         'book_to_read': book_to_read,
         'suggested_books': suggested_books,
@@ -586,6 +600,53 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         UserLessonProgress.completed_at < today_end,
     ).count()
 
+    # Extra details for dashboard step results
+    latest_lesson_score = None
+    latest_lesson_title = None
+    if lessons_completed:
+        last_lp = max(lessons_completed, key=lambda lp: lp.completed_at or datetime.min)
+        latest_lesson_score = last_lp.score
+        lesson_obj = Lessons.query.get(last_lp.lesson_id)
+        if lesson_obj:
+            latest_lesson_title = lesson_obj.title or ''
+
+    # Grammar topic title (from today's exercises)
+    grammar_topic_title = None
+    if grammar_done > 0:
+        latest_ge = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.last_reviewed >= today_start,
+            UserGrammarExercise.last_reviewed < today_end,
+        ).order_by(UserGrammarExercise.last_reviewed.desc()).first()
+        if latest_ge:
+            from app.grammar_lab.models import GrammarTopic
+            topic = GrammarTopic.query.get(latest_ge.topic_id)
+            if topic:
+                grammar_topic_title = topic.title
+
+    # SRS breakdown: new vs review
+    srs_new_reviewed = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
+        UserWord.user_id == user_id,
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.last_reviewed < today_end,
+        UserCardDirection.direction == 'eng-rus',
+        UserCardDirection.first_reviewed >= today_start,
+    ).scalar() or 0
+    srs_review_reviewed = max(0, words_reviewed - srs_new_reviewed)
+
+    # Latest book chapter
+    book_chapter_title = None
+    if book_titles:
+        latest_chapter = db.session.query(Chapter.title).join(
+            UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
+        ).filter(
+            UserChapterProgress.user_id == user_id,
+            UserChapterProgress.updated_at >= today_start,
+            UserChapterProgress.updated_at < today_end,
+        ).order_by(UserChapterProgress.updated_at.desc()).first()
+        if latest_chapter:
+            book_chapter_title = latest_chapter[0]
+
     return {
         'lessons_count': len(lesson_types),
         'lesson_types': lesson_types,
@@ -593,8 +654,64 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'grammar_correct': grammar_correct,
         'words_reviewed': words_reviewed,
         'srs_words_reviewed': srs_words_reviewed,
+        'srs_new_reviewed': srs_new_reviewed,
+        'srs_review_reviewed': srs_review_reviewed,
         'books_read': book_titles,
         'book_course_lessons_today': book_course_lessons_today,
+        'lesson_score': latest_lesson_score,
+        'lesson_title': latest_lesson_title,
+        'grammar_topic_title': grammar_topic_title,
+        'book_chapter_title': book_chapter_title,
+    }
+
+
+def get_yesterday_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
+    """Get yesterday's activity summary (for dashboard badge)."""
+    yesterday_start, yesterday_end = _user_day_boundaries(tz, offset_days=-1)
+
+    lessons_count = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= yesterday_start,
+        LessonProgress.completed_at < yesterday_end,
+    ).count()
+
+    # Latest lesson score
+    latest_lp = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= yesterday_start,
+        LessonProgress.completed_at < yesterday_end,
+    ).order_by(LessonProgress.completed_at.desc()).first()
+    lesson_score = latest_lp.score if latest_lp else None
+
+    words_reviewed = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
+        UserWord.user_id == user_id,
+        UserCardDirection.last_reviewed >= yesterday_start,
+        UserCardDirection.last_reviewed < yesterday_end,
+        UserCardDirection.direction == 'eng-rus',
+    ).scalar() or 0
+
+    grammar_done = UserGrammarExercise.query.filter(
+        UserGrammarExercise.user_id == user_id,
+        UserGrammarExercise.last_reviewed >= yesterday_start,
+        UserGrammarExercise.last_reviewed < yesterday_end,
+    ).count()
+
+    grammar_correct = UserGrammarExercise.query.filter(
+        UserGrammarExercise.user_id == user_id,
+        UserGrammarExercise.last_reviewed >= yesterday_start,
+        UserGrammarExercise.last_reviewed < yesterday_end,
+    ).with_entities(func.sum(UserGrammarExercise.correct_count)).scalar() or 0
+
+    has_any = lessons_count > 0 or words_reviewed > 0 or grammar_done > 0
+    return {
+        'has_activity': has_any,
+        'lessons_count': lessons_count,
+        'lesson_score': lesson_score,
+        'words_reviewed': words_reviewed,
+        'grammar_exercises': grammar_done,
+        'grammar_correct': grammar_correct,
     }
 
 

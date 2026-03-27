@@ -29,6 +29,26 @@ def dashboard():
     daily_plan = get_daily_plan(current_user.id)
     daily_summary = get_daily_summary(current_user.id)
 
+    # Time-based greeting
+    from datetime import datetime as dt
+    import pytz
+    try:
+        local_hour = dt.now(pytz.timezone('Europe/Moscow')).hour
+    except Exception:
+        local_hour = dt.utcnow().hour + 3
+    if local_hour < 6:
+        greeting = 'Доброй ночи'
+    elif local_hour < 12:
+        greeting = 'Доброе утро'
+    elif local_hour < 18:
+        greeting = 'Добрый день'
+    else:
+        greeting = 'Добрый вечер'
+
+    # Yesterday summary
+    from app.telegram.queries import get_yesterday_summary
+    yesterday_summary = get_yesterday_summary(current_user.id)
+
     # Completion flags: compare daily_summary with daily_plan
     bc_lesson = daily_plan.get('book_course_lesson')
     bc_done = daily_plan.get('book_course_done_today', False)
@@ -159,11 +179,13 @@ def dashboard():
 
     return render_template('dashboard.html',
         # Daily plan
+        greeting=greeting,
         streak=streak,
         streak_status=streak_status,
         streak_repaired=streak_repaired,
         daily_plan=daily_plan,
         daily_summary=daily_summary,
+        yesterday_summary=yesterday_summary,
         plan_completion=plan_completion,
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
