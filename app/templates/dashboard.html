@@ -56,6 +56,10 @@
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
                         <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
+                        {% set milestones = {7: '&#127919; Неделя!', 14: '&#128170; 2 недели!', 30: '&#127942; Месяц!', 60: '&#11088; 2 месяца!', 100: '&#128081; 100 дней!'} %}
+                        {% if streak in milestones %}
+                        <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
+                        {% endif %}
                     </div>
                     {% else %}
                     <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
@@ -66,6 +70,14 @@
                         {% if yesterday_summary.lessons_count > 0 %}{{ yesterday_summary.lessons_count }} урок{% if yesterday_summary.lessons_count > 1 %}а{% endif %}{% if yesterday_summary.lesson_score %} ({{ yesterday_summary.lesson_score|int }}%){% endif %}{% endif %}
                         {% if yesterday_summary.words_reviewed > 0 %}{% if yesterday_summary.lessons_count > 0 %} · {% endif %}{{ yesterday_summary.words_reviewed }} слов{% endif %}
                         {% if yesterday_summary.grammar_exercises > 0 %}{% if yesterday_summary.lessons_count > 0 or yesterday_summary.words_reviewed > 0 %} · {% endif %}{{ yesterday_summary.grammar_correct|int }}/{{ yesterday_summary.grammar_exercises }} грамматика{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if today_xp is defined %}
+                    <div class="dash-xp-bar">
+                        <span class="dash-xp-bar__text">&#9889; {{ today_xp|default(0) }}/{{ daily_xp_goal|default(100) }} XP</span>
+                        <div class="dash-xp-bar__track">
+                            <div class="dash-xp-bar__fill" style="width: {{ [today_xp|default(0) / daily_xp_goal|default(100) * 100, 100] | min }}%"></div>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -392,6 +404,20 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- Weekly Challenge -->
+    {% if weekly_challenge is defined and weekly_challenge %}
+    <div class="dash-challenge">
+        <div class="dash-challenge__header">
+            <span>{{ weekly_challenge.icon }} Челлендж недели</span>
+            <span class="dash-challenge__progress-text">{{ weekly_challenge.current }}/{{ weekly_challenge.target }}</span>
+        </div>
+        <div class="dash-challenge__title">{{ weekly_challenge.title }}</div>
+        <div class="dash-challenge__bar">
+            <div class="dash-challenge__fill" style="width: {{ [weekly_challenge.current / weekly_challenge.target * 100, 100] | min }}%"></div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Today's Summary -->
     {% if daily_summary.lessons_count > 0 or daily_summary.grammar_exercises > 0 or daily_summary.words_reviewed > 0 or daily_summary.books_read %}
@@ -1156,6 +1182,52 @@
     border-radius: 2px;
     transition: width 0.3s;
 }
+
+/* ============================================
+   Daily XP Bar (hero section)
+   ============================================ */
+.dash-xp-bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.dash-xp-bar__text { font-size: 0.8rem; color: rgba(255,255,255,0.85); font-weight: 600; white-space: nowrap; }
+.dash-xp-bar__track { flex: 1; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
+.dash-xp-bar__fill { height: 100%; background: #fbbf24; border-radius: 3px; transition: width 0.5s; }
+
+/* ============================================
+   Streak Milestone Badge
+   ============================================ */
+.dash-streak__milestone {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 8px;
+    animation: milestoneGlow 2s ease-in-out;
+}
+@keyframes milestoneGlow {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+    100% { transform: scale(1); }
+}
+
+/* ============================================
+   Weekly Challenge Card
+   ============================================ */
+.dash-challenge {
+    background: var(--dash-surface);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.1s;
+}
+.dash-challenge__header { display: flex; justify-content: space-between; font-size: 0.8125rem; color: #6b7280; font-weight: 600; }
+.dash-challenge__title { font-size: 0.9375rem; font-weight: 700; margin-top: 4px; }
+.dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
+.dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
 </style>
 
 <script>
@@ -1191,5 +1263,19 @@ async function repairStreak() {
         btn.textContent = 'Восстановить';
     }
 }
+
+// Milestone badge: show animation only once per streak value
+(function() {
+    var badge = document.getElementById('milestone-badge');
+    if (badge) {
+        var streak = {{ streak|default(0) }};
+        var key = 'milestone_seen_' + streak;
+        if (localStorage.getItem(key)) {
+            badge.style.animation = 'none';
+        } else {
+            localStorage.setItem(key, '1');
+        }
+    }
+})();
 </script>
 {% endblock %}
