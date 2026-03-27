@@ -131,26 +131,48 @@
                     </li>
                     {% endif %}
 
-                    <!-- Grammar Lab -->
+                    {% else %}
+                    {# Anonymous user — show public sections + auth-required with redirect #}
+
+                    <!-- Курсы (→ login) -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">
+                            <i class="fas fa-book-open me-1"></i>Курсы
+                        </a>
+                    </li>
+
+                    <!-- Карточки (→ login) -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">
+                            <i class="fas fa-clone me-1"></i>Карточки
+                        </a>
+                    </li>
+
+                    {% endif %}
+
+                    <!-- Grammar Lab — always visible -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('grammar_lab.') %}active{% endif %}" href="#" id="grammarDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-flask me-1"></i>Грамматика
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="grammarDropdown">
+                            {% if current_user.is_authenticated %}
                             {% set active_gt = get_active_grammar_topic() %}
                             {% if active_gt %}
                             <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('grammar_lab.topic_detail', topic_id=active_gt.id) }}"><i class="fas fa-play-circle me-2"></i>Продолжить: {{ active_gt.title }}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
+                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.index') }}"><i class="fas fa-home me-2"></i>Grammar Lab</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.topics') }}"><i class="fas fa-list me-2"></i>Все темы</a></li>
+                            {% if current_user.is_authenticated %}
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.practice') }}"><i class="fas fa-dumbbell me-2"></i>Практика</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('grammar_lab.stats') }}"><i class="fas fa-chart-bar me-2"></i>Статистика</a></li>
+                            {% endif %}
                         </ul>
                     </li>
 
-                    {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
