@@ -16,7 +16,8 @@ from app.telegram.queries import (
 )
 from app.telegram.notifications import (
     format_morning_reminder, format_evening_summary,
-    format_nudge, format_streak_alert, format_weekly_report,
+    format_nudge, format_streak_alert, format_streak_repair_alert,
+    format_weekly_report,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,9 +105,9 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
     if local_hour == tg_user.morning_hour and tg_user.morning_reminder:
         streak = get_current_streak(user_id, tz=user_tz)
         plan = get_daily_plan(user_id, tz=user_tz)
-        text = format_morning_reminder(name, streak, plan, site_url,
-                                       cards_url=cards_url)
-        send_message(chat_id, text)
+        text, reply_markup = format_morning_reminder(name, streak, plan, site_url,
+                                                     cards_url=cards_url)
+        send_message(chat_id, text, reply_markup=reply_markup)
 
     # Nudge (user's custom hour, only if no activity today and has a quick action)
     elif local_hour == tg_user.nudge_hour and tg_user.nudge_enabled:
@@ -132,6 +133,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
             tomorrow = get_tomorrow_preview(user_id)
             text, reply_markup = format_evening_summary(
                 name, summary, streak, site_url, tomorrow=tomorrow,
+                user_id=user_id,
             )
             send_message(chat_id, text, reply_markup=reply_markup)
 
@@ -145,3 +147,40 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
                                            quick_action=quick_action,
                                            cards_url=cards_url)
                 send_message(chat_id, text)
+            else:
+                # Streak is 0 — check if there's a repairable missed date
+                from app.achievements.streak_service import (
+                    find_missed_date, get_repair_cost, get_or_create_coins,
+                )
+                missed = find_missed_date(user_id, tz=user_tz)
+                if missed:
+                    cost = get_repair_cost(user_id)
+                    coins = get_or_create_coins(user_id)
+                    # Estimate what streak was before the break
+                    prev_streak = get_current_streak(user_id, tz=user_tz)
+                    # Walk back from missed date to count streak before break
+                    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
+                    from app.achievements.models import StreakEvent
+                    from datetime import timedelta, datetime, timezone as tz_mod
+                    old_streak = 0
+                    missed_offset = (datetime.now(tz_mod.utc).date() - missed).days
+                    for offset in range(missed_offset + 1, 366):
+                        day_start, day_end = _user_day_boundaries(user_tz, offset_days=-offset)
+                        check_date = (datetime.now(tz_mod.utc) - timedelta(days=offset)).date()
+                        if _has_activity_in_range(user_id, day_start, day_end):
+                            old_streak += 1
+                        else:
+                            repaired = StreakEvent.query.filter(
+                                StreakEvent.user_id == user_id,
+                                StreakEvent.event_date == check_date,
+                                StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
+                            ).first()
+                            if repaired:
+                                old_streak += 1
+                            else:
+                                break
+                    if old_streak > 0:
+                        text, reply_markup = format_streak_repair_alert(
+                            name, old_streak, cost, coins.balance, site_url,
+                        )
+                        send_message(chat_id, text, reply_markup=reply_markup)

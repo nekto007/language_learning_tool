@@ -60,6 +60,7 @@ def _handle_start(chat_id: int, telegram_id: int, username: str | None) -> None:
         _send_message(chat_id, (
             'Привет! Твой аккаунт уже привязан.\n\n'
             'Доступные команды:\n'
+            '/plan — план на сегодня\n'
             '/stats — быстрая статистика\n'
             '/settings — настройки уведомлений\n'
             '/unlink — отвязать аккаунт'
@@ -135,6 +136,7 @@ def _handle_unlink(chat_id: int, telegram_id: int) -> None:
 
 HELP_TEXT = (
     'Доступные команды:\n\n'
+    '/plan — план на сегодня с чеклистом\n'
     '/stats — статистика: стрик, уроки, слова, книги\n'
     '/settings — настройки уведомлений и часовой пояс\n'
     '/link — привязать аккаунт\n'
@@ -326,6 +328,50 @@ def _handle_reflection_callback(chat_id: int, telegram_id: int,
         _remove_reply_markup(chat_id, message_id)
 
 
+def _handle_streak_repair_callback(chat_id: int, telegram_id: int,
+                                    callback_query_id: str,
+                                    message_id: int | None = None) -> None:
+    """Handle streak_repair callback — apply paid repair."""
+    from app.achievements.streak_service import (
+        find_missed_date, apply_paid_repair,
+    )
+
+    tg_user = TelegramUser.query.filter_by(telegram_id=telegram_id).first()
+    if not tg_user:
+        _answer_callback(callback_query_id, 'Аккаунт не найден')
+        return
+
+    user_id = tg_user.user_id
+    user_tz = tg_user.timezone
+    missed = find_missed_date(user_id, tz=user_tz)
+    if not missed:
+        _answer_callback(callback_query_id, 'Нечего восстанавливать')
+        if message_id:
+            _remove_reply_markup(chat_id, message_id)
+        return
+
+    result = apply_paid_repair(user_id, missed)
+    db.session.commit()
+
+    if result['success']:
+        _answer_callback(callback_query_id,
+                         f'\u2705 Серия восстановлена! -{result["cost"]} coins')
+        if message_id:
+            _edit_message(chat_id, message_id,
+                          f'\u2705 Серия восстановлена!\n'
+                          f'Потрачено: {result["cost"]} coins\n'
+                          f'Баланс: {result["balance"]} coins')
+    else:
+        error_msg = {
+            'already_repaired': 'Уже восстановлено',
+            'expired': 'Срок восстановления истёк',
+            'insufficient_coins': f'Не хватает coins (нужно: {result["cost"]}, баланс: {result["balance"]})',
+        }.get(result.get('error', ''), 'Ошибка')
+        _answer_callback(callback_query_id, error_msg)
+        if message_id:
+            _remove_reply_markup(chat_id, message_id)
+
+
 def _handle_settings_callback(chat_id: int, telegram_id: int,
                                callback_data: str, callback_query_id: str,
                                message_id: int | None = None) -> None:
@@ -431,6 +477,107 @@ def _handle_settings_callback(chat_id: int, telegram_id: int,
     )
 
 
+def _handle_plan(chat_id: int, telegram_id: int) -> None:
+    """Handle /plan command — show today's checklist with progress."""
+    tg_user = TelegramUser.query.filter_by(telegram_id=telegram_id).first()
+    if not tg_user:
+        _send_message(chat_id, 'Сначала привяжи аккаунт: /link XXXXXX')
+        return
+
+    from app.telegram.queries import (
+        get_daily_plan, get_daily_summary, get_current_streak, get_cards_url,
+    )
+    from app.achievements.streak_service import get_or_create_coins
+
+    user_id = tg_user.user_id
+    user_tz = tg_user.timezone
+    site_url = current_app.config.get('SITE_URL', '')
+    cards_url = get_cards_url(user_id, site_url) if site_url else ''
+
+    plan = get_daily_plan(user_id, tz=user_tz)
+    summary = get_daily_summary(user_id, tz=user_tz)
+    streak = get_current_streak(user_id, tz=user_tz)
+    coins = get_or_create_coins(user_id)
+
+    # Build checklist items: (done, label, url_or_none)
+    steps: list[tuple[bool, str, str | None]] = []
+
+    # 1. Lesson
+    if plan.get('next_lesson'):
+        nl = plan['next_lesson']
+        done = summary.get('lessons_count', 0) > 0
+        label = f'Урок — Модуль {nl.get("module_number", "")}, {nl["title"]}'
+        url = f'{site_url}/learn/{nl["lesson_id"]}/?from=telegram' if site_url and nl.get('lesson_id') else None
+        steps.append((done, label, url))
+
+    # 2. Grammar
+    if plan.get('grammar_topic'):
+        gt = plan['grammar_topic']
+        done = summary.get('grammar_exercises', 0) > 0
+        gt_detail = ''
+        if summary.get('grammar_exercises', 0) > 0:
+            gt_detail = f' ({summary["grammar_correct"]}/{summary["grammar_exercises"]})'
+        label = f'Грамматика — {gt["title"]}{gt_detail}'
+        url = f'{site_url}/grammar-lab/practice/topic/{gt["topic_id"]}?from=telegram' if site_url and gt.get('topic_id') else None
+        steps.append((done, label, url))
+
+    # 3. Words
+    words_due = plan.get('words_due', 0)
+    words_new = plan.get('words_new', 0)
+    words_review = plan.get('words_review', 0)
+    words_done = summary.get('words_reviewed', 0) > 0
+    parts = []
+    if words_new > 0:
+        parts.append(f'{words_new} новых')
+    if words_review > 0:
+        parts.append(f'{words_review} на повтор')
+    words_label = f'Слова — {", ".join(parts)}' if parts else 'Слова — все повторены'
+    words_url = f'{cards_url}?from=telegram' if cards_url else None
+    steps.append((words_done, words_label, words_url))
+
+    # 4. Book reading
+    book = plan.get('book_to_read')
+    bc = plan.get('book_course_lesson')
+    if book or bc:
+        books_done = len(summary.get('books_read', [])) > 0 or summary.get('book_course_lessons_today', 0) > 0
+        if bc:
+            course_title = bc.get('course_title', 'Книжный курс')
+            day_num = bc.get('day_number', '')
+            label = f'Чтение — {course_title}, день {day_num}'
+            url = (f'{site_url}/book-courses/{bc["course_id"]}/modules/{bc["module_id"]}'
+                   f'/lessons/{bc["lesson_id"]}') if site_url and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id') else None
+        elif book:
+            label = f'Чтение — {book["title"]}'
+            url = f'{site_url}/books/{book["id"]}' if site_url and book.get('id') else None
+        else:
+            label = 'Чтение'
+            url = None
+        steps.append((books_done, label, url))
+
+    # Count completed steps
+    done_count = sum(1 for done, _, _ in steps if done)
+    total_count = len(steps)
+
+    lines = [f'\U0001f4cb План на сегодня ({done_count} из {total_count}):', '']
+    for done, label, _ in steps:
+        icon = '\u2705' if done else '\u2b1c'
+        lines.append(f'{icon} {label}')
+
+    lines.append('')
+    lines.append(f'\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}')
+
+    # Inline buttons for incomplete steps
+    buttons: list[list[dict]] = []
+    for done, label, url in steps:
+        if not done and url:
+            # Short button text from label
+            short = label.split(' — ')[0] if ' — ' in label else label
+            buttons.append([{'text': f'\u25b6 {short}', 'url': url}])
+
+    reply_markup = {'inline_keyboard': buttons} if buttons else None
+    _send_message(chat_id, '\n'.join(lines), reply_markup=reply_markup)
+
+
 def _handle_stats(chat_id: int, telegram_id: int) -> None:
     """Handle /stats command."""
     tg_user = TelegramUser.query.filter_by(telegram_id=telegram_id).first()
@@ -487,6 +634,11 @@ def handle_update(data: dict) -> None:
                 chat_id, telegram_id, cb_data, cb_id,
                 message_id=message_id,
             )
+        elif cb_data == 'streak_repair':
+            _handle_streak_repair_callback(
+                chat_id, telegram_id, cb_id,
+                message_id=message_id,
+            )
         else:
             _handle_settings_callback(
                 chat_id, telegram_id, cb_data, cb_id,
@@ -519,6 +671,8 @@ def handle_update(data: dict) -> None:
         _handle_unlink(chat_id, telegram_id)
     elif text == '/settings':
         _handle_settings(chat_id, telegram_id)
+    elif text == '/plan':
+        _handle_plan(chat_id, telegram_id)
     elif text == '/stats':
         _handle_stats(chat_id, telegram_id)
     elif text == '/help':
@@ -532,6 +686,7 @@ def handle_update(data: dict) -> None:
         PendingTelegramLink.remove(telegram_id)
         _send_message(chat_id, (
             'Доступные команды:\n'
+            '/plan — план на сегодня\n'
             '/stats — статистика\n'
             '/settings — настройки уведомлений\n'
             '/unlink — отвязать аккаунт\n'

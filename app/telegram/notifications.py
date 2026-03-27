@@ -20,8 +20,11 @@ def _words_minutes(count: int) -> int:
 
 def format_morning_reminder(user_name: str, streak: int,
                             plan: dict[str, Any], site_url: str,
-                            cards_url: str = '') -> str:
-    """Format morning reminder with numbered steps and focus item."""
+                            cards_url: str = '') -> tuple[str, dict | None]:
+    """Format morning reminder with numbered steps and focus item.
+
+    Returns (text, reply_markup) tuple with inline URL buttons.
+    """
     lines = [f'Доброе утро, {user_name} \U0001f642', '']
 
     if streak > 0:
@@ -81,7 +84,7 @@ def format_morning_reminder(user_name: str, streak: int,
             lines.append('   Мини-цель: добавь 3\u20135 слов из урока/книги.')
             lines.append('')
 
-        return '\n'.join(lines)
+        return '\n'.join(lines), None
 
     # Regular plan — structured blocks with direct links
     step = 1
@@ -200,7 +203,28 @@ def format_morning_reminder(user_name: str, streak: int,
                          f'/modules/{bc["module_id"]}/lessons/{bc["lesson_id"]}')
         lines.append('')
 
-    return '\n'.join(lines)
+    # Build inline URL buttons for quick access
+    buttons: list[list[dict]] = []
+    if plan.get('next_lesson') and plan['next_lesson'].get('lesson_id') and site_url:
+        buttons.append([{
+            'text': '\U0001f3af Начать урок',
+            'url': f"{site_url}/learn/{plan['next_lesson']['lesson_id']}/?from=telegram",
+        }])
+    if plan.get('words_due', 0) > 0:
+        word_url = cards_url or ((site_url + '/study/cards') if site_url else '')
+        if word_url:
+            buttons.append([{
+                'text': f"\U0001f4d6 Повторить {plan['words_due']} слов",
+                'url': f"{word_url}?from=telegram",
+            }])
+    if plan.get('grammar_topic') and plan['grammar_topic'].get('topic_id') and site_url:
+        buttons.append([{
+            'text': '\U0001f9e0 Грамматика',
+            'url': f"{site_url}/grammar-lab/practice/topic/{plan['grammar_topic']['topic_id']}?from=telegram",
+        }])
+
+    reply_markup = {'inline_keyboard': buttons} if buttons else None
+    return '\n'.join(lines), reply_markup
 
 
 def _format_lesson_types(types: list[str]) -> str:
@@ -225,7 +249,8 @@ def _format_lesson_types(types: list[str]) -> str:
 
 def format_evening_summary(user_name: str, summary: dict[str, Any],
                            streak: int, site_url: str,
-                           tomorrow: dict[str, Any] | None = None) -> tuple[str, dict | None]:
+                           tomorrow: dict[str, Any] | None = None,
+                           user_id: int | None = None) -> tuple[str, dict | None]:
     """Format evening summary with metrics and reflection buttons.
 
     Returns (text, reply_markup) tuple.
@@ -267,6 +292,21 @@ def format_evening_summary(user_name: str, summary: dict[str, Any],
     if streak > 0:
         lines.append('')
         lines.append(f'\U0001f525 Стрик: {streak} дней')
+
+    # Streak coin earned today
+    if user_id:
+        try:
+            from app.achievements.models import StreakEvent
+            from datetime import date
+            coin_earned = StreakEvent.query.filter_by(
+                user_id=user_id, event_type='earned_daily', event_date=date.today()
+            ).first()
+            if coin_earned:
+                from app.achievements.streak_service import get_or_create_coins
+                coins = get_or_create_coins(user_id)
+                lines.append(f'\U0001f4b0 +1 streak coin (баланс: {coins.balance})')
+        except Exception:
+            pass  # Don't break evening summary if achievements unavailable
 
     # Tomorrow preview
     if tomorrow:
@@ -359,6 +399,36 @@ def format_streak_alert(user_name: str, streak: int, site_url: str,
     lines.append('Выбирай — и свободен.')
 
     return '\n'.join(lines)
+
+
+def format_streak_repair_alert(user_name: str, streak: int,
+                                cost: int, balance: int,
+                                site_url: str) -> tuple[str, dict | None]:
+    """Format streak repair alert when streak has a repairable missed date.
+
+    Returns (text, reply_markup) tuple.
+    """
+    lines = [
+        f'\u26a0\ufe0f Серия прервалась! Было: {streak} дней',
+        '',
+        '\U0001f3af Выполни план на 100% \u2014 серия восстановится бесплатно',
+        f'\U0001f4b0 Или восстанови за {cost} coins (баланс: {balance})',
+    ]
+
+    buttons: list[list[dict]] = []
+    if balance >= cost:
+        buttons.append([{
+            'text': f'\U0001f4b0 Восстановить за {cost} coins',
+            'callback_data': 'streak_repair',
+        }])
+    if site_url:
+        buttons.append([{
+            'text': '\U0001f3af Начать заниматься',
+            'url': f'{site_url}/study?from=telegram',
+        }])
+
+    reply_markup = {'inline_keyboard': buttons} if buttons else None
+    return '\n'.join(lines), reply_markup
 
 
 def format_weekly_report(report: dict[str, Any], site_url: str) -> str:
