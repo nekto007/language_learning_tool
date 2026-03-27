@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Грамматика английского языка A1–C1 | LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1. Бесплатная теория + упражнения для практики.">
+<meta property="og:title" content="Грамматика английского языка A1–C1 | LLT English">
+<meta property="og:description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://llt-english.com/grammar/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Грамматика английского языка",
+  "description": "Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1.",
+  "url": "https://llt-english.com/grammar/",
+  "inLanguage": ["en", "ru"],
+  "provider": {
+    "@type": "Organization",
+    "name": "LLT English"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="grammar-catalog">
+  <div class="grammar-catalog__hero">
+    <h1 class="grammar-catalog__title">Грамматика английского языка</h1>
+    <p class="grammar-catalog__subtitle">Правила, таблицы и примеры — от начального до продвинутого уровня</p>
+  </div>
+
+  {% set level_colors = {'A1': '#06b6d4', 'A2': '#3b82f6', 'B1': '#f97316', 'B2': '#ef4444', 'C1': '#8b5cf6', 'C2': '#ec4899'} %}
+  {% set level_descriptions = {
+    'A1': 'Начальный уровень — базовые структуры',
+    'A2': 'Элементарный уровень — простые конструкции',
+    'B1': 'Средний уровень — основные времена и обороты',
+    'B2': 'Выше среднего — сложные конструкции',
+    'C1': 'Продвинутый — нюансы и тонкости',
+    'C2': 'Владение — мастерство грамматики'
+  } %}
+
+  {% for level, topics in grouped.items() %}
+  <section class="grammar-catalog__level" id="{{ level|lower }}">
+    <div class="grammar-catalog__level-header">
+      <span class="grammar-catalog__level-badge" style="background: {{ level_colors.get(level, '#6b7280') }};">{{ level }}</span>
+      <div>
+        <h2 class="grammar-catalog__level-title">Уровень {{ level }}</h2>
+        <p class="grammar-catalog__level-desc">{{ level_descriptions.get(level, '') }} &middot; {{ topics|length }} тем</p>
+      </div>
+    </div>
+
+    <div class="grammar-catalog__grid">
+      {% for t in topics %}
+      <a href="{{ url_for('grammar_public.topic', slug=t.slug) }}" class="grammar-catalog__card">
+        <div class="grammar-catalog__card-top">
+          <h3 class="grammar-catalog__card-title">{{ t.title }}</h3>
+          <p class="grammar-catalog__card-title-ru">{{ t.title_ru }}</p>
+        </div>
+        <div class="grammar-catalog__card-meta">
+          {% if t.estimated_time %}
+          <span class="grammar-catalog__card-tag"><i class="fas fa-clock"></i> {{ t.estimated_time }} мин</span>
+          {% endif %}
+          {% if t.exercise_count %}
+          <span class="grammar-catalog__card-tag"><i class="fas fa-dumbbell"></i> {{ t.exercise_count }}</span>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+
+<style>
+.grammar-catalog {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+  font-family: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.grammar-catalog__hero {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.grammar-catalog__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+}
+
+.grammar-catalog__subtitle {
+  font-size: 1.0625rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.grammar-catalog__level {
+  margin-bottom: 2.5rem;
+}
+
+.grammar-catalog__level-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.grammar-catalog__level-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.grammar-catalog__level-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.grammar-catalog__level-desc {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0.125rem 0 0;
+}
+
+.grammar-catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.grammar-catalog__card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.grammar-catalog__card:hover {
+  border-color: #8b5cf6;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.12);
+  transform: translateY(-2px);
+  color: inherit;
+  text-decoration: none;
+}
+
+.grammar-catalog__card-top {
+  margin-bottom: 0.75rem;
+}
+
+.grammar-catalog__card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem;
+}
+
+.grammar-catalog__card-title-ru {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.grammar-catalog__card-meta {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.grammar-catalog__card-tag {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .grammar-catalog__title { font-size: 1.5rem; }
+  .grammar-catalog__grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}

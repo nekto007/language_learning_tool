@@ -19,6 +19,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
+    {% block head_extra %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% if progress and progress.status == 'completed' %}lesson-completed{% endif %}{% endblock %} body-full-height">
     {% include 'components/_daily_plan_progress.html' %}
