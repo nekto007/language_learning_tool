@@ -71,7 +71,7 @@
       The rule
     </h2>
     <div class="lf-rule__content">
-      {{ lf.micro_rule|replace('\n', '<br>')|safe }}
+      {{ lf.micro_rule|replace('\n', '<br>')|sanitize }}
     </div>
   </div>
   {% endif %}

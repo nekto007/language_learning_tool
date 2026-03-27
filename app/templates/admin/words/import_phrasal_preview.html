@@ -94,7 +94,7 @@
                                 <td><strong>{{ verb.phrasal_verb }}</strong></td>
                                 <td>{{ verb.russian_translate }}</td>
                                 <td><small class="text-muted">{{ verb.using }}</small></td>
-                                <td><small>{{ verb.sentence|safe }}</small></td>
+                                <td><small>{{ verb.sentence|sanitize }}</small></td>
                             </tr>
                             {% endfor %}
                         </tbody>

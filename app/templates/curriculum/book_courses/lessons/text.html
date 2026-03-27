@@ -11,7 +11,7 @@
 <div class="text-lesson-container">
   <div class="text-content" id="text-content">
     {% if lesson and lesson.content %}
-      {{ lesson.content|safe }}
+      {{ lesson.content|sanitize }}
     {% else %}
       <div class="placeholder-content">
         <h2>Understanding the Text</h2>

@@ -16,7 +16,11 @@ auth = Blueprint('auth', __name__)
 
 def get_safe_redirect_url(next_url, fallback='words.dashboard'):
     """
-    Get a safe redirect URL, checking for security issues
+    Get a safe redirect URL, checking for security issues.
+
+    SECURITY: Only allows relative paths (starting with /).
+    Rejects absolute URLs, protocol-relative URLs (//evil.com),
+    and any URL with a scheme or netloc to prevent open redirect attacks.
     """
     if not next_url:
         return url_for(fallback)
@@ -24,19 +28,19 @@ def get_safe_redirect_url(next_url, fallback='words.dashboard'):
     from urllib.parse import urlparse
 
     parsed = urlparse(next_url)
-    
-    # Only allow relative URLs or same-origin URLs
-    if parsed.netloc and parsed.netloc != request.host:
+
+    # SECURITY: Reject any URL with scheme or netloc (absolute URLs)
+    if parsed.scheme or parsed.netloc:
         return url_for(fallback)
-    
-    # Only allow http/https schemes or no scheme (relative URLs)
-    if parsed.scheme and parsed.scheme not in ['http', 'https']:
+
+    # SECURITY: Only allow paths starting with / (reject protocol-relative //evil.com)
+    if not next_url.startswith('/'):
         return url_for(fallback)
-    
-    # Ensure it starts with / for relative URLs
-    if not parsed.netloc and not next_url.startswith('/'):
+
+    # SECURITY: Reject backslash tricks (e.g. /\evil.com interpreted as //evil.com)
+    if '\\' in next_url:
         return url_for(fallback)
-    
+
     return next_url
 
 

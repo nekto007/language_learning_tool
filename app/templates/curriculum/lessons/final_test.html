@@ -600,10 +600,10 @@
 
             <div class="final-test-dialogue-question">
               <div class="final-test-dialogue-line-a">
-                <b class="final-test-speaker-label">A: </b><span class="final-test-speaker-a-text">{{ person_a|replace('&#39;', "'")|safe }}</span>
+                <b class="final-test-speaker-label">A: </b><span class="final-test-speaker-a-text">{{ person_a|replace('&#39;', "'")|sanitize }}</span>
               </div>
               <div class="final-test-dialogue-line-b">
-                <b class="final-test-speaker-label">B: </b> <span class="final-test-speaker-b-text">{{ person_b_incomplete|replace('&#39;', "'")|safe }}</span>
+                <b class="final-test-speaker-label">B: </b> <span class="final-test-speaker-b-text">{{ person_b_incomplete|replace('&#39;', "'")|sanitize }}</span>
               </div>
             </div>
           {% else %}
@@ -617,7 +617,7 @@
               </p>
             {% elif question.type not in ['transformation', 'matching', 'reorder', 'ordering', 'listening_choice'] %}
               {# Don't show full_question for transformation/matching/reorder - they have their own formatting #}
-              <h3 class="question-text">{{ full_question|safe }}</h3>
+              <h3 class="question-text">{{ full_question|sanitize }}</h3>
             {% endif %}
           {% endif %}
 
@@ -640,7 +640,7 @@
 
           {% if question.type == 'reading_comprehension' and question.text %}
             <div class="final-test-reading-passage" style="background: var(--bg-secondary, #f8f9fa); border-radius: 12px; padding: 16px; margin-bottom: 16px; font-size: 0.95em; line-height: 1.6;">
-              {{ question.text|safe }}
+              {{ question.text|sanitize }}
             </div>
             <h3 class="question-text">{{ question.question }}</h3>
           {% endif %}
@@ -654,7 +654,7 @@
                         data-value="{{ loop.index0 }}"
                         data-text="{{ option }}">
                   <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                  <span class="option-text">{{ option|safe }}</span>
+                  <span class="option-text">{{ option|sanitize }}</span>
                 </button>
               {% endfor %}
             </div>
@@ -750,7 +750,7 @@
             <div class="matching-answer">
               {% if question.instruction %}
                 <p class="final-test-matching-instruction">
-                  💡 {{ question.instruction|safe }}
+                  💡 {{ question.instruction|sanitize }}
                 </p>
               {% endif %}
 

@@ -1364,7 +1364,7 @@
                     {# dialogue is a plain string — render as lines split by newline #}
                     {% for line in question.dialogue.split('\n') %}
                       {% if line.strip() %}
-                        <div class="quiz-dialogue-line">{{ line|safe }}</div>
+                        <div class="quiz-dialogue-line">{{ line|sanitize }}</div>
                       {% endif %}
                     {% endfor %}
                   {% else %}
@@ -1376,10 +1376,10 @@
                           {% if line.get('blank') %}
                             <span class="quiz-blank-marker">___</span>
                           {% else %}
-                            {{ line.text|safe }}
+                            {{ line.text|sanitize }}
                           {% endif %}
                         {% else %}
-                          {{ line|safe }}
+                          {{ line|sanitize }}
                         {% endif %}
                       </div>
                     {% endfor %}

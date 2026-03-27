@@ -263,7 +263,7 @@
                     <tr>
                       {% for key, val in row.items() if key != 'audio' %}
                         <td{% if 'translation' in key %} class="text-muted"{% endif %}>
-                          {% if loop.first %}<strong>{{ val|safe }}</strong>{% else %}{{ val|safe }}{% endif %}
+                          {% if loop.first %}<strong>{{ val|sanitize }}</strong>{% else %}{{ val|sanitize }}{% endif %}
                         </td>
                       {% endfor %}
                     </tr>
@@ -340,7 +340,7 @@
                   <tr>
                     {% for key, val in row.items() if key != 'audio' %}
                       <td{% if 'translation' in key %} class="text-muted"{% endif %}>
-                        {% if loop.first %}<strong>{{ val|safe }}</strong>{% else %}{{ val|safe }}{% endif %}
+                        {% if loop.first %}<strong>{{ val|sanitize }}</strong>{% else %}{{ val|sanitize }}{% endif %}
                       </td>
                     {% endfor %}
                   </tr>
@@ -354,7 +354,7 @@
     {% else %}
       <!-- Fallback to simple format -->
       <h3 class="section-title">{{ grammar_rule }}</h3>
-      <div class="grammar-content">{{ grammar_description|safe }}</div>
+      <div class="grammar-content">{{ grammar_description|sanitize }}</div>
 
       {% if examples %}
         <div class="examples-block">

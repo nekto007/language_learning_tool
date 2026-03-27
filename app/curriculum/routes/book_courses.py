@@ -1860,12 +1860,15 @@ def get_lesson_api(lesson_id):
         from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
         from app.words.models import CollectionWords
 
-        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+        # SECURITY: Check enrollment BEFORE exposing any lesson data.
+        # Use .get() instead of .get_or_404() to avoid revealing resource existence.
+        daily_lesson = DailyLesson.query.get(lesson_id)
+        if not daily_lesson:
+            return jsonify({'error': 'Not found'}), 404
 
-        # Check user access - get module first to find course_id
         module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
         if not module:
-            return jsonify({'error': 'Module not found'}), 404
+            return jsonify({'error': 'Not found'}), 404
 
         enrollment = BookCourseEnrollment.query.filter_by(
             course_id=module.course_id,
@@ -1873,7 +1876,7 @@ def get_lesson_api(lesson_id):
         ).first()
 
         if not enrollment:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'error': 'Not found'}), 404
 
         lesson_type = daily_lesson.lesson_type
 
@@ -2027,17 +2030,21 @@ def lesson_progress_api(lesson_id):
     try:
         from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 
-        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+        # SECURITY: Uniform 404 response to prevent resource enumeration
+        daily_lesson = DailyLesson.query.get(lesson_id)
+        if not daily_lesson:
+            return jsonify({'error': 'Not found'}), 404
+
         module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
         if not module:
-            return jsonify({'error': 'Module not found'}), 404
+            return jsonify({'error': 'Not found'}), 404
 
         enrollment = BookCourseEnrollment.query.filter_by(
             course_id=module.course_id,
             user_id=current_user.id
         ).first()
         if not enrollment:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'error': 'Not found'}), 404
 
         progress = UserLessonProgress.query.filter_by(
             user_id=current_user.id,
@@ -2089,12 +2096,14 @@ def complete_lesson_api_v1(lesson_id):
         # POST /api/v1/lesson/:id/complete → 201
         from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress, LessonCompletionEvent
 
-        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+        # SECURITY: Uniform 404 response to prevent resource enumeration
+        daily_lesson = DailyLesson.query.get(lesson_id)
+        if not daily_lesson:
+            return jsonify({'error': 'Not found'}), 404
 
-        # Check user access - get module first to find course_id
         module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
         if not module:
-            return jsonify({'error': 'Module not found'}), 404
+            return jsonify({'error': 'Not found'}), 404
 
         enrollment = BookCourseEnrollment.query.filter_by(
             course_id=module.course_id,
@@ -2102,7 +2111,7 @@ def complete_lesson_api_v1(lesson_id):
         ).first()
 
         if not enrollment:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'error': 'Not found'}), 404
 
         # Create or update progress
         progress = UserLessonProgress.query.filter_by(
@@ -2359,17 +2368,22 @@ def get_srs_session(lesson_id):
     Returns only cards that are due for review today.
     """
     try:
-        daily_lesson = DailyLesson.query.get_or_404(lesson_id)
+        # SECURITY: Uniform 404 response to prevent resource enumeration
+        daily_lesson = DailyLesson.query.get(lesson_id)
+        if not daily_lesson:
+            return jsonify({'error': 'Not found'}), 404
 
-        # Get enrollment
         module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
+        if not module:
+            return jsonify({'error': 'Not found'}), 404
+
         enrollment = BookCourseEnrollment.query.filter_by(
             user_id=current_user.id,
             course_id=module.course_id
         ).first()
 
         if not enrollment:
-            return jsonify({'error': 'Not enrolled'}), 403
+            return jsonify({'error': 'Not found'}), 404
 
         srs_integration = BookSRSIntegration()
         session_data = srs_integration.create_srs_session_for_lesson(

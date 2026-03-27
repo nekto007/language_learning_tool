@@ -2,11 +2,23 @@
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity
+from zoneinfo import ZoneInfo
 
 from app.api.decorators import api_jwt_required
 from app.utils.db import db
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
+
+DEFAULT_TZ = 'Europe/Moscow'
+
+
+def _validate_timezone(tz_name: str) -> str:
+    """Validate timezone string against system database. Returns default if invalid."""
+    try:
+        ZoneInfo(tz_name)
+        return tz_name
+    except (KeyError, ValueError):
+        return DEFAULT_TZ
 
 
 @api_daily_plan.route('/daily-status')
@@ -16,7 +28,7 @@ def daily_status():
     from app.telegram.queries import get_daily_plan, get_daily_summary, get_yesterday_summary
     from app.achievements.streak_service import get_streak_status
 
-    tz = request.args.get('tz', 'Europe/Moscow')
+    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = get_jwt_identity()
 
     plan = get_daily_plan(user_id, tz=tz)
@@ -86,7 +98,7 @@ def daily_plan():
     """
     from app.telegram.queries import get_daily_plan
 
-    tz = request.args.get('tz', 'Europe/Moscow')
+    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = get_jwt_identity()
     plan = get_daily_plan(user_id, tz=tz)
 
@@ -113,7 +125,7 @@ def daily_summary():
     """
     from app.telegram.queries import get_daily_summary
 
-    tz = request.args.get('tz', 'Europe/Moscow')
+    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = get_jwt_identity()
     summary = get_daily_summary(user_id, tz=tz)
 
@@ -133,7 +145,7 @@ def streak():
     """
     from app.achievements.streak_service import get_streak_status
 
-    tz = request.args.get('tz', 'Europe/Moscow')
+    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = get_jwt_identity()
     status = get_streak_status(user_id, tz=tz)
 
@@ -148,7 +160,7 @@ def streak_repair():
     from app.telegram.queries import get_current_streak
 
     user_id = get_jwt_identity()
-    tz = request.json.get('tz', 'Europe/Moscow') if request.is_json else 'Europe/Moscow'
+    tz = _validate_timezone(request.json.get('tz', DEFAULT_TZ) if request.is_json else DEFAULT_TZ)
 
     missed = find_missed_date(user_id, tz=tz)
     if not missed:

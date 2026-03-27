@@ -216,14 +216,19 @@ class Config:
     BABEL_DEFAULT_TIMEZONE = "UTC"
 
     # JWT — must be distinct from SECRET_KEY
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or os.urandom(32).hex()
+    # SECURITY: Require explicit JWT_SECRET_KEY in production to prevent
+    # token invalidation on restart (random fallback only for development)
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or (
+        os.urandom(32).hex() if os.environ.get("FLASK_ENV") != "production"
+        else None
+    )
 
-    # Security
-    SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
+    # Security — default to secure cookies (only disable explicitly for local dev)
+    SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") != "development"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
-    REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production"
+    REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") != "development"
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
     

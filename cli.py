@@ -1,6 +1,9 @@
 # Для использования этих команд, создайте файл cli.py в корне проекта
 # и импортируйте его в основном файле запуска (run.py)
 
+import re
+import subprocess
+
 import click
 from flask import current_app
 from flask.cli import with_appcontext
@@ -25,7 +28,10 @@ def extract():
         os.makedirs('app/translations')
 
     # Извлечение сообщений
-    os.system('pybabel extract -F babel.cfg -o app/translations/messages.pot .')
+    subprocess.run(
+        ['pybabel', 'extract', '-F', 'babel.cfg', '-o', 'app/translations/messages.pot', '.'],
+        check=True
+    )
     print('Extracted messages to messages.pot')
 
 
@@ -37,8 +43,16 @@ def init(lang):
         print('Error: messages.pot file not found. Run "flask translate extract" first')
         return
 
+    # SECURITY: Validate lang to prevent command injection
+    if not re.match(r'^[a-zA-Z_]{2,10}$', lang):
+        print(f'Error: invalid language code "{lang}"')
+        return
+
     # Инициализация нового языка
-    os.system(f'pybabel init -i app/translations/messages.pot -d app/translations -l {lang}')
+    subprocess.run(
+        ['pybabel', 'init', '-i', 'app/translations/messages.pot', '-d', 'app/translations', '-l', lang],
+        check=True
+    )
     print(f'Initialized translation for {lang}')
 
 
@@ -50,7 +64,10 @@ def update():
         return
 
     # Обновление каталогов переводов
-    os.system('pybabel update -i app/translations/messages.pot -d app/translations')
+    subprocess.run(
+        ['pybabel', 'update', '-i', 'app/translations/messages.pot', '-d', 'app/translations'],
+        check=True
+    )
     print('Updated language catalogs')
 
 
@@ -58,7 +75,10 @@ def update():
 def compile():
     """Compile all language catalogs."""
     # Компиляция каталогов переводов
-    os.system('pybabel compile -d app/translations')
+    subprocess.run(
+        ['pybabel', 'compile', '-d', 'app/translations'],
+        check=True
+    )
     print('Compiled language catalogs')
 
 # В файле run.py добавьте:
