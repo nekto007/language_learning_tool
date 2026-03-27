@@ -1,4 +1,6 @@
 """Format notification messages for Telegram bot."""
+from __future__ import annotations
+
 from typing import Any
 
 # Estimated minutes per lesson type
@@ -481,3 +483,32 @@ def format_weekly_report(report: dict[str, Any], site_url: str) -> str:
         lines.append(f'\U0001f517 {site_url}/study')
 
     return '\n'.join(lines)
+
+
+def format_word_of_day(word_data: dict, site_url: str) -> tuple[str, dict | None]:
+    """Format Word of the Day message for Telegram.
+
+    Returns (text, reply_markup) tuple. Returns (None, None) if no word data.
+    """
+    if not word_data:
+        return None, None
+
+    text = '\U0001f4da \u0421\u043b\u043e\u0432\u043e \u0434\u043d\u044f\n\n'
+    text += f'\U0001f1ec\U0001f1e7 <b>{word_data["word"]}</b>\n'
+    text += f'\U0001f1f7\U0001f1fa {word_data["translation"]}\n'
+    if word_data.get('context_sentence'):
+        # Truncate long context
+        ctx = word_data['context_sentence']
+        if len(ctx) > 200:
+            ctx = ctx[:197] + '...'
+        text += f'\n\U0001f4ac <i>{ctx}</i>\n'
+    text += '\n\u2753 \u0422\u044b \u0437\u043d\u0430\u0435\u0448\u044c \u044d\u0442\u043e \u0441\u043b\u043e\u0432\u043e?'
+
+    reply_markup = {
+        'inline_keyboard': [[
+            {'text': '\u2705 \u0417\u043d\u0430\u044e', 'callback_data': 'wotd_know'},
+            {'text': '\u274c \u041d\u0435 \u0437\u043d\u0430\u044e', 'callback_data': 'wotd_dont_know'},
+        ]]
+    }
+
+    return text, reply_markup

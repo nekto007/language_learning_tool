@@ -17,7 +17,7 @@ from app.telegram.queries import (
 from app.telegram.notifications import (
     format_morning_reminder, format_evening_summary,
     format_nudge, format_streak_alert, format_streak_repair_alert,
-    format_weekly_report,
+    format_weekly_report, format_word_of_day,
 )
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,15 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
         text, reply_markup = format_morning_reminder(name, streak, plan, site_url,
                                                      cards_url=cards_url)
         send_message(chat_id, text, reply_markup=reply_markup)
+
+    # Word of the Day (1 hour after morning reminder)
+    elif local_hour == (tg_user.morning_hour or 8) + 1 and tg_user.morning_reminder:
+        from app.study.word_of_day import get_word_of_day
+        word_data = get_word_of_day(user_id)
+        if word_data:
+            text, keyboard = format_word_of_day(word_data, site_url)
+            if text:
+                send_message(chat_id, text, reply_markup=keyboard)
 
     # Nudge (user's custom hour, only if no activity today and has a quick action)
     elif local_hour == tg_user.nudge_hour and tg_user.nudge_enabled:

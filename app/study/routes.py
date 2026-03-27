@@ -1143,6 +1143,32 @@ def stats():
     )
 
 
+@study.route('/insights')
+@login_required
+def insights():
+    """Learning insights and analytics page."""
+    from app.study.insights_service import (
+        get_activity_heatmap, get_best_study_time, get_words_at_risk,
+        get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary
+    )
+
+    heatmap = get_activity_heatmap(current_user.id)
+    best_time = get_best_study_time(current_user.id)
+    at_risk = get_words_at_risk(current_user.id)
+    weaknesses = get_grammar_weaknesses(current_user.id)
+    reading_trend = get_reading_speed_trend(current_user.id)
+    summary = get_learning_summary(current_user.id)
+
+    return render_template('study/insights.html',
+        heatmap=heatmap,
+        best_time=best_time,
+        at_risk_words=at_risk,
+        grammar_weaknesses=weaknesses,
+        reading_trend=reading_trend,
+        summary=summary,
+    )
+
+
 @study.route('/leaderboard')
 @login_required
 def leaderboard():

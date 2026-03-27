@@ -372,6 +372,19 @@ def _handle_streak_repair_callback(chat_id: int, telegram_id: int,
             _remove_reply_markup(chat_id, message_id)
 
 
+def _handle_wotd_callback(chat_id: int, telegram_id: int,
+                          callback_data: str, callback_query_id: str,
+                          message_id: int | None = None) -> None:
+    """Handle wotd_know / wotd_dont_know callback from Word of the Day."""
+    if callback_data == 'wotd_know':
+        _answer_callback(callback_query_id, '\u2705 \u041e\u0442\u043b\u0438\u0447\u043d\u043e! +2 XP')
+    else:
+        _answer_callback(callback_query_id, '\u0417\u0430\u043f\u043e\u043c\u043d\u0438 \u044d\u0442\u043e \u0441\u043b\u043e\u0432\u043e! \U0001f4dd')
+
+    if message_id:
+        _remove_reply_markup(chat_id, message_id)
+
+
 def _handle_settings_callback(chat_id: int, telegram_id: int,
                                callback_data: str, callback_query_id: str,
                                message_id: int | None = None) -> None:
@@ -637,6 +650,11 @@ def handle_update(data: dict) -> None:
         elif cb_data == 'streak_repair':
             _handle_streak_repair_callback(
                 chat_id, telegram_id, cb_id,
+                message_id=message_id,
+            )
+        elif cb_data in ('wotd_know', 'wotd_dont_know'):
+            _handle_wotd_callback(
+                chat_id, telegram_id, cb_data, cb_id,
                 message_id=message_id,
             )
         else:
