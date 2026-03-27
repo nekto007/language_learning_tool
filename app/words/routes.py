@@ -155,8 +155,6 @@ def dashboard():
     earned_achievements = achievement_counts[1]
 
     # === DAILY XP (estimated from today's activity) ===
-    from app.study.models import UserXP
-    user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
     daily_xp_goal = 100
     today_xp = (
         daily_summary.get('lessons_count', 0) * 30
@@ -230,7 +228,6 @@ def dashboard():
         # Gamification
         today_xp=today_xp,
         daily_xp_goal=daily_xp_goal,
-        user_xp=user_xp,
         weekly_challenge=weekly_challenge,
     )
 
