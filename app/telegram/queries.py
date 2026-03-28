@@ -618,9 +618,9 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
             UserGrammarExercise.last_reviewed >= today_start,
             UserGrammarExercise.last_reviewed < today_end,
         ).order_by(UserGrammarExercise.last_reviewed.desc()).first()
-        if latest_ge:
+        if latest_ge and latest_ge.exercise:
             from app.grammar_lab.models import GrammarTopic
-            topic = GrammarTopic.query.get(latest_ge.topic_id)
+            topic = GrammarTopic.query.get(latest_ge.exercise.topic_id)
             if topic:
                 grammar_topic_title = topic.title
 
