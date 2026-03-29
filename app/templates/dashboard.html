@@ -56,7 +56,7 @@
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
                         <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
-                        {% set milestones = {7: '&#127919; Неделя!', 14: '&#128170; 2 недели!', 30: '&#127942; Месяц!', 60: '&#11088; 2 месяца!', 100: '&#128081; 100 дней!'} %}
+                        {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
                         {% if streak in milestones %}
                         <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
                         {% endif %}
