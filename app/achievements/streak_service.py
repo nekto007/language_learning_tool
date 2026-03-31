@@ -151,16 +151,32 @@ def apply_paid_repair(user_id: int, missed_date: date) -> dict:
     return {'success': True, 'cost': cost, 'balance': coins.balance, 'error': None}
 
 
-def find_missed_date(user_id: int, tz: str = 'Europe/Moscow') -> date | None:
-    """Find the most recent missed date within 48h that could be repaired."""
-    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
+def find_missed_date(user_id: int, tz: str = 'Europe/Moscow',
+                     max_days: int = 7) -> date | None:
+    """Find the most recent missed date that could be repaired.
 
-    for offset in [1, 2]:
+    Walks backwards up to max_days looking for the first gap in activity
+    that hasn't been repaired yet. Stops at the first day WITH activity
+    (the gap must be adjacent to the current streak).
+    """
+    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
+    import pytz
+
+    local_now = datetime.now(pytz.timezone(tz))
+
+    for offset in range(1, max_days + 1):
         day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
-        if not _has_activity_in_range(user_id, day_start, day_end):
-            missed = (datetime.now(timezone.utc) - timedelta(days=offset)).date()
-            if not has_repair_for_date(user_id, missed):
-                return missed
+        check_date = local_now.date() - timedelta(days=offset)
+
+        if _has_activity_in_range(user_id, day_start, day_end):
+            # Activity found — any gap must be BEFORE this day
+            continue
+        elif has_repair_for_date(user_id, check_date):
+            # Already repaired — keep looking further back
+            continue
+        else:
+            # Found an unrepaired gap — return it
+            return check_date
     return None
 
 
