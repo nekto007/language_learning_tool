@@ -63,11 +63,12 @@ def dashboard():
     }
 
     # === STREAK RECOVERY ===
-    from app.achievements.streak_service import get_streak_status, find_missed_date, apply_free_repair
-    streak_status = get_streak_status(current_user.id)
-    streak_repaired = False
+    from app.achievements.streak_service import (
+        get_streak_status, find_missed_date, apply_free_repair,
+        save_daily_completion, get_required_steps,
+    )
 
-    # Check if plan is 100% complete → auto-repair streak
+    # Count available steps and completion
     steps_available = {k: v for k, v in {
         'lesson': daily_plan.get('next_lesson'),
         'grammar': daily_plan.get('grammar_topic'),
@@ -78,13 +79,23 @@ def dashboard():
     steps_done = sum(1 for k in steps_available if plan_completion.get(k))
     steps_total = len(steps_available)
 
-    if steps_total > 0 and steps_done >= steps_total:
+    # Save daily completion for progressive streak tracking
+    if steps_total > 0:
+        save_daily_completion(current_user.id, steps_done, steps_total)
+
+    streak_status = get_streak_status(current_user.id, steps_total=max(steps_total, 1))
+    required_steps = streak_status.get('required_steps', 1)
+    streak_repaired = False
+
+    # Progressive free repair: enough steps done (not necessarily 100%)
+    if steps_total > 0 and steps_done >= required_steps:
         missed = find_missed_date(current_user.id)
         if missed:
-            apply_free_repair(current_user.id, missed)
+            apply_free_repair(current_user.id, missed, steps_done, steps_total)
             db.session.commit()
             streak = get_current_streak(current_user.id)
-            streak_status = get_streak_status(current_user.id)
+            streak_status = get_streak_status(current_user.id, steps_total=max(steps_total, 1))
+            required_steps = streak_status.get('required_steps', 1)
             streak_repaired = True
 
     # Cards URL (user's default deck or generic)
@@ -203,6 +214,9 @@ def dashboard():
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
         words_minutes=words_minutes,
+        required_steps=required_steps,
+        plan_steps_done=steps_done,
+        plan_steps_total=steps_total,
         # Words
         words_stats=words_stats,
         words_total=words_total,

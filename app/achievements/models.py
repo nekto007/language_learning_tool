@@ -170,6 +170,9 @@ class StreakEvent(db.Model):
     details = Column(JSONBCompat, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    steps_done = Column(Integer, nullable=True)
+    steps_total = Column(Integer, nullable=True)
+
     user = relationship('User', backref=backref('streak_events', cascade='all, delete-orphan'))
 
     __table_args__ = (

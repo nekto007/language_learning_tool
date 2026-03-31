@@ -64,6 +64,16 @@ def daily_status():
     steps_done = sum(1 for k in steps_available if plan_completion.get(k))
     steps_total = len(steps_available)
 
+    # Save daily completion for progressive streak tracking
+    from app.achievements.streak_service import save_daily_completion, get_required_steps
+    if steps_total > 0:
+        save_daily_completion(user_id, steps_done, steps_total)
+        db.session.commit()
+
+    required_steps = get_required_steps(
+        streak_st.get('streak', 0), max(steps_total, 1)
+    )
+
     return jsonify({
         'success': True,
         'plan': plan,
@@ -73,6 +83,7 @@ def daily_status():
         'plan_completion': plan_completion,
         'steps_done': steps_done,
         'steps_total': steps_total,
+        'required_steps': required_steps,
     })
 
 

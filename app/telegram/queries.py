@@ -135,12 +135,15 @@ def _has_activity_in_range(user_id: int, start_utc: datetime,
 
 
 def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
-    """Calculate current streak (consecutive days with activity or repaired days).
+    """Calculate current streak with progressive step requirements.
 
     Uses user's timezone to determine day boundaries.
-    Repaired days (free_repair, spent_repair) count toward the streak.
+    For days with recorded steps_done/steps_total, checks if steps_done >= required.
+    For days without step data (pre-migration), any activity counts.
+    Repaired days (free_repair, spent_repair) always count toward the streak.
     """
     from app.achievements.models import StreakEvent
+    from app.achievements.streak_service import get_required_steps
 
     streak = 0
 
@@ -152,20 +155,40 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
     for offset in range(1, 366):
         day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
 
-        if _has_activity_in_range(user_id, day_start, day_end):
+        # Check if this day was repaired (always counts)
+        import pytz
+        local_now = datetime.now(pytz.timezone(tz) if tz else pytz.timezone(DEFAULT_TZ))
+        check_date = (local_now.date() - timedelta(days=offset))
+        repaired = StreakEvent.query.filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_date == check_date,
+            StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
+        ).first()
+        if repaired:
             streak += 1
-        else:
-            # Check if this day was repaired
-            check_date = (datetime.now(timezone.utc) - timedelta(days=offset)).date()
-            repaired = StreakEvent.query.filter(
+            continue
+
+        if _has_activity_in_range(user_id, day_start, day_end):
+            # Check if we have step data for this day
+            day_event = StreakEvent.query.filter(
                 StreakEvent.user_id == user_id,
                 StreakEvent.event_date == check_date,
-                StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
+                StreakEvent.event_type.in_(['earned_daily', 'daily_completion']),
+                StreakEvent.steps_done.isnot(None),
             ).first()
-            if repaired:
-                streak += 1
+
+            if day_event and day_event.steps_total and day_event.steps_total > 0:
+                # Progressive check: did user meet requirement for current streak length?
+                required = get_required_steps(streak, day_event.steps_total)
+                if day_event.steps_done >= required:
+                    streak += 1
+                else:
+                    break
             else:
-                break
+                # Pre-migration day: any activity counts (grandfather rule)
+                streak += 1
+        else:
+            break
 
     return streak
 
