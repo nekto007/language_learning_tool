@@ -68,11 +68,11 @@ def dashboard():
         save_daily_completion, get_required_steps,
     )
 
-    # Count available steps and completion
+    # Count available steps and completion (must match template logic)
     steps_available = {k: v for k, v in {
         'lesson': daily_plan.get('next_lesson'),
         'grammar': daily_plan.get('grammar_topic'),
-        'words': daily_plan.get('words_due'),
+        'words': daily_plan.get('words_due') or daily_plan.get('has_any_words'),
         'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None),
         'book_course_practice': bc_lesson if (bc_lesson and not bc_is_reading) else None,
     }.items() if v}

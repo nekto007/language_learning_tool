@@ -54,7 +54,7 @@ def daily_status():
         steps_available['lesson'] = True
     if plan.get('grammar_topic'):
         steps_available['grammar'] = True
-    if plan.get('words_due'):
+    if plan.get('words_due') or plan.get('has_any_words'):
         steps_available['words'] = True
     if plan.get('book_to_read') or (bc_lesson and bc_is_reading):
         steps_available['books'] = True
