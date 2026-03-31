@@ -69,12 +69,13 @@ def dashboard():
     )
 
     # Count available steps and completion (must match template logic)
+    # A step is "available" if it has pending work OR was already completed today
     steps_available = {k: v for k, v in {
-        'lesson': daily_plan.get('next_lesson'),
-        'grammar': daily_plan.get('grammar_topic'),
-        'words': daily_plan.get('words_due') or daily_plan.get('has_any_words'),
-        'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None),
-        'book_course_practice': bc_lesson if (bc_lesson and not bc_is_reading) else None,
+        'lesson': daily_plan.get('next_lesson') or plan_completion.get('lesson'),
+        'grammar': daily_plan.get('grammar_topic') or plan_completion.get('grammar'),
+        'words': daily_plan.get('words_due') or daily_plan.get('has_any_words') or plan_completion.get('words'),
+        'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None) or plan_completion.get('books'),
+        'book_course_practice': (bc_lesson if (bc_lesson and not bc_is_reading) else None) or plan_completion.get('book_course_practice'),
     }.items() if v}
     steps_done = sum(1 for k in steps_available if plan_completion.get(k))
     steps_total = len(steps_available)

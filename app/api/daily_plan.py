@@ -48,17 +48,17 @@ def daily_status():
         'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
     }
 
-    # Count steps
+    # Count steps (step is available if pending OR already done today)
     steps_available = {}
-    if plan.get('next_lesson'):
+    if plan.get('next_lesson') or plan_completion.get('lesson'):
         steps_available['lesson'] = True
-    if plan.get('grammar_topic'):
+    if plan.get('grammar_topic') or plan_completion.get('grammar'):
         steps_available['grammar'] = True
-    if plan.get('words_due') or plan.get('has_any_words'):
+    if plan.get('words_due') or plan.get('has_any_words') or plan_completion.get('words'):
         steps_available['words'] = True
-    if plan.get('book_to_read') or (bc_lesson and bc_is_reading):
+    if plan.get('book_to_read') or (bc_lesson and bc_is_reading) or plan_completion.get('books'):
         steps_available['books'] = True
-    if bc_lesson and not bc_is_reading:
+    if (bc_lesson and not bc_is_reading) or plan_completion.get('book_course_practice'):
         steps_available['book_course_practice'] = True
 
     steps_done = sum(1 for k in steps_available if plan_completion.get(k))
