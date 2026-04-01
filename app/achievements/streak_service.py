@@ -27,6 +27,83 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
     return min(required, steps_total)
 
 
+def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dict, int, int]:
+    """Compute plan completion and step counts from plan + summary data.
+
+    Returns (plan_completion, steps_available, steps_done, steps_total).
+    Single source of truth — used by dashboard route, API, and bot.
+    """
+    bc_lesson = daily_plan.get('book_course_lesson')
+    bc_done = daily_plan.get('book_course_done_today', False)
+    bc_is_reading = bc_lesson and bc_lesson.get('lesson_type') == 'reading'
+
+    plan_completion = {
+        'lesson': daily_summary['lessons_count'] > 0,
+        'grammar': daily_summary['grammar_exercises'] > 0,
+        'words': daily_summary.get('srs_words_reviewed', 0) > 0,
+        'books': bc_done if bc_is_reading else len(daily_summary.get('books_read', [])) > 0,
+        'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
+    }
+
+    # Step is "available" if it has pending work OR was already completed today
+    steps_available = {k: v for k, v in {
+        'lesson': daily_plan.get('next_lesson') or plan_completion.get('lesson'),
+        'grammar': daily_plan.get('grammar_topic') or plan_completion.get('grammar'),
+        'words': daily_plan.get('words_due') or daily_plan.get('has_any_words') or plan_completion.get('words'),
+        'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None) or plan_completion.get('books'),
+        'book_course_practice': (bc_lesson if (bc_lesson and not bc_is_reading) else None) or plan_completion.get('book_course_practice'),
+    }.items() if v}
+
+    steps_done = sum(1 for k in steps_available if plan_completion.get(k))
+    steps_total = len(steps_available)
+
+    return plan_completion, steps_available, steps_done, steps_total
+
+
+def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
+                               tz: str = 'Europe/Moscow') -> dict:
+    """Process streak: save completion, award coin, attempt free repair.
+
+    Call this from any entry point (dashboard, API, bot).
+    Returns dict with streak info and whether repair happened.
+    """
+    from app.telegram.queries import get_current_streak
+
+    # Save daily completion
+    if steps_total > 0:
+        save_daily_completion(user_id, steps_done, steps_total)
+
+    # Award daily coin if user has any activity
+    if steps_done > 0:
+        earn_daily_coin(user_id, steps_done=steps_done, steps_total=steps_total)
+
+    streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
+    required_steps = streak_status.get('required_steps', 1)
+    streak_repaired = False
+
+    # Attempt free repair if enough steps done
+    if steps_total > 0 and steps_done >= required_steps:
+        missed = find_missed_date(user_id, tz=tz)
+        if missed:
+            apply_free_repair(user_id, missed, steps_done, steps_total)
+            db.session.commit()
+            streak = get_current_streak(user_id, tz=tz)
+            streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
+            streak_status['streak'] = streak
+            required_steps = streak_status.get('required_steps', 1)
+            streak_repaired = True
+
+    db.session.commit()
+
+    return {
+        'streak_status': streak_status,
+        'required_steps': required_steps,
+        'streak_repaired': streak_repaired,
+        'steps_done': steps_done,
+        'steps_total': steps_total,
+    }
+
+
 def get_or_create_coins(user_id: int) -> StreakCoins:
     """Get or create StreakCoins record for user."""
     coins = StreakCoins.query.filter_by(user_id=user_id).first()

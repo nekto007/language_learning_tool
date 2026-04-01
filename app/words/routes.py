@@ -49,55 +49,16 @@ def dashboard():
     from app.telegram.queries import get_yesterday_summary
     yesterday_summary = get_yesterday_summary(current_user.id)
 
-    # Completion flags: compare daily_summary with daily_plan
-    bc_lesson = daily_plan.get('book_course_lesson')
-    bc_done = daily_plan.get('book_course_done_today', False)
-    # If book course reading lesson → replaces books step; practice → extra step 5
-    bc_is_reading = bc_lesson and bc_lesson.get('lesson_type') == 'reading'
-    plan_completion = {
-        'lesson': daily_summary['lessons_count'] > 0,
-        'grammar': daily_summary['grammar_exercises'] > 0,
-        'words': daily_summary.get('srs_words_reviewed', 0) > 0,
-        'books': bc_done if bc_is_reading else len(daily_summary.get('books_read', [])) > 0,
-        'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
-    }
+    # === PLAN COMPLETION & STREAK ===
+    from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
-    # === STREAK RECOVERY ===
-    from app.achievements.streak_service import (
-        get_streak_status, find_missed_date, apply_free_repair,
-        save_daily_completion, get_required_steps,
-    )
+    plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
 
-    # Count available steps and completion (must match template logic)
-    # A step is "available" if it has pending work OR was already completed today
-    steps_available = {k: v for k, v in {
-        'lesson': daily_plan.get('next_lesson') or plan_completion.get('lesson'),
-        'grammar': daily_plan.get('grammar_topic') or plan_completion.get('grammar'),
-        'words': daily_plan.get('words_due') or daily_plan.get('has_any_words') or plan_completion.get('words'),
-        'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None) or plan_completion.get('books'),
-        'book_course_practice': (bc_lesson if (bc_lesson and not bc_is_reading) else None) or plan_completion.get('book_course_practice'),
-    }.items() if v}
-    steps_done = sum(1 for k in steps_available if plan_completion.get(k))
-    steps_total = len(steps_available)
-
-    # Save daily completion for progressive streak tracking
-    if steps_total > 0:
-        save_daily_completion(current_user.id, steps_done, steps_total)
-
-    streak_status = get_streak_status(current_user.id, steps_total=max(steps_total, 1))
-    required_steps = streak_status.get('required_steps', 1)
-    streak_repaired = False
-
-    # Progressive free repair: enough steps done (not necessarily 100%)
-    if steps_total > 0 and steps_done >= required_steps:
-        missed = find_missed_date(current_user.id)
-        if missed:
-            apply_free_repair(current_user.id, missed, steps_done, steps_total)
-            db.session.commit()
-            streak = get_current_streak(current_user.id)
-            streak_status = get_streak_status(current_user.id, steps_total=max(steps_total, 1))
-            required_steps = streak_status.get('required_steps', 1)
-            streak_repaired = True
+    streak_result = process_streak_on_activity(current_user.id, steps_done, steps_total)
+    streak_status = streak_result['streak_status']
+    required_steps = streak_result['required_steps']
+    streak_repaired = streak_result['streak_repaired']
+    streak = streak_status.get('streak', streak)
 
     # Cards URL (user's default deck or generic)
     cards_url = url_for('study.cards')

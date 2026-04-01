@@ -26,64 +26,29 @@ def _validate_timezone(tz_name: str) -> str:
 def daily_status():
     """Unified daily status: plan + summary + streak + yesterday — one request."""
     from app.telegram.queries import get_daily_plan, get_daily_summary, get_yesterday_summary
-    from app.achievements.streak_service import get_streak_status
+    from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = get_jwt_identity()
 
     plan = get_daily_plan(user_id, tz=tz)
     summary = get_daily_summary(user_id, tz=tz)
-    streak_st = get_streak_status(user_id, tz=tz)
     yesterday = get_yesterday_summary(user_id, tz=tz)
 
-    # Compute plan_completion
-    bc_lesson = plan.get('book_course_lesson')
-    bc_done = plan.get('book_course_done_today', False)
-    bc_is_reading = bc_lesson and bc_lesson.get('lesson_type') == 'reading'
-    plan_completion = {
-        'lesson': summary['lessons_count'] > 0,
-        'grammar': summary['grammar_exercises'] > 0,
-        'words': summary.get('srs_words_reviewed', 0) > 0,
-        'books': bc_done if bc_is_reading else len(summary.get('books_read', [])) > 0,
-        'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
-    }
-
-    # Count steps (step is available if pending OR already done today)
-    steps_available = {}
-    if plan.get('next_lesson') or plan_completion.get('lesson'):
-        steps_available['lesson'] = True
-    if plan.get('grammar_topic') or plan_completion.get('grammar'):
-        steps_available['grammar'] = True
-    if plan.get('words_due') or plan.get('has_any_words') or plan_completion.get('words'):
-        steps_available['words'] = True
-    if plan.get('book_to_read') or (bc_lesson and bc_is_reading) or plan_completion.get('books'):
-        steps_available['books'] = True
-    if (bc_lesson and not bc_is_reading) or plan_completion.get('book_course_practice'):
-        steps_available['book_course_practice'] = True
-
-    steps_done = sum(1 for k in steps_available if plan_completion.get(k))
-    steps_total = len(steps_available)
-
-    # Save daily completion for progressive streak tracking
-    from app.achievements.streak_service import save_daily_completion, get_required_steps
-    if steps_total > 0:
-        save_daily_completion(user_id, steps_done, steps_total)
-        db.session.commit()
-
-    required_steps = get_required_steps(
-        streak_st.get('streak', 0), max(steps_total, 1)
-    )
+    plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(plan, summary)
+    streak_result = process_streak_on_activity(user_id, steps_done, steps_total, tz=tz)
 
     return jsonify({
         'success': True,
         'plan': plan,
         'summary': summary,
-        'streak': streak_st,
+        'streak': streak_result['streak_status'],
         'yesterday': yesterday,
         'plan_completion': plan_completion,
         'steps_done': steps_done,
         'steps_total': steps_total,
-        'required_steps': required_steps,
+        'required_steps': streak_result['required_steps'],
+        'streak_repaired': streak_result['streak_repaired'],
     })
 
 

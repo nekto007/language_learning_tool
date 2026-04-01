@@ -130,13 +130,13 @@
             {% endfor %}
             <span class="dash-stepper-count">{{ steps_done }} &#1080;&#1079; {{ steps_total }}</span>
         </div>
-        {% if required_steps is defined and required_steps > 1 and not all_done %}
-        <div class="dash-streak-req">
+        {% if required_steps is defined and not all_done %}
+        <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
             {% if plan_steps_done >= required_steps %}
-            &#128293; &#1057;&#1077;&#1088;&#1080;&#1103; &#1079;&#1072;&#1097;&#1080;&#1090;&#1072;&#1085;&#1072;! ({{ plan_steps_done }}/{{ required_steps }})
+            &#128293; &#1057;&#1077;&#1088;&#1080;&#1103; &#1079;&#1072;&#1097;&#1080;&#1090;&#1072;&#1085;&#1072;!
             {% else %}
             &#128293; &#1044;&#1083;&#1103; &#1089;&#1077;&#1088;&#1080;&#1080;: {{ plan_steps_done|default(0) }}/{{ required_steps }}
-            {% if required_steps == 2 %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1103;{% elif required_steps < 5 %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1103;{% else %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1081;{% endif %}
+            {% if required_steps == 1 %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1077;{% elif required_steps < 5 %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1103;{% else %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1081;{% endif %}
             {% endif %}
         </div>
         {% endif %}
@@ -1049,6 +1049,9 @@
     color: var(--dash-warning);
     padding: 0.25rem 0 0.25rem 0;
     text-align: center;
+}
+.dash-streak-req--done {
+    color: var(--dash-success);
 }
 
 /* Completion banner */

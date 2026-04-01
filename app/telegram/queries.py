@@ -138,6 +138,7 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
     """Calculate current streak with progressive step requirements.
 
     Uses user's timezone to determine day boundaries.
+    Pre-fetches StreakEvents in one query to avoid N+1 problem.
     For days with recorded steps_done/steps_total, checks if steps_done >= required.
     For days without step data (pre-migration), any activity counts.
     Repaired days (free_repair, spent_repair) always count toward the streak.
@@ -147,45 +148,49 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
 
     streak = 0
 
-    # If there's activity today, count today
     if has_activity_today(user_id, tz=tz):
         streak = 1
 
-    # Walk backwards through dates (starting from yesterday)
-    for offset in range(1, 366):
-        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
+    # Pre-fetch all streak events for the last year in one query
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+    local_now = datetime.now(tz_obj)
+    earliest_date = local_now.date() - timedelta(days=366)
 
-        # Check if this day was repaired (always counts)
-        import pytz
-        local_now = datetime.now(pytz.timezone(tz) if tz else pytz.timezone(DEFAULT_TZ))
-        check_date = (local_now.date() - timedelta(days=offset))
-        repaired = StreakEvent.query.filter(
-            StreakEvent.user_id == user_id,
-            StreakEvent.event_date == check_date,
-            StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
-        ).first()
-        if repaired:
+    all_events = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_date >= earliest_date,
+    ).all()
+
+    # Index events by date
+    repairs_by_date: dict[date, bool] = {}
+    steps_by_date: dict[date, tuple[int | None, int | None]] = {}
+    for ev in all_events:
+        if ev.event_type in ('free_repair', 'spent_repair'):
+            repairs_by_date[ev.event_date] = True
+        elif ev.event_type in ('earned_daily', 'daily_completion') and ev.steps_done is not None:
+            steps_by_date[ev.event_date] = (ev.steps_done, ev.steps_total)
+
+    # Walk backwards through dates
+    for offset in range(1, 366):
+        check_date = local_now.date() - timedelta(days=offset)
+
+        if check_date in repairs_by_date:
             streak += 1
             continue
 
+        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
         if _has_activity_in_range(user_id, day_start, day_end):
-            # Check if we have step data for this day
-            day_event = StreakEvent.query.filter(
-                StreakEvent.user_id == user_id,
-                StreakEvent.event_date == check_date,
-                StreakEvent.event_type.in_(['earned_daily', 'daily_completion']),
-                StreakEvent.steps_done.isnot(None),
-            ).first()
-
-            if day_event and day_event.steps_total and day_event.steps_total > 0:
-                # Progressive check: did user meet requirement for current streak length?
-                required = get_required_steps(streak, day_event.steps_total)
-                if day_event.steps_done >= required:
+            step_data = steps_by_date.get(check_date)
+            if step_data and step_data[1] and step_data[1] > 0:
+                required = get_required_steps(streak, step_data[1])
+                if step_data[0] >= required:
                     streak += 1
                 else:
                     break
             else:
-                # Pre-migration day: any activity counts (grandfather rule)
                 streak += 1
         else:
             break
