@@ -32,7 +32,34 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
 
     Returns (plan_completion, steps_available, steps_done, steps_total).
     Single source of truth — used by dashboard route, API, and bot.
+
+    Supports both new format (with 'steps' dict) and legacy flat format.
     """
+    steps = daily_plan.get('steps')
+
+    if steps:
+        # ── New per-step state machine format ──
+        DONE_STATES = {'completed', 'all_reviewed', 'all_done'}
+        # A step is "available" if it exists (not None)
+        # A step is "done" if its state is in DONE_STATES
+
+        plan_completion = {}
+        steps_available = {}
+
+        for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
+            step = steps.get(key)
+            if step is not None:
+                steps_available[key] = True
+                plan_completion[key] = step.get('state') in DONE_STATES
+            else:
+                plan_completion[key] = False
+
+        steps_done = sum(1 for k in steps_available if plan_completion.get(k, False))
+        steps_total = len(steps_available)
+
+        return plan_completion, steps_available, steps_done, steps_total
+
+    # ── Legacy flat format (for API/bot backward compat) ──
     bc_lesson = daily_plan.get('book_course_lesson')
     bc_done = daily_plan.get('book_course_done_today', False)
     bc_is_reading = bc_lesson and bc_lesson.get('lesson_type') == 'reading'
@@ -40,16 +67,21 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
     plan_completion = {
         'lesson': daily_summary['lessons_count'] > 0,
         'grammar': daily_summary['grammar_exercises'] > 0,
-        'words': daily_summary.get('srs_words_reviewed', 0) > 0,
+        'words': (daily_summary.get('words_reviewed', 0) > 0
+                  or daily_summary.get('srs_words_reviewed', 0) > 0),
         'books': bc_done if bc_is_reading else len(daily_summary.get('books_read', [])) > 0,
         'book_course_practice': bc_done if (bc_lesson and not bc_is_reading) else False,
     }
+
+    # Auto-complete words if user has words but none are due
+    if daily_plan.get('has_any_words') and not daily_plan.get('words_due'):
+        plan_completion['words'] = True
 
     # Step is "available" if it has pending work OR was already completed today
     steps_available = {k: v for k, v in {
         'lesson': daily_plan.get('next_lesson') or plan_completion.get('lesson'),
         'grammar': daily_plan.get('grammar_topic') or plan_completion.get('grammar'),
-        'words': daily_plan.get('words_due') or daily_plan.get('has_any_words') or plan_completion.get('words'),
+        'words': daily_plan.get('words_due') or plan_completion.get('words'),
         'books': daily_plan.get('book_to_read') or (bc_lesson if bc_is_reading else None) or plan_completion.get('books'),
         'book_course_practice': (bc_lesson if (bc_lesson and not bc_is_reading) else None) or plan_completion.get('book_course_practice'),
     }.items() if v}

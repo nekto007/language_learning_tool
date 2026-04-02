@@ -538,6 +538,569 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     }
 
 
+def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
+    """Build daily study plan with per-step state machine.
+
+    Each step has a 'state' field that determines how the UI renders it:
+    - lesson: available / completed / suggest_start / all_done
+    - grammar: available / completed / suggest_start
+    - words: due / completed / all_reviewed / suggest_add
+    - books: bc_reading / continue_book / completed / suggest_pick
+    - book_course_practice: available / completed
+
+    Steps with state=None are hidden from the plan.
+
+    Also returns flat backward-compat keys for API/bot consumption.
+    """
+    now = datetime.now(timezone.utc)
+    today_start, today_end = _user_day_boundaries(tz)
+
+    # ── helpers ──
+    from app.study.models import StudySettings
+    from app.books.models import Chapter
+    from sqlalchemy import distinct, case as sa_case
+
+    CEFR_ORDER = sa_case(
+        (Book.level == 'A1', 1), (Book.level == 'A2', 2),
+        (Book.level == 'B1', 3), (Book.level == 'B2', 4),
+        (Book.level == 'C1', 5), (Book.level == 'C2', 6),
+        else_=7,
+    )
+
+    def _lesson_minutes_est(lesson_type: str | None) -> int:
+        return LESSON_TIME.get(lesson_type or '', 10)
+
+    def _words_minutes_est(count: int) -> int:
+        return max(count // 8, 1) if count else 0
+
+    # ──────────────────────────────────────────────
+    # STEP 1: LESSON
+    # ──────────────────────────────────────────────
+    next_lesson = None
+    lesson_step: dict[str, Any] | None = None
+
+    last_completed = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+    ).order_by(LessonProgress.completed_at.desc()).first()
+
+    if last_completed:
+        lesson = Lessons.query.get(last_completed.lesson_id)
+        if lesson:
+            module = Module.query.get(lesson.module_id)
+            if module:
+                next_l = Lessons.query.filter(
+                    Lessons.module_id == module.id,
+                    Lessons.order > lesson.order,
+                ).order_by(Lessons.number).first()
+
+                if not next_l:
+                    next_module = Module.query.filter(
+                        Module.number == module.number + 1,
+                    ).first()
+                    if next_module:
+                        next_l = Lessons.query.filter(
+                            Lessons.module_id == next_module.id,
+                        ).order_by(Lessons.number).first()
+
+                if next_l:
+                    nl_module = Module.query.get(next_l.module_id)
+                    level_code = nl_module.level.code if nl_module and nl_module.level else None
+                    module_total = Lessons.query.filter_by(module_id=next_l.module_id).count()
+                    module_completed = LessonProgress.query.filter(
+                        LessonProgress.user_id == user_id,
+                        LessonProgress.status == 'completed',
+                        LessonProgress.lesson_id.in_(
+                            db.session.query(Lessons.id).filter_by(module_id=next_l.module_id)
+                        )
+                    ).count()
+
+                    next_lesson = {
+                        'title': next_l.title,
+                        'module_number': nl_module.number if nl_module else None,
+                        'lesson_order': next_l.order,
+                        'lesson_type': next_l.type,
+                        'lesson_id': next_l.id,
+                        'level_code': level_code,
+                        'module_lessons_total': module_total,
+                        'module_lessons_completed': module_completed,
+                    }
+
+    # Determine lesson step state
+    has_any_lessons = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+    ).first() is not None
+    lesson_done_today = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= today_start,
+        LessonProgress.completed_at < today_end,
+    ).first() is not None
+
+    if lesson_done_today:
+        lesson_step = {
+            'state': 'completed',
+            **(next_lesson or {}),
+            'estimated_minutes': _lesson_minutes_est(next_lesson.get('lesson_type')) if next_lesson else 10,
+        }
+    elif next_lesson:
+        lesson_step = {
+            'state': 'available',
+            **next_lesson,
+            'estimated_minutes': _lesson_minutes_est(next_lesson.get('lesson_type')),
+        }
+    elif has_any_lessons and not next_lesson:
+        # All curriculum lessons completed
+        lesson_step = {'state': 'all_done'}
+    else:
+        # No progress at all — suggest first lesson
+        first_module = Module.query.order_by(Module.number).first()
+        if first_module:
+            first_lesson = Lessons.query.filter_by(
+                module_id=first_module.id,
+            ).order_by(Lessons.number).first()
+            if first_lesson:
+                level = first_module.level
+                lesson_step = {
+                    'state': 'suggest_start',
+                    'title': first_lesson.title,
+                    'lesson_id': first_lesson.id,
+                    'module_number': first_module.number,
+                    'lesson_type': first_lesson.type,
+                    'level_code': level.code if level else None,
+                    'first_module_title': first_module.title,
+                    'estimated_minutes': _lesson_minutes_est(first_lesson.type),
+                }
+
+    # ──────────────────────────────────────────────
+    # STEP 2: GRAMMAR
+    # ──────────────────────────────────────────────
+    grammar_topic = None
+    grammar_step: dict[str, Any] | None = None
+
+    current_module_id = None
+    if next_lesson and next_lesson.get('lesson_id'):
+        planned_lesson = Lessons.query.get(next_lesson['lesson_id'])
+        if planned_lesson:
+            current_module_id = planned_lesson.module_id
+
+    module_topic_ids: list[int] = []
+    if current_module_id:
+        module_topic_ids = [
+            row[0] for row in db.session.query(Lessons.grammar_topic_id).filter(
+                Lessons.module_id == current_module_id,
+                Lessons.grammar_topic_id.isnot(None),
+            ).all()
+        ]
+
+    def _build_grammar_dict(topic: GrammarTopic, status_str: str) -> dict[str, Any]:
+        due = UserGrammarExercise.query.filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.next_review <= now,
+        ).count() if status_str != 'not_started' else 0
+        return {
+            'title': topic.title,
+            'status': status_str,
+            'due_exercises': due,
+            'topic_id': topic.id,
+            'telegram_summary': topic.telegram_summary,
+        }
+
+    # 1) Active topic from current module
+    if module_topic_ids:
+        module_active = UserGrammarTopicStatus.query.filter(
+            UserGrammarTopicStatus.user_id == user_id,
+            UserGrammarTopicStatus.topic_id.in_(module_topic_ids),
+            UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing']),
+        ).first()
+        if module_active:
+            topic = GrammarTopic.query.get(module_active.topic_id)
+            if topic:
+                grammar_topic = _build_grammar_dict(topic, module_active.status)
+        else:
+            # 2) Not-started topic from current module
+            started_ids = {
+                row[0] for row in db.session.query(UserGrammarTopicStatus.topic_id).filter(
+                    UserGrammarTopicStatus.user_id == user_id,
+                    UserGrammarTopicStatus.topic_id.in_(module_topic_ids),
+                ).all()
+            }
+            for tid in module_topic_ids:
+                if tid not in started_ids:
+                    topic = GrammarTopic.query.get(tid)
+                    if topic:
+                        grammar_topic = _build_grammar_dict(topic, 'not_started')
+                    break
+
+    # 3) Fallback: any active topic
+    if not grammar_topic:
+        fallback_status = UserGrammarTopicStatus.query.join(
+            GrammarTopic, GrammarTopic.id == UserGrammarTopicStatus.topic_id,
+        ).filter(
+            UserGrammarTopicStatus.user_id == user_id,
+            UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing']),
+        ).order_by(GrammarTopic.order).first()
+        if fallback_status:
+            topic = GrammarTopic.query.get(fallback_status.topic_id)
+            if topic:
+                grammar_topic = _build_grammar_dict(topic, fallback_status.status)
+
+    # Determine grammar step state
+    grammar_done_today = UserGrammarExercise.query.filter(
+        UserGrammarExercise.user_id == user_id,
+        UserGrammarExercise.last_reviewed >= today_start,
+        UserGrammarExercise.last_reviewed < today_end,
+    ).first() is not None
+
+    if grammar_done_today:
+        grammar_step = {
+            'state': 'completed',
+            **(grammar_topic or {}),
+        }
+    elif grammar_topic:
+        grammar_step = {
+            'state': 'available',
+            **grammar_topic,
+        }
+    else:
+        # No grammar activity and no topic found — suggest first topic
+        first_topic = GrammarTopic.query.order_by(GrammarTopic.order).first()
+        if first_topic:
+            grammar_step = {
+                'state': 'suggest_start',
+                'title': first_topic.title,
+                'topic_id': first_topic.id,
+                'status': 'not_started',
+                'due_exercises': 0,
+                'first_topic_title': first_topic.title,
+            }
+
+    # ──────────────────────────────────────────────
+    # STEP 3: WORDS (SRS)
+    # ──────────────────────────────────────────────
+    user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+    has_any_words = UserWord.query.filter_by(user_id=user_id).first() is not None
+
+    raw_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
+        UserWord.user_id == user_id,
+        UserCardDirection.next_review <= now,
+        UserCardDirection.direction == 'eng-rus',
+    ).scalar() or 0
+
+    # Apply daily limits using TZ-aware boundaries (Bug 1 fix)
+    settings = StudySettings.get_settings(user_id)
+    new_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(user_word_subq),
+        UserCardDirection.direction == 'eng-rus',
+        UserCardDirection.first_reviewed >= today_start,
+        UserCardDirection.first_reviewed.isnot(None),
+    ).scalar() or 0
+    reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(user_word_subq),
+        UserCardDirection.direction == 'eng-rus',
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.first_reviewed < today_start,
+        UserCardDirection.first_reviewed.isnot(None),
+    ).scalar() or 0
+    remaining_new = max(0, settings.new_words_per_day - new_today)
+    remaining_reviews = max(0, settings.reviews_per_day - reviews_today)
+    words_due = min(raw_due, remaining_new + remaining_reviews)
+
+    # Words reviewed today (any source)
+    words_reviewed_today = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
+        UserWord.user_id == user_id,
+        UserCardDirection.last_reviewed >= today_start,
+        UserCardDirection.last_reviewed < today_end,
+        UserCardDirection.direction == 'eng-rus',
+    ).scalar() or 0
+
+    # Determine words step state
+    words_step: dict[str, Any] | None = None
+    if words_reviewed_today > 0 and words_due == 0:
+        words_step = {
+            'state': 'completed',
+            'words_due': 0, 'words_new': 0, 'words_review': 0,
+            'has_any_words': has_any_words,
+            'estimated_minutes': 0,
+        }
+    elif words_due > 0:
+        words_step = {
+            'state': 'due',
+            'words_due': words_due,
+            'words_new': remaining_new,
+            'words_review': max(0, words_due - remaining_new),
+            'has_any_words': has_any_words,
+            'estimated_minutes': _words_minutes_est(words_due),
+        }
+    elif has_any_words:
+        # Has words but none due — auto-complete
+        words_step = {
+            'state': 'all_reviewed',
+            'words_due': 0, 'words_new': 0, 'words_review': 0,
+            'has_any_words': True,
+            'estimated_minutes': 0,
+        }
+    else:
+        # No words at all — suggest adding
+        words_step = {
+            'state': 'suggest_add',
+            'words_due': 0, 'words_new': 0, 'words_review': 0,
+            'has_any_words': False,
+            'estimated_minutes': 0,
+        }
+
+    # ──────────────────────────────────────────────
+    # STEP 4: BOOKS / READING
+    # ──────────────────────────────────────────────
+    book_to_read = None
+    suggested_books = None
+    books_step: dict[str, Any] | None = None
+
+    started_book_ids = db.session.query(distinct(Chapter.book_id)).join(
+        UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
+    ).filter(UserChapterProgress.user_id == user_id).all()
+    started_book_ids = [r[0] for r in started_book_ids]
+
+    books_read_today_ids: set[int] = set()
+    if started_book_ids:
+        books_read_today_ids = {
+            r[0] for r in db.session.query(distinct(Chapter.book_id)).join(
+                UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
+            ).filter(
+                UserChapterProgress.user_id == user_id,
+                UserChapterProgress.updated_at >= today_start,
+                UserChapterProgress.updated_at < today_end,
+            ).all()
+        }
+
+        not_read_today = [bid for bid in started_book_ids if bid not in books_read_today_ids]
+        if not_read_today:
+            book = Book.query.get(not_read_today[0])
+            if book:
+                book_to_read = {'title': book.title, 'id': book.id}
+        elif started_book_ids:
+            # All started books read today — fallback to first started (Bug 3 fix)
+            book = Book.query.get(started_book_ids[0])
+            if book:
+                book_to_read = {'title': book.title, 'id': book.id}
+
+    # Suggest books for users without started books
+    if not started_book_ids:
+        suggestions = Book.query.filter(
+            Book.chapters_cnt > 0,
+        ).order_by(CEFR_ORDER, Book.title).limit(3).all()
+        if suggestions:
+            suggested_books = [{'id': b.id, 'title': b.title} for b in suggestions]
+
+    # Book course
+    book_course_lesson = None
+    book_course_done_today = False
+
+    active_enrollment = BookCourseEnrollment.query.filter_by(
+        user_id=user_id, status='active'
+    ).first()
+
+    if active_enrollment:
+        bc_done = UserLessonProgress.query.filter(
+            UserLessonProgress.user_id == user_id,
+            UserLessonProgress.enrollment_id == active_enrollment.id,
+            UserLessonProgress.completed_at >= today_start,
+            UserLessonProgress.completed_at < today_end,
+        ).first()
+        book_course_done_today = bc_done is not None
+
+        completed_lesson_ids = {
+            r[0] for r in db.session.query(UserLessonProgress.daily_lesson_id).filter(
+                UserLessonProgress.user_id == user_id,
+                UserLessonProgress.enrollment_id == active_enrollment.id,
+                UserLessonProgress.status == 'completed',
+            ).all()
+        }
+
+        next_bc_lesson = DailyLesson.query.join(
+            BookCourseModule, BookCourseModule.id == DailyLesson.book_course_module_id
+        ).filter(
+            BookCourseModule.course_id == active_enrollment.course_id,
+        ).order_by(DailyLesson.day_number).all()
+
+        for dl in next_bc_lesson:
+            if dl.id not in completed_lesson_ids:
+                bc_module = BookCourseModule.query.get(dl.book_course_module_id)
+                course = BookCourse.query.get(active_enrollment.course_id)
+                book_course_lesson = {
+                    'course_id': active_enrollment.course_id,
+                    'course_slug': course.slug if course else None,
+                    'course_title': course.title if course else None,
+                    'module_id': bc_module.id if bc_module else None,
+                    'module_number': bc_module.module_number if bc_module else None,
+                    'lesson_id': dl.id,
+                    'day_number': dl.day_number,
+                    'lesson_type': dl.lesson_type,
+                    'estimated_minutes': 10 if dl.lesson_type == 'reading' else 15,
+                    'chapter_id': dl.chapter_id,
+                }
+                break
+
+    # Determine books step state
+    bc_is_reading = book_course_lesson and book_course_lesson.get('lesson_type') == 'reading'
+    bc_is_practice = book_course_lesson and book_course_lesson.get('lesson_type') != 'reading'
+
+    if bc_is_reading:
+        books_step = {
+            'state': 'completed' if book_course_done_today else 'bc_reading',
+            'book_course_lesson': book_course_lesson,
+            'book_to_read': None,
+            'suggested_books': None,
+        }
+    elif book_to_read:
+        has_book_activity = bool(books_read_today_ids)
+        books_step = {
+            'state': 'completed' if has_book_activity else 'continue_book',
+            'book_to_read': book_to_read,
+            'book_course_lesson': None,
+            'suggested_books': None,
+        }
+    else:
+        # No books started — suggest picking
+        books_step = {
+            'state': 'suggest_pick',
+            'book_to_read': None,
+            'book_course_lesson': None,
+            'suggested_books': suggested_books,
+        }
+
+    # ──────────────────────────────────────────────
+    # STEP 5: BOOK COURSE PRACTICE
+    # ──────────────────────────────────────────────
+    bc_practice_step: dict[str, Any] | None = None
+
+    if bc_is_practice:
+        if book_course_done_today:
+            bc_practice_step = {
+                'state': 'completed',
+                'lesson': book_course_lesson,
+            }
+        else:
+            bc_practice_step = {
+                'state': 'available',
+                'lesson': book_course_lesson,
+            }
+
+    # ──────────────────────────────────────────────
+    # BONUS (unchanged logic)
+    # ──────────────────────────────────────────────
+    bonus: dict[str, Any] = {}
+    lessons_completed_today = LessonProgress.query.filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= today_start,
+        LessonProgress.completed_at < today_end,
+    ).count()
+    if lessons_completed_today < 2 and next_lesson and next_lesson.get('lesson_id'):
+        planned = Lessons.query.get(next_lesson['lesson_id'])
+        if planned:
+            extra = Lessons.query.filter(
+                Lessons.module_id == planned.module_id,
+                Lessons.number > planned.number,
+            ).order_by(Lessons.number).first()
+            if not extra:
+                planned_module = Module.query.get(planned.module_id)
+                if planned_module:
+                    next_mod = Module.query.filter(
+                        Module.level_id == planned_module.level_id,
+                        Module.number == planned_module.number + 1,
+                    ).first()
+                    if next_mod:
+                        extra = Lessons.query.filter(
+                            Lessons.module_id == next_mod.id,
+                        ).order_by(Lessons.number).first()
+            if extra:
+                extra_module = Module.query.get(extra.module_id)
+                bonus['extra_lesson'] = {
+                    'title': extra.title,
+                    'lesson_id': extra.id,
+                    'module_number': extra_module.number if extra_module else None,
+                    'lesson_type': extra.type,
+                }
+    bonus['extra_reading'] = book_to_read is not None or bool(started_book_ids)
+
+    # ──────────────────────────────────────────────
+    # BUILD RESULT
+    # ──────────────────────────────────────────────
+    # Add is_done flag to each step for template convenience
+    _DONE_STATES = {'completed', 'all_reviewed', 'all_done'}
+    for step in (lesson_step, grammar_step, words_step, books_step, bc_practice_step):
+        if step is not None:
+            step['is_done'] = step.get('state') in _DONE_STATES
+
+    steps = {
+        'lesson': lesson_step,
+        'grammar': grammar_step,
+        'words': words_step,
+        'books': books_step,
+        'book_course_practice': bc_practice_step,
+    }
+
+    # Backward-compat onboarding dict (deprecated, kept for bot)
+    onboarding = None
+    has_any_books = len(started_book_ids) > 0
+    if not has_any_lessons and not has_any_books and not has_any_words:
+        onboarding = {}
+        if lesson_step and lesson_step.get('state') == 'suggest_start':
+            first_module = Module.query.order_by(Module.number).first()
+            if first_module:
+                first_lesson_obj = Lessons.query.filter_by(
+                    module_id=first_module.id,
+                ).order_by(Lessons.number).first()
+                if first_lesson_obj:
+                    level = first_module.level
+                    grammar_lesson = Lessons.query.filter_by(
+                        module_id=first_module.id, type='grammar',
+                    ).order_by(Lessons.number).first()
+                    onboarding['first_lesson'] = {
+                        'title': first_lesson_obj.title,
+                        'module_title': first_module.title,
+                        'level_name': level.name if level else None,
+                        'level_code': level.code if level else None,
+                        'module_number': first_module.number,
+                        'grammar_topic_title': grammar_lesson.title if grammar_lesson else None,
+                        'estimated_minutes': LESSON_TIME.get('grammar', 12),
+                    }
+        if not has_any_books:
+            available_books = Book.query.filter(
+                Book.chapters_cnt > 0,
+            ).order_by(CEFR_ORDER, Book.title).limit(5).all()
+            total_books = Book.query.filter(Book.chapters_cnt > 0).count()
+            if available_books:
+                onboarding['available_books'] = [
+                    {'id': b.id, 'title': b.title, 'author': b.author, 'level': b.level}
+                    for b in available_books
+                ]
+                onboarding['total_books'] = total_books
+        if not has_any_words:
+            onboarding['no_words'] = True
+
+    return {
+        # New per-step structure
+        'steps': steps,
+
+        # Backward-compat flat keys
+        'next_lesson': next_lesson,
+        'grammar_topic': grammar_topic,
+        'words_due': words_due,
+        'words_new': remaining_new,
+        'words_review': max(0, words_due - remaining_new),
+        'has_any_words': has_any_words,
+        'book_to_read': book_to_read,
+        'suggested_books': suggested_books,
+        'onboarding': onboarding,
+        'bonus': bonus,
+        'book_course_lesson': book_course_lesson,
+        'book_course_done_today': book_course_done_today,
+    }
+
+
 def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     """Get summary of today's activity in user's timezone."""
     today_start, today_end = _user_day_boundaries(tz)
@@ -716,7 +1279,21 @@ def get_yesterday_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         UserGrammarExercise.last_reviewed < yesterday_end,
     ).with_entities(func.sum(UserGrammarExercise.correct_count)).scalar() or 0
 
-    has_any = lessons_count > 0 or words_reviewed > 0 or grammar_done > 0
+    # Book reading and book course activity yesterday
+    books_yesterday = UserChapterProgress.query.filter(
+        UserChapterProgress.user_id == user_id,
+        UserChapterProgress.updated_at >= yesterday_start,
+        UserChapterProgress.updated_at < yesterday_end,
+    ).first() is not None
+
+    bc_yesterday = UserLessonProgress.query.filter(
+        UserLessonProgress.user_id == user_id,
+        UserLessonProgress.completed_at >= yesterday_start,
+        UserLessonProgress.completed_at < yesterday_end,
+    ).first() is not None
+
+    has_any = (lessons_count > 0 or words_reviewed > 0 or grammar_done > 0
+               or books_yesterday or bc_yesterday)
     return {
         'has_activity': has_any,
         'lessons_count': lessons_count,

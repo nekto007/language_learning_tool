@@ -21,12 +21,12 @@ def dashboard():
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
     from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
     from app.telegram.models import TelegramUser
-    from app.telegram.queries import get_daily_plan, get_current_streak, get_daily_summary
+    from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id)
-    daily_plan = get_daily_plan(current_user.id)
+    daily_plan = get_daily_plan_v2(current_user.id)
     daily_summary = get_daily_summary(current_user.id)
 
     # Time-based greeting
@@ -173,6 +173,7 @@ def dashboard():
         daily_summary=daily_summary,
         yesterday_summary=yesterday_summary,
         plan_completion=plan_completion,
+        plan_steps=daily_plan.get('steps', {}),
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
         words_minutes=words_minutes,
@@ -480,7 +481,8 @@ def daily_plan_next_step() -> tuple:
     plan_completion = {
         'lesson': daily_summary['lessons_count'] > 0,
         'grammar': daily_summary['grammar_exercises'] > 0,
-        'words': daily_summary.get('srs_words_reviewed', 0) > 0,
+        'words': (daily_summary.get('words_reviewed', 0) > 0
+                  or daily_summary.get('srs_words_reviewed', 0) > 0),
         'books': len(daily_summary.get('books_read', [])) > 0,
     }
 

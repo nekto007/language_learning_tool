@@ -89,54 +89,53 @@
 
     <!-- Daily Plan -->
     <div class="dash-plan">
-        <h2 class="dash-plan__heading">&#1055;&#1083;&#1072;&#1085; &#1085;&#1072; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103;</h2>
+        <h2 class="dash-plan__heading">План на сегодня</h2>
 
-        {# Count steps and completions for progress bar #}
-        {% set steps = [] %}
-        {% if daily_plan.next_lesson or (daily_plan.onboarding and daily_plan.onboarding.first_lesson) %}
-            {% set _ = steps.append({'type': 'lesson', 'done': plan_completion.lesson}) %}
+        {# Build visible steps list from plan_steps state machine #}
+        {% set visible = [] %}
+        {% if plan_steps.lesson %}
+            {% set _ = visible.append({'key': 'lesson', 'step': plan_steps.lesson, 'done': plan_steps.lesson.is_done}) %}
         {% endif %}
-        {% if daily_plan.grammar_topic %}
-            {% set _ = steps.append({'type': 'grammar', 'done': plan_completion.grammar}) %}
+        {% if plan_steps.grammar %}
+            {% set _ = visible.append({'key': 'grammar', 'step': plan_steps.grammar, 'done': plan_steps.grammar.is_done}) %}
         {% endif %}
-        {% if daily_plan.words_due > 0 or daily_plan.has_any_words or (daily_plan.onboarding and daily_plan.onboarding.get('no_words')) %}
-            {% set _ = steps.append({'type': 'words', 'done': plan_completion.words}) %}
+        {% if plan_steps.words %}
+            {% set _ = visible.append({'key': 'words', 'step': plan_steps.words, 'done': plan_steps.words.is_done}) %}
         {% endif %}
-        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type == 'reading' %}
-            {% set _ = steps.append({'type': 'book', 'done': plan_completion.books}) %}
-        {% elif daily_plan.book_to_read or (plan_completion.books and not daily_plan.book_to_read) or daily_plan.suggested_books or (daily_plan.onboarding and daily_plan.onboarding.get('available_books')) %}
-            {% set _ = steps.append({'type': 'book', 'done': plan_completion.books}) %}
+        {% if plan_steps.books %}
+            {% set _ = visible.append({'key': 'books', 'step': plan_steps.books, 'done': plan_steps.books.is_done}) %}
         {% endif %}
-        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type != 'reading' %}
-            {% set _ = steps.append({'type': 'book_course_practice', 'done': plan_completion.book_course_practice}) %}
+        {% if plan_steps.book_course_practice %}
+            {% set _ = visible.append({'key': 'bc_practice', 'step': plan_steps.book_course_practice, 'done': plan_steps.book_course_practice.is_done}) %}
         {% endif %}
-        {% set steps_done = steps | selectattr('done') | list | length %}
-        {% set steps_total = steps | length %}
+        {% set steps_done = visible | selectattr('done') | list | length %}
+        {% set steps_total = visible | length %}
         {% set all_done = (steps_done == steps_total and steps_total > 0) %}
 
-        {# Find first incomplete step index (0-based) for "current" highlighting #}
-        {% set ns = namespace(current_idx=steps_total, step=1) %}
-        {% for s in steps %}
-            {% if not s.done and ns.current_idx == steps_total %}
+        {# Find first incomplete step index for "current" highlighting #}
+        {% set ns = namespace(current_idx=steps_total, step_num=1) %}
+        {% for v in visible %}
+            {% if not v.done and ns.current_idx == steps_total %}
                 {% set ns.current_idx = loop.index0 %}
             {% endif %}
         {% endfor %}
 
+        {# Stepper bar #}
         {% if steps_total > 0 %}
         <div class="dash-stepper-bar">
-            {% for s in steps %}
-            <div class="dash-stepper-dot {% if s.done %}dash-stepper-dot--done{% elif loop.index0 == ns.current_idx %}dash-stepper-dot--current{% endif %}"></div>
-            {% if not loop.last %}<div class="dash-stepper-line {% if s.done %}dash-stepper-line--done{% endif %}"></div>{% endif %}
+            {% for v in visible %}
+            <div class="dash-stepper-dot {% if v.done %}dash-stepper-dot--done{% elif loop.index0 == ns.current_idx %}dash-stepper-dot--current{% endif %}"></div>
+            {% if not loop.last %}<div class="dash-stepper-line {% if v.done %}dash-stepper-line--done{% endif %}"></div>{% endif %}
             {% endfor %}
-            <span class="dash-stepper-count">{{ steps_done }} &#1080;&#1079; {{ steps_total }}</span>
+            <span class="dash-stepper-count">{{ steps_done }} из {{ steps_total }}</span>
         </div>
         {% if required_steps is defined and not all_done %}
         <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
             {% if plan_steps_done >= required_steps %}
-            &#128293; &#1057;&#1077;&#1088;&#1080;&#1103; &#1079;&#1072;&#1097;&#1080;&#1090;&#1072;&#1085;&#1072;!
+            &#128293; Серия защитана!
             {% else %}
-            &#128293; &#1044;&#1083;&#1103; &#1089;&#1077;&#1088;&#1080;&#1080;: {{ plan_steps_done|default(0) }}/{{ required_steps }}
-            {% if required_steps == 1 %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1077;{% elif required_steps < 5 %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1103;{% else %}&#1079;&#1072;&#1076;&#1072;&#1085;&#1080;&#1081;{% endif %}
+            &#128293; Для серии: {{ plan_steps_done|default(0) }}/{{ required_steps }}
+            {% if required_steps == 1 %}задание{% elif required_steps < 5 %}задания{% else %}заданий{% endif %}
             {% endif %}
         </div>
         {% endif %}
@@ -146,271 +145,228 @@
         {% if all_done %}
         <div class="dash-plan-complete">
             <span class="dash-plan-complete__icon">&#127881;</span>
-            <span class="dash-plan-complete__text">&#1055;&#1083;&#1072;&#1085; &#1085;&#1072; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103; &#1074;&#1099;&#1087;&#1086;&#1083;&#1085;&#1077;&#1085;!</span>
+            <span class="dash-plan-complete__text">План на сегодня выполнен!</span>
         </div>
         {% endif %}
 
         <div class="dash-timeline">
-        {# Step: Next Lesson #}
-        {% if daily_plan.next_lesson %}
-        {% set step_state = 'done' if plan_completion.lesson else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
-        <div class="dash-step dash-step--lesson dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{% if plan_completion.lesson %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+
+        {# ── STEP: LESSON ── #}
+        {% set ls = plan_steps.lesson %}
+        {% if ls %}
+        {% set is_done = ls.is_done %}
+        {% set step_css = 'done' if is_done else ('current' if (ns.step_num - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--lesson dash-step--{{ step_css }}" style="animation-delay: {{ ns.step_num * 0.08 }}s">
+            <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ ns.step_num }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#127919;</div>
                 <div class="dash-step__info">
-                    <div class="dash-step__title">&#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.next_lesson.module_number }} &mdash; {{ daily_plan.next_lesson.title }}</div>
-                    <div class="dash-step__meta">
-                        {% if daily_plan.next_lesson.get('module_lessons_total') %}&#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.next_lesson.module_number }}, &#1091;&#1088;&#1086;&#1082; {{ daily_plan.next_lesson.get('module_lessons_completed', 0) + 1 }} &#1080;&#1079; {{ daily_plan.next_lesson.module_lessons_total }} &middot; {% endif %}~{{ lesson_minutes }} &#1084;&#1080;&#1085;
-                    </div>
-                    {% if plan_completion.lesson %}
+                    {% if ls.state == 'completed' %}
+                    <div class="dash-step__title">Модуль {{ ls.get('module_number', '') }} &mdash; {{ ls.get('title', 'Урок') }}</div>
                     <span class="dash-step__result">&#10003; {% if daily_summary.get('lesson_score') is not none %}{{ daily_summary.lesson_score }}% {% endif %}{% if daily_summary.get('lesson_title') %}&mdash; {{ daily_summary.lesson_title }}{% endif %}</span>
-                    {% endif %}
-                    {% if daily_plan.next_lesson.get('module_lessons_total') %}
-                    <div class="dash-step__module-progress">
-                        <div class="dash-step__module-progress-fill" style="width: {{ ((daily_plan.next_lesson.get('module_lessons_completed', 0) + (1 if plan_completion.lesson else 0)) / daily_plan.next_lesson.module_lessons_total * 100) | int }}%"></div>
+                    {% elif ls.state == 'available' %}
+                    <div class="dash-step__title">Модуль {{ ls.module_number }} &mdash; {{ ls.title }}</div>
+                    <div class="dash-step__meta">
+                        {% if ls.get('module_lessons_total') %}Модуль {{ ls.module_number }}, урок {{ ls.get('module_lessons_completed', 0) + 1 }} из {{ ls.module_lessons_total }} &middot; {% endif %}~{{ ls.estimated_minutes }} мин
                     </div>
+                    {% if ls.get('module_lessons_total') %}
+                    <div class="dash-step__module-progress">
+                        <div class="dash-step__module-progress-fill" style="width: {{ ((ls.get('module_lessons_completed', 0)) / ls.module_lessons_total * 100) | int }}%"></div>
+                    </div>
+                    {% endif %}
+                    {% elif ls.state == 'suggest_start' %}
+                    <div class="dash-step__title">{{ ls.get('level_code', '') }} / Модуль {{ ls.get('module_number', 1) }}: {{ ls.get('first_module_title', ls.get('title', '')) }}</div>
+                    <div class="dash-step__meta">~{{ ls.get('estimated_minutes', 10) }} мин &middot; Первый урок</div>
+                    {% elif ls.state == 'all_done' %}
+                    <div class="dash-step__title">Все уроки пройдены!</div>
+                    <div class="dash-step__meta">Поздравляем &#127881;</div>
                     {% endif %}
                 </div>
-                {% if plan_completion.lesson %}
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% else %}
-                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.next_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                {% if ls.state == 'completed' or ls.state == 'all_done' %}
+                <span class="dash-step__btn">Готово &#10003;</span>
+                {% elif ls.state == 'available' and ls.get('lesson_id') %}
+                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=ls.lesson_id) }}?from=daily_plan" class="dash-step__btn">Начать</a>
+                {% elif ls.state == 'suggest_start' %}
+                <a href="{{ url_for('learn.learn_index') }}" class="dash-step__btn">Начать</a>
                 {% endif %}
             </div>
         </div>
-        {% set ns.step = ns.step + 1 %}
-
-        {% elif daily_plan.onboarding and daily_plan.onboarding.first_lesson %}
-        {% set step_state = 'current' if (ns.step - 1) == ns.current_idx else 'upcoming' %}
-        <div class="dash-step dash-step--lesson dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#127919;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">{{ daily_plan.onboarding.first_lesson.level_code }} / &#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.onboarding.first_lesson.module_number }}: {{ daily_plan.onboarding.first_lesson.module_title }}</div>
-                    <div class="dash-step__meta">~{{ daily_plan.onboarding.first_lesson.estimated_minutes }} &#1084;&#1080;&#1085; &middot; &#1055;&#1077;&#1088;&#1074;&#1099;&#1081; &#1091;&#1088;&#1086;&#1082;</div>
-                </div>
-                <a href="{{ url_for('learn.learn_index') }}" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
-            </div>
-        </div>
-        {% set ns.step = ns.step + 1 %}
+        {% set ns.step_num = ns.step_num + 1 %}
         {% endif %}
 
-        {# Step: Grammar #}
-        {% if daily_plan.grammar_topic %}
-        {% set step_state = 'done' if plan_completion.grammar else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
-        <div class="dash-step dash-step--grammar dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{% if plan_completion.grammar %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+        {# ── STEP: GRAMMAR ── #}
+        {% set gs = plan_steps.grammar %}
+        {% if gs %}
+        {% set is_done = gs.is_done %}
+        {% set step_css = 'done' if is_done else ('current' if (ns.step_num - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--grammar dash-step--{{ step_css }}" style="animation-delay: {{ ns.step_num * 0.08 }}s">
+            <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ ns.step_num }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#129504;</div>
                 <div class="dash-step__info">
-                    <div class="dash-step__title">Grammar Lab &mdash; {{ daily_plan.grammar_topic.title }}</div>
-                    <div class="dash-step__meta">&#129504; {{ daily_plan.grammar_topic.title }}: {{ daily_plan.grammar_topic.due_exercises }} &#1091;&#1087;&#1088;&#1072;&#1078;&#1085;&#1077;&#1085;&#1080;&#1081;</div>
-                    {% if plan_completion.grammar %}
-                    <span class="dash-step__result">&#10003; {{ daily_summary.get('grammar_correct', 0) }}/{{ daily_summary.get('grammar_exercises', 0) }} &#1074;&#1077;&#1088;&#1085;&#1086;{% if daily_summary.get('grammar_topic_title') %} &mdash; {{ daily_summary.grammar_topic_title }}{% endif %}</span>
+                    {% if gs.state == 'completed' %}
+                    <div class="dash-step__title">Grammar Lab &mdash; {{ gs.get('title', '') }}</div>
+                    <span class="dash-step__result">&#10003; {{ daily_summary.get('grammar_correct', 0) }}/{{ daily_summary.get('grammar_exercises', 0) }} верно{% if daily_summary.get('grammar_topic_title') %} &mdash; {{ daily_summary.grammar_topic_title }}{% endif %}</span>
+                    {% elif gs.state == 'available' %}
+                    <div class="dash-step__title">Grammar Lab &mdash; {{ gs.title }}</div>
+                    <div class="dash-step__meta">&#129504; {{ gs.title }}: {{ gs.due_exercises }} упражнений</div>
+                    {% elif gs.state == 'suggest_start' %}
+                    <div class="dash-step__title">Grammar Lab &mdash; {{ gs.get('first_topic_title', gs.get('title', '')) }}</div>
+                    <div class="dash-step__meta">Начни с теории &middot; Первая тема</div>
                     {% endif %}
                 </div>
-                {% if plan_completion.grammar %}
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% else %}
-                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=daily_plan.grammar_topic.topic_id) }}?from=daily_plan" class="dash-step__btn">
-                    {% if daily_plan.grammar_topic.status == 'not_started' %}&#1058;&#1077;&#1086;&#1088;&#1080;&#1103;{% else %}&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100;{% endif %}
+                {% if gs.state == 'completed' %}
+                <span class="dash-step__btn">Готово &#10003;</span>
+                {% elif gs.state == 'available' and gs.get('topic_id') %}
+                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=gs.topic_id) }}?from=daily_plan" class="dash-step__btn">
+                    {% if gs.get('status') == 'not_started' %}Теория{% else %}Повторить{% endif %}
                 </a>
+                {% elif gs.state == 'suggest_start' and gs.get('topic_id') %}
+                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=gs.topic_id) }}?from=daily_plan" class="dash-step__btn">Теория</a>
                 {% endif %}
             </div>
         </div>
-        {% set ns.step = ns.step + 1 %}
+        {% set ns.step_num = ns.step_num + 1 %}
         {% endif %}
 
-        {# Step: Words #}
-        {% if daily_plan.words_due > 0 or daily_plan.has_any_words or (daily_plan.onboarding and daily_plan.onboarding.get('no_words')) %}
-        {% set step_state = 'done' if plan_completion.words else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
-        <div class="dash-step dash-step--words dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{% if plan_completion.words %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+        {# ── STEP: WORDS ── #}
+        {% set ws = plan_steps.words %}
+        {% if ws %}
+        {% set is_done = ws.is_done %}
+        {% set step_css = 'done' if is_done else ('current' if (ns.step_num - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--words dash-step--{{ step_css }}" style="animation-delay: {{ ns.step_num * 0.08 }}s">
+            <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ ns.step_num }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128214;</div>
                 <div class="dash-step__info">
-                    {% if plan_completion.words %}
-                    <div class="dash-step__title">&#1042;&#1089;&#1105; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;&#1077;&#1085;&#1086;! &#10003;</div>
-                    <div class="dash-step__meta">&#1047;&#1072;&#1074;&#1090;&#1088;&#1072; &#1073;&#1091;&#1076;&#1091;&#1090; &#1085;&#1086;&#1074;&#1099;&#1077;</div>
-                    <span class="dash-step__result">&#10003; {{ daily_summary.get('srs_new_reviewed', 0) }} &#1085;&#1086;&#1074;&#1099;&#1093;, {{ daily_summary.get('srs_review_reviewed', 0) }} &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;</span>
-                    {% elif daily_plan.words_due > 0 %}
-                    <div class="dash-step__title">&#128214; {{ daily_plan.get('words_new', 0) }} &#1085;&#1086;&#1074;&#1099;&#1093;, {{ daily_plan.get('words_review', 0) }} &#1085;&#1072; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;</div>
-                    <div class="dash-step__meta">~{{ words_minutes }} &#1084;&#1080;&#1085;</div>
-                    {% elif daily_plan.has_any_words %}
-                    <div class="dash-step__title">&#1042;&#1089;&#1105; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;&#1077;&#1085;&#1086;! &#10003;</div>
-                    <div class="dash-step__meta">&#1047;&#1072;&#1074;&#1090;&#1088;&#1072; &#1073;&#1091;&#1076;&#1091;&#1090; &#1085;&#1086;&#1074;&#1099;&#1077;</div>
-                    {% else %}
-                    <div class="dash-step__title">&#1044;&#1086;&#1073;&#1072;&#1074;&#1100; &#1089;&#1083;&#1086;&#1074;&#1072;</div>
-                    <div class="dash-step__meta">&#1057;&#1086;&#1079;&#1076;&#1072;&#1081; &#1082;&#1086;&#1083;&#1086;&#1076;&#1091; &#1080; &#1076;&#1086;&#1073;&#1072;&#1074;&#1100; 5&ndash;10 &#1089;&#1083;&#1086;&#1074;</div>
+                    {% if ws.state == 'completed' %}
+                    <div class="dash-step__title">Всё повторено! &#10003;</div>
+                    <div class="dash-step__meta">Завтра будут новые</div>
+                    <span class="dash-step__result">&#10003; {{ daily_summary.get('srs_new_reviewed', 0) }} новых, {{ daily_summary.get('srs_review_reviewed', 0) }} повтор</span>
+                    {% elif ws.state == 'due' %}
+                    <div class="dash-step__title">&#128214; {{ ws.words_new }} новых, {{ ws.words_review }} на повтор</div>
+                    <div class="dash-step__meta">~{{ ws.estimated_minutes }} мин</div>
+                    {% elif ws.state == 'all_reviewed' %}
+                    <div class="dash-step__title">Всё повторено! &#10003;</div>
+                    <div class="dash-step__meta">Завтра будут новые</div>
+                    {% elif ws.state == 'suggest_add' %}
+                    <div class="dash-step__title">Добавь слова</div>
+                    <div class="dash-step__meta">Создай колоду и добавь 5&ndash;10 слов</div>
                     {% endif %}
                 </div>
-                {% if plan_completion.words %}
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% elif daily_plan.words_due > 0 %}
-                <a href="{{ cards_url }}?from=daily_plan" class="dash-step__btn">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100;</a>
-                {% elif not daily_plan.has_any_words %}
-                <a href="{{ url_for('words.word_list') }}" class="dash-step__btn">&#1057;&#1083;&#1086;&#1074;&#1072;</a>
+                {% if ws.state in ['completed', 'all_reviewed'] %}
+                <span class="dash-step__btn">Готово &#10003;</span>
+                {% elif ws.state == 'due' %}
+                <a href="{{ cards_url }}?from=daily_plan" class="dash-step__btn">Повторить</a>
+                {% elif ws.state == 'suggest_add' %}
+                <a href="{{ url_for('words.word_list') }}" class="dash-step__btn">Слова</a>
                 {% endif %}
             </div>
         </div>
-        {% set ns.step = ns.step + 1 %}
+        {% set ns.step_num = ns.step_num + 1 %}
         {% endif %}
 
-        {# Step: Book Course Reading (replaces regular reading when lesson_type == 'reading') #}
-        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type == 'reading' %}
-        {% set step_state = 'done' if plan_completion.books else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
-        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{% if plan_completion.books %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+        {# ── STEP: BOOKS / READING ── #}
+        {% set bs = plan_steps.books %}
+        {% if bs %}
+        {% set is_done = bs.is_done %}
+        {% set step_css = 'done' if is_done else ('current' if (ns.step_num - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--book dash-step--{{ step_css }}" style="animation-delay: {{ ns.step_num * 0.08 }}s">
+            <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ ns.step_num }}{% endif %}</div>
             <div class="dash-step__body">
-                <div class="dash-step__icon">&#128214;</div>
+                <div class="dash-step__icon">&#128213;</div>
                 <div class="dash-step__info">
-                    <div class="dash-step__title">{{ daily_plan.book_course_lesson.course_title }} &#8212; &#1044;&#1077;&#1085;&#1100; {{ daily_plan.book_course_lesson.day_number }}, &#1095;&#1090;&#1077;&#1085;&#1080;&#1077;</div>
-                    <div class="dash-step__meta">~{{ daily_plan.book_course_lesson.estimated_minutes }} &#1084;&#1080;&#1085;</div>
-                    {% if plan_completion.books %}
-                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }} &#1087;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1072;{% else %}&#1055;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1086;{% endif %}</span>
+                    {% if bs.state == 'completed' %}
+                    <div class="dash-step__title">{{ daily_summary.books_read[0] if daily_summary.get('books_read') else 'Чтение' }}</div>
+                    <div class="dash-step__meta">Прочитано сегодня</div>
+                    {% if daily_summary.get('book_chapter_title') %}
+                    <span class="dash-step__result">&#10003; {{ daily_summary.book_chapter_title }} прочитана</span>
                     {% endif %}
-                </div>
-                {% if plan_completion.books %}
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% else %}
-                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=daily_plan.book_course_lesson.course_id, module_id=daily_plan.book_course_lesson.module_id, lesson_id=daily_plan.book_course_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
-                {% endif %}
-            </div>
-        </div>
-        {% set ns.step = ns.step + 1 %}
-
-        {% else %}
-        {# Step: Regular Reading #}
-        {% if plan_completion.books and not daily_plan.book_to_read %}
-        {# Book was read today but no more unread books — show completed step #}
-        <div class="dash-step dash-step--book dash-step--done" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">&#10003;</div>
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#128213;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">{{ daily_summary.books_read[0] if daily_summary.books_read else '&#1063;&#1090;&#1077;&#1085;&#1080;&#1077;' }}</div>
-                    <div class="dash-step__meta">&#1055;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1086; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103;</div>
-                </div>
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-            </div>
-        </div>
-        {% set ns.step = ns.step + 1 %}
-
-        {% elif daily_plan.book_to_read %}
-        {% set step_state = 'done' if plan_completion.books else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
-        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{% if plan_completion.books %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#128213;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">{{ daily_plan.book_to_read.title }}</div>
-                    <div class="dash-step__meta">5&ndash;10 &#1084;&#1080;&#1085; &#1095;&#1090;&#1077;&#1085;&#1080;&#1103;</div>
-                    {% if plan_completion.books %}
-                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }} &#1087;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1072;{% else %}&#1055;&#1088;&#1086;&#1095;&#1080;&#1090;&#1072;&#1085;&#1086;{% endif %}</span>
-                    {% endif %}
-                </div>
-                {% if plan_completion.books %}
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% else %}
-                <a href="{{ url_for('books.read_book_chapters', book_id=daily_plan.book_to_read.id) }}?from=daily_plan" class="dash-step__btn">&#1063;&#1080;&#1090;&#1072;&#1090;&#1100;</a>
-                {% endif %}
-            </div>
-        </div>
-        {% set ns.step = ns.step + 1 %}
-
-        {% elif daily_plan.suggested_books %}
-        {% set step_state = 'current' if (ns.step - 1) == ns.current_idx else 'upcoming' %}
-        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#128213;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">&#1042;&#1099;&#1073;&#1077;&#1088;&#1080; &#1082;&#1085;&#1080;&#1075;&#1091;</div>
+                    {% elif bs.state == 'bc_reading' and bs.book_course_lesson %}
+                    <div class="dash-step__title">{{ bs.book_course_lesson.course_title }} &mdash; День {{ bs.book_course_lesson.day_number }}, чтение</div>
+                    <div class="dash-step__meta">~{{ bs.book_course_lesson.estimated_minutes }} мин</div>
+                    {% elif bs.state == 'continue_book' and bs.book_to_read %}
+                    <div class="dash-step__title">{{ bs.book_to_read.title }}</div>
+                    <div class="dash-step__meta">5&ndash;10 мин чтения</div>
+                    {% elif bs.state == 'suggest_pick' %}
+                    <div class="dash-step__title">Выбери книгу</div>
+                    {% if bs.suggested_books %}
                     <div class="dash-step__books-list">
-                        {% for book in daily_plan.suggested_books %}
+                        {% for book in bs.suggested_books %}
                         <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="dash-step__book-link">{{ book.title }}</a>
                         {% endfor %}
                     </div>
+                    {% endif %}
+                    {% endif %}
                 </div>
-                <a href="{{ url_for('books.book_list') }}" class="dash-step__btn">&#1050;&#1085;&#1080;&#1075;&#1080;</a>
+                {% if bs.state == 'completed' %}
+                <span class="dash-step__btn">Готово &#10003;</span>
+                {% elif bs.state == 'bc_reading' and bs.book_course_lesson %}
+                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=bs.book_course_lesson.course_id, module_id=bs.book_course_lesson.module_id, lesson_id=bs.book_course_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">Читать</a>
+                {% elif bs.state == 'continue_book' and bs.book_to_read %}
+                <a href="{{ url_for('books.read_book_chapters', book_id=bs.book_to_read.id) }}?from=daily_plan" class="dash-step__btn">Читать</a>
+                {% elif bs.state == 'suggest_pick' %}
+                <a href="{{ url_for('books.book_list') }}" class="dash-step__btn">Книги</a>
+                {% endif %}
             </div>
         </div>
-        {% set ns.step = ns.step + 1 %}
-
-        {% elif daily_plan.onboarding and daily_plan.onboarding.get('available_books') %}
-        {% set step_state = 'current' if (ns.step - 1) == ns.current_idx else 'upcoming' %}
-        <div class="dash-step dash-step--book dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{{ ns.step }}</div>
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#128213;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">&#1042;&#1099;&#1073;&#1077;&#1088;&#1080; &#1082;&#1085;&#1080;&#1075;&#1091;</div>
-                    <div class="dash-step__books-list">
-                        {% for book in daily_plan.onboarding.available_books[:3] %}
-                        <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="dash-step__book-link">{{ book.title }}</a>
-                        {% endfor %}
-                    </div>
-                </div>
-                <a href="{{ url_for('books.book_list') }}" class="dash-step__btn">&#1050;&#1085;&#1080;&#1075;&#1080;</a>
-            </div>
-        </div>
-        {% set ns.step = ns.step + 1 %}
+        {% set ns.step_num = ns.step_num + 1 %}
         {% endif %}
-        {% endif %}{# end book course reading vs regular reading #}
 
-        {# Step: Book Course Practice (step 5, when lesson is not reading) #}
-        {% if daily_plan.book_course_lesson and daily_plan.book_course_lesson.lesson_type != 'reading' %}
-        {% set step_state = 'done' if plan_completion.book_course_practice else ('current' if (ns.step - 1) == ns.current_idx else 'upcoming') %}
-        <div class="dash-step dash-step--book-course dash-step--{{ step_state }}" style="animation-delay: {{ ns.step * 0.08 }}s">
-            <div class="dash-step__num">{% if plan_completion.book_course_practice %}&#10003;{% else %}{{ ns.step }}{% endif %}</div>
+        {# ── STEP: BOOK COURSE PRACTICE ── #}
+        {% set bcp = plan_steps.book_course_practice %}
+        {% if bcp %}
+        {% set is_done = bcp.is_done %}
+        {% set step_css = 'done' if is_done else ('current' if (ns.step_num - 1) == ns.current_idx else 'upcoming') %}
+        <div class="dash-step dash-step--book-course dash-step--{{ step_css }}" style="animation-delay: {{ ns.step_num * 0.08 }}s">
+            <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ ns.step_num }}{% endif %}</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#129513;</div>
                 <div class="dash-step__info">
-                    <div class="dash-step__title">{{ daily_plan.book_course_lesson.course_title }} &#8212; {{ daily_plan.book_course_lesson.lesson_type | replace('_', ' ') | title }}</div>
-                    <div class="dash-step__meta">~{{ daily_plan.book_course_lesson.estimated_minutes }} &#1084;&#1080;&#1085;</div>
-                    {% if plan_completion.book_course_practice %}
-                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }}{% else %}&#1042;&#1099;&#1087;&#1086;&#1083;&#1085;&#1077;&#1085;&#1086;{% endif %}</span>
+                    {% if bcp.state == 'completed' %}
+                    <div class="dash-step__title">{{ bcp.lesson.course_title }} &mdash; {{ bcp.lesson.lesson_type | replace('_', ' ') | title }}</div>
+                    <span class="dash-step__result">&#10003; {% if daily_summary.get('book_chapter_title') %}{{ daily_summary.book_chapter_title }}{% else %}Выполнено{% endif %}</span>
+                    {% elif bcp.state == 'available' %}
+                    <div class="dash-step__title">{{ bcp.lesson.course_title }} &mdash; {{ bcp.lesson.lesson_type | replace('_', ' ') | title }}</div>
+                    <div class="dash-step__meta">~{{ bcp.lesson.estimated_minutes }} мин</div>
                     {% endif %}
                 </div>
-                {% if plan_completion.book_course_practice %}
-                <span class="dash-step__btn">&#1043;&#1086;&#1090;&#1086;&#1074;&#1086; &#10003;</span>
-                {% else %}
-                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=daily_plan.book_course_lesson.course_id, module_id=daily_plan.book_course_lesson.module_id, lesson_id=daily_plan.book_course_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                {% if bcp.state == 'completed' %}
+                <span class="dash-step__btn">Готово &#10003;</span>
+                {% elif bcp.state == 'available' %}
+                <a href="{{ url_for('book_courses.view_lesson_by_id', course_id=bcp.lesson.course_id, module_id=bcp.lesson.module_id, lesson_id=bcp.lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">Начать</a>
                 {% endif %}
             </div>
         </div>
-        {% set ns.step = ns.step + 1 %}
+        {% set ns.step_num = ns.step_num + 1 %}
         {% endif %}
 
-        {# Bonus step: shown when >=2 main tasks are done #}
-        {# extra_reading without extra_lesson duplicates the book step (step 4), so only show bonus if extra_lesson exists #}
-        {% set done = [plan_completion.lesson, plan_completion.grammar, plan_completion.words, plan_completion.books, plan_completion.book_course_practice] | select | list | length %}
-        {% if done >= 2 and daily_plan.bonus and daily_plan.bonus.extra_lesson %}
-        <div class="dash-step dash-step--bonus" style="animation-delay: {{ ns.step * 0.08 }}s">
+        {# ── BONUS STEP ── #}
+        {% set done_count = visible | selectattr('done') | list | length %}
+        {% if done_count >= 2 and daily_plan.bonus and daily_plan.bonus.extra_lesson %}
+        <div class="dash-step dash-step--bonus" style="animation-delay: {{ ns.step_num * 0.08 }}s">
             <div class="dash-step__num">&#11088;</div>
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#128640;</div>
                 <div class="dash-step__info">
-                    <div class="dash-step__title">&#1041;&#1086;&#1085;&#1091;&#1089;: &#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ daily_plan.bonus.extra_lesson.module_number }} &mdash; {{ daily_plan.bonus.extra_lesson.title }}</div>
-                    <div class="dash-step__meta">&#1044;&#1086;&#1087;&#1086;&#1083;&#1085;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1099;&#1081; &#1091;&#1088;&#1086;&#1082;</div>
+                    <div class="dash-step__title">Бонус: Модуль {{ daily_plan.bonus.extra_lesson.module_number }} &mdash; {{ daily_plan.bonus.extra_lesson.title }}</div>
+                    <div class="dash-step__meta">Дополнительный урок</div>
                 </div>
-                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.bonus.extra_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100;</a>
+                <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=daily_plan.bonus.extra_lesson.lesson_id) }}?from=daily_plan" class="dash-step__btn">Начать</a>
             </div>
         </div>
-        {% set ns.step = ns.step + 1 %}
+        {% set ns.step_num = ns.step_num + 1 %}
         {% endif %}
 
         </div><!-- /dash-timeline -->
 
-        {% if ns.step == 1 %}
+        {% if ns.step_num == 1 %}
         <div class="dash-step dash-step--done">
             <div class="dash-step__body">
                 <div class="dash-step__icon">&#10024;</div>
                 <div class="dash-step__info">
-                    <div class="dash-step__title">&#1042;&#1089;&#1105; &#1085;&#1072; &#1089;&#1077;&#1075;&#1086;&#1076;&#1085;&#1103; &#1089;&#1076;&#1077;&#1083;&#1072;&#1085;&#1086;!</div>
-                    <div class="dash-step__meta">&#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1072;&#1081; &#1079;&#1072;&#1074;&#1090;&#1088;&#1072;</div>
+                    <div class="dash-step__title">Всё на сегодня сделано!</div>
+                    <div class="dash-step__meta">Продолжай завтра</div>
                 </div>
             </div>
         </div>
