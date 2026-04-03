@@ -834,10 +834,12 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     # Determine words step state
     words_step: dict[str, Any] | None = None
-    if words_reviewed_today > 0 and words_due == 0:
+    if words_reviewed_today > 0:
+        # User studied words today — step is done (like lessons: did 1 = done)
         words_step = {
             'state': 'completed',
-            'words_due': 0, 'words_new': 0, 'words_review': 0,
+            'words_due': words_due, 'words_new': remaining_new,
+            'words_review': max(0, words_due - remaining_new),
             'has_any_words': has_any_words,
             'estimated_minutes': 0,
         }
