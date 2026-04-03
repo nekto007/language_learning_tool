@@ -779,11 +779,28 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     # ──────────────────────────────────────────────
     # STEP 3: WORDS (SRS)
     # ──────────────────────────────────────────────
-    user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
-    has_any_words = UserWord.query.filter_by(user_id=user_id).first() is not None
+    from app.auth.models import User as AuthUser
+    from app.study.models import QuizDeckWord
 
-    raw_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
-        UserWord.user_id == user_id,
+    auth_user = AuthUser.query.get(user_id)
+    default_deck_id = auth_user.default_study_deck_id if auth_user else None
+
+    # Scope words to default deck if set, otherwise all user's words
+    if default_deck_id:
+        user_word_subq = (
+            db.session.query(QuizDeckWord.user_word_id)
+            .filter(
+                QuizDeckWord.deck_id == default_deck_id,
+                QuizDeckWord.user_word_id.isnot(None),
+            )
+        )
+        has_any_words = db.session.query(user_word_subq.exists()).scalar()
+    else:
+        user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+        has_any_words = UserWord.query.filter_by(user_id=user_id).first() is not None
+
+    raw_due = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(user_word_subq),
         UserCardDirection.next_review <= now,
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
@@ -807,9 +824,9 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     remaining_reviews = max(0, settings.reviews_per_day - reviews_today)
     words_due = min(raw_due, remaining_new + remaining_reviews)
 
-    # Words reviewed today (any source)
-    words_reviewed_today = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
-        UserWord.user_id == user_id,
+    # Words reviewed today (scoped to same deck)
+    words_reviewed_today = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.user_word_id.in_(user_word_subq),
         UserCardDirection.last_reviewed >= today_start,
         UserCardDirection.last_reviewed < today_end,
         UserCardDirection.direction == 'eng-rus',
