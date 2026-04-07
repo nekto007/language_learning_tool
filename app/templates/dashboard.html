@@ -125,7 +125,7 @@
         <div class="dash-stepper-bar">
             {% for v in visible %}
             <div class="dash-stepper-dot {% if v.done %}dash-stepper-dot--done{% elif loop.index0 == ns.current_idx %}dash-stepper-dot--current{% endif %}"></div>
-            {% if not loop.last %}<div class="dash-stepper-line {% if v.done %}dash-stepper-line--done{% endif %}"></div>{% endif %}
+            {% if not loop.last %}<div class="dash-stepper-line {% if loop.index0 < ns.current_idx %}dash-stepper-line--done{% endif %}"></div>{% endif %}
             {% endfor %}
             <span class="dash-stepper-count">{{ steps_done }} из {{ steps_total }}</span>
         </div>
