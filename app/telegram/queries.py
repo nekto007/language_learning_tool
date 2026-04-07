@@ -261,17 +261,22 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     def _build_grammar_dict(topic: GrammarTopic, status_str: str) -> dict[str, Any]:
         from app.grammar_lab.models import GrammarExercise
-        due = UserGrammarExercise.query.join(
-            GrammarExercise, GrammarExercise.id == UserGrammarExercise.exercise_id
-        ).filter(
-            UserGrammarExercise.user_id == user_id,
-            UserGrammarExercise.next_review <= now,
-            GrammarExercise.topic_id == topic.id,
-        ).count() if status_str != 'not_started' else 0
+        if status_str == 'not_started':
+            total = GrammarExercise.query.filter_by(topic_id=topic.id).count()
+            session_size = min(total, 12)
+        else:
+            due = UserGrammarExercise.query.join(
+                GrammarExercise, GrammarExercise.id == UserGrammarExercise.exercise_id
+            ).filter(
+                UserGrammarExercise.user_id == user_id,
+                UserGrammarExercise.next_review <= now,
+                GrammarExercise.topic_id == topic.id,
+            ).count()
+            session_size = min(due, 12) if due > 0 else 12
         return {
             'title': topic.title,
             'status': status_str,
-            'due_exercises': due,
+            'due_exercises': session_size,
             'topic_id': topic.id,
             'telegram_summary': topic.telegram_summary,
         }
@@ -700,17 +705,22 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     def _build_grammar_dict(topic: GrammarTopic, status_str: str) -> dict[str, Any]:
         from app.grammar_lab.models import GrammarExercise
-        due = UserGrammarExercise.query.join(
-            GrammarExercise, GrammarExercise.id == UserGrammarExercise.exercise_id
-        ).filter(
-            UserGrammarExercise.user_id == user_id,
-            UserGrammarExercise.next_review <= now,
-            GrammarExercise.topic_id == topic.id,
-        ).count() if status_str != 'not_started' else 0
+        if status_str == 'not_started':
+            total = GrammarExercise.query.filter_by(topic_id=topic.id).count()
+            session_size = min(total, 12)
+        else:
+            due = UserGrammarExercise.query.join(
+                GrammarExercise, GrammarExercise.id == UserGrammarExercise.exercise_id
+            ).filter(
+                UserGrammarExercise.user_id == user_id,
+                UserGrammarExercise.next_review <= now,
+                GrammarExercise.topic_id == topic.id,
+            ).count()
+            session_size = min(due, 12) if due > 0 else 12
         return {
             'title': topic.title,
             'status': status_str,
-            'due_exercises': due,
+            'due_exercises': session_size,
             'topic_id': topic.id,
             'telegram_summary': topic.telegram_summary,
         }

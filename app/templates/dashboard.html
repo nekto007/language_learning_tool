@@ -209,7 +209,7 @@
                     <span class="dash-step__result">&#10003; {{ daily_summary.get('grammar_correct', 0) }}/{{ daily_summary.get('grammar_exercises', 0) }} верно{% if daily_summary.get('grammar_topic_title') %} &mdash; {{ daily_summary.grammar_topic_title }}{% endif %}</span>
                     {% elif gs.state == 'available' %}
                     <div class="dash-step__title">Grammar Lab &mdash; {{ gs.title }}</div>
-                    <div class="dash-step__meta">{{ gs.due_exercises }} упражнений на повтор</div>
+                    <div class="dash-step__meta">~{{ gs.due_exercises }} упражнений</div>
                     {% elif gs.state == 'suggest_start' %}
                     <div class="dash-step__title">Grammar Lab &mdash; {{ gs.get('first_topic_title', gs.get('title', '')) }}</div>
                     <div class="dash-step__meta">Начни с теории &middot; Первая тема</div>
