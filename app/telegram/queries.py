@@ -260,9 +260,13 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         ]
 
     def _build_grammar_dict(topic: GrammarTopic, status_str: str) -> dict[str, Any]:
-        due = UserGrammarExercise.query.filter(
+        from app.grammar_lab.models import GrammarExercise
+        due = UserGrammarExercise.query.join(
+            GrammarExercise, GrammarExercise.id == UserGrammarExercise.exercise_id
+        ).filter(
             UserGrammarExercise.user_id == user_id,
             UserGrammarExercise.next_review <= now,
+            GrammarExercise.topic_id == topic.id,
         ).count() if status_str != 'not_started' else 0
         return {
             'title': topic.title,
@@ -695,9 +699,13 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         ]
 
     def _build_grammar_dict(topic: GrammarTopic, status_str: str) -> dict[str, Any]:
-        due = UserGrammarExercise.query.filter(
+        from app.grammar_lab.models import GrammarExercise
+        due = UserGrammarExercise.query.join(
+            GrammarExercise, GrammarExercise.id == UserGrammarExercise.exercise_id
+        ).filter(
             UserGrammarExercise.user_id == user_id,
             UserGrammarExercise.next_review <= now,
+            GrammarExercise.topic_id == topic.id,
         ).count() if status_str != 'not_started' else 0
         return {
             'title': topic.title,
