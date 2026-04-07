@@ -120,14 +120,14 @@
             {% endif %}
         {% endfor %}
 
-        {# Stepper bar #}
+        {# Progress bar #}
         {% if steps_total > 0 %}
-        <div class="dash-stepper-bar">
-            {% for v in visible %}
-            <div class="dash-stepper-dot {% if v.done %}dash-stepper-dot--done{% elif loop.index0 == ns.current_idx %}dash-stepper-dot--current{% endif %}"></div>
-            {% if not loop.last %}<div class="dash-stepper-line {% if loop.index0 < ns.current_idx %}dash-stepper-line--done{% endif %}"></div>{% endif %}
-            {% endfor %}
-            <span class="dash-stepper-count">{{ steps_done }} из {{ steps_total }}</span>
+        {% set pct = (steps_done / steps_total * 100) | int %}
+        <div class="dash-progress">
+            <div class="dash-progress__bar">
+                <div class="dash-progress__fill {% if all_done %}dash-progress__fill--done{% endif %}" style="width: {{ pct }}%"></div>
+            </div>
+            <span class="dash-progress__count">{{ steps_done }}/{{ steps_total }}</span>
         </div>
         {% if required_steps is defined and not all_done %}
         <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
@@ -927,9 +927,9 @@
     .dash-step__num { width: 26px; min-width: 26px; height: 26px; font-size: 0.7rem; }
     .dash-step__body { flex-wrap: wrap; padding: 0.875rem 1rem; gap: 0.75rem; }
 
-    .dash-stepper-bar { padding: 0.5rem 0; }
-    .dash-stepper-dot { width: 12px; height: 12px; }
-    .dash-stepper-count { font-size: 0.75rem; }
+    .dash-progress { padding: 0.5rem 0; }
+    .dash-progress__bar { height: 5px; }
+    .dash-progress__count { font-size: 0.75rem; }
     .dash-timeline { padding-left: 0; }
     .dash-timeline::before { left: 12px; }
     .dash-step--current .dash-step__num { width: 28px; min-width: 28px; height: 28px; }
@@ -946,57 +946,40 @@
    Stepper Progress Bar
    ============================================ */
 
-.dash-stepper-bar {
+.dash-progress {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
     margin-bottom: 1rem;
     padding: 0.75rem 0;
 }
 
-.dash-stepper-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 2px solid var(--dash-border);
-    background: var(--dash-surface);
-    flex-shrink: 0;
-    transition: all 0.3s;
-}
-
-.dash-stepper-dot--done {
-    background: var(--dash-success);
-    border-color: var(--dash-success);
-}
-
-.dash-stepper-dot--current {
-    border-color: var(--dash-accent);
-    background: var(--dash-accent);
-    box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.2);
-    animation: dashPulse 2s ease-in-out infinite;
-}
-
-@keyframes dashPulse {
-    0%, 100% { box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.2); }
-    50% { box-shadow: 0 0 0 8px rgba(80, 70, 229, 0.08); }
-}
-
-.dash-stepper-line {
+.dash-progress__bar {
     flex: 1;
-    height: 2px;
+    height: 6px;
     background: var(--dash-border);
-    transition: background 0.3s;
+    border-radius: 3px;
+    overflow: hidden;
 }
 
-.dash-stepper-line--done {
-    background: var(--dash-success);
+.dash-progress__fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--dash-accent), #7c6ef6);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.dash-stepper-count {
-    margin-left: 0.75rem;
+.dash-progress__fill--done {
+    background: linear-gradient(90deg, var(--dash-success), #34d399);
+}
+
+.dash-progress__count {
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--dash-text-muted);
     white-space: nowrap;
+    min-width: 2rem;
+    text-align: right;
 }
 
 .dash-streak-req {
