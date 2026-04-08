@@ -247,8 +247,29 @@ def register():
                 except Exception as module_error:
                     # Log the error but don't fail registration
                     print(module_error)
-                flash('Регистрация успешна! Теперь вы можете войти в систему.', 'success')
-                return redirect(url_for('auth.login'))
+
+                # Auto-login after registration
+                login_user(user)
+                user.last_login = datetime.now(timezone.utc)
+                db.session.commit()
+
+                # Send welcome email (non-blocking)
+                try:
+                    dashboard_url = url_for('words.dashboard', _external=True)
+                    email_sender.send_email(
+                        subject="Добро пожаловать в Language Learning Tool!",
+                        to_email=user.email,
+                        template_name="welcome",
+                        context={
+                            "username": user.username,
+                            "dashboard_url": dashboard_url,
+                        }
+                    )
+                except Exception:
+                    pass  # Don't fail registration if email fails
+
+                flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
+                return redirect(url_for('words.dashboard'))
             except Exception as e:
                 db.session.rollback()
                 import logging
