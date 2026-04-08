@@ -123,8 +123,9 @@ class TestOnboardingBeforeRequest:
         }, follow_redirects=True)
         r = client.get('/dashboard', headers={'X-Requested-With': 'XMLHttpRequest'},
                        follow_redirects=False)
-        # Should not redirect to onboarding for AJAX
+        # AJAX requests should not be redirected to onboarding
         assert r.status_code != 302 or '/onboarding' not in r.headers.get('Location', '')
+        assert r.status_code in (200, 403)  # 403 is acceptable (CSRF on dashboard)
 
 
 class TestOnboardingComplete:

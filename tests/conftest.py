@@ -348,18 +348,6 @@ def authenticated_client(app, client, test_user, grant_study_module):
 
 
 @pytest.fixture(scope='function')
-def auth_headers(test_user):
-    """Create authentication headers for API requests
-
-    Returns empty dict since the routes use @login_required (session-based auth)
-    not JWT tokens. Tests should use authenticated_client with these headers.
-    """
-    # For session-based authentication, no special headers needed
-    # The session is already set by authenticated_client
-    return {}
-
-
-@pytest.fixture(scope='function')
 def admin_client(app, client, admin_user):
     """Create admin test client with proper Flask-Login support"""
     from flask_login import login_user

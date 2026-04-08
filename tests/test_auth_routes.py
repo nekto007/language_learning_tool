@@ -272,7 +272,7 @@ class TestPasswordResetRequest:
         r = client.post('/reset_password', data={
             'email': test_user.email,
         }, follow_redirects=False)
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     @patch('app.auth.routes.email_sender')
     def test_unknown_email_still_redirects(self, mock_email, client):
@@ -298,7 +298,7 @@ class TestPasswordResetRequest:
 class TestPasswordResetWithToken:
     def test_invalid_token(self, client):
         r = client.get('/reset_password/invalidtoken123')
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     def test_valid_token_renders_form(self, client, test_user):
         from app.auth.routes import get_reset_token
