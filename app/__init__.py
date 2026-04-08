@@ -257,7 +257,9 @@ def create_app(config_class=Config):
             # Skip AJAX/API requests and public/auth endpoints
             ONBOARDING_SKIP_PREFIXES = (
                 'onboarding.', 'auth.', 'static', 'legal.', 'seo.',
-                'grammar_public.', 'landing.',
+                'grammar_lab.', 'landing.', 'telegram.',
+                'api_auth.', 'api_words.', 'api_books.', 'api_anki.',
+                'api_topics_collections.', 'api_daily_plan.',
             )
             if not current_user.onboarding_completed and request.endpoint \
                and not any(request.endpoint.startswith(p) for p in ONBOARDING_SKIP_PREFIXES) \
