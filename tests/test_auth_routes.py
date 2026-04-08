@@ -139,8 +139,8 @@ class TestRegister:
         assert r.status_code in [302, 200]
 
     @patch('app.auth.routes.email_sender')
-    def test_register_auto_login_and_redirect_to_dashboard(self, mock_email, client, db_session):
-        """After registration, user should be logged in and redirected to dashboard."""
+    def test_register_auto_login_and_redirect_to_onboarding(self, mock_email, client, db_session):
+        """After registration, user should be logged in and redirected to onboarding."""
         mock_email.send_email.return_value = True
         unique = uuid.uuid4().hex[:8]
         r = client.post('/register', data={
@@ -151,7 +151,7 @@ class TestRegister:
         }, follow_redirects=False)
         assert r.status_code == 302
         location = r.headers.get('Location', '')
-        assert '/dashboard' in location or location.endswith('/')
+        assert '/onboarding' in location
 
         # Verify user is logged in: accessing a login-required page should NOT
         # redirect to /login. It may return 200, 403, or redirect elsewhere.

@@ -202,6 +202,10 @@ def login():
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
 
+                # Redirect to onboarding if not completed
+                if not user.onboarding_completed:
+                    return redirect(url_for('onboarding.wizard'))
+
                 # Redirect to requested page or dashboard
                 # Check both GET args and POST form data for next parameter
                 next_page = request.args.get('next') or request.form.get('next')
@@ -269,7 +273,7 @@ def register():
                     pass  # Don't fail registration if email fails
 
                 flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
-                return redirect(url_for('words.dashboard'))
+                return redirect(url_for('onboarding.wizard'))
             except Exception as e:
                 db.session.rollback()
                 import logging

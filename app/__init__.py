@@ -166,6 +166,10 @@ def create_app(config_class=Config):
     from app.grammar_lab import grammar_lab_bp
     app.register_blueprint(grammar_lab_bp)
 
+    # Register Onboarding blueprint
+    from app.onboarding import onboarding_bp
+    app.register_blueprint(onboarding_bp)
+
     # Register SEO blueprint (sitemap.xml, robots.txt)
     from app.seo import seo_bp
     app.register_blueprint(seo_bp)

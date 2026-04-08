@@ -1,0 +1,392 @@
+{% extends 'base.html' %}
+
+{% block title %}Добро пожаловать | LLT English{% endblock %}
+
+{% block content %}
+<div class="onboarding-page">
+  <div class="onboarding-card">
+    <!-- Progress bar -->
+    <div class="onboarding-progress">
+      <div class="onboarding-progress__bar" id="progressBar" style="width: 33%"></div>
+    </div>
+
+    <!-- Step 1: Level selection -->
+    <div class="onboarding-step" id="step1" data-step="1">
+      <div class="onboarding-step__header">
+        <div class="onboarding-step__icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+          </svg>
+        </div>
+        <h1 class="onboarding-step__title">Какой у вас уровень?</h1>
+        <p class="onboarding-step__subtitle">Мы подберём материалы под ваш уровень</p>
+      </div>
+      <div class="onboarding-levels">
+        <button class="onboarding-level-btn" data-level="A0" data-desc="Никогда не учил английский">
+          <span class="onboarding-level-btn__code">A0</span>
+          <span class="onboarding-level-btn__name">Starter</span>
+          <span class="onboarding-level-btn__desc">Никогда не учил английский</span>
+        </button>
+        <button class="onboarding-level-btn" data-level="A1" data-desc="Знаю базовые фразы">
+          <span class="onboarding-level-btn__code">A1</span>
+          <span class="onboarding-level-btn__name">Beginner</span>
+          <span class="onboarding-level-btn__desc">Знаю базовые фразы</span>
+        </button>
+        <button class="onboarding-level-btn" data-level="A2" data-desc="Могу рассказать о себе">
+          <span class="onboarding-level-btn__code">A2</span>
+          <span class="onboarding-level-btn__name">Elementary</span>
+          <span class="onboarding-level-btn__desc">Могу рассказать о себе</span>
+        </button>
+        <button class="onboarding-level-btn" data-level="B1" data-desc="Понимаю основное содержание">
+          <span class="onboarding-level-btn__code">B1</span>
+          <span class="onboarding-level-btn__name">Intermediate</span>
+          <span class="onboarding-level-btn__desc">Понимаю основное содержание</span>
+        </button>
+        <button class="onboarding-level-btn" data-level="B2" data-desc="Свободно общаюсь на знакомые темы">
+          <span class="onboarding-level-btn__code">B2</span>
+          <span class="onboarding-level-btn__name">Upper-Intermediate</span>
+          <span class="onboarding-level-btn__desc">Свободно общаюсь на знакомые темы</span>
+        </button>
+        <button class="onboarding-level-btn" data-level="C1" data-desc="Понимаю сложные тексты и фильмы">
+          <span class="onboarding-level-btn__code">C1</span>
+          <span class="onboarding-level-btn__name">Advanced</span>
+          <span class="onboarding-level-btn__desc">Понимаю сложные тексты и фильмы</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Focus selection -->
+    <div class="onboarding-step" id="step2" data-step="2" style="display: none">
+      <div class="onboarding-step__header">
+        <div class="onboarding-step__icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/>
+          </svg>
+        </div>
+        <h1 class="onboarding-step__title">Что хотите изучать?</h1>
+        <p class="onboarding-step__subtitle">Можно выбрать несколько направлений</p>
+      </div>
+      <div class="onboarding-focuses">
+        <button class="onboarding-focus-btn" data-focus="grammar">
+          <span class="onboarding-focus-btn__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+            </svg>
+          </span>
+          <span class="onboarding-focus-btn__label">Грамматика</span>
+          <span class="onboarding-focus-btn__desc">Правила, упражнения, тесты</span>
+        </button>
+        <button class="onboarding-focus-btn" data-focus="vocabulary">
+          <span class="onboarding-focus-btn__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 9.5h20"/>
+            </svg>
+          </span>
+          <span class="onboarding-focus-btn__label">Слова</span>
+          <span class="onboarding-focus-btn__desc">Карточки, интервальное повторение</span>
+        </button>
+        <button class="onboarding-focus-btn" data-focus="reading">
+          <span class="onboarding-focus-btn__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+            </svg>
+          </span>
+          <span class="onboarding-focus-btn__label">Чтение</span>
+          <span class="onboarding-focus-btn__desc">Книги и курсы с аудио</span>
+        </button>
+        <button class="onboarding-focus-btn" data-focus="all">
+          <span class="onboarding-focus-btn__icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </span>
+          <span class="onboarding-focus-btn__label">Всё сразу</span>
+          <span class="onboarding-focus-btn__desc">Комплексный подход</span>
+        </button>
+      </div>
+      <button class="onboarding-next-btn" id="focusNextBtn" disabled>Далее</button>
+    </div>
+
+    <!-- Step 3: Ready -->
+    <div class="onboarding-step" id="step3" data-step="3" style="display: none">
+      <div class="onboarding-step__header">
+        <div class="onboarding-step__icon onboarding-step__icon--success">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <h1 class="onboarding-step__title">Всё готово!</h1>
+        <p class="onboarding-step__subtitle">Ваш план обучения создан. Начнём?</p>
+      </div>
+      <div class="onboarding-ready">
+        <div class="onboarding-ready__summary" id="readySummary"></div>
+        <form method="POST" action="{{ url_for('onboarding.complete') }}" id="onboardingForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="level" id="selectedLevel" value="">
+          <input type="hidden" name="focus" id="selectedFocus" value="">
+          <button type="submit" class="onboarding-start-btn">Начать обучение</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Back button -->
+    <div class="onboarding-back" id="backBtn" style="display: none">
+      <button class="onboarding-back__btn" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Назад
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.onboarding-page {
+  --ob-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ob-primary: #2563eb;
+  --ob-primary-dark: #1d4ed8;
+  --ob-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --ob-success: #22c55e;
+  --ob-surface: #ffffff;
+  --ob-surface-alt: #f8fafc;
+  --ob-text: #0f172a;
+  --ob-text-muted: #64748b;
+  --ob-border: #e2e8f0;
+  --ob-radius: 16px;
+  --ob-radius-sm: 10px;
+
+  font-family: var(--ob-font);
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem 3rem;
+  min-height: 70vh;
+  align-items: flex-start;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--ob-surface);
+  border-radius: var(--ob-radius);
+  border: 1px solid var(--ob-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Progress bar */
+.onboarding-progress {
+  height: 4px;
+  background: var(--ob-border);
+}
+.onboarding-progress__bar {
+  height: 100%;
+  background: var(--ob-gradient);
+  transition: width 0.4s ease;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Step common */
+.onboarding-step {
+  padding: 2rem 2rem 1.5rem;
+  animation: ob-fadeIn 0.3s ease-out;
+}
+.onboarding-step__header { text-align: center; margin-bottom: 1.5rem; }
+.onboarding-step__icon {
+  width: 64px; height: 64px;
+  background: var(--ob-surface-alt);
+  border: 2px solid var(--ob-border);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1rem;
+  color: var(--ob-primary);
+}
+.onboarding-step__icon--success { color: var(--ob-success); border-color: #bbf7d0; background: #f0fdf4; }
+.onboarding-step__title { font-size: 1.375rem; font-weight: 700; margin: 0; color: var(--ob-text); letter-spacing: -0.02em; }
+.onboarding-step__subtitle { font-size: 0.875rem; color: var(--ob-text-muted); margin: 0.375rem 0 0; }
+
+/* Level buttons */
+.onboarding-levels { display: flex; flex-direction: column; gap: 0.5rem; }
+.onboarding-level-btn {
+  display: flex; align-items: center; gap: 0.75rem;
+  width: 100%; padding: 0.875rem 1rem;
+  background: var(--ob-surface-alt);
+  border: 1.5px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  cursor: pointer;
+  font-family: var(--ob-font);
+  text-align: left;
+  transition: all 0.2s ease;
+}
+.onboarding-level-btn:hover { border-color: var(--ob-primary); background: #eef2ff; }
+.onboarding-level-btn.selected { border-color: var(--ob-primary); background: #eef2ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+.onboarding-level-btn__code {
+  min-width: 36px; height: 36px;
+  background: var(--ob-gradient);
+  color: white; font-weight: 700; font-size: 0.8125rem;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.onboarding-level-btn__name { font-weight: 600; font-size: 0.9375rem; color: var(--ob-text); }
+.onboarding-level-btn__desc { font-size: 0.8125rem; color: var(--ob-text-muted); margin-left: auto; }
+
+/* Focus buttons */
+.onboarding-focuses { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.onboarding-focus-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  padding: 1.25rem 1rem;
+  background: var(--ob-surface-alt);
+  border: 1.5px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  cursor: pointer;
+  font-family: var(--ob-font);
+  text-align: center;
+  transition: all 0.2s ease;
+}
+.onboarding-focus-btn:hover { border-color: var(--ob-primary); background: #eef2ff; }
+.onboarding-focus-btn.selected { border-color: var(--ob-primary); background: #eef2ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+.onboarding-focus-btn__icon { color: var(--ob-primary); }
+.onboarding-focus-btn__label { font-weight: 600; font-size: 0.9375rem; color: var(--ob-text); }
+.onboarding-focus-btn__desc { font-size: 0.75rem; color: var(--ob-text-muted); line-height: 1.3; }
+
+/* Next button */
+.onboarding-next-btn {
+  width: 100%; padding: 0.875rem;
+  background: var(--ob-gradient); color: white; border: none;
+  border-radius: var(--ob-radius-sm);
+  font-family: var(--ob-font); font-size: 1rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease;
+  margin-top: 1.25rem;
+}
+.onboarding-next-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+.onboarding-next-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Start button */
+.onboarding-start-btn {
+  width: 100%; padding: 1rem;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; border: none;
+  border-radius: var(--ob-radius-sm);
+  font-family: var(--ob-font); font-size: 1.0625rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease;
+}
+.onboarding-start-btn:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35); }
+
+/* Ready summary */
+.onboarding-ready__summary {
+  background: var(--ob-surface-alt);
+  border: 1px solid var(--ob-border);
+  border-radius: var(--ob-radius-sm);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem; color: var(--ob-text);
+  line-height: 1.6;
+}
+
+/* Back button */
+.onboarding-back { padding: 0 2rem 1.5rem; }
+.onboarding-back__btn {
+  display: flex; align-items: center; gap: 0.25rem;
+  background: none; border: none;
+  font-family: var(--ob-font); font-size: 0.8125rem; font-weight: 500;
+  color: var(--ob-text-muted); cursor: pointer;
+  padding: 0.25rem 0;
+  transition: color 0.2s;
+}
+.onboarding-back__btn:hover { color: var(--ob-text); }
+
+@keyframes ob-fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 640px) {
+  .onboarding-page { padding: 1rem 0.75rem 2rem; }
+  .onboarding-step { padding: 1.5rem 1.25rem 1rem; }
+  .onboarding-focuses { grid-template-columns: 1fr; }
+  .onboarding-level-btn__desc { display: none; }
+  .onboarding-back { padding: 0 1.25rem 1rem; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var currentStep = 1;
+  var selectedLevel = '';
+  var selectedFocuses = [];
+
+  var steps = {
+    1: document.getElementById('step1'),
+    2: document.getElementById('step2'),
+    3: document.getElementById('step3')
+  };
+  var progressBar = document.getElementById('progressBar');
+  var backBtn = document.getElementById('backBtn');
+  var focusNextBtn = document.getElementById('focusNextBtn');
+
+  function showStep(n) {
+    for (var k in steps) {
+      steps[k].style.display = k == n ? '' : 'none';
+    }
+    progressBar.style.width = (n * 33.33) + '%';
+    backBtn.style.display = n > 1 ? '' : 'none';
+    currentStep = n;
+  }
+
+  // Step 1: Level selection
+  document.querySelectorAll('.onboarding-level-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.onboarding-level-btn').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      selectedLevel = btn.dataset.level;
+      document.getElementById('selectedLevel').value = selectedLevel;
+      // Auto-advance after short delay
+      setTimeout(function() { showStep(2); }, 250);
+    });
+  });
+
+  // Step 2: Focus selection
+  document.querySelectorAll('.onboarding-focus-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var focus = btn.dataset.focus;
+      if (focus === 'all') {
+        // "All" deselects others
+        document.querySelectorAll('.onboarding-focus-btn').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        selectedFocuses = ['all'];
+      } else {
+        // Deselect "all" if selected
+        var allBtn = document.querySelector('.onboarding-focus-btn[data-focus="all"]');
+        if (allBtn) allBtn.classList.remove('selected');
+        selectedFocuses = selectedFocuses.filter(function(f) { return f !== 'all'; });
+
+        if (btn.classList.contains('selected')) {
+          btn.classList.remove('selected');
+          selectedFocuses = selectedFocuses.filter(function(f) { return f !== focus; });
+        } else {
+          btn.classList.add('selected');
+          selectedFocuses.push(focus);
+        }
+      }
+      document.getElementById('selectedFocus').value = selectedFocuses.join(',');
+      focusNextBtn.disabled = selectedFocuses.length === 0;
+    });
+  });
+
+  focusNextBtn.addEventListener('click', function() {
+    if (selectedFocuses.length === 0) return;
+
+    // Build summary
+    var levelNames = {A0:'Starter',A1:'Beginner',A2:'Elementary',B1:'Intermediate',B2:'Upper-Intermediate',C1:'Advanced'};
+    var focusNames = {grammar:'Грамматика',vocabulary:'Слова',reading:'Чтение',all:'Всё сразу'};
+    var summary = '<strong>Уровень:</strong> ' + selectedLevel + ' — ' + (levelNames[selectedLevel]||'') + '<br>';
+    summary += '<strong>Фокус:</strong> ' + selectedFocuses.map(function(f){return focusNames[f]||f;}).join(', ');
+    document.getElementById('readySummary').innerHTML = summary;
+
+    showStep(3);
+  });
+
+  // Back button
+  backBtn.querySelector('button').addEventListener('click', function() {
+    if (currentStep > 1) showStep(currentStep - 1);
+  });
+});
+</script>
+{% endblock %}

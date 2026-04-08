@@ -21,6 +21,7 @@ class User(db.Model, UserMixin):
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='false')
 
     # Default deck for adding words to study (null = "только в изучение")
     default_study_deck_id = Column(Integer, ForeignKey('quiz_decks.id', ondelete='SET NULL'), nullable=True)
