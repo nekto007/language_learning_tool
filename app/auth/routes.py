@@ -278,7 +278,7 @@ def register():
                     ModuleService.grant_default_modules_to_user(user.id)
                 except Exception as module_error:
                     # Log the error but don't fail registration
-                    print(module_error)
+                    current_app.logger.warning("Module granting failed for user=%s", user.id, exc_info=True)
 
                 # Auto-login after registration
                 login_user(user)
