@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_onboarding_fields'
-down_revision = None  # Will be set by alembic
+down_revision = 'add_streak_steps_fields'
 branch_labels = None
 depends_on = None
 

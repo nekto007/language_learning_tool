@@ -112,19 +112,18 @@ class TestOnboardingComplete:
         db_session.refresh(new_user)
         assert new_user.onboarding_completed is True
 
-    def test_complete_already_onboarded_returns_json(self, client, test_user):
+    def test_complete_already_onboarded_redirects(self, client, test_user):
         # Login with completed user
         client.post('/login', data={
             'username_or_email': test_user.username,
             'password': 'testpass123',
         }, follow_redirects=True)
 
-        r = client.post('/onboarding/complete',
-                        json={'level': 'A1'},
-                        content_type='application/json')
-        assert r.status_code == 200
-        data = r.get_json()
-        assert data['success'] is True
+        r = client.post('/onboarding/complete', data={
+            'level': 'A1',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        assert '/onboarding' not in r.headers.get('Location', '')
 
     def test_after_completion_login_goes_to_dashboard(self, client, db_session, new_user):
         # Login and complete onboarding

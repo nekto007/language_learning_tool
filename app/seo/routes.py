@@ -9,7 +9,7 @@ def sitemap() -> Response:
     """Generate sitemap.xml with all public pages."""
     from app.grammar_lab.models import GrammarTopic
 
-    site_url = current_app.config.get('SITE_URL', 'https://llt-english.com')
+    site_url = current_app.config.get('SITE_URL') or 'https://llt-english.com'
 
     urlset = Element('urlset')
     urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
@@ -43,7 +43,7 @@ def sitemap() -> Response:
 @seo_bp.route('/robots.txt')
 def robots() -> Response:
     """Serve robots.txt."""
-    site_url = current_app.config.get('SITE_URL', 'https://llt-english.com')
+    site_url = current_app.config.get('SITE_URL') or 'https://llt-english.com'
     content = (
         'User-agent: *\n'
         'Allow: /\n'

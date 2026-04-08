@@ -1,4 +1,4 @@
-from flask import redirect, render_template, request, url_for, jsonify
+from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.onboarding import onboarding_bp
@@ -16,7 +16,8 @@ def wizard():
     from app.curriculum.models import CEFRLevel
     levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
 
-    return render_template('onboarding/wizard.html', levels=levels)
+    return render_template('onboarding/wizard.html', levels=levels,
+                           next_url=request.args.get('next', ''))
 
 
 @onboarding_bp.route('/onboarding/complete', methods=['POST'])
@@ -24,20 +25,13 @@ def wizard():
 def complete():
     """Save onboarding choices and mark as completed."""
     if current_user.onboarding_completed:
-        return jsonify({'success': True, 'redirect': url_for('words.dashboard')})
-
-    # Save selected level if provided
-    level_code = request.form.get('level') or (request.json or {}).get('level')
-    if level_code:
-        from app.curriculum.models import CEFRLevel
-        level = CEFRLevel.query.filter_by(code=level_code).first()
-        # Level preference is noted but we don't store it on user for now
-        # (no level_id column on users — the curriculum system handles this via modules)
+        return redirect(url_for('words.dashboard'))
 
     current_user.onboarding_completed = True
     db.session.commit()
 
-    # Support both form POST and JSON
-    if request.is_json:
-        return jsonify({'success': True, 'redirect': url_for('words.dashboard')})
+    # Redirect to originally requested page or dashboard
+    next_url = request.form.get('next', '')
+    if next_url and next_url.startswith('/'):
+        return redirect(next_url)
     return redirect(url_for('words.dashboard'))

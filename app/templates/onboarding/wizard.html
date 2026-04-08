@@ -124,6 +124,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="level" id="selectedLevel" value="">
           <input type="hidden" name="focus" id="selectedFocus" value="">
+          <input type="hidden" name="next" value="{{ next_url }}">
           <button type="submit" class="onboarding-start-btn">Начать обучение</button>
         </form>
       </div>

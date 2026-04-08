@@ -32,28 +32,28 @@ class TestLogin:
             'username_or_email': test_user.username,
             'password': 'testpass123',
         }, follow_redirects=False)
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     def test_login_with_email(self, client, test_user):
         r = client.post('/login', data={
             'username_or_email': test_user.email,
             'password': 'testpass123',
         }, follow_redirects=False)
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     def test_login_wrong_password(self, client, test_user):
         r = client.post('/login', data={
             'username_or_email': test_user.username,
             'password': 'wrongpass',
-        }, follow_redirects=True)
-        assert r.status_code in [200, 401]
+        }, follow_redirects=False)
+        assert r.status_code == 401
 
     def test_login_nonexistent_user(self, client):
         r = client.post('/login', data={
             'username_or_email': 'nonexistent_user_xyz',
             'password': 'whatever',
-        }, follow_redirects=True)
-        assert r.status_code in [200, 401]
+        }, follow_redirects=False)
+        assert r.status_code == 401
 
     def test_login_inactive_user(self, client, db_session, test_user):
         test_user.active = False
@@ -132,11 +132,10 @@ class TestRegister:
         r = client.post('/register', data={
             'username': f'newuser_{unique}',
             'email': f'newuser_{unique}@example.com',
-            'password': 'StrongPass123!@#',
-            'password2': 'StrongPass123!@#',
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
         }, follow_redirects=False)
-        # Registration may redirect (302) on success or re-render form (200)
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     @patch('app.auth.routes.email_sender')
     def test_register_auto_login_and_redirect_to_onboarding(self, mock_email, client, db_session):

@@ -202,13 +202,16 @@ def login():
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
 
-                # Redirect to onboarding if not completed
-                if not user.onboarding_completed:
-                    return redirect(url_for('onboarding.wizard'))
-
                 # Redirect to requested page or dashboard
                 # Check both GET args and POST form data for next parameter
                 next_page = request.args.get('next') or request.form.get('next')
+
+                # Redirect to onboarding if not completed, preserving next param
+                if not user.onboarding_completed:
+                    if next_page:
+                        return redirect(url_for('onboarding.wizard', next=next_page))
+                    return redirect(url_for('onboarding.wizard'))
+
                 safe_url = get_safe_redirect_url(next_page)
                 return redirect(safe_url)
             else:
@@ -252,13 +255,16 @@ def register():
                 db.session.commit()
 
                 # Process referral
-                saved_ref = request.cookies.get('ref') or request.args.get('ref')
+                saved_ref = request.cookies.get('ref')
                 if saved_ref:
-                    referrer = User.query.filter_by(referral_code=saved_ref).first()
-                    if referrer and referrer.id != user.id:
-                        referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
-                        db.session.add(referral_log)
-                        db.session.commit()
+                    try:
+                        referrer = User.query.filter_by(referral_code=saved_ref).first()
+                        if referrer and referrer.id != user.id:
+                            referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
+                            db.session.add(referral_log)
+                            db.session.commit()
+                    except Exception:
+                        db.session.rollback()  # Don't fail registration over referral
 
                 # Grant default modules to the new user
                 from app.modules.service import ModuleService

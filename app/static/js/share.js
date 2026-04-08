@@ -40,6 +40,8 @@ function shareVia(platform, text, url) {
                         }, 2000);
                     }
                 });
+            }).catch(function() {
+                // Clipboard API may fail if page lacks focus or HTTPS
             });
             break;
 
