@@ -41,7 +41,7 @@ class TestSitemap:
         xml_text = response.data.decode('utf-8')
         site_url = app.config.get('SITE_URL', 'https://llt-english.com')
         assert f'{site_url}/' in xml_text
-        assert f'{site_url}/auth/register' in xml_text
+        assert f'{site_url}/register' in xml_text
         assert f'{site_url}/grammar-lab/topics' in xml_text
 
     def test_sitemap_contains_grammar_topics(self, client, app, grammar_topic):

@@ -1,4 +1,4 @@
-from flask import Response, current_app, url_for
+from flask import Response, current_app
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from . import seo_bp
@@ -17,7 +17,7 @@ def sitemap() -> Response:
     # Static pages
     static_pages = [
         ('/', '1.0', 'weekly'),
-        ('/auth/register', '0.8', 'monthly'),
+        ('/register', '0.8', 'monthly'),
         ('/grammar-lab/topics', '0.9', 'weekly'),
         ('/privacy', '0.3', 'yearly'),
     ]
