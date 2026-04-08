@@ -48,7 +48,7 @@ def robots() -> Response:
     content = (
         'User-agent: *\n'
         'Allow: /\n'
-        'Disallow: /admin\n'
+        'Disallow: /admin/\n'
         f'\nSitemap: {site_url}/sitemap.xml\n'
     )
     return Response(content, mimetype='text/plain')
