@@ -9,7 +9,7 @@ def sitemap() -> Response:
     """Generate sitemap.xml with all public pages."""
     from app.grammar_lab.models import GrammarTopic
 
-    site_url = current_app.config.get('SITE_URL') or 'https://llt-english.com'
+    site_url = (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
 
     urlset = Element('urlset')
     urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
@@ -19,6 +19,7 @@ def sitemap() -> Response:
         ('/', '1.0', 'weekly'),
         ('/auth/register', '0.8', 'monthly'),
         ('/grammar-lab/topics', '0.9', 'weekly'),
+        ('/privacy', '0.3', 'yearly'),
     ]
     for path, priority, changefreq in static_pages:
         url_el = SubElement(urlset, 'url')
@@ -43,7 +44,7 @@ def sitemap() -> Response:
 @seo_bp.route('/robots.txt')
 def robots() -> Response:
     """Serve robots.txt."""
-    site_url = current_app.config.get('SITE_URL') or 'https://llt-english.com'
+    site_url = (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
     content = (
         'User-agent: *\n'
         'Allow: /\n'
