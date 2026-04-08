@@ -19,6 +19,8 @@ def upgrade():
     op.add_column('users',
                   sa.Column('onboarding_completed', sa.Boolean(),
                             nullable=False, server_default='false'))
+    # Mark existing users as already onboarded — only new users should see the wizard
+    op.execute("UPDATE users SET onboarding_completed = true")
 
 
 def downgrade():
