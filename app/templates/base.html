@@ -26,6 +26,19 @@
     {% endblock %}
     <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/og-default.png', _external=True) }}{% endblock %}">
     <meta name="twitter:card" content="summary_large_image">
+    {% if config.GOOGLE_SITE_VERIFICATION %}
+    <meta name="google-site-verification" content="{{ config.GOOGLE_SITE_VERIFICATION }}">
+    {% endif %}
+    {% if config.GOOGLE_ANALYTICS_ID %}
+    <!-- Google Analytics (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config.GOOGLE_ANALYTICS_ID }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '{{ config.GOOGLE_ANALYTICS_ID }}');
+    </script>
+    {% endif %}
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
     {% block head_extra %}{% endblock %}
@@ -256,6 +269,8 @@
                 <span class="text-muted mx-2">•</span>
                 <span class="text-muted">Платформа для изучения английского</span>
                 <div class="mt-2">
+                    <a href="{{ url_for('legal.privacy') }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">Политика конфиденциальности</a>
+                    <span class="text-muted mx-2">&middot;</span>
                     <span class="text-muted footer-copyright">&copy; 2025</span>
                 </div>
             </div>

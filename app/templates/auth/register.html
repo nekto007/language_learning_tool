@@ -172,3 +172,15 @@
 }
 </style>
 {% endblock %}
+
+{% block scripts %}
+{% if config.GOOGLE_ANALYTICS_ID %}
+<script>
+document.querySelector('form[action*="register"]').addEventListener('submit', function() {
+  if (typeof gtag === 'function') {
+    gtag('event', 'registration', { event_category: 'engagement' });
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

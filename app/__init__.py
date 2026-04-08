@@ -174,6 +174,10 @@ def create_app(config_class=Config):
     from app.seo import seo_bp
     app.register_blueprint(seo_bp)
 
+    # Register Legal blueprint (privacy policy)
+    from app.legal import legal_bp
+    app.register_blueprint(legal_bp)
+
     # Register Telegram bot blueprint
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)
