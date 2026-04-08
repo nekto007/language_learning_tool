@@ -1,12 +1,12 @@
 import secrets
 from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import URLSafeTimedSerializer
 
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
-from app.auth.models import User
+from app.auth.models import User, ReferralLog
 from app.utils.db import db
 from app.utils.email_utils import email_sender
 from config.settings import Config
@@ -205,6 +205,13 @@ def login():
                 # Redirect to requested page or dashboard
                 # Check both GET args and POST form data for next parameter
                 next_page = request.args.get('next') or request.form.get('next')
+
+                # Redirect to onboarding if not completed, preserving next param
+                if not user.onboarding_completed:
+                    if next_page:
+                        return redirect(url_for('onboarding.wizard', next=next_page))
+                    return redirect(url_for('onboarding.wizard'))
+
                 safe_url = get_safe_redirect_url(next_page)
                 return redirect(safe_url)
             else:
@@ -227,6 +234,14 @@ def register():
         if current_user.is_authenticated:
             return redirect(url_for('words.dashboard'))
 
+        # Capture ?ref= parameter and store in cookie so it survives form submission
+        ref_code = request.args.get('ref', '').strip()
+        if ref_code and len(ref_code) <= 16 and ref_code.isalnum() and request.method == 'GET':
+            resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
+            resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
+                           samesite='Lax', secure=not current_app.debug)
+            return resp
+
         form = RegistrationForm()
         if form.validate_on_submit():
             user = User(
@@ -240,6 +255,21 @@ def register():
                 db.session.add(user)
                 db.session.commit()
 
+                # Process referral
+                saved_ref = request.cookies.get('ref')
+                if saved_ref:
+                    try:
+                        referrer = User.query.filter_by(referral_code=saved_ref).first()
+                        if referrer and referrer.id != user.id:
+                            referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
+                            db.session.add(referral_log)
+                            db.session.commit()
+                    except Exception:
+                        current_app.logger.warning(
+                            "Referral processing failed for ref=%s", saved_ref, exc_info=True
+                        )
+                        db.session.rollback()  # Don't fail registration over referral
+
                 # Grant default modules to the new user
                 from app.modules.service import ModuleService
                 try:
@@ -247,8 +277,31 @@ def register():
                 except Exception as module_error:
                     # Log the error but don't fail registration
                     print(module_error)
-                flash('Регистрация успешна! Теперь вы можете войти в систему.', 'success')
-                return redirect(url_for('auth.login'))
+
+                # Auto-login after registration
+                login_user(user)
+                user.last_login = datetime.now(timezone.utc)
+                db.session.commit()
+
+                # Send welcome email (non-blocking)
+                try:
+                    dashboard_url = url_for('words.dashboard', _external=True)
+                    email_sender.send_email(
+                        subject="Добро пожаловать в Language Learning Tool!",
+                        to_email=user.email,
+                        template_name="welcome",
+                        context={
+                            "username": user.username,
+                            "dashboard_url": dashboard_url,
+                        }
+                    )
+                except Exception:
+                    current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
+
+                flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
+                resp = redirect(url_for('onboarding.wizard'))
+                resp.delete_cookie('ref')
+                return resp
             except Exception as e:
                 db.session.rollback()
                 import logging
@@ -256,7 +309,7 @@ def register():
                 flash('Регистрация не удалась. Попробуйте позже.', 'danger')
 
         return render_template('auth/register.html', form=form)
-    
+
     return _register()
 
 

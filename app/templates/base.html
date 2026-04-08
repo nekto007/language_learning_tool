@@ -17,6 +17,28 @@
     <!-- Design System (unified CSS) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251209">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- OG defaults (override via head_extra block in child templates) -->
+    {% block og_tags %}
+    <meta property="og:title" content="LLT English — Платформа для изучения английского языка">
+    <meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    {% endblock %}
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/og-default.png', _external=True) }}{% endblock %}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% if config.GOOGLE_SITE_VERIFICATION %}
+    <meta name="google-site-verification" content="{{ config.GOOGLE_SITE_VERIFICATION }}">
+    {% endif %}
+    {% if config.GOOGLE_ANALYTICS_ID %}
+    <!-- Google Analytics (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config.GOOGLE_ANALYTICS_ID }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', {{ config.GOOGLE_ANALYTICS_ID|tojson }});
+    </script>
+    {% endif %}
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
     {% block head_extra %}{% endblock %}
@@ -247,6 +269,8 @@
                 <span class="text-muted mx-2">•</span>
                 <span class="text-muted">Платформа для изучения английского</span>
                 <div class="mt-2">
+                    <a href="{{ url_for('legal.privacy') }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">Политика конфиденциальности</a>
+                    <span class="text-muted mx-2">&middot;</span>
                     <span class="text-muted footer-copyright">&copy; 2025</span>
                 </div>
             </div>

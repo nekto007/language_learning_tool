@@ -2,11 +2,15 @@
 
 {% block title %}LLT English — Платформа для изучения английского языка{% endblock %}
 
-{% block head_extra %}
-<meta name="description" content="Изучайте английский язык онлайн: грамматика с теорией и упражнениями, курсы по уровням A1–C1, карточки для запоминания слов, книги с переводом.">
+{% block og_tags %}
 <meta property="og:title" content="LLT English — Платформа для изучения английского языка">
 <meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://llt-english.com/">
+{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="Изучайте английский язык онлайн: грамматика с теорией и упражнениями, курсы по уровням A1–C1, карточки для запоминания слов, книги с переводом.">
 <link rel="canonical" href="https://llt-english.com/">
 <script type="application/ld+json">
 {
