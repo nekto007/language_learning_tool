@@ -296,7 +296,7 @@ def register():
                         }
                     )
                 except Exception:
-                    pass  # Don't fail registration if email fails
+                    current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
 
                 flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
                 resp = redirect(url_for('onboarding.wizard'))
