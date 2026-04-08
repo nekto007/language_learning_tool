@@ -260,6 +260,9 @@ def create_app(config_class=Config):
                 'grammar_lab.', 'landing.', 'telegram.',
                 'api_auth.', 'api_words.', 'api_books.', 'api_anki.',
                 'api_topics_collections.', 'api_daily_plan.',
+                'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
+                'collection_admin.', 'topic_admin.', 'word_admin.',
+                'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
             )
             if not current_user.onboarding_completed and request.endpoint \
                and not any(request.endpoint.startswith(p) for p in ONBOARDING_SKIP_PREFIXES) \
