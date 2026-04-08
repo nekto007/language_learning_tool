@@ -41,7 +41,19 @@ function shareVia(platform, text, url) {
                     }
                 });
             }).catch(function() {
-                // Clipboard API may fail if page lacks focus or HTTPS
+                // Clipboard API may fail if page lacks focus or HTTPS — fallback to execCommand
+                try {
+                    var ta = document.createElement('textarea');
+                    ta.value = fullText;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                } catch (_) {
+                    // Copy completely unsupported
+                }
             });
             break;
 
