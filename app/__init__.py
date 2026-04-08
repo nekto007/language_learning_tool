@@ -241,6 +241,7 @@ def create_app(config_class=Config):
     @app.before_request
     def update_last_active():
         """Update user's last_login every 12 hours on activity"""
+        from flask import redirect, request, url_for
         from flask_login import current_user
         from datetime import datetime, timezone, timedelta
 
@@ -251,6 +252,12 @@ def create_app(config_class=Config):
                (now - current_user.last_login.replace(tzinfo=timezone.utc)) > timedelta(hours=12):
                 current_user.last_login = now
                 db.session.commit()
+
+            # Redirect to onboarding if not completed (e.g. remember-me cookie login)
+            if not current_user.onboarding_completed and request.endpoint \
+               and request.endpoint not in ('onboarding.wizard', 'onboarding.complete',
+                                             'auth.logout', 'static'):
+                return redirect(url_for('onboarding.wizard', next=request.url))
 
     @login_manager.unauthorized_handler
     def unauthorized():
