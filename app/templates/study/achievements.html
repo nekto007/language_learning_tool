@@ -59,6 +59,13 @@
     </div>
   </div>
 
+  <!-- Share -->
+  <div class="ach-share">
+    <span class="ach-share__label">Поделиться достижениями:</span>
+    {% set share_text = "Я получил " ~ earned_count ~ " из " ~ total_achievements ~ " достижений и заработал " ~ earned_xp ~ " XP!" %}
+    {% include 'components/share_buttons.html' with context %}
+  </div>
+
   <!-- Achievements by Category -->
   {% set category_names = {
       'quiz': 'Квизы',
@@ -359,6 +366,23 @@
   font-size: 0.8125rem;
   color: var(--ach-text-muted);
   margin-top: 0.125rem;
+}
+
+/* ═══════════════════════════════════════
+   Share Section
+   ═══════════════════════════════════════ */
+.ach-share {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.ach-share__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ach-text-muted);
 }
 
 /* ═══════════════════════════════════════

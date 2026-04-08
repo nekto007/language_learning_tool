@@ -1,12 +1,12 @@
 import secrets
 from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import URLSafeTimedSerializer
 
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
-from app.auth.models import User
+from app.auth.models import User, ReferralLog
 from app.utils.db import db
 from app.utils.email_utils import email_sender
 from config.settings import Config
@@ -231,6 +231,13 @@ def register():
         if current_user.is_authenticated:
             return redirect(url_for('words.dashboard'))
 
+        # Capture ?ref= parameter and store in cookie so it survives form submission
+        ref_code = request.args.get('ref')
+        if ref_code and request.method == 'GET':
+            resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
+            resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True, samesite='Lax')
+            return resp
+
         form = RegistrationForm()
         if form.validate_on_submit():
             user = User(
@@ -243,6 +250,15 @@ def register():
             try:
                 db.session.add(user)
                 db.session.commit()
+
+                # Process referral
+                saved_ref = request.cookies.get('ref') or request.args.get('ref')
+                if saved_ref:
+                    referrer = User.query.filter_by(referral_code=saved_ref).first()
+                    if referrer and referrer.id != user.id:
+                        referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
+                        db.session.add(referral_log)
+                        db.session.commit()
 
                 # Grant default modules to the new user
                 from app.modules.service import ModuleService
@@ -273,7 +289,9 @@ def register():
                     pass  # Don't fail registration if email fails
 
                 flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
-                return redirect(url_for('onboarding.wizard'))
+                resp = redirect(url_for('onboarding.wizard'))
+                resp.delete_cookie('ref')
+                return resp
             except Exception as e:
                 db.session.rollback()
                 import logging
@@ -281,7 +299,7 @@ def register():
                 flash('Регистрация не удалась. Попробуйте позже.', 'danger')
 
         return render_template('auth/register.html', form=form)
-    
+
     return _register()
 
 

@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
@@ -7,6 +8,11 @@ from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.utils.db import db
+
+
+def _generate_referral_code() -> str:
+    """Generate a short unique referral code."""
+    return uuid.uuid4().hex[:8]
 
 
 class User(db.Model, UserMixin):
@@ -23,16 +29,11 @@ class User(db.Model, UserMixin):
     is_admin = Column(Boolean, default=False)
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='false')
 
+    # Referral system
+    referral_code = Column(String(16), unique=True, nullable=True, default=_generate_referral_code)
+
     # Default deck for adding words to study (null = "только в изучение")
     default_study_deck_id = Column(Integer, ForeignKey('quiz_decks.id', ondelete='SET NULL'), nullable=True)
-
-    # # Связь со словами теперь через UserWord
-    # words = relationship("CollectionWords",
-    #                      secondary="user_words",
-    #                      primaryjoin="User.id == UserWord.user_id",
-    #                      secondaryjoin="UserWord.word_id == CollectionWords.id",
-    #                      backref="users")
-
 
     __table_args__ = (
         Index('idx_user_username', 'username'),
@@ -191,3 +192,22 @@ class User(db.Model, UserMixin):
     
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+class ReferralLog(db.Model):
+    __tablename__ = 'referral_logs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    referrer_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    referred_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    referrer = relationship('User', foreign_keys=[referrer_id], backref='referrals_made')
+    referred = relationship('User', foreign_keys=[referred_id], backref='referred_by')
+
+    __table_args__ = (
+        Index('idx_referral_referrer', 'referrer_id'),
+    )
+
+    def __repr__(self):
+        return f'<ReferralLog referrer={self.referrer_id} referred={self.referred_id}>'
