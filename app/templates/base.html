@@ -17,6 +17,15 @@
     <!-- Design System (unified CSS) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251209">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- OG defaults (override via head_extra block in child templates) -->
+    {% block og_tags %}
+    <meta property="og:title" content="LLT English — Платформа для изучения английского языка">
+    <meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    {% endblock %}
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/og-default.png', _external=True) }}{% endblock %}">
+    <meta name="twitter:card" content="summary_large_image">
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
     {% block head_extra %}{% endblock %}
