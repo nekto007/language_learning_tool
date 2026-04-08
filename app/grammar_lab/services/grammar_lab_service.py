@@ -375,7 +375,7 @@ class GrammarLabService:
             user_id=user_id,
             exercise_id=exercise_id,
             is_correct=result['is_correct'],
-            user_answer=str(answer),
+            user_answer=str(result.get('user_answer', answer)),
             time_spent=time_spent,
             session_id=session_id,
             source=source

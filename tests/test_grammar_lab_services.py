@@ -134,6 +134,18 @@ class TestGraderFillBlank:
         result = grader.grade(ex, 'am')
         assert 'explanation' in result
 
+    def test_full_sentence_accepted(self, grader, grammar_exercises):
+        """User types full sentence 'I am a student' instead of just 'am'"""
+        ex = grammar_exercises[0]  # question: 'I ___ a student.', correct: 'am'
+        result = grader.grade(ex, 'I am a student')
+        assert result['is_correct'] is True
+
+    def test_full_sentence_wrong_answer(self, grader, grammar_exercises):
+        """Full sentence with wrong word in blank should fail"""
+        ex = grammar_exercises[0]
+        result = grader.grade(ex, 'I is a student')
+        assert result['is_correct'] is False
+
 
 class TestGraderMultipleChoice:
     def test_correct_index(self, grader, grammar_exercises):

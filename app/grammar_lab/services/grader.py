@@ -67,6 +67,15 @@ class GrammarExerciseGrader:
 
         is_correct = user == correct or user in alternatives
 
+        # If not matched and question has a blank, check if user typed the full sentence
+        if not is_correct and '___' in content.get('question', ''):
+            question = content.get('question', '')
+            for candidate in [correct] + alternatives:
+                full_sentence = self._normalize_answer(question.replace('___', candidate))
+                if user == full_sentence:
+                    is_correct = True
+                    break
+
         return {
             'is_correct': is_correct,
             'correct_answer': content.get('correct_answer', ''),
