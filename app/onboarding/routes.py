@@ -1,6 +1,7 @@
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
+from app.auth.routes import get_safe_redirect_url
 from app.onboarding import onboarding_bp
 from app.utils.db import db
 
@@ -32,6 +33,5 @@ def complete():
 
     # Redirect to originally requested page or dashboard
     next_url = request.form.get('next', '')
-    if next_url and next_url.startswith('/'):
-        return redirect(next_url)
-    return redirect(url_for('words.dashboard'))
+    safe_url = get_safe_redirect_url(next_url)
+    return redirect(safe_url)
