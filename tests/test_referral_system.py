@@ -131,6 +131,20 @@ class TestReferralRegistration:
         assert test_user.referral_code in set_cookie_headers[0]
 
 
+class TestRefCodeValidation:
+    def test_ref_with_special_chars_not_stored(self, client):
+        """Ref codes with special characters should not set a cookie."""
+        r = client.get('/register?ref=abc!@%23def')
+        set_cookie_headers = [h for h in r.headers.getlist('Set-Cookie') if 'ref=' in h]
+        assert len(set_cookie_headers) == 0
+
+    def test_ref_too_long_not_stored(self, client):
+        """Ref codes longer than 16 chars should not set a cookie."""
+        r = client.get('/register?ref=aaaabbbbccccddddeeee')
+        set_cookie_headers = [h for h in r.headers.getlist('Set-Cookie') if 'ref=' in h]
+        assert len(set_cookie_headers) == 0
+
+
 class TestReferralLogModel:
     def test_referral_log_relationships(self, db_session, test_user):
         """ReferralLog should have referrer and referred relationships."""

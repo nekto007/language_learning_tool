@@ -174,12 +174,8 @@ class TestRegister:
         }, follow_redirects=False)
         mock_email.send_email.assert_called_once()
         call_kwargs = mock_email.send_email.call_args
-        assert call_kwargs[1]['to_email'] == email or call_kwargs[0][1] == email
-        # Check template name is 'welcome'
-        if call_kwargs[1].get('template_name'):
-            assert call_kwargs[1]['template_name'] == 'welcome'
-        else:
-            assert 'welcome' in str(call_kwargs)
+        assert call_kwargs[1]['to_email'] == email
+        assert call_kwargs[1]['template_name'] == 'welcome'
 
     @patch('app.auth.routes.email_sender')
     def test_register_succeeds_even_if_email_fails(self, mock_email, client, db_session):
